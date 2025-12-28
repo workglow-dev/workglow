@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FileLoaderTask, FileLoaderTaskInput, FileLoaderTaskOutput } from "@workglow/tasks";
+import { FileLoaderTask, FileLoaderTaskInput, FileLoaderTaskOutput } from "@workglow/tasks/src/task/FileLoaderTask";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mock = vi.fn;

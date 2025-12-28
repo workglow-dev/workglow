@@ -15,13 +15,10 @@ import {
 import { readFile } from "node:fs/promises";
 
 import {
-  FileLoaderTask,
+  FileLoaderTask as BaseFileLoaderTask,
   FileLoaderTaskInput,
   FileLoaderTaskOutput,
 } from "./FileLoaderTask";
-
-// Re-export types for convenience
-export type { FileLoaderTaskInput, FileLoaderTaskOutput };
 
 /**
  * Server-only task for loading documents from the filesystem.
@@ -30,7 +27,7 @@ export type { FileLoaderTaskInput, FileLoaderTaskOutput };
  *
  * For cross-platform document loading (including browser), use FileLoaderTask with URLs.
  */
-export class FileLoaderServerTask extends FileLoaderTask {
+export class FileLoaderTask extends BaseFileLoaderTask {
   async execute(
     input: FileLoaderTaskInput,
     context: IExecuteContext
@@ -213,14 +210,11 @@ export class FileLoaderServerTask extends FileLoaderTask {
   }
 }
 
-// Override the base registration with the server implementation.
-// Both FileLoaderTask and FileLoaderServerTask share the same static type "FileLoaderTask",
-// so this registration replaces the base class in the TaskRegistry for server environments.
-// This allows seamless environment-specific behavior without code changes.
-TaskRegistry.registerTask(FileLoaderServerTask);
+// override the base registration
+TaskRegistry.registerTask(FileLoaderTask);
 
-export const fileLoaderServer = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
-  return new FileLoaderServerTask(input, config).run();
+export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
+  return new FileLoaderTask(input, config).run();
 };
 
 declare module "@workglow/task-graph" {
@@ -229,4 +223,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.fileLoaderServer = CreateWorkflow(FileLoaderServerTask);
+Workflow.prototype.fileLoaderServer = CreateWorkflow(FileLoaderTask);
