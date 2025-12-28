@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "include": ["src/**/*"],
-  "files": ["./src/bun.ts"],
+  "files": ["./src/types.ts"],
   "exclude": ["dist"],
   "compilerOptions": {
     "composite": true,

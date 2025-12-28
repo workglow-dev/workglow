@@ -536,11 +536,12 @@ describe("FetchUrlTask", () => {
       const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: null });
       let schema = task.outputSchema();
 
-      // Initially should have all types
+      // Initially should have all types (4 response types + metadata)
       expect(typeof schema).toBe("object");
       expect(schema).not.toBe(false);
       if (typeof schema === "object" && schema !== null && "properties" in schema) {
-        expect(Object.keys(schema.properties || {})).toHaveLength(4);
+        expect(Object.keys(schema.properties || {})).toHaveLength(5);
+        expect(schema.properties).toHaveProperty("metadata");
       }
 
       // Change response_type to json
@@ -550,8 +551,9 @@ describe("FetchUrlTask", () => {
       expect(typeof schema).toBe("object");
       expect(schema).not.toBe(false);
       if (typeof schema === "object" && schema !== null && "properties" in schema) {
-        expect(Object.keys(schema.properties || {})).toHaveLength(1);
+        expect(Object.keys(schema.properties || {})).toHaveLength(2); // json + metadata
         expect(schema.properties).toHaveProperty("json");
+        expect(schema.properties).toHaveProperty("metadata");
       }
     });
 

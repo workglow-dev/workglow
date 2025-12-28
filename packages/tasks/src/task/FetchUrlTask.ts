@@ -53,6 +53,8 @@ const inputSchema = {
     response_type: {
       anyOf: [{ type: "null" }, { enum: ["json", "text", "blob", "arraybuffer"] }],
       title: "Response Type",
+      description:
+        "The forced type of response to return. If null, the response type is inferred from the Content-Type header.",
       default: null,
     },
     timeout: {
@@ -90,6 +92,16 @@ const outputSchema = {
     arraybuffer: {
       title: "ArrayBuffer",
       description: "The arraybuffer response",
+    },
+    metadata: {
+      type: "object",
+      properties: {
+        contentType: { type: "string" },
+        headers: { type: "object", additionalProperties: { type: "string" } },
+      },
+      additionalProperties: false,
+      title: "Response Metadata",
+      description: "HTTP response metadata including content type and headers",
     },
   },
   additionalProperties: false,
@@ -189,10 +201,21 @@ export class FetchUrlJob<
     );
 
     if (response.ok) {
+      // Extract metadata from response
+      const contentType = response.headers.get("content-type") ?? "";
+      const headers: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+
+      const metadata = {
+        contentType,
+        headers,
+      };
+
       // Infer response type from response headers if not specified
       let responseType = input.response_type;
       if (!responseType) {
-        const contentType = response.headers.get("content-type") ?? "";
         if (contentType.includes("application/json")) {
           responseType = "json";
         } else if (contentType.includes("text/")) {
@@ -211,13 +234,13 @@ export class FetchUrlJob<
         input.response_type = responseType;
       }
       if (responseType === "json") {
-        return { json: await response.json() } as Output;
+        return { json: await response.json(), metadata } as Output;
       } else if (responseType === "text") {
-        return { text: await response.text() } as Output;
+        return { text: await response.text(), metadata } as Output;
       } else if (responseType === "blob") {
-        return { blob: await response.blob() } as Output;
+        return { blob: await response.blob(), metadata } as Output;
       } else if (responseType === "arraybuffer") {
-        return { arraybuffer: await response.arrayBuffer() } as Output;
+        return { arraybuffer: await response.arrayBuffer(), metadata } as Output;
       }
       throw new TaskInvalidInputError(`Invalid response type: ${responseType}`);
     } else {
@@ -314,6 +337,11 @@ export class FetchUrlTask<
       properties.blob = staticSchema.properties.blob;
     } else if (responseType === "arraybuffer" && staticSchema.properties.arraybuffer) {
       properties.arraybuffer = staticSchema.properties.arraybuffer;
+    }
+
+    // Always include metadata
+    if (staticSchema.properties.metadata) {
+      properties.metadata = staticSchema.properties.metadata;
     }
 
     // If no properties were added (shouldn't happen with valid responseType), return static schema
