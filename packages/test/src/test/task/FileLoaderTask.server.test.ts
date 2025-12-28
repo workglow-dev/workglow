@@ -5,13 +5,13 @@
  */
 
 // Import directly from source to avoid ambiguous export issue
-import { FileLoaderTask } from "@workglow/tasks";
+import { FileLoaderServerTask } from "@workglow/tasks";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("FileLoaderTask (server - local files)", () => {
+describe("FileLoaderServerTask (server - local files)", () => {
   let testDir: string;
 
   beforeEach(() => {
@@ -34,7 +34,7 @@ describe("FileLoaderTask (server - local files)", () => {
     const filePath = join(testDir, "test.txt");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "text" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "text" });
     const result = await task.run();
 
     expect(result.text).toBe(content);
@@ -51,7 +51,7 @@ describe("FileLoaderTask (server - local files)", () => {
     const filePath = join(testDir, "test.txt");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "text" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "text" });
     const result = await task.run();
 
     expect(result.text).toBe(content);
@@ -63,7 +63,7 @@ describe("FileLoaderTask (server - local files)", () => {
     const filePath = join(testDir, "test.md");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.text).toBe(content);
@@ -76,7 +76,7 @@ describe("FileLoaderTask (server - local files)", () => {
     const filePath = join(testDir, "test.json");
     writeFileSync(filePath, JSON.stringify(jsonData), "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.json).toEqual(jsonData);
@@ -89,7 +89,7 @@ describe("FileLoaderTask (server - local files)", () => {
     const filePath = join(testDir, "invalid.json");
     writeFileSync(filePath, invalidJson, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "json" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "json" });
 
     await expect(task.run()).rejects.toThrow(/Failed to parse JSON|JSON Parse error/);
   });
@@ -102,7 +102,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "test.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("csv");
@@ -121,7 +121,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "products.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.csv).toHaveLength(2);
@@ -142,7 +142,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "test.html");
     writeFileSync(filePath, htmlContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.text).toBe(htmlContent);
@@ -155,7 +155,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "test.htm");
     writeFileSync(filePath, htmlContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("html");
@@ -168,7 +168,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "test.png");
     writeFileSync(filePath, imageData);
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.image).toContain("data:image/png;base64,");
@@ -194,7 +194,7 @@ Bob,35,Paris`;
       const filePath = join(testDir, `test.${ext}`);
       writeFileSync(filePath, imageData);
 
-      const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+      const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
       const result = await task.run();
 
       expect(result.metadata.format).toBe("image");
@@ -210,7 +210,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "test.pdf");
     writeFileSync(filePath, pdfData);
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.pdf).toContain("data:application/pdf;base64,");
@@ -225,7 +225,7 @@ Bob,35,Paris`;
     writeFileSync(filePath, textContent, "utf-8");
 
     // Even though file extension is .json, force it as text
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "text" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "text" });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("text");
@@ -237,7 +237,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "empty.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.csv).toEqual([]);
@@ -248,7 +248,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "TEST.JSON");
     writeFileSync(filePath, JSON.stringify(jsonData), "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("json");
@@ -260,7 +260,7 @@ Bob,35,Paris`;
     const filePath = join(testDir, "file.xyz");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("text");
@@ -275,7 +275,7 @@ Bob,35,`;
     const filePath = join(testDir, "sparse.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.csv).toHaveLength(3);
@@ -289,7 +289,7 @@ Bob,35,`;
     const filePath = join(testDir, "file.txt");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "text" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "text" });
     const result = await task.run();
 
     expect(result.metadata).toHaveProperty("url", filePath);
@@ -313,7 +313,7 @@ Bob,35,`;
     const filePath = join(testDir, "complex.json");
     writeFileSync(filePath, JSON.stringify(jsonData), "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.json).toEqual(jsonData);
@@ -331,7 +331,7 @@ Bob,35,`;
     const filePath = join(specialDir, "file-name.txt");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.text).toBe(content);
@@ -347,7 +347,7 @@ Bob,35,`;
     const filePath = join(testDir, "large.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.csv).toHaveLength(rows);
@@ -365,7 +365,7 @@ Bob,35,`;
     const filePath = join(testDir, "binary.png");
     writeFileSync(filePath, binaryData);
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.image).toContain("data:image/png;base64,");
@@ -380,7 +380,7 @@ Bob,35,`;
     const filePath = join(testDir, "progress.txt");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
 
     // Mock the task runner's updateProgress by accessing the task's progress property
     // Note: Progress updates happen internally via context.updateProgress
@@ -397,7 +397,7 @@ Bob,35,`;
     writeFileSync(filePath, content, "utf-8");
 
     const abortController = new AbortController();
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
 
     // Abort immediately
     abortController.abort();
@@ -412,7 +412,7 @@ Bob,35,`;
     const filePath = join(testDir, "windows.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.csv).toHaveLength(2);
@@ -425,7 +425,7 @@ Bob,35,`;
     const filePath = join(testDir, "mixed.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}` });
     const result = await task.run();
 
     expect(result.csv).toHaveLength(2);
@@ -436,7 +436,7 @@ Bob,35,`;
     const filePath = join(testDir, "test.markdown");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const task = new FileLoaderServerTask({ url: `file://${filePath}`, format: "auto" });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("markdown");

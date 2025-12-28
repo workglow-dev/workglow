@@ -15,7 +15,7 @@ import {
 import { readFile } from "node:fs/promises";
 
 import {
-  FileLoaderTask as BaseFileLoaderTask,
+  FileLoaderTask,
   FileLoaderTaskInput,
   FileLoaderTaskOutput,
 } from "./FileLoaderTask";
@@ -27,7 +27,7 @@ import {
  *
  * For cross-platform document loading (including browser), use FileLoaderTask with URLs.
  */
-export class FileLoaderTask extends BaseFileLoaderTask {
+export class FileLoaderServerTask extends FileLoaderTask {
   async execute(
     input: FileLoaderTaskInput,
     context: IExecuteContext
@@ -211,10 +211,10 @@ export class FileLoaderTask extends BaseFileLoaderTask {
 }
 
 // override the base registration
-TaskRegistry.registerTask(FileLoaderTask);
+TaskRegistry.registerTask(FileLoaderServerTask);
 
-export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
-  return new FileLoaderTask(input, config).run();
+export const fileLoaderServer = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
+  return new FileLoaderServerTask(input, config).run();
 };
 
 declare module "@workglow/task-graph" {
@@ -223,4 +223,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.fileLoaderServer = CreateWorkflow(FileLoaderTask);
+Workflow.prototype.fileLoaderServer = CreateWorkflow(FileLoaderServerTask);
