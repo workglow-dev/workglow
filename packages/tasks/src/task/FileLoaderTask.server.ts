@@ -213,7 +213,10 @@ export class FileLoaderServerTask extends FileLoaderTask {
   }
 }
 
-// override the base registration
+// Override the base registration with the server implementation.
+// Both FileLoaderTask and FileLoaderServerTask share the same static type "FileLoaderTask",
+// so this registration replaces the base class in the TaskRegistry for server environments.
+// This allows seamless environment-specific behavior without code changes.
 TaskRegistry.registerTask(FileLoaderServerTask);
 
 export const fileLoaderServer = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
