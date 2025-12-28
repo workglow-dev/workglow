@@ -20,6 +20,9 @@ import {
   FileLoaderTaskOutput,
 } from "./FileLoaderTask";
 
+// Re-export types for convenience
+export type { FileLoaderTaskInput, FileLoaderTaskOutput };
+
 /**
  * Server-only task for loading documents from the filesystem.
  * Uses Node.js/Bun file APIs directly for better performance.
