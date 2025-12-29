@@ -1,5 +1,14 @@
 # @workglow/storage
 
+## 0.0.85
+
+### Patch Changes
+
+- Add FileLoaderTask and Ai tasks can use model config directly
+- Updated dependencies
+  - @workglow/sqlite@0.0.85
+  - @workglow/util@0.0.85
+
 ## 0.0.84
 
 ### Patch Changes

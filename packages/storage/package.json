@@ -1,7 +1,7 @@
 {
   "name": "@workglow/storage",
   "type": "module",
-  "version": "0.0.84",
+  "version": "0.0.85",
   "description": "Storage abstraction layer for Workglow, supporting IndexedDB, PostgreSQL, and Supabase with unified interfaces.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.85
+
+### Patch Changes
+
+- Add FileLoaderTask and Ai tasks can use model config directly
+
 ## 0.0.84
 
 ### Patch Changes
