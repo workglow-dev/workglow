@@ -505,10 +505,14 @@ const limiter = new DelayLimiter(500);
 ### Rate Limiter
 
 ```typescript
-import { InMemoryRateLimiter } from "@workglow/job-queue";
+import { RateLimiter } from "@workglow/job-queue";
+import { InMemoryRateLimiterStorage } from "@workglow/storage";
+
+// Create storage for the rate limiter
+const rateLimiterStorage = new InMemoryRateLimiterStorage();
 
 // Max 10 executions per 60-second window
-const limiter = new InMemoryRateLimiter({
+const limiter = new RateLimiter(rateLimiterStorage, "my-queue", {
   maxExecutions: 10,
   windowSizeInSeconds: 60,
   initialBackoffDelay: 1000,
@@ -520,13 +524,17 @@ const limiter = new InMemoryRateLimiter({
 ### Composite Limiter
 
 ```typescript
-import { CompositeLimiter, ConcurrencyLimiter, DelayLimiter } from "@workglow/job-queue";
+import { CompositeLimiter, ConcurrencyLimiter, DelayLimiter, RateLimiter } from "@workglow/job-queue";
+import { InMemoryRateLimiterStorage } from "@workglow/storage";
+
+// Create storage for the rate limiter
+const rateLimiterStorage = new InMemoryRateLimiterStorage();
 
 // Combine multiple limiting strategies
 const limiter = new CompositeLimiter([
   new ConcurrencyLimiter(3),
   new DelayLimiter(100),
-  new InMemoryRateLimiter({
+  new RateLimiter(rateLimiterStorage, "my-queue", {
     maxExecutions: 20,
     windowSizeInSeconds: 60,
   }),

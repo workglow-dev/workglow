@@ -55,11 +55,11 @@ Some tasks are run in a queue, so that a full task queue can resume where it lef
 
 Queues can have limiters, like only running one task at a time, or based on rate limits.
 
-- **RateLimiter**: The RateLimiter is a simple rate limiter that can be used to limit the number of tasks that are run in a certain time period. If a task using an API errors out, the rate limiter can use details of the error response to determine how long to wait before trying again. There are several different rate limiter implementations, including:
-  - **SqliteRateLimiter**: The SqliteRateLimiter is a rate limiter that is stored in a Sqlite database.
-  - **PostgresRateLimiter**: The PostgresRateLimiter is a rate limiter that is stored in a Postgres database.
-  - **InMemoryRateLimiter**: The InMemoryRateLimiter is a rate limiter that is stored in memory.
-  - **IndexedDbRateLimiter**: The IndexedDbRateLimiter is a rate limiter that is stored in the browser's IndexedDB.\*
+- **RateLimiter**: The RateLimiter is a rate limiter that can be used to limit the number of tasks that are run in a certain time period. If a task using an API errors out, the rate limiter can use details of the error response to determine how long to wait before trying again. Rate limiters are created by combining the `RateLimiter` class with a storage backend:
+  - **SqliteRateLimiterStorage**: Storage backend for rate limiters using a Sqlite database.
+  - **PostgresRateLimiterStorage**: Storage backend for rate limiters using a Postgres database.
+  - **InMemoryRateLimiterStorage**: Storage backend for rate limiters stored in memory.
+  - **IndexedDbRateLimiterStorage**: Storage backend for rate limiters using the browser's IndexedDB.\*
 - **ConcurrencyLimiter**: The ConcurrencyLimiter is a simple concurrency limiter that can be used to limit the number of tasks that are run at the same time.
 - **CompositeLimiter**: The CompositeLimiter is a simple composite limiter that can be used to combine multiple limiters.
 
