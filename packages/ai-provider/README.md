@@ -41,37 +41,11 @@ npm install @mediapipe/tasks-text @mediapipe/tasks-vision @mediapipe/tasks-audio
 ### 1. Basic Setup
 
 ```typescript
-import {
-  HF_TRANSFORMERS_ONNX,
-  TENSORFLOW_MEDIAPIPE,
-  register_HFT_InlineJobFns,
-  register_TFMP_InlineJobFns,
-} from "@workglow/ai-provider";
-import { getTaskQueueRegistry } from "@workglow/task-graph";
-import { AiJob } from "@workglow/ai";
-import { JobQueue, ConcurrencyLimiter } from "@workglow/job-queue";
-import { InMemoryQueueStorage } from "@workglow/storage";
+import { register_HFT_InlineJobFns, register_TFMP_InlineJobFns } from "@workglow/ai-provider";
 
 // Register AI providers
 await register_HFT_InlineJobFns();
-register_TFMP_InlineJobFns();
-
-// Set up job queues
-const queueRegistry = getTaskQueueRegistry();
-
-queueRegistry.registerQueue(
-  new JobQueue(HF_TRANSFORMERS_ONNX, AiJob, {
-    limiter: new ConcurrencyLimiter(1, 100),
-    storage: new InMemoryQueueStorage(HF_TRANSFORMERS_ONNX),
-  })
-);
-
-queueRegistry.registerQueue(
-  new JobQueue(TENSORFLOW_MEDIAPIPE, AiJob, {
-    limiter: new ConcurrencyLimiter(1, 100),
-    storage: new InMemoryQueueStorage(TENSORFLOW_MEDIAPIPE),
-  })
-);
+await register_TFMP_InlineJobFns();
 ```
 
 ### 2. Using AI Tasks in Workflows
@@ -112,32 +86,25 @@ Supports ONNX models from HuggingFace Hub with the following task types:
 
 #### Supported Tasks
 
+- **DownloadModelTask**: Pre-download and cache models
+- **UnloadModelTask**: Unload models from memory
 - **TextGenerationTask**: Generate text from prompts
 - **TextEmbeddingTask**: Generate vector embeddings for text
 - **TextTranslationTask**: Translate text between languages
 - **TextSummaryTask**: Summarize long text
 - **TextRewriterTask**: Rewrite text with a given prompt
 - **TextQuestionAnswerTask**: Answer questions based on context
-- **DownloadModelTask**: Pre-download and cache models
-
-#### Model Configuration
-
-Models support various quantization options:
-
-```typescript
-import { QuantizationDataType } from "@workglow/ai-provider";
-
-// Quantization options
-// "auto" - Auto-detect based on environment
-// "fp32" - 32-bit floating point
-// "fp16" - 16-bit floating point
-// "q8" - 8-bit quantized
-// "int8" - 8-bit integer
-// "uint8" - 8-bit unsigned integer
-// "q4" - 4-bit quantized
-// "bnb4" - BitsAndBytes 4-bit
-// "q4f16" - fp16 model with int4 block weight quantization
-```
+- **TextLanguageDetectionTask**: Detect the language of text
+- **TextClassificationTask**: Classify text into categories
+- **TextFillMaskTask**: Fill in masked text
+- **TextNamedEntityRecognitionTask**: Recognize named entities in text
+- **TextRewriterTask**: Rewrite text with a given prompt
+- **ImageSegmentationTask**: Segment images into regions
+- **ImageToTextTask**: Convert images to text
+- **BackgroundRemovalTask**: Remove background from images
+- **ImageEmbeddingTask**: Generate vector embeddings for images
+- **ImageClassificationTask**: Classify images into categories
+- **ObjectDetectionTask**: Detect objects in images
 
 #### Task Examples
 
@@ -319,14 +286,30 @@ await downloadTask.execute();
 ### Custom Job Queue Configuration
 
 ```typescript
-import { JobQueue, ConcurrencyLimiter, DelayLimiter } from "@workglow/job-queue";
+import {
+  JobQueueClient,
+  JobQueueServer,
+  ConcurrencyLimiter,
+  DelayLimiter,
+} from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
+import { register_HFT_InlineJobFns, HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
 
 // Configure queue with custom limits
-const customQueue = new JobQueue(HF_TRANSFORMERS_ONNX, AiJob, {
-  limiter: new ConcurrencyLimiter(2, 1000), // 2 concurrent jobs, 1000ms timeout
+const customQueue = new JobQueueServer(HF_TRANSFORMERS_ONNX, AiJob, {
   storage: new InMemoryQueueStorage(HF_TRANSFORMERS_ONNX),
+  queueName: HF_TRANSFORMERS_ONNX,
+  limiter: new ConcurrencyLimiter(2, 1000), // 2 concurrent jobs, 1000ms timeout
 });
+
+const client = new JobQueueClient({
+  storage: new InMemoryQueueStorage(HF_TRANSFORMERS_ONNX),
+  queueName: HF_TRANSFORMERS_ONNX,
+});
+
+client.attach(customQueue);
+// Register AI providers
+await register_HFT_InlineJobFns(client);
 ```
 
 ### Error Handling
@@ -372,23 +355,12 @@ await task.execute();
 import { HF_TRANSFORMERS_ONNX, register_HFT_InlineJobFns } from "@workglow/ai-provider";
 import { TextGenerationTask, TextEmbeddingTask, AiJob } from "@workglow/ai";
 import { Workflow, getTaskQueueRegistry } from "@workglow/task-graph";
-import { JobQueue, ConcurrencyLimiter } from "@workglow/job-queue";
-import { InMemoryQueueStorage } from "@workglow/storage";
 
 async function main() {
   // 1. Register the AI provider
   await register_HFT_InlineJobFns();
 
-  // 2. Set up job queue
-  const queueRegistry = getTaskQueueRegistry();
-  queueRegistry.registerQueue(
-    new JobQueue(HF_TRANSFORMERS_ONNX, AiJob, {
-      limiter: new ConcurrencyLimiter(1, 100),
-      storage: new InMemoryQueueStorage(HF_TRANSFORMERS_ONNX),
-    })
-  );
-
-  // 3. Create and run workflow
+  // 2. Create and run workflow
   const workflow = new Workflow();
 
   const result = await workflow
