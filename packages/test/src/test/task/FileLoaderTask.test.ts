@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FileLoaderTask, FileLoaderTaskInput, FileLoaderTaskOutput } from "@workglow/tasks";
+import { FileLoaderTask } from "@workglow/tasks";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mock = vi.fn;
@@ -72,7 +72,7 @@ describe("FileLoaderTask", () => {
   test("loads JSON file and parses content", async () => {
     const jsonData = { name: "Test", value: 42, nested: { key: "value" } };
     const jsonString = JSON.stringify(jsonData);
-    
+
     mockFetch.mockImplementation(() =>
       Promise.resolve(
         new Response(jsonString, {
@@ -171,10 +171,10 @@ Bob,35,Paris`;
 
   test("detects image format from different extensions", async () => {
     const extensions = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"];
-    
+
     for (const ext of extensions) {
       const blob = new Blob([new Uint8Array([1, 2, 3])], { type: `image/${ext}` });
-      
+
       mockFetch.mockImplementation(() =>
         Promise.resolve(
           new Response(blob, {
@@ -263,7 +263,7 @@ Bob,35,Paris`;
     );
 
     const task = new FileLoaderTask({ url: "https://example.com/empty.txt" });
-    
+
     await expect(task.run()).rejects.toThrow("Failed to load content");
   });
 
@@ -281,7 +281,7 @@ Bob,35,Paris`;
 
     const task = new FileLoaderTask({ url: "https://example.com/empty.png" });
     const result = await task.run();
-    
+
     expect(result.image).toContain("data:image/png;base64,");
     expect(result.metadata.format).toBe("image");
     expect(result.metadata.size).toBe(0);
@@ -301,7 +301,7 @@ Bob,35,Paris`;
 
     const task = new FileLoaderTask({ url: "https://example.com/empty.pdf" });
     const result = await task.run();
-    
+
     expect(result.pdf).toContain("data:application/pdf;base64,");
     expect(result.metadata.format).toBe("pdf");
     expect(result.metadata.size).toBe(0);
@@ -309,7 +309,7 @@ Bob,35,Paris`;
 
   test("case-insensitive file extension detection", async () => {
     const jsonData = { test: "value" };
-    
+
     mockFetch.mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify(jsonData), {
@@ -328,7 +328,7 @@ Bob,35,Paris`;
 
   test("defaults to text for unknown file extensions", async () => {
     const content = "Unknown file content";
-    
+
     mockFetch.mockImplementation(() =>
       Promise.resolve(
         new Response(content, {
@@ -400,7 +400,7 @@ Bob,35,`;
         created: "2025-01-01",
       },
     };
-    
+
     mockFetch.mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify(jsonData), {
