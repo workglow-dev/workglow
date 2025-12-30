@@ -71,10 +71,11 @@ import type {
   TextSummaryTaskExecuteOutput,
   TextTranslationTaskExecuteInput,
   TextTranslationTaskExecuteOutput,
-  TypedArray,
   UnloadModelTaskExecuteInput,
   UnloadModelTaskExecuteOutput,
 } from "@workglow/ai";
+
+import { TypedArray } from "@workglow/util";
 import { CallbackStatus } from "./HFT_CallbackStatus";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";

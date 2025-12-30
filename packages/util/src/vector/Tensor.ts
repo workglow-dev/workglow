@@ -1,0 +1,62 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { FromSchema } from "../json-schema/FromSchema";
+import { JsonSchema } from "../json-schema/JsonSchema";
+import { TypedArraySchema, TypedArraySchemaOptions } from "./TypedArray";
+
+export const TensorType = {
+  FLOAT16: "float16",
+  FLOAT32: "float32",
+  FLOAT64: "float64",
+  INT8: "int8",
+  UINT8: "uint8",
+  INT16: "int16",
+  UINT16: "uint16",
+} as const;
+
+export type TensorType = (typeof TensorType)[keyof typeof TensorType];
+
+/**
+ * Vector schema for representing vectors as arrays of numbers
+ * @param annotations - Additional annotations for the schema
+ * @returns The vector schema
+ */
+export const TensorSchema = (annotations: Record<string, unknown> = {}) =>
+  ({
+    type: "object",
+    properties: {
+      type: {
+        type: "string",
+        enum: Object.values(TensorType),
+        title: "Type",
+        description: "The type of the vector",
+      },
+      data: TypedArraySchema({
+        title: "Data",
+        description: "The data of the vector",
+      }),
+      shape: {
+        type: "array",
+        items: { type: "number" },
+        title: "Shape",
+        description: "The shape of the vector (dimensions)",
+        minItems: 1,
+        default: [1],
+      },
+      normalized: {
+        type: "boolean",
+        title: "Normalized",
+        description: "Whether the vectors data is normalized",
+        default: false,
+      },
+    },
+    required: ["data"],
+    additionalProperties: false,
+    ...annotations,
+  }) as const satisfies JsonSchema;
+
+export type Vector = FromSchema<ReturnType<typeof TensorSchema>, TypedArraySchemaOptions>;

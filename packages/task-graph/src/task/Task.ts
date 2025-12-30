@@ -684,6 +684,10 @@ export class Task<
     if (obj === null || obj === undefined) {
       return obj;
     }
+    // Preserve TypedArrays (Float32Array, Int8Array, etc.)
+    if (ArrayBuffer.isView(obj)) {
+      return obj;
+    }
     if (Array.isArray(obj)) {
       return obj.map((item) => this.stripSymbols(item));
     }

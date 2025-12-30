@@ -5,10 +5,9 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema, TypedArraySchema } from "@workglow/util";
 import {
   DeReplicateFromSchema,
-  TypedArraySchema,
   TypeImageInput,
   TypeModel,
   TypeReplicateArray,

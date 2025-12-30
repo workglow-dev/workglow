@@ -1,0 +1,244 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  CreateWorkflow,
+  JobQueueTaskConfig,
+  Task,
+  TaskRegistry,
+  Workflow,
+} from "@workglow/task-graph";
+import {
+  DataPortSchema,
+  FromSchema,
+  normalizeNumberArray,
+  TensorType,
+  TypedArray,
+  TypedArraySchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+
+const inputSchema = {
+  type: "object",
+  properties: {
+    vector: {
+      anyOf: [
+        TypedArraySchema({
+          title: "Vector",
+          description: "The vector to quantize",
+        }),
+        {
+          type: "array",
+          items: TypedArraySchema({
+            title: "Vector",
+            description: "Vector to quantize",
+          }),
+        },
+      ],
+      title: "Input Vector(s)",
+      description: "Vector or array of vectors to quantize",
+    },
+    targetType: {
+      type: "string",
+      enum: Object.values(TensorType),
+      title: "Target Type",
+      description: "Target quantization type",
+      default: TensorType.INT8,
+    },
+    normalize: {
+      type: "boolean",
+      title: "Normalize",
+      description: "Normalize vector before quantization",
+      default: true,
+    },
+  },
+  required: ["vector", "targetType"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+const outputSchema = {
+  type: "object",
+  properties: {
+    vector: {
+      anyOf: [
+        TypedArraySchema({
+          title: "Quantized Vector",
+          description: "The quantized vector",
+        }),
+        {
+          type: "array",
+          items: TypedArraySchema({
+            title: "Quantized Vector",
+            description: "Quantized vector",
+          }),
+        },
+      ],
+      title: "Output Vector(s)",
+      description: "Quantized vector or array of vectors",
+    },
+    originalType: {
+      type: "string",
+      enum: Object.values(TensorType),
+      title: "Original Type",
+      description: "Original vector type",
+    },
+    targetType: {
+      type: "string",
+      enum: Object.values(TensorType),
+      title: "Target Type",
+      description: "Target quantization type",
+    },
+  },
+  required: ["vector", "originalType", "targetType"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type VectorQuantizeTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
+export type VectorQuantizeTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
+
+/**
+ * Task for quantizing vectors to reduce storage and improve performance.
+ * Supports various quantization types including binary, int8, uint8, int16, uint16.
+ */
+export class VectorQuantizeTask extends Task<
+  VectorQuantizeTaskInput,
+  VectorQuantizeTaskOutput,
+  JobQueueTaskConfig
+> {
+  public static type = "VectorQuantizeTask";
+  public static category = "Vector Processing";
+  public static title = "Quantize Vector";
+  public static description = "Quantize vectors to reduce storage and improve performance";
+  public static cacheable = true;
+
+  public static inputSchema(): DataPortSchema {
+    return inputSchema as DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return outputSchema as DataPortSchema;
+  }
+
+  async executeReactive(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
+    const { vector, targetType, normalize = true } = input;
+    const isArray = Array.isArray(vector);
+    const vectors = isArray ? vector : [vector];
+    const originalType = this.getVectorType(vectors[0]);
+
+    const quantized = vectors.map((v) => this.vectorQuantize(v, targetType, normalize));
+
+    return {
+      vector: isArray ? quantized : quantized[0],
+      originalType,
+      targetType,
+    };
+  }
+
+  private getVectorType(vector: TypedArray): TensorType {
+    if (vector instanceof Float16Array) return TensorType.FLOAT16;
+    if (vector instanceof Float32Array) return TensorType.FLOAT32;
+    if (vector instanceof Float64Array) return TensorType.FLOAT64;
+    if (vector instanceof Int8Array) return TensorType.INT8;
+    if (vector instanceof Uint8Array) return TensorType.UINT8;
+    if (vector instanceof Int16Array) return TensorType.INT16;
+    if (vector instanceof Uint16Array) return TensorType.UINT16;
+    throw new Error(`Unknown vector type: ${typeof vector}`);
+  }
+
+  private vectorQuantize(
+    vector: TypedArray,
+    targetType: TensorType,
+    normalize: boolean
+  ): TypedArray {
+    let values = Array.from(vector) as number[];
+
+    // Normalize if requested
+    if (normalize) {
+      values = normalizeNumberArray(values, false);
+    }
+
+    switch (targetType) {
+      case TensorType.FLOAT16:
+        return new Float16Array(values);
+
+      case TensorType.FLOAT32:
+        return new Float32Array(values);
+
+      case TensorType.FLOAT64:
+        return new Float64Array(values);
+
+      case TensorType.INT8:
+        return this.quantizeToInt8(values);
+
+      case TensorType.UINT8:
+        return this.quantizeToUint8(values);
+
+      case TensorType.INT16:
+        return this.quantizeToInt16(values);
+
+      case TensorType.UINT16:
+        return this.quantizeToUint16(values);
+
+      default:
+        return new Float32Array(values);
+    }
+  }
+
+  private quantizeToInt8(values: number[]): Int8Array {
+    // Assume values are in [-1, 1] range after normalization
+    // Scale to [-127, 127] to avoid overflow at -128
+    return new Int8Array(values.map((v) => Math.round(Math.max(-1, Math.min(1, v)) * 127)));
+  }
+
+  private quantizeToUint8(values: number[]): Uint8Array {
+    // Find min/max for scaling
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+
+    // Scale to [0, 255]
+    return new Uint8Array(values.map((v) => Math.round(((v - min) / range) * 255)));
+  }
+
+  private quantizeToInt16(values: number[]): Int16Array {
+    // Assume values are in [-1, 1] range after normalization
+    // Scale to [-32767, 32767]
+    return new Int16Array(values.map((v) => Math.round(Math.max(-1, Math.min(1, v)) * 32767)));
+  }
+
+  private quantizeToUint16(values: number[]): Uint16Array {
+    // Find min/max for scaling
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+
+    // Scale to [0, 65535]
+    return new Uint16Array(values.map((v) => Math.round(((v - min) / range) * 65535)));
+  }
+
+  private quantizeToBinary(values: number[]): Int8Array {
+    // Binary quantization: positive → 127, negative/zero → -128
+    return new Int8Array(values.map((v) => (v > 0 ? 127 : -128)));
+  }
+}
+
+TaskRegistry.registerTask(VectorQuantizeTask);
+
+export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: JobQueueTaskConfig) => {
+  return new VectorQuantizeTask(input, config).run();
+};
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    vectorQuantize: CreateWorkflow<
+      VectorQuantizeTaskInput,
+      VectorQuantizeTaskOutput,
+      JobQueueTaskConfig
+    >;
+  }
+}
+
+Workflow.prototype.vectorQuantize = CreateWorkflow(VectorQuantizeTask);

@@ -30,4 +30,5 @@ export * from "./TextRewriterTask";
 export * from "./TextSummaryTask";
 export * from "./TextTranslationTask";
 export * from "./UnloadModelTask";
+export * from "./VectorQuantizeTask";
 export * from "./VectorSimilarityTask";
