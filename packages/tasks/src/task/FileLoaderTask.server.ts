@@ -20,7 +20,7 @@ import {
   FileLoaderTaskOutput,
 } from "./FileLoaderTask";
 
-export { FileLoaderTaskInput, FileLoaderTaskOutput };
+export type { FileLoaderTaskInput, FileLoaderTaskOutput };
 
 /**
  * Server-only task for loading documents from the filesystem.
