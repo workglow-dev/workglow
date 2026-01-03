@@ -82,7 +82,7 @@ TaskRegistry.registerTask(ImageEmbeddingTask);
  * @returns Promise resolving to the image embedding vector
  */
 export const imageEmbedding = (input: ImageEmbeddingTaskInput, config?: JobQueueTaskConfig) => {
-  return new ImageEmbeddingTask(input, config).run();
+  return new ImageEmbeddingTask({} as ImageEmbeddingTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

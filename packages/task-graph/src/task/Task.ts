@@ -380,12 +380,62 @@ export class Task<
    * Resets input data to defaults
    */
   public resetInputData(): void {
-    // Use deep clone to avoid state leakage
-    try {
-      this.runInputData = structuredClone(this.defaults) as Record<string, any>;
-    } catch (err) {
-      this.runInputData = JSON.parse(JSON.stringify(this.defaults)) as Record<string, any>;
+    this.runInputData = this.smartClone(this.defaults) as Record<string, any>;
+  }
+
+  /**
+   * Smart clone that deep-clones plain objects and arrays while preserving
+   * class instances (objects with non-Object prototype) by reference.
+   *
+   * This is necessary because:
+   * - structuredClone cannot clone class instances (methods are lost)
+   * - JSON.parse/stringify loses methods and fails on circular references
+   * - Class instances like repositories should be passed by reference
+   *
+   * This breaks the idea of everything being json serializable, but it allows
+   * more efficient use cases. Do be careful with this though! Use sparingly.
+   *
+   * @param obj The object to clone
+   * @returns A cloned object with class instances preserved by reference
+   */
+  private smartClone(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
     }
+
+    // Preserve TypedArrays (Float32Array, Int8Array, etc.) by reference
+    // These are often large and cloning them is expensive
+    if (ArrayBuffer.isView(obj)) {
+      return obj;
+    }
+
+    // Preserve class instances (objects with non-Object/non-Array prototype)
+    // This includes repository instances, custom classes, etc.
+    if (typeof obj === "object" && !Array.isArray(obj)) {
+      const proto = Object.getPrototypeOf(obj);
+      if (proto !== Object.prototype && proto !== null) {
+        return obj; // Pass by reference
+      }
+    }
+
+    // Deep clone arrays, preserving class instances within
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.smartClone(item));
+    }
+
+    // Deep clone plain objects
+    if (typeof obj === "object") {
+      const result: Record<string, any> = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          result[key] = this.smartClone(obj[key]);
+        }
+      }
+      return result;
+    }
+
+    // Primitives (string, number, boolean, symbol, bigint) are returned as-is
+    return obj;
   }
 
   /**

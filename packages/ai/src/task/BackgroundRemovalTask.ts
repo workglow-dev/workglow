@@ -88,7 +88,7 @@ export const backgroundRemoval = (
   input: BackgroundRemovalTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new BackgroundRemovalTask(input, config).run();
+  return new BackgroundRemovalTask({} as BackgroundRemovalTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

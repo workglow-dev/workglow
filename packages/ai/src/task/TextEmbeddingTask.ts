@@ -85,7 +85,7 @@ TaskRegistry.registerTask(TextEmbeddingTask);
  * @returns  Promise resolving to the generated embeddings
  */
 export const textEmbedding = async (input: TextEmbeddingTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextEmbeddingTask(input, config).run();
+  return new TextEmbeddingTask({} as TextEmbeddingTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
