@@ -117,7 +117,7 @@ export interface ITaskIO<Input extends TaskInput> {
   addInput(overrides: Record<string, any> | undefined): boolean;
   validateInput(input: Record<string, any>): Promise<boolean>;
   get cacheable(): boolean;
-  narrowInput(input: Record<string, any>): Promise<Record<string, any>>;
+  narrowInput(input: Record<string, any>, registry: ServiceRegistry): Promise<Record<string, any>>;
 }
 
 export interface ITaskInternalGraph {

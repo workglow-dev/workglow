@@ -6,6 +6,7 @@ This document covers how to write your own tasks. For a more practical guide to 
   - [Tasks must have a `run()` method](#tasks-must-have-a-run-method)
   - [Define Inputs and Outputs](#define-inputs-and-outputs)
   - [Register the Task](#register-the-task)
+- [Schema Format Annotations](#schema-format-annotations)
 - [Job Queues and LLM tasks](#job-queues-and-llm-tasks)
 - [Write a new Compound Task](#write-a-new-compound-task)
 - [Reactive Task UIs](#reactive-task-uis)
@@ -128,6 +129,100 @@ declare module "@workglow/task-graph" {
 
 Workflow.prototype.simpleDebug = CreateWorkflow(SimpleDebugTask);
 ```
+
+## Schema Format Annotations
+
+When defining task input schemas, you can use `format` annotations to enable automatic resolution of string identifiers to object instances. The TaskRunner inspects input schemas and resolves annotated string values before task execution.
+
+### Built-in Format Annotations
+
+The system supports several format annotations out of the box:
+
+| Format | Description | Helper Function |
+|--------|-------------|-----------------|
+| `model` | Any AI model configuration | — |
+| `model:TaskName` | Model compatible with specific task | — |
+| `repository:tabular` | Tabular data repository | `TypeTabularRepository()` |
+| `repository:vector` | Vector storage repository | `TypeVectorRepository()` |
+| `repository:document` | Document repository | `TypeDocumentRepository()` |
+
+### Example: Using Format Annotations
+
+```typescript
+import { Task } from "@workglow/task-graph";
+import { TypeTabularRepository } from "@workglow/storage";
+
+const MyTaskInputSchema = {
+  type: "object",
+  properties: {
+    // Model input - accepts string ID or ModelConfig object
+    model: {
+      title: "AI Model",
+      description: "Model for text generation",
+      format: "model:TextGenerationTask",
+      oneOf: [
+        { type: "string", title: "Model ID" },
+        { type: "object", title: "Model Config" },
+      ],
+    },
+    // Repository input - uses helper function
+    dataSource: TypeTabularRepository({
+      title: "Data Source",
+      description: "Repository containing source data",
+    }),
+    // Regular string input (no resolution)
+    prompt: { type: "string", title: "Prompt" },
+  },
+  required: ["model", "dataSource", "prompt"],
+} as const;
+
+export class MyTask extends Task {
+  static readonly type = "MyTask";
+  static inputSchema = () => MyTaskInputSchema;
+
+  async executeReactive() {
+    // By the time execute runs, model is a ModelConfig object
+    // and dataSource is an ITabularRepository instance
+    const { model, dataSource, prompt } = this.runInputData;
+    // ...
+  }
+}
+```
+
+### Creating Custom Format Resolvers
+
+You can extend the resolution system by registering custom resolvers:
+
+```typescript
+import { registerInputResolver } from "@workglow/util";
+
+// Register a resolver for "template:*" formats
+registerInputResolver("template", async (id, format, registry) => {
+  const templateRepo = registry.get(TEMPLATE_REPOSITORY);
+  const template = await templateRepo.findById(id);
+  if (!template) {
+    throw new Error(`Template "${id}" not found`);
+  }
+  return template;
+});
+```
+
+Then use it in your schemas:
+
+```typescript
+const inputSchema = {
+  type: "object",
+  properties: {
+    emailTemplate: {
+      type: "string",
+      format: "template:email",
+      title: "Email Template",
+    },
+  },
+};
+```
+
+When a task runs with `{ emailTemplate: "welcome-email" }`, the resolver automatically converts it to the template object before execution.
 
 ## Job Queues and LLM tasks
 

@@ -11,6 +11,7 @@ import {
   SchemaNode,
   uuid4,
   type DataPortSchema,
+  type ServiceRegistry,
 } from "@workglow/util";
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
@@ -571,9 +572,13 @@ export class Task<
   /**
    * Stub for narrowing input. Override in subclasses for custom logic.
    * @param input The input to narrow
+   * @param _registry Optional service registry for lookups
    * @returns The (possibly narrowed) input
    */
-  public async narrowInput(input: Record<string, any>): Promise<Record<string, any>> {
+  public async narrowInput(
+    input: Record<string, any>,
+    _registry: ServiceRegistry
+  ): Promise<Record<string, any>> {
     return input;
   }
 

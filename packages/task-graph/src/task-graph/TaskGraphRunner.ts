@@ -369,7 +369,7 @@ export class TaskGraphRunner {
         dataflow.setPortData(results, nodeProvenance);
       } else if (compatibility === "runtime") {
         const task = this.graph.getTask(dataflow.targetTaskId)!;
-        const narrowed = await task.narrowInput({ ...results });
+        const narrowed = await task.narrowInput({ ...results }, this.registry);
         dataflow.setPortData(narrowed, nodeProvenance);
       } else {
         // don't push incompatible data
