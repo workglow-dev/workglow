@@ -10,17 +10,19 @@
 
 import { Job } from "@workglow/job-queue";
 import {
+  IExecuteContext,
   JobQueueTask,
   JobQueueTaskConfig,
   TaskConfigurationError,
   TaskInput,
   type TaskOutput,
 } from "@workglow/task-graph";
-import { type JsonSchema } from "@workglow/util";
+import { type JsonSchema, ServiceRegistry, globalServiceRegistry } from "@workglow/util";
 
 import { AiJob, AiJobInput } from "../../job/AiJob";
-import { getGlobalModelRepository } from "../../model/ModelRegistry";
+import { getGlobalModelRepository, MODEL_REPOSITORY } from "../../model/ModelRegistry";
 import type { ModelConfig, ModelRecord } from "../../model/ModelSchema";
+import type { ModelRepository } from "../../model/ModelRepository";
 
 function schemaFormat(schema: JsonSchema): string | undefined {
   return typeof schema === "object" && schema !== null && "format" in schema
@@ -47,6 +49,7 @@ export class AiTask<
 > extends JobQueueTask<Input, Output, Config> {
   public static type: string = "AiTask";
   private modelCache?: { name: string; model: ModelRecord };
+  protected executionRegistry: ServiceRegistry = globalServiceRegistry;
 
   /**
    * Creates a new AiTask instance
@@ -65,6 +68,25 @@ export class AiTask<
       modelLabel ? " with model " + modelLabel : ""
     }`;
     super(input, config);
+  }
+
+  /**
+   * Override execute to capture the registry from context
+   */
+  async execute(input: Input, context: IExecuteContext): Promise<Output | undefined> {
+    this.executionRegistry = context.registry;
+    return super.execute(input, context);
+  }
+
+  // ========================================================================
+  // Registry access helpers
+  // ========================================================================
+
+  /**
+   * Gets the model repository from the current execution context registry
+   */
+  protected getModelRepository(): ModelRepository {
+    return this.executionRegistry.get(MODEL_REPOSITORY);
   }
 
   // ========================================================================
@@ -113,7 +135,7 @@ export class AiTask<
       if (this.modelCache && this.modelCache.name === modelname) {
         return this.modelCache.model;
       }
-      const model = await getGlobalModelRepository().findByName(modelname);
+      const model = await this.getModelRepository().findByName(modelname);
       if (!model) {
         throw new TaskConfigurationError(`AiTask: No model ${modelname} found`);
       }
@@ -158,7 +180,7 @@ export class AiTask<
     if (this.modelCache && this.modelCache.name === modelname) {
       return this.modelCache.model;
     }
-    const model = await getGlobalModelRepository().findByName(modelname);
+    const model = await this.getModelRepository().findByName(modelname);
     if (!model) {
       throw new TaskConfigurationError(`JobQueueTask: No model ${modelname} found`);
     }
@@ -233,7 +255,7 @@ export class AiTask<
         let requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
         for (const model of requestedModels) {
           if (typeof model === "string") {
-            const foundModel = await getGlobalModelRepository().findByName(model);
+            const foundModel = await this.getModelRepository().findByName(model);
             if (!foundModel) {
               throw new TaskConfigurationError(
                 `AiTask: Missing model for "${key}" named "${model}"`
@@ -266,7 +288,7 @@ export class AiTask<
       (inputSchema.properties || {}) as Record<string, JsonSchema>
     ).filter(([key, schema]) => schemaFormat(schema)?.startsWith("model:"));
     if (modelTaskProperties.length > 0) {
-      const taskModels = await getGlobalModelRepository().findModelsByTask(this.type);
+      const taskModels = await this.getModelRepository().findModelsByTask(this.type);
       for (const [key, propSchema] of modelTaskProperties) {
         let requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
         const requestedStrings = requestedModels.filter(

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry } from "@workglow/util";
+import { globalServiceRegistry, ServiceRegistry } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { IRunConfig, ITask } from "./ITask";
@@ -46,6 +46,11 @@ export class TaskRunner<
    * The output cache for the task
    */
   protected outputCache?: TaskOutputRepository;
+
+  /**
+   * The service registry for the task
+   */
+  protected registry: ServiceRegistry = globalServiceRegistry;
 
   /**
    * Constructor for TaskRunner
@@ -170,6 +175,7 @@ export class TaskRunner<
       updateProgress: this.handleProgress.bind(this),
       nodeProvenance: this.nodeProvenance,
       own: this.own,
+      registry: this.registry,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
   }
@@ -218,6 +224,10 @@ export class TaskRunner<
 
     if (config.updateProgress) {
       this.updateProgress = config.updateProgress;
+    }
+
+    if (config.registry) {
+      this.registry = config.registry;
     }
 
     this.task.emit("start");
