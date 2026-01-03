@@ -479,7 +479,7 @@ export class Task<
     // If additionalProperties is true, also copy any additional input properties
     if (schema.additionalProperties === true) {
       for (const [inputId, value] of Object.entries(input)) {
-        if (value !== undefined && !(inputId in properties)) {
+        if (!(inputId in properties)) {
           this.runInputData[inputId] = value;
         }
       }
@@ -556,7 +556,7 @@ export class Task<
     // If additionalProperties is true, also accept any additional input properties
     if (inputSchema.additionalProperties === true) {
       for (const [inputId, value] of Object.entries(overrides)) {
-        if (value !== undefined && !(inputId in properties)) {
+        if (!(inputId in properties)) {
           if (!deepEqual(this.runInputData[inputId], value)) {
             this.runInputData[inputId] = value;
             changed = true;
