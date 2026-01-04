@@ -90,7 +90,7 @@ TaskRegistry.registerTask(TextFillMaskTask);
  * @returns Promise resolving to the predicted tokens with scores and complete sequences
  */
 export const textFillMask = (input: TextFillMaskTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextFillMaskTask(input, config).run();
+  return new TextFillMaskTask({} as TextFillMaskTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

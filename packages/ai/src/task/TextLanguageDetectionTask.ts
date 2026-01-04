@@ -138,7 +138,7 @@ export const textLanguageDetection = (
   input: TextLanguageDetectionTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new TextLanguageDetectionTask(input, config).run();
+  return new TextLanguageDetectionTask({} as TextLanguageDetectionTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
