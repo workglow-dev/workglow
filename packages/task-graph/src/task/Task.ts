@@ -386,6 +386,7 @@ export class Task<
   /**
    * Smart clone that deep-clones plain objects and arrays while preserving
    * class instances (objects with non-Object prototype) by reference.
+   * Detects and throws an error on circular references.
    *
    * This is necessary because:
    * - structuredClone cannot clone class instances (methods are lost)
@@ -396,11 +397,26 @@ export class Task<
    * more efficient use cases. Do be careful with this though! Use sparingly.
    *
    * @param obj The object to clone
+   * @param visited Set of objects already visited (for circular reference detection)
    * @returns A cloned object with class instances preserved by reference
    */
-  private smartClone(obj: any): any {
+  private smartClone(obj: any, visited: WeakSet<object> = new WeakSet()): any {
     if (obj === null || obj === undefined) {
       return obj;
+    }
+
+    // Primitives (string, number, boolean, symbol, bigint) are returned as-is
+    if (typeof obj !== "object") {
+      return obj;
+    }
+
+    // Check for circular references
+    if (visited.has(obj)) {
+      throw new Error(
+        "Circular reference detected in input data. " +
+          "Cannot clone objects with circular references. " +
+          "Consider using class instances which are preserved by reference."
+      );
     }
 
     // Preserve TypedArrays (Float32Array, Int8Array, etc.) by reference
@@ -411,31 +427,29 @@ export class Task<
 
     // Preserve class instances (objects with non-Object/non-Array prototype)
     // This includes repository instances, custom classes, etc.
-    if (typeof obj === "object" && !Array.isArray(obj)) {
+    if (!Array.isArray(obj)) {
       const proto = Object.getPrototypeOf(obj);
       if (proto !== Object.prototype && proto !== null) {
         return obj; // Pass by reference
       }
     }
 
+    // Add object to visited set before recursing
+    visited.add(obj);
+
     // Deep clone arrays, preserving class instances within
     if (Array.isArray(obj)) {
-      return obj.map((item) => this.smartClone(item));
+      return obj.map((item) => this.smartClone(item, visited));
     }
 
     // Deep clone plain objects
-    if (typeof obj === "object") {
-      const result: Record<string, any> = {};
-      for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-          result[key] = this.smartClone(obj[key]);
-        }
+    const result: Record<string, any> = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = this.smartClone(obj[key], visited);
       }
-      return result;
     }
-
-    // Primitives (string, number, boolean, symbol, bigint) are returned as-is
-    return obj;
+    return result;
   }
 
   /**
