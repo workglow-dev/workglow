@@ -225,7 +225,7 @@ export const gestureRecognizer = (
   input: GestureRecognizerTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new GestureRecognizerTask(input, config).run();
+  return new GestureRecognizerTask({} as GestureRecognizerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

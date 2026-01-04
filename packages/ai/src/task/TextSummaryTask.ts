@@ -70,7 +70,7 @@ TaskRegistry.registerTask(TextSummaryTask);
  * @returns Promise resolving to the summarized text output(s)
  */
 export const textSummary = async (input: TextSummaryTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextSummaryTask(input, config).run();
+  return new TextSummaryTask({} as TextSummaryTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

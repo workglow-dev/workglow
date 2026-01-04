@@ -67,7 +67,7 @@ TaskRegistry.registerTask(UnloadModelTask);
  * @returns Promise resolving to the unloaded model(s)
  */
 export const unloadModel = (input: UnloadModelTaskRunInput, config?: JobQueueTaskConfig) => {
-  return new UnloadModelTask(input, config).run();
+  return new UnloadModelTask({} as UnloadModelTaskRunInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

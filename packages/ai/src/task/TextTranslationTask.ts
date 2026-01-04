@@ -108,7 +108,7 @@ TaskRegistry.registerTask(TextTranslationTask);
  * @returns Promise resolving to the translated text output(s)
  */
 export const textTranslation = (input: TextTranslationTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextTranslationTask(input, config).run();
+  return new TextTranslationTask({} as TextTranslationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

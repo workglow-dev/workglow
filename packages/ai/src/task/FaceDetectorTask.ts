@@ -176,7 +176,7 @@ TaskRegistry.registerTask(FaceDetectorTask);
  * @returns Promise resolving to the detected faces with bounding boxes and keypoints
  */
 export const faceDetector = (input: FaceDetectorTaskInput, config?: JobQueueTaskConfig) => {
-  return new FaceDetectorTask(input, config).run();
+  return new FaceDetectorTask({} as FaceDetectorTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

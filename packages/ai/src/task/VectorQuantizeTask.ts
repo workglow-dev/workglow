@@ -241,7 +241,7 @@ export class VectorQuantizeTask extends Task<
 TaskRegistry.registerTask(VectorQuantizeTask);
 
 export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: JobQueueTaskConfig) => {
-  return new VectorQuantizeTask(input, config).run();
+  return new VectorQuantizeTask({} as VectorQuantizeTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

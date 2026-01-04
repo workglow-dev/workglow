@@ -194,7 +194,7 @@ TaskRegistry.registerTask(HandLandmarkerTask);
  * @returns Promise resolving to the detected hand landmarks and handedness
  */
 export const handLandmarker = (input: HandLandmarkerTaskInput, config?: JobQueueTaskConfig) => {
-  return new HandLandmarkerTask(input, config).run();
+  return new HandLandmarkerTask({} as HandLandmarkerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

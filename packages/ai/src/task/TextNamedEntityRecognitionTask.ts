@@ -114,7 +114,7 @@ export const textNamedEntityRecognition = (
   input: TextNamedEntityRecognitionTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new TextNamedEntityRecognitionTask(input, config).run();
+  return new TextNamedEntityRecognitionTask({} as TextNamedEntityRecognitionTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

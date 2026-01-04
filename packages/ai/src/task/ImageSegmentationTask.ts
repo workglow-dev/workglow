@@ -128,7 +128,7 @@ export const imageSegmentation = (
   input: ImageSegmentationTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new ImageSegmentationTask(input, config).run();
+  return new ImageSegmentationTask({} as ImageSegmentationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
