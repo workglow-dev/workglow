@@ -21,9 +21,9 @@ export const TensorType = {
 export type TensorType = (typeof TensorType)[keyof typeof TensorType];
 
 /**
- * Vector schema for representing vectors as arrays of numbers
+ * Tensor schema for representing tensors as arrays of numbers
  * @param annotations - Additional annotations for the schema
- * @returns The vector schema
+ * @returns The tensor schema
  */
 export const TensorSchema = (annotations: Record<string, unknown> = {}) =>
   ({
@@ -33,24 +33,24 @@ export const TensorSchema = (annotations: Record<string, unknown> = {}) =>
         type: "string",
         enum: Object.values(TensorType),
         title: "Type",
-        description: "The type of the vector",
+        description: "The type of the tensor",
       },
       data: TypedArraySchema({
         title: "Data",
-        description: "The data of the vector",
+        description: "The data of the tensor",
       }),
       shape: {
         type: "array",
         items: { type: "number" },
         title: "Shape",
-        description: "The shape of the vector (dimensions)",
+        description: "The shape of the tensor (dimensions)",
         minItems: 1,
         default: [1],
       },
       normalized: {
         type: "boolean",
         title: "Normalized",
-        description: "Whether the vector data is normalized",
+        description: "Whether the tensor data is normalized",
         default: false,
       },
     },
@@ -59,4 +59,4 @@ export const TensorSchema = (annotations: Record<string, unknown> = {}) =>
     ...annotations,
   }) as const satisfies JsonSchema;
 
-export type Vector = FromSchema<ReturnType<typeof TensorSchema>, TypedArraySchemaOptions>;
+export type Tensor = FromSchema<ReturnType<typeof TensorSchema>, TypedArraySchemaOptions>;
