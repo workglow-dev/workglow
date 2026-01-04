@@ -6,9 +6,7 @@
 
 import {
   ChunkNode,
-  ChunkToVectorTask,
   ChunkToVectorTaskOutput,
-  HierarchicalChunkerTask,
   HierarchicalChunkerTaskOutput,
   NodeIdGenerator,
   StructuralParser,
