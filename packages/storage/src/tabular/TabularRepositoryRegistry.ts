@@ -73,22 +73,15 @@ function resolveRepositoryFromRegistry(
   format: string,
   registry: ServiceRegistry
 ): ITabularRepository<any, any, any, any, any> {
-  const repoType = format.split(":")[1]; // "tabular", "vector", "document"
-
-  if (repoType === "tabular") {
-    const repos = registry.has(TABULAR_REPOSITORIES)
-      ? registry.get(TABULAR_REPOSITORIES)
-      : getGlobalTabularRepositories();
-    const repo = repos.get(id);
-    if (!repo) {
-      throw new Error(`Tabular repository "${id}" not found in registry`);
-    }
-    return repo;
+  const repos = registry.has(TABULAR_REPOSITORIES)
+    ? registry.get(TABULAR_REPOSITORIES)
+    : getGlobalTabularRepositories();
+  const repo = repos.get(id);
+  if (!repo) {
+    throw new Error(`Tabular repository "${id}" not found in registry`);
   }
-
-  // Future: vector, document repositories
-  throw new Error(`Unknown repository type: ${repoType}`);
+  return repo;
 }
 
-// Register the repository resolver for format: "repository:*"
-registerInputResolver("repository", resolveRepositoryFromRegistry);
+// Register the repository resolver for format: "repository:tabular"
+registerInputResolver("repository:tabular", resolveRepositoryFromRegistry);

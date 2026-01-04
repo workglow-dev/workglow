@@ -415,57 +415,48 @@ export type ChunkEnrichment = FromSchema<typeof ChunkEnrichmentSchema>;
 /**
  * Schema for chunk node (output of HierarchicalChunker)
  */
-export const ChunkNodeSchema = {
-  type: "object",
-  properties: {
-    chunkId: {
-      type: "string",
-      title: "Chunk ID",
-      description: "Unique identifier for this chunk",
+export const ChunkNodeSchema = () =>
+  ({
+    type: "object",
+    properties: {
+      chunkId: {
+        type: "string",
+        title: "Chunk ID",
+        description: "Unique identifier for this chunk",
+      },
+      docId: {
+        type: "string",
+        title: "Master Document ID",
+        description: "ID of the parent master document",
+      },
+      configId: {
+        type: "string",
+        title: "Config ID",
+        description: "Configuration ID used to generate this chunk",
+      },
+      text: {
+        type: "string",
+        title: "Text",
+        description: "Text content of the chunk",
+      },
+      nodePath: {
+        type: "array",
+        items: { type: "string" },
+        title: "Node Path",
+        description: "Node IDs from root to leaf",
+      },
+      depth: {
+        type: "integer",
+        title: "Depth",
+        description: "Depth in the document tree",
+      },
+      enrichment: ChunkEnrichmentSchema,
     },
-    docId: {
-      type: "string",
-      title: "Master Document ID",
-      description: "ID of the parent master document",
-    },
-    configId: {
-      type: "string",
-      title: "Config ID",
-      description: "Configuration ID used to generate this chunk",
-    },
-    text: {
-      type: "string",
-      title: "Text",
-      description: "Text content of the chunk",
-    },
-    nodePath: {
-      type: "array",
-      items: { type: "string" },
-      title: "Node Path",
-      description: "Node IDs from root to leaf",
-    },
-    depth: {
-      type: "integer",
-      title: "Depth",
-      description: "Depth in the document tree",
-    },
-    enrichment: ChunkEnrichmentSchema,
-  },
-  required: ["chunkId", "docId", "configId", "text", "nodePath", "depth"],
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
+    required: ["chunkId", "docId", "configId", "text", "nodePath", "depth"],
+    additionalProperties: false,
+  }) as const satisfies DataPortSchema;
 
-export type ChunkNode = FromSchema<typeof ChunkNodeSchema>;
-
-/**
- * Schema for chunk array (for use in task schemas)
- */
-export const ChunkNodeArraySchema = {
-  type: "array",
-  items: ChunkNodeSchema,
-  title: "Chunks",
-  description: "Array of chunk nodes",
-} as const satisfies JsonSchema;
+export type ChunkNode = FromSchema<ReturnType<typeof ChunkNodeSchema>>;
 
 // =============================================================================
 // Chunk Metadata Schemas (for vector store)
@@ -727,7 +718,12 @@ export const VariantManifestSchema = {
       title: "Created At",
       description: "ISO timestamp of creation",
     },
-    chunks: ChunkNodeArraySchema,
+    chunks: {
+      type: "array",
+      items: ChunkNodeSchema(),
+      title: "Chunks",
+      description: "Array of chunk nodes",
+    },
   },
   required: ["configId", "provenance", "createdAt", "chunks"],
   additionalProperties: false,

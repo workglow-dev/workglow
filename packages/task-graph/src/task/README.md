@@ -240,16 +240,6 @@ When a task's input schema includes properties with `format` annotations (such a
 
 This resolution happens automatically before `validateInput()` is called, so by the time `execute()` runs, all annotated inputs are guaranteed to be resolved objects.
 
-### Supported Format Annotations
-
-| Format | Description | Resolver |
-|--------|-------------|----------|
-| `model` | Any AI model configuration | ModelRepository |
-| `model:TaskName` | Model compatible with specific task type | ModelRepository |
-| `repository:tabular` | Tabular data repository | TabularRepositoryRegistry |
-| `repository:vector` | Vector storage repository | VectorRepositoryRegistry |
-| `repository:document` | Document repository | DocumentRepositoryRegistry |
-
 ### Example: Task with Repository Input
 
 ```typescript
@@ -273,9 +263,9 @@ class DataProcessingTask extends Task<{ repository: ITabularRepository; query: s
     };
   }
 
-  async executeReactive() {
+  async execute(input: DataProcessingTaskInput, context: IExecuteContext) {
     // repository is guaranteed to be an ITabularRepository instance
-    const data = await this.runInputData.repository.getAll();
+    const data = await input.repository.getAll();
     return { results: data };
   }
 }

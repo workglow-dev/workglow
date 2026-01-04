@@ -7,11 +7,13 @@
 import {
   getGlobalTabularRepositories,
   InMemoryTabularRepository,
+  ITabularRepository,
   registerTabularRepository,
   TypeTabularRepository,
 } from "@workglow/storage";
 import {
   getInputResolvers,
+  IExecuteContext,
   registerInputResolver,
   resolveSchemaInputs,
   Task,
@@ -216,8 +218,11 @@ describe("InputResolver", () => {
         };
       }
 
-      async executeReactive(): Promise<{ results: any[] }> {
-        const { repository, query } = this.runInputData;
+      async execute(
+        input: { repository: ITabularRepository<any, any, any, any, any>; query: string },
+        _context: IExecuteContext
+      ): Promise<{ results: any[] }> {
+        const { repository } = input;
         // In a real task, we'd search the repository
         const results = await repository.getAll();
         return { results: results ?? [] };
