@@ -236,11 +236,6 @@ export class VectorQuantizeTask extends Task<
     // Scale to [0, 65535]
     return new Uint16Array(values.map((v) => Math.round(((v - min) / range) * 65535)));
   }
-
-  private quantizeToBinary(values: number[]): Int8Array {
-    // Binary quantization: positive → 127, negative/zero → -128
-    return new Int8Array(values.map((v) => (v > 0 ? 127 : -128)));
-  }
 }
 
 TaskRegistry.registerTask(VectorQuantizeTask);
