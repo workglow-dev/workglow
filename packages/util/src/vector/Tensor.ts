@@ -50,7 +50,7 @@ export const TensorSchema = (annotations: Record<string, unknown> = {}) =>
       normalized: {
         type: "boolean",
         title: "Normalized",
-        description: "Whether the vectors data is normalized",
+        description: "Whether the vector data is normalized",
         default: false,
       },
     },
