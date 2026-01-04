@@ -59,8 +59,8 @@ function extractString(prov: Provenance, ...keys: string[]): string {
       if (nested) return nested;
     }
   }
-  // Default for required field
-  return keys[0];
+  // Default for required string field when no value is found
+  return "";
 }
 
 /**
