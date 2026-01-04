@@ -174,29 +174,61 @@ export class StructuralParser {
       children: [],
     };
 
-    // Split by double newlines to get paragraphs
-    const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
-    let currentOffset = 0;
+    // Split by double newlines to get paragraphs while tracking offsets
+    const paragraphRegex = /\n\s*\n/g;
+    let lastIndex = 0;
+    let paragraphIndex = 0;
+    let match: RegExpExecArray | null;
 
-    for (let i = 0; i < paragraphs.length; i++) {
-      const paragraphText = paragraphs[i].trim();
-      const startOffset = text.indexOf(paragraphText, currentOffset);
-      const endOffset = startOffset + paragraphText.length;
+    while ((match = paragraphRegex.exec(text)) !== null) {
+      const rawParagraph = text.slice(lastIndex, match.index);
+      const paragraphText = rawParagraph.trim();
 
-      const paragraph: ParagraphNode = {
-        nodeId: await NodeIdGenerator.generateChildNodeId(root.nodeId, i),
-        kind: NodeKind.PARAGRAPH,
-        range: {
-          startOffset,
-          endOffset,
-        },
-        text: paragraphText,
-      };
+      if (paragraphText.length > 0) {
+        const trimmedRelativeStart = rawParagraph.indexOf(paragraphText);
+        const startOffset = lastIndex + trimmedRelativeStart;
+        const endOffset = startOffset + paragraphText.length;
 
-      root.children.push(paragraph);
-      currentOffset = endOffset;
+        const paragraph: ParagraphNode = {
+          nodeId: await NodeIdGenerator.generateChildNodeId(root.nodeId, paragraphIndex),
+          kind: NodeKind.PARAGRAPH,
+          range: {
+            startOffset,
+            endOffset,
+          },
+          text: paragraphText,
+        };
+
+        root.children.push(paragraph);
+        paragraphIndex++;
+      }
+
+      lastIndex = paragraphRegex.lastIndex;
     }
 
+    // Handle trailing paragraph after the last double newline, if any
+    if (lastIndex < text.length) {
+      const rawParagraph = text.slice(lastIndex);
+      const paragraphText = rawParagraph.trim();
+
+      if (paragraphText.length > 0) {
+        const trimmedRelativeStart = rawParagraph.indexOf(paragraphText);
+        const startOffset = lastIndex + trimmedRelativeStart;
+        const endOffset = startOffset + paragraphText.length;
+
+        const paragraph: ParagraphNode = {
+          nodeId: await NodeIdGenerator.generateChildNodeId(root.nodeId, paragraphIndex),
+          kind: NodeKind.PARAGRAPH,
+          range: {
+            startOffset,
+            endOffset,
+          },
+          text: paragraphText,
+        };
+
+        root.children.push(paragraph);
+      }
+    }
     return root;
   }
 
