@@ -397,7 +397,7 @@ export class Task<
    * more efficient use cases. Do be careful with this though! Use sparingly.
    *
    * @param obj The object to clone
-   * @param visited Set of objects already visited (for circular reference detection)
+   * @param visited Set of objects in the current cloning path (for circular reference detection)
    * @returns A cloned object with class instances preserved by reference
    */
   private smartClone(obj: any, visited: WeakSet<object> = new WeakSet()): any {
@@ -414,8 +414,7 @@ export class Task<
     if (visited.has(obj)) {
       throw new Error(
         "Circular reference detected in input data. " +
-          "Cannot clone objects with circular references. " +
-          "Consider using class instances which are preserved by reference."
+          "Cannot clone objects with circular references."
       );
     }
 
@@ -437,19 +436,25 @@ export class Task<
     // Add object to visited set before recursing
     visited.add(obj);
 
-    // Deep clone arrays, preserving class instances within
-    if (Array.isArray(obj)) {
-      return obj.map((item) => this.smartClone(item, visited));
-    }
-
-    // Deep clone plain objects
-    const result: Record<string, any> = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        result[key] = this.smartClone(obj[key], visited);
+    try {
+      // Deep clone arrays, preserving class instances within
+      if (Array.isArray(obj)) {
+        return obj.map((item) => this.smartClone(item, visited));
       }
+
+      // Deep clone plain objects
+      const result: Record<string, any> = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          result[key] = this.smartClone(obj[key], visited);
+        }
+      }
+      return result;
+    } finally {
+      // Remove from visited set after processing to allow the same object
+      // in different branches (non-circular references)
+      visited.delete(obj);
     }
-    return result;
   }
 
   /**
