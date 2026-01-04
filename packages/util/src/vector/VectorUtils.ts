@@ -32,7 +32,7 @@ export function inner(arr1: TypedArray, arr2: TypedArray): number {
  * @param throwOnZero - If true, throws an error for zero vectors. If false, returns the original vector.
  * @returns Normalized vector with the same type as input
  */
-export function normalize(vector: TypedArray, throwOnZero = true): TypedArray {
+export function normalize(vector: TypedArray, throwOnZero = true, float32 = false): TypedArray {
   const mag = magnitude(vector);
 
   if (mag === 0) {
@@ -43,6 +43,10 @@ export function normalize(vector: TypedArray, throwOnZero = true): TypedArray {
   }
 
   const normalized = Array.from(vector).map((val) => Number(val) / mag);
+
+  if (float32) {
+    return new Float32Array(normalized);
+  }
 
   // Preserve the original Vector type
   if (vector instanceof Float64Array) {
