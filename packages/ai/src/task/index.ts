@@ -7,7 +7,6 @@
 export * from "./BackgroundRemovalTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";
-export * from "./DocumentSplitterTask";
 export * from "./DownloadModelTask";
 export * from "./FaceDetectorTask";
 export * from "./FaceLandmarkerTask";

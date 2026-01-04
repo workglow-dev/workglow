@@ -216,25 +216,6 @@ const result = await task.run();
 // Output: { similarity: 0.85 }
 ```
 
-### Document Processing Tasks
-
-#### DocumentSplitterTask
-
-Splits documents into smaller chunks for processing.
-
-```typescript
-import { DocumentSplitterTask } from "@workglow/ai";
-
-const task = new DocumentSplitterTask({
-  document: "Very long document content...",
-  chunkSize: 1000,
-  chunkOverlap: 200,
-});
-
-const result = await task.run();
-// Output: { chunks: ["chunk1...", "chunk2...", "chunk3..."] }
-```
-
 ### Model Management Tasks
 
 #### DownloadModelTask
@@ -413,30 +394,6 @@ const result = await workflow
   .run();
 
 console.log("Final similarity score:", result.similarity);
-```
-
-## Document Processing
-
-The package includes document processing capabilities:
-
-```typescript
-import { Document, DocumentConverterMarkdown } from "@workglow/ai";
-
-// Create a document
-const doc = new Document("# My Document\n\nThis is content...", { title: "Sample Doc" });
-
-// Convert markdown to structured format
-const converter = new DocumentConverterMarkdown();
-const processedDoc = await converter.convert(doc);
-
-// Use with document splitter
-const splitter = new DocumentSplitterTask({
-  document: processedDoc.content,
-  chunkSize: 500,
-  chunkOverlap: 50,
-});
-
-const chunks = await splitter.run();
 ```
 
 ## Error Handling

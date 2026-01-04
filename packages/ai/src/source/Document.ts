@@ -4,170 +4,153 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-enum DocumentType {
-  DOCUMENT = "document",
-  SECTION = "section",
-  TEXT = "text",
-  IMAGE = "image",
-  TABLE = "table",
-}
+import type { Provenance } from "@workglow/task-graph";
+import type { ChunkNode, DocumentNode } from "./DocumentSchema";
+import {
+  type DocumentMetadata,
+  type VariantManifest,
+  type VariantProvenance,
+  // Re-export schemas for external use
+  DocumentMetadataSchema,
+  VariantManifestSchema,
+  VariantProvenanceSchema,
+} from "./DocumentSchema";
+import { deriveConfigId, extractConfigFields } from "./ProvenanceUtils";
 
-const doc_variants = [
-  "tree",
-  "flat",
-  "tree-paragraphs",
-  "flat-paragraphs",
-  "tree-sentences",
-  "flat-sentences",
-] as const;
-type DocVariant = (typeof doc_variants)[number];
-const doc_parsers = ["txt", "md"] as const; // | "html" | "pdf" | "csv";
-type DocParser = (typeof doc_parsers)[number];
-
-export interface DocumentMetadata {
-  title: string;
-}
-
-export interface DocumentSectionMetadata {
-  title: string;
-}
+// Re-export types and schemas
+export { DocumentMetadataSchema, VariantManifestSchema, VariantProvenanceSchema };
+export type { DocumentMetadata, VariantManifest, VariantProvenance };
 
 /**
- * Represents a document with its content and metadata.
+ * Document represents a hierarchical document with multiple processing variants
+ *
+ * Key features:
+ * - Single source-of-truth tree structure (root node)
+ * - Multiple chunking/embedding variants keyed by provenance-derived configId
+ * - Separate persistence for document structure vs vectors
  */
 export class Document {
-  public metadata: DocumentMetadata;
+  public readonly docId: string;
+  public readonly metadata: DocumentMetadata;
+  public readonly root: DocumentNode;
+  private readonly variants: Map<string, VariantManifest>;
 
-  constructor(content?: ContentType, metadata: DocumentMetadata = { title: "" }) {
+  constructor(docId: string, root: DocumentNode, metadata: DocumentMetadata) {
+    this.docId = docId;
+    this.root = root;
     this.metadata = metadata;
-    if (content) {
-      if (Array.isArray(content)) {
-        for (const line of content) {
-          this.addContent(line);
+    this.variants = new Map();
+  }
+
+  /**
+   * Add a processing variant
+   */
+  async addVariant(
+    provenance: Provenance | VariantProvenance,
+    chunks: ChunkNode[]
+  ): Promise<string> {
+    const configId = await deriveConfigId(provenance);
+
+    // Use extractConfigFields for type-safe field extraction
+    const variantProvenance =
+      "embeddingModel" in provenance && typeof provenance.embeddingModel === "string"
+        ? (provenance as VariantProvenance)
+        : extractConfigFields(provenance as Provenance);
+
+    const manifest: VariantManifest = {
+      configId,
+      provenance: variantProvenance,
+      createdAt: new Date().toISOString(),
+      chunks,
+    };
+
+    this.variants.set(configId, manifest);
+    return configId;
+  }
+
+  /**
+   * Get a variant by configId
+   */
+  getVariant(configId: string): VariantManifest | undefined {
+    return this.variants.get(configId);
+  }
+
+  /**
+   * Get all variants
+   */
+  getAllVariants(): VariantManifest[] {
+    return Array.from(this.variants.values());
+  }
+
+  /**
+   * Check if a variant exists
+   */
+  hasVariant(configId: string): boolean {
+    return this.variants.has(configId);
+  }
+
+  /**
+   * Get all configIds
+   */
+  getConfigIds(): string[] {
+    return Array.from(this.variants.keys());
+  }
+
+  /**
+   * Find chunks by nodeId across all variants
+   */
+  findChunksByNodeId(nodeId: string): Array<{ configId: string; chunk: ChunkNode }> {
+    const results: Array<{ configId: string; chunk: ChunkNode }> = [];
+
+    for (const [configId, manifest] of this.variants) {
+      for (const chunk of manifest.chunks) {
+        if (chunk.nodePath.includes(nodeId)) {
+          results.push({ configId, chunk });
         }
-      } else {
-        this.addContent(content);
       }
     }
+
+    return results;
   }
 
-  public addContent(content: ContentTypeItem) {
-    if (typeof content === "string") {
-      this.addText(content);
-    } else if (content instanceof DocumentBaseFragment || content instanceof DocumentSection) {
-      this.fragments.push(content);
-    } else {
-      throw new Error("Unknown content type");
+  /**
+   * Get chunks for a specific variant
+   */
+  getChunks(configId: string): ChunkNode[] {
+    const variant = this.variants.get(configId);
+    return variant ? variant.chunks : [];
+  }
+
+  /**
+   * Serialize to JSON
+   */
+  toJSON(): {
+    docId: string;
+    metadata: DocumentMetadata;
+    root: DocumentNode;
+    variants: VariantManifest[];
+  } {
+    return {
+      docId: this.docId,
+      metadata: this.metadata,
+      root: this.root,
+      variants: Array.from(this.variants.values()),
+    };
+  }
+
+  /**
+   * Deserialize from JSON
+   */
+  static fromJSON(json: {
+    docId: string;
+    metadata: DocumentMetadata;
+    root: DocumentNode;
+    variants: VariantManifest[];
+  }): Document {
+    const doc = new Document(json.docId, json.root, json.metadata);
+    for (const variant of json.variants) {
+      doc.variants.set(variant.configId, variant);
     }
-  }
-
-  public addSection(content?: ContentType, metadata?: DocumentSectionMetadata): DocumentSection {
-    const section = new DocumentSection(this, content, metadata);
-    this.fragments.push(section);
-    return section;
-  }
-
-  public addText(content: string): TextFragment {
-    const f = new TextFragment(content);
-    this.fragments.push(f);
-    return f;
-  }
-  public addImage(content: unknown): ImageFragment {
-    const f = new ImageFragment(content);
-    this.fragments.push(f);
-    return f;
-  }
-  public addTable(content: unknown): TableFragment {
-    const f = new TableFragment(content);
-    this.fragments.push(f);
-    return f;
-  }
-
-  public fragments: Array<DocumentFragment | DocumentSection> = [];
-
-  toJSON(): unknown {
-    return {
-      type: DocumentType.DOCUMENT,
-      metadata: this.metadata,
-      fragments: this.fragments.map((f) => f.toJSON()),
-    };
+    return doc;
   }
 }
-
-export class DocumentSection extends Document {
-  constructor(
-    public parent: Document,
-    content?: ContentType,
-    metadata?: DocumentSectionMetadata
-  ) {
-    super(content, metadata);
-    this.parent = parent;
-  }
-
-  toJSON(): unknown {
-    return {
-      type: DocumentType.SECTION,
-      metadata: this.metadata,
-      fragments: this.fragments.map((f) => f.toJSON()),
-    };
-  }
-}
-
-interface DocumentFragmentMetadata {}
-
-export class DocumentBaseFragment {
-  metadata?: DocumentFragmentMetadata;
-  constructor(metadata?: DocumentFragmentMetadata) {
-    this.metadata = metadata;
-  }
-}
-
-export class TextFragment extends DocumentBaseFragment {
-  content: string;
-  constructor(content: string, metadata?: DocumentFragmentMetadata) {
-    super(metadata);
-    this.content = content;
-  }
-  toJSON(): unknown {
-    return {
-      type: DocumentType.TEXT,
-      metadata: this.metadata,
-      content: this.content,
-    };
-  }
-}
-
-export class TableFragment extends DocumentBaseFragment {
-  content: any;
-  constructor(content: any, metadata?: DocumentFragmentMetadata) {
-    super(metadata);
-    this.content = content;
-  }
-  toJSON(): unknown {
-    return {
-      type: DocumentType.TABLE,
-      metadata: this.metadata,
-      content: this.content,
-    };
-  }
-}
-
-export class ImageFragment extends DocumentBaseFragment {
-  content: any;
-  constructor(content: any, metadata?: DocumentFragmentMetadata) {
-    super(metadata);
-    this.content = content;
-  }
-  toJSON(): unknown {
-    return {
-      type: DocumentType.IMAGE,
-      metadata: this.metadata,
-      content: this.content,
-    };
-  }
-}
-
-export type DocumentFragment = TextFragment | TableFragment | ImageFragment;
-
-export type ContentTypeItem = string | DocumentFragment | DocumentSection;
-export type ContentType = ContentTypeItem | ContentTypeItem[];
