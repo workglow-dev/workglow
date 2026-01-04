@@ -117,7 +117,7 @@ export class ChunkToVectorTask extends Task<
     input: ChunkToVectorTaskInput,
     context: IExecuteContext
   ): Promise<ChunkToVectorTaskOutput> {
-    const { docId, chunks, vectors } = input;
+    const { chunks, vectors } = input;
 
     const chunkArray = chunks as ChunkNode[];
 
