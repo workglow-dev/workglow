@@ -4,8 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, globalServiceRegistry } from "@workglow/util";
+import {
+  createServiceToken,
+  globalServiceRegistry,
+  registerInputResolver,
+  ServiceRegistry,
+} from "@workglow/util";
 import { InMemoryModelRepository } from "./InMemoryModelRepository";
+import type { ModelConfig } from "./ModelSchema";
 import { ModelRepository } from "./ModelRepository";
 
 /**
@@ -37,3 +43,26 @@ export function getGlobalModelRepository(): ModelRepository {
 export function setGlobalModelRepository(pr: ModelRepository): void {
   globalServiceRegistry.registerInstance(MODEL_REPOSITORY, pr);
 }
+
+/**
+ * Resolves a model ID to a ModelConfig from the repository.
+ * Used by the input resolver system.
+ */
+async function resolveModelFromRegistry(
+  id: string,
+  format: string,
+  registry: ServiceRegistry
+): Promise<ModelConfig> {
+  const modelRepo = registry.has(MODEL_REPOSITORY)
+    ? registry.get<ModelRepository>(MODEL_REPOSITORY)
+    : getGlobalModelRepository();
+
+  const model = await modelRepo.findByName(id);
+  if (!model) {
+    throw new Error(`Model "${id}" not found in repository`);
+  }
+  return model;
+}
+
+// Register the model resolver for format: "model" and "model:*"
+registerInputResolver("model", resolveModelFromRegistry);

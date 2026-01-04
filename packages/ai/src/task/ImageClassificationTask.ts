@@ -105,7 +105,7 @@ export const imageClassification = (
   input: ImageClassificationTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new ImageClassificationTask(input, config).run();
+  return new ImageClassificationTask({} as ImageClassificationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

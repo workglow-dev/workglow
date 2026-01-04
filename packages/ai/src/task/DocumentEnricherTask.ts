@@ -1,0 +1,409 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  JobQueueTaskConfig,
+  Task,
+  TaskRegistry,
+  Workflow,
+} from "@workglow/task-graph";
+import { DataPortSchema, FromSchema } from "@workglow/util";
+import { getChildren, hasChildren } from "../source/DocumentNode";
+import { type DocumentNode, type Entity, type NodeEnrichment } from "../source/DocumentSchema";
+import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
+import { TextSummaryTask } from "./TextSummaryTask";
+
+const inputSchema = {
+  type: "object",
+  properties: {
+    docId: {
+      type: "string",
+      title: "Document ID",
+      description: "The document ID",
+    },
+    documentTree: {
+      title: "Document Tree",
+      description: "The hierarchical document tree to enrich",
+    },
+    generateSummaries: {
+      type: "boolean",
+      title: "Generate Summaries",
+      description: "Whether to generate summaries for sections",
+      default: true,
+    },
+    extractEntities: {
+      type: "boolean",
+      title: "Extract Entities",
+      description: "Whether to extract named entities",
+      default: true,
+    },
+    summaryModel: {
+      type: "string",
+      title: "Summary Model",
+      description: "Model to use for summary generation (optional)",
+    },
+    summaryThreshold: {
+      type: "number",
+      title: "Summary Threshold",
+      description: "Minimum combined text length (node + children) to warrant generating a summary",
+      default: 500,
+    },
+    nerModel: {
+      type: "string",
+      title: "NER Model",
+      description: "Model to use for named entity recognition (optional)",
+    },
+  },
+  required: [],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+const outputSchema = {
+  type: "object",
+  properties: {
+    docId: {
+      type: "string",
+      title: "Document ID",
+      description: "The document ID (passed through)",
+    },
+    documentTree: {
+      title: "Document Tree",
+      description: "The enriched document tree",
+    },
+    summaryCount: {
+      type: "number",
+      title: "Summary Count",
+      description: "Number of summaries generated",
+    },
+    entityCount: {
+      type: "number",
+      title: "Entity Count",
+      description: "Number of entities extracted",
+    },
+  },
+  required: ["docId", "documentTree", "summaryCount", "entityCount"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type DocumentEnricherTaskInput = FromSchema<typeof inputSchema>;
+export type DocumentEnricherTaskOutput = FromSchema<typeof outputSchema>;
+
+/**
+ * Task for enriching document nodes with summaries and entities
+ * Uses bottom-up propagation to roll up child information to parents
+ */
+export class DocumentEnricherTask extends Task<
+  DocumentEnricherTaskInput,
+  DocumentEnricherTaskOutput,
+  JobQueueTaskConfig
+> {
+  public static type = "DocumentEnricherTask";
+  public static category = "Document";
+  public static title = "Document Enricher";
+  public static description = "Enrich document nodes with summaries and entities";
+  public static cacheable = true;
+
+  public static inputSchema(): DataPortSchema {
+    return inputSchema as DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return outputSchema as DataPortSchema;
+  }
+
+  async execute(
+    input: DocumentEnricherTaskInput,
+    context: IExecuteContext
+  ): Promise<DocumentEnricherTaskOutput> {
+    const {
+      docId,
+      documentTree,
+      generateSummaries = true,
+      extractEntities = true,
+      summaryModel,
+      summaryThreshold = 500,
+      nerModel,
+    } = input;
+
+    const root = documentTree as DocumentNode;
+    let summaryCount = 0;
+    let entityCount = 0;
+
+    const extract =
+      extractEntities && nerModel
+        ? async (text: string) => {
+            const result = await context
+              .own(new TextNamedEntityRecognitionTask({ text, model: nerModel }))
+              .run();
+            return result.entities.map((e) => ({
+              type: e.entity,
+              text: e.word,
+              score: e.score,
+            }));
+          }
+        : undefined;
+
+    // Bottom-up enrichment
+    const enrichedRoot = await this.enrichNode(
+      root,
+      context,
+      generateSummaries && summaryModel ? summaryModel : undefined,
+      summaryThreshold,
+      extract,
+      (count) => (summaryCount += count),
+      (count) => (entityCount += count)
+    );
+
+    return {
+      docId: docId as string,
+      documentTree: enrichedRoot,
+      summaryCount,
+      entityCount,
+    };
+  }
+
+  /**
+   * Enrich a node recursively (bottom-up)
+   */
+  private async enrichNode(
+    node: DocumentNode,
+    context: IExecuteContext,
+    summaryModel: string | undefined,
+    summaryThreshold: number,
+    extract: ((text: string) => Promise<Entity[]>) | undefined,
+    onSummary: (count: number) => void,
+    onEntity: (count: number) => void
+  ): Promise<DocumentNode> {
+    // If node has children, enrich them first
+    let enrichedChildren: DocumentNode[] | undefined;
+    if (hasChildren(node)) {
+      const children = getChildren(node);
+      enrichedChildren = await Promise.all(
+        children.map((child) =>
+          this.enrichNode(
+            child,
+            context,
+            summaryModel,
+            summaryThreshold,
+            extract,
+            onSummary,
+            onEntity
+          )
+        )
+      );
+    }
+
+    // Generate enrichment for this node
+    const enrichment: NodeEnrichment = {};
+
+    // Generate summary (for sections and documents)
+    if (summaryModel && (node.kind === "section" || node.kind === "document")) {
+      if (enrichedChildren && enrichedChildren.length > 0) {
+        // Summary of children
+        enrichment.summary = await this.generateSummary(
+          node,
+          enrichedChildren,
+          context,
+          summaryModel,
+          summaryThreshold
+        );
+      } else {
+        // Leaf section summary
+        enrichment.summary = await this.generateLeafSummary(
+          node.text,
+          context,
+          summaryModel,
+          summaryThreshold
+        );
+      }
+      if (enrichment.summary) {
+        onSummary(1);
+      }
+    }
+
+    // Extract entities
+    if (extract) {
+      enrichment.entities = await this.extractEntities(node, enrichedChildren, extract);
+      if (enrichment.entities) {
+        onEntity(enrichment.entities.length);
+      }
+    }
+
+    // Create enriched node
+    const enrichedNode: DocumentNode = {
+      ...node,
+      enrichment: Object.keys(enrichment).length > 0 ? enrichment : undefined,
+    };
+
+    if (enrichedChildren) {
+      (enrichedNode as any).children = enrichedChildren;
+    }
+
+    return enrichedNode;
+  }
+
+  /**
+   * Private method to summarize text using the TextSummaryTask
+   */
+  private async summarize(text: string, context: IExecuteContext, model: string): Promise<string> {
+    return (await context.own(new TextSummaryTask()).run({ text, model })).text;
+  }
+
+  /**
+   * Generate summary for a node with children
+   */
+  private async generateSummary(
+    node: DocumentNode,
+    children: DocumentNode[],
+    context: IExecuteContext,
+    model: string,
+    threshold: number
+  ): Promise<string | undefined> {
+    const textParts: string[] = [];
+
+    // Include the node's own text
+    const nodeText = node.text?.trim();
+    if (nodeText) {
+      textParts.push(nodeText);
+    }
+
+    // Include children summaries/texts
+    const childTexts = children
+      .map((child) => {
+        if (child.enrichment?.summary) {
+          return child.enrichment.summary;
+        }
+        return child.text;
+      })
+      .join(" ")
+      .trim();
+
+    if (childTexts) {
+      textParts.push(childTexts);
+    }
+
+    const combinedText = textParts.join(" ").trim();
+    if (!combinedText) {
+      return undefined;
+    }
+
+    // Check if summary is warranted based on threshold
+    if (combinedText.length < threshold) {
+      return undefined;
+    }
+
+    const summaryParts: string[] = [];
+
+    // Summarize the node's own text first
+    if (nodeText) {
+      const nodeTextInput = nodeText.substring(0, 2000);
+      const nodeSummary = await this.summarize(nodeTextInput, context, model);
+      if (nodeSummary) {
+        summaryParts.push(nodeSummary);
+      }
+    }
+
+    // Include children summaries/texts
+    if (childTexts) {
+      summaryParts.push(childTexts);
+    }
+
+    const combinedSummaries = summaryParts.join(" ").trim();
+    if (!combinedSummaries) {
+      return undefined;
+    }
+
+    // Summarize the combined summaries
+    const summaryInput = combinedSummaries.substring(0, 2000);
+    const result = await this.summarize(summaryInput, context, model);
+    return result;
+  }
+
+  /**
+   * Generate summary for a leaf node
+   */
+  private async generateLeafSummary(
+    text: string,
+    context: IExecuteContext,
+    model: string,
+    threshold: number
+  ): Promise<string | undefined> {
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      return undefined;
+    }
+
+    // Check if summary is warranted based on threshold
+    if (trimmedText.length < threshold) {
+      return undefined;
+    }
+
+    const summaryInput = trimmedText.substring(0, 2000);
+    const result = await this.summarize(summaryInput, context, model);
+    return result;
+  }
+
+  /**
+   * Extract and roll up entities from node and children
+   */
+  private async extractEntities(
+    node: DocumentNode,
+    children: DocumentNode[] | undefined,
+    extract: ((text: string) => Promise<Entity[]>) | undefined
+  ): Promise<Entity[] | undefined> {
+    const entities: Entity[] = [];
+
+    // Collect from children first
+    if (children) {
+      for (const child of children) {
+        if (child.enrichment?.entities) {
+          entities.push(...child.enrichment.entities);
+        }
+      }
+    }
+
+    const text = node.text.trim();
+    if (text && extract) {
+      const nodeEntities = await extract(text);
+      if (nodeEntities?.length) {
+        entities.push(...nodeEntities);
+      }
+    }
+
+    // Deduplicate by text
+    const unique = new Map<string, Entity>();
+    for (const entity of entities) {
+      const key = `${entity.text}::${entity.type}`;
+      const existing = unique.get(key);
+      if (!existing || entity.score > existing.score) {
+        unique.set(key, entity);
+      }
+    }
+
+    const result = Array.from(unique.values());
+    return result.length > 0 ? result : undefined;
+  }
+}
+
+TaskRegistry.registerTask(DocumentEnricherTask);
+
+export const documentEnricher = (input: DocumentEnricherTaskInput, config?: JobQueueTaskConfig) => {
+  return new DocumentEnricherTask({} as DocumentEnricherTaskInput, config).run(input);
+};
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    documentEnricher: CreateWorkflow<
+      DocumentEnricherTaskInput,
+      DocumentEnricherTaskOutput,
+      JobQueueTaskConfig
+    >;
+  }
+}
+
+Workflow.prototype.documentEnricher = CreateWorkflow(DocumentEnricherTask);
