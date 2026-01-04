@@ -25,12 +25,6 @@ export class StructuralParser {
     title: string
   ): Promise<DocumentRootNode> {
     const lines = text.split("\n");
-    const sections: Array<{
-      level: number;
-      title: string;
-      startOffset: number;
-      node?: SectionNode;
-    }> = [];
     let currentOffset = 0;
 
     const root: DocumentRootNode = {
