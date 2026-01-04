@@ -18,6 +18,9 @@ export function magnitude(arr: TypedArray | number[]): number {
  * Calculates the inner (dot) product of two vectors
  */
 export function inner(arr1: TypedArray, arr2: TypedArray): number {
+  if (arr1.length !== arr2.length) {
+    throw new Error("Vectors must have the same length to compute inner product.");
+  }
   // @ts-ignore - Vector reduce works but TS doesn't recognize it
   return arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
 }
