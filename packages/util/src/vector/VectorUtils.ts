@@ -48,6 +48,11 @@ export function normalize(vector: TypedArray, throwOnZero = true): TypedArray {
   if (vector instanceof Float32Array) {
     return new Float32Array(normalized);
   }
+  // @ts-ignore - Float16Array is not yet in TypeScript's lib but is supported in browsers
+  if (typeof Float16Array !== "undefined" && vector instanceof Float16Array) {
+    // @ts-ignore
+    return new Float16Array(normalized);
+  }
   if (vector instanceof Int8Array) {
     return new Int8Array(normalized);
   }
