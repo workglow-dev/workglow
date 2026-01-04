@@ -192,7 +192,7 @@ export class VectorQuantizeTask extends Task<
    */
   private findMinMax(values: number[]): { min: number; max: number } {
     if (values.length === 0) {
-      return { min: 0, max: 0 };
+      return { min: 0, max: 1 };
     }
     
     let min = values[0];
