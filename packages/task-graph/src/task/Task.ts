@@ -403,10 +403,16 @@ export class Task<
       return obj;
     }
 
-    // Preserve TypedArrays (Float32Array, Int8Array, etc.) by reference
-    // These are often large and cloning them is expensive
+    // Clone TypedArrays (Float32Array, Int8Array, etc.) to avoid shared-mutation
+    // between defaults and runInputData, while preserving DataView by reference.
     if (ArrayBuffer.isView(obj)) {
-      return obj;
+      // Preserve DataView instances by reference (constructor signature differs)
+      if (typeof DataView !== "undefined" && obj instanceof DataView) {
+        return obj;
+      }
+      // For TypedArrays, create a new instance with the same data
+      const typedArray = obj as any;
+      return new (typedArray.constructor as any)(typedArray);
     }
 
     // Preserve class instances (objects with non-Object/non-Array prototype)
