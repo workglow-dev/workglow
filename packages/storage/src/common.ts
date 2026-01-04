@@ -8,6 +8,9 @@ export * from "./tabular/CachedTabularRepository";
 export * from "./tabular/InMemoryTabularRepository";
 export * from "./tabular/ITabularRepository";
 export * from "./tabular/TabularRepository";
+export * from "./tabular/TabularRepositoryRegistry";
+
+export * from "./schema/RepositorySchema";
 
 export * from "./kv/IKvRepository";
 export * from "./kv/InMemoryKvRepository";

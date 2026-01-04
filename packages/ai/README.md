@@ -423,6 +423,36 @@ try {
 
 ## Advanced Configuration
 
+### Model Input Resolution
+
+AI tasks accept model inputs as either string identifiers or direct `ModelConfig` objects. When a string is provided, the TaskRunner automatically resolves it to a `ModelConfig` before task execution using the `ModelRepository`.
+
+```typescript
+import { TextGenerationTask } from "@workglow/ai";
+
+// Using a model ID (resolved from ModelRepository)
+const task1 = new TextGenerationTask({
+  model: "onnx:Xenova/gpt2:q8",
+  prompt: "Generate text",
+});
+
+// Using a direct ModelConfig object
+const task2 = new TextGenerationTask({
+  model: {
+    model_id: "onnx:Xenova/gpt2:q8",
+    provider: "hf-transformers-onnx",
+    tasks: ["TextGenerationTask"],
+    title: "GPT-2",
+    provider_config: { pipeline: "text-generation" },
+  },
+  prompt: "Generate text",
+});
+
+// Both approaches work identically
+```
+
+This resolution is handled by the input resolver system, which inspects schema `format` annotations (like `"model"` or `"model:TextGenerationTask"`) to determine how string values should be resolved.
+
 ### Custom Model Validation
 
 Tasks automatically validate that specified models exist and are compatible:

@@ -8,6 +8,7 @@ export * from "./task/ArrayTask";
 export * from "./task/ConditionalTask";
 export * from "./task/GraphAsTask";
 export * from "./task/GraphAsTaskRunner";
+export * from "./task/InputResolver";
 export * from "./task/InputTask";
 export * from "./task/ITask";
 export * from "./task/JobQueueFactory";
