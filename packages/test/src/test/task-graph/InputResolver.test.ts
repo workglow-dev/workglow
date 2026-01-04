@@ -222,7 +222,7 @@ describe("InputResolver", () => {
         input: { repository: ITabularRepository<any, any, any, any, any>; query: string },
         _context: IExecuteContext
       ): Promise<{ results: any[] }> {
-        const { repository, query } = input;
+        const { repository } = input;
         // In a real task, we'd search the repository
         const results = await repository.getAll();
         return { results: results ?? [] };
