@@ -33,18 +33,30 @@ export function cosineSimilarity(a: TypedArray, b: TypedArray): number {
  * Calculates Jaccard similarity between two vectors
  * Uses the formula: sum(min(a[i], b[i])) / sum(max(a[i], b[i]))
  * Returns a value between 0 and 1
+ * For negative values, normalizes by finding the global min and shifting to non-negative range
  */
 export function jaccardSimilarity(a: TypedArray, b: TypedArray): number {
   if (a.length !== b.length) {
     throw new Error("Vectors must have the same length");
   }
 
+  // Find global min across both vectors to handle negative values
+  let globalMin = a[0];
+  for (let i = 0; i < a.length; i++) {
+    globalMin = Math.min(globalMin, a[i], b[i]);
+  }
+
+  // Shift values to non-negative range if needed
+  const shift = globalMin < 0 ? -globalMin : 0;
+
   let minSum = 0;
   let maxSum = 0;
 
   for (let i = 0; i < a.length; i++) {
-    minSum += Math.min(a[i], b[i]);
-    maxSum += Math.max(a[i], b[i]);
+    const shiftedA = a[i] + shift;
+    const shiftedB = b[i] + shift;
+    minSum += Math.min(shiftedA, shiftedB);
+    maxSum += Math.max(shiftedA, shiftedB);
   }
 
   return maxSum === 0 ? 0 : minSum / maxSum;
