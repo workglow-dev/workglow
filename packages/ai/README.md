@@ -396,6 +396,140 @@ const result = await workflow
 console.log("Final similarity score:", result.similarity);
 ```
 
+## RAG (Retrieval-Augmented Generation) Pipelines
+
+The AI package provides a comprehensive set of tasks for building RAG pipelines. These tasks chain together in workflows without requiring external loops.
+
+### Document Processing Tasks
+
+| Task                      | Description                                           |
+| ------------------------- | ----------------------------------------------------- |
+| `StructuralParserTask`    | Parses markdown/text into hierarchical document trees |
+| `TextChunkerTask`         | Splits text into chunks with configurable strategies  |
+| `HierarchicalChunkerTask` | Token-aware chunking that respects document structure |
+| `TopicSegmenterTask`      | Segments text by topic using heuristics or embeddings |
+| `DocumentEnricherTask`    | Adds summaries and entities to document nodes         |
+
+### Vector and Storage Tasks
+
+| Task                    | Description                              |
+| ----------------------- | ---------------------------------------- |
+| `ChunkToVectorTask`     | Transforms chunks to vector store format |
+| `VectorStoreUpsertTask` | Stores vectors in a repository           |
+| `VectorStoreSearchTask` | Searches vectors by similarity           |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency |
+
+### Retrieval and Generation Tasks
+
+| Task                 | Description                                   |
+| -------------------- | --------------------------------------------- |
+| `QueryExpanderTask`  | Expands queries for better retrieval coverage |
+| `HybridSearchTask`   | Combines vector and full-text search          |
+| `RerankerTask`       | Reranks search results for relevance          |
+| `HierarchyJoinTask`  | Enriches results with parent context          |
+| `ContextBuilderTask` | Builds context for LLM prompts                |
+| `RetrievalTask`      | Orchestrates end-to-end retrieval             |
+
+### Complete RAG Workflow Example
+
+```typescript
+import { Workflow } from "@workglow/task-graph";
+import { InMemoryVectorRepository } from "@workglow/storage";
+
+const vectorRepo = new InMemoryVectorRepository();
+await vectorRepo.setupDatabase();
+
+// Document ingestion - fully chainable, no loops required
+await new Workflow()
+  .structuralParser({
+    text: markdownContent,
+    title: "Documentation",
+    format: "markdown",
+  })
+  .documentEnricher({
+    generateSummaries: true,
+    extractEntities: true,
+  })
+  .hierarchicalChunker({
+    maxTokens: 512,
+    overlap: 50,
+    strategy: "hierarchical",
+  })
+  .textEmbedding({
+    model: "Xenova/all-MiniLM-L6-v2",
+  })
+  .chunkToVector()
+  .vectorStoreUpsert({
+    repository: vectorRepo,
+  })
+  .run();
+
+// Query pipeline
+const answer = await new Workflow()
+  .queryExpander({
+    query: "What is transfer learning?",
+    method: "multi-query",
+    numVariations: 3,
+  })
+  .textEmbedding({
+    model: "Xenova/all-MiniLM-L6-v2",
+  })
+  .vectorStoreSearch({
+    repository: vectorRepo,
+    topK: 10,
+    scoreThreshold: 0.5,
+  })
+  .reranker({
+    query: "What is transfer learning?",
+    topK: 5,
+  })
+  .contextBuilder({
+    format: "markdown",
+    maxLength: 2000,
+  })
+  .textQuestionAnswer({
+    question: "What is transfer learning?",
+    model: "Xenova/LaMini-Flan-T5-783M",
+  })
+  .run();
+```
+
+### Hierarchical Document Structure
+
+Documents are represented as trees with typed nodes:
+
+```typescript
+type DocumentNode =
+  | DocumentRootNode // Root of document
+  | SectionNode // Headers, structural sections
+  | ParagraphNode // Text blocks
+  | SentenceNode // Fine-grained (optional)
+  | TopicNode; // Detected topic segments
+```
+
+Each node contains:
+
+- `nodeId` - Deterministic content-based ID
+- `range` - Source character offsets
+- `text` - Content
+- `enrichment` - Summaries, entities, keywords (optional)
+- `children` - Child nodes (for parent nodes)
+
+### Task Data Flow
+
+Each task passes through what the next task needs:
+
+| Task                  | Passes Through          | Adds                                 |
+| --------------------- | ----------------------- | ------------------------------------ |
+| `structuralParser`    | -                       | `docId`, `documentTree`, `nodeCount` |
+| `documentEnricher`    | `docId`, `documentTree` | `summaryCount`, `entityCount`        |
+| `hierarchicalChunker` | `docId`                 | `chunks`, `text[]`, `count`          |
+| `textEmbedding`       | (implicit)              | `vector[]`                           |
+| `chunkToVector`       | -                       | `ids[]`, `vectors[]`, `metadata[]`   |
+| `vectorStoreUpsert`   | -                       | `count`, `ids`                       |
+
+This design eliminates the need for external loops - the entire pipeline chains together naturally.
+
 ## Error Handling
 
 AI tasks include comprehensive error handling:
@@ -452,6 +586,16 @@ const task2 = new TextGenerationTask({
 ```
 
 This resolution is handled by the input resolver system, which inspects schema `format` annotations (like `"model"` or `"model:TextGenerationTask"`) to determine how string values should be resolved.
+
+### Supported Format Annotations
+
+| Format                | Description                              | Resolver                   |
+| --------------------- | ---------------------------------------- | -------------------------- |
+| `model`               | Any AI model configuration               | ModelRepository            |
+| `model:TaskName`      | Model compatible with specific task type | ModelRepository            |
+| `repository:tabular`  | Tabular data repository                  | TabularRepositoryRegistry  |
+| `repository:vector`   | Vector storage repository                | VectorRepositoryRegistry   |
+| `repository:document` | Document repository                      | DocumentRepositoryRegistry |
 
 ### Custom Model Validation
 

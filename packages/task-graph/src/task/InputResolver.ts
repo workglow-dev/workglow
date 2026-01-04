@@ -99,8 +99,12 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
     const format = getSchemaFormat(propSchema);
     if (!format) continue;
 
-    const prefix = getFormatPrefix(format);
-    const resolver = resolvers.get(prefix);
+    // Try full format first (e.g., "repository:vector"), then fall back to prefix (e.g., "repository")
+    let resolver = resolvers.get(format);
+    if (!resolver) {
+      const prefix = getFormatPrefix(format);
+      resolver = resolvers.get(prefix);
+    }
 
     if (resolver) {
       resolved[key] = await resolver(value, format, config.registry);

@@ -43,7 +43,7 @@ export function TypeTabularRepository<O extends Record<string, unknown> = {}>(
     format: "repository:tabular" as const,
     oneOf: [
       { type: "string" as const, title: "Repository ID" },
-      { type: "object" as const, title: "Repository Instance" },
+      { title: "Repository Instance", additionalProperties: true },
     ],
   } as const satisfies JsonSchema;
 }
@@ -55,17 +55,15 @@ export function TypeTabularRepository<O extends Record<string, unknown> = {}>(
  * @param options Additional schema options to merge
  * @returns JSON schema for vector repository input
  */
-export function TypeVectorRepository<O extends Record<string, unknown> = {}>(
-  options: O = {} as O
-) {
+export function TypeVectorRepository<O extends Record<string, unknown> = {}>(options: O = {} as O) {
   return {
     title: "Vector Repository",
     description: "Repository ID or instance for vector data storage",
     ...options,
     format: "repository:vector" as const,
-    oneOf: [
+    anyOf: [
       { type: "string" as const, title: "Repository ID" },
-      { type: "object" as const, title: "Repository Instance" },
+      { title: "Repository Instance", additionalProperties: true },
     ],
   } as const satisfies JsonSchema;
 }
@@ -85,9 +83,9 @@ export function TypeDocumentRepository<O extends Record<string, unknown> = {}>(
     description: "Repository ID or instance for document data storage",
     ...options,
     format: "repository:document" as const,
-    oneOf: [
+    anyOf: [
       { type: "string" as const, title: "Repository ID" },
-      { type: "object" as const, title: "Repository Instance" },
+      { title: "Repository Instance", additionalProperties: true },
     ],
   } as const satisfies JsonSchema;
 }

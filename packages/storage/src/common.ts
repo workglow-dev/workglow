@@ -25,3 +25,11 @@ export * from "./limiter/IRateLimiterStorage";
 
 export * from "./util/HybridSubscriptionManager";
 export * from "./util/PollingSubscriptionManager";
+
+export * from "./vector/InMemoryVectorRepository";
+export * from "./vector/IVectorRepository";
+export * from "./vector/VectorRepositoryRegistry";
+
+export * from "./document/IDocumentRepository";
+export * from "./document/InMemoryDocumentRepository";
+export * from "./document/DocumentRepositoryRegistry";

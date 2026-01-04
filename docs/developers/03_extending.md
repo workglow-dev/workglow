@@ -118,7 +118,7 @@ To use the Task in Workflow, there are a few steps:
 
 ```ts
 export const simpleDebug = (input: DebugLogTaskInput) => {
-  return new SimpleDebugTask(input).run();
+  return new SimpleDebugTask({} as DebugLogTaskInput, {}).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -138,13 +138,13 @@ When defining task input schemas, you can use `format` annotations to enable aut
 
 The system supports several format annotations out of the box:
 
-| Format | Description | Helper Function |
-|--------|-------------|-----------------|
-| `model` | Any AI model configuration | — |
-| `model:TaskName` | Model compatible with specific task | — |
-| `repository:tabular` | Tabular data repository | `TypeTabularRepository()` |
-| `repository:vector` | Vector storage repository | `TypeVectorRepository()` |
-| `repository:document` | Document repository | `TypeDocumentRepository()` |
+| Format                | Description                         | Helper Function            |
+| --------------------- | ----------------------------------- | -------------------------- |
+| `model`               | Any AI model configuration          | —                          |
+| `model:TaskName`      | Model compatible with specific task | —                          |
+| `repository:tabular`  | Tabular data repository             | `TypeTabularRepository()`  |
+| `repository:vector`   | Vector storage repository           | `TypeVectorRepository()`   |
+| `repository:document` | Document repository                 | `TypeDocumentRepository()` |
 
 ### Example: Using Format Annotations
 
@@ -180,10 +180,10 @@ export class MyTask extends Task {
   static readonly type = "MyTask";
   static inputSchema = () => MyTaskInputSchema;
 
-  async executeReactive() {
+  async executeReactive(input: MyTaskInput) {
     // By the time execute runs, model is a ModelConfig object
     // and dataSource is an ITabularRepository instance
-    const { model, dataSource, prompt } = this.runInputData;
+    const { model, dataSource, prompt } = input;
     // ...
   }
 }
@@ -243,3 +243,144 @@ Compound Tasks are not cached (though any or all of their children may be).
 ## Reactive Task UIs
 
 Tasks can be reactive at a certain level. This means that they can be triggered by changes in the data they depend on, without "running" the expensive job based task runs. This is useful for a UI node editor. For example, you change a color in one task and it is propagated downstream without incurring costs for re-running the entire graph. It is like a spreadsheet where changing a cell can trigger a recalculation of other cells. This is implemented via a `runReactive()` method that is called when the data changes. Typically, the `run()` will call `runReactive()` on itself at the end of the method.
+
+## AI and RAG Tasks
+
+The `@workglow/ai` package provides a comprehensive set of tasks for building RAG (Retrieval-Augmented Generation) pipelines. These tasks are designed to chain together in workflows without requiring external loops.
+
+### Document Processing Tasks
+
+| Task                      | Description                                           |
+| ------------------------- | ----------------------------------------------------- |
+| `StructuralParserTask`    | Parses markdown/text into hierarchical document trees |
+| `TextChunkerTask`         | Splits text into chunks with configurable strategies  |
+| `HierarchicalChunkerTask` | Token-aware chunking that respects document structure |
+| `TopicSegmenterTask`      | Segments text by topic using heuristics or embeddings |
+| `DocumentEnricherTask`    | Adds summaries and entities to document nodes         |
+
+### Vector and Embedding Tasks
+
+| Task                    | Description                                    |
+| ----------------------- | ---------------------------------------------- |
+| `TextEmbeddingTask`     | Generates embeddings using configurable models |
+| `ChunkToVectorTask`     | Transforms chunks to vector store format       |
+| `VectorStoreUpsertTask` | Stores vectors in a repository                 |
+| `VectorStoreSearchTask` | Searches vectors by similarity                 |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency       |
+
+### Retrieval and Generation Tasks
+
+| Task                     | Description                                   |
+| ------------------------ | --------------------------------------------- |
+| `QueryExpanderTask`      | Expands queries for better retrieval coverage |
+| `HybridSearchTask`       | Combines vector and full-text search          |
+| `RerankerTask`           | Reranks search results for relevance          |
+| `HierarchyJoinTask`      | Enriches results with parent context          |
+| `ContextBuilderTask`     | Builds context for LLM prompts                |
+| `RetrievalTask`          | Orchestrates end-to-end retrieval             |
+| `TextQuestionAnswerTask` | Generates answers from context                |
+| `TextGenerationTask`     | General text generation                       |
+
+### Chainable RAG Pipeline Example
+
+Tasks chain together through compatible input/output schemas:
+
+```typescript
+import { Workflow } from "@workglow/task-graph";
+import { InMemoryVectorRepository } from "@workglow/storage";
+
+const vectorRepo = new InMemoryVectorRepository();
+await vectorRepo.setupDatabase();
+
+// Document ingestion pipeline
+await new Workflow()
+  .structuralParser({
+    text: markdownContent,
+    title: "My Document",
+    format: "markdown",
+  })
+  .documentEnricher({
+    generateSummaries: true,
+    extractEntities: true,
+  })
+  .hierarchicalChunker({
+    maxTokens: 512,
+    overlap: 50,
+    strategy: "hierarchical",
+  })
+  .textEmbedding({
+    model: "Xenova/all-MiniLM-L6-v2",
+  })
+  .chunkToVector()
+  .vectorStoreUpsert({
+    repository: vectorRepo,
+  })
+  .run();
+```
+
+### Retrieval Pipeline Example
+
+```typescript
+const answer = await new Workflow()
+  .textEmbedding({
+    text: query,
+    model: "Xenova/all-MiniLM-L6-v2",
+  })
+  .vectorStoreSearch({
+    repository: vectorRepo,
+    topK: 10,
+  })
+  .reranker({
+    query,
+    topK: 5,
+  })
+  .contextBuilder({
+    format: "markdown",
+    maxLength: 2000,
+  })
+  .textQuestionAnswer({
+    question: query,
+    model: "Xenova/LaMini-Flan-T5-783M",
+  })
+  .run();
+```
+
+### Hierarchical Document Structure
+
+Documents are represented as trees with typed nodes:
+
+```typescript
+type DocumentNode =
+  | DocumentRootNode // Root of document
+  | SectionNode // Headers, structural sections
+  | ParagraphNode // Text blocks
+  | SentenceNode // Fine-grained (optional)
+  | TopicNode; // Detected topic segments
+
+// Each node contains:
+interface BaseNode {
+  nodeId: string; // Deterministic content-based ID
+  range: { start: number; end: number };
+  text: string;
+  enrichment?: {
+    summary?: string;
+    entities?: Entity[];
+    keywords?: string[];
+  };
+}
+```
+
+### Task Data Flow
+
+Each task passes through what the next task needs:
+
+| Task                  | Passes Through          | Adds                                 |
+| --------------------- | ----------------------- | ------------------------------------ |
+| `structuralParser`    | -                       | `docId`, `documentTree`, `nodeCount` |
+| `documentEnricher`    | `docId`, `documentTree` | `summaryCount`, `entityCount`        |
+| `hierarchicalChunker` | `docId`                 | `chunks`, `text[]`, `count`          |
+| `textEmbedding`       | (implicit)              | `vector[]`                           |
+| `chunkToVector`       | -                       | `ids[]`, `vectors[]`, `metadata[]`   |
+| `vectorStoreUpsert`   | -                       | `count`, `ids`                       |
+
+This design eliminates the need for external loops - the entire pipeline chains together naturally.
