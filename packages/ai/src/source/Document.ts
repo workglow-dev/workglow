@@ -15,7 +15,7 @@ import {
   VariantManifestSchema,
   VariantProvenanceSchema,
 } from "./DocumentSchema";
-import { deriveConfigId } from "./ProvenanceUtils";
+import { deriveConfigId, extractConfigFields } from "./ProvenanceUtils";
 
 // Re-export types and schemas
 export { DocumentMetadataSchema, VariantManifestSchema, VariantProvenanceSchema };
@@ -51,19 +51,15 @@ export class Document {
   ): Promise<string> {
     const configId = await deriveConfigId(provenance);
 
+    // Use extractConfigFields for type-safe field extraction
+    const variantProvenance =
+      "embeddingModel" in provenance && typeof provenance.embeddingModel === "string"
+        ? (provenance as VariantProvenance)
+        : extractConfigFields(provenance as Provenance);
+
     const manifest: VariantManifest = {
       configId,
-      provenance:
-        "embeddingModel" in provenance && typeof provenance.embeddingModel === "string"
-          ? (provenance as VariantProvenance)
-          : ({
-              embeddingModel: (provenance as Provenance).embeddingModel || "",
-              chunkerStrategy: (provenance as Provenance).chunkerStrategy || "",
-              maxTokens: (provenance as Provenance).maxTokens || 512,
-              overlap: (provenance as Provenance).overlap || 0,
-              summaryModel: (provenance as Provenance).summaryModel as string | undefined,
-              nerModel: (provenance as Provenance).nerModel as string | undefined,
-            } as VariantProvenance),
+      provenance: variantProvenance,
       createdAt: new Date().toISOString(),
       chunks,
     };
