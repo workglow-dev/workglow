@@ -48,6 +48,9 @@ export function normalize(vector: TypedArray, throwOnZero = true): TypedArray {
   if (vector instanceof Float64Array) {
     return new Float64Array(normalized);
   }
+  if (vector instanceof Float16Array) {
+    return new Float16Array(normalized);
+  }
   if (vector instanceof Float32Array) {
     return new Float32Array(normalized);
   }
