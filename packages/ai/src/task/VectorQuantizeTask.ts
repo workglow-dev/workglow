@@ -194,9 +194,14 @@ export class VectorQuantizeTask extends Task<
   }
 
   private quantizeToUint8(values: number[]): Uint8Array {
-    // Find min/max for scaling
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    // Find min/max for scaling using a single loop
+    let min = values[0];
+    let max = values[0];
+    for (let i = 1; i < values.length; i++) {
+      const v = values[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
     const range = max - min || 1;
 
     // Scale to [0, 255]
@@ -210,9 +215,14 @@ export class VectorQuantizeTask extends Task<
   }
 
   private quantizeToUint16(values: number[]): Uint16Array {
-    // Find min/max for scaling
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    // Find min/max for scaling using a single loop
+    let min = values[0];
+    let max = values[0];
+    for (let i = 1; i < values.length; i++) {
+      const v = values[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
     const range = max - min || 1;
 
     // Scale to [0, 65535]
