@@ -118,7 +118,7 @@ export class QueryExpanderTask extends Task<
     input: QueryExpanderTaskInput,
     context: IExecuteContext
   ): Promise<QueryExpanderTaskOutput> {
-    const { query, method = QueryExpansionMethod.MULTI_QUERY, numVariations = 3, model } = input;
+    const { query, method = QueryExpansionMethod.MULTI_QUERY, numVariations = 3 } = input;
 
     let queries: string[];
 
