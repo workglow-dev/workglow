@@ -132,18 +132,19 @@ function extractNumberFromNested(
 /**
  * Sort object keys recursively for canonical JSON
  */
-function sortObject(obj: any): any {
+function sortObject(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
   if (Array.isArray(obj)) {
-    return obj.map(sortObject);
+    return obj.map((item) => sortObject(item));
   }
   if (typeof obj === "object") {
-    const sorted: Record<string, any> = {};
-    const keys = Object.keys(obj).sort();
+    const record = obj as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {};
+    const keys = Object.keys(record).sort();
     for (const key of keys) {
-      sorted[key] = sortObject(obj[key]);
+      sorted[key] = sortObject(record[key]);
     }
     return sorted;
   }
