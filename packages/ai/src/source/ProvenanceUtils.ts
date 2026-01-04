@@ -10,6 +10,11 @@ import { sha256 } from "@workglow/util";
 import type { VariantProvenance } from "./DocumentSchema";
 
 /**
+ * Default maximum tokens for chunking when not specified in provenance
+ */
+const DEFAULT_MAX_TOKENS = 512;
+
+/**
  * Extract variant-relevant fields from task-graph provenance
  */
 export function extractConfigFields(provenance: Provenance): VariantProvenance {
@@ -79,7 +84,7 @@ function extractNumber(prov: Provenance, ...keys: string[]): number {
     }
   }
   // Default for required field
-  return 512; // Default maxTokens
+  return DEFAULT_MAX_TOKENS;
 }
 
 /**
