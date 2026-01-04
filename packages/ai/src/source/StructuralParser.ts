@@ -241,9 +241,18 @@ export class StructuralParser {
     title: string,
     format?: "markdown" | "text"
   ): Promise<DocumentRootNode> {
-    if (format === "markdown" || (!format && text.includes("#"))) {
+    if (format === "markdown" || (!format && this.looksLikeMarkdown(text))) {
       return this.parseMarkdown(docId, text, title);
     }
     return this.parsePlainText(docId, text, title);
+  }
+
+  /**
+   * Check if text contains markdown header patterns
+   * Looks for lines starting with 1-6 hash symbols followed by whitespace
+   */
+  private static looksLikeMarkdown(text: string): boolean {
+    // Check for markdown header patterns: line starting with # followed by space
+    return /^#{1,6}\s/m.test(text);
   }
 }
