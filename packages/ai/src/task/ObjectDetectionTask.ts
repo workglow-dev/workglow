@@ -123,7 +123,7 @@ TaskRegistry.registerTask(ObjectDetectionTask);
  * @returns Promise resolving to the detected objects with labels, scores, and bounding boxes
  */
 export const objectDetection = (input: ObjectDetectionTaskInput, config?: JobQueueTaskConfig) => {
-  return new ObjectDetectionTask(input, config).run();
+  return new ObjectDetectionTask({} as ObjectDetectionTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

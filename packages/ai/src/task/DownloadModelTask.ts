@@ -103,7 +103,7 @@ TaskRegistry.registerTask(DownloadModelTask);
  * @returns Promise resolving to the downloaded model(s)
  */
 export const downloadModel = (input: DownloadModelTaskRunInput, config?: JobQueueTaskConfig) => {
-  return new DownloadModelTask(input, config).run();
+  return new DownloadModelTask({} as DownloadModelTaskRunInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

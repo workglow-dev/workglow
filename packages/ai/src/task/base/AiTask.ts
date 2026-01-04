@@ -16,11 +16,12 @@ import {
   TaskInput,
   type TaskOutput,
 } from "@workglow/task-graph";
-import { type JsonSchema } from "@workglow/util";
+import { type JsonSchema, type ServiceRegistry } from "@workglow/util";
 
 import { AiJob, AiJobInput } from "../../job/AiJob";
-import { getGlobalModelRepository } from "../../model/ModelRegistry";
-import type { ModelConfig, ModelRecord } from "../../model/ModelSchema";
+import { MODEL_REPOSITORY } from "../../model/ModelRegistry";
+import type { ModelRepository } from "../../model/ModelRepository";
+import type { ModelConfig } from "../../model/ModelSchema";
 
 function schemaFormat(schema: JsonSchema): string | undefined {
   return typeof schema === "object" && schema !== null && "format" in schema
@@ -39,6 +40,9 @@ export interface AiArrayTaskInput extends TaskInput {
 /**
  * A base class for AI related tasks that run in a job queue.
  * Extends the JobQueueTask class to provide LLM-specific functionality.
+ *
+ * Model resolution is handled automatically by the TaskRunner before execution.
+ * By the time execute() is called, input.model is always a ModelConfig object.
  */
 export class AiTask<
   Input extends AiArrayTaskInput = AiArrayTaskInput,
@@ -46,7 +50,6 @@ export class AiTask<
   Config extends JobQueueTaskConfig = JobQueueTaskConfig,
 > extends JobQueueTask<Input, Output, Config> {
   public static type: string = "AiTask";
-  private modelCache?: { name: string; model: ModelRecord };
 
   /**
    * Creates a new AiTask instance
@@ -74,7 +77,11 @@ export class AiTask<
   /**
    * Get the input to submit to the job queue.
    * Transforms the task input to AiJobInput format.
-   * @param input - The task input
+   *
+   * Note: By the time this is called, input.model has already been resolved
+   * to a ModelConfig by the TaskRunner's input resolution system.
+   *
+   * @param input - The task input (with resolved model)
    * @returns The AiJobInput to submit to the queue
    */
   protected override async getJobInput(input: Input): Promise<AiJobInput<Input>> {
@@ -84,46 +91,22 @@ export class AiTask<
         "AiTask: Model is an array, only create job for single model tasks"
       );
     }
-    const runtype = (this.constructor as any).runtype ?? (this.constructor as any).type;
-    const model = await this.getModelConfigForInput(input as AiSingleTaskInput);
 
-    // TODO: if the queue is not memory based, we need to convert to something that can structure clone to the queue
-    // const registeredQueue = await this.resolveQueue(input);
-    // const queueName = registeredQueue?.server.queueName;
+    // Model is guaranteed to be resolved by TaskRunner before this is called
+    const model = input.model as ModelConfig;
+    if (!model || typeof model !== "object") {
+      throw new TaskConfigurationError(
+        "AiTask: Model was not resolved to ModelConfig - this indicates a bug in the resolution system"
+      );
+    }
+
+    const runtype = (this.constructor as any).runtype ?? (this.constructor as any).type;
 
     return {
       taskType: runtype,
       aiProvider: model.provider,
-      taskInput: { ...(input as any), model } as Input & { model: ModelConfig },
+      taskInput: input as Input & { model: ModelConfig },
     };
-  }
-
-  /**
-   * Resolves a model configuration for the given input.
-   *
-   * @remarks
-   * - If `input.model` is a string, it is resolved via the global model repository.
-   * - If `input.model` is already a config object, it is used directly.
-   */
-  protected async getModelConfigForInput(input: AiSingleTaskInput): Promise<ModelConfig> {
-    const modelValue = input.model;
-    if (!modelValue) throw new TaskConfigurationError("AiTask: No model found");
-    if (typeof modelValue === "string") {
-      const modelname = modelValue;
-      if (this.modelCache && this.modelCache.name === modelname) {
-        return this.modelCache.model;
-      }
-      const model = await getGlobalModelRepository().findByName(modelname);
-      if (!model) {
-        throw new TaskConfigurationError(`AiTask: No model ${modelname} found`);
-      }
-      this.modelCache = { name: modelname, model };
-      return model;
-    }
-    if (typeof modelValue === "object") {
-      return modelValue;
-    }
-    throw new TaskConfigurationError("AiTask: Invalid model value");
   }
 
   /**
@@ -149,42 +132,28 @@ export class AiTask<
     return job;
   }
 
-  protected async getModelForInput(input: AiSingleTaskInput): Promise<ModelRecord> {
-    const modelname = input.model;
-    if (!modelname) throw new TaskConfigurationError("AiTask: No model name found");
-    if (typeof modelname !== "string") {
-      throw new TaskConfigurationError("AiTask: Model name is not a string");
-    }
-    if (this.modelCache && this.modelCache.name === modelname) {
-      return this.modelCache.model;
-    }
-    const model = await getGlobalModelRepository().findByName(modelname);
-    if (!model) {
-      throw new TaskConfigurationError(`JobQueueTask: No model ${modelname} found`);
-    }
-    this.modelCache = { name: modelname, model };
-    return model;
-  }
-
+  /**
+   * Gets the default queue name based on the model's provider.
+   * After TaskRunner resolution, input.model is a ModelConfig.
+   */
   protected override async getDefaultQueueName(input: Input): Promise<string | undefined> {
-    if (typeof input.model === "string") {
-      const model = await this.getModelForInput(input as AiSingleTaskInput);
-      return model.provider;
+    if (Array.isArray(input.model)) {
+      return undefined;
     }
-    if (typeof input.model === "object" && input.model !== null && !Array.isArray(input.model)) {
-      return (input.model as ModelConfig).provider;
-    }
-    return undefined;
+    const model = input.model as ModelConfig;
+    return model?.provider;
   }
 
   /**
-   * Validates that a model name really exists
-   * @param schema The schema to validate against
-   * @param item The item to validate
-   * @returns True if the item is valid, false otherwise
+   * Validates that model inputs are valid ModelConfig objects.
+   *
+   * Note: By the time this is called, string model IDs have already been
+   * resolved to ModelConfig objects by the TaskRunner's input resolution system.
+   *
+   * @param input The input to validate
+   * @returns True if the input is valid
    */
   async validateInput(input: Input): Promise<boolean> {
-    // TODO(str): this is very inefficient, we should cache the results, including intermediate results
     const inputSchema = this.inputSchema();
     if (typeof inputSchema === "boolean") {
       if (inputSchema === false) {
@@ -192,58 +161,44 @@ export class AiTask<
       }
       return true;
     }
+
+    // Find properties with model:TaskName format - need task compatibility check
     const modelTaskProperties = Object.entries<JsonSchema>(
       (inputSchema.properties || {}) as Record<string, JsonSchema>
     ).filter(([key, schema]) => schemaFormat(schema)?.startsWith("model:"));
 
-    if (modelTaskProperties.length > 0) {
-      const taskModels = await getGlobalModelRepository().findModelsByTask(this.type);
-      for (const [key, propSchema] of modelTaskProperties) {
-        let requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
-        for (const model of requestedModels) {
-          if (typeof model === "string") {
-            const foundModel = taskModels?.find((m) => m.model_id === model);
-            if (!foundModel) {
-              throw new TaskConfigurationError(
-                `AiTask: Missing model for '${key}' named '${model}' for task '${this.type}'`
-              );
-            }
-          } else if (typeof model === "object" && model !== null) {
-            // Inline configs are accepted without requiring repository access.
-            // If 'tasks' is provided, do a best-effort compatibility check.
-            const tasks = (model as ModelConfig).tasks;
-            if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
-              throw new TaskConfigurationError(
-                `AiTask: Inline model for '${key}' is not compatible with task '${this.type}'`
-              );
-            }
-          } else {
-            throw new TaskConfigurationError(`AiTask: Invalid model for '${key}'`);
+    for (const [key] of modelTaskProperties) {
+      const requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
+      for (const model of requestedModels) {
+        if (typeof model === "object" && model !== null) {
+          // Check task compatibility if tasks array is specified
+          const tasks = (model as ModelConfig).tasks;
+          if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
+            throw new TaskConfigurationError(
+              `AiTask: Model for '${key}' is not compatible with task '${this.type}'`
+            );
           }
+        } else if (model !== undefined && model !== null) {
+          // Should be a ModelConfig object after resolution
+          throw new TaskConfigurationError(
+            `AiTask: Invalid model for '${key}' - expected ModelConfig object`
+          );
         }
       }
     }
 
+    // Find properties with plain model format - just ensure they're objects
     const modelPlainProperties = Object.entries<JsonSchema>(
       (inputSchema.properties || {}) as Record<string, JsonSchema>
     ).filter(([key, schema]) => schemaFormat(schema) === "model");
 
-    if (modelPlainProperties.length > 0) {
-      for (const [key, propSchema] of modelPlainProperties) {
-        let requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
-        for (const model of requestedModels) {
-          if (typeof model === "string") {
-            const foundModel = await getGlobalModelRepository().findByName(model);
-            if (!foundModel) {
-              throw new TaskConfigurationError(
-                `AiTask: Missing model for "${key}" named "${model}"`
-              );
-            }
-          } else if (typeof model === "object" && model !== null) {
-            // Inline configs are accepted without requiring repository access.
-          } else {
-            throw new TaskConfigurationError(`AiTask: Invalid model for "${key}"`);
-          }
+    for (const [key] of modelPlainProperties) {
+      const requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
+      for (const model of requestedModels) {
+        if (model !== undefined && model !== null && typeof model !== "object") {
+          throw new TaskConfigurationError(
+            `AiTask: Invalid model for '${key}' - expected ModelConfig object`
+          );
         }
       }
     }
@@ -253,7 +208,7 @@ export class AiTask<
 
   // dataflows can strip some models that are incompatible with the target task
   // if all of them are stripped, then the task will fail in validateInput
-  async narrowInput(input: Input): Promise<Input> {
+  async narrowInput(input: Input, registry: ServiceRegistry): Promise<Input> {
     // TODO(str): this is very inefficient, we should cache the results, including intermediate results
     const inputSchema = this.inputSchema();
     if (typeof inputSchema === "boolean") {
@@ -266,7 +221,8 @@ export class AiTask<
       (inputSchema.properties || {}) as Record<string, JsonSchema>
     ).filter(([key, schema]) => schemaFormat(schema)?.startsWith("model:"));
     if (modelTaskProperties.length > 0) {
-      const taskModels = await getGlobalModelRepository().findModelsByTask(this.type);
+      const modelRepo = registry.get<ModelRepository>(MODEL_REPOSITORY);
+      const taskModels = await modelRepo.findModelsByTask(this.type);
       for (const [key, propSchema] of modelTaskProperties) {
         let requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
         const requestedStrings = requestedModels.filter(

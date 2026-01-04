@@ -73,7 +73,7 @@ TaskRegistry.registerTask(TextRewriterTask);
  * @returns Promise resolving to the rewritten text output(s)
  */
 export const textRewriter = (input: TextRewriterTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextRewriterTask(input, config).run();
+  return new TextRewriterTask({} as TextRewriterTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

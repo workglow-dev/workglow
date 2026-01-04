@@ -94,7 +94,7 @@ export const textQuestionAnswer = (
   input: TextQuestionAnswerTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new TextQuestionAnswerTask(input, config).run();
+  return new TextQuestionAnswerTask({} as TextQuestionAnswerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

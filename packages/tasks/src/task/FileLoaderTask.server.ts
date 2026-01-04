@@ -216,7 +216,7 @@ export class FileLoaderTask extends BaseFileLoaderTask {
 TaskRegistry.registerTask(FileLoaderTask);
 
 export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
-  return new FileLoaderTask(input, config).run();
+  return new FileLoaderTask({} as FileLoaderTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
