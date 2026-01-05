@@ -349,7 +349,7 @@ const result = await new Workflow()
 
 ### Vector Metadata for Hierarchical Documents
 
-When using hierarchical chunking, vector metadata includes:
+When using hierarchical chunking, base vector metadata (stored in vector database) includes:
 
 ```typescript
 metadata: {
@@ -359,12 +359,24 @@ metadata: {
   leafNodeId: string,   // Reference to document tree node
   depth: number,        // Hierarchy depth
   text: string,         // Chunk text content
+  nodePath: string[],   // Node IDs from root to leaf
   // From enrichment (optional):
-  parentSummaries?: string[],
-  sectionTitles?: string[],
-  entities?: Entity[],
+  summary?: string,     // Summary of the chunk content
+  entities?: Entity[],  // Named entities extracted from the chunk
 }
 ```
+
+After `HierarchyJoinTask`, enriched metadata includes additional fields:
+
+```typescript
+enrichedMetadata: {
+  // ... all base metadata fields above ...
+  parentSummaries?: string[],  // Summaries from ancestor nodes (looked up on-demand)
+  sectionTitles?: string[],     // Titles of ancestor section nodes
+}
+```
+
+Note: `parentSummaries` is not stored in the vector database. It is computed on-demand by `HierarchyJoinTask` using `docId` and `leafNodeId` to look up ancestors from the document repository.
 
 ## Document Repository
 

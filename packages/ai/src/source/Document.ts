@@ -110,7 +110,7 @@ export class Document {
    */
   getChunks(configId: string): ChunkNode[] {
     const variant = this.variants.get(configId);
-    return variant ? variant.chunks : [];
+    return variant?.chunks ?? [];
   }
 
   /**
