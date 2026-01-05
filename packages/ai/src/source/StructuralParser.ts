@@ -35,6 +35,7 @@ export class StructuralParser {
       kind: NodeKind.DOCUMENT,
       range: { startOffset: 0, endOffset: text.length },
       text: title,
+      title,
       children: [],
     };
 
@@ -165,6 +166,7 @@ export class StructuralParser {
       kind: NodeKind.DOCUMENT,
       range: { startOffset: 0, endOffset: text.length },
       text: title,
+      title,
       children: [],
     };
 
