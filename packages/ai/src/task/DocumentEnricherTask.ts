@@ -13,6 +13,8 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
+import { TypeModel } from "../common";
+import { ModelConfig } from "../model/ModelSchema";
 import { getChildren, hasChildren } from "../source/DocumentNode";
 import { type DocumentNode, type Entity, type NodeEnrichment } from "../source/DocumentSchema";
 import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
@@ -42,22 +44,20 @@ const inputSchema = {
       description: "Whether to extract named entities",
       default: true,
     },
-    summaryModel: {
-      type: "string",
+    summaryModel: TypeModel("model:TextSummaryTask", {
       title: "Summary Model",
       description: "Model to use for summary generation (optional)",
-    },
+    }),
     summaryThreshold: {
       type: "number",
       title: "Summary Threshold",
       description: "Minimum combined text length (node + children) to warrant generating a summary",
       default: 500,
     },
-    nerModel: {
-      type: "string",
+    nerModel: TypeModel("model:TextNamedEntityRecognitionTask", {
       title: "NER Model",
       description: "Model to use for named entity recognition (optional)",
-    },
+    }),
   },
   required: [],
   additionalProperties: false,
@@ -125,12 +125,14 @@ export class DocumentEnricherTask extends Task<
       documentTree,
       generateSummaries = true,
       extractEntities = true,
-      summaryModel,
+      summaryModel: summaryModelConfig,
       summaryThreshold = 500,
-      nerModel,
+      nerModel: nerModelConfig,
     } = input;
 
     const root = documentTree as DocumentNode;
+    const summaryModel = summaryModelConfig ? (summaryModelConfig as ModelConfig) : undefined;
+    const nerModel = nerModelConfig ? (nerModelConfig as ModelConfig) : undefined;
     let summaryCount = 0;
     let entityCount = 0;
 
@@ -173,7 +175,7 @@ export class DocumentEnricherTask extends Task<
   private async enrichNode(
     node: DocumentNode,
     context: IExecuteContext,
-    summaryModel: string | undefined,
+    summaryModel: ModelConfig | undefined,
     summaryThreshold: number,
     extract: ((text: string) => Promise<Entity[]>) | undefined,
     onSummary: (count: number) => void,
@@ -250,7 +252,12 @@ export class DocumentEnricherTask extends Task<
   /**
    * Private method to summarize text using the TextSummaryTask
    */
-  private async summarize(text: string, context: IExecuteContext, model: string): Promise<string> {
+  private async summarize(
+    text: string,
+    context: IExecuteContext,
+    model: ModelConfig
+  ): Promise<string> {
+    // TODO: Handle truncation of text if needed, based on model configuration
     return (await context.own(new TextSummaryTask()).run({ text, model })).text;
   }
 
@@ -261,7 +268,7 @@ export class DocumentEnricherTask extends Task<
     node: DocumentNode,
     children: DocumentNode[],
     context: IExecuteContext,
-    model: string,
+    model: ModelConfig,
     threshold: number
   ): Promise<string | undefined> {
     const textParts: string[] = [];
@@ -301,8 +308,7 @@ export class DocumentEnricherTask extends Task<
 
     // Summarize the node's own text first
     if (nodeText) {
-      const nodeTextInput = nodeText.substring(0, 2000);
-      const nodeSummary = await this.summarize(nodeTextInput, context, model);
+      const nodeSummary = await this.summarize(nodeText, context, model);
       if (nodeSummary) {
         summaryParts.push(nodeSummary);
       }
@@ -318,9 +324,7 @@ export class DocumentEnricherTask extends Task<
       return undefined;
     }
 
-    // Summarize the combined summaries
-    const summaryInput = combinedSummaries.substring(0, 2000);
-    const result = await this.summarize(summaryInput, context, model);
+    const result = await this.summarize(combinedSummaries, context, model);
     return result;
   }
 
@@ -330,7 +334,7 @@ export class DocumentEnricherTask extends Task<
   private async generateLeafSummary(
     text: string,
     context: IExecuteContext,
-    model: string,
+    model: ModelConfig,
     threshold: number
   ): Promise<string | undefined> {
     const trimmedText = text.trim();
@@ -343,8 +347,7 @@ export class DocumentEnricherTask extends Task<
       return undefined;
     }
 
-    const summaryInput = trimmedText.substring(0, 2000);
-    const result = await this.summarize(summaryInput, context, model);
+    const result = await this.summarize(trimmedText, context, model);
     return result;
   }
 
