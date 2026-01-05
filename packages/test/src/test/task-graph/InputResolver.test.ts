@@ -11,15 +11,13 @@ import {
   registerTabularRepository,
   TypeTabularRepository,
 } from "@workglow/storage";
+import { IExecuteContext, resolveSchemaInputs, Task, TaskRegistry } from "@workglow/task-graph";
 import {
   getInputResolvers,
-  IExecuteContext,
+  globalServiceRegistry,
   registerInputResolver,
-  resolveSchemaInputs,
-  Task,
-  TaskRegistry,
-} from "@workglow/task-graph";
-import { globalServiceRegistry, type DataPortSchema } from "@workglow/util";
+  type DataPortSchema,
+} from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("InputResolver", () => {

@@ -10,16 +10,8 @@ import {
   type DocumentMetadata,
   type VariantManifest,
   type VariantProvenance,
-  // Re-export schemas for external use
-  DocumentMetadataSchema,
-  VariantManifestSchema,
-  VariantProvenanceSchema,
 } from "./DocumentSchema";
 import { deriveConfigId, extractConfigFields } from "./ProvenanceUtils";
-
-// Re-export types and schemas
-export { DocumentMetadataSchema, VariantManifestSchema, VariantProvenanceSchema };
-export type { DocumentMetadata, VariantManifest, VariantProvenance };
 
 /**
  * Document represents a hierarchical document with multiple processing variants

@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ChunkNode, DocumentNode } from "@workglow/ai";
+import { Document, NodeKind } from "@workglow/ai";
 import type { Provenance } from "@workglow/task-graph";
 import { describe, expect, test } from "vitest";
-import { Document } from "./Document";
-import type { ChunkNode, DocumentNode } from "./DocumentSchema";
-import { NodeKind } from "./DocumentSchema";
 
 describe("Document", () => {
   const createTestDocumentNode = (): DocumentNode => ({
     nodeId: "root",
     kind: NodeKind.DOCUMENT,
     range: { startOffset: 0, endOffset: 100 },
-    text: "Test document",
+    text: "Test document stuff",
+    title: "Test document",
     children: [],
   });
 

@@ -138,7 +138,12 @@ export class AiTask<
    */
   protected override async getDefaultQueueName(input: Input): Promise<string | undefined> {
     if (Array.isArray(input.model)) {
-      return undefined;
+      if (input.model.length === 1) {
+        return (input.model[0] as ModelConfig).provider;
+      }
+      throw new TaskConfigurationError(
+        "AiTask: getDefaultQueueName does not support multiple models. Only provide a single model."
+      );
     }
     const model = input.model as ModelConfig;
     return model?.provider;

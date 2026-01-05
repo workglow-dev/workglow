@@ -7,14 +7,6 @@
 import type { DataPortSchema, ServiceRegistry } from "@workglow/util";
 import { getInputResolvers } from "@workglow/util";
 
-// Re-export for convenience
-export {
-  getInputResolvers,
-  INPUT_RESOLVERS,
-  registerInputResolver,
-  type InputResolverFn,
-} from "@workglow/util";
-
 /**
  * Configuration for the input resolver
  */
