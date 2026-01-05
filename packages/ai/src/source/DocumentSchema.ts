@@ -274,6 +274,11 @@ export const DocumentRootNodeSchema = {
       title: "Kind",
       description: "Node type discriminator",
     },
+    title: {
+      type: "string",
+      title: "Title",
+      description: "Document title",
+    },
     children: {
       type: "array",
       items: DocumentNodeSchema,
@@ -281,7 +286,7 @@ export const DocumentRootNodeSchema = {
       description: "Child nodes",
     },
   },
-  required: [...DocumentNodeBaseSchema.required, "children"],
+  required: [...DocumentNodeBaseSchema.required, "title", "children"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -306,6 +311,7 @@ interface DocumentNodeBase {
  */
 export interface DocumentRootNode extends DocumentNodeBase {
   readonly kind: typeof NodeKind.DOCUMENT;
+  readonly title: string;
   readonly children: DocumentNode[];
 }
 
@@ -384,7 +390,7 @@ export const TokenBudgetSchema = {
 export type TokenBudget = FromSchema<typeof TokenBudgetSchema>;
 
 /**
- * Schema for chunk enrichment (includes parent context)
+ * Schema for chunk enrichment
  */
 export const ChunkEnrichmentSchema = {
   type: "object",
@@ -399,12 +405,6 @@ export const ChunkEnrichmentSchema = {
       items: EntitySchema,
       title: "Entities",
       description: "Named entities extracted from the chunk",
-    },
-    parentSummaries: {
-      type: "array",
-      items: { type: "string" },
-      title: "Parent Summaries",
-      description: "Summaries from parent nodes for context",
     },
   },
   additionalProperties: false,
@@ -515,12 +515,6 @@ export const ChunkMetadataSchema = {
       items: EntitySchema,
       title: "Entities",
       description: "Named entities extracted from the chunk",
-    },
-    parentSummaries: {
-      type: "array",
-      items: { type: "string" },
-      title: "Parent Summaries",
-      description: "Summaries from parent nodes for context",
     },
   },
   required: ["docId", "configId", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
