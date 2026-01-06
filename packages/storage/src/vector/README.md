@@ -382,24 +382,66 @@ Note: `parentSummaries` is not stored in the vector database. It is computed on-
 The `IDocumentRepository` interface provides storage for hierarchical document structures:
 
 ```typescript
-interface IDocumentRepository {
+class DocumentRepository {
+  constructor(
+    tabularStorage: ITabularRepository,
+    vectorStorage: IVectorRepository
+  );
+  
   upsert(document: Document): Promise<void>;
   get(docId: string): Promise<Document | undefined>;
   getNode(docId: string, nodeId: string): Promise<DocumentNode | undefined>;
   getAncestors(docId: string, nodeId: string): Promise<DocumentNode[]>;
+  getChunks(docId: string): Promise<ChunkNode[]>;
+  findChunksByNodeId(docId: string, nodeId: string): Promise<ChunkNode[]>;
   delete(docId: string): Promise<void>;
-  size(): Promise<number>;
-  clear(): Promise<void>;
+  list(): Promise<string[]>;
+  search(query: TypedArray, options?: VectorSearchOptions): Promise<SearchResult[]>;
 }
 ```
 
-### Document Repository Implementations
+### Document Repository
 
-| Implementation | Use Case |
-|----------------|----------|
-| `InMemoryDocumentRepository` | Testing, small datasets |
-| `SqliteDocumentRepository` | Local persistence |
-| `PostgresDocumentRepository` | Production deployments |
+The `DocumentRepository` class provides a unified interface for storing hierarchical documents and searching chunks. It uses composition of storage backends:
+
+| Component | Purpose |
+|-----------|---------|
+| `ITabularRepository` | Stores document structure and metadata |
+| `IVectorRepository` | Enables similarity search on document chunks |
+
+**Example Usage:**
+
+```typescript
+import {
+  DocumentRepository,
+  InMemoryTabularRepository,
+  InMemoryVectorRepository,
+} from "@workglow/storage";
+
+// Define schema for document storage
+const DocumentStorageSchema = {
+  type: "object",
+  properties: {
+    docId: { type: "string" },
+    data: { type: "string" },
+  },
+  required: ["docId", "data"],
+} as const;
+
+// Initialize storage backends
+const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+await tabularStorage.setupDatabase();
+
+const vectorStorage = new InMemoryVectorRepository();
+await vectorStorage.setupDatabase();
+
+// Create document repository
+const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
+
+// Use the repository
+await docRepo.upsert(document);
+const results = await docRepo.search(queryVector, { topK: 5 });
+```
 
 ## License
 

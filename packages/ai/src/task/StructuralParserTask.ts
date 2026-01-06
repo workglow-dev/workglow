@@ -104,11 +104,11 @@ export class StructuralParserTask extends Task<
     input: StructuralParserTaskInput,
     context: IExecuteContext
   ): Promise<StructuralParserTaskOutput> {
-    const { text, title, format = "auto", sourceUri, docId: providedMasterDocId } = input;
+    const { text, title, format = "auto", sourceUri, docId: providedDocId } = input;
 
     // Generate or use provided docId
     const docId =
-      providedMasterDocId || (await NodeIdGenerator.generateDocId(sourceUri || "document", text));
+      providedDocId || (await NodeIdGenerator.generateDocId(sourceUri || "document", text));
 
     // Parse based on format
     let documentTree: DocumentNode;

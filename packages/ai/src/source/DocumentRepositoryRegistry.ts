@@ -10,13 +10,13 @@ import {
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
-import type { IDocumentRepository } from "./IDocumentRepository";
+import type { DocumentRepository } from "./DocumentRepository";
 
 /**
  * Service token for the document repository registry
- * Maps repository IDs to IDocumentRepository instances
+ * Maps repository IDs to DocumentRepository instances
  */
-export const DOCUMENT_REPOSITORIES = createServiceToken<Map<string, IDocumentRepository>>(
+export const DOCUMENT_REPOSITORIES = createServiceToken<Map<string, DocumentRepository>>(
   "document.repositories"
 );
 
@@ -24,7 +24,7 @@ export const DOCUMENT_REPOSITORIES = createServiceToken<Map<string, IDocumentRep
 if (!globalServiceRegistry.has(DOCUMENT_REPOSITORIES)) {
   globalServiceRegistry.register(
     DOCUMENT_REPOSITORIES,
-    (): Map<string, IDocumentRepository> => new Map(),
+    (): Map<string, DocumentRepository> => new Map(),
     true
   );
 }
@@ -33,7 +33,7 @@ if (!globalServiceRegistry.has(DOCUMENT_REPOSITORIES)) {
  * Gets the global document repository registry
  * @returns Map of document repository ID to instance
  */
-export function getGlobalDocumentRepositories(): Map<string, IDocumentRepository> {
+export function getGlobalDocumentRepositories(): Map<string, DocumentRepository> {
   return globalServiceRegistry.get(DOCUMENT_REPOSITORIES);
 }
 
@@ -42,7 +42,7 @@ export function getGlobalDocumentRepositories(): Map<string, IDocumentRepository
  * @param id The unique identifier for this repository
  * @param repository The repository instance to register
  */
-export function registerDocumentRepository(id: string, repository: IDocumentRepository): void {
+export function registerDocumentRepository(id: string, repository: DocumentRepository): void {
   const repos = getGlobalDocumentRepositories();
   repos.set(id, repository);
 }
@@ -52,21 +52,21 @@ export function registerDocumentRepository(id: string, repository: IDocumentRepo
  * @param id The repository identifier
  * @returns The repository instance or undefined if not found
  */
-export function getDocumentRepository(id: string): IDocumentRepository | undefined {
+export function getDocumentRepository(id: string): DocumentRepository | undefined {
   return getGlobalDocumentRepositories().get(id);
 }
 
 /**
- * Resolves a repository ID to an IDocumentRepository from the registry.
+ * Resolves a repository ID to a DocumentRepository from the registry.
  * Used by the input resolver system.
  */
 async function resolveDocumentRepositoryFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): Promise<IDocumentRepository> {
+): Promise<DocumentRepository> {
   const repos = registry.has(DOCUMENT_REPOSITORIES)
-    ? registry.get<Map<string, IDocumentRepository>>(DOCUMENT_REPOSITORIES)
+    ? registry.get<Map<string, DocumentRepository>>(DOCUMENT_REPOSITORIES)
     : getGlobalDocumentRepositories();
 
   const repo = repos.get(id);

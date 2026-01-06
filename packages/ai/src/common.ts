@@ -5,13 +5,18 @@
  */
 
 export * from "./job/AiJob";
+
 export * from "./model/InMemoryModelRepository";
 export * from "./model/ModelRegistry";
 export * from "./model/ModelRepository";
 export * from "./model/ModelSchema";
+
 export * from "./provider/AiProviderRegistry";
+
 export * from "./source/Document";
 export * from "./source/DocumentNode";
+export * from "./source/DocumentRepository";
+export * from "./source/DocumentRepositoryRegistry";
 export * from "./source/DocumentSchema";
 export * from "./source/StructuralParser";
 
