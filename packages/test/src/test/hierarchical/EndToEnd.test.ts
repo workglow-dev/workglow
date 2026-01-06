@@ -6,11 +6,13 @@
 
 import {
   Document,
+  DocumentRepository,
+  DocumentStorageSchema,
   hierarchicalChunker,
   NodeIdGenerator,
   StructuralParser,
 } from "@workglow/ai";
-import { InMemoryDocumentRepository } from "@workglow/storage";
+import { InMemoryTabularRepository, InMemoryVectorRepository } from "@workglow/storage";
 import { describe, expect, it } from "vitest";
 
 describe("End-to-end hierarchical RAG", () => {
@@ -57,7 +59,7 @@ Finds patterns in data.`;
     const docId = await NodeIdGenerator.generateDocId("test", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
 
-    const masterDoc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(docId, root, { title: "Test" });
 
     const chunks = [
       {
@@ -69,17 +71,22 @@ Finds patterns in data.`;
       },
     ];
 
-    masterDoc.setChunks(chunks);
+    doc.setChunks(chunks);
 
     // Verify chunks are stored
-    const retrievedChunks = masterDoc.getChunks();
+    const retrievedChunks = doc.getChunks();
     expect(retrievedChunks.length).toBe(1);
     expect(retrievedChunks[0].text).toBe("Test chunk 1");
   });
 
   it("should demonstrate document repository integration", async () => {
-    const docRepo = new InMemoryDocumentRepository();
-    await docRepo.setupDatabase();
+    const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+    await tabularStorage.setupDatabase();
+
+    const vectorStorage = new InMemoryVectorRepository();
+    await vectorStorage.setupDatabase();
+
+    const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
 
     // Create document with enriched hierarchy
     const markdown = `# Guide
@@ -95,7 +102,7 @@ Content about topic B.`;
     const docId = await NodeIdGenerator.generateDocId("guide", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Guide");
 
-    const masterDoc = new Document(docId, root, { title: "Guide" });
+    const doc = new Document(docId, root, { title: "Guide" });
 
     // Enrich (in real workflow this would use DocumentEnricherTask)
     // For test, manually add enrichment
@@ -106,7 +113,7 @@ Content about topic B.`;
       },
     };
 
-    const enrichedDoc = new Document(docId, enrichedRoot as any, masterDoc.metadata);
+    const enrichedDoc = new Document(docId, enrichedRoot as any, doc.metadata);
     await docRepo.upsert(enrichedDoc);
 
     // Generate chunks using workflow (without embedding to avoid model requirement)

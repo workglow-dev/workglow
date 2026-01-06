@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IDocumentRepository } from "@workglow/storage";
+import type { DocumentRepository } from "../source/DocumentRepository";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -136,7 +136,7 @@ export class HierarchyJoinTask extends Task<
       includeEntities = true,
     } = input;
 
-    const repo = documentRepository as IDocumentRepository;
+    const repo = documentRepository as DocumentRepository;
     const enrichedMetadata: any[] = [];
 
     for (let i = 0; i < ids.length; i++) {

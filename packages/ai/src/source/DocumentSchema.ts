@@ -426,8 +426,8 @@ export const ChunkNodeSchema = () =>
       },
       docId: {
         type: "string",
-        title: "Master Document ID",
-        description: "ID of the parent master document",
+        title: "Document ID",
+        description: "ID of the parent document",
       },
       text: {
         type: "string",
@@ -466,8 +466,8 @@ export const ChunkMetadataSchema = {
   properties: {
     docId: {
       type: "string",
-      title: "Master Document ID",
-      description: "ID of the parent master document",
+      title: "Document ID",
+      description: "ID of the parent document",
     },
     chunkId: {
       type: "string",
@@ -532,8 +532,8 @@ export const EnrichedChunkMetadataSchema = {
   properties: {
     docId: {
       type: "string",
-      title: "Master Document ID",
-      description: "ID of the parent master document",
+      title: "Document ID",
+      description: "ID of the parent document",
     },
     chunkId: {
       type: "string",
@@ -600,10 +600,6 @@ export const EnrichedChunkMetadataArraySchema = {
   title: "Enriched Metadata",
   description: "Metadata enriched with hierarchy information",
 } as const satisfies JsonSchema;
-
-// =============================================================================
-// Master Document Schemas
-// =============================================================================
 
 /**
  * Schema for document metadata

@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ChunkNode, DocumentNode } from "./DocumentSchema";
-import type { DocumentMetadata } from "./DocumentSchema";
+import type { ChunkNode, DocumentMetadata, DocumentNode } from "./DocumentSchema";
 
 /**
  * Document represents a hierarchical document with chunks
@@ -21,11 +20,16 @@ export class Document {
   public readonly root: DocumentNode;
   private chunks: ChunkNode[];
 
-  constructor(docId: string, root: DocumentNode, metadata: DocumentMetadata) {
+  constructor(
+    docId: string,
+    root: DocumentNode,
+    metadata: DocumentMetadata,
+    chunks: ChunkNode[] = []
+  ) {
     this.docId = docId;
     this.root = root;
     this.metadata = metadata;
-    this.chunks = [];
+    this.chunks = chunks || [];
   }
 
   /**
@@ -69,14 +73,9 @@ export class Document {
   /**
    * Deserialize from JSON
    */
-  static fromJSON(json: {
-    docId: string;
-    metadata: DocumentMetadata;
-    root: DocumentNode;
-    chunks: ChunkNode[];
-  }): Document {
-    const doc = new Document(json.docId, json.root, json.metadata);
-    doc.chunks = json.chunks;
+  static fromJSON(json: string): Document {
+    const obj = JSON.parse(json);
+    const doc = new Document(obj.docId, obj.root, obj.metadata, obj.chunks);
     return doc;
   }
 }

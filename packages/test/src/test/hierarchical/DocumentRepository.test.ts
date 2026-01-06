@@ -6,18 +6,29 @@
 
 import {
   Document,
+  DocumentRepository,
+  DocumentStorageSchema,
   NodeIdGenerator,
   NodeKind,
   StructuralParser,
 } from "@workglow/ai";
-import { InMemoryDocumentRepository } from "@workglow/storage";
-import { describe, expect, it } from "vitest";
+import { InMemoryTabularRepository, InMemoryVectorRepository } from "@workglow/storage";
+import { beforeEach, describe, expect, it } from "vitest";
 
-describe("InMemoryDocumentRepository", () => {
-  it("should store and retrieve master documents", async () => {
-    const repo = new InMemoryDocumentRepository();
-    await repo.setupDatabase();
+describe("DocumentRepository", () => {
+  let repo: DocumentRepository;
 
+  beforeEach(async () => {
+    const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+    await tabularStorage.setupDatabase();
+
+    const vectorStorage = new InMemoryVectorRepository();
+    await vectorStorage.setupDatabase();
+
+    repo = new DocumentRepository(tabularStorage, vectorStorage);
+  });
+
+  it("should store and retrieve documents", async () => {
     const markdown = "# Test\n\nContent.";
     const docId = await NodeIdGenerator.generateDocId("test", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
@@ -33,9 +44,6 @@ describe("InMemoryDocumentRepository", () => {
   });
 
   it("should retrieve nodes by ID", async () => {
-    const repo = new InMemoryDocumentRepository();
-    await repo.setupDatabase();
-
     const markdown = "# Section\n\nParagraph.";
     const docId = await NodeIdGenerator.generateDocId("test", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
@@ -52,9 +60,6 @@ describe("InMemoryDocumentRepository", () => {
   });
 
   it("should get ancestors of a node", async () => {
-    const repo = new InMemoryDocumentRepository();
-    await repo.setupDatabase();
-
     const markdown = `# Section 1
 
 ## Subsection 1.1
@@ -84,9 +89,6 @@ Paragraph.`;
   });
 
   it("should handle chunks", async () => {
-    const repo = new InMemoryDocumentRepository();
-    await repo.setupDatabase();
-
     const markdown = "# Test\n\nContent.";
     const docId = await NodeIdGenerator.generateDocId("test", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
@@ -115,9 +117,6 @@ Paragraph.`;
   });
 
   it("should list all documents", async () => {
-    const repo = new InMemoryDocumentRepository();
-    await repo.setupDatabase();
-
     const markdown1 = "# Doc 1";
     const markdown2 = "# Doc 2";
 
@@ -140,9 +139,6 @@ Paragraph.`;
   });
 
   it("should delete documents", async () => {
-    const repo = new InMemoryDocumentRepository();
-    await repo.setupDatabase();
-
     const markdown = "# Test";
     const docId = await NodeIdGenerator.generateDocId("test", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
@@ -204,7 +200,7 @@ describe("Document", () => {
     const json = doc.toJSON();
 
     // Deserialize
-    const restored = Document.fromJSON(json);
+    const restored = Document.fromJSON(JSON.stringify(json));
 
     expect(restored.docId).toBe(doc.docId);
     expect(restored.metadata.title).toBe(doc.metadata.title);
