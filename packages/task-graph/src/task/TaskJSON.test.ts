@@ -146,7 +146,7 @@ describe("TaskJSON", () => {
         { value: 100 },
         {
           id: "task3",
-          provenance: { source: "test", version: "1.0" },
+          provenance: [{ source: "test", version: "1.0" }],
           extras: { metadata: { key: "value" } },
         }
       );
@@ -245,7 +245,7 @@ describe("TaskJSON", () => {
 
       const task = createTaskFromGraphJSON(json);
 
-      expect(task.config.provenance).toEqual({ source: "test", version: "1.0" });
+      expect(task.config.provenance).toEqual([{ source: "test", version: "1.0" }]);
       expect(task.config.extras).toEqual({ metadata: { key: "value" } });
     });
 
@@ -393,7 +393,7 @@ describe("TaskJSON", () => {
         {
           id: "task1",
           name: "Task with Defaults",
-          provenance: { source: "test", version: "1.0" },
+          provenance: [{ source: "test", version: "1.0" }],
           extras: { metadata: { key: "value" } },
         }
       );
@@ -404,7 +404,7 @@ describe("TaskJSON", () => {
 
       const restoredTask = restoredGraph.getTasks()[0];
       expect(restoredTask.defaults).toEqual({ value: 10, multiplier: 3 });
-      expect(restoredTask.config.provenance).toEqual({ source: "test", version: "1.0" });
+      expect(restoredTask.config.provenance).toEqual([{ source: "test", version: "1.0" }]);
       expect(restoredTask.config.extras).toEqual({ metadata: { key: "value" } });
     });
 

@@ -11,7 +11,7 @@ import {
   Task,
   TaskRegistry,
   Workflow,
-  type Provenance,
+  type ProvenanceItem,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
@@ -124,13 +124,13 @@ export class HierarchicalChunkerTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  public getProvenance(): Provenance {
+  public getProvenance(): ProvenanceItem | undefined {
     return {
       chunkerStrategy: this.runInputData.strategy || "hierarchical",
       maxTokens: this.runInputData.maxTokens || 512,
       overlap: this.runInputData.overlap || 50,
       docId: this.runInputData.docId,
-    } as Provenance;
+    };
   }
 
   async execute(
@@ -196,7 +196,15 @@ export class HierarchicalChunkerTask extends Task<
 
     // If node has no children, it's a leaf - chunk its text
     if (!hasChildren(node)) {
-      await this.chunkText(node.text, currentPath, docId, configId, tokenBudget, chunks, node.nodeId);
+      await this.chunkText(
+        node.text,
+        currentPath,
+        docId,
+        configId,
+        tokenBudget,
+        chunks,
+        node.nodeId
+      );
       return;
     }
 

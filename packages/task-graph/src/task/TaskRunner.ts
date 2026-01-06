@@ -10,9 +10,9 @@ import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
+import { Task } from "./Task";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
 import { Provenance, TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
-import { Task } from "./Task";
 
 /**
  * Responsible for running tasks
@@ -32,7 +32,7 @@ export class TaskRunner<
   /**
    * Provenance information for the task
    */
-  protected nodeProvenance: Provenance = {};
+  protected nodeProvenance: Provenance = [];
 
   /**
    * The task to run
@@ -217,7 +217,7 @@ export class TaskRunner<
   protected async handleStart(config: IRunConfig = {}): Promise<void> {
     if (this.task.status === TaskStatus.PROCESSING) return;
 
-    this.nodeProvenance = {};
+    this.nodeProvenance = [];
     this.running = true;
 
     this.task.startedAt = new Date();
@@ -229,7 +229,7 @@ export class TaskRunner<
       this.handleAbort();
     });
 
-    this.nodeProvenance = config.nodeProvenance ?? {};
+    this.nodeProvenance = config.nodeProvenance ?? [];
 
     const cache = this.task.config.outputCache ?? config.outputCache;
     if (cache === true) {
@@ -289,7 +289,7 @@ export class TaskRunner<
     this.task.progress = 100;
     this.task.status = TaskStatus.COMPLETED;
     this.abortController = undefined;
-    this.nodeProvenance = {};
+    this.nodeProvenance = [];
 
     this.task.emit("complete");
     this.task.emit("status", this.task.status);
@@ -305,7 +305,7 @@ export class TaskRunner<
     this.task.progress = 100;
     this.task.completedAt = new Date();
     this.abortController = undefined;
-    this.nodeProvenance = {};
+    this.nodeProvenance = [];
     this.task.emit("disabled");
     this.task.emit("status", this.task.status);
   }
@@ -332,7 +332,7 @@ export class TaskRunner<
     this.task.error =
       err instanceof TaskError ? err : new TaskFailedError(err?.message || "Task failed");
     this.abortController = undefined;
-    this.nodeProvenance = {};
+    this.nodeProvenance = [];
     this.task.emit("error", this.task.error);
     this.task.emit("status", this.task.status);
   }

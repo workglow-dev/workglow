@@ -56,13 +56,15 @@ describe("Document", () => {
   test("addVariant with Provenance (type-safe field extraction)", async () => {
     const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
 
-    // Simulate a Provenance object with various field name formats
-    const provenance: Provenance = {
-      embeddingModel: "text-embedding-3-small",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
+    // Simulate a Provenance array with various field name formats
+    const provenance: Provenance = [
+      {
+        embeddingModel: "text-embedding-3-small",
+        chunkerStrategy: "hierarchical",
+        maxTokens: 512,
+        overlap: 50,
+      },
+    ];
 
     const configId = await doc.addVariant(provenance, createTestChunks());
 
@@ -81,12 +83,14 @@ describe("Document", () => {
     const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
 
     // Test with alternative field names that extractConfigFields should handle
-    const provenance: Provenance = {
-      model: "text-embedding-3-small", // Alternative to embeddingModel
-      strategy: "hierarchical", // Alternative to chunkerStrategy
-      max_tokens: 1024, // Alternative to maxTokens
-      overlapTokens: 100, // Alternative to overlap
-    };
+    const provenance: Provenance = [
+      {
+        model: "text-embedding-3-small", // Alternative to embeddingModel
+        strategy: "hierarchical", // Alternative to chunkerStrategy
+        max_tokens: 1024, // Alternative to maxTokens
+        overlapTokens: 100, // Alternative to overlap
+      },
+    ];
 
     const configId = await doc.addVariant(provenance, createTestChunks());
 
@@ -101,14 +105,16 @@ describe("Document", () => {
   test("addVariant with optional fields", async () => {
     const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
 
-    const provenance: Provenance = {
-      embeddingModel: "text-embedding-3-small",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-      summaryModel: "gpt-4",
-      nerModel: "bert-ner",
-    };
+    const provenance: Provenance = [
+      {
+        embeddingModel: "text-embedding-3-small",
+        chunkerStrategy: "hierarchical",
+        maxTokens: 512,
+        overlap: 50,
+        summaryModel: "gpt-4",
+        nerModel: "bert-ner",
+      },
+    ];
 
     const configId = await doc.addVariant(provenance, createTestChunks());
 
@@ -122,7 +128,7 @@ describe("Document", () => {
     const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
 
     // Provenance with missing required fields - should use defaults
-    const provenance: Provenance = {};
+    const provenance: Provenance = [];
 
     const configId = await doc.addVariant(provenance, createTestChunks());
 

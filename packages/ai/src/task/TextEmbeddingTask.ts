@@ -14,7 +14,8 @@ import {
 import { AiTask } from "./base/AiTask";
 import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextEmbeddingTask"));
+const embeddingModelSchema = TypeModel("model:TextEmbeddingTask");
+const modelSchema = TypeReplicateArray(embeddingModelSchema);
 
 export const TextEmbeddingInputSchema = {
   type: "object",

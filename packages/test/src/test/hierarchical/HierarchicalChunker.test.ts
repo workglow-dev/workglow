@@ -129,10 +129,11 @@ This is another paragraph.`;
 
     const provenance = task.getProvenance();
 
-    expect(provenance.chunkerStrategy).toBe("hierarchical");
-    expect(provenance.maxTokens).toBe(512);
-    expect(provenance.overlap).toBe(50);
-    expect(provenance.docId).toBe(docId);
+    expect(provenance).toBeDefined();
+    expect(provenance?.chunkerStrategy).toBe("hierarchical");
+    expect(provenance?.maxTokens).toBe(512);
+    expect(provenance?.overlap).toBe(50);
+    expect(provenance?.docId).toBe(docId);
   });
 
   it("should handle flat strategy", async () => {

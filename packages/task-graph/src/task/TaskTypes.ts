@@ -61,8 +61,11 @@ export type CompoundTaskOutput =
       [key: string]: unknown | unknown[] | undefined;
     };
 
-/** Type for task provenance metadata */
-export type Provenance = DataPorts;
+/** Type for a single provenance item contributed by a task */
+export type ProvenanceItem = DataPorts;
+
+/** Type for task provenance metadata as an array of historical items */
+export type Provenance = ProvenanceItem[];
 
 /** Type for task type names */
 export type TaskTypeName = string;

@@ -44,10 +44,9 @@ export class Document {
     const configId = await deriveConfigId(provenance);
 
     // Use extractConfigFields for type-safe field extraction
-    const variantProvenance =
-      "embeddingModel" in provenance && typeof provenance.embeddingModel === "string"
-        ? (provenance as VariantProvenance)
-        : extractConfigFields(provenance as Provenance);
+    const variantProvenance = Array.isArray(provenance)
+      ? extractConfigFields(provenance)
+      : (provenance as VariantProvenance);
 
     const manifest: VariantManifest = {
       configId,

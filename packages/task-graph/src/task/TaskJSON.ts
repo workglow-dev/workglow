@@ -10,7 +10,7 @@ import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
 import { TaskRegistry } from "../task/TaskRegistry";
 import { GraphAsTask } from "./GraphAsTask";
-import { DataPorts, Provenance, TaskConfig, TaskInput } from "./TaskTypes";
+import { DataPorts, ProvenanceItem, TaskConfig, TaskInput } from "./TaskTypes";
 
 // ========================================================================
 // JSON Serialization Types
@@ -54,7 +54,7 @@ export type JsonTaskItem = {
   extras?: DataPorts;
 
   /** Optional metadata about task origin */
-  provenance?: Provenance;
+  provenance?: ProvenanceItem;
 
   /** Nested tasks for compound operations */
   subtasks?: JsonTaskItem[];
@@ -88,7 +88,7 @@ export type DataflowJson = {
 const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
   if (!item.id) throw new TaskJSONError("Task id required");
   if (!item.type) throw new TaskJSONError("Task type required");
-  if (item.defaults && (Array.isArray(item.defaults) || Array.isArray(item.provenance)))
+  if (item.defaults && Array.isArray(item.defaults))
     throw new TaskJSONError("Task defaults must be an object");
   if (item.provenance && (Array.isArray(item.provenance) || typeof item.provenance !== "object"))
     throw new TaskJSONError("Task provenance must be an object");
@@ -100,7 +100,7 @@ const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
   const taskConfig: TaskConfig = {
     id: item.id,
     name: item.name,
-    provenance: item.provenance ?? {},
+    provenance: item.provenance ? [item.provenance] : [],
     extras: item.extras,
   };
   const task = new taskClass(item.defaults ?? {}, taskConfig);

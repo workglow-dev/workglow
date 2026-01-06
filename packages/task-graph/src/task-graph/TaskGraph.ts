@@ -150,6 +150,15 @@ export class TaskGraph implements ITaskGraph {
   }
 
   /**
+   * Gets the accumulated provenance chain for a specific task
+   * @param taskId The ID of the task to get provenance for
+   * @returns The provenance chain for the task, or undefined if not found
+   */
+  public getProvenanceForTask(taskId: unknown): Provenance | undefined {
+    return this.runner.getProvenanceForTask(taskId);
+  }
+
+  /**
    * Retrieves a task from the task graph by its id
    * @param id The id of the task to retrieve
    * @returns The task with the given id, or undefined if not found

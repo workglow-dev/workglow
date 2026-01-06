@@ -48,7 +48,7 @@ export class Dataflow {
     );
   }
   public value: any = undefined;
-  public provenance: Provenance = {};
+  public provenance: Provenance = [];
   public status: TaskStatus = TaskStatus.PENDING;
   public error: TaskError | undefined;
 
@@ -56,7 +56,7 @@ export class Dataflow {
     this.status = TaskStatus.PENDING;
     this.error = undefined;
     this.value = undefined;
-    this.provenance = {};
+    this.provenance = [];
     this.emit("reset");
     this.emit("status", this.status);
   }

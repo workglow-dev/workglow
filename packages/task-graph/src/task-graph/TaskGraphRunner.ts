@@ -63,7 +63,7 @@ export class TaskGraphRunner {
   /**
    * Map of provenance input for each task
    */
-  protected provenanceInput: Map<unknown, TaskInput>;
+  protected provenanceInput: Map<unknown, Provenance>;
 
   /**
    * The task graph to run
@@ -144,7 +144,7 @@ export class TaskGraphRunner {
             const taskPromise = this.runTaskWithProvenance(
               task,
               taskInput,
-              config?.parentProvenance || {}
+              config?.parentProvenance || []
             );
             this.inProgressTasks!.set(task.config.id, taskPromise);
             const taskResult = await taskPromise;
@@ -253,6 +253,15 @@ export class TaskGraphRunner {
   }
 
   /**
+   * Gets the accumulated provenance chain for a specific task
+   * @param taskId The ID of the task to get provenance for
+   * @returns The provenance chain for the task, or undefined if not found
+   */
+  public getProvenanceForTask(taskId: unknown): Provenance | undefined {
+    return this.provenanceInput.get(taskId) as Provenance | undefined;
+  }
+
+  /**
    * Filters graph-level input to only include properties that are not connected via dataflows for a given task
    * @param task The task to filter input for
    * @param input The graph-level input
@@ -342,10 +351,10 @@ export class TaskGraphRunner {
    * @param node The task to retrieve provenance input for
    * @returns The provenance input for the task
    */
-  protected getInputProvenance(node: ITask): TaskInput {
-    const nodeProvenance: Provenance = {};
+  protected getInputProvenance(node: ITask): Provenance {
+    const nodeProvenance: Provenance = [];
     this.graph.getSourceDataflows(node.config.id).forEach((dataflow) => {
-      Object.assign(nodeProvenance, dataflow.provenance);
+      nodeProvenance.push(...dataflow.provenance);
     });
     return nodeProvenance;
   }
@@ -510,11 +519,12 @@ export class TaskGraphRunner {
     parentProvenance: Provenance
   ): Promise<GraphSingleTaskResult<T>> {
     // Update provenance for the current task
-    const nodeProvenance = {
-      ...parentProvenance,
+    const taskProvenance = task.getProvenance();
+    const nodeProvenance: Provenance = [
+      ...(Array.isArray(parentProvenance) ? parentProvenance : []),
       ...this.getInputProvenance(task),
-      ...task.getProvenance(),
-    };
+      ...(taskProvenance ? [taskProvenance] : []),
+    ];
     this.provenanceInput.set(task.config.id, nodeProvenance);
     this.copyInputFromEdgesToNode(task);
 
@@ -720,7 +730,9 @@ export class TaskGraphRunner {
       progress = Math.round(completed / total);
     }
     this.pushStatusFromNodeToEdges(this.graph, task);
-    await this.pushOutputFromNodeToEdges(task, task.runOutputData, task.getProvenance());
+    const taskProvenance = task.getProvenance();
+    const nodeProvenance = taskProvenance ? [taskProvenance] : [];
+    await this.pushOutputFromNodeToEdges(task, task.runOutputData, nodeProvenance);
     this.graph.emit("graph_progress", progress, message, args);
   }
 }

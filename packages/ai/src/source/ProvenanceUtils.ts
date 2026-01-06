@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Provenance } from "@workglow/task-graph";
+import { Provenance, ProvenanceItem } from "@workglow/task-graph";
 import { sha256 } from "@workglow/util";
 
 import type { VariantProvenance } from "./DocumentSchema";
@@ -15,22 +15,39 @@ import type { VariantProvenance } from "./DocumentSchema";
 const DEFAULT_MAX_TOKENS = 512;
 
 /**
- * Extract variant-relevant fields from task-graph provenance
+ * Extract variant-relevant fields from task-graph provenance array
+ * Searches through all provenance items to find relevant fields
  */
 export function extractConfigFields(provenance: Provenance): VariantProvenance {
   return {
-    embeddingModel: extractString(provenance, "embeddingModel", "model", "embedding_model"),
-    chunkerStrategy: extractString(provenance, "chunkerStrategy", "strategy", "chunking_strategy"),
-    maxTokens: extractNumber(provenance, "maxTokens", "max_tokens", "chunkSize", "chunk_size"),
-    overlap: extractNumber(
+    embeddingModel: extractStringFromArray(
+      provenance,
+      "embeddingModel",
+      "model",
+      "embedding_model"
+    ),
+    chunkerStrategy: extractStringFromArray(
+      provenance,
+      "chunkerStrategy",
+      "strategy",
+      "chunking_strategy"
+    ),
+    maxTokens: extractNumberFromArray(
+      provenance,
+      "maxTokens",
+      "max_tokens",
+      "chunkSize",
+      "chunk_size"
+    ),
+    overlap: extractNumberFromArray(
       provenance,
       "overlap",
       "overlapTokens",
       "overlap_tokens",
       "chunkOverlap"
     ),
-    summaryModel: extractOptionalString(provenance, "summaryModel", "summary_model"),
-    nerModel: extractOptionalString(provenance, "nerModel", "ner_model"),
+    summaryModel: extractOptionalStringFromArray(provenance, "summaryModel", "summary_model"),
+    nerModel: extractOptionalStringFromArray(provenance, "nerModel", "ner_model"),
   };
 }
 
@@ -38,10 +55,9 @@ export function extractConfigFields(provenance: Provenance): VariantProvenance {
  * Generate configId from variant provenance
  */
 export async function deriveConfigId(provenance: Provenance | VariantProvenance): Promise<string> {
-  const configFields =
-    "embeddingModel" in provenance && typeof provenance.embeddingModel === "string"
-      ? (provenance as VariantProvenance)
-      : extractConfigFields(provenance as Provenance);
+  const configFields = Array.isArray(provenance)
+    ? extractConfigFields(provenance)
+    : (provenance as VariantProvenance);
 
   // Sort keys for canonical JSON
   const canonical = JSON.stringify(sortObject(configFields));
@@ -50,18 +66,20 @@ export async function deriveConfigId(provenance: Provenance | VariantProvenance)
 }
 
 /**
- * Helper to extract string value from provenance (tries multiple key names)
+ * Helper to extract string value from provenance array (tries multiple key names)
  */
-function extractString(prov: Provenance, ...keys: string[]): string {
-  for (const key of keys) {
-    const value = prov[key];
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
-    // Handle nested objects
-    if (typeof value === "object" && value !== null) {
-      const nested = extractFromNested(value as Record<string, unknown>, ...keys);
-      if (nested) return nested;
+function extractStringFromArray(provArray: Provenance, ...keys: string[]): string {
+  for (const prov of provArray) {
+    for (const key of keys) {
+      const value = prov[key];
+      if (typeof value === "string" && value.length > 0) {
+        return value;
+      }
+      // Handle nested objects
+      if (typeof value === "object" && value !== null) {
+        const nested = extractFromNested(value as Record<string, unknown>, ...keys);
+        if (nested) return nested;
+      }
     }
   }
   // Default for required string field when no value is found
@@ -69,18 +87,20 @@ function extractString(prov: Provenance, ...keys: string[]): string {
 }
 
 /**
- * Helper to extract number value from provenance
+ * Helper to extract number value from provenance array
  */
-function extractNumber(prov: Provenance, ...keys: string[]): number {
-  for (const key of keys) {
-    const value = prov[key];
-    if (typeof value === "number") {
-      return value;
-    }
-    // Handle nested objects
-    if (typeof value === "object" && value !== null) {
-      const nested = extractNumberFromNested(value as Record<string, unknown>, ...keys);
-      if (nested !== undefined) return nested;
+function extractNumberFromArray(provArray: Provenance, ...keys: string[]): number {
+  for (const prov of provArray) {
+    for (const key of keys) {
+      const value = prov[key];
+      if (typeof value === "number") {
+        return value;
+      }
+      // Handle nested objects
+      if (typeof value === "object" && value !== null) {
+        const nested = extractNumberFromNested(value as Record<string, unknown>, ...keys);
+        if (nested !== undefined) return nested;
+      }
     }
   }
   // Default for required field
@@ -88,18 +108,23 @@ function extractNumber(prov: Provenance, ...keys: string[]): number {
 }
 
 /**
- * Helper to extract optional string value
+ * Helper to extract optional string value from provenance array
  */
-function extractOptionalString(prov: Provenance, ...keys: string[]): string | undefined {
-  for (const key of keys) {
-    const value = prov[key];
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
-    // Handle nested objects
-    if (typeof value === "object" && value !== null) {
-      const nested = extractFromNested(value as Record<string, unknown>, ...keys);
-      if (nested) return nested;
+function extractOptionalStringFromArray(
+  provArray: Provenance,
+  ...keys: string[]
+): string | undefined {
+  for (const prov of provArray) {
+    for (const key of keys) {
+      const value = prov[key];
+      if (typeof value === "string" && value.length > 0) {
+        return value;
+      }
+      // Handle nested objects
+      if (typeof value === "object" && value !== null) {
+        const nested = extractFromNested(value as Record<string, unknown>, ...keys);
+        if (nested) return nested;
+      }
     }
   }
   return undefined;
@@ -160,11 +185,11 @@ function sortObject(obj: unknown): unknown {
  * Merge provenance from multiple tasks (used when combining results)
  */
 export function mergeProvenance(...provenances: Provenance[]): Provenance {
-  const merged: Record<string, unknown> = {};
+  const merged: ProvenanceItem[] = [];
   for (const prov of provenances) {
-    Object.assign(merged, prov);
+    merged.push(...prov);
   }
-  return merged as Provenance;
+  return merged;
 }
 
 /**

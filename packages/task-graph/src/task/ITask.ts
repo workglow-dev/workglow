@@ -19,7 +19,14 @@ import type {
 } from "./TaskEvents";
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
-import type { Provenance, TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
+import type {
+  Provenance,
+  ProvenanceItem,
+  TaskConfig,
+  TaskInput,
+  TaskOutput,
+  TaskStatus,
+} from "./TaskTypes";
 
 /**
  * Context for task execution
@@ -144,7 +151,7 @@ export interface ITaskEvents {
  * Interface for task serialization
  */
 export interface ITaskSerialization {
-  getProvenance(): Provenance;
+  getProvenance(): ProvenanceItem | undefined;
   toJSON(): JsonTaskItem | TaskGraphItemJson;
   toDependencyJSON(): JsonTaskItem;
   id(): unknown;

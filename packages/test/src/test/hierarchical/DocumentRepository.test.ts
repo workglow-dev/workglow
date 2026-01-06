@@ -170,15 +170,17 @@ Paragraph.`;
 
 describe("Provenance utilities", () => {
   it("should extract config fields from provenance", () => {
-    const provenance = {
-      embeddingModel: "test-model",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-      summaryModel: "summary-model",
-      nerModel: "ner-model",
-      randomField: "should be ignored",
-    };
+    const provenance = [
+      {
+        embeddingModel: "test-model",
+        chunkerStrategy: "hierarchical",
+        maxTokens: 512,
+        overlap: 50,
+        summaryModel: "summary-model",
+        nerModel: "ner-model",
+        randomField: "should be ignored",
+      },
+    ];
 
     const fields = extractConfigFields(provenance);
 

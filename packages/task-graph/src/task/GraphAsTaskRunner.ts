@@ -27,7 +27,7 @@ export class GraphAsTaskRunner<
       }
     );
     const results = await this.task.subGraph!.run<Output>(input, {
-      parentProvenance: this.nodeProvenance || {},
+      parentProvenance: this.nodeProvenance || [],
       parentSignal: this.abortController?.signal,
       outputCache: this.outputCache,
     });

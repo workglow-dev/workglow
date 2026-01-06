@@ -11,6 +11,7 @@ import type { ITask, ITaskConstructor } from "../task/ITask";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
+import type { Provenance } from "../task/TaskTypes";
 import { DataPorts, TaskConfig } from "../task/TaskTypes";
 import { getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS } from "./Dataflow";
@@ -57,9 +58,10 @@ let taskIdCounter = 0;
  * Class for building and managing a task graph
  * Provides methods for adding tasks, connecting outputs to inputs, and running the task graph
  */
-export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPorts = DataPorts>
-  implements IWorkflow<Input, Output>
-{
+export class Workflow<
+  Input extends DataPorts = DataPorts,
+  Output extends DataPorts = DataPorts,
+> implements IWorkflow<Input, Output> {
   /**
    * Creates a new Workflow
    *
@@ -150,7 +152,19 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
             [toInputPortId, toPortInputSchema]: [string, JsonSchema]
           ) => boolean
         ): Map<string, string> => {
-          // If either schema is true (accepts everything), skip auto-matching
+          if (typeof sourceSchema === "object") {
+            if (
+              targetSchema === true ||
+              (typeof targetSchema === "object" && targetSchema.additionalProperties === true)
+            ) {
+              for (const fromOutputPortId of Object.keys(sourceSchema.properties || {})) {
+                matches.set(fromOutputPortId, fromOutputPortId);
+                this.connect(parent.config.id, fromOutputPortId, task.config.id, fromOutputPortId);
+              }
+              return matches;
+            }
+          }
+          // If either schema is true or false, skip auto-matching
           // as we cannot determine the appropriate connections
           if (typeof sourceSchema === "boolean" || typeof targetSchema === "boolean") {
             return matches;
@@ -299,7 +313,7 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     try {
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
-        parentProvenance: {},
+        parentProvenance: [],
         outputCache: this._repository,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
@@ -321,6 +335,15 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
    */
   public async abort(): Promise<void> {
     this._abortController?.abort();
+  }
+
+  /**
+   * Gets the accumulated provenance chain for a specific task
+   * @param taskId The ID of the task to get provenance for
+   * @returns The provenance chain for the task, or undefined if not found
+   */
+  public getProvenanceForTask(taskId: unknown): Provenance | undefined {
+    return this._graph.getProvenanceForTask(taskId);
   }
 
   /**
@@ -600,7 +623,11 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
       if (targetSchema === false) {
         throw new WorkflowError(`Target task has schema 'false' and accepts no inputs`);
       }
-      // If targetSchema is true, we skip validation as it accepts everything
+      if (targetSchema === true) {
+        // do nothing, we allow additional properties
+      }
+    } else if (targetSchema.additionalProperties === true) {
+      // do nothing, we allow additional properties
     } else if (!targetSchema.properties?.[targetTaskPortId]) {
       throw new WorkflowError(`Input ${targetTaskPortId} not found on target task`);
     }
