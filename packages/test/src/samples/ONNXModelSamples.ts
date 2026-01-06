@@ -12,7 +12,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "Xenova/all-MiniLM-L6-v2",
-        device: "webgpu",
         native_dimensions: 384,
       },
       metadata: {},
@@ -26,7 +25,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "Xenova/bge-base-en-v1.5",
-        device: "webgpu",
         native_dimensions: 768,
       },
       metadata: {},
@@ -40,7 +38,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "Xenova/gte-small",
-        device: "webgpu",
         native_dimensions: 384,
       },
       metadata: {},
@@ -54,7 +51,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "onnx-community/bert_uncased_L-2_H-128_A-2-ONNX",
-        device: "webgpu",
         native_dimensions: 128,
       },
       metadata: {},
@@ -68,7 +64,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "Xenova/paraphrase-albert-base-v2",
-        device: "webgpu",
         native_dimensions: 768,
       },
       metadata: {},
@@ -107,7 +102,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "text-generation",
         model_path: "Xenova/Phi-3-mini-4k-instruct",
-        device: "webgpu",
         dtype: "q4f16",
         use_external_data_format: true,
       },

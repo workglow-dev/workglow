@@ -4,8 +4,11 @@
  * All Rights Reserved
  */
 
-import { IExecuteContext, IExecuteReactiveContext, Task, TaskConfig } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
+import { IExecuteContext, IExecuteReactiveContext } from "./ITask";
+import { Task } from "./Task";
+import { TaskRegistry } from "./TaskRegistry";
+import { TaskConfig } from "./TaskTypes";
 
 export type InputTaskInput = Record<string, unknown>;
 export type InputTaskOutput = Record<string, unknown>;
@@ -63,3 +66,5 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
     return input as InputTaskOutput;
   }
 }
+
+TaskRegistry.registerTask(InputTask);
