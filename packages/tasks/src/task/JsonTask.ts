@@ -103,7 +103,7 @@ TaskRegistry.registerTask(JsonTask);
  * Convenience function to create and run a JsonTask
  */
 export const json = (input: JsonTaskInput, config: TaskConfig = {}) => {
-  return new JsonTask(input, config).run();
+  return new JsonTask({} as JsonTaskInput, config).run(input);
 };
 
 // Add Json task workflow to Workflow interface

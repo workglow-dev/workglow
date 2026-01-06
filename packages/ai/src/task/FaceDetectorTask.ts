@@ -6,15 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:FaceDetectorTask"));
+const modelSchema = TypeModel("model:FaceDetectorTask");
 
 /**
  * A bounding box for face detection.
@@ -99,7 +94,7 @@ const TypeFaceDetection = {
 export const FaceDetectorInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     minDetectionConfidence: {
       type: "number",
@@ -142,8 +137,6 @@ export const FaceDetectorOutputSchema = {
 
 export type FaceDetectorTaskInput = FromSchema<typeof FaceDetectorInputSchema>;
 export type FaceDetectorTaskOutput = FromSchema<typeof FaceDetectorOutputSchema>;
-export type FaceDetectorTaskExecuteInput = DeReplicateFromSchema<typeof FaceDetectorInputSchema>;
-export type FaceDetectorTaskExecuteOutput = DeReplicateFromSchema<typeof FaceDetectorOutputSchema>;
 
 /**
  * Detects faces in images using MediaPipe Face Detector.
@@ -176,7 +169,7 @@ TaskRegistry.registerTask(FaceDetectorTask);
  * @returns Promise resolving to the detected faces with bounding boxes and keypoints
  */
 export const faceDetector = (input: FaceDetectorTaskInput, config?: JobQueueTaskConfig) => {
-  return new FaceDetectorTask(input, config).run();
+  return new FaceDetectorTask({} as FaceDetectorTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -73,8 +73,7 @@ class WorkflowConsoleFormatter extends ConsoleFormatter {
 
   body(obj: unknown, config?: Config): JsonMLElementDef {
     const body = new JsonMLElement("div");
-    const graph: TaskGraph =
-      obj instanceof TaskGraph ? obj : (obj as Workflow).graph;
+    const graph: TaskGraph = obj instanceof TaskGraph ? obj : (obj as Workflow).graph;
     const nodes = body.createStyledList();
     const tasks = graph.getTasks();
     if (tasks.length) {
@@ -314,7 +313,7 @@ class TaskConsoleFormatter extends ConsoleFormatter {
     const body = new JsonMLElement("div").setStyle("padding-left: 10px;");
 
     const inputs = body.createStyledList("Inputs:");
-    const allInboundDataflows = ((config as { graph?: TaskGraph })?.graph)?.getSourceDataflows(
+    const allInboundDataflows = (config as { graph?: TaskGraph })?.graph?.getSourceDataflows(
       task.config.id
     );
 
@@ -382,7 +381,6 @@ class TaskConsoleFormatter extends ConsoleFormatter {
     const taskConfig = body.createStyledList("Config:");
     for (const [key, value] of Object.entries(task.config)) {
       if (value === undefined) continue;
-      if (key == "provenance") continue;
       const li = taskConfig.createListItem("", "padding-left: 20px;");
       li.inputText(`${key}: `);
       li.createValueObject(value);
@@ -750,7 +748,10 @@ interface NodeWithConfig {
 function computeLayout(
   graph: DirectedAcyclicGraph<NodeWithConfig, unknown, string, unknown>,
   canvasWidth: number
-): { readonly positions: { readonly [id: string]: { readonly x: number; readonly y: number } }; readonly requiredHeight: number } {
+): {
+  readonly positions: { readonly [id: string]: { readonly x: number; readonly y: number } };
+  readonly requiredHeight: number;
+} {
   const positions: { [id: string]: { x: number; y: number } } = {};
   const layers: Map<number, string[]> = new Map();
   const depths: { [id: string]: number } = {};
@@ -873,4 +874,3 @@ export function installDevToolsFormatters(): void {
     new DAGConsoleFormatter()
   );
 }
-

@@ -10,7 +10,7 @@ import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
 import { TaskRegistry } from "../task/TaskRegistry";
 import { GraphAsTask } from "./GraphAsTask";
-import { DataPorts, Provenance, TaskConfig, TaskInput } from "./TaskTypes";
+import { DataPorts, TaskConfig, TaskInput } from "./TaskTypes";
 
 // ========================================================================
 // JSON Serialization Types
@@ -53,9 +53,6 @@ export type JsonTaskItem = {
   /** Optional user data to use for this task, not used by the task framework except it will be exported as part of the task JSON*/
   extras?: DataPorts;
 
-  /** Optional metadata about task origin */
-  provenance?: Provenance;
-
   /** Nested tasks for compound operations */
   subtasks?: JsonTaskItem[];
 }; /**
@@ -67,7 +64,6 @@ export type TaskGraphItemJson = {
   type: string;
   name?: string;
   defaults?: TaskInput;
-  provenance?: Provenance;
   extras?: DataPorts;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
@@ -88,10 +84,8 @@ export type DataflowJson = {
 const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
   if (!item.id) throw new TaskJSONError("Task id required");
   if (!item.type) throw new TaskJSONError("Task type required");
-  if (item.defaults && (Array.isArray(item.defaults) || Array.isArray(item.provenance)))
+  if (item.defaults && Array.isArray(item.defaults))
     throw new TaskJSONError("Task defaults must be an object");
-  if (item.provenance && (Array.isArray(item.provenance) || typeof item.provenance !== "object"))
-    throw new TaskJSONError("Task provenance must be an object");
 
   const taskClass = TaskRegistry.all.get(item.type);
   if (!taskClass)
@@ -100,7 +94,6 @@ const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
   const taskConfig: TaskConfig = {
     id: item.id,
     name: item.name,
-    provenance: item.provenance ?? {},
     extras: item.extras,
   };
   const task = new taskClass(item.defaults ?? {}, taskConfig);

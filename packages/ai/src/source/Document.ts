@@ -4,170 +4,79 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-enum DocumentType {
-  DOCUMENT = "document",
-  SECTION = "section",
-  TEXT = "text",
-  IMAGE = "image",
-  TABLE = "table",
-}
-
-const doc_variants = [
-  "tree",
-  "flat",
-  "tree-paragraphs",
-  "flat-paragraphs",
-  "tree-sentences",
-  "flat-sentences",
-] as const;
-type DocVariant = (typeof doc_variants)[number];
-const doc_parsers = ["txt", "md"] as const; // | "html" | "pdf" | "csv";
-type DocParser = (typeof doc_parsers)[number];
-
-export interface DocumentMetadata {
-  title: string;
-}
-
-export interface DocumentSectionMetadata {
-  title: string;
-}
+import type { ChunkNode, DocumentNode } from "./DocumentSchema";
+import type { DocumentMetadata } from "./DocumentSchema";
 
 /**
- * Represents a document with its content and metadata.
+ * Document represents a hierarchical document with chunks
+ *
+ * Key features:
+ * - Single source-of-truth tree structure (root node)
+ * - Single set of chunks
+ * - Separate persistence for document structure vs vectors
  */
 export class Document {
-  public metadata: DocumentMetadata;
+  public readonly docId: string;
+  public readonly metadata: DocumentMetadata;
+  public readonly root: DocumentNode;
+  private chunks: ChunkNode[];
 
-  constructor(content?: ContentType, metadata: DocumentMetadata = { title: "" }) {
+  constructor(docId: string, root: DocumentNode, metadata: DocumentMetadata) {
+    this.docId = docId;
+    this.root = root;
     this.metadata = metadata;
-    if (content) {
-      if (Array.isArray(content)) {
-        for (const line of content) {
-          this.addContent(line);
-        }
-      } else {
-        this.addContent(content);
-      }
-    }
+    this.chunks = [];
   }
 
-  public addContent(content: ContentTypeItem) {
-    if (typeof content === "string") {
-      this.addText(content);
-    } else if (content instanceof DocumentBaseFragment || content instanceof DocumentSection) {
-      this.fragments.push(content);
-    } else {
-      throw new Error("Unknown content type");
-    }
+  /**
+   * Set chunks for the document
+   */
+  setChunks(chunks: ChunkNode[]): void {
+    this.chunks = chunks;
   }
 
-  public addSection(content?: ContentType, metadata?: DocumentSectionMetadata): DocumentSection {
-    const section = new DocumentSection(this, content, metadata);
-    this.fragments.push(section);
-    return section;
+  /**
+   * Get all chunks
+   */
+  getChunks(): ChunkNode[] {
+    return this.chunks;
   }
 
-  public addText(content: string): TextFragment {
-    const f = new TextFragment(content);
-    this.fragments.push(f);
-    return f;
-  }
-  public addImage(content: unknown): ImageFragment {
-    const f = new ImageFragment(content);
-    this.fragments.push(f);
-    return f;
-  }
-  public addTable(content: unknown): TableFragment {
-    const f = new TableFragment(content);
-    this.fragments.push(f);
-    return f;
+  /**
+   * Find chunks by nodeId
+   */
+  findChunksByNodeId(nodeId: string): ChunkNode[] {
+    return this.chunks.filter((chunk) => chunk.nodePath.includes(nodeId));
   }
 
-  public fragments: Array<DocumentFragment | DocumentSection> = [];
-
-  toJSON(): unknown {
+  /**
+   * Serialize to JSON
+   */
+  toJSON(): {
+    docId: string;
+    metadata: DocumentMetadata;
+    root: DocumentNode;
+    chunks: ChunkNode[];
+  } {
     return {
-      type: DocumentType.DOCUMENT,
+      docId: this.docId,
       metadata: this.metadata,
-      fragments: this.fragments.map((f) => f.toJSON()),
+      root: this.root,
+      chunks: this.chunks,
     };
   }
-}
 
-export class DocumentSection extends Document {
-  constructor(
-    public parent: Document,
-    content?: ContentType,
-    metadata?: DocumentSectionMetadata
-  ) {
-    super(content, metadata);
-    this.parent = parent;
-  }
-
-  toJSON(): unknown {
-    return {
-      type: DocumentType.SECTION,
-      metadata: this.metadata,
-      fragments: this.fragments.map((f) => f.toJSON()),
-    };
+  /**
+   * Deserialize from JSON
+   */
+  static fromJSON(json: {
+    docId: string;
+    metadata: DocumentMetadata;
+    root: DocumentNode;
+    chunks: ChunkNode[];
+  }): Document {
+    const doc = new Document(json.docId, json.root, json.metadata);
+    doc.chunks = json.chunks;
+    return doc;
   }
 }
-
-interface DocumentFragmentMetadata {}
-
-export class DocumentBaseFragment {
-  metadata?: DocumentFragmentMetadata;
-  constructor(metadata?: DocumentFragmentMetadata) {
-    this.metadata = metadata;
-  }
-}
-
-export class TextFragment extends DocumentBaseFragment {
-  content: string;
-  constructor(content: string, metadata?: DocumentFragmentMetadata) {
-    super(metadata);
-    this.content = content;
-  }
-  toJSON(): unknown {
-    return {
-      type: DocumentType.TEXT,
-      metadata: this.metadata,
-      content: this.content,
-    };
-  }
-}
-
-export class TableFragment extends DocumentBaseFragment {
-  content: any;
-  constructor(content: any, metadata?: DocumentFragmentMetadata) {
-    super(metadata);
-    this.content = content;
-  }
-  toJSON(): unknown {
-    return {
-      type: DocumentType.TABLE,
-      metadata: this.metadata,
-      content: this.content,
-    };
-  }
-}
-
-export class ImageFragment extends DocumentBaseFragment {
-  content: any;
-  constructor(content: any, metadata?: DocumentFragmentMetadata) {
-    super(metadata);
-    this.content = content;
-  }
-  toJSON(): unknown {
-    return {
-      type: DocumentType.IMAGE,
-      metadata: this.metadata,
-      content: this.content,
-    };
-  }
-}
-
-export type DocumentFragment = TextFragment | TableFragment | ImageFragment;
-
-export type ContentTypeItem = string | DocumentFragment | DocumentSection;
-export type ContentType = ContentTypeItem | ContentTypeItem[];
