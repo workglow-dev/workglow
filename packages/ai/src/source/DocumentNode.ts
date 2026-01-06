@@ -57,11 +57,10 @@ export class NodeIdGenerator {
    */
   static async generateChunkId(
     docId: string,
-    configId: string,
     leafNodeId: string,
     chunkOrdinal: number
   ): Promise<string> {
-    const combined = `${docId}|${configId}|${leafNodeId}|${chunkOrdinal}`;
+    const combined = `${docId}|${leafNodeId}|${chunkOrdinal}`;
     const hash = await sha256(combined);
     return `chunk_${hash.substring(0, 16)}`;
   }

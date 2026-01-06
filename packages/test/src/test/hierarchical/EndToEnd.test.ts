@@ -5,7 +5,6 @@
  */
 
 import {
-  deriveConfigId,
   Document,
   hierarchicalChunker,
   NodeIdGenerator,
@@ -51,79 +50,31 @@ Finds patterns in data.`;
     // The text array can be directly consumed by TextEmbeddingTask
     expect(Array.isArray(chunkResult.text)).toBe(true);
     expect(chunkResult.text.every((t) => typeof t === "string")).toBe(true);
-
-    // Verify provenance for configId derivation
-    const provenance = {
-      embeddingModel: "test-model",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 256,
-      overlap: 25,
-    };
-
-    const configId = await deriveConfigId(provenance);
-    expect(configId).toMatch(/^cfg_[0-9a-f]{16}$/);
   });
 
-  it("should support variant comparison", async () => {
+  it("should manage document chunks", async () => {
     const markdown = "# Test Document\n\nThis is test content.";
     const docId = await NodeIdGenerator.generateDocId("test", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
 
     const masterDoc = new Document(docId, root, { title: "Test" });
 
-    // Create two variants with different configs
-    const prov1 = {
-      embeddingModel: "model-1",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
-
-    const prov2 = {
-      embeddingModel: "model-2",
-      chunkerStrategy: "flat",
-      maxTokens: 256,
-      overlap: 25,
-    };
-
-    const chunks1 = [
+    const chunks = [
       {
         chunkId: "chunk_1",
         docId,
-        configId: await deriveConfigId(prov1),
         text: "Test chunk 1",
         nodePath: [root.nodeId],
         depth: 1,
       },
     ];
 
-    const chunks2 = [
-      {
-        chunkId: "chunk_2",
-        docId,
-        configId: await deriveConfigId(prov2),
-        text: "Test chunk 2",
-        nodePath: [root.nodeId],
-        depth: 1,
-      },
-    ];
+    masterDoc.setChunks(chunks);
 
-    const configId1 = await masterDoc.addVariant(prov1, chunks1);
-    const configId2 = await masterDoc.addVariant(prov2, chunks2);
-
-    // Verify both variants are tracked
-    expect(masterDoc.hasVariant(configId1)).toBe(true);
-    expect(masterDoc.hasVariant(configId2)).toBe(true);
-
-    // Verify they have different configIds
-    expect(configId1).not.toBe(configId2);
-
-    // Verify we can retrieve both
-    const variant1 = masterDoc.getVariant(configId1);
-    const variant2 = masterDoc.getVariant(configId2);
-
-    expect(variant1?.provenance.embeddingModel).toBe("model-1");
-    expect(variant2?.provenance.embeddingModel).toBe("model-2");
+    // Verify chunks are stored
+    const retrievedChunks = masterDoc.getChunks();
+    expect(retrievedChunks.length).toBe(1);
+    expect(retrievedChunks[0].text).toBe("Test chunk 1");
   });
 
   it("should demonstrate document repository integration", async () => {
@@ -168,20 +119,13 @@ Content about topic B.`;
     });
     expect(chunkResult.count).toBeGreaterThan(0);
 
-    // Add variant to document
-    const provenance = {
-      embeddingModel: "test-model",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 256,
-      overlap: 25,
-    };
-
-    const configId = await enrichedDoc.addVariant(provenance, chunkResult.chunks);
+    // Add chunks to document
+    enrichedDoc.setChunks(chunkResult.chunks);
     await docRepo.upsert(enrichedDoc);
 
-    // Verify variant was stored
-    const retrieved = await docRepo.getVariant(docId, configId);
+    // Verify chunks were stored
+    const retrieved = await docRepo.getChunks(docId);
     expect(retrieved).toBeDefined();
-    expect(retrieved?.chunks.length).toBe(chunkResult.count);
+    expect(retrieved.length).toBe(chunkResult.count);
   });
 });

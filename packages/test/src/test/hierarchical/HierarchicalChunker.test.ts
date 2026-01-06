@@ -45,7 +45,6 @@ This is another paragraph.`;
     for (const chunk of result.chunks) {
       expect(chunk.chunkId).toBeDefined();
       expect(chunk.docId).toBe(docId);
-      expect(chunk.configId).toBeDefined();
       expect(chunk.text).toBeDefined();
       expect(chunk.nodePath).toBeDefined();
       expect(chunk.nodePath.length).toBeGreaterThan(0);

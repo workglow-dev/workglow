@@ -21,7 +21,6 @@ import {
   type DocumentNode,
   type TokenBudget,
 } from "../source/DocumentSchema";
-import { deriveConfigId } from "../source/ProvenanceUtils";
 
 const inputSchema = {
   type: "object",
@@ -150,22 +149,13 @@ export class HierarchicalChunkerTask extends Task<
       reservedTokens,
     };
 
-    // Derive configId from current input
-    const variantProvenance = {
-      chunkerStrategy: strategy || "hierarchical",
-      maxTokens: maxTokens || 512,
-      overlap: overlap || 50,
-      embeddingModel: "", // Will be set by embedding task
-    };
-    const configId = await deriveConfigId(variantProvenance);
-
     const chunks: ChunkNode[] = [];
 
     if (strategy === "hierarchical") {
-      await this.chunkHierarchically(root, [], docId, configId, tokenBudget, chunks);
+      await this.chunkHierarchically(root, [], docId, tokenBudget, chunks);
     } else {
       // Flat chunking: treat entire document as flat text
-      await this.chunkFlat(root, docId, configId, tokenBudget, chunks);
+      await this.chunkFlat(root, docId, tokenBudget, chunks);
     }
 
     return {
@@ -183,7 +173,6 @@ export class HierarchicalChunkerTask extends Task<
     node: DocumentNode,
     nodePath: string[],
     docId: string,
-    configId: string,
     tokenBudget: TokenBudget,
     chunks: ChunkNode[]
   ): Promise<void> {
@@ -191,22 +180,14 @@ export class HierarchicalChunkerTask extends Task<
 
     // If node has no children, it's a leaf - chunk its text
     if (!hasChildren(node)) {
-      await this.chunkText(
-        node.text,
-        currentPath,
-        docId,
-        configId,
-        tokenBudget,
-        chunks,
-        node.nodeId
-      );
+      await this.chunkText(node.text, currentPath, docId, tokenBudget, chunks, node.nodeId);
       return;
     }
 
     // For nodes with children, recursively chunk children
     const children = getChildren(node);
     for (const child of children) {
-      await this.chunkHierarchically(child, currentPath, docId, configId, tokenBudget, chunks);
+      await this.chunkHierarchically(child, currentPath, docId, tokenBudget, chunks);
     }
   }
 
@@ -217,7 +198,6 @@ export class HierarchicalChunkerTask extends Task<
     text: string,
     nodePath: string[],
     docId: string,
-    configId: string,
     tokenBudget: TokenBudget,
     chunks: ChunkNode[],
     leafNodeId: string
@@ -227,11 +207,10 @@ export class HierarchicalChunkerTask extends Task<
 
     if (estimateTokens(text) <= tokenBudget.maxTokensPerChunk - tokenBudget.reservedTokens) {
       // Text fits in one chunk
-      const chunkId = await NodeIdGenerator.generateChunkId(docId, configId, leafNodeId, 0);
+      const chunkId = await NodeIdGenerator.generateChunkId(docId, leafNodeId, 0);
       chunks.push({
         chunkId,
         docId,
-        configId,
         text,
         nodePath,
         depth: nodePath.length,
@@ -247,17 +226,11 @@ export class HierarchicalChunkerTask extends Task<
       const endOffset = Math.min(startOffset + maxChars, text.length);
       const chunkText = text.substring(startOffset, endOffset);
 
-      const chunkId = await NodeIdGenerator.generateChunkId(
-        docId,
-        configId,
-        leafNodeId,
-        chunkOrdinal
-      );
+      const chunkId = await NodeIdGenerator.generateChunkId(docId, leafNodeId, chunkOrdinal);
 
       chunks.push({
         chunkId,
         docId,
-        configId,
         text: chunkText,
         nodePath,
         depth: nodePath.length,
@@ -279,13 +252,12 @@ export class HierarchicalChunkerTask extends Task<
   private async chunkFlat(
     root: DocumentNode,
     docId: string,
-    configId: string,
     tokenBudget: TokenBudget,
     chunks: ChunkNode[]
   ): Promise<void> {
     // Collect all text from the tree
     const allText = this.collectAllText(root);
-    await this.chunkText(allText, [root.nodeId], docId, configId, tokenBudget, chunks, root.nodeId);
+    await this.chunkText(allText, [root.nodeId], docId, tokenBudget, chunks, root.nodeId);
   }
 
   /**

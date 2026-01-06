@@ -5,7 +5,6 @@
  */
 
 import {
-  deriveConfigId,
   Document,
   NodeIdGenerator,
   NodeKind,
@@ -84,7 +83,7 @@ Paragraph.`;
     expect(ancestors[2].nodeId).toBe(subsection.nodeId);
   });
 
-  it("should handle variants", async () => {
+  it("should handle chunks", async () => {
     const repo = new InMemoryDocumentRepository();
     await repo.setupDatabase();
 
@@ -94,33 +93,25 @@ Paragraph.`;
 
     const doc = new Document(docId, root, { title: "Test" });
 
-    // Add a variant
-    const provenance = {
-      embeddingModel: "test-model",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
-
+    // Add chunks
     const chunks = [
       {
         chunkId: "chunk_1",
         docId,
-        configId: await deriveConfigId(provenance),
         text: "Test chunk",
         nodePath: [root.nodeId],
         depth: 1,
       },
     ];
 
-    const configId = await doc.addVariant(provenance, chunks);
+    doc.setChunks(chunks);
 
     await repo.upsert(doc);
 
-    // Retrieve variant
-    const variant = await repo.getVariant(docId, configId);
-    expect(variant).toBeDefined();
-    expect(variant?.chunks.length).toBe(1);
+    // Retrieve chunks
+    const retrievedChunks = await repo.getChunks(docId);
+    expect(retrievedChunks).toBeDefined();
+    expect(retrievedChunks.length).toBe(1);
   });
 
   it("should list all documents", async () => {
@@ -167,130 +158,28 @@ Paragraph.`;
   });
 });
 
-describe("Provenance utilities", () => {
-
-  it("should derive consistent configIds", async () => {
-    const provenance1 = {
-      embeddingModel: "model-1",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
-
-    const provenance2 = {
-      embeddingModel: "model-1",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
-
-    const id1 = await deriveConfigId(provenance1);
-    const id2 = await deriveConfigId(provenance2);
-
-    expect(id1).toBe(id2);
-    expect(id1).toMatch(/^cfg_[0-9a-f]{16}$/);
-  });
-
-  it("should derive different configIds for different configs", async () => {
-    const provenance1 = {
-      embeddingModel: "model-1",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
-
-    const provenance2 = {
-      embeddingModel: "model-2",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
-
-    const id1 = await deriveConfigId(provenance1);
-    const id2 = await deriveConfigId(provenance2);
-
-    expect(id1).not.toBe(id2);
-  });
-
-  it("should ignore field order in config derivation", async () => {
-    const provenance1 = {
-      embeddingModel: "model",
-      maxTokens: 512,
-      overlap: 50,
-      chunkerStrategy: "hierarchical",
-    };
-
-    const provenance2 = {
-      chunkerStrategy: "hierarchical",
-      embeddingModel: "model",
-      overlap: 50,
-      maxTokens: 512,
-    };
-
-    const id1 = await deriveConfigId(provenance1);
-    const id2 = await deriveConfigId(provenance2);
-
-    expect(id1).toBe(id2);
-  });
-});
-
 describe("Document", () => {
-  it("should manage multiple variants", async () => {
+  it("should manage chunks", async () => {
     const markdown = "# Test";
     const docId = await NodeIdGenerator.generateDocId("test", markdown);
     const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
 
     const doc = new Document(docId, root, { title: "Test" });
 
-    // Add variant 1
-    const prov1 = {
-      embeddingModel: "model-1",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
-    const chunks1 = [
+    const chunks = [
       {
         chunkId: "chunk_1",
         docId,
-        configId: await deriveConfigId(prov1),
         text: "Chunk 1",
         nodePath: [root.nodeId],
         depth: 1,
       },
     ];
-    const configId1 = await doc.addVariant(prov1, chunks1);
+    doc.setChunks(chunks);
 
-    // Add variant 2
-    const prov2 = {
-      embeddingModel: "model-2",
-      chunkerStrategy: "flat",
-      maxTokens: 256,
-      overlap: 25,
-    };
-    const chunks2 = [
-      {
-        chunkId: "chunk_2",
-        docId,
-        configId: await deriveConfigId(prov2),
-        text: "Chunk 2",
-        nodePath: [root.nodeId],
-        depth: 1,
-      },
-    ];
-    const configId2 = await doc.addVariant(prov2, chunks2);
-
-    // Verify both variants exist
-    expect(doc.hasVariant(configId1)).toBe(true);
-    expect(doc.hasVariant(configId2)).toBe(true);
-
-    const variant1 = doc.getVariant(configId1);
-    const variant2 = doc.getVariant(configId2);
-
-    expect(variant1?.chunks.length).toBe(1);
-    expect(variant2?.chunks.length).toBe(1);
-    expect(variant1?.chunks[0].text).toBe("Chunk 1");
-    expect(variant2?.chunks[0].text).toBe("Chunk 2");
+    const retrievedChunks = doc.getChunks();
+    expect(retrievedChunks.length).toBe(1);
+    expect(retrievedChunks[0].text).toBe("Chunk 1");
   });
 
   it("should serialize and deserialize", async () => {
@@ -300,23 +189,16 @@ describe("Document", () => {
 
     const doc = new Document(docId, root, { title: "Test" });
 
-    const prov = {
-      embeddingModel: "model",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
     const chunks = [
       {
         chunkId: "chunk_1",
         docId,
-        configId: await deriveConfigId(prov),
         text: "Chunk",
         nodePath: [root.nodeId],
         depth: 1,
       },
     ];
-    await doc.addVariant(prov, chunks);
+    doc.setChunks(chunks);
 
     // Serialize
     const json = doc.toJSON();
@@ -326,6 +208,6 @@ describe("Document", () => {
 
     expect(restored.docId).toBe(doc.docId);
     expect(restored.metadata.title).toBe(doc.metadata.title);
-    expect(restored.getAllVariants().length).toBe(1);
+    expect(restored.getChunks().length).toBe(1);
   });
 });

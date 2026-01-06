@@ -9,7 +9,6 @@
 type ChunkNode = any;
 type DocumentNode = any;
 type Document = any;
-type VariantManifest = any;
 
 /**
  * Document repository interface for storing and retrieving hierarchical documents
@@ -41,27 +40,14 @@ export interface IDocumentRepository {
   getAncestors(docId: string, nodeId: string): Promise<DocumentNode[]>;
 
   /**
-   * Get a specific variant manifest
+   * Get chunks for a document
    */
-  getVariant(docId: string, configId: string): Promise<VariantManifest | undefined>;
-
-  /**
-   * Get all variants for a document
-   */
-  getAllVariants(docId: string): Promise<VariantManifest[]>;
-
-  /**
-   * Get chunks by configId
-   */
-  getChunks(docId: string, configId: string): Promise<ChunkNode[]>;
+  getChunks(docId: string): Promise<ChunkNode[]>;
 
   /**
    * Find chunks that contain a specific nodeId in their path
    */
-  findChunksByNodeId(
-    docId: string,
-    nodeId: string
-  ): Promise<Array<{ configId: string; chunk: ChunkNode }>>;
+  findChunksByNodeId(docId: string, nodeId: string): Promise<ChunkNode[]>;
 
   /**
    * List all document IDs
