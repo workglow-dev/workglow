@@ -32,7 +32,9 @@ export function runGenericTabularRepositorySubscriptionTests(
   // Need to wait for at least one full polling cycle after operations complete
   const waitTime = usesPolling ? Math.max(pollingIntervalMs * 3, 100) : 50;
   // For polling implementations, wait for initial poll to complete before operations
-  const initWaitTime = usesPolling ? Math.max(pollingIntervalMs * 2, 100) : 10;
+  // initAndPoll is async but not awaited, so we need extra buffer to ensure it completes
+  // plus at least one full polling cycle to establish baseline state
+  const initWaitTime = usesPolling ? Math.max(pollingIntervalMs * 4, 150) : 10;
 
   describe("Subscription Tests", () => {
     let repository: ITabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
