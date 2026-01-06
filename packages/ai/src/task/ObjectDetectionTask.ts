@@ -4,15 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
 import {
+  CreateWorkflow,
   DeReplicateFromSchema,
-  TypeBoundingBox,
-  TypeImageInput,
-  TypeModel,
+  JobQueueTaskConfig,
+  TaskRegistry,
   TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+  Workflow,
+} from "@workglow/task-graph";
+import { DataPortSchema, FromSchema } from "@workglow/util";
+import { TypeBoundingBox, TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
 const modelSchema = TypeReplicateArray(TypeModel("model:ObjectDetectionTask"));

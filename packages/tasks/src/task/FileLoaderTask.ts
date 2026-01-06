@@ -6,11 +6,13 @@
 
 import {
   CreateWorkflow,
+  DeReplicateFromSchema,
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
   TaskAbortedError,
   TaskRegistry,
+  TypeReplicateArray,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -20,12 +22,12 @@ import { FetchUrlTask, FetchUrlTaskOutput } from "./FetchUrlTask";
 const inputSchema = {
   type: "object",
   properties: {
-    url: {
+    url: TypeReplicateArray({
       type: "string",
       title: "URL",
       description: "URL to load document from (http://, https://)",
       format: "uri",
-    },
+    }),
     format: {
       type: "string",
       enum: ["text", "markdown", "json", "csv", "pdf", "image", "html", "auto"],
@@ -85,7 +87,9 @@ const outputSchema = {
 } as const satisfies DataPortSchema;
 
 export type FileLoaderTaskInput = FromSchema<typeof inputSchema>;
+export type FileLoaderTaskExecuteInput = DeReplicateFromSchema<typeof inputSchema>;
 export type FileLoaderTaskOutput = FromSchema<typeof outputSchema>;
+export type FileLoaderTaskExecuteOutput = DeReplicateFromSchema<typeof outputSchema>;
 
 /**
  * Task for loading documents from URLs (including file:// URLs).
@@ -115,7 +119,9 @@ export class FileLoaderTask extends Task<
     input: FileLoaderTaskInput,
     context: IExecuteContext
   ): Promise<FileLoaderTaskOutput> {
-    const { url, format = "auto" } = input;
+    // At runtime, ArrayTask ensures inputs are dereplicated before calling execute
+    const dereplicated = input as unknown as FileLoaderTaskExecuteInput;
+    const { url, format = "auto" } = dereplicated;
 
     if (context.signal.aborted) {
       throw new TaskAbortedError("Task aborted");
@@ -408,7 +414,7 @@ export class FileLoaderTask extends Task<
 TaskRegistry.registerTask(FileLoaderTask);
 
 export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
-  return new FileLoaderTask({} as FileLoaderTaskInput, config).run(input);
+  return new FileLoaderTask({}, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

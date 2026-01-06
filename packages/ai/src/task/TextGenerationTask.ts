@@ -7,7 +7,8 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { DeReplicateFromSchema, TypeReplicateArray } from "@workglow/task-graph";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const generatedTextSchema = {
   type: "string",

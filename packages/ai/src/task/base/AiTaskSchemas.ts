@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  DataPortSchemaNonBoolean,
-  FromSchema,
-  JsonSchema,
-  type TypedArray,
-  TypedArraySchemaOptions,
-} from "@workglow/util";
+import { DataPortSchemaNonBoolean, JsonSchema } from "@workglow/util";
 import { ModelConfigSchema } from "../../model/ModelSchema";
 
 export const TypeLanguage = (annotations: Record<string, unknown> = {}) =>
@@ -77,53 +71,6 @@ export function TypeModel<
     format: semantic,
   } as const satisfies JsonSchema;
 }
-
-export const TypeReplicateArray = <T extends DataPortSchemaNonBoolean>(
-  type: T,
-  annotations: Record<string, unknown> = {}
-) =>
-  ({
-    oneOf: [type, { type: "array", items: type }],
-    title: type.title,
-    description: type.description,
-    ...(type.format ? { format: type.format } : {}),
-    ...annotations,
-    "x-replicate": true,
-  }) as const;
-
-export type VectorFromSchema<SCHEMA extends JsonSchema> = FromSchema<
-  SCHEMA,
-  TypedArraySchemaOptions
->;
-
-/**
- * Removes array types from a union, leaving only non-array types.
- * For example, `string | string[]` becomes `string`.
- * Used to extract the single-value type from schemas with x-replicate annotation.
- * Uses distributive conditional types to filter out arrays from unions.
- * Checks for both array types and types with numeric index signatures (FromSchema array output).
- * Preserves Vector types like Float64Array which also have numeric indices.
- */
-type UnwrapArrayUnion<T> = T extends readonly any[]
-  ? T extends TypedArray
-    ? T
-    : never
-  : number extends keyof T
-    ? "push" extends keyof T
-      ? never
-      : T
-    : T;
-
-/**
- * Transforms a schema by removing array variants from properties marked with x-replicate.
- * Properties with x-replicate use {@link TypeReplicateArray} which creates a union of
- * `T | T[]`, and this type extracts just `T`.
- */
-export type DeReplicateFromSchema<S extends { properties: Record<string, any> }> = {
-  [K in keyof S["properties"]]: S["properties"][K] extends { "x-replicate": true }
-    ? UnwrapArrayUnion<VectorFromSchema<S["properties"][K]>>
-    : VectorFromSchema<S["properties"][K]>;
-};
 
 export type ImageSource = ImageBitmap | OffscreenCanvas | VideoFrame;
 

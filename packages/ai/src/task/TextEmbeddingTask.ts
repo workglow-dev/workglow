@@ -12,7 +12,8 @@ import {
   TypedArraySchemaOptions,
 } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { DeReplicateFromSchema, TypeReplicateArray } from "@workglow/task-graph";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const embeddingModelSchema = TypeModel("model:TextEmbeddingTask");
 const modelSchema = TypeReplicateArray(embeddingModelSchema);

@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uuid4, type DataPortSchema } from "@workglow/util";
+import {
+  DataPortSchemaNonBoolean,
+  TypedArray,
+  uuid4,
+  VectorFromSchema,
+  type DataPortSchema,
+} from "@workglow/util";
 
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphResultArray, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
@@ -12,6 +18,48 @@ import { GraphAsTask } from "./GraphAsTask";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskConfig, TaskInput, TaskOutput } from "./TaskTypes";
+
+export const TypeReplicateArray = <T extends DataPortSchemaNonBoolean>(
+  type: T,
+  annotations: Record<string, unknown> = {}
+) =>
+  ({
+    oneOf: [type, { type: "array", items: type }],
+    title: type.title,
+    description: type.description,
+    ...(type.format ? { format: type.format } : {}),
+    ...annotations,
+    "x-replicate": true,
+  }) as const;
+
+/**
+ * Removes array types from a union, leaving only non-array types.
+ * For example, `string | string[]` becomes `string`.
+ * Used to extract the single-value type from schemas with x-replicate annotation.
+ * Uses distributive conditional types to filter out arrays from unions.
+ * Checks for both array types and types with numeric index signatures (FromSchema array output).
+ * Preserves Vector types like Float64Array which also have numeric indices.
+ */
+type UnwrapArrayUnion<T> = T extends readonly any[]
+  ? T extends TypedArray
+    ? T
+    : never
+  : number extends keyof T
+    ? "push" extends keyof T
+      ? never
+      : T
+    : T;
+
+/**
+ * Transforms a schema by removing array variants from properties marked with x-replicate.
+ * Properties with x-replicate use {@link TypeReplicateArray} which creates a union of
+ * `T | T[]`, and this type extracts just `T`.
+ */
+export type DeReplicateFromSchema<S extends { properties: Record<string, any> }> = {
+  [K in keyof S["properties"]]: S["properties"][K] extends { "x-replicate": true }
+    ? UnwrapArrayUnion<VectorFromSchema<S["properties"][K]>>
+    : VectorFromSchema<S["properties"][K]>;
+};
 
 /**
  * ArrayTask is a compound task that either:

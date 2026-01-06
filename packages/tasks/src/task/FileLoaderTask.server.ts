@@ -16,6 +16,7 @@ import { readFile } from "node:fs/promises";
 
 import {
   FileLoaderTask as BaseFileLoaderTask,
+  FileLoaderTaskExecuteInput,
   FileLoaderTaskInput,
   FileLoaderTaskOutput,
 } from "./FileLoaderTask";
@@ -34,7 +35,9 @@ export class FileLoaderTask extends BaseFileLoaderTask {
     input: FileLoaderTaskInput,
     context: IExecuteContext
   ): Promise<FileLoaderTaskOutput> {
-    let { url, format = "auto" } = input;
+    // At runtime, ArrayTask ensures inputs are dereplicated before calling execute
+    const dereplicated = input as unknown as FileLoaderTaskExecuteInput;
+    let { url, format = "auto" } = dereplicated;
 
     // Delegate HTTP/HTTPS URLs to parent class
     if (url.startsWith("http://") || url.startsWith("https://")) {
