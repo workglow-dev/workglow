@@ -93,9 +93,6 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
   for (const [key, propSchema] of Object.entries(properties)) {
     const value = resolved[key];
 
-    // Skip if not a string (already resolved or direct instance)
-    if (typeof value !== "string") continue;
-
     const format = getSchemaFormat(propSchema);
     if (!format) continue;
 
@@ -106,9 +103,18 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
       resolver = resolvers.get(prefix);
     }
 
-    if (resolver) {
+    if (!resolver) continue;
+
+    // Handle string values
+    if (typeof value === "string") {
       resolved[key] = await resolver(value, format, config.registry);
     }
+    // Handle arrays of strings - pass the entire array to the resolver
+    // (resolvers like resolveModelFromRegistry handle arrays even though typed as string)
+    else if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+      resolved[key] = await resolver(value as unknown as string, format, config.registry);
+    }
+    // Skip if not a string or array of strings (already resolved or direct instance)
   }
 
   return resolved as T;
