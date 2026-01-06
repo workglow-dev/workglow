@@ -12,7 +12,6 @@ import { Job } from "@workglow/job-queue";
 import {
   JobQueueTask,
   JobQueueTaskConfig,
-  ProvenanceItem,
   TaskConfigurationError,
   TaskInput,
   type TaskOutput,
@@ -224,12 +223,5 @@ export class AiTask<
       }
     }
     return input;
-  }
-
-  public getProvenance(): ProvenanceItem | undefined {
-    return {
-      task: this.type,
-      model: this.runInputData.model,
-    };
   }
 }

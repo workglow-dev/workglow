@@ -114,27 +114,6 @@ This is another paragraph.`;
     }
   });
 
-  it("should populate provenance fields", async () => {
-    const markdown = "# Test\n\nContent.";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Provenance");
-
-    const task = new HierarchicalChunkerTask({
-      docId,
-      documentTree: root,
-      maxTokens: 512,
-      overlap: 50,
-      strategy: "hierarchical",
-    });
-
-    const provenance = task.getProvenance();
-
-    expect(provenance).toBeDefined();
-    expect(provenance?.chunkerStrategy).toBe("hierarchical");
-    expect(provenance?.maxTokens).toBe(512);
-    expect(provenance?.overlap).toBe(50);
-    expect(provenance?.docId).toBe(docId);
-  });
 
   it("should handle flat strategy", async () => {
     const markdown = `# Section 1

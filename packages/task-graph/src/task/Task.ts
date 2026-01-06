@@ -27,8 +27,6 @@ import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
 import {
   TaskStatus,
-  type Provenance,
-  type ProvenanceItem,
   type TaskConfig,
   type TaskIdType,
   type TaskInput,
@@ -308,11 +306,6 @@ export class Task<
     return this._events;
   }
   protected _events: EventEmitter<TaskEventListeners> | undefined;
-
-  /**
-   * Provenance information for the task
-   */
-  protected nodeProvenance: Provenance = [];
 
   /**
    * Creates a new task instance
@@ -743,14 +736,6 @@ export class Task<
    */
   public id(): unknown {
     return this.config.id;
-  }
-
-  /**
-   * Gets provenance information for the task
-   * Returns undefined if task does not contribute to provenance
-   */
-  public getProvenance(): ProvenanceItem | undefined {
-    return this.config.provenance?.[0];
   }
 
   // ========================================================================

@@ -20,8 +20,6 @@ import type {
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
 import type {
-  Provenance,
-  ProvenanceItem,
   TaskConfig,
   TaskInput,
   TaskOutput,
@@ -33,7 +31,6 @@ import type {
  */
 export interface IExecuteContext {
   signal: AbortSignal;
-  nodeProvenance: Provenance;
   updateProgress: (progress: number, message?: string, ...args: any[]) => Promise<void>;
   own: <T extends ITask | ITaskGraph | IWorkflow>(i: T) => T;
   registry: ServiceRegistry;
@@ -45,7 +42,6 @@ export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
  * Configuration for running a task
  */
 export interface IRunConfig {
-  nodeProvenance?: Provenance;
   outputCache?: TaskOutputRepository | boolean;
   updateProgress?: (
     task: ITask,
@@ -151,7 +147,6 @@ export interface ITaskEvents {
  * Interface for task serialization
  */
 export interface ITaskSerialization {
-  getProvenance(): ProvenanceItem | undefined;
   toJSON(): JsonTaskItem | TaskGraphItemJson;
   toDependencyJSON(): JsonTaskItem;
   id(): unknown;

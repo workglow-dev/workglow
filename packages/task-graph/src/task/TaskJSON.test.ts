@@ -145,7 +145,6 @@ describe("TaskJSON", () => {
         { value: 100 },
         {
           id: "task3",
-          provenance: [{ source: "test", version: "1.0" }],
           extras: { metadata: { key: "value" } },
         }
       );
@@ -382,7 +381,6 @@ describe("TaskJSON", () => {
         {
           id: "task1",
           name: "Task with Defaults",
-          provenance: [{ source: "test", version: "1.0" }],
           extras: { metadata: { key: "value" } },
         }
       );

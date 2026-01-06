@@ -8,7 +8,7 @@ import { DirectedAcyclicGraph, EventEmitter, ServiceRegistry, uuid4 } from "@wor
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
-import type { Provenance, TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
+import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction } from "./Conversions";
 import { Dataflow, type DataflowIdType } from "./Dataflow";
 import type { ITaskGraph } from "./ITaskGraph";
@@ -37,8 +37,6 @@ export interface TaskGraphRunConfig {
   outputCache?: TaskOutputRepository | boolean;
   /** Optional signal to abort the task graph */
   parentSignal?: AbortSignal;
-  /** Optional provenance to use for this task graph */
-  parentProvenance?: Provenance;
   /** Optional service registry to use for this task graph (creates child from global if not provided) */
   registry?: ServiceRegistry;
 }
@@ -104,7 +102,6 @@ export class TaskGraph implements ITaskGraph {
   ): Promise<GraphResultArray<ExecuteOutput>> {
     return this.runner.runGraph<ExecuteOutput>(input, {
       outputCache: config?.outputCache || this.outputCache,
-      parentProvenance: config?.parentProvenance || [],
       parentSignal: config?.parentSignal || undefined,
     });
   }
@@ -147,15 +144,6 @@ export class TaskGraph implements ITaskGraph {
    */
   public async disable() {
     await this.runner.disable();
-  }
-
-  /**
-   * Gets the accumulated provenance chain for a specific task
-   * @param taskId The ID of the task to get provenance for
-   * @returns The provenance chain for the task, or undefined if not found
-   */
-  public getProvenanceForTask(taskId: unknown): Provenance | undefined {
-    return this.runner.getProvenanceForTask(taskId);
   }
 
   /**
