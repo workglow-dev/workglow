@@ -13,6 +13,7 @@ This module provides a flexible task processing system with support for various 
 - [Event Handling](#event-handling)
 - [Input/Output Schemas](#inputoutput-schemas)
 - [Registry \& Queues](#registry--queues)
+- [Input Resolution](#input-resolution)
 - [Error Handling](#error-handling)
 - [Testing](#testing)
 - [Installation](#installation)
@@ -30,6 +31,9 @@ This module provides a flexible task processing system with support for various 
 ### A Simple Task
 
 ```typescript
+import { Task, type DataPortSchema } from "@workglow/task-graph";
+import { Type } from "@sinclair/typebox";
+
 interface MyTaskInput {
   input: number;
 }
@@ -178,6 +182,15 @@ static outputSchema = () => {
     }),
   }) satisfies DataPortSchema;
 };
+
+type MyInput = FromSchema<typeof MyInputSchema>;
+type MyOutput = FromSchema<typeof MyOutputSchema>;
+
+class MyTask extends Task<MyInput, MyOutput> {
+  static readonly type = "MyTask";
+  static inputSchema = () => MyInputSchema;
+  static outputSchema = () => MyOutputSchema;
+}
 ```
 
 ### Using Zod
@@ -201,13 +214,16 @@ const outputSchemaZod = z.object({
 type MyInput = z.infer<typeof inputSchemaZod>;
 type MyOutput = z.infer<typeof outputSchemaZod>;
 
-static inputSchema = () => {
-  return inputSchemaZod.toJSONSchema() as DataPortSchema;
-};
+class MyTask extends Task<MyInput, MyOutput> {
+  static readonly type = "MyTask";
+  static inputSchema = () => {
+    return inputSchemaZod.toJSONSchema() as DataPortSchema;
+  };
 
-static outputSchema = () => {
-  return outputSchemaZod.toJSONSchema() as DataPortSchema;
-};
+  static outputSchema = () => {
+    return outputSchemaZod.toJSONSchema() as DataPortSchema;
+  };
+}
 ```
 
 ## Registry & Queues
@@ -224,6 +240,75 @@ The TaskQueueRegistry is used to get a queue for a given name. This is useful fo
 // Queue management
 const queue = getTaskQueueRegistry().getQueue("processing");
 queue.add(new MyJobTask());
+```
+
+## Input Resolution
+
+The TaskRunner automatically resolves schema-annotated string inputs to their corresponding instances before task execution. This allows tasks to accept either string identifiers (like `"my-model"` or `"my-repository"`) or direct object instances, providing flexibility in how tasks are configured.
+
+### How It Works
+
+When a task's input schema includes properties with `format` annotations (such as `"model"`, `"model:TaskName"`, or `"repository:tabular"`), the TaskRunner inspects each input property:
+
+- **String values** are looked up in the appropriate registry and resolved to instances
+- **Object values** (already instances) pass through unchanged
+
+This resolution happens automatically before `validateInput()` is called, so by the time `execute()` runs, all annotated inputs are guaranteed to be resolved objects.
+
+### Example: Task with Repository Input
+
+```typescript
+import { Task } from "@workglow/task-graph";
+import { TypeTabularRepository } from "@workglow/storage";
+
+class DataProcessingTask extends Task<{ repository: ITabularRepository; query: string }> {
+  static readonly type = "DataProcessingTask";
+
+  static inputSchema() {
+    return {
+      type: "object",
+      properties: {
+        repository: TypeTabularRepository({
+          title: "Data Source",
+          description: "Repository to query",
+        }),
+        query: { type: "string", title: "Query" },
+      },
+      required: ["repository", "query"],
+    };
+  }
+
+  async execute(input: DataProcessingTaskInput, context: IExecuteContext) {
+    // repository is guaranteed to be an ITabularRepository instance
+    const data = await input.repository.getAll();
+    return { results: data };
+  }
+}
+
+// Usage with string ID (resolved automatically)
+const task = new DataProcessingTask();
+await task.run({ repository: "my-registered-repo", query: "test" });
+
+// Usage with direct instance (passed through)
+await task.run({ repository: myRepositoryInstance, query: "test" });
+```
+
+### Registering Custom Resolvers
+
+Extend the input resolution system by registering custom resolvers for new format prefixes:
+
+```typescript
+import { registerInputResolver } from "@workglow/util";
+
+// Register a resolver for "config:*" formats
+registerInputResolver("config", async (id, format, registry) => {
+  const configRepo = registry.get(CONFIG_REPOSITORY);
+  const config = await configRepo.findById(id);
+  if (!config) {
+    throw new Error(`Configuration "${id}" not found`);
+  }
+  return config;
+});
 ```
 
 ## Error Handling

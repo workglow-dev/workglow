@@ -11,6 +11,7 @@ import {
   SchemaNode,
   uuid4,
   type DataPortSchema,
+  type ServiceRegistry,
 } from "@workglow/util";
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
@@ -26,7 +27,6 @@ import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
 import {
   TaskStatus,
-  type Provenance,
   type TaskConfig,
   type TaskIdType,
   type TaskInput,
@@ -308,11 +308,6 @@ export class Task<
   protected _events: EventEmitter<TaskEventListeners> | undefined;
 
   /**
-   * Provenance information for the task
-   */
-  protected nodeProvenance: Provenance = {};
-
-  /**
    * Creates a new task instance
    *
    * @param callerDefaultInputs Default input values provided by the caller
@@ -380,11 +375,86 @@ export class Task<
    * Resets input data to defaults
    */
   public resetInputData(): void {
-    // Use deep clone to avoid state leakage
+    this.runInputData = this.smartClone(this.defaults) as Record<string, any>;
+  }
+
+  /**
+   * Smart clone that deep-clones plain objects and arrays while preserving
+   * class instances (objects with non-Object prototype) by reference.
+   * Detects and throws an error on circular references.
+   *
+   * This is necessary because:
+   * - structuredClone cannot clone class instances (methods are lost)
+   * - JSON.parse/stringify loses methods and fails on circular references
+   * - Class instances like repositories should be passed by reference
+   *
+   * This breaks the idea of everything being json serializable, but it allows
+   * more efficient use cases. Do be careful with this though! Use sparingly.
+   *
+   * @param obj The object to clone
+   * @param visited Set of objects in the current cloning path (for circular reference detection)
+   * @returns A cloned object with class instances preserved by reference
+   */
+  private smartClone(obj: any, visited: WeakSet<object> = new WeakSet()): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+
+    // Primitives (string, number, boolean, symbol, bigint) are returned as-is
+    if (typeof obj !== "object") {
+      return obj;
+    }
+
+    // Check for circular references
+    if (visited.has(obj)) {
+      throw new Error(
+        "Circular reference detected in input data. " +
+          "Cannot clone objects with circular references."
+      );
+    }
+
+    // Clone TypedArrays (Float32Array, Int8Array, etc.) to avoid shared-mutation
+    // between defaults and runInputData, while preserving DataView by reference.
+    if (ArrayBuffer.isView(obj)) {
+      // Preserve DataView instances by reference (constructor signature differs)
+      if (typeof DataView !== "undefined" && obj instanceof DataView) {
+        return obj;
+      }
+      // For TypedArrays, create a new instance with the same data
+      const typedArray = obj as any;
+      return new (typedArray.constructor as any)(typedArray);
+    }
+
+    // Preserve class instances (objects with non-Object/non-Array prototype)
+    // This includes repository instances, custom classes, etc.
+    if (!Array.isArray(obj)) {
+      const proto = Object.getPrototypeOf(obj);
+      if (proto !== Object.prototype && proto !== null) {
+        return obj; // Pass by reference
+      }
+    }
+
+    // Add object to visited set before recursing
+    visited.add(obj);
+
     try {
-      this.runInputData = structuredClone(this.defaults) as Record<string, any>;
-    } catch (err) {
-      this.runInputData = JSON.parse(JSON.stringify(this.defaults)) as Record<string, any>;
+      // Deep clone arrays, preserving class instances within
+      if (Array.isArray(obj)) {
+        return obj.map((item) => this.smartClone(item, visited));
+      }
+
+      // Deep clone plain objects
+      const result: Record<string, any> = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          result[key] = this.smartClone(obj[key], visited);
+        }
+      }
+      return result;
+    } finally {
+      // Remove from visited set after processing to allow the same object
+      // in different branches (non-circular references)
+      visited.delete(obj);
     }
   }
 
@@ -429,7 +499,7 @@ export class Task<
     // If additionalProperties is true, also copy any additional input properties
     if (schema.additionalProperties === true) {
       for (const [inputId, value] of Object.entries(input)) {
-        if (value !== undefined && !(inputId in properties)) {
+        if (!(inputId in properties)) {
           this.runInputData[inputId] = value;
         }
       }
@@ -506,7 +576,7 @@ export class Task<
     // If additionalProperties is true, also accept any additional input properties
     if (inputSchema.additionalProperties === true) {
       for (const [inputId, value] of Object.entries(overrides)) {
-        if (value !== undefined && !(inputId in properties)) {
+        if (!(inputId in properties)) {
           if (!deepEqual(this.runInputData[inputId], value)) {
             this.runInputData[inputId] = value;
             changed = true;
@@ -521,9 +591,13 @@ export class Task<
   /**
    * Stub for narrowing input. Override in subclasses for custom logic.
    * @param input The input to narrow
+   * @param _registry Optional service registry for lookups
    * @returns The (possibly narrowed) input
    */
-  public async narrowInput(input: Record<string, any>): Promise<Record<string, any>> {
+  public async narrowInput(
+    input: Record<string, any>,
+    _registry: ServiceRegistry
+  ): Promise<Record<string, any>> {
     return input;
   }
 
@@ -664,13 +738,6 @@ export class Task<
     return this.config.id;
   }
 
-  /**
-   * Gets provenance information for the task
-   */
-  public getProvenance(): Provenance {
-    return this.config.provenance ?? {};
-  }
-
   // ========================================================================
   // Serialization methods
   // ========================================================================
@@ -682,6 +749,10 @@ export class Task<
    */
   private stripSymbols(obj: any): any {
     if (obj === null || obj === undefined) {
+      return obj;
+    }
+    // Preserve TypedArrays (Float32Array, Int8Array, etc.)
+    if (ArrayBuffer.isView(obj)) {
       return obj;
     }
     if (Array.isArray(obj)) {
@@ -704,14 +775,12 @@ export class Task<
    * @returns The serialized task and subtasks
    */
   public toJSON(): TaskGraphItemJson {
-    const provenance = this.getProvenance();
     const extras = this.config.extras;
     let json: TaskGraphItemJson = this.stripSymbols({
       id: this.config.id,
       type: this.type,
       ...(this.config.name ? { name: this.config.name } : {}),
       defaults: this.defaults,
-      ...(Object.keys(provenance).length ? { provenance } : {}),
       ...(extras && Object.keys(extras).length ? { extras } : {}),
     });
     return json as TaskGraphItemJson;

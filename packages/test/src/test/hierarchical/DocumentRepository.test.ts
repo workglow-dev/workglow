@@ -1,0 +1,213 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  Document,
+  NodeIdGenerator,
+  NodeKind,
+  StructuralParser,
+} from "@workglow/ai";
+import { InMemoryDocumentRepository } from "@workglow/storage";
+import { describe, expect, it } from "vitest";
+
+describe("InMemoryDocumentRepository", () => {
+  it("should store and retrieve master documents", async () => {
+    const repo = new InMemoryDocumentRepository();
+    await repo.setupDatabase();
+
+    const markdown = "# Test\n\nContent.";
+    const docId = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+
+    const doc = new Document(docId, root, { title: "Test Document" });
+
+    await repo.upsert(doc);
+    const retrieved = await repo.get(docId);
+
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.docId).toBe(docId);
+    expect(retrieved?.metadata.title).toBe("Test Document");
+  });
+
+  it("should retrieve nodes by ID", async () => {
+    const repo = new InMemoryDocumentRepository();
+    await repo.setupDatabase();
+
+    const markdown = "# Section\n\nParagraph.";
+    const docId = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+
+    const doc = new Document(docId, root, { title: "Test" });
+    await repo.upsert(doc);
+
+    // Get a child node
+    const firstChild = root.children[0];
+    const retrieved = await repo.getNode(docId, firstChild.nodeId);
+
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.nodeId).toBe(firstChild.nodeId);
+  });
+
+  it("should get ancestors of a node", async () => {
+    const repo = new InMemoryDocumentRepository();
+    await repo.setupDatabase();
+
+    const markdown = `# Section 1
+
+## Subsection 1.1
+
+Paragraph.`;
+
+    const docId = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+
+    const doc = new Document(docId, root, { title: "Test" });
+    await repo.upsert(doc);
+
+    // Find a deeply nested node
+    const section = root.children.find((c) => c.kind === NodeKind.SECTION);
+    expect(section).toBeDefined();
+
+    const subsection = (section as any).children.find((c: any) => c.kind === NodeKind.SECTION);
+    expect(subsection).toBeDefined();
+
+    const ancestors = await repo.getAncestors(docId, subsection.nodeId);
+
+    // Should include root, section, and subsection
+    expect(ancestors.length).toBeGreaterThanOrEqual(3);
+    expect(ancestors[0].nodeId).toBe(root.nodeId);
+    expect(ancestors[1].nodeId).toBe(section!.nodeId);
+    expect(ancestors[2].nodeId).toBe(subsection.nodeId);
+  });
+
+  it("should handle chunks", async () => {
+    const repo = new InMemoryDocumentRepository();
+    await repo.setupDatabase();
+
+    const markdown = "# Test\n\nContent.";
+    const docId = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+
+    const doc = new Document(docId, root, { title: "Test" });
+
+    // Add chunks
+    const chunks = [
+      {
+        chunkId: "chunk_1",
+        docId,
+        text: "Test chunk",
+        nodePath: [root.nodeId],
+        depth: 1,
+      },
+    ];
+
+    doc.setChunks(chunks);
+
+    await repo.upsert(doc);
+
+    // Retrieve chunks
+    const retrievedChunks = await repo.getChunks(docId);
+    expect(retrievedChunks).toBeDefined();
+    expect(retrievedChunks.length).toBe(1);
+  });
+
+  it("should list all documents", async () => {
+    const repo = new InMemoryDocumentRepository();
+    await repo.setupDatabase();
+
+    const markdown1 = "# Doc 1";
+    const markdown2 = "# Doc 2";
+
+    const id1 = await NodeIdGenerator.generateDocId("test1", markdown1);
+    const id2 = await NodeIdGenerator.generateDocId("test2", markdown2);
+
+    const root1 = await StructuralParser.parseMarkdown(id1, markdown1, "Doc 1");
+    const root2 = await StructuralParser.parseMarkdown(id2, markdown2, "Doc 2");
+
+    const doc1 = new Document(id1, root1, { title: "Doc 1" });
+    const doc2 = new Document(id2, root2, { title: "Doc 2" });
+
+    await repo.upsert(doc1);
+    await repo.upsert(doc2);
+
+    const list = await repo.list();
+    expect(list.length).toBe(2);
+    expect(list).toContain(id1);
+    expect(list).toContain(id2);
+  });
+
+  it("should delete documents", async () => {
+    const repo = new InMemoryDocumentRepository();
+    await repo.setupDatabase();
+
+    const markdown = "# Test";
+    const docId = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+
+    const doc = new Document(docId, root, { title: "Test" });
+    await repo.upsert(doc);
+
+    expect(await repo.get(docId)).toBeDefined();
+
+    await repo.delete(docId);
+
+    expect(await repo.get(docId)).toBeUndefined();
+  });
+});
+
+describe("Document", () => {
+  it("should manage chunks", async () => {
+    const markdown = "# Test";
+    const docId = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+
+    const doc = new Document(docId, root, { title: "Test" });
+
+    const chunks = [
+      {
+        chunkId: "chunk_1",
+        docId,
+        text: "Chunk 1",
+        nodePath: [root.nodeId],
+        depth: 1,
+      },
+    ];
+    doc.setChunks(chunks);
+
+    const retrievedChunks = doc.getChunks();
+    expect(retrievedChunks.length).toBe(1);
+    expect(retrievedChunks[0].text).toBe("Chunk 1");
+  });
+
+  it("should serialize and deserialize", async () => {
+    const markdown = "# Test";
+    const docId = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+
+    const doc = new Document(docId, root, { title: "Test" });
+
+    const chunks = [
+      {
+        chunkId: "chunk_1",
+        docId,
+        text: "Chunk",
+        nodePath: [root.nodeId],
+        depth: 1,
+      },
+    ];
+    doc.setChunks(chunks);
+
+    // Serialize
+    const json = doc.toJSON();
+
+    // Deserialize
+    const restored = Document.fromJSON(json);
+
+    expect(restored.docId).toBe(doc.docId);
+    expect(restored.metadata.title).toBe(doc.metadata.title);
+    expect(restored.getChunks().length).toBe(1);
+  });
+});

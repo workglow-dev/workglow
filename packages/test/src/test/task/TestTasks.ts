@@ -97,7 +97,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
   /**
    * Implementation of full run mode - returns complete results
    */
-  async execute(): Promise<TestIOTaskOutput> {
+  async execute(_input: TestIOTaskInput, _context: IExecuteContext): Promise<TestIOTaskOutput> {
     return { all: true, key: "full", reactiveOnly: false };
   }
 }
@@ -680,8 +680,11 @@ export class StringTask extends Task<{ input: string }, { output: string }, Task
   /**
    * Returns the input string as output
    */
-  async execute() {
-    return { output: this.runInputData.input };
+  async executeReactive(
+    input: { input: string },
+    _output: { output: string }
+  ): Promise<{ output: string }> {
+    return { output: input.input };
   }
 }
 
@@ -719,8 +722,8 @@ export class NumberToStringTask extends Task<{ input: number }, { output: string
   /**
    * Returns the input string as output
    */
-  async execute() {
-    return { output: String(this.runInputData.input) };
+  async execute(input: { input: number }, _context: IExecuteContext): Promise<{ output: string }> {
+    return { output: String(input.input) };
   }
 }
 
@@ -759,8 +762,8 @@ export class NumberTask extends Task<{ input: number }, { output: number }, Task
   /**
    * Returns the input number as output
    */
-  async execute() {
-    return { output: this.runInputData.input };
+  async execute(input: { input: number }, _context: IExecuteContext): Promise<{ output: number }> {
+    return { output: input.input };
   }
 }
 

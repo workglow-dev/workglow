@@ -23,10 +23,10 @@ import {
 } from "./TaskGraphRunner";
 
 // Type definitions for the workflow
-export type CreateWorkflow<I extends DataPorts, _O extends DataPorts, C extends TaskConfig> = (
+export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends TaskConfig> = (
   input?: Partial<I>,
   config?: Partial<C>
-) => Workflow;
+) => Workflow<I, O>;
 
 // Event types
 export type WorkflowEventListeners = {
@@ -57,9 +57,10 @@ let taskIdCounter = 0;
  * Class for building and managing a task graph
  * Provides methods for adding tasks, connecting outputs to inputs, and running the task graph
  */
-export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPorts = DataPorts>
-  implements IWorkflow<Input, Output>
-{
+export class Workflow<
+  Input extends DataPorts = DataPorts,
+  Output extends DataPorts = DataPorts,
+> implements IWorkflow<Input, Output> {
   /**
    * Creates a new Workflow
    *
@@ -99,10 +100,10 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     C extends TaskConfig = TaskConfig,
   >(taskClass: ITaskConstructor<I, O, C>): CreateWorkflow<I, O, C> {
     const helper = function (
-      this: Workflow,
+      this: Workflow<any, any>,
       input: Partial<I> = {},
       config: Partial<C> = {}
-    ): Workflow {
+    ) {
       this._error = "";
 
       const parent = getLastTask(this);
@@ -150,7 +151,19 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
             [toInputPortId, toPortInputSchema]: [string, JsonSchema]
           ) => boolean
         ): Map<string, string> => {
-          // If either schema is true (accepts everything), skip auto-matching
+          if (typeof sourceSchema === "object") {
+            if (
+              targetSchema === true ||
+              (typeof targetSchema === "object" && targetSchema.additionalProperties === true)
+            ) {
+              for (const fromOutputPortId of Object.keys(sourceSchema.properties || {})) {
+                matches.set(fromOutputPortId, fromOutputPortId);
+                this.connect(parent.config.id, fromOutputPortId, task.config.id, fromOutputPortId);
+              }
+              return matches;
+            }
+          }
+          // If either schema is true or false, skip auto-matching
           // as we cannot determine the appropriate connections
           if (typeof sourceSchema === "boolean" || typeof targetSchema === "boolean") {
             return matches;
@@ -221,7 +234,10 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
         }
       }
 
-      return this;
+      // Preserve input type from the start of the chain
+      // If this is the first task, set both input and output types
+      // Otherwise, only update the output type (input type is preserved from 'this')
+      return this as any;
     };
 
     // Copy metadata from the task class
@@ -233,7 +249,7 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     helper.cacheable = taskClass.cacheable;
     helper.workflowCreate = true;
 
-    return helper;
+    return helper as CreateWorkflow<I, O, C>;
   }
 
   /**
@@ -296,7 +312,6 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     try {
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
-        parentProvenance: {},
         outputCache: this._repository,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
@@ -319,6 +334,7 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
   public async abort(): Promise<void> {
     this._abortController?.abort();
   }
+
 
   /**
    * Removes the last task from the task graph
@@ -597,7 +613,11 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
       if (targetSchema === false) {
         throw new WorkflowError(`Target task has schema 'false' and accepts no inputs`);
       }
-      // If targetSchema is true, we skip validation as it accepts everything
+      if (targetSchema === true) {
+        // do nothing, we allow additional properties
+      }
+    } else if (targetSchema.additionalProperties === true) {
+      // do nothing, we allow additional properties
     } else if (!targetSchema.properties?.[targetTaskPortId]) {
       throw new WorkflowError(`Input ${targetTaskPortId} not found on target task`);
     }

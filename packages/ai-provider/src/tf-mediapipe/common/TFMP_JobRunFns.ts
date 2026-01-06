@@ -23,34 +23,34 @@ import {
 } from "@mediapipe/tasks-vision";
 import type {
   AiProviderRunFn,
-  DownloadModelTaskExecuteInput,
-  DownloadModelTaskExecuteOutput,
-  FaceDetectorTaskExecuteInput,
-  FaceDetectorTaskExecuteOutput,
-  FaceLandmarkerTaskExecuteInput,
-  FaceLandmarkerTaskExecuteOutput,
-  GestureRecognizerTaskExecuteInput,
-  GestureRecognizerTaskExecuteOutput,
-  HandLandmarkerTaskExecuteInput,
-  HandLandmarkerTaskExecuteOutput,
-  ImageClassificationTaskExecuteInput,
-  ImageClassificationTaskExecuteOutput,
-  ImageEmbeddingTaskExecuteInput,
-  ImageEmbeddingTaskExecuteOutput,
-  ImageSegmentationTaskExecuteInput,
-  ImageSegmentationTaskExecuteOutput,
-  ObjectDetectionTaskExecuteInput,
-  ObjectDetectionTaskExecuteOutput,
-  PoseLandmarkerTaskExecuteInput,
-  PoseLandmarkerTaskExecuteOutput,
-  TextClassificationTaskExecuteInput,
-  TextClassificationTaskExecuteOutput,
-  TextEmbeddingTaskExecuteInput,
-  TextEmbeddingTaskExecuteOutput,
-  TextLanguageDetectionTaskExecuteInput,
-  TextLanguageDetectionTaskExecuteOutput,
-  UnloadModelTaskExecuteInput,
-  UnloadModelTaskExecuteOutput,
+  DownloadModelTaskRunInput,
+  DownloadModelTaskRunOutput,
+  FaceDetectorTaskInput,
+  FaceDetectorTaskOutput,
+  FaceLandmarkerTaskInput,
+  FaceLandmarkerTaskOutput,
+  GestureRecognizerTaskInput,
+  GestureRecognizerTaskOutput,
+  HandLandmarkerTaskInput,
+  HandLandmarkerTaskOutput,
+  ImageClassificationTaskInput,
+  ImageClassificationTaskOutput,
+  ImageEmbeddingTaskInput,
+  ImageEmbeddingTaskOutput,
+  ImageSegmentationTaskInput,
+  ImageSegmentationTaskOutput,
+  ObjectDetectionTaskInput,
+  ObjectDetectionTaskOutput,
+  PoseLandmarkerTaskInput,
+  PoseLandmarkerTaskOutput,
+  TextClassificationTaskInput,
+  TextClassificationTaskOutput,
+  TextEmbeddingTaskInput,
+  TextEmbeddingTaskOutput,
+  TextLanguageDetectionTaskInput,
+  TextLanguageDetectionTaskOutput,
+  UnloadModelTaskRunInput,
+  UnloadModelTaskRunOutput,
 } from "@workglow/ai";
 import { PermanentJobError } from "@workglow/job-queue";
 import { TFMPModelConfig } from "./TFMP_ModelSchema";
@@ -262,8 +262,8 @@ const getModelTask = async <T extends TaskType>(
  * This is shared between inline and worker implementations.
  */
 export const TFMP_Download: AiProviderRunFn<
-  DownloadModelTaskExecuteInput,
-  DownloadModelTaskExecuteOutput,
+  DownloadModelTaskRunInput,
+  DownloadModelTaskRunOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   let task: TaskInstance;
@@ -327,8 +327,8 @@ export const TFMP_Download: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const TFMP_TextEmbedding: AiProviderRunFn<
-  TextEmbeddingTaskExecuteInput,
-  TextEmbeddingTaskExecuteOutput,
+  TextEmbeddingTaskInput,
+  TextEmbeddingTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const textEmbedder = await getModelTask(model!, {}, onProgress, signal, TextEmbedder);
@@ -350,8 +350,8 @@ export const TFMP_TextEmbedding: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const TFMP_TextClassification: AiProviderRunFn<
-  TextClassificationTaskExecuteInput,
-  TextClassificationTaskExecuteOutput,
+  TextClassificationTaskInput,
+  TextClassificationTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const TextClassification = await getModelTask(
@@ -387,8 +387,8 @@ export const TFMP_TextClassification: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const TFMP_TextLanguageDetection: AiProviderRunFn<
-  TextLanguageDetectionTaskExecuteInput,
-  TextLanguageDetectionTaskExecuteOutput,
+  TextLanguageDetectionTaskInput,
+  TextLanguageDetectionTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const maxLanguages = input.maxLanguages === 0 ? -1 : input.maxLanguages;
@@ -431,8 +431,8 @@ export const TFMP_TextLanguageDetection: AiProviderRunFn<
  * 3. If no other models are using the WASM fileset (count reaches 0), unloads the WASM
  */
 export const TFMP_Unload: AiProviderRunFn<
-  UnloadModelTaskExecuteInput,
-  UnloadModelTaskExecuteOutput,
+  UnloadModelTaskRunInput,
+  UnloadModelTaskRunOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const model_path = model!.provider_config.model_path;
@@ -471,8 +471,8 @@ export const TFMP_Unload: AiProviderRunFn<
  * Core implementation for image segmentation using MediaPipe.
  */
 export const TFMP_ImageSegmentation: AiProviderRunFn<
-  ImageSegmentationTaskExecuteInput,
-  ImageSegmentationTaskExecuteOutput,
+  ImageSegmentationTaskInput,
+  ImageSegmentationTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const imageSegmenter = await getModelTask(model!, {}, onProgress, signal, ImageSegmenter);
@@ -504,8 +504,8 @@ export const TFMP_ImageSegmentation: AiProviderRunFn<
  * Core implementation for image embedding using MediaPipe.
  */
 export const TFMP_ImageEmbedding: AiProviderRunFn<
-  ImageEmbeddingTaskExecuteInput,
-  ImageEmbeddingTaskExecuteOutput,
+  ImageEmbeddingTaskInput,
+  ImageEmbeddingTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const imageEmbedder = await getModelTask(model!, {}, onProgress, signal, ImageEmbedder);
@@ -519,15 +519,15 @@ export const TFMP_ImageEmbedding: AiProviderRunFn<
 
   return {
     vector: embedding,
-  };
+  } as ImageEmbeddingTaskOutput;
 };
 
 /**
  * Core implementation for image classification using MediaPipe.
  */
 export const TFMP_ImageClassification: AiProviderRunFn<
-  ImageClassificationTaskExecuteInput,
-  ImageClassificationTaskExecuteOutput,
+  ImageClassificationTaskInput,
+  ImageClassificationTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const imageClassifier = await getModelTask(
@@ -559,8 +559,8 @@ export const TFMP_ImageClassification: AiProviderRunFn<
  * Core implementation for object detection using MediaPipe.
  */
 export const TFMP_ObjectDetection: AiProviderRunFn<
-  ObjectDetectionTaskExecuteInput,
-  ObjectDetectionTaskExecuteOutput,
+  ObjectDetectionTaskInput,
+  ObjectDetectionTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const objectDetector = await getModelTask(
@@ -598,8 +598,8 @@ export const TFMP_ObjectDetection: AiProviderRunFn<
  * Core implementation for gesture recognition using MediaPipe.
  */
 export const TFMP_GestureRecognizer: AiProviderRunFn<
-  GestureRecognizerTaskExecuteInput,
-  GestureRecognizerTaskExecuteOutput,
+  GestureRecognizerTaskInput,
+  GestureRecognizerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const gestureRecognizer = await getModelTask(
@@ -650,8 +650,8 @@ export const TFMP_GestureRecognizer: AiProviderRunFn<
  * Core implementation for hand landmark detection using MediaPipe.
  */
 export const TFMP_HandLandmarker: AiProviderRunFn<
-  HandLandmarkerTaskExecuteInput,
-  HandLandmarkerTaskExecuteOutput,
+  HandLandmarkerTaskInput,
+  HandLandmarkerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const handLandmarker = await getModelTask(
@@ -698,8 +698,8 @@ export const TFMP_HandLandmarker: AiProviderRunFn<
  * Core implementation for face detection using MediaPipe.
  */
 export const TFMP_FaceDetector: AiProviderRunFn<
-  FaceDetectorTaskExecuteInput,
-  FaceDetectorTaskExecuteOutput,
+  FaceDetectorTaskInput,
+  FaceDetectorTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const faceDetector = await getModelTask(
@@ -743,8 +743,8 @@ export const TFMP_FaceDetector: AiProviderRunFn<
  * Core implementation for face landmark detection using MediaPipe.
  */
 export const TFMP_FaceLandmarker: AiProviderRunFn<
-  FaceLandmarkerTaskExecuteInput,
-  FaceLandmarkerTaskExecuteOutput,
+  FaceLandmarkerTaskInput,
+  FaceLandmarkerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const faceLandmarker = await getModelTask(
@@ -799,8 +799,8 @@ export const TFMP_FaceLandmarker: AiProviderRunFn<
  * Core implementation for pose landmark detection using MediaPipe.
  */
 export const TFMP_PoseLandmarker: AiProviderRunFn<
-  PoseLandmarkerTaskExecuteInput,
-  PoseLandmarkerTaskExecuteOutput,
+  PoseLandmarkerTaskInput,
+  PoseLandmarkerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
   const poseLandmarker = await getModelTask(

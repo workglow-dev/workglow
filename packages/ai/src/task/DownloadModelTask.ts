@@ -7,9 +7,9 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model"));
+const modelSchema = TypeModel("model");
 
 const DownloadModelInputSchema = {
   type: "object",
@@ -31,10 +31,6 @@ const DownloadModelOutputSchema = {
 
 export type DownloadModelTaskRunInput = FromSchema<typeof DownloadModelInputSchema>;
 export type DownloadModelTaskRunOutput = FromSchema<typeof DownloadModelOutputSchema>;
-export type DownloadModelTaskExecuteInput = DeReplicateFromSchema<typeof DownloadModelInputSchema>;
-export type DownloadModelTaskExecuteOutput = DeReplicateFromSchema<
-  typeof DownloadModelOutputSchema
->;
 
 /**
  * Download a model from a remote source and cache it locally.
@@ -103,7 +99,7 @@ TaskRegistry.registerTask(DownloadModelTask);
  * @returns Promise resolving to the downloaded model(s)
  */
 export const downloadModel = (input: DownloadModelTaskRunInput, config?: JobQueueTaskConfig) => {
-  return new DownloadModelTask(input, config).run();
+  return new DownloadModelTask({} as DownloadModelTaskRunInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

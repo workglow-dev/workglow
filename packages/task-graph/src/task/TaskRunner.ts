@@ -4,13 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry } from "@workglow/util";
+import { globalServiceRegistry, ServiceRegistry } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
+import { resolveSchemaInputs } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
+import { Task } from "./Task";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
-import { Provenance, TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
+import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
 
 /**
  * Responsible for running tasks
@@ -27,10 +29,6 @@ export class TaskRunner<
   protected running = false;
   protected reactiveRunning = false;
 
-  /**
-   * Provenance information for the task
-   */
-  protected nodeProvenance: Provenance = {};
 
   /**
    * The task to run
@@ -46,6 +44,11 @@ export class TaskRunner<
    * The output cache for the task
    */
   protected outputCache?: TaskOutputRepository;
+
+  /**
+   * The service registry for the task
+   */
+  protected registry: ServiceRegistry = globalServiceRegistry;
 
   /**
    * Constructor for TaskRunner
@@ -72,6 +75,15 @@ export class TaskRunner<
 
     try {
       this.task.setInput(overrides);
+
+      // Resolve schema-annotated inputs (models, repositories) before validation
+      const schema = (this.task.constructor as typeof Task).inputSchema();
+      this.task.runInputData = (await resolveSchemaInputs(
+        this.task.runInputData as Record<string, unknown>,
+        schema,
+        { registry: this.registry }
+      )) as Input;
+
       const isValid = await this.task.validateInput(this.task.runInputData);
       if (!isValid) {
         throw new TaskInvalidInputError("Invalid input data");
@@ -117,6 +129,14 @@ export class TaskRunner<
       return this.task.runOutputData as Output;
     }
     this.task.setInput(overrides);
+
+    // Resolve schema-annotated inputs (models, repositories) before validation
+    const schema = (this.task.constructor as typeof Task).inputSchema();
+    this.task.runInputData = (await resolveSchemaInputs(
+      this.task.runInputData as Record<string, unknown>,
+      schema,
+      { registry: this.registry }
+    )) as Input;
 
     await this.handleStartReactive();
 
@@ -165,11 +185,11 @@ export class TaskRunner<
    * Protected method to execute a task by delegating back to the task itself.
    */
   protected async executeTask(input: Input): Promise<Output | undefined> {
-    const result = await this.task.execute(input, {
+      const result = await this.task.execute(input, {
       signal: this.abortController!.signal,
       updateProgress: this.handleProgress.bind(this),
-      nodeProvenance: this.nodeProvenance,
       own: this.own,
+      registry: this.registry,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
   }
@@ -192,7 +212,6 @@ export class TaskRunner<
   protected async handleStart(config: IRunConfig = {}): Promise<void> {
     if (this.task.status === TaskStatus.PROCESSING) return;
 
-    this.nodeProvenance = {};
     this.running = true;
 
     this.task.startedAt = new Date();
@@ -203,8 +222,6 @@ export class TaskRunner<
     this.abortController.signal.addEventListener("abort", () => {
       this.handleAbort();
     });
-
-    this.nodeProvenance = config.nodeProvenance ?? {};
 
     const cache = this.task.config.outputCache ?? config.outputCache;
     if (cache === true) {
@@ -218,6 +235,10 @@ export class TaskRunner<
 
     if (config.updateProgress) {
       this.updateProgress = config.updateProgress;
+    }
+
+    if (config.registry) {
+      this.registry = config.registry;
     }
 
     this.task.emit("start");
@@ -260,7 +281,6 @@ export class TaskRunner<
     this.task.progress = 100;
     this.task.status = TaskStatus.COMPLETED;
     this.abortController = undefined;
-    this.nodeProvenance = {};
 
     this.task.emit("complete");
     this.task.emit("status", this.task.status);
@@ -276,7 +296,6 @@ export class TaskRunner<
     this.task.progress = 100;
     this.task.completedAt = new Date();
     this.abortController = undefined;
-    this.nodeProvenance = {};
     this.task.emit("disabled");
     this.task.emit("status", this.task.status);
   }
@@ -303,7 +322,6 @@ export class TaskRunner<
     this.task.error =
       err instanceof TaskError ? err : new TaskFailedError(err?.message || "Task failed");
     this.abortController = undefined;
-    this.nodeProvenance = {};
     this.task.emit("error", this.task.error);
     this.task.emit("status", this.task.status);
   }
