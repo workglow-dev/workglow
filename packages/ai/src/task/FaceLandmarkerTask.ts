@@ -216,7 +216,7 @@ TaskRegistry.registerTask(FaceLandmarkerTask);
  * @returns Promise resolving to the detected facial landmarks, blendshapes, and transformation matrices
  */
 export const faceLandmarker = (input: FaceLandmarkerTaskInput, config?: JobQueueTaskConfig) => {
-  return new FaceLandmarkerTask(input, config).run();
+  return new FaceLandmarkerTask({} as FaceLandmarkerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

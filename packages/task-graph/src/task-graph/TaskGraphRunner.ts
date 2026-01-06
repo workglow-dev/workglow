@@ -8,6 +8,7 @@ import {
   collectPropertyValues,
   ConvertAllToOptionalArray,
   globalServiceRegistry,
+  ServiceRegistry,
   uuid4,
 } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
@@ -73,6 +74,10 @@ export class TaskGraphRunner {
    * Output cache repository
    */
   protected outputCache?: TaskOutputRepository;
+  /**
+   * Service registry for this graph run
+   */
+  protected registry: ServiceRegistry = globalServiceRegistry;
   /**
    * AbortController for cancelling graph execution
    */
@@ -364,7 +369,7 @@ export class TaskGraphRunner {
         dataflow.setPortData(results, nodeProvenance);
       } else if (compatibility === "runtime") {
         const task = this.graph.getTask(dataflow.targetTaskId)!;
-        const narrowed = await task.narrowInput({ ...results });
+        const narrowed = await task.narrowInput({ ...results }, this.registry);
         dataflow.setPortData(narrowed, nodeProvenance);
       } else {
         // don't push incompatible data
@@ -518,6 +523,7 @@ export class TaskGraphRunner {
       outputCache: this.outputCache,
       updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
         await this.handleProgress(task, progress, message, ...args),
+      registry: this.registry,
     });
 
     await this.pushOutputFromNodeToEdges(task, results, nodeProvenance);
@@ -572,10 +578,18 @@ export class TaskGraphRunner {
    * @param parentSignal Optional abort signal from parent
    */
   protected async handleStart(config?: TaskGraphRunConfig): Promise<void> {
+    // Setup registry - create child from global if not provided
+    if (config?.registry !== undefined) {
+      this.registry = config.registry;
+    } else {
+      // Create a child container that inherits from global but allows overrides
+      this.registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
+    }
+
     if (config?.outputCache !== undefined) {
       if (typeof config.outputCache === "boolean") {
         if (config.outputCache === true) {
-          this.outputCache = globalServiceRegistry.get(TASK_OUTPUT_REPOSITORY);
+          this.outputCache = this.registry.get(TASK_OUTPUT_REPOSITORY);
         } else {
           this.outputCache = undefined;
         }

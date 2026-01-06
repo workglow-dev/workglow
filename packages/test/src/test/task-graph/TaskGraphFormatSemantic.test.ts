@@ -5,8 +5,78 @@
  */
 
 import { Dataflow, Task, TaskGraph, type TaskInput } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema, ServiceRegistry } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
+import {
+  MODEL_REPOSITORY,
+  InMemoryModelRepository,
+  type ModelRecord,
+  type ModelRepository,
+} from "@workglow/ai";
+
+/**
+ * Test model fixtures for embedding models
+ */
+const EMBEDDING_MODELS: ModelRecord[] = [
+  {
+    model_id: "text-embedding-ada-002",
+    tasks: ["EmbeddingTask"],
+    provider: "openai",
+    title: "OpenAI Ada Embedding",
+    description: "OpenAI text embedding model",
+    provider_config: {},
+    metadata: {},
+  },
+  {
+    model_id: "all-MiniLM-L6-v2",
+    tasks: ["EmbeddingTask"],
+    provider: "local",
+    title: "MiniLM Embedding",
+    description: "Local embedding model",
+    provider_config: {},
+    metadata: {},
+  },
+];
+
+/**
+ * Test model fixtures for text generation models
+ */
+const TEXT_GEN_MODELS: ModelRecord[] = [
+  {
+    model_id: "gpt-4",
+    tasks: ["TextGenerationTask"],
+    provider: "openai",
+    title: "GPT-4",
+    description: "OpenAI GPT-4 text generation model",
+    provider_config: {},
+    metadata: {},
+  },
+  {
+    model_id: "claude-3",
+    tasks: ["TextGenerationTask"],
+    provider: "anthropic",
+    title: "Claude 3",
+    description: "Anthropic Claude 3 model",
+    provider_config: {},
+    metadata: {},
+  },
+];
+
+/**
+ * Helper function to create a test-local service registry with a model repository
+ * @param models - Array of model records to populate the repository with
+ * @returns Promise resolving to a configured ServiceRegistry
+ */
+async function createTestRegistry(models: ModelRecord[]): Promise<ServiceRegistry> {
+  const { ServiceRegistry } = await import("@workglow/util");
+  const registry = new ServiceRegistry();
+  const modelRepo = new InMemoryModelRepository();
+  for (const model of models) {
+    await modelRepo.addModel(model);
+  }
+  registry.registerInstance(MODEL_REPOSITORY, modelRepo);
+  return registry;
+}
 
 /**
  * Test task with generic model output (format: "model")
@@ -459,16 +529,17 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        // Simulate runtime narrowing of models
-        async narrowInput(input: {
-          model: string | string[];
-        }): Promise<{ model: string | string[] }> {
-          // In real implementation, this would check ModelRepository for compatible models
-          // For testing, we simulate filtering
-          const validEmbeddingModels = ["text-embedding-ada-002", "all-MiniLM-L6-v2"];
+        // Runtime narrowing using ModelRepository from the registry
+        async narrowInput(
+          input: { model: string | string[] },
+          registry: ServiceRegistry
+        ): Promise<{ model: string | string[] }> {
+          const modelRepo = registry.get<ModelRepository>(MODEL_REPOSITORY);
+          const validModels = await modelRepo.findModelsByTask(this.type);
+          const validIds = new Set(validModels?.map((m) => m.model_id) ?? []);
 
           const models = Array.isArray(input.model) ? input.model : [input.model];
-          const narrowedModels = models.filter((m) => validEmbeddingModels.includes(m));
+          const narrowedModels = models.filter((m) => validIds.has(m));
 
           return {
             model: narrowedModels.length === 1 ? narrowedModels[0] : narrowedModels,
@@ -482,12 +553,15 @@ describe("TaskGraph with format annotations", () => {
 
       const task = new NarrowableModelConsumerTask({}, { id: "consumer" });
 
+      // Create test registry with embedding and text generation models
+      const registry = await createTestRegistry([...EMBEDDING_MODELS, ...TEXT_GEN_MODELS]);
+
       // Test narrowing with array of models (some compatible, some not)
       const inputWithMixed = {
         model: ["text-embedding-ada-002", "gpt-4", "all-MiniLM-L6-v2", "claude-3"],
       };
 
-      const narrowedResult = await task.narrowInput(inputWithMixed);
+      const narrowedResult = await task.narrowInput(inputWithMixed, registry);
 
       // Should only keep the embedding models
       expect(narrowedResult.model).toEqual(["text-embedding-ada-002", "all-MiniLM-L6-v2"]);
@@ -522,12 +596,16 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async narrowInput(input: {
-          model: string | string[];
-        }): Promise<{ model: string | string[] }> {
-          const validModels = ["text-embedding-ada-002"];
+        async narrowInput(
+          input: { model: string | string[] },
+          registry: ServiceRegistry
+        ): Promise<{ model: string | string[] }> {
+          const modelRepo = registry.get<ModelRepository>(MODEL_REPOSITORY);
+          const validModels = await modelRepo.findModelsByTask(this.type);
+          const validIds = new Set(validModels?.map((m) => m.model_id) ?? []);
+
           const models = Array.isArray(input.model) ? input.model : [input.model];
-          const narrowed = models.filter((m) => validModels.includes(m));
+          const narrowed = models.filter((m) => validIds.has(m));
           return { model: narrowed.length === 1 ? narrowed[0] : narrowed };
         }
 
@@ -538,12 +616,15 @@ describe("TaskGraph with format annotations", () => {
 
       const task = new NarrowableModelTask({}, { id: "task" });
 
+      // Create test registry with only embedding models
+      const registry = await createTestRegistry(EMBEDDING_MODELS);
+
       // Test with single valid model
-      const result1 = await task.narrowInput({ model: "text-embedding-ada-002" });
+      const result1 = await task.narrowInput({ model: "text-embedding-ada-002" }, registry);
       expect(result1.model).toBe("text-embedding-ada-002");
 
       // Test with single invalid model (gets filtered out)
-      const result2 = await task.narrowInput({ model: "gpt-4" });
+      const result2 = await task.narrowInput({ model: "gpt-4" }, registry);
       expect(result2.model).toEqual([]);
     });
 

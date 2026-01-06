@@ -23,10 +23,10 @@ import {
 } from "./TaskGraphRunner";
 
 // Type definitions for the workflow
-export type CreateWorkflow<I extends DataPorts, _O extends DataPorts, C extends TaskConfig> = (
+export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends TaskConfig> = (
   input?: Partial<I>,
   config?: Partial<C>
-) => Workflow;
+) => Workflow<I, O>;
 
 // Event types
 export type WorkflowEventListeners = {
@@ -99,10 +99,10 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     C extends TaskConfig = TaskConfig,
   >(taskClass: ITaskConstructor<I, O, C>): CreateWorkflow<I, O, C> {
     const helper = function (
-      this: Workflow,
+      this: Workflow<any, any>,
       input: Partial<I> = {},
       config: Partial<C> = {}
-    ): Workflow {
+    ) {
       this._error = "";
 
       const parent = getLastTask(this);
@@ -221,7 +221,10 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
         }
       }
 
-      return this;
+      // Preserve input type from the start of the chain
+      // If this is the first task, set both input and output types
+      // Otherwise, only update the output type (input type is preserved from 'this')
+      return this as any;
     };
 
     // Copy metadata from the task class
@@ -233,7 +236,7 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     helper.cacheable = taskClass.cacheable;
     helper.workflowCreate = true;
 
-    return helper;
+    return helper as CreateWorkflow<I, O, C>;
   }
 
   /**
