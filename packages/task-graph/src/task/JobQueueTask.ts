@@ -60,7 +60,7 @@ export abstract class JobQueueTask<
 
   public jobClass: new (config: JobConstructorParam<Input, Output>) => Job<Input, Output>;
 
-  constructor(input: Input = {} as Input, config: Config = {} as Config) {
+  constructor(input: Partial<Input> = {} as Input, config: Config = {} as Config) {
     config.queue ??= true;
     super(input, config);
     this.jobClass = Job as unknown as new (

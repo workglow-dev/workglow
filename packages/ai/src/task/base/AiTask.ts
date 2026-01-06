@@ -51,7 +51,7 @@ export class AiTask<
    * Creates a new AiTask instance
    * @param config - Configuration object for the task
    */
-  constructor(input: Input = {} as Input, config: Config = {} as Config) {
+  constructor(input: Partial<Input> = {}, config: Config = {} as Config) {
     const modelLabel =
       typeof input.model === "string"
         ? input.model
