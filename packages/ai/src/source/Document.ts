@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Provenance } from "@workglow/task-graph";
 import type { ChunkNode, DocumentNode } from "./DocumentSchema";
 import {
   type DocumentMetadata,
   type VariantManifest,
   type VariantProvenance,
 } from "./DocumentSchema";
-import { deriveConfigId, extractConfigFields } from "./ProvenanceUtils";
+import { deriveConfigId } from "./ProvenanceUtils";
 
 /**
  * Document represents a hierarchical document with multiple processing variants
@@ -38,15 +37,13 @@ export class Document {
    * Add a processing variant
    */
   async addVariant(
-    provenance: Provenance | VariantProvenance,
+    provenance: VariantProvenance,
     chunks: ChunkNode[]
   ): Promise<string> {
     const configId = await deriveConfigId(provenance);
 
-    // Use extractConfigFields for type-safe field extraction
-    const variantProvenance = Array.isArray(provenance)
-      ? extractConfigFields(provenance)
-      : (provenance as VariantProvenance);
+    // Use the provided variant provenance directly
+    const variantProvenance = provenance;
 
     const manifest: VariantManifest = {
       configId,

@@ -7,7 +7,7 @@
 import { areSemanticallyCompatible, EventEmitter } from "@workglow/util";
 import { TaskError } from "../task/TaskError";
 import { DataflowJson } from "../task/TaskJSON";
-import { Provenance, TaskIdType, TaskOutput, TaskStatus } from "../task/TaskTypes";
+import { TaskIdType, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import {
   DataflowEventListener,
   DataflowEventListeners,
@@ -48,7 +48,6 @@ export class Dataflow {
     );
   }
   public value: any = undefined;
-  public provenance: Provenance = [];
   public status: TaskStatus = TaskStatus.PENDING;
   public error: TaskError | undefined;
 
@@ -56,7 +55,6 @@ export class Dataflow {
     this.status = TaskStatus.PENDING;
     this.error = undefined;
     this.value = undefined;
-    this.provenance = [];
     this.emit("reset");
     this.emit("status", this.status);
   }
@@ -87,7 +85,7 @@ export class Dataflow {
     this.emit("status", this.status);
   }
 
-  setPortData(entireDataBlock: any, nodeProvenance: any) {
+  setPortData(entireDataBlock: any) {
     if (this.sourceTaskPortId === DATAFLOW_ALL_PORTS) {
       this.value = entireDataBlock;
     } else if (this.sourceTaskPortId === DATAFLOW_ERROR_PORT) {
@@ -95,7 +93,6 @@ export class Dataflow {
     } else {
       this.value = entireDataBlock[this.sourceTaskPortId];
     }
-    if (nodeProvenance) this.provenance = nodeProvenance;
   }
 
   getPortData(): TaskOutput {

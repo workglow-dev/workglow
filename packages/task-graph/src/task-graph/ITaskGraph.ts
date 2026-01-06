@@ -6,7 +6,7 @@
 
 import { ITask } from "../task/ITask";
 import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
-import type { Provenance, TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
+import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { Dataflow, DataflowIdType } from "./Dataflow";
 import type { TaskGraphRunConfig } from "./TaskGraph";
 import type { TaskGraphEventListener, TaskGraphEvents } from "./TaskGraphEvents";
@@ -33,7 +33,6 @@ export interface ITaskGraph {
   ): GraphResult<ExecuteOutput, Merge>;
   abort(): void;
   disable(): Promise<void>;
-  getProvenanceForTask(taskId: unknown): Provenance | undefined;
   getTask(id: TaskIdType): ITask | undefined;
   getTasks(): ITask[];
   topologicallySortedNodes(): ITask[];

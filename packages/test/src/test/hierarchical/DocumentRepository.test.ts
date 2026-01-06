@@ -7,7 +7,6 @@
 import {
   deriveConfigId,
   Document,
-  extractConfigFields,
   NodeIdGenerator,
   NodeKind,
   StructuralParser,
@@ -169,28 +168,6 @@ Paragraph.`;
 });
 
 describe("Provenance utilities", () => {
-  it("should extract config fields from provenance", () => {
-    const provenance = [
-      {
-        embeddingModel: "test-model",
-        chunkerStrategy: "hierarchical",
-        maxTokens: 512,
-        overlap: 50,
-        summaryModel: "summary-model",
-        nerModel: "ner-model",
-        randomField: "should be ignored",
-      },
-    ];
-
-    const fields = extractConfigFields(provenance);
-
-    expect(fields.embeddingModel).toBe("test-model");
-    expect(fields.chunkerStrategy).toBe("hierarchical");
-    expect(fields.maxTokens).toBe(512);
-    expect(fields.overlap).toBe(50);
-    expect(fields.summaryModel).toBe("summary-model");
-    expect(fields.nerModel).toBe("ner-model");
-  });
 
   it("should derive consistent configIds", async () => {
     const provenance1 = {

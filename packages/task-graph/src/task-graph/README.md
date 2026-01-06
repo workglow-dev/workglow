@@ -25,7 +25,6 @@ A robust TypeScript library for creating and managing task graphs with dependenc
 - Directed Acyclic Graph (DAG) structure for task dependencies
 - Data flow management between task inputs/outputs
 - Workflow builder API with fluent interface
-- Provenance tracking
 - Caching of task results (same run on same input returns cached result)
 - Error handling and abortion support
 - Serial and parallel execution patterns
@@ -87,7 +86,6 @@ const output = await workflow.run();
 
 - Connects task outputs to inputs
 - Value propagation
-- Provenance tracking
 
 ### TaskGraphRunner
 

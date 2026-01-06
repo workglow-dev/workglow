@@ -11,7 +11,6 @@ import {
   Task,
   TaskRegistry,
   Workflow,
-  type ProvenanceItem,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
@@ -124,15 +123,6 @@ export class HierarchicalChunkerTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  public getProvenance(): ProvenanceItem | undefined {
-    return {
-      chunkerStrategy: this.runInputData.strategy || "hierarchical",
-      maxTokens: this.runInputData.maxTokens || 512,
-      overlap: this.runInputData.overlap || 50,
-      docId: this.runInputData.docId,
-    };
-  }
-
   async execute(
     input: HierarchicalChunkerTaskInput,
     context: IExecuteContext
@@ -160,9 +150,14 @@ export class HierarchicalChunkerTask extends Task<
       reservedTokens,
     };
 
-    // Derive configId from current provenance
-    const provenance = this.getProvenance();
-    const configId = await deriveConfigId(provenance);
+    // Derive configId from current input
+    const variantProvenance = {
+      chunkerStrategy: strategy || "hierarchical",
+      maxTokens: maxTokens || 512,
+      overlap: overlap || 50,
+      embeddingModel: "", // Will be set by embedding task
+    };
+    const configId = await deriveConfigId(variantProvenance);
 
     const chunks: ChunkNode[] = [];
 

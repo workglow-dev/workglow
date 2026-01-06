@@ -11,7 +11,6 @@ import type { ITask, ITaskConstructor } from "../task/ITask";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
-import type { Provenance } from "../task/TaskTypes";
 import { DataPorts, TaskConfig } from "../task/TaskTypes";
 import { getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS } from "./Dataflow";
@@ -313,7 +312,6 @@ export class Workflow<
     try {
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
-        parentProvenance: [],
         outputCache: this._repository,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
@@ -337,14 +335,6 @@ export class Workflow<
     this._abortController?.abort();
   }
 
-  /**
-   * Gets the accumulated provenance chain for a specific task
-   * @param taskId The ID of the task to get provenance for
-   * @returns The provenance chain for the task, or undefined if not found
-   */
-  public getProvenanceForTask(taskId: unknown): Provenance | undefined {
-    return this._graph.getProvenanceForTask(taskId);
-  }
 
   /**
    * Removes the last task from the task graph
