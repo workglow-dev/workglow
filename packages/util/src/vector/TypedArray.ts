@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FromSchemaDefaultOptions, FromSchemaOptions } from "../json-schema/FromSchema";
+import { FromSchema, FromSchemaDefaultOptions, FromSchemaOptions } from "../json-schema/FromSchema";
 import { JsonSchema } from "../json-schema/JsonSchema";
 
 /**
@@ -89,6 +89,11 @@ const TypedArraySchemaOptions = {
 } as const satisfies FromSchemaOptions;
 
 export type TypedArraySchemaOptions = typeof TypedArraySchemaOptions;
+
+export type VectorFromSchema<SCHEMA extends JsonSchema> = FromSchema<
+  SCHEMA,
+  TypedArraySchemaOptions
+>;
 
 export const TypedArraySchema = (annotations: Record<string, unknown> = {}) =>
   ({

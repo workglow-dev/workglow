@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  DeReplicateFromSchema,
+  JobQueueTaskConfig,
+  TaskRegistry,
+  TypeReplicateArray,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
 import { TypeLanguage, TypeModel } from "./base/AiTaskSchemas";
