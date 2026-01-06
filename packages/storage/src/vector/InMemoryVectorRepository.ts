@@ -5,12 +5,14 @@
  */
 
 import { cosineSimilarity, EventEmitter, TypedArray } from "@workglow/util";
+import { InMemoryTabularRepository } from "../tabular/InMemoryTabularRepository";
 import {
   HybridSearchOptions,
   IVectorRepository,
   SearchResult,
   VectorEntry,
   VectorEventListeners,
+  VectorSchema,
   VectorSearchOptions,
 } from "./IVectorRepository";
 
@@ -47,6 +49,7 @@ function textRelevance(text: string, query: string): number {
 
 /**
  * In-memory vector repository implementation.
+ * Uses InMemoryTabularRepository internally for storage.
  * Suitable for testing and small-scale browser applications.
  * Supports all vector types including quantized formats.
  *
@@ -60,42 +63,39 @@ export class InMemoryVectorRepository<
   extends EventEmitter<VectorEventListeners<Metadata, VectorChoice>>
   implements IVectorRepository<Metadata, VectorChoice>
 {
-  private vectors: Map<string, VectorEntry<Metadata, VectorChoice>> = new Map();
-  private initialized = false;
+  private tabularRepo: InMemoryTabularRepository<typeof VectorSchema, ["id"]>;
 
   /**
    * Creates a new in-memory vector repository
    */
   constructor() {
     super();
+    this.tabularRepo = new InMemoryTabularRepository(VectorSchema, ["id"] as const, []);
   }
 
   async setupDatabase(): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-    this.initialized = true;
+    await this.tabularRepo.setupDatabase();
   }
 
   async upsert(id: string, vector: VectorChoice, metadata: Metadata): Promise<void> {
-    const entry: VectorEntry<Metadata, VectorChoice> = {
+    const entity = {
       id,
-      vector: this.copyVector(vector),
-      metadata: { ...metadata } as Metadata,
+      vector: vector as any, // Store TypedArray directly in memory
+      metadata: JSON.stringify(metadata),
     };
-    this.vectors.set(id, entry);
-    this.emit("upsert", entry);
+    await this.tabularRepo.put(entity);
+    this.emit("upsert", { id, vector, metadata });
   }
 
   async upsertBulk(items: VectorEntry<Metadata, VectorChoice>[]): Promise<void> {
+    const entities = items.map((item) => ({
+      id: item.id,
+      vector: item.vector as any,
+      metadata: JSON.stringify(item.metadata),
+    }));
+    await this.tabularRepo.putBulk(entities);
     for (const item of items) {
-      const entry: VectorEntry<Metadata, VectorChoice> = {
-        id: item.id,
-        vector: this.copyVector(item.vector),
-        metadata: { ...item.metadata } as Metadata,
-      };
-      this.vectors.set(item.id, entry);
-      this.emit("upsert", entry);
+      this.emit("upsert", item);
     }
   }
 
@@ -112,21 +112,26 @@ export class InMemoryVectorRepository<
     return new Float32Array(vector) as VectorChoice;
   }
 
-  async search(
+  async similaritySearch(
     query: VectorChoice,
     options: VectorSearchOptions<Metadata, VectorChoice> = {}
   ): Promise<SearchResult<Metadata, VectorChoice>[]> {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
     const results: SearchResult<Metadata, VectorChoice>[] = [];
 
-    for (const entry of this.vectors.values()) {
+    const allEntities = (await this.tabularRepo.getAll()) || [];
+
+    for (const entity of allEntities) {
+      const vector = entity.vector as unknown as VectorChoice;
+      const metadata = JSON.parse(entity.metadata) as Metadata;
+
       // Apply filter if provided
-      if (filter && !matchesFilter(entry.metadata, filter)) {
+      if (filter && !matchesFilter(metadata, filter)) {
         continue;
       }
 
       // Calculate similarity
-      const score = cosineSimilarity(query, entry.vector);
+      const score = cosineSimilarity(query, vector);
 
       // Apply threshold
       if (score < scoreThreshold) {
@@ -134,9 +139,9 @@ export class InMemoryVectorRepository<
       }
 
       results.push({
-        id: entry.id,
-        vector: entry.vector,
-        metadata: entry.metadata,
+        id: entity.id,
+        vector,
+        metadata,
         score,
       });
     }
@@ -157,23 +162,26 @@ export class InMemoryVectorRepository<
 
     if (!textQuery || textQuery.trim().length === 0) {
       // Fall back to regular vector search if no text query
-      return this.search(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
     const results: SearchResult<Metadata, VectorChoice>[] = [];
+    const allEntities = (await this.tabularRepo.getAll()) || [];
 
-    for (const entry of this.vectors.values()) {
+    for (const entity of allEntities) {
+      const vector = entity.vector as unknown as VectorChoice;
+      const metadata = JSON.parse(entity.metadata) as Metadata;
+
       // Apply filter if provided
-      if (filter && !matchesFilter(entry.metadata, filter)) {
+      if (filter && !matchesFilter(metadata, filter)) {
         continue;
       }
 
       // Calculate vector similarity
-      const vectorScore = cosineSimilarity(query, entry.vector);
+      const vectorScore = cosineSimilarity(query, vector);
 
       // Calculate text relevance (simple keyword matching)
-      // Try to find text in metadata
-      const metadataText = JSON.stringify(entry.metadata).toLowerCase();
+      const metadataText = entity.metadata.toLowerCase();
       const textScore = textRelevance(metadataText, textQuery);
 
       // Combine scores
@@ -185,9 +193,9 @@ export class InMemoryVectorRepository<
       }
 
       results.push({
-        id: entry.id,
-        vector: entry.vector,
-        metadata: entry.metadata,
+        id: entity.id,
+        vector,
+        metadata,
         score: combinedScore,
       });
     }
@@ -201,57 +209,56 @@ export class InMemoryVectorRepository<
   }
 
   async get(id: string): Promise<VectorEntry<Metadata, VectorChoice> | undefined> {
-    const entry = this.vectors.get(id);
-    if (entry) {
+    const entity = await this.tabularRepo.get({ id });
+    if (entity) {
       return {
-        id: entry.id,
-        vector: this.copyVector(entry.vector),
-        metadata: { ...entry.metadata } as Metadata,
+        id: entity.id,
+        vector: this.copyVector(entity.vector as unknown as TypedArray),
+        metadata: JSON.parse(entity.metadata) as Metadata,
       };
     }
     return undefined;
   }
 
   async delete(id: string): Promise<void> {
-    if (this.vectors.has(id)) {
-      this.vectors.delete(id);
-      this.emit("delete", id);
-    }
+    await this.tabularRepo.delete({ id });
+    this.emit("delete", id);
   }
 
   async deleteBulk(ids: string[]): Promise<void> {
     for (const id of ids) {
-      if (this.vectors.has(id)) {
-        this.vectors.delete(id);
-        this.emit("delete", id);
-      }
+      await this.delete(id);
     }
   }
 
   async deleteByFilter(filter: Partial<Metadata>): Promise<void> {
+    const allEntities = (await this.tabularRepo.getAll()) || [];
     const idsToDelete: string[] = [];
-    for (const entry of this.vectors.values()) {
-      if (matchesFilter(entry.metadata, filter)) {
-        idsToDelete.push(entry.id);
+
+    for (const entity of allEntities) {
+      const metadata = JSON.parse(entity.metadata) as Metadata;
+      if (matchesFilter(metadata, filter)) {
+        idsToDelete.push(entity.id);
       }
     }
+
     await this.deleteBulk(idsToDelete);
   }
 
   async size(): Promise<number> {
-    return this.vectors.size;
+    return await this.tabularRepo.size();
   }
 
   async clear(): Promise<void> {
-    const ids = Array.from(this.vectors.keys());
-    this.vectors.clear();
-    for (const id of ids) {
-      this.emit("delete", id);
+    const allEntities = (await this.tabularRepo.getAll()) || [];
+    await this.tabularRepo.deleteAll();
+    for (const entity of allEntities) {
+      this.emit("delete", entity.id);
     }
   }
 
   destroy(): void {
-    this.vectors.clear();
+    this.tabularRepo.destroy();
     this.removeAllListeners();
   }
 }

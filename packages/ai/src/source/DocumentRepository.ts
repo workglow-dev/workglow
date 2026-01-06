@@ -240,6 +240,6 @@ export class DocumentRepository {
     query: TypedArray,
     options?: VectorSearchOptions<any, TypedArray>
   ): Promise<SearchResult<any, TypedArray>[]> {
-    return this.vectorStorage?.search(query, options) || [];
+    return this.vectorStorage?.similaritySearch(query, options) || [];
   }
 }

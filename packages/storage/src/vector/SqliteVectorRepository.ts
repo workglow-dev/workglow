@@ -5,7 +5,7 @@
  */
 
 import { Sqlite } from "@workglow/sqlite";
-import { cosineSimilarity, DataPortSchemaObject, EventEmitter, TypedArray } from "@workglow/util";
+import { cosineSimilarity, EventEmitter, TypedArray } from "@workglow/util";
 import { SqliteTabularRepository } from "../tabular/SqliteTabularRepository";
 import {
   HybridSearchOptions,
@@ -13,29 +13,14 @@ import {
   SearchResult,
   VectorEntry,
   VectorEventListeners,
+  VectorSchema,
   VectorSearchOptions,
 } from "./IVectorRepository";
-
-/**
- * Schema for vector storage in tabular format
- */
-const VectorSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    vector: { type: "string" }, // JSON-encoded vector
-    metadata: { type: "string" }, // JSON-encoded metadata
-    created_at: { type: "number" },
-  },
-  required: ["id", "vector", "metadata"],
-  additionalProperties: false,
-} as const satisfies DataPortSchemaObject;
 
 type VectorRow = {
   id: string;
   vector: string;
   metadata: string;
-  created_at?: number;
 };
 
 /**
@@ -84,7 +69,6 @@ export class SqliteVectorRepository<
       id,
       vector: JSON.stringify(Array.from(vector)),
       metadata: JSON.stringify(metadata),
-      created_at: Date.now(),
     };
 
     await this.tabularRepo.put(row);
@@ -96,7 +80,6 @@ export class SqliteVectorRepository<
       id: item.id,
       vector: JSON.stringify(Array.from(item.vector)),
       metadata: JSON.stringify(item.metadata),
-      created_at: Date.now(),
     }));
 
     await this.tabularRepo.putBulk(rows);
@@ -106,7 +89,7 @@ export class SqliteVectorRepository<
     }
   }
 
-  async search(
+  async similaritySearch(
     query: VectorChoice,
     options: VectorSearchOptions<Metadata, TypedArray> = {}
   ): Promise<SearchResult<Metadata, VectorChoice>[]> {
@@ -153,7 +136,7 @@ export class SqliteVectorRepository<
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
-      return this.search(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
     const allRows = (await this.tabularRepo.getAll()) || [];

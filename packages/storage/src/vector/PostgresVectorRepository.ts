@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cosineSimilarity, DataPortSchemaObject, EventEmitter, TypedArray } from "@workglow/util";
+import { cosineSimilarity, EventEmitter, TypedArray } from "@workglow/util";
 import type { Pool } from "pg";
 import { PostgresTabularRepository } from "../tabular/PostgresTabularRepository";
 import {
@@ -13,29 +13,14 @@ import {
   SearchResult,
   VectorEntry,
   VectorEventListeners,
+  VectorSchema,
   VectorSearchOptions,
 } from "./IVectorRepository";
 
-/**
- * Schema for vector storage in tabular format
- */
-const VectorSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    vector_data: { type: "string" }, // JSON-encoded vector for fallback
-    metadata: { type: "string" }, // JSON-encoded metadata
-    created_at: { type: "string" }, // timestamp
-  },
-  required: ["id", "vector_data", "metadata"],
-  additionalProperties: false,
-} as const satisfies DataPortSchemaObject;
-
 type VectorRow = {
   id: string;
-  vector_data: string;
+  vector: string;
   metadata: string;
-  created_at?: string;
 };
 
 /**
@@ -99,9 +84,7 @@ export class PostgresVectorRepository<
         CREATE TABLE IF NOT EXISTS "${this.table}" (
           id TEXT PRIMARY KEY,
           vector vector(${this.vectorDimension}),
-          vector_data TEXT NOT NULL,
-          metadata JSONB NOT NULL,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          metadata JSONB NOT NULL
         )
       `);
 
@@ -137,19 +120,18 @@ export class PostgresVectorRepository<
       const vectorStr = `[${vectorArray.join(",")}]`;
       await this.db.query(
         `
-        INSERT INTO "${this.table}" (id, vector, vector_data, metadata)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO "${this.table}" (id, vector, metadata)
+        VALUES ($1, $2, $3)
         ON CONFLICT (id) DO UPDATE
-        SET vector = EXCLUDED.vector, vector_data = EXCLUDED.vector_data, metadata = EXCLUDED.metadata
+        SET vector = EXCLUDED.vector, metadata = EXCLUDED.metadata
       `,
-        [id, vectorStr, vectorJson, metadataJson]
+        [id, vectorStr, metadataJson]
       );
     } else {
       await this.tabularRepo.put({
         id,
-        vector_data: vectorJson,
+        vector: vectorJson,
         metadata: metadataJson,
-        created_at: new Date().toISOString(),
       });
     }
 
@@ -167,29 +149,27 @@ export class PostgresVectorRepository<
       for (const item of items) {
         const vectorArray = Array.from(item.vector);
         const vectorStr = `[${vectorArray.join(",")}]`;
-        const vectorJson = JSON.stringify(vectorArray);
         const metadataJson = JSON.stringify(item.metadata);
 
-        values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`);
-        params.push(item.id, vectorStr, vectorJson, metadataJson);
-        paramIndex += 4;
+        values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`);
+        params.push(item.id, vectorStr, metadataJson);
+        paramIndex += 3;
       }
 
       await this.db.query(
         `
-        INSERT INTO "${this.table}" (id, vector, vector_data, metadata)
+        INSERT INTO "${this.table}" (id, vector, metadata)
         VALUES ${values.join(", ")}
         ON CONFLICT (id) DO UPDATE
-        SET vector = EXCLUDED.vector, vector_data = EXCLUDED.vector_data, metadata = EXCLUDED.metadata
+        SET vector = EXCLUDED.vector, metadata = EXCLUDED.metadata
       `,
         params
       );
     } else {
       const rows: VectorRow[] = items.map((item) => ({
         id: item.id,
-        vector_data: JSON.stringify(Array.from(item.vector)),
+        vector: JSON.stringify(Array.from(item.vector)),
         metadata: JSON.stringify(item.metadata),
-        created_at: new Date().toISOString(),
       }));
       await this.tabularRepo.putBulk(rows);
     }
@@ -199,7 +179,7 @@ export class PostgresVectorRepository<
     }
   }
 
-  async search(
+  async similaritySearch(
     query: VectorChoice,
     options: VectorSearchOptions<Metadata, VectorChoice> = {}
   ): Promise<SearchResult<Metadata, VectorChoice>[]> {
@@ -210,7 +190,6 @@ export class PostgresVectorRepository<
       let sql = `
         SELECT 
           id,
-          vector_data,
           metadata,
           1 - (vector <=> $1::vector) as score
         FROM "${this.table}"
@@ -241,12 +220,23 @@ export class PostgresVectorRepository<
 
       const result = await this.db.query(sql, params);
 
-      const results: SearchResult<Metadata, VectorChoice>[] = result.rows.map((row) => ({
-        id: row.id,
-        vector: this.deserializeVector(row.vector_data),
-        metadata: typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata,
-        score: parseFloat(row.score),
-      }));
+      // Fetch vectors separately for each result
+      const results: SearchResult<Metadata, VectorChoice>[] = [];
+      for (const row of result.rows) {
+        const vectorResult = await this.db.query(
+          `SELECT vector::text FROM "${this.table}" WHERE id = $1`,
+          [row.id]
+        );
+        const vectorStr = vectorResult.rows[0]?.vector || "[]";
+        const vectorArray = JSON.parse(vectorStr);
+
+        results.push({
+          id: row.id,
+          vector: this.deserializeVector(JSON.stringify(vectorArray)),
+          metadata: typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata,
+          score: parseFloat(row.score),
+        });
+      }
 
       this.emit("search", query, results);
       return results;
@@ -263,7 +253,7 @@ export class PostgresVectorRepository<
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
-      return this.search(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
     if (this.useNativeVector) {
@@ -273,7 +263,6 @@ export class PostgresVectorRepository<
       let sql = `
         SELECT 
           id,
-          vector_data,
           metadata,
           (
             $2 * (1 - (vector <=> $1::vector)) +
@@ -310,12 +299,23 @@ export class PostgresVectorRepository<
 
       const result = await this.db.query(sql, params);
 
-      const results: SearchResult<Metadata, VectorChoice>[] = result.rows.map((row) => ({
-        id: row.id,
-        vector: this.deserializeVector(row.vector_data),
-        metadata: typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata,
-        score: parseFloat(row.score),
-      }));
+      // Fetch vectors separately for each result
+      const results: SearchResult<Metadata, VectorChoice>[] = [];
+      for (const row of result.rows) {
+        const vectorResult = await this.db.query(
+          `SELECT vector::text FROM "${this.table}" WHERE id = $1`,
+          [row.id]
+        );
+        const vectorStr = vectorResult.rows[0]?.vector || "[]";
+        const vectorArray = JSON.parse(vectorStr);
+
+        results.push({
+          id: row.id,
+          vector: this.deserializeVector(JSON.stringify(vectorArray)),
+          metadata: typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata,
+          score: parseFloat(row.score),
+        });
+      }
 
       this.emit("search", query, results);
       return results;
@@ -327,15 +327,16 @@ export class PostgresVectorRepository<
   async get(id: string): Promise<VectorEntry<Metadata, VectorChoice> | undefined> {
     if (this.useNativeVector) {
       const result = await this.db.query(
-        `SELECT id, vector_data, metadata FROM "${this.table}" WHERE id = $1`,
+        `SELECT id, vector::text as vector, metadata FROM "${this.table}" WHERE id = $1`,
         [id]
       );
 
       if (result.rows.length > 0) {
         const row = result.rows[0];
+        const vectorArray = JSON.parse(row.vector);
         return {
           id: row.id,
-          vector: this.deserializeVector(row.vector_data),
+          vector: this.deserializeVector(JSON.stringify(vectorArray)),
           metadata: typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata,
         };
       }
@@ -345,7 +346,7 @@ export class PostgresVectorRepository<
       if (row) {
         return {
           id: row.id,
-          vector: this.deserializeVector(row.vector_data),
+          vector: this.deserializeVector(row.vector),
           metadata: JSON.parse(row.metadata) as Metadata,
         };
       }
@@ -444,7 +445,7 @@ export class PostgresVectorRepository<
     const results: SearchResult<Metadata, VectorChoice>[] = [];
 
     for (const row of allRows) {
-      const vector = this.deserializeVector(row.vector_data);
+      const vector = this.deserializeVector(row.vector);
       const metadata = JSON.parse(row.metadata) as Metadata;
 
       if (filter && !this.matchesFilter(metadata, filter)) {
@@ -480,7 +481,7 @@ export class PostgresVectorRepository<
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
     for (const row of allRows) {
-      const vector = this.deserializeVector(row.vector_data);
+      const vector = this.deserializeVector(row.vector);
       const metadata = JSON.parse(row.metadata) as Metadata;
 
       if (filter && !this.matchesFilter(metadata, filter)) {

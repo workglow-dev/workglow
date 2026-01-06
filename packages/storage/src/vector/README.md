@@ -55,8 +55,8 @@ await repo.upsert(
   { text: "Hello world", source: "example.txt" }
 );
 
-// Search
-const results = await repo.search(
+// Search for similar vectors
+const results = await repo.similaritySearch(
   new Float32Array([0.15, 0.25, 0.35, ...]),
   { topK: 5, scoreThreshold: 0.7 }
 );
@@ -82,7 +82,7 @@ await repo.upsert(
 );
 
 // Search with quantized query
-const results = await repo.search(
+const results = await repo.similaritySearch(
   new Int8Array([100, -50, 75, ...]),
   { topK: 5 }
 );
@@ -164,7 +164,7 @@ await repo.setupDatabase();
 
 // Works entirely in the browser
 await repo.upsert("1", vector, { text: "..." });
-const results = await repo.search(queryVector, { topK: 3 });
+const results = await repo.similaritySearch(queryVector, { topK: 3 });
 ```
 
 ## API Documentation

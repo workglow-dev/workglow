@@ -199,7 +199,7 @@ export class RetrievalTask extends Task<
       queryVector instanceof Float32Array ? queryVector : new Float32Array(queryVector);
 
     // Search vector repository
-    const results = await repo.search(searchVector, {
+    const results = await repo.similaritySearch(searchVector, {
       topK,
       filter,
       scoreThreshold,

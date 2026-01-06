@@ -240,7 +240,7 @@ export class EdgeVecRepository<
     return new Float32Array(vector);
   }
 
-  async search(
+  async similaritySearch(
     query: VectorChoice,
     options: VectorSearchOptions<Metadata, VectorChoice> = {}
   ): Promise<SearchResult<Metadata, VectorChoice>[]> {
@@ -285,7 +285,7 @@ export class EdgeVecRepository<
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
-      return this.search(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
     const results: SearchResult<Metadata, VectorChoice>[] = [];
