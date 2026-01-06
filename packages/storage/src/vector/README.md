@@ -354,7 +354,6 @@ When using hierarchical chunking, base vector metadata (stored in vector databas
 ```typescript
 metadata: {
   docId: string,        // Document identifier
-  configId: string,     // Processing configuration ID
   chunkId: string,      // Chunk identifier
   leafNodeId: string,   // Reference to document tree node
   depth: number,        // Hierarchy depth

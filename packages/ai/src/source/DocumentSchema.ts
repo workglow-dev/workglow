@@ -429,11 +429,6 @@ export const ChunkNodeSchema = () =>
         title: "Master Document ID",
         description: "ID of the parent master document",
       },
-      configId: {
-        type: "string",
-        title: "Config ID",
-        description: "Configuration ID used to generate this chunk",
-      },
       text: {
         type: "string",
         title: "Text",
@@ -452,7 +447,7 @@ export const ChunkNodeSchema = () =>
       },
       enrichment: ChunkEnrichmentSchema,
     },
-    required: ["chunkId", "docId", "configId", "text", "nodePath", "depth"],
+    required: ["chunkId", "docId", "text", "nodePath", "depth"],
     additionalProperties: false,
   }) as const satisfies DataPortSchema;
 
@@ -473,11 +468,6 @@ export const ChunkMetadataSchema = {
       type: "string",
       title: "Master Document ID",
       description: "ID of the parent master document",
-    },
-    configId: {
-      type: "string",
-      title: "Config ID",
-      description: "Configuration ID used to generate this chunk",
     },
     chunkId: {
       type: "string",
@@ -517,7 +507,7 @@ export const ChunkMetadataSchema = {
       description: "Named entities extracted from the chunk",
     },
   },
-  required: ["docId", "configId", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
+  required: ["docId", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
@@ -544,11 +534,6 @@ export const EnrichedChunkMetadataSchema = {
       type: "string",
       title: "Master Document ID",
       description: "ID of the parent master document",
-    },
-    configId: {
-      type: "string",
-      title: "Config ID",
-      description: "Configuration ID used to generate this chunk",
     },
     chunkId: {
       type: "string",
@@ -600,7 +585,7 @@ export const EnrichedChunkMetadataSchema = {
       description: "Titles of ancestor section nodes",
     },
   },
-  required: ["docId", "configId", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
+  required: ["docId", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
@@ -615,53 +600,6 @@ export const EnrichedChunkMetadataArraySchema = {
   title: "Enriched Metadata",
   description: "Metadata enriched with hierarchy information",
 } as const satisfies JsonSchema;
-
-// =============================================================================
-// Provenance Schemas
-// =============================================================================
-
-/**
- * Schema for variant provenance (fields for processing variant identification)
- */
-export const VariantProvenanceSchema = {
-  type: "object",
-  properties: {
-    embeddingModel: {
-      type: "string",
-      title: "Embedding Model",
-      description: "Model used for embeddings",
-    },
-    chunkerStrategy: {
-      type: "string",
-      title: "Chunker Strategy",
-      description: "Strategy used for chunking",
-    },
-    maxTokens: {
-      type: "integer",
-      title: "Max Tokens",
-      description: "Maximum tokens per chunk",
-    },
-    overlap: {
-      type: "integer",
-      title: "Overlap",
-      description: "Token overlap between chunks",
-    },
-    summaryModel: {
-      type: "string",
-      title: "Summary Model",
-      description: "Model used for summarization",
-    },
-    nerModel: {
-      type: "string",
-      title: "NER Model",
-      description: "Model used for named entity recognition",
-    },
-  },
-  required: ["embeddingModel", "chunkerStrategy", "maxTokens", "overlap"],
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
-
-export type VariantProvenance = FromSchema<typeof VariantProvenanceSchema>;
 
 // =============================================================================
 // Master Document Schemas
@@ -694,33 +632,3 @@ export const DocumentMetadataSchema = {
 } as const satisfies DataPortSchema;
 
 export type DocumentMetadata = FromSchema<typeof DocumentMetadataSchema>;
-
-/**
- * Schema for variant manifest
- */
-export const VariantManifestSchema = {
-  type: "object",
-  properties: {
-    configId: {
-      type: "string",
-      title: "Config ID",
-      description: "Configuration identifier",
-    },
-    provenance: VariantProvenanceSchema,
-    createdAt: {
-      type: "string",
-      title: "Created At",
-      description: "ISO timestamp of creation",
-    },
-    chunks: {
-      type: "array",
-      items: ChunkNodeSchema(),
-      title: "Chunks",
-      description: "Array of chunk nodes",
-    },
-  },
-  required: ["configId", "provenance", "createdAt", "chunks"],
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
-
-export type VariantManifest = FromSchema<typeof VariantManifestSchema>;

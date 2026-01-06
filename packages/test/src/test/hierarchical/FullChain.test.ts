@@ -13,7 +13,6 @@ describe("Complete chainable workflow", () => {
   it("should chain from parsing to storage without loops", async () => {
     const vectorRepo = new InMemoryVectorRepository<{
       docId: string;
-      configId: string;
       chunkId: string;
       leafNodeId: string;
       depth: number;

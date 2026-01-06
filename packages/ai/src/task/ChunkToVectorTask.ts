@@ -141,7 +141,6 @@ export class ChunkToVectorTask extends Task<
 
       metadata.push({
         docId: chunk.docId,
-        configId: chunk.configId,
         chunkId: chunk.chunkId,
         leafNodeId: chunk.nodePath[chunk.nodePath.length - 1],
         depth: chunk.depth,

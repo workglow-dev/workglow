@@ -102,34 +102,15 @@ export class InMemoryDocumentRepository implements IDocumentRepository {
     return ancestors;
   }
 
-  async getVariant(docId: string, configId: string): Promise<any | undefined> {
-    const doc = this.documents.get(docId);
-    if (!doc) {
-      return undefined;
-    }
-    return doc.getVariant ? doc.getVariant(configId) : undefined;
-  }
-
-  async getAllVariants(docId: string): Promise<any[]> {
+  async getChunks(docId: string): Promise<any[]> {
     const doc = this.documents.get(docId);
     if (!doc) {
       return [];
     }
-    return doc.getAllVariants ? doc.getAllVariants() : [];
+    return doc.getChunks ? doc.getChunks() : [];
   }
 
-  async getChunks(docId: string, configId: string): Promise<any[]> {
-    const doc = this.documents.get(docId);
-    if (!doc) {
-      return [];
-    }
-    return doc.getChunks ? doc.getChunks(configId) : [];
-  }
-
-  async findChunksByNodeId(
-    docId: string,
-    nodeId: string
-  ): Promise<Array<{ configId: string; chunk: any }>> {
+  async findChunksByNodeId(docId: string, nodeId: string): Promise<any[]> {
     const doc = this.documents.get(docId);
     if (!doc) {
       return [];

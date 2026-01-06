@@ -5,108 +5,48 @@
  */
 
 import type { ChunkNode, DocumentNode } from "./DocumentSchema";
-import {
-  type DocumentMetadata,
-  type VariantManifest,
-  type VariantProvenance,
-} from "./DocumentSchema";
-import { deriveConfigId } from "./ProvenanceUtils";
+import type { DocumentMetadata } from "./DocumentSchema";
 
 /**
- * Document represents a hierarchical document with multiple processing variants
+ * Document represents a hierarchical document with chunks
  *
  * Key features:
  * - Single source-of-truth tree structure (root node)
- * - Multiple chunking/embedding variants keyed by provenance-derived configId
+ * - Single set of chunks
  * - Separate persistence for document structure vs vectors
  */
 export class Document {
   public readonly docId: string;
   public readonly metadata: DocumentMetadata;
   public readonly root: DocumentNode;
-  private readonly variants: Map<string, VariantManifest>;
+  private chunks: ChunkNode[];
 
   constructor(docId: string, root: DocumentNode, metadata: DocumentMetadata) {
     this.docId = docId;
     this.root = root;
     this.metadata = metadata;
-    this.variants = new Map();
+    this.chunks = [];
   }
 
   /**
-   * Add a processing variant
+   * Set chunks for the document
    */
-  async addVariant(
-    provenance: VariantProvenance,
-    chunks: ChunkNode[]
-  ): Promise<string> {
-    const configId = await deriveConfigId(provenance);
-
-    // Use the provided variant provenance directly
-    const variantProvenance = provenance;
-
-    const manifest: VariantManifest = {
-      configId,
-      provenance: variantProvenance,
-      createdAt: new Date().toISOString(),
-      chunks,
-    };
-
-    this.variants.set(configId, manifest);
-    return configId;
+  setChunks(chunks: ChunkNode[]): void {
+    this.chunks = chunks;
   }
 
   /**
-   * Get a variant by configId
+   * Get all chunks
    */
-  getVariant(configId: string): VariantManifest | undefined {
-    return this.variants.get(configId);
+  getChunks(): ChunkNode[] {
+    return this.chunks;
   }
 
   /**
-   * Get all variants
+   * Find chunks by nodeId
    */
-  getAllVariants(): VariantManifest[] {
-    return Array.from(this.variants.values());
-  }
-
-  /**
-   * Check if a variant exists
-   */
-  hasVariant(configId: string): boolean {
-    return this.variants.has(configId);
-  }
-
-  /**
-   * Get all configIds
-   */
-  getConfigIds(): string[] {
-    return Array.from(this.variants.keys());
-  }
-
-  /**
-   * Find chunks by nodeId across all variants
-   */
-  findChunksByNodeId(nodeId: string): Array<{ configId: string; chunk: ChunkNode }> {
-    const results: Array<{ configId: string; chunk: ChunkNode }> = [];
-
-    for (const [configId, manifest] of this.variants) {
-      for (const chunk of manifest.chunks) {
-        if (chunk.nodePath.includes(nodeId)) {
-          results.push({ configId, chunk });
-        }
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Get chunks for a specific variant
-   */
-  getChunks(configId: string): ChunkNode[] {
-    const variant = this.variants.get(configId);
-    return variant?.chunks ?? [];
+  findChunksByNodeId(nodeId: string): ChunkNode[] {
+    return this.chunks.filter((chunk) => chunk.nodePath.includes(nodeId));
   }
 
   /**
@@ -116,13 +56,13 @@ export class Document {
     docId: string;
     metadata: DocumentMetadata;
     root: DocumentNode;
-    variants: VariantManifest[];
+    chunks: ChunkNode[];
   } {
     return {
       docId: this.docId,
       metadata: this.metadata,
       root: this.root,
-      variants: Array.from(this.variants.values()),
+      chunks: this.chunks,
     };
   }
 
@@ -133,12 +73,10 @@ export class Document {
     docId: string;
     metadata: DocumentMetadata;
     root: DocumentNode;
-    variants: VariantManifest[];
+    chunks: ChunkNode[];
   }): Document {
     const doc = new Document(json.docId, json.root, json.metadata);
-    for (const variant of json.variants) {
-      doc.variants.set(variant.configId, variant);
-    }
+    doc.chunks = json.chunks;
     return doc;
   }
 }

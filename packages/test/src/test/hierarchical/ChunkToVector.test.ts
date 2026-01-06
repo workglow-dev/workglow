@@ -59,7 +59,6 @@ describe("ChunkToVectorTask", () => {
     for (let i = 0; i < result.metadata.length; i++) {
       const meta = result.metadata[i];
       expect(meta.docId).toBe(docId);
-      expect(meta.configId).toBeDefined();
       expect(meta.chunkId).toBeDefined();
       expect(meta.leafNodeId).toBeDefined();
       expect(meta.depth).toBeDefined();
@@ -78,7 +77,6 @@ describe("ChunkToVectorTask", () => {
       {
         chunkId: "chunk_1",
         docId: "doc_1",
-        configId: "cfg_1",
         text: "Test",
         nodePath: ["node_1"],
         depth: 1,
@@ -86,7 +84,6 @@ describe("ChunkToVectorTask", () => {
       {
         chunkId: "chunk_2",
         docId: "doc_1",
-        configId: "cfg_1",
         text: "Test 2",
         nodePath: ["node_1"],
         depth: 1,
@@ -108,7 +105,6 @@ describe("ChunkToVectorTask", () => {
       {
         chunkId: "chunk_1",
         docId: "doc_1",
-        configId: "cfg_1",
         text: "Test",
         nodePath: ["node_1"],
         depth: 1,

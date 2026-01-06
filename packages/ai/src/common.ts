@@ -13,7 +13,6 @@ export * from "./provider/AiProviderRegistry";
 export * from "./source/Document";
 export * from "./source/DocumentNode";
 export * from "./source/DocumentSchema";
-export * from "./source/ProvenanceUtils";
 export * from "./source/StructuralParser";
 
 export * from "./task";

@@ -22,53 +22,31 @@ describe("Document", () => {
     {
       chunkId: "chunk1",
       docId: "doc1",
-      configId: "cfg_test",
       text: "Test chunk",
       nodePath: ["root"],
       depth: 1,
     },
   ];
 
-  test("addVariant with VariantProvenance", async () => {
+  test("setChunks and getChunks", () => {
     const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
 
-    const provenance = {
-      embeddingModel: "text-embedding-3-small",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-    };
+    doc.setChunks(createTestChunks());
 
-    const configId = await doc.addVariant(provenance, createTestChunks());
-
-    expect(configId).toBeDefined();
-    expect(configId).toMatch(/^cfg_/);
-
-    const variant = doc.getVariant(configId);
-    expect(variant).toBeDefined();
-    expect(variant?.provenance.embeddingModel).toBe("text-embedding-3-small");
-    expect(variant?.provenance.chunkerStrategy).toBe("hierarchical");
-    expect(variant?.provenance.maxTokens).toBe(512);
-    expect(variant?.provenance.overlap).toBe(50);
+    const chunks = doc.getChunks();
+    expect(chunks).toBeDefined();
+    expect(chunks.length).toBe(1);
+    expect(chunks[0].text).toBe("Test chunk");
   });
 
-  test("addVariant with optional fields", async () => {
+  test("findChunksByNodeId", () => {
     const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
 
-    const provenance = {
-      embeddingModel: "text-embedding-3-small",
-      chunkerStrategy: "hierarchical",
-      maxTokens: 512,
-      overlap: 50,
-      summaryModel: "gpt-4",
-      nerModel: "bert-ner",
-    };
+    doc.setChunks(createTestChunks());
 
-    const configId = await doc.addVariant(provenance, createTestChunks());
-
-    const variant = doc.getVariant(configId);
-    expect(variant).toBeDefined();
-    expect(variant?.provenance.summaryModel).toBe("gpt-4");
-    expect(variant?.provenance.nerModel).toBe("bert-ner");
+    const chunks = doc.findChunksByNodeId("root");
+    expect(chunks).toBeDefined();
+    expect(chunks.length).toBe(1);
+    expect(chunks[0].text).toBe("Test chunk");
   });
 });

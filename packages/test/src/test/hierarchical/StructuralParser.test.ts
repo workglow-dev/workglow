@@ -191,12 +191,11 @@ Third paragraph here.`;
 
     it("should generate consistent chunk IDs", async () => {
       const docId = "doc_test";
-      const configId = "cfg_test";
       const leafNodeId = "node_leaf";
       const ordinal = 0;
 
-      const id1 = await NodeIdGenerator.generateChunkId(docId, configId, leafNodeId, ordinal);
-      const id2 = await NodeIdGenerator.generateChunkId(docId, configId, leafNodeId, ordinal);
+      const id1 = await NodeIdGenerator.generateChunkId(docId, leafNodeId, ordinal);
+      const id2 = await NodeIdGenerator.generateChunkId(docId, leafNodeId, ordinal);
 
       expect(id1).toBe(id2);
       expect(id1).toMatch(/^chunk_[0-9a-f]{16}$/);
