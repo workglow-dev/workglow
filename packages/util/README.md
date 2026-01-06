@@ -108,6 +108,37 @@ container.register("UserService", UserService);
 const userService = container.resolve<UserService>("UserService");
 ```
 
+### Input Resolver Registry
+
+The input resolver registry enables automatic resolution of string identifiers to object instances based on JSON Schema format annotations. This is used by the TaskRunner to resolve inputs like model names or repository IDs before task execution.
+
+```typescript
+import {
+  registerInputResolver,
+  getInputResolvers,
+  INPUT_RESOLVERS,
+} from "@workglow/util";
+
+// Register a custom resolver for a format prefix
+registerInputResolver("myformat", async (id, format, registry) => {
+  // id: the string value to resolve (e.g., "my-item-id")
+  // format: the full format string (e.g., "myformat:subtype")
+  // registry: ServiceRegistry for accessing other services
+
+  const myRepo = registry.get(MY_REPOSITORY_TOKEN);
+  const item = await myRepo.findById(id);
+  if (!item) {
+    throw new Error(`Item "${id}" not found`);
+  }
+  return item;
+});
+
+// Get all registered resolvers
+const resolvers = getInputResolvers();
+```
+
+When a task input schema includes a property with `format: "myformat:subtype"`, and the input value is a string, the resolver is called automatically to convert it to the resolved instance.
+
 ### Event System
 
 ```typescript
@@ -260,6 +291,7 @@ type User = z.infer<typeof userSchemaZod>;
 - Decorator-based injection
 - Singleton and transient lifetimes
 - Circular dependency detection
+- Input resolver registry for schema-based resolution
 
 ### Event System (`/events`)
 

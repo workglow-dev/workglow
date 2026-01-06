@@ -25,6 +25,9 @@ export * from "./limiter/PostgresRateLimiterStorage";
 export * from "./limiter/SqliteRateLimiterStorage";
 export * from "./limiter/SupabaseRateLimiterStorage";
 
+export * from "./vector/PostgresVectorRepository";
+export * from "./vector/SqliteVectorRepository";
+
 // testing
 export * from "./kv/IndexedDbKvRepository";
 export * from "./limiter/IndexedDbRateLimiterStorage";

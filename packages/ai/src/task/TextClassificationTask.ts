@@ -115,7 +115,7 @@ export const textClassification = (
   input: TextClassificationTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new TextClassificationTask(input, config).run();
+  return new TextClassificationTask({} as TextClassificationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

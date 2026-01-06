@@ -85,8 +85,8 @@ export class MergeTask<
 TaskRegistry.registerTask(MergeTask);
 
 export const merge = (input: MergeTaskInput, config: TaskConfig = {}) => {
-  const task = new MergeTask(input, config);
-  return task.run();
+  const task = new MergeTask({} as MergeTaskInput, config);
+  return task.run(input);
 };
 
 declare module "@workglow/task-graph" {

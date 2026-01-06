@@ -1,0 +1,245 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { VectorStoreSearchTask } from "@workglow/ai";
+import { InMemoryVectorRepository, registerVectorRepository } from "@workglow/storage";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+
+describe("VectorStoreSearchTask", () => {
+  let repo: InMemoryVectorRepository<{ text: string; category?: string }>;
+
+  beforeEach(async () => {
+    repo = new InMemoryVectorRepository<{ text: string; category?: string }>();
+    await repo.setupDatabase();
+
+    // Populate repository with test data
+    const vectors = [
+      new Float32Array([1.0, 0.0, 0.0]), // doc1 - similar to query
+      new Float32Array([0.8, 0.2, 0.0]), // doc2 - somewhat similar
+      new Float32Array([0.0, 1.0, 0.0]), // doc3 - different
+      new Float32Array([0.0, 0.0, 1.0]), // doc4 - different
+      new Float32Array([0.9, 0.1, 0.0]), // doc5 - very similar
+    ];
+
+    const metadata = [
+      { text: "Document about AI", category: "tech" },
+      { text: "Document about machine learning", category: "tech" },
+      { text: "Document about cooking", category: "food" },
+      { text: "Document about travel", category: "travel" },
+      { text: "Document about artificial intelligence", category: "tech" },
+    ];
+
+    for (let i = 0; i < vectors.length; i++) {
+      await repo.upsert(`doc${i + 1}`, vectors[i], metadata[i]);
+    }
+  });
+
+  afterEach(() => {
+    repo.destroy();
+  });
+
+  test("should search and return top K results", async () => {
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 3,
+    });
+
+    expect(result.count).toBe(3);
+    expect(result.ids).toHaveLength(3);
+    expect(result.vectors).toHaveLength(3);
+    expect(result.metadata).toHaveLength(3);
+    expect(result.scores).toHaveLength(3);
+
+    // Scores should be in descending order
+    for (let i = 1; i < result.scores.length; i++) {
+      expect(result.scores[i - 1]).toBeGreaterThanOrEqual(result.scores[i]);
+    }
+
+    // Most similar should be doc1 (exact match)
+    expect(result.ids[0]).toBe("doc1");
+  });
+
+  test("should respect topK limit", async () => {
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 2,
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.ids).toHaveLength(2);
+  });
+
+  test("should filter by metadata", async () => {
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 10,
+      filter: { category: "tech" },
+    });
+
+    expect(result.count).toBeGreaterThan(0);
+    // All results should have category "tech"
+    result.metadata.forEach((meta) => {
+      expect(meta).toHaveProperty("category", "tech");
+    });
+  });
+
+  test("should apply score threshold", async () => {
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 10,
+      scoreThreshold: 0.9,
+    });
+
+    // All scores should be >= 0.9
+    result.scores.forEach((score) => {
+      expect(score).toBeGreaterThanOrEqual(0.9);
+    });
+  });
+
+  test("should return empty results when no matches", async () => {
+    const queryVector = new Float32Array([0.0, 0.0, 1.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 10,
+      filter: { category: "nonexistent" },
+    });
+
+    expect(result.count).toBe(0);
+    expect(result.ids).toHaveLength(0);
+    expect(result.vectors).toHaveLength(0);
+    expect(result.metadata).toHaveLength(0);
+    expect(result.scores).toHaveLength(0);
+  });
+
+  test("should handle default topK value", async () => {
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+    });
+
+    // Default topK is 10, but we only have 5 documents
+    expect(result.count).toBe(5);
+    expect(result.count).toBeLessThanOrEqual(10);
+  });
+
+  test("should work with quantized query vectors (Int8Array)", async () => {
+    const queryVector = new Int8Array([127, 0, 0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 3,
+    });
+
+    expect(result.count).toBeGreaterThan(0);
+    expect(result.ids).toHaveLength(result.count);
+    expect(result.scores).toHaveLength(result.count);
+  });
+
+  test("should return results sorted by similarity score", async () => {
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 5,
+    });
+
+    // Verify descending order
+    for (let i = 1; i < result.scores.length; i++) {
+      expect(result.scores[i - 1]).toBeGreaterThanOrEqual(result.scores[i]);
+    }
+  });
+
+  test("should handle empty repository", async () => {
+    const emptyRepo = new InMemoryVectorRepository<{ text: string }>();
+    await emptyRepo.setupDatabase();
+
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: emptyRepo,
+      query: queryVector,
+      topK: 10,
+    });
+
+    expect(result.count).toBe(0);
+    expect(result.ids).toHaveLength(0);
+    expect(result.scores).toHaveLength(0);
+
+    emptyRepo.destroy();
+  });
+
+  test("should combine filter and score threshold", async () => {
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    const result = await task.run({
+      repository: repo,
+      query: queryVector,
+      topK: 10,
+      filter: { category: "tech" },
+      scoreThreshold: 0.7,
+    });
+
+    // All results should pass both filter and threshold
+    result.metadata.forEach((meta) => {
+      expect(meta).toHaveProperty("category", "tech");
+    });
+    result.scores.forEach((score) => {
+      expect(score).toBeGreaterThanOrEqual(0.7);
+    });
+  });
+
+  test("should resolve repository from string ID", async () => {
+    // Register repository by ID
+    registerVectorRepository("test-vector-repo", repo);
+
+    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
+
+    const task = new VectorStoreSearchTask();
+    // Pass repository as string ID instead of instance
+    const result = await task.run({
+      repository: "test-vector-repo" as any,
+      query: queryVector,
+      topK: 3,
+    });
+
+    expect(result.count).toBe(3);
+    expect(result.ids).toHaveLength(3);
+    expect(result.vectors).toHaveLength(3);
+    expect(result.metadata).toHaveLength(3);
+    expect(result.scores).toHaveLength(3);
+
+    // Most similar should be doc1 (exact match)
+    expect(result.ids[0]).toBe("doc1");
+  });
+});

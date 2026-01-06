@@ -138,7 +138,7 @@ const task = new TextEmbeddingTask({
 });
 
 const result = await task.execute();
-// result.vector: TypedArray - Vector embedding
+// result.vector: Vector - Vector embedding
 ```
 
 **Text Translation:**

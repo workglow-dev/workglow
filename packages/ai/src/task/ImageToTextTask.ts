@@ -88,7 +88,7 @@ TaskRegistry.registerTask(ImageToTextTask);
  * @returns Promise resolving to the generated text description
  */
 export const imageToText = (input: ImageToTextTaskInput, config?: JobQueueTaskConfig) => {
-  return new ImageToTextTask(input, config).run();
+  return new ImageToTextTask({} as ImageToTextTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

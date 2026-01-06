@@ -5,15 +5,14 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
-import { AiTask } from "./base/AiTask";
 import {
-  DeReplicateFromSchema,
+  DataPortSchema,
+  FromSchema,
   TypedArraySchema,
   TypedArraySchemaOptions,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+} from "@workglow/util";
+import { AiTask } from "./base/AiTask";
+import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
 
 const modelSchema = TypeReplicateArray(TypeModel("model:TextEmbeddingTask"));
 
@@ -86,7 +85,7 @@ TaskRegistry.registerTask(TextEmbeddingTask);
  * @returns  Promise resolving to the generated embeddings
  */
 export const textEmbedding = async (input: TextEmbeddingTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextEmbeddingTask(input, config).run();
+  return new TextEmbeddingTask({} as TextEmbeddingTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

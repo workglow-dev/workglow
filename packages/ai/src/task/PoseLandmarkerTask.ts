@@ -211,7 +211,7 @@ TaskRegistry.registerTask(PoseLandmarkerTask);
  * @returns Promise resolving to the detected pose landmarks and optional segmentation masks
  */
 export const poseLandmarker = (input: PoseLandmarkerTaskInput, config?: JobQueueTaskConfig) => {
-  return new PoseLandmarkerTask(input, config).run();
+  return new PoseLandmarkerTask({} as PoseLandmarkerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

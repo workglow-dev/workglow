@@ -116,7 +116,7 @@ TaskRegistry.registerTask(TextGenerationTask);
  * Task for generating text using a language model
  */
 export const textGeneration = (input: TextGenerationTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextGenerationTask(input, config).run();
+  return new TextGenerationTask({} as TextGenerationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
