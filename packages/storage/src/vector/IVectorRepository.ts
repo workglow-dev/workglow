@@ -4,7 +4,29 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EventParameters, TypedArray } from "@workglow/util";
+import type { DataPortSchemaObject, EventParameters, TypedArray } from "@workglow/util";
+
+/**
+ * Schema for vector storage in tabular format.
+ * In-memory implementations may store vector as TypedArray directly,
+ * while SQL implementations serialize to JSON string.
+ */
+export const VectorSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    vector: { type: "string" }, // TypedArray in memory, JSON string in SQL
+    metadata: { type: "string" }, // JSON-serialized metadata
+  },
+  required: ["id", "vector", "metadata"],
+  additionalProperties: false,
+} as const satisfies DataPortSchemaObject;
+
+export type VectorEntity = {
+  readonly id: string;
+  readonly vector: string | TypedArray;
+  readonly metadata: string;
+};
 
 /**
  * A vector entry with its associated metadata
@@ -83,6 +105,8 @@ export type VectorEventParameters<
 
 /**
  * Interface defining the contract for vector storage repositories.
+ * While the interface doesn't formally extend ITabularRepository (due to signature differences),
+ * implementations typically extend tabular repository implementations for code reuse.
  * Provides operations for storing, retrieving, and searching vector embeddings.
  * Supports various vector types including quantized formats.
  *
@@ -108,12 +132,12 @@ export interface IVectorRepository<
   upsertBulk(items: VectorEntry<Metadata, VectorChoice>[]): Promise<void>;
 
   /**
-   * Search for similar vectors
+   * Search for similar vectors using similarity scoring
    * @param query - Query vector to compare against
    * @param options - Search options (topK, filter, scoreThreshold)
    * @returns Array of search results sorted by similarity (highest first)
    */
-  search(
+  similaritySearch(
     query: VectorChoice,
     options?: VectorSearchOptions<Metadata, VectorChoice>
   ): Promise<SearchResult<Metadata, VectorChoice>[]>;

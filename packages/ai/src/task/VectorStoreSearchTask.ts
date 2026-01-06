@@ -135,7 +135,7 @@ export class VectorStoreSearchTask extends Task<
 
     const repo = repository as IVectorRepository<any, TypedArray>;
 
-    const results = await repo.search(query, {
+    const results = await repo.similaritySearch(query, {
       topK,
       filter,
       scoreThreshold,
