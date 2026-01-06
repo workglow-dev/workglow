@@ -7,14 +7,9 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import {
-  DeReplicateFromSchema,
-  TypeLanguage,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeLanguage, TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextTranslationTask"));
+const modelSchema = TypeModel("model:TextTranslationTask");
 
 const translationTextSchema = {
   type: "string",
@@ -25,27 +20,23 @@ const translationTextSchema = {
 export const TextTranslationInputSchema = {
   type: "object",
   properties: {
-    text: TypeReplicateArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to translate",
+    },
+    source_lang: TypeLanguage({
+      title: "Source Language",
+      description: "The source language",
+      minLength: 2,
+      maxLength: 2,
     }),
-    source_lang: TypeReplicateArray(
-      TypeLanguage({
-        title: "Source Language",
-        description: "The source language",
-        minLength: 2,
-        maxLength: 2,
-      })
-    ),
-    target_lang: TypeReplicateArray(
-      TypeLanguage({
-        title: "Target Language",
-        description: "The target language",
-        minLength: 2,
-        maxLength: 2,
-      })
-    ),
+    target_lang: TypeLanguage({
+      title: "Target Language",
+      description: "The target language",
+      minLength: 2,
+      maxLength: 2,
+    }),
     model: modelSchema,
   },
   required: ["text", "source_lang", "target_lang", "model"],
@@ -55,11 +46,7 @@ export const TextTranslationInputSchema = {
 export const TextTranslationOutputSchema = {
   type: "object",
   properties: {
-    text: {
-      oneOf: [translationTextSchema, { type: "array", items: translationTextSchema }],
-      title: translationTextSchema.title,
-      description: translationTextSchema.description,
-    },
+    text: translationTextSchema,
     target_lang: TypeLanguage({
       title: "Output Language",
       description: "The output language",
@@ -73,12 +60,6 @@ export const TextTranslationOutputSchema = {
 
 export type TextTranslationTaskInput = FromSchema<typeof TextTranslationInputSchema>;
 export type TextTranslationTaskOutput = FromSchema<typeof TextTranslationOutputSchema>;
-export type TextTranslationTaskExecuteInput = DeReplicateFromSchema<
-  typeof TextTranslationInputSchema
->;
-export type TextTranslationTaskExecuteOutput = DeReplicateFromSchema<
-  typeof TextTranslationOutputSchema
->;
 
 /**
  * This translates text from one language to another

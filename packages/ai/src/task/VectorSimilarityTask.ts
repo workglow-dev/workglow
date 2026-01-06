@@ -5,8 +5,8 @@
  */
 
 import {
-  ArrayTask,
   CreateWorkflow,
+  GraphAsTask,
   JobQueueTaskConfig,
   TaskRegistry,
   Workflow,
@@ -100,7 +100,7 @@ export type VectorSimilarityTaskOutput = FromSchema<
   TypedArraySchemaOptions
 >;
 
-export class VectorSimilarityTask extends ArrayTask<
+export class VectorSimilarityTask extends GraphAsTask<
   VectorSimilarityTaskInput,
   VectorSimilarityTaskOutput,
   JobQueueTaskConfig

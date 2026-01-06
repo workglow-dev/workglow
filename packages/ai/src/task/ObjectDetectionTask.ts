@@ -6,16 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeBoundingBox,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeBoundingBox, TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:ObjectDetectionTask"));
+const modelSchema = TypeModel("model:ObjectDetectionTask");
 
 const detectionSchema = {
   type: "object",
@@ -41,7 +35,7 @@ const detectionSchema = {
 export const ObjectDetectionInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     labels: {
       type: "array",
@@ -85,12 +79,6 @@ export const ObjectDetectionOutputSchema = {
 
 export type ObjectDetectionTaskInput = FromSchema<typeof ObjectDetectionInputSchema>;
 export type ObjectDetectionTaskOutput = FromSchema<typeof ObjectDetectionOutputSchema>;
-export type ObjectDetectionTaskExecuteInput = DeReplicateFromSchema<
-  typeof ObjectDetectionInputSchema
->;
-export type ObjectDetectionTaskExecuteOutput = DeReplicateFromSchema<
-  typeof ObjectDetectionOutputSchema
->;
 
 /**
  * Detects objects in images using vision models.

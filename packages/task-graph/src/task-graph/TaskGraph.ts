@@ -104,7 +104,7 @@ export class TaskGraph implements ITaskGraph {
   ): Promise<GraphResultArray<ExecuteOutput>> {
     return this.runner.runGraph<ExecuteOutput>(input, {
       outputCache: config?.outputCache || this.outputCache,
-      parentProvenance: config?.parentProvenance || {},
+      parentProvenance: config?.parentProvenance || [],
       parentSignal: config?.parentSignal || undefined,
     });
   }

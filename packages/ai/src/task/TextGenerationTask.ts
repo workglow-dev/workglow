@@ -7,7 +7,7 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const generatedTextSchema = {
   type: "string",
@@ -15,17 +15,17 @@ const generatedTextSchema = {
   description: "The generated text",
 } as const;
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextGenerationTask"));
+const modelSchema = TypeModel("model:TextGenerationTask");
 
 export const TextGenerationInputSchema = {
   type: "object",
   properties: {
     model: modelSchema,
-    prompt: TypeReplicateArray({
+    prompt: {
       type: "string",
       title: "Prompt",
       description: "The prompt to generate text from",
-    }),
+    },
     maxTokens: {
       type: "number",
       title: "Max Tokens",
@@ -74,11 +74,7 @@ export const TextGenerationInputSchema = {
 export const TextGenerationOutputSchema = {
   type: "object",
   properties: {
-    text: {
-      oneOf: [generatedTextSchema, { type: "array", items: generatedTextSchema }],
-      title: generatedTextSchema.title,
-      description: generatedTextSchema.description,
-    },
+    text: generatedTextSchema,
   },
   required: ["text"],
   additionalProperties: false,
@@ -86,12 +82,6 @@ export const TextGenerationOutputSchema = {
 
 export type TextGenerationTaskInput = FromSchema<typeof TextGenerationInputSchema>;
 export type TextGenerationTaskOutput = FromSchema<typeof TextGenerationOutputSchema>;
-export type TextGenerationTaskExecuteInput = DeReplicateFromSchema<
-  typeof TextGenerationInputSchema
->;
-export type TextGenerationTaskExecuteOutput = DeReplicateFromSchema<
-  typeof TextGenerationOutputSchema
->;
 
 export class TextGenerationTask extends AiTask<
   TextGenerationTaskInput,

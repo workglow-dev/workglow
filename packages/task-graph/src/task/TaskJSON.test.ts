@@ -130,7 +130,6 @@ describe("TaskJSON", () => {
       expect(json.type).toBe("TestTask");
       expect(json.name).toBe("My Task");
       expect(json.defaults).toEqual({ value: 42 });
-      expect(json.provenance).toBeUndefined();
       expect(json.extras).toBeUndefined();
     });
 
@@ -141,7 +140,7 @@ describe("TaskJSON", () => {
       expect(json.defaults).toEqual({ value: 10, multiplier: 5 });
     });
 
-    test("should serialize task with provenance and extras", () => {
+    test("should serialize task with extras", () => {
       const task = new TestTask(
         { value: 100 },
         {
@@ -152,15 +151,7 @@ describe("TaskJSON", () => {
       );
       const json = task.toJSON();
 
-      expect(json.provenance).toEqual({ source: "test", version: "1.0" });
       expect(json.extras).toEqual({ metadata: { key: "value" } });
-    });
-
-    test("should not include empty provenance in JSON", () => {
-      const task = new TestTask({ value: 50 }, { id: "task4", provenance: {} });
-      const json = task.toJSON();
-
-      expect(json.provenance).toBeUndefined();
     });
   });
 
@@ -234,18 +225,16 @@ describe("TaskJSON", () => {
       expect(task.defaults).toEqual({ value: 10, multiplier: 5 });
     });
 
-    test("should create a task with provenance and extras", () => {
+    test("should create a task with extras", () => {
       const json: TaskGraphItemJson = {
         id: "task3",
         type: "TestTask",
         defaults: { value: 100 },
-        provenance: { source: "test", version: "1.0" },
         extras: { metadata: { key: "value" } },
       };
 
       const task = createTaskFromGraphJSON(json);
 
-      expect(task.config.provenance).toEqual([{ source: "test", version: "1.0" }]);
       expect(task.config.extras).toEqual({ metadata: { key: "value" } });
     });
 
@@ -386,7 +375,7 @@ describe("TaskJSON", () => {
       expect(restoredDataflows[0].targetTaskId).toBe(originalDataflows[0].targetTaskId);
     });
 
-    test("should round-trip a task graph with defaults, provenance, and extras", () => {
+    test("should round-trip a task graph with defaults and extras", () => {
       const originalGraph = new TaskGraph();
       const task1 = new TestTaskWithDefaults(
         { value: 10, multiplier: 3 },
@@ -404,7 +393,6 @@ describe("TaskJSON", () => {
 
       const restoredTask = restoredGraph.getTasks()[0];
       expect(restoredTask.defaults).toEqual({ value: 10, multiplier: 3 });
-      expect(restoredTask.config.provenance).toEqual([{ source: "test", version: "1.0" }]);
       expect(restoredTask.config.extras).toEqual({ metadata: { key: "value" } });
     });
 

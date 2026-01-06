@@ -7,7 +7,7 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const contextSchema = {
   type: "string",
@@ -27,13 +27,13 @@ const textSchema = {
   description: "The generated text",
 } as const;
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextQuestionAnswerTask"));
+const modelSchema = TypeModel("model:TextQuestionAnswerTask");
 
 export const TextQuestionAnswerInputSchema = {
   type: "object",
   properties: {
-    context: TypeReplicateArray(contextSchema),
-    question: TypeReplicateArray(questionSchema),
+    context: contextSchema,
+    question: questionSchema,
     model: modelSchema,
   },
   required: ["context", "question", "model"],
@@ -43,11 +43,7 @@ export const TextQuestionAnswerInputSchema = {
 export const TextQuestionAnswerOutputSchema = {
   type: "object",
   properties: {
-    text: {
-      oneOf: [textSchema, { type: "array", items: textSchema }],
-      title: textSchema.title,
-      description: textSchema.description,
-    },
+    text: textSchema,
   },
   required: ["text"],
   additionalProperties: false,
@@ -55,12 +51,6 @@ export const TextQuestionAnswerOutputSchema = {
 
 export type TextQuestionAnswerTaskInput = FromSchema<typeof TextQuestionAnswerInputSchema>;
 export type TextQuestionAnswerTaskOutput = FromSchema<typeof TextQuestionAnswerOutputSchema>;
-export type TextQuestionAnswerTaskExecuteInput = DeReplicateFromSchema<
-  typeof TextQuestionAnswerInputSchema
->;
-export type TextQuestionAnswerTaskExecuteOutput = DeReplicateFromSchema<
-  typeof TextQuestionAnswerOutputSchema
->;
 
 /**
  * This is a special case of text generation that takes a context and a question

@@ -34,10 +34,6 @@ export interface AiSingleTaskInput extends TaskInput {
   model: string | ModelConfig;
 }
 
-export interface AiArrayTaskInput extends TaskInput {
-  model: string | ModelConfig | (string | ModelConfig)[];
-}
-
 /**
  * A base class for AI related tasks that run in a job queue.
  * Extends the JobQueueTask class to provide LLM-specific functionality.
@@ -46,7 +42,7 @@ export interface AiArrayTaskInput extends TaskInput {
  * By the time execute() is called, input.model is always a ModelConfig object.
  */
 export class AiTask<
-  Input extends AiArrayTaskInput = AiArrayTaskInput,
+  Input extends AiSingleTaskInput = AiSingleTaskInput,
   Output extends TaskOutput = TaskOutput,
   Config extends JobQueueTaskConfig = JobQueueTaskConfig,
 > extends JobQueueTask<Input, Output, Config> {
@@ -60,11 +56,9 @@ export class AiTask<
     const modelLabel =
       typeof input.model === "string"
         ? input.model
-        : Array.isArray(input.model)
-          ? undefined
-          : typeof input.model === "object" && input.model
-            ? input.model.model_id || input.model.title || input.model.provider
-            : undefined;
+        : typeof input.model === "object" && input.model
+          ? input.model.model_id || input.model.title || input.model.provider
+          : undefined;
     config.name ||= `${new.target.type || new.target.name}${
       modelLabel ? " with model " + modelLabel : ""
     }`;
@@ -86,13 +80,6 @@ export class AiTask<
    * @returns The AiJobInput to submit to the queue
    */
   protected override async getJobInput(input: Input): Promise<AiJobInput<Input>> {
-    if (Array.isArray(input.model)) {
-      console.error("AiTask: Model is an array", input);
-      throw new TaskConfigurationError(
-        "AiTask: Model is an array, only create job for single model tasks"
-      );
-    }
-
     // Model is guaranteed to be resolved by TaskRunner before this is called
     const model = input.model as ModelConfig;
     if (!model || typeof model !== "object") {
@@ -138,14 +125,6 @@ export class AiTask<
    * After TaskRunner resolution, input.model is a ModelConfig.
    */
   protected override async getDefaultQueueName(input: Input): Promise<string | undefined> {
-    if (Array.isArray(input.model)) {
-      if (input.model.length === 1) {
-        return (input.model[0] as ModelConfig).provider;
-      }
-      throw new TaskConfigurationError(
-        "AiTask: getDefaultQueueName does not support multiple models. Only provide a single model."
-      );
-    }
     const model = input.model as ModelConfig;
     return model?.provider;
   }
@@ -174,22 +153,20 @@ export class AiTask<
     ).filter(([key, schema]) => schemaFormat(schema)?.startsWith("model:"));
 
     for (const [key] of modelTaskProperties) {
-      const requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
-      for (const model of requestedModels) {
-        if (typeof model === "object" && model !== null) {
-          // Check task compatibility if tasks array is specified
-          const tasks = (model as ModelConfig).tasks;
-          if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
-            throw new TaskConfigurationError(
-              `AiTask: Model for '${key}' is not compatible with task '${this.type}'`
-            );
-          }
-        } else if (model !== undefined && model !== null) {
-          // Should be a ModelConfig object after resolution
+      const model = input[key];
+      if (typeof model === "object" && model !== null) {
+        // Check task compatibility if tasks array is specified
+        const tasks = (model as ModelConfig).tasks;
+        if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
           throw new TaskConfigurationError(
-            `AiTask: Invalid model for '${key}' - expected ModelConfig object`
+            `AiTask: Model for '${key}' is not compatible with task '${this.type}'`
           );
         }
+      } else if (model !== undefined && model !== null) {
+        // Should be a ModelConfig object after resolution
+        throw new TaskConfigurationError(
+          `AiTask: Invalid model for '${key}' - expected ModelConfig object`
+        );
       }
     }
 
@@ -199,13 +176,11 @@ export class AiTask<
     ).filter(([key, schema]) => schemaFormat(schema) === "model");
 
     for (const [key] of modelPlainProperties) {
-      const requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
-      for (const model of requestedModels) {
-        if (model !== undefined && model !== null && typeof model !== "object") {
-          throw new TaskConfigurationError(
-            `AiTask: Invalid model for '${key}' - expected ModelConfig object`
-          );
-        }
+      const model = input[key];
+      if (model !== undefined && model !== null && typeof model !== "object") {
+        throw new TaskConfigurationError(
+          `AiTask: Invalid model for '${key}' - expected ModelConfig object`
+        );
       }
     }
 
@@ -230,32 +205,22 @@ export class AiTask<
       const modelRepo = registry.get<ModelRepository>(MODEL_REPOSITORY);
       const taskModels = await modelRepo.findModelsByTask(this.type);
       for (const [key, propSchema] of modelTaskProperties) {
-        let requestedModels = Array.isArray(input[key]) ? input[key] : [input[key]];
-        const requestedStrings = requestedModels.filter(
-          (m: unknown): m is string => typeof m === "string"
-        );
-        const requestedInline = requestedModels.filter(
-          (m: unknown): m is ModelConfig => typeof m === "object" && m !== null
-        );
+        const requestedModel = input[key];
 
-        const usingStrings = requestedStrings.filter((model: string) =>
-          taskModels?.find((m) => m.model_id === model)
-        );
-
-        const usingInline = requestedInline.filter((model: ModelConfig) => {
-          const tasks = model.tasks;
-          // Filter out inline configs with explicit incompatible tasks arrays
-          // This matches the validation logic in validateInput
-          if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
-            return false;
+        if (typeof requestedModel === "string") {
+          // Verify string model ID is compatible
+          const found = taskModels?.find((m) => m.model_id === requestedModel);
+          if (!found) {
+            (input as any)[key] = undefined;
           }
-          return true;
-        });
-
-        const combined: (string | ModelConfig)[] = [...usingInline, ...usingStrings];
-
-        // we alter input to be the models that were found for this kind of input
-        (input as any)[key] = combined.length > 1 ? combined : combined[0];
+        } else if (typeof requestedModel === "object" && requestedModel !== null) {
+          // Verify inline config is compatible
+          const model = requestedModel as ModelConfig;
+          const tasks = model.tasks;
+          if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
+            (input as any)[key] = undefined;
+          }
+        }
       }
     }
     return input;

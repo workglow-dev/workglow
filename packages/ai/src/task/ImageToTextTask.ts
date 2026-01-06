@@ -6,15 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:ImageToTextTask"));
+const modelSchema = TypeModel("model:ImageToTextTask");
 
 const generatedTextSchema = {
   type: "string",
@@ -25,7 +20,7 @@ const generatedTextSchema = {
 export const ImageToTextInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     maxTokens: {
       type: "number",
@@ -55,8 +50,6 @@ export const ImageToTextOutputSchema = {
 
 export type ImageToTextTaskInput = FromSchema<typeof ImageToTextInputSchema>;
 export type ImageToTextTaskOutput = FromSchema<typeof ImageToTextOutputSchema>;
-export type ImageToTextTaskExecuteInput = DeReplicateFromSchema<typeof ImageToTextInputSchema>;
-export type ImageToTextTaskExecuteOutput = DeReplicateFromSchema<typeof ImageToTextOutputSchema>;
 
 /**
  * Generates text descriptions from images using vision-language models

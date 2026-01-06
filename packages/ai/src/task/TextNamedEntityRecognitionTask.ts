@@ -7,18 +7,18 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextNamedEntityRecognitionTask"));
+const modelSchema = TypeModel("model:TextNamedEntityRecognitionTask");
 
 export const TextNamedEntityRecognitionInputSchema = {
   type: "object",
   properties: {
-    text: TypeReplicateArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to extract named entities from",
-    }),
+    },
     blockList: {
       type: "array",
       items: {
@@ -74,12 +74,6 @@ export type TextNamedEntityRecognitionTaskInput = FromSchema<
   typeof TextNamedEntityRecognitionInputSchema
 >;
 export type TextNamedEntityRecognitionTaskOutput = FromSchema<
-  typeof TextNamedEntityRecognitionOutputSchema
->;
-export type TextNamedEntityRecognitionTaskExecuteInput = DeReplicateFromSchema<
-  typeof TextNamedEntityRecognitionInputSchema
->;
-export type TextNamedEntityRecognitionTaskExecuteOutput = DeReplicateFromSchema<
   typeof TextNamedEntityRecognitionOutputSchema
 >;
 

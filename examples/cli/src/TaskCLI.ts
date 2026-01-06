@@ -42,7 +42,7 @@ export function AddBaseCommands(program: Command) {
         ? (await getGlobalModelRepository().findByName(options.model))?.model_id
         : (await getGlobalModelRepository().findModelsByTask("TextEmbeddingTask"))?.map(
             (m) => m.model_id
-          );
+          )?.[0];
 
       if (!model) {
         program.error(`Unknown model ${options.model}`);
@@ -67,7 +67,7 @@ export function AddBaseCommands(program: Command) {
         ? (await getGlobalModelRepository().findByName(options.model))?.model_id
         : (await getGlobalModelRepository().findModelsByTask("TextSummaryTask"))?.map(
             (m) => m.model_id
-          );
+          )?.[0];
       if (!model) {
         program.error(`Unknown model ${options.model}`);
       } else {
@@ -92,7 +92,7 @@ export function AddBaseCommands(program: Command) {
         ? (await getGlobalModelRepository().findByName(options.model))?.model_id
         : (await getGlobalModelRepository().findModelsByTask("TextRewriterTask"))?.map(
             (m) => m.model_id
-          );
+          )?.[0];
       if (!model) {
         program.error(`Unknown model ${options.model}`);
       } else {

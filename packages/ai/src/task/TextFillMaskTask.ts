@@ -7,18 +7,18 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextFillMaskTask"));
+const modelSchema = TypeModel("model:TextFillMaskTask");
 
 export const TextFillMaskInputSchema = {
   type: "object",
   properties: {
-    text: TypeReplicateArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text with a mask token to fill",
-    }),
+    },
     model: modelSchema,
   },
   required: ["text", "model"],
@@ -62,8 +62,6 @@ export const TextFillMaskOutputSchema = {
 
 export type TextFillMaskTaskInput = FromSchema<typeof TextFillMaskInputSchema>;
 export type TextFillMaskTaskOutput = FromSchema<typeof TextFillMaskOutputSchema>;
-export type TextFillMaskTaskExecuteInput = DeReplicateFromSchema<typeof TextFillMaskInputSchema>;
-export type TextFillMaskTaskExecuteOutput = DeReplicateFromSchema<typeof TextFillMaskOutputSchema>;
 
 /**
  * Fills masked tokens in text using language models

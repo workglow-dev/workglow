@@ -6,15 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:FaceLandmarkerTask"));
+const modelSchema = TypeModel("model:FaceLandmarkerTask");
 
 /**
  * A landmark point with x, y, z coordinates.
@@ -102,7 +97,7 @@ const TypeFaceLandmarkerDetection = {
 export const FaceLandmarkerInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     numFaces: {
       type: "number",
@@ -177,12 +172,6 @@ export const FaceLandmarkerOutputSchema = {
 
 export type FaceLandmarkerTaskInput = FromSchema<typeof FaceLandmarkerInputSchema>;
 export type FaceLandmarkerTaskOutput = FromSchema<typeof FaceLandmarkerOutputSchema>;
-export type FaceLandmarkerTaskExecuteInput = DeReplicateFromSchema<
-  typeof FaceLandmarkerInputSchema
->;
-export type FaceLandmarkerTaskExecuteOutput = DeReplicateFromSchema<
-  typeof FaceLandmarkerOutputSchema
->;
 
 /**
  * Detects facial landmarks and expressions in images using MediaPipe Face Landmarker.

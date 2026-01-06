@@ -6,15 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:HandLandmarkerTask"));
+const modelSchema = TypeModel("model:HandLandmarkerTask");
 
 /**
  * A landmark point with x, y, z coordinates.
@@ -95,7 +90,7 @@ const TypeHandDetection = {
 export const HandLandmarkerInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     numHands: {
       type: "number",
@@ -156,12 +151,6 @@ export const HandLandmarkerOutputSchema = {
 
 export type HandLandmarkerTaskInput = FromSchema<typeof HandLandmarkerInputSchema>;
 export type HandLandmarkerTaskOutput = FromSchema<typeof HandLandmarkerOutputSchema>;
-export type HandLandmarkerTaskExecuteInput = DeReplicateFromSchema<
-  typeof HandLandmarkerInputSchema
->;
-export type HandLandmarkerTaskExecuteOutput = DeReplicateFromSchema<
-  typeof HandLandmarkerOutputSchema
->;
 
 /**
  * Detects hand landmarks in images using MediaPipe Hand Landmarker.

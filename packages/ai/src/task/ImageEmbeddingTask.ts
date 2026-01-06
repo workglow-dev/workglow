@@ -5,16 +5,16 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema, TypedArraySchema } from "@workglow/util";
 import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+  DataPortSchema,
+  FromSchema,
+  TypedArraySchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:ImageEmbeddingTask"));
+const modelSchema = TypeModel("model:ImageEmbeddingTask");
 
 const embeddingSchema = TypedArraySchema({
   title: "Embedding",
@@ -24,7 +24,7 @@ const embeddingSchema = TypedArraySchema({
 export const ImageEmbeddingInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
   },
   required: ["image", "model"],
@@ -34,23 +34,19 @@ export const ImageEmbeddingInputSchema = {
 export const ImageEmbeddingOutputSchema = {
   type: "object",
   properties: {
-    vector: {
-      oneOf: [embeddingSchema, { type: "array", items: embeddingSchema }],
-      title: "Embedding",
-      description: "The image embedding vector",
-    },
+    vector: embeddingSchema,
   },
   required: ["vector"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type ImageEmbeddingTaskInput = FromSchema<typeof ImageEmbeddingInputSchema>;
-export type ImageEmbeddingTaskOutput = FromSchema<typeof ImageEmbeddingOutputSchema>;
-export type ImageEmbeddingTaskExecuteInput = DeReplicateFromSchema<
-  typeof ImageEmbeddingInputSchema
+export type ImageEmbeddingTaskInput = FromSchema<
+  typeof ImageEmbeddingInputSchema,
+  TypedArraySchemaOptions
 >;
-export type ImageEmbeddingTaskExecuteOutput = DeReplicateFromSchema<
-  typeof ImageEmbeddingOutputSchema
+export type ImageEmbeddingTaskOutput = FromSchema<
+  typeof ImageEmbeddingOutputSchema,
+  TypedArraySchemaOptions
 >;
 
 /**

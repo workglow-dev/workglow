@@ -162,7 +162,7 @@ export class HierarchicalChunkerTask extends Task<
 
     // Derive configId from current provenance
     const provenance = this.getProvenance();
-    const configId = await deriveConfigId(provenance);
+    const configId = await deriveConfigId(provenance ? [provenance] : []);
 
     const chunks: ChunkNode[] = [];
 

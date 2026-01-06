@@ -790,14 +790,12 @@ export class Task<
    * @returns The serialized task and subtasks
    */
   public toJSON(): TaskGraphItemJson {
-    const provenance = this.getProvenance();
     const extras = this.config.extras;
     let json: TaskGraphItemJson = this.stripSymbols({
       id: this.config.id,
       type: this.type,
       ...(this.config.name ? { name: this.config.name } : {}),
       defaults: this.defaults,
-      ...(provenance ? { provenance } : {}),
       ...(extras && Object.keys(extras).length ? { extras } : {}),
     });
     return json as TaskGraphItemJson;

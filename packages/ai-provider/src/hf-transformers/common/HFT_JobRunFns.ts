@@ -37,42 +37,42 @@ import {
 } from "@sroussey/transformers";
 import type {
   AiProviderRunFn,
-  BackgroundRemovalTaskExecuteInput,
-  BackgroundRemovalTaskExecuteOutput,
-  DownloadModelTaskExecuteInput,
-  DownloadModelTaskExecuteOutput,
-  ImageClassificationTaskExecuteInput,
-  ImageClassificationTaskExecuteOutput,
-  ImageEmbeddingTaskExecuteInput,
-  ImageEmbeddingTaskExecuteOutput,
-  ImageSegmentationTaskExecuteInput,
-  ImageSegmentationTaskExecuteOutput,
-  ImageToTextTaskExecuteInput,
-  ImageToTextTaskExecuteOutput,
-  ObjectDetectionTaskExecuteInput,
-  ObjectDetectionTaskExecuteOutput,
-  TextClassificationTaskExecuteInput,
-  TextClassificationTaskExecuteOutput,
-  TextEmbeddingTaskExecuteInput,
-  TextEmbeddingTaskExecuteOutput,
-  TextFillMaskTaskExecuteInput,
-  TextFillMaskTaskExecuteOutput,
-  TextGenerationTaskExecuteInput,
-  TextGenerationTaskExecuteOutput,
-  TextLanguageDetectionTaskExecuteInput,
-  TextLanguageDetectionTaskExecuteOutput,
-  TextNamedEntityRecognitionTaskExecuteInput,
-  TextNamedEntityRecognitionTaskExecuteOutput,
-  TextQuestionAnswerTaskExecuteInput,
-  TextQuestionAnswerTaskExecuteOutput,
-  TextRewriterTaskExecuteInput,
-  TextRewriterTaskExecuteOutput,
-  TextSummaryTaskExecuteInput,
-  TextSummaryTaskExecuteOutput,
-  TextTranslationTaskExecuteInput,
-  TextTranslationTaskExecuteOutput,
-  UnloadModelTaskExecuteInput,
-  UnloadModelTaskExecuteOutput,
+  BackgroundRemovalTaskInput,
+  BackgroundRemovalTaskOutput,
+  DownloadModelTaskRunInput,
+  DownloadModelTaskRunOutput,
+  ImageClassificationTaskInput,
+  ImageClassificationTaskOutput,
+  ImageEmbeddingTaskInput,
+  ImageEmbeddingTaskOutput,
+  ImageSegmentationTaskInput,
+  ImageSegmentationTaskOutput,
+  ImageToTextTaskInput,
+  ImageToTextTaskOutput,
+  ObjectDetectionTaskInput,
+  ObjectDetectionTaskOutput,
+  TextClassificationTaskInput,
+  TextClassificationTaskOutput,
+  TextEmbeddingTaskInput,
+  TextEmbeddingTaskOutput,
+  TextFillMaskTaskInput,
+  TextFillMaskTaskOutput,
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
+  TextLanguageDetectionTaskInput,
+  TextLanguageDetectionTaskOutput,
+  TextNamedEntityRecognitionTaskInput,
+  TextNamedEntityRecognitionTaskOutput,
+  TextQuestionAnswerTaskInput,
+  TextQuestionAnswerTaskOutput,
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
+  TextTranslationTaskInput,
+  TextTranslationTaskOutput,
+  UnloadModelTaskRunInput,
+  UnloadModelTaskRunOutput,
 } from "@workglow/ai";
 
 import { TypedArray } from "@workglow/util";
@@ -442,8 +442,8 @@ const getPipeline = async (
  * This is shared between inline and worker implementations.
  */
 export const HFT_Download: AiProviderRunFn<
-  DownloadModelTaskExecuteInput,
-  DownloadModelTaskExecuteOutput,
+  DownloadModelTaskRunInput,
+  DownloadModelTaskRunOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   // Download the model by creating a pipeline
@@ -460,8 +460,8 @@ export const HFT_Download: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const HFT_Unload: AiProviderRunFn<
-  UnloadModelTaskExecuteInput,
-  UnloadModelTaskExecuteOutput,
+  UnloadModelTaskRunInput,
+  UnloadModelTaskRunOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   // Delete the pipeline from the in-memory map
@@ -525,8 +525,8 @@ const deleteModelCache = async (model_path: string): Promise<void> => {
  */
 
 export const HFT_TextEmbedding: AiProviderRunFn<
-  TextEmbeddingTaskExecuteInput,
-  TextEmbeddingTaskExecuteOutput,
+  TextEmbeddingTaskInput,
+  TextEmbeddingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateEmbedding: FeatureExtractionPipeline = await getPipeline(model!, onProgress, {
@@ -556,8 +556,8 @@ export const HFT_TextEmbedding: AiProviderRunFn<
 };
 
 export const HFT_TextClassification: AiProviderRunFn<
-  TextClassificationTaskExecuteInput,
-  TextClassificationTaskExecuteOutput,
+  TextClassificationTaskInput,
+  TextClassificationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   if (model?.provider_config?.pipeline === "zero-shot-classification") {
@@ -612,8 +612,8 @@ export const HFT_TextClassification: AiProviderRunFn<
 };
 
 export const HFT_TextLanguageDetection: AiProviderRunFn<
-  TextLanguageDetectionTaskExecuteInput,
-  TextLanguageDetectionTaskExecuteOutput,
+  TextLanguageDetectionTaskInput,
+  TextLanguageDetectionTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const TextClassification: TextClassificationPipeline = await getPipeline(model!, onProgress, {
@@ -642,8 +642,8 @@ export const HFT_TextLanguageDetection: AiProviderRunFn<
 };
 
 export const HFT_TextNamedEntityRecognition: AiProviderRunFn<
-  TextNamedEntityRecognitionTaskExecuteInput,
-  TextNamedEntityRecognitionTaskExecuteOutput,
+  TextNamedEntityRecognitionTaskInput,
+  TextNamedEntityRecognitionTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const textNamedEntityRecognition: TokenClassificationPipeline = await getPipeline(
@@ -673,8 +673,8 @@ export const HFT_TextNamedEntityRecognition: AiProviderRunFn<
 };
 
 export const HFT_TextFillMask: AiProviderRunFn<
-  TextFillMaskTaskExecuteInput,
-  TextFillMaskTaskExecuteOutput,
+  TextFillMaskTaskInput,
+  TextFillMaskTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const unmasker: FillMaskPipeline = await getPipeline(model!, onProgress, {
@@ -701,8 +701,8 @@ export const HFT_TextFillMask: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const HFT_TextGeneration: AiProviderRunFn<
-  TextGenerationTaskExecuteInput,
-  TextGenerationTaskExecuteOutput,
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {
@@ -734,8 +734,8 @@ export const HFT_TextGeneration: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const HFT_TextTranslation: AiProviderRunFn<
-  TextTranslationTaskExecuteInput,
-  TextTranslationTaskExecuteOutput,
+  TextTranslationTaskInput,
+  TextTranslationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const translate: TranslationPipeline = await getPipeline(model!, onProgress, {
@@ -750,12 +750,9 @@ export const HFT_TextTranslation: AiProviderRunFn<
     ...(signal ? { abort_signal: signal } : {}),
   } as any);
 
-  let translatedText: string | string[] = "";
-  if (Array.isArray(result)) {
-    translatedText = result.map((r) => (r as TranslationSingle)?.translation_text || "");
-  } else {
-    translatedText = (result as TranslationSingle)?.translation_text || "";
-  }
+  const translatedText = Array.isArray(result)
+    ? (result[0] as TranslationSingle)?.translation_text || ""
+    : (result as TranslationSingle)?.translation_text || "";
 
   return {
     text: translatedText,
@@ -768,8 +765,8 @@ export const HFT_TextTranslation: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const HFT_TextRewriter: AiProviderRunFn<
-  TextRewriterTaskExecuteInput,
-  TextRewriterTaskExecuteOutput,
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {
@@ -808,8 +805,8 @@ export const HFT_TextRewriter: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const HFT_TextSummary: AiProviderRunFn<
-  TextSummaryTaskExecuteInput,
-  TextSummaryTaskExecuteOutput,
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {
@@ -839,8 +836,8 @@ export const HFT_TextSummary: AiProviderRunFn<
  * This is shared between inline and worker implementations.
  */
 export const HFT_TextQuestionAnswer: AiProviderRunFn<
-  TextQuestionAnswerTaskExecuteInput,
-  TextQuestionAnswerTaskExecuteOutput,
+  TextQuestionAnswerTaskInput,
+  TextQuestionAnswerTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   // Get the question answering pipeline
@@ -870,8 +867,8 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
  * Core implementation for image segmentation using Hugging Face Transformers.
  */
 export const HFT_ImageSegmentation: AiProviderRunFn<
-  ImageSegmentationTaskExecuteInput,
-  ImageSegmentationTaskExecuteOutput,
+  ImageSegmentationTaskInput,
+  ImageSegmentationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const segmenter: ImageSegmentationPipeline = await getPipeline(model!, onProgress, {
@@ -903,8 +900,8 @@ export const HFT_ImageSegmentation: AiProviderRunFn<
  * Core implementation for image to text using Hugging Face Transformers.
  */
 export const HFT_ImageToText: AiProviderRunFn<
-  ImageToTextTaskExecuteInput,
-  ImageToTextTaskExecuteOutput,
+  ImageToTextTaskInput,
+  ImageToTextTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const captioner: ImageToTextPipeline = await getPipeline(model!, onProgress, {
@@ -927,8 +924,8 @@ export const HFT_ImageToText: AiProviderRunFn<
  * Core implementation for background removal using Hugging Face Transformers.
  */
 export const HFT_BackgroundRemoval: AiProviderRunFn<
-  BackgroundRemovalTaskExecuteInput,
-  BackgroundRemovalTaskExecuteOutput,
+  BackgroundRemovalTaskInput,
+  BackgroundRemovalTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const remover: BackgroundRemovalPipeline = await getPipeline(model!, onProgress, {
@@ -950,8 +947,8 @@ export const HFT_BackgroundRemoval: AiProviderRunFn<
  * Core implementation for image embedding using Hugging Face Transformers.
  */
 export const HFT_ImageEmbedding: AiProviderRunFn<
-  ImageEmbeddingTaskExecuteInput,
-  ImageEmbeddingTaskExecuteOutput,
+  ImageEmbeddingTaskInput,
+  ImageEmbeddingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const embedder: ImageFeatureExtractionPipeline = await getPipeline(model!, onProgress, {
@@ -962,7 +959,7 @@ export const HFT_ImageEmbedding: AiProviderRunFn<
 
   return {
     vector: result.data as TypedArray,
-  };
+  } as ImageEmbeddingTaskOutput;
 };
 
 /**
@@ -970,8 +967,8 @@ export const HFT_ImageEmbedding: AiProviderRunFn<
  * Auto-selects between regular and zero-shot classification.
  */
 export const HFT_ImageClassification: AiProviderRunFn<
-  ImageClassificationTaskExecuteInput,
-  ImageClassificationTaskExecuteOutput,
+  ImageClassificationTaskInput,
+  ImageClassificationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   if (model?.provider_config?.pipeline === "zero-shot-image-classification") {
@@ -1025,8 +1022,8 @@ export const HFT_ImageClassification: AiProviderRunFn<
  * Auto-selects between regular and zero-shot detection.
  */
 export const HFT_ObjectDetection: AiProviderRunFn<
-  ObjectDetectionTaskExecuteInput,
-  ObjectDetectionTaskExecuteOutput,
+  ObjectDetectionTaskInput,
+  ObjectDetectionTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   if (model?.provider_config?.pipeline === "zero-shot-object-detection") {
