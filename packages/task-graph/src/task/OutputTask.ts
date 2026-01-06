@@ -4,8 +4,12 @@
  * All Rights Reserved
  */
 
-import { IExecuteContext, IExecuteReactiveContext, Task, TaskConfig } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util";
+import { CreateWorkflow, Workflow } from "../task-graph/Workflow";
+import { IExecuteContext, IExecuteReactiveContext } from "./ITask";
+import { Task } from "./Task";
+import { TaskRegistry } from "./TaskRegistry";
+import { TaskConfig } from "./TaskTypes";
 
 export type OutputTaskInput = Record<string, unknown>;
 export type OutputTaskOutput = Record<string, unknown>;
@@ -64,3 +68,17 @@ export class OutputTask extends Task<OutputTaskInput, OutputTaskOutput, OutputTa
     return input as OutputTaskOutput;
   }
 }
+
+TaskRegistry.registerTask(OutputTask);
+
+/**
+ * Module augmentation to register test task types in the workflow system
+ */
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    output: CreateWorkflow<OutputTaskInput, OutputTaskOutput, TaskConfig>;
+  }
+}
+
+// Register the workflow method
+Workflow.prototype.output = CreateWorkflow(OutputTask);
