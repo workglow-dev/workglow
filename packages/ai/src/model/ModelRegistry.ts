@@ -11,8 +11,8 @@ import {
   ServiceRegistry,
 } from "@workglow/util";
 import { InMemoryModelRepository } from "./InMemoryModelRepository";
-import type { ModelConfig } from "./ModelSchema";
 import { ModelRepository } from "./ModelRepository";
+import type { ModelConfig } from "./ModelSchema";
 
 /**
  * Service token for the global model repository
@@ -38,10 +38,10 @@ export function getGlobalModelRepository(): ModelRepository {
 
 /**
  * Sets the global model repository instance
- * @param pr The model repository instance to register
+ * @param repository The model repository instance to register
  */
-export function setGlobalModelRepository(pr: ModelRepository): void {
-  globalServiceRegistry.registerInstance(MODEL_REPOSITORY, pr);
+export function setGlobalModelRepository(repository: ModelRepository): void {
+  globalServiceRegistry.registerInstance(MODEL_REPOSITORY, repository);
 }
 
 /**
@@ -52,10 +52,15 @@ async function resolveModelFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): Promise<ModelConfig> {
+): Promise<ModelConfig | ModelConfig[] | undefined> {
   const modelRepo = registry.has(MODEL_REPOSITORY)
     ? registry.get<ModelRepository>(MODEL_REPOSITORY)
     : getGlobalModelRepository();
+
+  if (Array.isArray(id)) {
+    const results = await Promise.all(id.map((i) => modelRepo.findByName(i)));
+    return results.filter((model) => model !== undefined) as ModelConfig[];
+  }
 
   const model = await modelRepo.findByName(id);
   if (!model) {
