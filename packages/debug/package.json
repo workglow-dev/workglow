@@ -19,8 +19,8 @@
     ".": {
       "react-native": "./dist/browser.js",
       "browser": "./dist/browser.js",
-      "bun": "./dist/browser.js",
-      "types": "./dist/types.d.ts",
+      "bun": "./src/browser.ts",
+      "types": "./src/types.ts",
       "import": "./dist/browser.js"
     }
   },
