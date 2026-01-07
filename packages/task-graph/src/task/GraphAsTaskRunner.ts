@@ -27,7 +27,6 @@ export class GraphAsTaskRunner<
       }
     );
     const results = await this.task.subGraph!.run<Output>(input, {
-      parentProvenance: this.nodeProvenance || {},
       parentSignal: this.abortController?.signal,
       outputCache: this.outputCache,
     });
@@ -54,35 +53,6 @@ export class GraphAsTaskRunner<
   }
 
   // ========================================================================
-  // Utility methods
-  // ========================================================================
-
-  private fixInput(input: Input): Input {
-    // inputs has turned each property into an array, so we need to flatten the input
-    // but only for properties marked with x-replicate in the schema
-    const inputSchema = this.task.inputSchema();
-    if (typeof inputSchema === "boolean") {
-      return input;
-    }
-
-    const flattenedInput = Object.entries(input).reduce((acc, [key, value]) => {
-      const inputDef = inputSchema.properties?.[key];
-      const shouldFlatten =
-        Array.isArray(value) &&
-        typeof inputDef === "object" &&
-        inputDef !== null &&
-        "x-replicate" in inputDef &&
-        (inputDef as any)["x-replicate"] === true;
-
-      if (shouldFlatten) {
-        return { ...acc, [key]: value[0] };
-      }
-      return { ...acc, [key]: value };
-    }, {});
-    return flattenedInput as Input;
-  }
-
-  // ========================================================================
   // TaskRunner method overrides and helpers
   // ========================================================================
 
@@ -97,7 +67,7 @@ export class GraphAsTaskRunner<
         this.task.compoundMerge
       );
     } else {
-      const result = await super.executeTask(this.fixInput(input));
+      const result = await super.executeTask(input);
       this.task.runOutputData = result ?? ({} as Output);
     }
     return this.task.runOutputData as Output;
@@ -114,7 +84,7 @@ export class GraphAsTaskRunner<
         this.task.compoundMerge
       );
     } else {
-      const reactiveResults = await super.executeTaskReactive(this.fixInput(input), output);
+      const reactiveResults = await super.executeTaskReactive(input, output);
       this.task.runOutputData = Object.assign({}, output, reactiveResults ?? {}) as Output;
     }
     return this.task.runOutputData as Output;

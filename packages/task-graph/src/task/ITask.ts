@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, EventEmitter } from "@workglow/util";
+import type { DataPortSchema, EventEmitter, ServiceRegistry } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ITaskGraph } from "../task-graph/ITaskGraph";
 import { IWorkflow } from "../task-graph/IWorkflow";
@@ -19,16 +19,21 @@ import type {
 } from "./TaskEvents";
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
-import type { Provenance, TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
+import type {
+  TaskConfig,
+  TaskInput,
+  TaskOutput,
+  TaskStatus,
+} from "./TaskTypes";
 
 /**
  * Context for task execution
  */
 export interface IExecuteContext {
   signal: AbortSignal;
-  nodeProvenance: Provenance;
   updateProgress: (progress: number, message?: string, ...args: any[]) => Promise<void>;
   own: <T extends ITask | ITaskGraph | IWorkflow>(i: T) => T;
+  registry: ServiceRegistry;
 }
 
 export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
@@ -37,7 +42,6 @@ export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
  * Configuration for running a task
  */
 export interface IRunConfig {
-  nodeProvenance?: Provenance;
   outputCache?: TaskOutputRepository | boolean;
   updateProgress?: (
     task: ITask,
@@ -45,6 +49,7 @@ export interface IRunConfig {
     message?: string,
     ...args: any[]
   ) => Promise<void>;
+  registry?: ServiceRegistry;
 }
 
 /**
@@ -115,7 +120,7 @@ export interface ITaskIO<Input extends TaskInput> {
   addInput(overrides: Record<string, any> | undefined): boolean;
   validateInput(input: Record<string, any>): Promise<boolean>;
   get cacheable(): boolean;
-  narrowInput(input: Record<string, any>): Promise<Record<string, any>>;
+  narrowInput(input: Record<string, any>, registry: ServiceRegistry): Promise<Record<string, any>>;
 }
 
 export interface ITaskInternalGraph {
@@ -142,7 +147,6 @@ export interface ITaskEvents {
  * Interface for task serialization
  */
 export interface ITaskSerialization {
-  getProvenance(): Provenance;
   toJSON(): JsonTaskItem | TaskGraphItemJson;
   toDependencyJSON(): JsonTaskItem;
   id(): unknown;
@@ -168,7 +172,9 @@ export interface ITask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends ITaskState<Config>,
+>
+  extends
+    ITaskState<Config>,
     ITaskIO<Input>,
     ITaskEvents,
     ITaskLifecycle<Input, Output, Config>,

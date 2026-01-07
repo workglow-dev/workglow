@@ -6,15 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:GestureRecognizerTask"));
+const modelSchema = TypeModel("model:GestureRecognizerTask");
 
 /**
  * A landmark point with x, y, z coordinates.
@@ -122,7 +117,7 @@ const TypeHandGestureDetection = {
 export const GestureRecognizerInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     numHands: {
       type: "number",
@@ -183,12 +178,6 @@ export const GestureRecognizerOutputSchema = {
 
 export type GestureRecognizerTaskInput = FromSchema<typeof GestureRecognizerInputSchema>;
 export type GestureRecognizerTaskOutput = FromSchema<typeof GestureRecognizerOutputSchema>;
-export type GestureRecognizerTaskExecuteInput = DeReplicateFromSchema<
-  typeof GestureRecognizerInputSchema
->;
-export type GestureRecognizerTaskExecuteOutput = DeReplicateFromSchema<
-  typeof GestureRecognizerOutputSchema
->;
 
 /**
  * Recognizes hand gestures in images using MediaPipe Gesture Recognizer.
@@ -225,7 +214,7 @@ export const gestureRecognizer = (
   input: GestureRecognizerTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new GestureRecognizerTask(input, config).run();
+  return new GestureRecognizerTask({} as GestureRecognizerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

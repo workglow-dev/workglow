@@ -6,15 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:BackgroundRemovalTask"));
+const modelSchema = TypeModel("model:BackgroundRemovalTask");
 
 const processedImageSchema = {
   type: "string",
@@ -27,7 +22,7 @@ const processedImageSchema = {
 export const BackgroundRemovalInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
   },
   required: ["image", "model"],
@@ -37,11 +32,7 @@ export const BackgroundRemovalInputSchema = {
 export const BackgroundRemovalOutputSchema = {
   type: "object",
   properties: {
-    image: {
-      oneOf: [processedImageSchema, { type: "array", items: processedImageSchema }],
-      title: processedImageSchema.title,
-      description: processedImageSchema.description,
-    },
+    image: processedImageSchema,
   },
   required: ["image"],
   additionalProperties: false,
@@ -49,12 +40,6 @@ export const BackgroundRemovalOutputSchema = {
 
 export type BackgroundRemovalTaskInput = FromSchema<typeof BackgroundRemovalInputSchema>;
 export type BackgroundRemovalTaskOutput = FromSchema<typeof BackgroundRemovalOutputSchema>;
-export type BackgroundRemovalTaskExecuteInput = DeReplicateFromSchema<
-  typeof BackgroundRemovalInputSchema
->;
-export type BackgroundRemovalTaskExecuteOutput = DeReplicateFromSchema<
-  typeof BackgroundRemovalOutputSchema
->;
 
 /**
  * Removes backgrounds from images using computer vision models
@@ -88,7 +73,7 @@ export const backgroundRemoval = (
   input: BackgroundRemovalTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new BackgroundRemovalTask(input, config).run();
+  return new BackgroundRemovalTask({} as BackgroundRemovalTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

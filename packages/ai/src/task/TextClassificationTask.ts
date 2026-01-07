@@ -7,18 +7,18 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextClassificationTask"));
+const modelSchema = TypeModel("model:TextClassificationTask");
 
 export const TextClassificationInputSchema = {
   type: "object",
   properties: {
-    text: TypeReplicateArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to classify",
-    }),
+    },
     candidateLabels: {
       type: "array",
       items: {
@@ -75,12 +75,6 @@ export const TextClassificationOutputSchema = {
 
 export type TextClassificationTaskInput = FromSchema<typeof TextClassificationInputSchema>;
 export type TextClassificationTaskOutput = FromSchema<typeof TextClassificationOutputSchema>;
-export type TextClassificationTaskExecuteInput = DeReplicateFromSchema<
-  typeof TextClassificationInputSchema
->;
-export type TextClassificationTaskExecuteOutput = DeReplicateFromSchema<
-  typeof TextClassificationOutputSchema
->;
 
 /**
  * Classifies text into categories using language models.
@@ -115,7 +109,7 @@ export const textClassification = (
   input: TextClassificationTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new TextClassificationTask(input, config).run();
+  return new TextClassificationTask({} as TextClassificationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

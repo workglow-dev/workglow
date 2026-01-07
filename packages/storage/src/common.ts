@@ -8,6 +8,9 @@ export * from "./tabular/CachedTabularRepository";
 export * from "./tabular/InMemoryTabularRepository";
 export * from "./tabular/ITabularRepository";
 export * from "./tabular/TabularRepository";
+export * from "./tabular/TabularRepositoryRegistry";
+
+export * from "./schema/RepositorySchema";
 
 export * from "./kv/IKvRepository";
 export * from "./kv/InMemoryKvRepository";
@@ -22,3 +25,7 @@ export * from "./limiter/IRateLimiterStorage";
 
 export * from "./util/HybridSubscriptionManager";
 export * from "./util/PollingSubscriptionManager";
+
+export * from "./vector/InMemoryVectorRepository";
+export * from "./vector/IVectorRepository";
+export * from "./vector/VectorRepositoryRegistry";

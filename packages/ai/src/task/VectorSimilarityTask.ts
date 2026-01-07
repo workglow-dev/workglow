@@ -5,20 +5,32 @@
  */
 
 import {
-  ArrayTask,
   CreateWorkflow,
+  GraphAsTask,
   JobQueueTaskConfig,
-  TaskError,
   TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
-import { TypedArray, TypedArraySchema, TypedArraySchemaOptions } from "./base/AiTaskSchemas";
+import {
+  cosineSimilarity,
+  DataPortSchema,
+  FromSchema,
+  hammingSimilarity,
+  jaccardSimilarity,
+  TypedArraySchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
 
 export const SimilarityFn = {
   COSINE: "cosine",
   JACCARD: "jaccard",
   HAMMING: "hamming",
+} as const;
+
+const similarityFunctions = {
+  cosine: cosineSimilarity,
+  jaccard: jaccardSimilarity,
+  hamming: hammingSimilarity,
 } as const;
 
 export type SimilarityFn = (typeof SimilarityFn)[keyof typeof SimilarityFn];
@@ -44,7 +56,7 @@ const SimilarityInputSchema = {
       minimum: 1,
       default: 10,
     },
-    similarity: {
+    method: {
       type: "string",
       enum: Object.values(SimilarityFn),
       title: "Similarity 𝑓",
@@ -52,7 +64,7 @@ const SimilarityInputSchema = {
       default: SimilarityFn.COSINE,
     },
   },
-  required: ["query", "input", "similarity"],
+  required: ["query", "input", "method"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -88,7 +100,7 @@ export type VectorSimilarityTaskOutput = FromSchema<
   TypedArraySchemaOptions
 >;
 
-export class VectorSimilarityTask extends ArrayTask<
+export class VectorSimilarityTask extends GraphAsTask<
   VectorSimilarityTaskInput,
   VectorSimilarityTaskOutput,
   JobQueueTaskConfig
@@ -107,15 +119,10 @@ export class VectorSimilarityTask extends ArrayTask<
     return SimilarityOutputSchema as DataPortSchema;
   }
 
-  // @ts-ignore (TODO: fix this)
-  async executeReactive(
-    { query, input, similarity, topK }: VectorSimilarityTaskInput,
-    oldOutput: VectorSimilarityTaskOutput
-  ) {
+  async executeReactive({ query, input, method, topK }: VectorSimilarityTaskInput) {
     let similarities = [];
-    const fns = { cosine };
-    const fnName = similarity as keyof typeof fns;
-    const fn = fns[fnName];
+    const fnName = method as keyof typeof similarityFunctions;
+    const fn = similarityFunctions[fnName];
 
     for (const embedding of input) {
       similarities.push({
@@ -137,7 +144,7 @@ export class VectorSimilarityTask extends ArrayTask<
 TaskRegistry.registerTask(VectorSimilarityTask);
 
 export const similarity = (input: VectorSimilarityTaskInput, config?: JobQueueTaskConfig) => {
-  return new VectorSimilarityTask(input, config).run();
+  return new VectorSimilarityTask({} as VectorSimilarityTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -151,41 +158,3 @@ declare module "@workglow/task-graph" {
 }
 
 Workflow.prototype.similarity = CreateWorkflow(VectorSimilarityTask);
-
-// ===============================================================================
-
-export function inner(arr1: TypedArray, arr2: TypedArray): number {
-  // @ts-ignore
-  return 1 - arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
-}
-
-export function magnitude(arr: TypedArray) {
-  // @ts-ignore
-  return Math.sqrt(arr.reduce((acc, val) => acc + val * val, 0));
-}
-
-function cosine(arr1: TypedArray, arr2: TypedArray) {
-  const dotProduct = inner(arr1, arr2);
-  const magnitude1 = magnitude(arr1);
-  const magnitude2 = magnitude(arr2);
-  return 1 - dotProduct / (magnitude1 * magnitude2);
-}
-
-export function normalize(vector: TypedArray): TypedArray {
-  const mag = magnitude(vector);
-
-  if (mag === 0) {
-    throw new TaskError("Cannot normalize a zero vector.");
-  }
-
-  const normalized = vector.map((val) => Number(val) / mag);
-
-  if (vector instanceof Float64Array) {
-    return new Float64Array(normalized);
-  }
-  if (vector instanceof Float32Array) {
-    return new Float32Array(normalized);
-  }
-  // For integer arrays and bigint[], use Float32Array since normalization produces floats
-  return new Float32Array(normalized);
-}

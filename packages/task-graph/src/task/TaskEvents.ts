@@ -5,8 +5,8 @@
  */
 
 import { EventParameters, type DataPortSchema } from "@workglow/util";
-import { TaskStatus } from "../common";
 import { TaskAbortedError, TaskError } from "./TaskError";
+import { TaskStatus } from "./TaskTypes";
 
 // ========================================================================
 // Event Handling Types

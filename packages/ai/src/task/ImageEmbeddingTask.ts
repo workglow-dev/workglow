@@ -5,17 +5,16 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
 import {
-  DeReplicateFromSchema,
+  DataPortSchema,
+  FromSchema,
   TypedArraySchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:ImageEmbeddingTask"));
+const modelSchema = TypeModel("model:ImageEmbeddingTask");
 
 const embeddingSchema = TypedArraySchema({
   title: "Embedding",
@@ -25,7 +24,7 @@ const embeddingSchema = TypedArraySchema({
 export const ImageEmbeddingInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
   },
   required: ["image", "model"],
@@ -35,23 +34,19 @@ export const ImageEmbeddingInputSchema = {
 export const ImageEmbeddingOutputSchema = {
   type: "object",
   properties: {
-    vector: {
-      oneOf: [embeddingSchema, { type: "array", items: embeddingSchema }],
-      title: "Embedding",
-      description: "The image embedding vector",
-    },
+    vector: embeddingSchema,
   },
   required: ["vector"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type ImageEmbeddingTaskInput = FromSchema<typeof ImageEmbeddingInputSchema>;
-export type ImageEmbeddingTaskOutput = FromSchema<typeof ImageEmbeddingOutputSchema>;
-export type ImageEmbeddingTaskExecuteInput = DeReplicateFromSchema<
-  typeof ImageEmbeddingInputSchema
+export type ImageEmbeddingTaskInput = FromSchema<
+  typeof ImageEmbeddingInputSchema,
+  TypedArraySchemaOptions
 >;
-export type ImageEmbeddingTaskExecuteOutput = DeReplicateFromSchema<
-  typeof ImageEmbeddingOutputSchema
+export type ImageEmbeddingTaskOutput = FromSchema<
+  typeof ImageEmbeddingOutputSchema,
+  TypedArraySchemaOptions
 >;
 
 /**
@@ -83,7 +78,7 @@ TaskRegistry.registerTask(ImageEmbeddingTask);
  * @returns Promise resolving to the image embedding vector
  */
 export const imageEmbedding = (input: ImageEmbeddingTaskInput, config?: JobQueueTaskConfig) => {
-  return new ImageEmbeddingTask(input, config).run();
+  return new ImageEmbeddingTask({} as ImageEmbeddingTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

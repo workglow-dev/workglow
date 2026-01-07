@@ -6,20 +6,15 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:ImageSegmentationTask"));
+const modelSchema = TypeModel("model:ImageSegmentationTask");
 
 export const ImageSegmentationInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     threshold: {
       type: "number",
@@ -88,12 +83,6 @@ export const ImageSegmentationOutputSchema = {
 
 export type ImageSegmentationTaskInput = FromSchema<typeof ImageSegmentationInputSchema>;
 export type ImageSegmentationTaskOutput = FromSchema<typeof ImageSegmentationOutputSchema>;
-export type ImageSegmentationTaskExecuteInput = DeReplicateFromSchema<
-  typeof ImageSegmentationInputSchema
->;
-export type ImageSegmentationTaskExecuteOutput = DeReplicateFromSchema<
-  typeof ImageSegmentationOutputSchema
->;
 
 /**
  * Segments images into regions using computer vision models
@@ -128,7 +117,7 @@ export const imageSegmentation = (
   input: ImageSegmentationTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new ImageSegmentationTask(input, config).run();
+  return new ImageSegmentationTask({} as ImageSegmentationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

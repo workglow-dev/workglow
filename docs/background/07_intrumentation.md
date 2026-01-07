@@ -7,5 +7,5 @@ Instrumentation is the process of adding code to a program to collect data about
 Some of these tools cost money, so we need to track and estimate costs.
 
 - Tasks emit status/progress events (`TaskStatus`, progress percent)
-- Dataflows emit start/complete/error events and carry provenance
+- Dataflows emit start/complete/error events
 - Task graphs emit start/progress/complete/error events

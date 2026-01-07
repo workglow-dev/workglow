@@ -6,15 +6,10 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:PoseLandmarkerTask"));
+const modelSchema = TypeModel("model:PoseLandmarkerTask");
 
 /**
  * A landmark point with x, y, z coordinates and visibility/presence scores.
@@ -105,7 +100,7 @@ const TypePoseDetection = {
 export const PoseLandmarkerInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     numPoses: {
       type: "number",
@@ -173,12 +168,6 @@ export const PoseLandmarkerOutputSchema = {
 
 export type PoseLandmarkerTaskInput = FromSchema<typeof PoseLandmarkerInputSchema>;
 export type PoseLandmarkerTaskOutput = FromSchema<typeof PoseLandmarkerOutputSchema>;
-export type PoseLandmarkerTaskExecuteInput = DeReplicateFromSchema<
-  typeof PoseLandmarkerInputSchema
->;
-export type PoseLandmarkerTaskExecuteOutput = DeReplicateFromSchema<
-  typeof PoseLandmarkerOutputSchema
->;
 
 /**
  * Detects pose landmarks in images using MediaPipe Pose Landmarker.
@@ -211,7 +200,7 @@ TaskRegistry.registerTask(PoseLandmarkerTask);
  * @returns Promise resolving to the detected pose landmarks and optional segmentation masks
  */
 export const poseLandmarker = (input: PoseLandmarkerTaskInput, config?: JobQueueTaskConfig) => {
-  return new PoseLandmarkerTask(input, config).run();
+  return new PoseLandmarkerTask({} as PoseLandmarkerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

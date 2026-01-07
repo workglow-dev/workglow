@@ -5,26 +5,25 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
-import { AiTask } from "./base/AiTask";
 import {
-  DeReplicateFromSchema,
+  DataPortSchema,
+  FromSchema,
   TypedArraySchema,
   TypedArraySchemaOptions,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+} from "@workglow/util";
+import { AiTask } from "./base/AiTask";
+import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextEmbeddingTask"));
+const modelSchema = TypeModel("model:TextEmbeddingTask");
 
 export const TextEmbeddingInputSchema = {
   type: "object",
   properties: {
-    text: TypeReplicateArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to embed",
-    }),
+    },
     model: modelSchema,
   },
   required: ["text", "model"],
@@ -34,12 +33,10 @@ export const TextEmbeddingInputSchema = {
 export const TextEmbeddingOutputSchema = {
   type: "object",
   properties: {
-    vector: TypeReplicateArray(
-      TypedArraySchema({
-        title: "Vector",
-        description: "The vector embedding of the text",
-      })
-    ),
+    vector: TypedArraySchema({
+      title: "Vector",
+      description: "The vector embedding of the text",
+    }),
   },
   required: ["vector"],
   additionalProperties: false,
@@ -52,10 +49,6 @@ export type TextEmbeddingTaskInput = FromSchema<
 export type TextEmbeddingTaskOutput = FromSchema<
   typeof TextEmbeddingOutputSchema,
   TypedArraySchemaOptions
->;
-export type TextEmbeddingTaskExecuteInput = DeReplicateFromSchema<typeof TextEmbeddingInputSchema>;
-export type TextEmbeddingTaskExecuteOutput = DeReplicateFromSchema<
-  typeof TextEmbeddingOutputSchema
 >;
 
 /**
@@ -86,7 +79,7 @@ TaskRegistry.registerTask(TextEmbeddingTask);
  * @returns  Promise resolving to the generated embeddings
  */
 export const textEmbedding = async (input: TextEmbeddingTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextEmbeddingTask(input, config).run();
+  return new TextEmbeddingTask({} as TextEmbeddingTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

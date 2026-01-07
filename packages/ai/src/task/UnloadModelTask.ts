@@ -7,9 +7,9 @@
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model"));
+const modelSchema = TypeModel("model");
 
 const UnloadModelInputSchema = {
   type: "object",
@@ -31,8 +31,6 @@ const UnloadModelOutputSchema = {
 
 export type UnloadModelTaskRunInput = FromSchema<typeof UnloadModelInputSchema>;
 export type UnloadModelTaskRunOutput = FromSchema<typeof UnloadModelOutputSchema>;
-export type UnloadModelTaskExecuteInput = DeReplicateFromSchema<typeof UnloadModelInputSchema>;
-export type UnloadModelTaskExecuteOutput = DeReplicateFromSchema<typeof UnloadModelOutputSchema>;
 
 /**
  * Unload a model from memory and clear its cache.
@@ -67,7 +65,7 @@ TaskRegistry.registerTask(UnloadModelTask);
  * @returns Promise resolving to the unloaded model(s)
  */
 export const unloadModel = (input: UnloadModelTaskRunInput, config?: JobQueueTaskConfig) => {
-  return new UnloadModelTask(input, config).run();
+  return new UnloadModelTask({} as UnloadModelTaskRunInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
