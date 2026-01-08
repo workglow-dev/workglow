@@ -26,61 +26,59 @@ export type TypedArray =
   | Int16Array
   | Uint16Array;
 
+export type TypedArrayString =
+  | `${"Float"}${16 | 32 | 64}Array`
+  | `Int${16 | 8}Array`
+  | `Uint${16 | 8}Array`;
+
 // Type-only value for use in deserialize patterns
 const TypedArrayType = null as any as TypedArray;
 
 const TypedArraySchemaOptions = {
   ...FromSchemaDefaultOptions,
   deserialize: [
-    // {
-    //   pattern: {
-    //     type: "number";
-    //     "format": "Float64Array";
-    //   };
-    //   output: Float64Array;
-    // },
-    // {
-    //   pattern: {
-    //     type: "number";
-    //     "format": "Float32Array";
-    //   };
-    //   output: Float32Array;
-    // },
-    // {
-    //   pattern: {
-    //     type: "number";
-    //     "format": "Float16Array";
-    //   };
-    //   output: Float16Array;
-    // },
-    // {
-    //   pattern: {
-    //     type: "number";
-    //     "format": "Int16Array";
-    //   };
-    //   output: Int16Array;
-    // },
-    // {
-    //   pattern: {
-    //     type: "number";
-    //     "format": "Int8Array";
-    //   };
-    //   output: Int8Array;
-    // },
-    // {
-    //   pattern: {
-    //     type: "number";
-    //     "format": "Uint8Array";
-    //   };
-    //   output: Uint8Array;
-    // },
-    // {
-    //   pattern: {
-    //     type: "number";
-    //     "format": "Uint16Array";
-    //   };
-    //   output: Uint16Array;
-    // },
+    {
+      pattern: {
+        format: "TypedArray:Float64Array",
+      },
+      output: Float64Array,
+    },
+    {
+      pattern: {
+        format: "TypedArray:Float32Array",
+      },
+      output: Float32Array,
+    },
+    {
+      pattern: {
+        format: "TypedArray:Float16Array",
+      },
+      output: Float16Array,
+    },
+    {
+      pattern: {
+        format: "TypedArray:Int16Array",
+      },
+      output: Int16Array,
+    },
+    {
+      pattern: {
+        format: "TypedArray:Int8Array",
+      },
+      output: Int8Array,
+    },
+    {
+      pattern: {
+        format: "TypedArray:Uint8Array",
+      },
+      output: Uint8Array,
+    },
+    {
+      pattern: {
+        format: "TypedArray:Uint16Array",
+      },
+      output: Uint16Array,
+    },
     {
       pattern: { format: "TypedArray" },
       output: TypedArrayType,
@@ -95,12 +93,17 @@ export type VectorFromSchema<SCHEMA extends JsonSchema> = FromSchema<
   TypedArraySchemaOptions
 >;
 
-export const TypedArraySchema = (annotations: Record<string, unknown> = {}) =>
+export const TypedArraySchema = (
+  annotations: Record<string, unknown> = {},
+  subtype?: TypedArrayString
+) =>
   ({
     type: "array",
     items: { type: "number" },
-    format: "TypedArray",
-    title: "Typed Array",
-    description: "A typed array (Float32Array, Int8Array, etc.) or regular number array",
+    format: `TypedArray${subtype ? `:${subtype}` : ""}`,
+    title: subtype ? `Typed Array (${subtype})` : "Typed Array",
+    description: subtype
+      ? `A typed array (${subtype})`
+      : "A typed array (Float32Array, Int8Array, etc.)",
     ...annotations,
   }) as const satisfies JsonSchema;

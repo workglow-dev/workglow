@@ -8,6 +8,7 @@ import type { ExtendedJSONSchema, JSONSchemaExtension } from "@sroussey/json-sch
 
 export type JsonSchemaCustomProps = {
   "x-replicate"?: boolean;
+  "x-dimension"?: number;
   "x-ui-reactive"?: boolean | string; // hint that this field responds to reactive changes
   "x-ui-hidden"?: boolean;
   "x-ui-order"?: number;

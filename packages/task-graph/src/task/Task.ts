@@ -724,7 +724,7 @@ export class Task<
         return `${e.message}${path ? ` (${path})` : ""}`;
       });
       throw new TaskInvalidInputError(
-        `Input ${JSON.stringify(input)} does not match schema: ${errorMessages.join(", ")}`
+        `Input ${JSON.stringify(Object.keys(input))} does not match schema: ${errorMessages.join(", ")}`
       );
     }
 
