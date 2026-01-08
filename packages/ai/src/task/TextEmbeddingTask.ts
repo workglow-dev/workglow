@@ -12,18 +12,18 @@ import {
   TypedArraySchemaOptions,
 } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { TypeModel } from "./base/AiTaskSchemas";
+import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 
 const modelSchema = TypeModel("model:TextEmbeddingTask");
 
 export const TextEmbeddingInputSchema = {
   type: "object",
   properties: {
-    text: {
+    text: TypeSingleOrArray({
       type: "string",
       title: "Text",
       description: "The text to embed",
-    },
+    }),
     model: modelSchema,
   },
   required: ["text", "model"],
@@ -33,10 +33,12 @@ export const TextEmbeddingInputSchema = {
 export const TextEmbeddingOutputSchema = {
   type: "object",
   properties: {
-    vector: TypedArraySchema({
-      title: "Vector",
-      description: "The vector embedding of the text",
-    }),
+    vector: TypeSingleOrArray(
+      TypedArraySchema({
+        title: "Vector",
+        description: "The vector embedding of the text",
+      })
+    ),
   },
   required: ["vector"],
   additionalProperties: false,

@@ -540,15 +540,47 @@ export const HFT_TextEmbedding: AiProviderRunFn<
     ...(signal ? { abort_signal: signal } : {}),
   });
 
-  // Validate the embedding dimensions
-  if (hfVector.size !== model?.provider_config.native_dimensions) {
+  const isArrayInput = Array.isArray(input.text);
+  const embeddingDim = model?.provider_config.native_dimensions;
+
+  // If the input is an array, the tensor will have multiple dimensions (e.g., [10, 384])
+  // We need to split it into separate vectors for each input text
+  if (isArrayInput && hfVector.dims.length > 1) {
+    const [numTexts, vectorDim] = hfVector.dims;
+
+    // Validate that the number of texts matches
+    if (numTexts !== input.text.length) {
+      throw new Error(
+        `HuggingFace Embedding tensor batch size does not match input array length: ${numTexts} != ${input.text.length}`
+      );
+    }
+
+    // Validate dimensions
+    if (vectorDim !== embeddingDim) {
+      throw new Error(
+        `HuggingFace Embedding vector dimension does not match model dimensions: ${vectorDim} != ${embeddingDim}`
+      );
+    }
+
+    // Extract each embedding vector using tensor indexing
+    // hfVector[i] returns a sub-tensor for the i-th text
+    const vectors: TypedArray[] = Array.from(
+      { length: numTexts },
+      (_, i) => (hfVector as any)[i].data as TypedArray
+    );
+
+    return { vector: vectors };
+  }
+
+  // Single text input - validate dimensions
+  if (hfVector.size !== embeddingDim) {
     console.warn(
-      `HuggingFace Embedding vector length does not match model dimensions v${hfVector.size} != m${model?.provider_config.native_dimensions}`,
+      `HuggingFace Embedding vector length does not match model dimensions v${hfVector.size} != m${embeddingDim}`,
       input,
       hfVector
     );
     throw new Error(
-      `HuggingFace Embedding vector length does not match model dimensions v${hfVector.size} != m${model?.provider_config.native_dimensions}`
+      `HuggingFace Embedding vector length does not match model dimensions v${hfVector.size} != m${embeddingDim}`
     );
   }
 

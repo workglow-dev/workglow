@@ -72,6 +72,12 @@ export function TypeModel<
   } as const satisfies JsonSchema;
 }
 
+export function TypeSingleOrArray<T extends DataPortSchemaNonBoolean>(type: T) {
+  return {
+    anyOf: [type, { type: "array", items: type }],
+  } as const satisfies JsonSchema;
+}
+
 export type ImageSource = ImageBitmap | OffscreenCanvas | VideoFrame;
 
 /**
