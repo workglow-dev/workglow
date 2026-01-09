@@ -20,5 +20,3 @@ export * from "./limiter/IndexedDbRateLimiterStorage";
 export * from "./limiter/SupabaseRateLimiterStorage";
 
 export * from "./util/IndexedDbTable";
-
-export * from "./vector/EdgeVecRepository";
