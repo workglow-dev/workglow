@@ -9,6 +9,7 @@ import {
   DataPortSchemaObject,
   FromSchema,
   makeFingerprint,
+  TypedArraySchemaOptions,
 } from "@workglow/util";
 import { HybridSubscriptionManager } from "../util/HybridSubscriptionManager";
 import {
@@ -17,18 +18,19 @@ import {
   MigrationOptions,
 } from "../util/IndexedDbTable";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
   isSearchCondition,
-  ITabularRepository,
   SearchOperator,
+  SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
 import { TabularRepository } from "./TabularRepository";
 
-export const IDB_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.indexedDb");
+export const IDB_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.indexedDb"
+);
 
 /**
  * A tabular repository implementation using IndexedDB for browser-based storage.
@@ -40,10 +42,9 @@ export class IndexedDbTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Promise that resolves to the IndexedDB database instance */
   private db: IDBDatabase | undefined;
   /** Promise to track ongoing database setup to prevent concurrent setup calls */

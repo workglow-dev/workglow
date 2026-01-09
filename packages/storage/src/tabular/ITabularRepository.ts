@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DataPortSchemaObject, EventParameters, FromSchema } from "@workglow/util";
+import {
+  DataPortSchemaObject,
+  EventParameters,
+  FromSchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
 
 // Generic type for possible value types in the repository
 export type ValueOptionType = string | number | bigint | boolean | null | Uint8Array;
@@ -56,7 +61,7 @@ export interface TabularSubscribeOptions {
 }
 
 // Type definitions for specialized string types
-export type uuid4 = string;
+export type uuid4 = string & { readonly __brand: "uuid4" };
 export type JSONValue =
   | string
   | number
@@ -110,6 +115,16 @@ export function isSearchCondition<T>(value: unknown): value is SearchCondition<T
 }
 
 /**
+ * Helper type to compute PrimaryKey while deferring Entity resolution.
+ * Uses a conditional type to avoid forcing full Entity resolution at class definition time.
+ *
+ */
+export type SimplifyPrimaryKey<
+  Entity,
+  KeyName extends ReadonlyArray<keyof any>,
+> = Entity extends any ? Pick<Entity, Extract<KeyName[number], keyof Entity>> : never;
+
+/**
  * Interface defining the contract for tabular storage repositories.
  * Provides a flexible interface for storing and retrieving data with typed
  * primary keys and values, and supports compound keys and partial key lookup.
@@ -121,9 +136,8 @@ export interface ITabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
 > {
   // Core methods
   put(value: Entity): Promise<Entity>;
@@ -197,3 +211,5 @@ export interface ITabularRepository<
   [Symbol.dispose](): void;
   [Symbol.asyncDispose](): Promise<void>;
 }
+
+export type AnyTabularRepository = ITabularRepository<any, any, any, any>;

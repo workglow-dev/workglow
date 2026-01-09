@@ -4,8 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DataPortSchemaObject, FromSchema, JsonSchema } from "@workglow/util";
-import { ValueOptionType } from "./ITabularRepository";
+import {
+  DataPortSchemaObject,
+  FromSchema,
+  JsonSchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import { SimplifyPrimaryKey, ValueOptionType } from "./ITabularRepository";
 import { TabularRepository } from "./TabularRepository";
 
 // BaseTabularRepository is a tabular store that uses SQLite and Postgres use as common code
@@ -21,8 +26,8 @@ export abstract class BaseSqlTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
   Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
 > extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
   /**

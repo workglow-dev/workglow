@@ -10,21 +10,23 @@ import {
   FromSchema,
   makeFingerprint,
   sleep,
+  TypedArraySchemaOptions,
 } from "@workglow/util";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PollingSubscriptionManager } from "../util/PollingSubscriptionManager";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
-  ITabularRepository,
+  SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
 import { TabularRepository } from "./TabularRepository";
 
-export const FS_FOLDER_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.fsFolder");
+export const FS_FOLDER_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.fsFolder"
+);
 
 /**
  * A tabular repository implementation that uses the filesystem for storage.
@@ -37,10 +39,9 @@ export class FsFolderTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private folderPath: string;
   /** Shared polling subscription manager */
   private pollingManager: PollingSubscriptionManager<

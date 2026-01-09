@@ -4,22 +4,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, DataPortSchemaObject, FromSchema, JsonSchema } from "@workglow/util";
+import {
+  createServiceToken,
+  DataPortSchemaObject,
+  FromSchema,
+  JsonSchema,
+  type TypedArray,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
 import type { Pool } from "pg";
 import { BaseSqlTabularRepository } from "./BaseSqlTabularRepository";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
   isSearchCondition,
-  ITabularRepository,
   SearchOperator,
+  SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
   ValueOptionType,
 } from "./ITabularRepository";
 
-export const POSTGRES_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.postgres");
+export const POSTGRES_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.postgres"
+);
 
 /**
  * A PostgreSQL-based tabular repository implementation that extends BaseSqlTabularRepository.
@@ -33,11 +41,10 @@ export class PostgresTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
-  private db: Pool;
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+  protected db: Pool;
 
   /**
    * Creates a new PostgresTabularRepository instance.
@@ -73,6 +80,9 @@ export class PostgresTabularRepository<
       )
     `;
     await this.db.query(sql);
+
+    // Create vector indexes if there are vector columns
+    await this.createVectorIndexes();
 
     // Get primary key columns to avoid creating redundant indexes
     const pkColumns = this.primaryKeyColumns();
@@ -114,6 +124,11 @@ export class PostgresTabularRepository<
     }
   }
 
+  protected isVectorFormat(format?: string): boolean {
+    if (!format) return false;
+    return format.startsWith("TypedArray:") || format === "TypedArray";
+  }
+
   /**
    * Maps TypeScript/JavaScript types to corresponding PostgreSQL data types.
    * Uses additional schema information like minimum/maximum values, nullable status,
@@ -140,6 +155,14 @@ export class PostgresTabularRepository<
         if (actualType.format === "email") return "VARCHAR(255)";
         if (actualType.format === "uri") return "VARCHAR(2048)";
         if (actualType.format === "uuid") return "UUID";
+
+        // Handle vector format (pgvector extension)
+        if (this.isVectorFormat(actualType.format)) {
+          const dimension = actualType["x-dimensions"];
+          if (typeof dimension === "number") {
+            return `vector(${dimension})`;
+          }
+        }
 
         // Use a VARCHAR with maxLength if specified
         if (typeof actualType.maxLength === "number") {
@@ -284,9 +307,33 @@ export class PostgresTabularRepository<
   }
 
   /**
+   * Convert JavaScript values to PostgreSQL values, including TypedArray to vector string
+   */
+  protected override jsToSqlValue(column: string, value: Entity[keyof Entity]): ValueOptionType {
+    const typeDef = this.schema.properties[column];
+    if (typeDef) {
+      const actualType = this.getNonNullType(typeDef);
+
+      // Handle vector format - convert TypedArray to pgvector string format [1.0, 2.0, ...]
+      if (typeof actualType !== "boolean" && this.isVectorFormat(actualType.format)) {
+        if (value && ArrayBuffer.isView(value) && !(value instanceof DataView)) {
+          // It's a TypedArray
+          const array = Array.from(value as unknown as TypedArray);
+          return `[${array.join(",")}]` as any;
+        }
+        // If it's already a string (serialized), return as-is
+        if (typeof value === "string") {
+          return value;
+        }
+      }
+    }
+    return super.jsToSqlValue(column, value);
+  }
+
+  /**
    * Convert PostgreSQL values to JS values. Ensures numeric strings become numbers where schema says number.
    */
-  protected sqlToJsValue(column: string, value: ValueOptionType): Entity[keyof Entity] {
+  protected override sqlToJsValue(column: string, value: ValueOptionType): Entity[keyof Entity] {
     const typeDef = this.schema.properties[column as keyof typeof this.schema.properties] as
       | JsonSchema
       | undefined;
@@ -295,6 +342,23 @@ export class PostgresTabularRepository<
         return null as any;
       }
       const actualType = this.getNonNullType(typeDef);
+
+      // Handle vector format - convert pgvector string to TypedArray
+      if (typeof actualType !== "boolean" && this.isVectorFormat(actualType.format)) {
+        if (typeof value === "string") {
+          try {
+            // Parse the vector string format [1.0, 2.0, ...] to TypedArray
+            const array = JSON.parse(value);
+            return new Float32Array(array) as any;
+          } catch (e) {
+            console.warn(`Failed to parse vector for column ${column}:`, e);
+          }
+        }
+        // If it's already an object/TypedArray, return as-is
+        if (value && typeof value === "object") {
+          return value as any;
+        }
+      }
 
       // Handle numeric types - PostgreSQL can return them as strings
       if (
@@ -334,6 +398,68 @@ export class PostgresTabularRepository<
     }
 
     return false;
+  }
+
+  /**
+   * Gets information about vector columns in the schema
+   * @returns Array of objects with column name and dimension
+   */
+  protected getVectorColumns(): Array<{ column: string; dimension: number }> {
+    const vectorColumns: Array<{ column: string; dimension: number }> = [];
+
+    // Check all properties in the schema
+    for (const [key, typeDef] of Object.entries<JsonSchema>(this.schema.properties)) {
+      const actualType = this.getNonNullType(typeDef);
+      if (typeof actualType !== "boolean" && this.isVectorFormat(actualType.format)) {
+        const dimension = actualType["x-dimensions"];
+        if (typeof dimension === "number") {
+          vectorColumns.push({ column: key, dimension });
+        } else {
+          console.warn(
+            `Invalid vector format for column ${key}: ${actualType.format} [${actualType["x-dimensions"]}], skipping`
+          );
+        }
+      }
+    }
+
+    return vectorColumns;
+  }
+
+  /**
+   * Creates vector-specific indexes (HNSW for pgvector)
+   * Called after table creation if vector columns exist
+   */
+  protected async createVectorIndexes(): Promise<void> {
+    const vectorColumns = this.getVectorColumns();
+
+    if (vectorColumns.length === 0) {
+      return; // No vector columns, nothing to do
+    }
+
+    // Try to enable pgvector extension
+    try {
+      await this.db.query("CREATE EXTENSION IF NOT EXISTS vector");
+    } catch (error) {
+      console.warn(
+        "pgvector extension not available, vector columns will use TEXT fallback:",
+        error
+      );
+      return;
+    }
+
+    // Create HNSW index for each vector column
+    for (const { column } of vectorColumns) {
+      const indexName = `${this.table}_${column}_hnsw_idx`;
+      try {
+        await this.db.query(`
+          CREATE INDEX IF NOT EXISTS "${indexName}"
+          ON "${this.table}"
+          USING hnsw ("${column}" vector_cosine_ops)
+        `);
+      } catch (error) {
+        console.warn(`Failed to create HNSW index on ${column}:`, error);
+      }
+    }
   }
 
   /**

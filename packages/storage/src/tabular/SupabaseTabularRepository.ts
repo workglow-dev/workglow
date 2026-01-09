@@ -5,22 +5,29 @@
  */
 
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { createServiceToken, DataPortSchemaObject, FromSchema, JsonSchema } from "@workglow/util";
+import {
+  createServiceToken,
+  DataPortSchemaObject,
+  FromSchema,
+  JsonSchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
 import { BaseSqlTabularRepository } from "./BaseSqlTabularRepository";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
   isSearchCondition,
-  ITabularRepository,
   SearchOperator,
+  SimplifyPrimaryKey,
   TabularChangePayload,
   TabularChangeType,
   TabularSubscribeOptions,
   ValueOptionType,
 } from "./ITabularRepository";
 
-export const SUPABASE_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.supabase");
+export const SUPABASE_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.supabase"
+);
 
 /**
  * A Supabase-based tabular repository implementation that extends BaseSqlTabularRepository.
@@ -34,10 +41,9 @@ export class SupabaseTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private client: SupabaseClient;
   private realtimeChannel: RealtimeChannel | null = null;
 
