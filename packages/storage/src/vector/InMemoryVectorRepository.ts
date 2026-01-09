@@ -107,12 +107,12 @@ export class InMemoryVectorRepository<
 
     for (const [key, typeDef] of Object.entries(schema.properties)) {
       if (
-        (typeDef as { format?: string }).format === "vector" &&
-        typeof (typeDef as { dimension?: number }).dimension === "number"
+        (typeDef as { format?: string }).format === "TypedArray" &&
+        typeof (typeDef as { "x-dimensions": number })["x-dimensions"] === "number"
       ) {
         vectorColumns.push({
           column: key,
-          dimension: (typeDef as { "x-dimensions": number })["x-dimensions"],
+          dimension: (typeDef as { "x-dimensions": number })["x-dimensions"] as number,
         });
       }
     }
