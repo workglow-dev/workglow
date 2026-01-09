@@ -4,15 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cosineSimilarity, EventEmitter, TypedArray } from "@workglow/util";
+import type { DataPortSchemaObject, TypedArray, TypedArraySchemaOptions } from "@workglow/util";
+import { cosineSimilarity, FromSchema } from "@workglow/util";
 import { InMemoryTabularRepository } from "../tabular/InMemoryTabularRepository";
-import {
+import type {
   HybridSearchOptions,
   IVectorRepository,
-  SearchResult,
-  VectorEntry,
-  VectorEventListeners,
-  VectorSchema,
   VectorSearchOptions,
 } from "./IVectorRepository";
 
@@ -49,81 +46,107 @@ function textRelevance(text: string, query: string): number {
 
 /**
  * In-memory vector repository implementation.
- * Uses InMemoryTabularRepository internally for storage.
+ * Extends InMemoryTabularRepository for storage.
  * Suitable for testing and small-scale browser applications.
  * Supports all vector types including quantized formats.
  *
- * @template Metadata - Type for metadata associated with vectors
- * @template VectorChoice - Type of vector array (Float32Array, Int8Array, etc.)
+ * Supports custom schemas for flexibility (e.g., multi-tenant with additional columns).
+ * The schema must have at least one column with { type: "string", format: "TypedArray", x-dimensions: number }
+ *
+ * @template Schema - The schema definition for the entity using JSON Schema
+ * @template PrimaryKeyNames - Array of property names that form the primary key
+ * @template Entity - The entity type
  */
 export class InMemoryVectorRepository<
-  Metadata = Record<string, unknown>,
-  VectorChoice extends TypedArray = Float32Array,
+  Schema extends DataPortSchemaObject,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
-  extends EventEmitter<VectorEventListeners<Metadata, VectorChoice>>
-  implements IVectorRepository<Metadata, VectorChoice>
+  extends InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity>
+  implements IVectorRepository<Schema, PrimaryKeyNames, Entity>
 {
-  private tabularRepo: InMemoryTabularRepository<typeof VectorSchema, ["id"]>;
+  private vectorColumn: string;
+  private metadataColumn: string | undefined;
 
   /**
    * Creates a new in-memory vector repository
+   * @param schema - Schema with at least one vector column (format: "TypedArray", x-dimensions: number)
+   * @param primaryKeyNames - Array of property names that form the primary key (e.g., ["id"] or ["tenantId", "id"])
+   * @param indexes - Array of columns or column arrays to make searchable (e.g., [["tenantId"], ["docId"]])
    */
-  constructor() {
-    super();
-    this.tabularRepo = new InMemoryTabularRepository(VectorSchema, ["id"] as const, []);
-  }
+  constructor(
+    schema: Schema,
+    primaryKeyNames: PrimaryKeyNames,
+    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = []
+  ) {
+    super(schema, primaryKeyNames, indexes);
 
-  async setupDatabase(): Promise<void> {
-    await this.tabularRepo.setupDatabase();
-  }
-
-  async upsert(id: string, vector: VectorChoice, metadata: Metadata): Promise<void> {
-    const entity = {
-      id,
-      vector: vector as any, // Store TypedArray directly in memory
-      metadata: JSON.stringify(metadata),
-    };
-    await this.tabularRepo.put(entity);
-    this.emit("upsert", { id, vector, metadata });
-  }
-
-  async upsertBulk(items: VectorEntry<Metadata, VectorChoice>[]): Promise<void> {
-    const entities = items.map((item) => ({
-      id: item.id,
-      vector: item.vector as any,
-      metadata: JSON.stringify(item.metadata),
-    }));
-    await this.tabularRepo.putBulk(entities);
-    for (const item of items) {
-      this.emit("upsert", item);
+    // Find the vector column from the schema
+    const vectorColumns = this.findVectorColumns(schema);
+    if (vectorColumns.length === 0) {
+      throw new Error(
+        `Schema must have at least one property with format: "TypedArray" and dimension specified`
+      );
     }
+    // Use the first vector column (support for multiple vectors can be added later)
+    this.vectorColumn = vectorColumns[0].column;
+
+    // Find the metadata column from the schema
+    const metadataColumn = this.findMetadataColumn(schema);
+    if (!metadataColumn) {
+      throw new Error(`Schema must have at least one property with format: "metadata"`);
+    }
+    this.metadataColumn = metadataColumn;
   }
 
   /**
-   * Copy a vector to avoid external mutations
+   * Finds all vector columns in the schema
    */
-  private copyVector(vector: TypedArray): VectorChoice {
-    if (vector instanceof Float32Array) return new Float32Array(vector) as VectorChoice;
-    if (vector instanceof Float64Array) return new Float64Array(vector) as VectorChoice;
-    if (vector instanceof Int8Array) return new Int8Array(vector) as VectorChoice;
-    if (vector instanceof Uint8Array) return new Uint8Array(vector) as VectorChoice;
-    if (vector instanceof Int16Array) return new Int16Array(vector) as VectorChoice;
-    if (vector instanceof Uint16Array) return new Uint16Array(vector) as VectorChoice;
-    return new Float32Array(vector) as VectorChoice;
+  private findVectorColumns(schema: Schema): Array<{ column: string; dimension: number }> {
+    const vectorColumns: Array<{ column: string; dimension: number }> = [];
+
+    for (const [key, typeDef] of Object.entries(schema.properties)) {
+      if (
+        (typeDef as { format?: string }).format === "vector" &&
+        typeof (typeDef as { dimension?: number }).dimension === "number"
+      ) {
+        vectorColumns.push({
+          column: key,
+          dimension: (typeDef as { "x-dimensions": number })["x-dimensions"],
+        });
+      }
+    }
+
+    return vectorColumns;
+  }
+
+  /**
+   * Finds the metadata column in the schema
+   */
+  private findMetadataColumn(schema: Schema): string | undefined {
+    for (const [key, typeDef] of Object.entries(schema.properties)) {
+      if ((typeDef as { format?: string }).format === "metadata") {
+        return key;
+      }
+    }
+    return undefined;
   }
 
   async similaritySearch(
-    query: VectorChoice,
-    options: VectorSearchOptions<Metadata, VectorChoice> = {}
-  ): Promise<SearchResult<Metadata, VectorChoice>[]> {
+    query: TypedArray,
+    options: VectorSearchOptions<Record<string, unknown>> = {}
+  ) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
-    const results: SearchResult<Metadata, VectorChoice>[] = [];
+    const results: Array<Entity & { score: number }> = [];
 
-    const allEntities = (await this.tabularRepo.getAll()) || [];
+    const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
-      const vector = entity.vector as unknown as VectorChoice;
-      const metadata = JSON.parse(entity.metadata) as Metadata;
+      const vector = entity[this.vectorColumn as keyof typeof entity] as TypedArray;
+      const metadata = entity[this.metadataColumn as keyof typeof entity] as Record<
+        string,
+        unknown
+      >;
 
       // Apply filter if provided
       if (filter && !matchesFilter(metadata, filter)) {
@@ -139,25 +162,20 @@ export class InMemoryVectorRepository<
       }
 
       results.push({
-        id: entity.id,
+        ...entity,
         vector,
-        metadata,
         score,
-      });
+      } as any);
     }
 
     // Sort by score descending and take top K
-    results.sort((a, b) => b.score - a.score);
+    results.sort((a, b) => (b as any).score - (a as any).score);
     const topResults = results.slice(0, topK);
 
-    this.emit("search", query, topResults);
     return topResults;
   }
 
-  async hybridSearch(
-    query: VectorChoice,
-    options: HybridSearchOptions<Metadata, VectorChoice>
-  ): Promise<SearchResult<Metadata, VectorChoice>[]> {
+  async hybridSearch(query: TypedArray, options: HybridSearchOptions<Record<string, unknown>>) {
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
@@ -165,12 +183,16 @@ export class InMemoryVectorRepository<
       return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
-    const results: SearchResult<Metadata, VectorChoice>[] = [];
-    const allEntities = (await this.tabularRepo.getAll()) || [];
+    const results: Array<Entity & { score: number }> = [];
+    const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
-      const vector = entity.vector as unknown as VectorChoice;
-      const metadata = JSON.parse(entity.metadata) as Metadata;
+      // In memory, vectors are stored as TypedArrays directly (not serialized)
+      const vector = entity[this.vectorColumn as keyof typeof entity] as TypedArray;
+      const metadata = entity[this.metadataColumn as keyof typeof entity] as Record<
+        string,
+        unknown
+      >;
 
       // Apply filter if provided
       if (filter && !matchesFilter(metadata, filter)) {
@@ -181,7 +203,9 @@ export class InMemoryVectorRepository<
       const vectorScore = cosineSimilarity(query, vector);
 
       // Calculate text relevance (simple keyword matching)
-      const metadataText = entity.metadata.toLowerCase();
+      const metadataText = Object.values(metadata as Record<string, unknown>)
+        .join(" ")
+        .toLowerCase();
       const textScore = textRelevance(metadataText, textQuery);
 
       // Combine scores
@@ -193,72 +217,16 @@ export class InMemoryVectorRepository<
       }
 
       results.push({
-        id: entity.id,
+        ...entity,
         vector,
-        metadata,
         score: combinedScore,
       });
     }
 
     // Sort by combined score descending and take top K
-    results.sort((a, b) => b.score - a.score);
+    results.sort((a, b) => (b as any).score - (a as any).score);
     const topResults = results.slice(0, topK);
 
-    this.emit("search", query, topResults);
     return topResults;
-  }
-
-  async get(id: string): Promise<VectorEntry<Metadata, VectorChoice> | undefined> {
-    const entity = await this.tabularRepo.get({ id });
-    if (entity) {
-      return {
-        id: entity.id,
-        vector: this.copyVector(entity.vector as unknown as TypedArray),
-        metadata: JSON.parse(entity.metadata) as Metadata,
-      };
-    }
-    return undefined;
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.tabularRepo.delete({ id });
-    this.emit("delete", id);
-  }
-
-  async deleteBulk(ids: string[]): Promise<void> {
-    for (const id of ids) {
-      await this.delete(id);
-    }
-  }
-
-  async deleteByFilter(filter: Partial<Metadata>): Promise<void> {
-    const allEntities = (await this.tabularRepo.getAll()) || [];
-    const idsToDelete: string[] = [];
-
-    for (const entity of allEntities) {
-      const metadata = JSON.parse(entity.metadata) as Metadata;
-      if (matchesFilter(metadata, filter)) {
-        idsToDelete.push(entity.id);
-      }
-    }
-
-    await this.deleteBulk(idsToDelete);
-  }
-
-  async size(): Promise<number> {
-    return await this.tabularRepo.size();
-  }
-
-  async clear(): Promise<void> {
-    const allEntities = (await this.tabularRepo.getAll()) || [];
-    await this.tabularRepo.deleteAll();
-    for (const entity of allEntities) {
-      this.emit("delete", entity.id);
-    }
-  }
-
-  destroy(): void {
-    this.tabularRepo.destroy();
-    this.removeAllListeners();
   }
 }

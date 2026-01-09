@@ -13,6 +13,7 @@ A flexible vector storage solution with multiple backend implementations for RAG
 
 - **Quantized Vector Support:**
   - Float32Array (standard 32-bit floating point)
+  - Float16Array (16-bit floating point)
   - Float64Array (64-bit high precision)
   - Int8Array (8-bit signed - binary quantization)
   - Uint8Array (8-bit unsigned - quantization)
@@ -383,11 +384,8 @@ The `IDocumentRepository` interface provides storage for hierarchical document s
 
 ```typescript
 class DocumentRepository {
-  constructor(
-    tabularStorage: ITabularRepository,
-    vectorStorage: IVectorRepository
-  );
-  
+  constructor(tabularStorage: ITabularRepository, vectorStorage: IVectorRepository);
+
   upsert(document: Document): Promise<void>;
   get(docId: string): Promise<Document | undefined>;
   getNode(docId: string, nodeId: string): Promise<DocumentNode | undefined>;
@@ -404,10 +402,10 @@ class DocumentRepository {
 
 The `DocumentRepository` class provides a unified interface for storing hierarchical documents and searching chunks. It uses composition of storage backends:
 
-| Component | Purpose |
-|-----------|---------|
-| `ITabularRepository` | Stores document structure and metadata |
-| `IVectorRepository` | Enables similarity search on document chunks |
+| Component            | Purpose                                      |
+| -------------------- | -------------------------------------------- |
+| `ITabularRepository` | Stores document structure and metadata       |
+| `IVectorRepository`  | Enables similarity search on document chunks |
 
 **Example Usage:**
 

@@ -10,21 +10,21 @@ import {
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
-import type { IVectorRepository } from "./IVectorRepository";
+import { AnyVectorRepository } from "./IVectorRepository";
 
 /**
  * Service token for the vector repository registry
  * Maps repository IDs to IVectorRepository instances
  */
-export const VECTOR_REPOSITORIES = createServiceToken<Map<string, IVectorRepository<any>>>(
-  "vector.repositories"
+export const VECTOR_REPOSITORIES = createServiceToken<Map<string, AnyVectorRepository>>(
+  "storage.vector.repositories"
 );
 
 // Register default factory if not already registered
 if (!globalServiceRegistry.has(VECTOR_REPOSITORIES)) {
   globalServiceRegistry.register(
     VECTOR_REPOSITORIES,
-    (): Map<string, IVectorRepository<any>> => new Map(),
+    (): Map<string, AnyVectorRepository> => new Map(),
     true
   );
 }
@@ -33,7 +33,7 @@ if (!globalServiceRegistry.has(VECTOR_REPOSITORIES)) {
  * Gets the global vector repository registry
  * @returns Map of vector repository ID to instance
  */
-export function getGlobalVectorRepositories(): Map<string, IVectorRepository<any>> {
+export function getGlobalVectorRepositories(): Map<string, AnyVectorRepository> {
   return globalServiceRegistry.get(VECTOR_REPOSITORIES);
 }
 
@@ -42,7 +42,7 @@ export function getGlobalVectorRepositories(): Map<string, IVectorRepository<any
  * @param id The unique identifier for this repository
  * @param repository The repository instance to register
  */
-export function registerVectorRepository(id: string, repository: IVectorRepository<any>): void {
+export function registerVectorRepository(id: string, repository: AnyVectorRepository): void {
   const repos = getGlobalVectorRepositories();
   repos.set(id, repository);
 }
@@ -52,7 +52,7 @@ export function registerVectorRepository(id: string, repository: IVectorReposito
  * @param id The repository identifier
  * @returns The repository instance or undefined if not found
  */
-export function getVectorRepository(id: string): IVectorRepository<any> | undefined {
+export function getVectorRepository(id: string): AnyVectorRepository | undefined {
   return getGlobalVectorRepositories().get(id);
 }
 
@@ -64,9 +64,9 @@ async function resolveVectorRepositoryFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): Promise<IVectorRepository<any>> {
+): Promise<AnyVectorRepository> {
   const repos = registry.has(VECTOR_REPOSITORIES)
-    ? registry.get<Map<string, IVectorRepository<any>>>(VECTOR_REPOSITORIES)
+    ? registry.get<Map<string, AnyVectorRepository>>(VECTOR_REPOSITORIES)
     : getGlobalVectorRepositories();
 
   const repo = repos.get(id);

@@ -4,67 +4,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject, EventParameters, TypedArray } from "@workglow/util";
+import type {
+  DataPortSchemaObject,
+  EventParameters,
+  FromSchema,
+  TypedArray,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import type { ITabularRepository, TabularEventListeners } from "../tabular/ITabularRepository";
+
+export type AnyVectorRepository = IVectorRepository<any, any, any>;
 
 /**
- * Schema for vector storage in tabular format.
- * In-memory implementations may store vector as TypedArray directly,
- * while SQL implementations serialize to JSON string.
+ * Find the property with format: "metadata" and extract its type
  */
-export const VectorSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    vector: { type: "string" }, // TypedArray in memory, JSON string in SQL
-    metadata: { type: "string" }, // JSON-serialized metadata
-  },
-  required: ["id", "vector", "metadata"],
-  additionalProperties: false,
-} as const satisfies DataPortSchemaObject;
-
-export type VectorEntity = {
-  readonly id: string;
-  readonly vector: string | TypedArray;
-  readonly metadata: string;
-};
-
-/**
- * A vector entry with its associated metadata
- */
-export interface VectorEntry<
-  Metadata = Record<string, unknown>,
-  VectorChoice extends TypedArray = Float32Array,
-> {
-  readonly id: string;
-  readonly vector: VectorChoice;
-  readonly metadata: Metadata;
-}
-
-/**
- * A search result with similarity score
- */
-export interface SearchResult<
-  Metadata = Record<string, unknown>,
-  VectorChoice extends TypedArray = Float32Array,
-> {
-  readonly id: string;
-  readonly vector: VectorChoice;
-  readonly metadata: Metadata;
-  readonly score: number;
-}
+export type ExtractMetadataProperty<Schema extends DataPortSchemaObject> = {
+  [K in keyof Schema["properties"]]: Schema["properties"][K] extends { format: "metadata" }
+    ? K
+    : never;
+}[keyof Schema["properties"]];
 
 /**
  * Options for vector search operations
  */
-export interface VectorSearchOptions<
-  Metadata = Record<string, unknown>,
-  VectorChoice extends TypedArray = Float32Array,
-> {
-  /** Maximum number of results to return */
+export interface VectorSearchOptions<Metadata = Record<string, unknown>> {
   topK?: number;
-  /** Filter by metadata fields */
   filter?: Partial<Metadata>;
-  /** Minimum similarity score threshold */
   scoreThreshold?: number;
 }
 
@@ -73,64 +38,52 @@ export interface VectorSearchOptions<
  */
 export interface HybridSearchOptions<
   Metadata = Record<string, unknown>,
-  VectorChoice extends TypedArray = Float32Array,
-> extends VectorSearchOptions<Metadata, VectorChoice> {
-  /** Full-text query string */
+> extends VectorSearchOptions<Metadata> {
   textQuery: string;
-  /** Weight for vector similarity (0-1), remainder goes to text relevance */
   vectorWeight?: number;
 }
 
 /**
  * Type definitions for vector repository events
  */
-export type VectorEventListeners<Metadata, VectorChoice extends TypedArray = Float32Array> = {
-  upsert: (entry: VectorEntry<Metadata, VectorChoice>) => void;
-  delete: (id: string) => void;
-  search: (query: VectorChoice, results: SearchResult<Metadata, VectorChoice>[]) => void;
-};
+export interface VectorEventListeners<PrimaryKey, Entity> extends TabularEventListeners<
+  PrimaryKey,
+  Entity
+> {
+  similaritySearch: (query: TypedArray, results: (Entity & { score: number })[]) => void;
+  hybridSearch: (query: TypedArray, results: (Entity & { score: number })[]) => void;
+}
 
 export type VectorEventName = keyof VectorEventListeners<any, any>;
 export type VectorEventListener<
   Event extends VectorEventName,
-  Metadata,
-  VectorChoice extends TypedArray = Float32Array,
-> = VectorEventListeners<Metadata, VectorChoice>[Event];
+  PrimaryKey,
+  Entity,
+> = VectorEventListeners<PrimaryKey, Entity>[Event];
 
 export type VectorEventParameters<
   Event extends VectorEventName,
-  Metadata,
-  VectorChoice extends TypedArray = Float32Array,
-> = EventParameters<VectorEventListeners<Metadata, VectorChoice>, Event>;
+  PrimaryKey,
+  Entity,
+> = EventParameters<VectorEventListeners<PrimaryKey, Entity>, Event>;
 
 /**
  * Interface defining the contract for vector storage repositories.
- * While the interface doesn't formally extend ITabularRepository (due to signature differences),
- * implementations typically extend tabular repository implementations for code reuse.
- * Provides operations for storing, retrieving, and searching vector embeddings.
+ * Extends ITabularRepository to provide standard storage operations,
+ * plus vector-specific similarity search capabilities.
  * Supports various vector types including quantized formats.
  *
- * @typeParam Metadata - Type for metadata associated with vectors
- * @typeParam VectorChoice - Type of vector array (Float32Array, Int8Array, etc.)
+ * @typeParam Schema - The schema definition for the entity using JSON Schema
+ * @typeParam PrimaryKeyNames - Array of property names that form the primary key
+ * @typeParam Entity - The entity type
+ * @typeParam PrimaryKey - The primary key type
+ * @typeParam SearchResult - Type of search result including score and vector
  */
 export interface IVectorRepository<
-  Metadata = Record<string, unknown>,
-  VectorChoice extends TypedArray = Float32Array,
-> {
-  /**
-   * Upsert a vector entry (insert or update)
-   * @param id - Unique identifier for the vector
-   * @param vector - The vector embedding (Float32Array, Int8Array, etc.)
-   * @param metadata - Associated metadata
-   */
-  upsert(id: string, vector: VectorChoice, metadata: Metadata): Promise<void>;
-
-  /**
-   * Upsert multiple vector entries in bulk
-   * @param items - Array of vector entries to upsert
-   */
-  upsertBulk(items: VectorEntry<Metadata, VectorChoice>[]): Promise<void>;
-
+  Schema extends DataPortSchemaObject,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+> extends ITabularRepository<Schema, PrimaryKeyNames, Entity> {
   /**
    * Search for similar vectors using similarity scoring
    * @param query - Query vector to compare against
@@ -138,9 +91,9 @@ export interface IVectorRepository<
    * @returns Array of search results sorted by similarity (highest first)
    */
   similaritySearch(
-    query: VectorChoice,
-    options?: VectorSearchOptions<Metadata, VectorChoice>
-  ): Promise<SearchResult<Metadata, VectorChoice>[]>;
+    query: TypedArray,
+    options?: VectorSearchOptions<Record<string, unknown>>
+  ): Promise<(Entity & { score: number })[]>;
 
   /**
    * Hybrid search combining vector similarity with full-text search
@@ -150,75 +103,7 @@ export interface IVectorRepository<
    * @returns Array of search results sorted by combined relevance
    */
   hybridSearch?(
-    query: VectorChoice,
-    options: HybridSearchOptions<Metadata, VectorChoice>
-  ): Promise<SearchResult<Metadata, VectorChoice>[]>;
-
-  /**
-   * Get a vector entry by ID
-   * @param id - Unique identifier
-   * @returns The vector entry or undefined if not found
-   */
-  get(id: string): Promise<VectorEntry<Metadata, VectorChoice> | undefined>;
-
-  /**
-   * Delete a vector entry by ID
-   * @param id - Unique identifier
-   */
-  delete(id: string): Promise<void>;
-
-  /**
-   * Delete multiple vector entries by IDs
-   * @param ids - Array of unique identifiers
-   */
-  deleteBulk(ids: string[]): Promise<void>;
-
-  /**
-   * Delete vectors matching metadata filter
-   * @param filter - Partial metadata to match
-   */
-  deleteByFilter(filter: Partial<Metadata>): Promise<void>;
-
-  /**
-   * Get the number of vectors stored
-   * @returns Total count of vectors
-   */
-  size(): Promise<number>;
-
-  /**
-   * Clear all vectors from the repository
-   */
-  clear(): Promise<void>;
-
-  /**
-   * Set up the repository (create tables, indexes, etc.)
-   * Must be called before using other methods
-   */
-  setupDatabase(): Promise<void>;
-
-  /**
-   * Destroy the repository and free resources
-   */
-  destroy(): void;
-
-  // Event handling methods
-  on<Event extends VectorEventName>(
-    name: Event,
-    fn: VectorEventListener<Event, Metadata, VectorChoice>
-  ): void;
-  off<Event extends VectorEventName>(
-    name: Event,
-    fn: VectorEventListener<Event, Metadata, VectorChoice>
-  ): void;
-  emit<Event extends VectorEventName>(
-    name: Event,
-    ...args: VectorEventParameters<Event, Metadata, VectorChoice>
-  ): void;
-  once<Event extends VectorEventName>(
-    name: Event,
-    fn: VectorEventListener<Event, Metadata, VectorChoice>
-  ): void;
-  waitOn<Event extends VectorEventName>(
-    name: Event
-  ): Promise<VectorEventParameters<Event, Metadata, VectorChoice>>;
+    query: TypedArray,
+    options: HybridSearchOptions<Record<string, unknown>>
+  ): Promise<(Entity & { score: number })[]>;
 }

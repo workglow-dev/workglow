@@ -5,158 +5,210 @@
  */
 
 import { Sqlite } from "@workglow/sqlite";
-import { cosineSimilarity, EventEmitter, TypedArray } from "@workglow/util";
+import type { DataPortSchemaObject, TypedArray, TypedArraySchemaOptions } from "@workglow/util";
+import { cosineSimilarity, FromSchema } from "@workglow/util";
 import { SqliteTabularRepository } from "../tabular/SqliteTabularRepository";
-import {
+import type {
   HybridSearchOptions,
   IVectorRepository,
-  SearchResult,
-  VectorEntry,
-  VectorEventListeners,
-  VectorSchema,
   VectorSearchOptions,
 } from "./IVectorRepository";
 
-type VectorRow = {
-  id: string;
-  vector: string;
-  metadata: string;
-};
+/**
+ * Check if metadata matches filter
+ */
+function matchesFilter<Metadata>(metadata: Metadata, filter: Partial<Metadata>): boolean {
+  for (const [key, value] of Object.entries(filter)) {
+    if (metadata[key as keyof Metadata] !== value) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /**
  * SQLite vector repository implementation using tabular storage underneath.
  * Stores vectors as JSON-encoded arrays with metadata.
  *
- * @template Metadata - Type for metadata associated with vectors
- * @template Vector - Type of vector array (Float32Array, Int8Array, etc.)
+ * Supports custom schemas for flexibility (e.g., multi-tenant with additional columns).
+ * The schema must have at least one column with { type: "string", format: "TypedArray", x-dimensions: number }
+ *
+ * @template Schema - The schema definition for the entity using JSON Schema
+ * @template PrimaryKeyNames - Array of property names that form the primary key
+ * @template Entity - The entity type
  */
 export class SqliteVectorRepository<
-  Metadata = Record<string, unknown>,
-  VectorChoice extends TypedArray = Float32Array,
+  Schema extends DataPortSchemaObject,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
-  extends EventEmitter<VectorEventListeners<Metadata, VectorChoice>>
-  implements IVectorRepository<Metadata, VectorChoice>
+  extends SqliteTabularRepository<Schema, PrimaryKeyNames, Entity>
+  implements IVectorRepository<Schema, PrimaryKeyNames, Entity>
 {
-  private tabularRepo: SqliteTabularRepository<typeof VectorSchema, ["id"]>;
-  private initialized = false;
+  private vectorColumn: string;
+  private metadataColumn: string | undefined;
 
   /**
    * Creates a new SQLite vector repository
    * @param dbOrPath - Either a Database instance or a path to the SQLite database file
    * @param table - The name of the table to use for storage (defaults to 'vectors')
+   * @param schema - Schema with at least one vector column (format: "TypedArray", x-dimensions: number)
+   * @param primaryKeyNames - Array of property names that form the primary key (e.g., ["id"] or ["tenantId", "id"])
+   * @param indexes - Array of columns or column arrays to make searchable (e.g., [["tenantId"], ["docId"]])
    */
-  constructor(dbOrPath: string | Sqlite.Database, table: string = "vectors") {
-    super();
-    this.tabularRepo = new SqliteTabularRepository(
-      dbOrPath,
-      table,
-      VectorSchema,
-      ["id"] as const,
-      [] // No additional indexes needed for now
-    );
-  }
+  constructor(
+    dbOrPath: string | Sqlite.Database,
+    table: string = "vectors",
+    schema: Schema,
+    primaryKeyNames: PrimaryKeyNames,
+    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = []
+  ) {
+    super(dbOrPath, table, schema, primaryKeyNames, indexes);
 
-  async setupDatabase(): Promise<void> {
-    if (this.initialized) {
-      return;
+    // Find the vector column from the schema
+    const vectorColumns = this.findVectorColumns(schema);
+    if (vectorColumns.length === 0) {
+      throw new Error(
+        `Schema must have at least one property with format: "TypedArray" and dimension specified`
+      );
     }
-    await this.tabularRepo.setupDatabase();
-    this.initialized = true;
-  }
+    // Use the first vector column (support for multiple vectors can be added later)
+    this.vectorColumn = vectorColumns[0].column;
 
-  async upsert(id: string, vector: VectorChoice, metadata: Metadata): Promise<void> {
-    const row: VectorRow = {
-      id,
-      vector: JSON.stringify(Array.from(vector)),
-      metadata: JSON.stringify(metadata),
-    };
-
-    await this.tabularRepo.put(row);
-    this.emit("upsert", { id, vector, metadata });
-  }
-
-  async upsertBulk(items: VectorEntry<Metadata, VectorChoice>[]): Promise<void> {
-    const rows: VectorRow[] = items.map((item) => ({
-      id: item.id,
-      vector: JSON.stringify(Array.from(item.vector)),
-      metadata: JSON.stringify(item.metadata),
-    }));
-
-    await this.tabularRepo.putBulk(rows);
-
-    for (const item of items) {
-      this.emit("upsert", item);
+    // Find the metadata column from the schema
+    const metadataColumn = this.findMetadataColumn(schema);
+    if (!metadataColumn) {
+      throw new Error(`Schema must have at least one property with format: "metadata"`);
     }
+    this.metadataColumn = metadataColumn;
+  }
+
+  /**
+   * Finds all vector columns in the schema
+   */
+  private findVectorColumns(schema: Schema): Array<{ column: string; dimension: number }> {
+    const vectorColumns: Array<{ column: string; dimension: number }> = [];
+
+    for (const [key, typeDef] of Object.entries(schema.properties)) {
+      if (
+        (typeDef as { format?: string }).format === "vector" &&
+        typeof (typeDef as { dimension?: number }).dimension === "number"
+      ) {
+        vectorColumns.push({
+          column: key,
+          dimension: (typeDef as { "x-dimensions": number })["x-dimensions"],
+        });
+      }
+    }
+
+    return vectorColumns;
+  }
+
+  /**
+   * Finds the metadata column in the schema
+   */
+  private findMetadataColumn(schema: Schema): string | undefined {
+    for (const [key, typeDef] of Object.entries(schema.properties)) {
+      if ((typeDef as { format?: string }).format === "metadata") {
+        return key;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Deserialize vector from JSON string
+   * Defaults to Float32Array for compatibility with typical embedding vectors
+   */
+  private deserializeVector(vectorJson: string): TypedArray {
+    const array = JSON.parse(vectorJson);
+    // Default to Float32Array for typical use case (embeddings)
+    return new Float32Array(array);
   }
 
   async similaritySearch(
-    query: VectorChoice,
-    options: VectorSearchOptions<Metadata, TypedArray> = {}
-  ): Promise<SearchResult<Metadata, VectorChoice>[]> {
+    query: TypedArray,
+    options: VectorSearchOptions<Record<string, unknown>> = {}
+  ) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
+    const results: Array<Entity & { score: number }> = [];
 
-    // Get all vectors (or filtered subset)
-    const allRows = (await this.tabularRepo.getAll()) || [];
-    const results: SearchResult<Metadata, VectorChoice>[] = [];
+    const allEntities = (await this.getAll()) || [];
 
-    for (const row of allRows) {
-      const vector = this.deserializeVector(row.vector);
-      const metadata = JSON.parse(row.metadata) as Metadata;
+    for (const entity of allEntities) {
+      // SQLite stores vectors as JSON strings, need to deserialize
+      const vectorRaw = entity[this.vectorColumn as keyof typeof entity];
+      const vector =
+        typeof vectorRaw === "string"
+          ? this.deserializeVector(vectorRaw)
+          : (vectorRaw as TypedArray);
+      const metadata = entity[this.metadataColumn as keyof typeof entity] as Record<
+        string,
+        unknown
+      >;
 
-      // Apply metadata filter if provided
-      if (filter && !this.matchesFilter(metadata, filter)) {
+      // Apply filter if provided
+      if (filter && !matchesFilter(metadata, filter)) {
         continue;
       }
 
       // Calculate similarity
       const score = cosineSimilarity(query, vector);
 
-      if (score >= scoreThreshold) {
-        results.push({
-          id: row.id,
-          vector,
-          metadata,
-          score,
-        });
+      // Apply threshold
+      if (score < scoreThreshold) {
+        continue;
       }
+
+      results.push({
+        ...entity,
+        vector,
+        score,
+      } as any);
     }
 
     // Sort by score descending and take top K
     results.sort((a, b) => b.score - a.score);
     const topResults = results.slice(0, topK);
 
-    this.emit("search", query, topResults);
     return topResults;
   }
 
-  async hybridSearch(
-    query: VectorChoice,
-    options: HybridSearchOptions<Metadata, VectorChoice>
-  ): Promise<SearchResult<Metadata, VectorChoice>[]> {
+  async hybridSearch(query: TypedArray, options: HybridSearchOptions<Record<string, unknown>>) {
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
+      // Fall back to regular vector search if no text query
       return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
-    const allRows = (await this.tabularRepo.getAll()) || [];
-    const results: SearchResult<Metadata, VectorChoice>[] = [];
+    const results: Array<Entity & { score: number }> = [];
+    const allEntities = (await this.getAll()) || [];
     const queryLower = textQuery.toLowerCase();
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
-    for (const row of allRows) {
-      const vector = this.deserializeVector(row.vector);
-      const metadata = JSON.parse(row.metadata) as Metadata;
+    for (const entity of allEntities) {
+      // SQLite stores vectors as JSON strings, need to deserialize
+      const vectorRaw = entity[this.vectorColumn as keyof typeof entity];
+      const vector =
+        typeof vectorRaw === "string"
+          ? this.deserializeVector(vectorRaw)
+          : (vectorRaw as TypedArray);
+      const metadata = entity[this.metadataColumn as keyof typeof entity] as Record<
+        string,
+        unknown
+      >;
 
-      if (filter && !this.matchesFilter(metadata, filter)) {
+      // Apply filter if provided
+      if (filter && !matchesFilter(metadata, filter)) {
         continue;
       }
 
-      // Vector similarity
+      // Calculate vector similarity
       const vectorScore = cosineSimilarity(query, vector);
 
-      // Text relevance
-      const metadataText = row.metadata.toLowerCase();
+      // Calculate text relevance (simple keyword matching)
+      const metadataText = JSON.stringify(metadata).toLowerCase();
       let textScore = 0;
       if (queryWords.length > 0) {
         let matches = 0;
@@ -168,118 +220,25 @@ export class SqliteVectorRepository<
         textScore = matches / queryWords.length;
       }
 
-      // Combined score
+      // Combine scores
       const combinedScore = vectorWeight * vectorScore + (1 - vectorWeight) * textScore;
 
-      if (combinedScore >= scoreThreshold) {
-        results.push({
-          id: row.id,
-          vector,
-          metadata,
-          score: combinedScore,
-        });
+      // Apply threshold
+      if (combinedScore < scoreThreshold) {
+        continue;
       }
+
+      results.push({
+        ...entity,
+        vector,
+        score: combinedScore,
+      } as any);
     }
 
+    // Sort by combined score descending and take top K
     results.sort((a, b) => b.score - a.score);
     const topResults = results.slice(0, topK);
 
-    this.emit("search", query, topResults);
     return topResults;
-  }
-
-  async get(id: string): Promise<VectorEntry<Metadata, VectorChoice> | undefined> {
-    const row = await this.tabularRepo.get({ id });
-    if (row) {
-      return {
-        id: row.id,
-        vector: this.deserializeVector(row.vector),
-        metadata: JSON.parse(row.metadata) as Metadata,
-      };
-    }
-    return undefined;
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.tabularRepo.delete({ id });
-    this.emit("delete", id);
-  }
-
-  async deleteBulk(ids: string[]): Promise<void> {
-    for (const id of ids) {
-      await this.tabularRepo.delete({ id });
-      this.emit("delete", id);
-    }
-  }
-
-  async deleteByFilter(filter: Partial<Metadata>): Promise<void> {
-    if (Object.keys(filter).length === 0) return;
-
-    // Get all and filter in memory (SQLite doesn't have JSON query operators)
-    const allRows = (await this.tabularRepo.getAll()) || [];
-    const idsToDelete: string[] = [];
-
-    for (const row of allRows) {
-      const metadata = JSON.parse(row.metadata) as Metadata;
-      if (this.matchesFilter(metadata, filter)) {
-        idsToDelete.push(row.id);
-      }
-    }
-
-    await this.deleteBulk(idsToDelete);
-  }
-
-  async size(): Promise<number> {
-    return await this.tabularRepo.size();
-  }
-
-  async clear(): Promise<void> {
-    await this.tabularRepo.deleteAll();
-  }
-
-  destroy(): void {
-    this.tabularRepo.destroy();
-    this.removeAllListeners();
-  }
-
-  /**
-   * Deserialize vector from JSON string
-   */
-  private deserializeVector(vectorJson: string): VectorChoice {
-    const array = JSON.parse(vectorJson);
-    // Try to infer the type from the values
-    const hasFloats = array.some((v: number) => v % 1 !== 0);
-    const hasNegatives = array.some((v: number) => v < 0);
-
-    if (hasFloats) {
-      return new Float32Array(array) as VectorChoice;
-    } else if (hasNegatives) {
-      const min = Math.min(...array);
-      const max = Math.max(...array);
-      if (min >= -128 && max <= 127) {
-        return new Int8Array(array) as VectorChoice;
-      } else {
-        return new Int16Array(array) as VectorChoice;
-      }
-    } else {
-      const max = Math.max(...array);
-      if (max <= 255) {
-        return new Uint8Array(array) as VectorChoice;
-      } else {
-        return new Uint16Array(array) as VectorChoice;
-      }
-    }
-  }
-
-  /**
-   * Check if metadata matches filter
-   */
-  private matchesFilter(metadata: Metadata, filter: Partial<Metadata>): boolean {
-    for (const [key, value] of Object.entries(filter)) {
-      if (metadata[key as keyof Metadata] !== value) {
-        return false;
-      }
-    }
-    return true;
   }
 }
