@@ -17,6 +17,7 @@ import {
   ExpectedIndexDefinition,
   MigrationOptions,
 } from "../util/IndexedDbTable";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import {
   AnyTabularRepository,
   DeleteSearchCriteria,
@@ -26,7 +27,6 @@ import {
   TabularChangePayload,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
 export const IDB_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
   "storage.tabularRepository.indexedDb"
@@ -44,7 +44,7 @@ export class IndexedDbTabularRepository<
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Promise that resolves to the IndexedDB database instance */
   private db: IDBDatabase | undefined;
   /** Promise to track ongoing database setup to prevent concurrent setup calls */

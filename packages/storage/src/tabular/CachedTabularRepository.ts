@@ -10,6 +10,7 @@ import {
   FromSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import { InMemoryTabularRepository } from "./InMemoryTabularRepository";
 import {
   AnyTabularRepository,
@@ -18,7 +19,6 @@ import {
   SimplifyPrimaryKey,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
 export const CACHED_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
   "storage.tabularRepository.cached"
@@ -38,7 +38,7 @@ export class CachedTabularRepository<
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   public readonly cache: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private durable: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private cacheInitialized = false;

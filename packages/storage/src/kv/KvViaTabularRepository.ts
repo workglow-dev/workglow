@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TabularRepository } from "../tabular/TabularRepository";
+import type { BaseTabularRepository } from "../tabular/BaseTabularRepository";
 import { DefaultKeyValueKey, DefaultKeyValueSchema } from "./IKvRepository";
 import { KvRepository } from "./KvRepository";
 
@@ -21,7 +21,7 @@ export abstract class KvViaTabularRepository<
   Value extends any = any,
   Combined = { key: Key; value: Value },
 > extends KvRepository<Key, Value, Combined> {
-  public abstract tabularRepository: TabularRepository<
+  public abstract tabularRepository: BaseTabularRepository<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;

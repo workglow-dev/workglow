@@ -21,16 +21,16 @@ export * from "./queue/PostgresQueueStorage";
 export * from "./queue/SqliteQueueStorage";
 export * from "./queue/SupabaseQueueStorage";
 
-export * from "./limiter/PostgresRateLimiterStorage";
-export * from "./limiter/SqliteRateLimiterStorage";
-export * from "./limiter/SupabaseRateLimiterStorage";
+export * from "./queue-limiter/PostgresRateLimiterStorage";
+export * from "./queue-limiter/SqliteRateLimiterStorage";
+export * from "./queue-limiter/SupabaseRateLimiterStorage";
 
 export * from "./vector/PostgresVectorRepository";
 export * from "./vector/SqliteVectorRepository";
 
 // testing
 export * from "./kv/IndexedDbKvRepository";
-export * from "./limiter/IndexedDbRateLimiterStorage";
+export * from "./queue-limiter/IndexedDbRateLimiterStorage";
 export * from "./queue/IndexedDbQueueStorage";
 export * from "./tabular/IndexedDbTabularRepository";
 export * from "./util/IndexedDbTable";

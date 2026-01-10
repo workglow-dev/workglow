@@ -10,8 +10,8 @@ import {
   JsonSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import { SimplifyPrimaryKey, ValueOptionType } from "./ITabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
 // BaseTabularRepository is a tabular store that uses SQLite and Postgres use as common code
 
@@ -29,7 +29,7 @@ export abstract class BaseSqlTabularRepository<
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
   Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
   /**
    * Creates a new instance of BaseSqlTabularRepository
    * @param table - The name of the database table to use for storage

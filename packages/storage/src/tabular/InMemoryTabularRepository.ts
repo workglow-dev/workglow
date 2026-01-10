@@ -11,6 +11,7 @@ import {
   makeFingerprint,
   TypedArraySchemaOptions,
 } from "@workglow/util";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import {
   AnyTabularRepository,
   DeleteSearchCriteria,
@@ -19,7 +20,6 @@ import {
   TabularChangePayload,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
 export const MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
   "storage.tabularRepository.inMemory"
@@ -38,7 +38,7 @@ export class InMemoryTabularRepository<
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Internal storage using a Map with fingerprint strings as keys */
   values = new Map<string, Entity>();
 

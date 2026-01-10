@@ -39,7 +39,7 @@ export const TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
  * @template Schema - The schema definition for the entity using JSON Schema
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export abstract class TabularRepository<
+export abstract class BaseTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
@@ -55,7 +55,7 @@ export abstract class TabularRepository<
   protected valueSchema: DataPortSchemaObject;
 
   /**
-   * Creates a new TabularRepository instance
+   * Creates a new BaseTabularRepository instance
    * @param schema - Schema defining the structure of the entity
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable. Each string or single column creates a single-column index,

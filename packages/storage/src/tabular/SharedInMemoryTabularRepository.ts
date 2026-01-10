@@ -10,6 +10,7 @@ import {
   FromSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import {
   AnyTabularRepository,
   DeleteSearchCriteria,
@@ -17,7 +18,6 @@ import {
   TabularSubscribeOptions,
 } from "./ITabularRepository";
 import { InMemoryTabularRepository } from "./InMemoryTabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
 export const SHARED_IN_MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
   "storage.tabularRepository.sharedInMemory"
@@ -49,7 +49,7 @@ export class SharedInMemoryTabularRepository<
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private channel: BroadcastChannel | null = null;
   private channelName: string;
   private inMemoryRepo: InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;

@@ -15,6 +15,7 @@ import {
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PollingSubscriptionManager } from "../util/PollingSubscriptionManager";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import {
   AnyTabularRepository,
   DeleteSearchCriteria,
@@ -22,7 +23,6 @@ import {
   TabularChangePayload,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
 export const FS_FOLDER_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
   "storage.tabularRepository.fsFolder"
@@ -41,7 +41,7 @@ export class FsFolderTabularRepository<
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private folderPath: string;
   /** Shared polling subscription manager */
   private pollingManager: PollingSubscriptionManager<
