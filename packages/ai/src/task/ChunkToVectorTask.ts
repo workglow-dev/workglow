@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { ChunkNodeSchema, type ChunkNode } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -18,7 +19,6 @@ import {
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { ChunkNodeSchema, type ChunkNode } from "../source/DocumentSchema";
 
 const inputSchema = {
   type: "object",

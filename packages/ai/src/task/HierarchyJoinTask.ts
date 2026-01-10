@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DocumentRepository } from "../source/DocumentRepository";
+import type { DocumentRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -14,12 +14,11 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-
 import {
   type ChunkMetadata,
   ChunkMetadataArraySchema,
   EnrichedChunkMetadataArraySchema,
-} from "../source/DocumentSchema";
+} from "@workglow/storage";
 
 const inputSchema = {
   type: "object",

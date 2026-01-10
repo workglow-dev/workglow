@@ -26,6 +26,10 @@ export * from "./queue-limiter/IRateLimiterStorage";
 export * from "./util/HybridSubscriptionManager";
 export * from "./util/PollingSubscriptionManager";
 
-export * from "./vector/InMemoryVectorRepository";
-export * from "./vector/IVectorRepository";
-export * from "./vector/VectorRepositoryRegistry";
+export * from "./document/Document";
+export * from "./document/DocumentNode";
+export * from "./document/DocumentRepository";
+export * from "./document/DocumentRepositoryRegistry";
+export * from "./document/DocumentSchema";
+export * from "./document/DocumentStorageSchema";
+export * from "./document/StructuralParser";

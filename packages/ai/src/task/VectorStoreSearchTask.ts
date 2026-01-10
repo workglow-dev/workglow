@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -133,9 +133,9 @@ export class VectorStoreSearchTask extends Task<
   ): Promise<VectorStoreSearchTaskOutput> {
     const { repository, query, topK = 10, filter, scoreThreshold = 0 } = input;
 
-    const repo = repository as IVectorRepository<any, TypedArray>;
+    const repo = repository as AnyVectorRepository;
 
-    const results = await repo.similaritySearch(query, {
+    const results = await repo.similaritySearch(query as unknown as TypedArray, {
       topK,
       filter,
       scoreThreshold,

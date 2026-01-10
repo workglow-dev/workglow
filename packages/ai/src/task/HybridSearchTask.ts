@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -171,7 +171,7 @@ export class HybridSearchTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as unknown as IVectorRepository<any>;
+    const repo = repository as AnyVectorRepository;
 
     // Check if repository supports hybrid search
     if (!repo.hybridSearch) {
@@ -195,7 +195,7 @@ export class HybridSearchTask extends Task<
 
     // Extract text chunks from metadata
     const chunks = results.map((r) => {
-      const meta = r.metadata as any;
+      const meta = r.metadata as Record<string, string>;
       return meta.text || meta.content || meta.chunk || JSON.stringify(meta);
     });
 

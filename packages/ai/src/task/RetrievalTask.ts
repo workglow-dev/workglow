@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -173,7 +173,7 @@ export class RetrievalTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as unknown as IVectorRepository<any>;
+    const repo = repository as AnyVectorRepository;
 
     // Determine query vector
     let queryVector: TypedArray;

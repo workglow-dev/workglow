@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { DocumentNode, NodeIdGenerator, StructuralParser } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -13,9 +14,6 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { NodeIdGenerator } from "../source/DocumentNode";
-import { DocumentNode } from "../source/DocumentSchema";
-import { StructuralParser } from "../source/StructuralParser";
 
 const inputSchema = {
   type: "object",

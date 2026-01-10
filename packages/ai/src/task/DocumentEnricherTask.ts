@@ -5,6 +5,13 @@
  */
 
 import {
+  getChildren,
+  hasChildren,
+  type DocumentNode,
+  type Entity,
+  type NodeEnrichment,
+} from "@workglow/storage";
+import {
   CreateWorkflow,
   IExecuteContext,
   JobQueueTaskConfig,
@@ -13,12 +20,10 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { TypeModel } from "../common";
 import { ModelConfig } from "../model/ModelSchema";
-import { getChildren, hasChildren } from "../source/DocumentNode";
-import { type DocumentNode, type Entity, type NodeEnrichment } from "../source/DocumentSchema";
 import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
 import { TextSummaryTask } from "./TextSummaryTask";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const inputSchema = {
   type: "object",

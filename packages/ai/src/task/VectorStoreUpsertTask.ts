@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -16,61 +16,36 @@ import {
 import {
   DataPortSchema,
   FromSchema,
-  TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
+import { TypeSingleOrArray } from "./base/AiTaskSchemas";
 
 const inputSchema = {
   type: "object",
   properties: {
+    docId: {
+      type: "string",
+      title: "Document ID",
+      description: "The document ID",
+    },
     repository: TypeVectorRepository({
       title: "Vector Repository",
       description: "The vector repository instance to store vectors in",
     }),
-    ids: {
-      oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
-      title: "IDs",
-      description: "Unique identifier(s) for the vector(s)",
-    },
-    vectors: {
-      oneOf: [
-        TypedArraySchema({
-          title: "Vector",
-          description: "The vector embedding",
-        }),
-        {
-          type: "array",
-          items: TypedArraySchema({
-            title: "Vector",
-            description: "The vector embedding",
-          }),
-        },
-      ],
-      title: "Vectors",
-      description: "Vector embedding(s) to store",
-    },
+    vectors: TypeSingleOrArray(
+      TypedArraySchema({
+        title: "Vector",
+        description: "The vector embedding",
+      })
+    ),
     metadata: {
-      oneOf: [
-        {
-          type: "object",
-          title: "Metadata",
-          description: "Metadata associated with the vector",
-        },
-        {
-          type: "array",
-          items: {
-            type: "object",
-            title: "Metadata",
-            description: "Metadata associated with the vector",
-          },
-        },
-      ],
+      type: "object",
       title: "Metadata",
-      description: "Metadata associated with the vector(s)",
+      description: "Metadata associated with the vector",
     },
   },
-  required: ["repository", "ids", "vectors", "metadata"],
+  required: ["repository", "docId", "vectors", "metadata"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -81,6 +56,11 @@ const outputSchema = {
       type: "number",
       title: "Count",
       description: "Number of vectors upserted",
+    },
+    docId: {
+      type: "string",
+      title: "Document ID",
+      description: "The document ID",
     },
     ids: {
       type: "array",
@@ -93,7 +73,10 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type VectorStoreUpsertTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
+export type VectorStoreUpsertTaskInput = FromSchema<
+  typeof inputSchema,
+  TypedArraySchemaOptions // & TypeVectorRepositoryOptions
+>;
 export type VectorStoreUpsertTaskOutput = FromSchema<typeof outputSchema>;
 
 /**
@@ -123,40 +106,46 @@ export class VectorStoreUpsertTask extends Task<
     input: VectorStoreUpsertTaskInput,
     context: IExecuteContext
   ): Promise<VectorStoreUpsertTaskOutput> {
-    const { repository, ids, vectors, metadata } = input;
+    const { repository, docId, vectors, metadata } = input;
 
     // Normalize inputs to arrays
-    const idArray = Array.isArray(ids) ? ids : [ids];
     const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
-    const metadataArray = Array.isArray(metadata) ? metadata : [metadata];
 
-    // Validate lengths match
-    if (idArray.length !== vectorArray.length || idArray.length !== metadataArray.length) {
-      throw new Error(
-        `Mismatched array lengths: ids(${idArray.length}), vectors(${vectorArray.length}), metadata(${metadataArray.length})`
-      );
-    }
-
-    const repo = repository as IVectorRepository<any, TypedArray>;
+    const repo = repository as AnyVectorRepository;
 
     await context.updateProgress(1, "Upserting vectors");
 
+    const idArray: string[] = [];
+
     // Bulk upsert if multiple items
-    if (idArray.length > 1) {
-      const entries = idArray.map((id, i) => ({
-        id,
-        vector: vectorArray[i],
-        metadata: metadataArray[i],
-      }));
-      await repo.upsertBulk(entries);
-    } else if (idArray.length === 1) {
+    if (vectorArray.length > 1) {
+      const entities = vectorArray.map((vector, i) => {
+        const id = `${docId}_${i}`;
+        idArray.push(id);
+        return {
+          id,
+          docId,
+          vector: vector as any, // Store TypedArray directly (memory) or as string (SQL)
+          metadata,
+        };
+      });
+      await repo.putBulk(entities as any);
+    } else if (vectorArray.length === 1) {
       // Single upsert
-      await repo.upsert(idArray[0], vectorArray[0], metadataArray[0]);
+      const id = `${docId}_0`;
+      idArray.push(id);
+      await repo.put({
+        id,
+        docId,
+        vector: vectorArray[0] as any, // Store TypedArray directly (memory) or as string (SQL)
+        metadata,
+      } as any);
     }
 
     return {
-      count: idArray.length,
+      docId,
       ids: idArray,
+      count: vectorArray.length,
     };
   }
 }

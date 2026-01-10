@@ -4,39 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  ITabularRepository,
-  IVectorRepository,
-  SearchResult,
-  VectorSearchOptions,
-} from "@workglow/storage";
-import type { DataPortSchemaObject, FromSchema, TypedArray } from "@workglow/util";
+import type { TypedArray } from "@workglow/util";
+import type { ITabularRepository } from "../tabular/ITabularRepository";
+import type { IVectorChunkRepository, VectorSearchOptions } from "../vector/IVectorChunkRepository";
 import { Document } from "./Document";
 import { ChunkNode, DocumentNode } from "./DocumentSchema";
-
-/**
- * Schema for storing documents in tabular storage
- */
-export const DocumentStorageSchema = {
-  type: "object",
-  properties: {
-    docId: {
-      type: "string",
-      title: "Document ID",
-      description: "Unique identifier for the document",
-    },
-    data: {
-      type: "string",
-      title: "Document Data",
-      description: "JSON-serialized document",
-    },
-  },
-  required: ["docId", "data"],
-  additionalProperties: false,
-} as const satisfies DataPortSchemaObject;
-
-type DocumentStorageEntity = FromSchema<typeof DocumentStorageSchema>;
-
+import {
+  DocumentStorageEntity,
+  DocumentStorageSchema,
+  VectorChunkStorageEntity,
+} from "./DocumentStorageSchema";
 /**
  * Document repository that uses TabularStorage for persistence and VectorStorage for search.
  * This is a unified implementation that composes storage backends rather than using
@@ -45,12 +22,11 @@ type DocumentStorageEntity = FromSchema<typeof DocumentStorageSchema>;
 export class DocumentRepository {
   private tabularStorage: ITabularRepository<
     typeof DocumentStorageSchema,
-    ["docId"],
+    ["doc_id"],
     DocumentStorageEntity,
-    { docId: string },
-    Document
+    { doc_id: string }
   >;
-  private vectorStorage?: IVectorRepository<any, TypedArray>;
+  private vectorStorage?: IVectorChunkRepository<any, any, any>;
 
   /**
    * Creates a new DocumentRepository instance.
@@ -60,7 +36,7 @@ export class DocumentRepository {
    *
    * @example
    * ```typescript
-   * const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+   * const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["doc_id"]);
    * await tabularStorage.setupDatabase();
    *
    * const vectorStorage = new InMemoryVectorRepository();
@@ -72,12 +48,10 @@ export class DocumentRepository {
   constructor(
     tabularStorage: ITabularRepository<
       typeof DocumentStorageSchema,
-      ["docId"],
-      DocumentStorageEntity,
-      { docId: string },
-      Document
+      ["doc_id"],
+      DocumentStorageEntity
     >,
-    vectorStorage?: IVectorRepository<any, TypedArray>
+    vectorStorage?: IVectorChunkRepository<any, any, any>
   ) {
     this.tabularStorage = tabularStorage;
     this.vectorStorage = vectorStorage;
@@ -89,7 +63,7 @@ export class DocumentRepository {
   async upsert(document: Document): Promise<void> {
     const serialized = JSON.stringify(document.toJSON ? document.toJSON() : document);
     await this.tabularStorage.put({
-      docId: document.docId,
+      doc_id: document.docId,
       data: serialized,
     });
   }
@@ -98,7 +72,7 @@ export class DocumentRepository {
    * Get a document by ID
    */
   async get(docId: string): Promise<Document | undefined> {
-    const entity = await this.tabularStorage.get({ docId });
+    const entity = await this.tabularStorage.get({ doc_id: docId });
     if (!entity) {
       return undefined;
     }
@@ -109,7 +83,7 @@ export class DocumentRepository {
    * Delete a document
    */
   async delete(docId: string): Promise<void> {
-    await this.tabularStorage.delete({ docId });
+    await this.tabularStorage.delete({ doc_id: docId });
   }
 
   /**
@@ -227,7 +201,7 @@ export class DocumentRepository {
     if (!entities) {
       return [];
     }
-    return entities.map((e) => e.docId);
+    return entities.map((e) => e.doc_id);
   }
 
   /**
@@ -238,8 +212,8 @@ export class DocumentRepository {
    */
   async search(
     query: TypedArray,
-    options?: VectorSearchOptions<any, TypedArray>
-  ): Promise<SearchResult<any, TypedArray>[]> {
+    options?: VectorSearchOptions<Record<string, unknown>>
+  ): Promise<Array<VectorChunkStorageEntity>> {
     return this.vectorStorage?.similaritySearch(query, options) || [];
   }
 }

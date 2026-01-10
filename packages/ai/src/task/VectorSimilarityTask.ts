@@ -42,7 +42,7 @@ const SimilarityInputSchema = {
       title: "Query",
       description: "Query vector to compare against",
     }),
-    input: {
+    vectors: {
       type: "array",
       items: TypedArraySchema({
         title: "Input",
@@ -64,7 +64,7 @@ const SimilarityInputSchema = {
       default: SimilarityFn.COSINE,
     },
   },
-  required: ["query", "input", "method"],
+  required: ["query", "vectors", "method"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -119,12 +119,12 @@ export class VectorSimilarityTask extends GraphAsTask<
     return SimilarityOutputSchema as DataPortSchema;
   }
 
-  async executeReactive({ query, input, method, topK }: VectorSimilarityTaskInput) {
+  async executeReactive({ query, vectors, method, topK }: VectorSimilarityTaskInput) {
     let similarities = [];
     const fnName = method as keyof typeof similarityFunctions;
     const fn = similarityFunctions[fnName];
 
-    for (const embedding of input) {
+    for (const embedding of vectors) {
       similarities.push({
         similarity: fn(embedding, query),
         embedding,

@@ -16,9 +16,8 @@ import type { DocumentRepository } from "./DocumentRepository";
  * Service token for the document repository registry
  * Maps repository IDs to DocumentRepository instances
  */
-export const DOCUMENT_REPOSITORIES = createServiceToken<Map<string, DocumentRepository>>(
-  "document.repositories"
-);
+export const DOCUMENT_REPOSITORIES =
+  createServiceToken<Map<string, DocumentRepository>>("document.repositories");
 
 // Register default factory if not already registered
 if (!globalServiceRegistry.has(DOCUMENT_REPOSITORIES)) {
