@@ -164,7 +164,7 @@ export const TaskUI: FC<{
 
   return (
     <Box key={task.config.id as string} flexDirection="column">
-      <Box height={1}>
+      <Box height={error ? 3 : 1}>
         <Box marginRight={1} flexShrink={0}>
           <StatusIcon status={status} dependant={dependant} />
         </Box>
@@ -194,7 +194,7 @@ export const TaskUI: FC<{
         )}
         {error && (
           <Box marginLeft={2} flexShrink={1}>
-            <Text color="red">{`${symbols.warning} ${error}`}</Text>
+            <Text color="red">{`${symbols.warning} ${error.includes(": ") ? error.substring(error.indexOf(": ") + 2) : error}`}</Text>
           </Box>
         )}
       </Box>

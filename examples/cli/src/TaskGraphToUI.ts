@@ -10,43 +10,43 @@ import React from "react";
 import { render } from "retuink";
 import App from "./components/App";
 
-export async function runTasks(taskish: Taskish) {
+export async function runTasks(taskish: Taskish): Promise<any> {
   if (taskish instanceof Workflow) {
-    await runWorkflow(taskish);
+    return await runWorkflow(taskish);
   } else if (taskish instanceof Task) {
-    await runSingleTask(taskish);
+    return await runSingleTask(taskish);
   } else if (taskish instanceof TaskGraph) {
-    await runGraph(taskish);
+    return await runGraph(taskish);
   } else {
     throw new Error("Unknown taskish type");
   }
 }
 
-export async function runWorkflow(workflow: IWorkflow) {
-  await runGraph(workflow.graph);
+export async function runWorkflow(workflow: IWorkflow): Promise<any> {
+  return await runGraph(workflow.graph);
 }
 
-export async function runSingleTask(task: Task): Promise<void> {
+export async function runSingleTask(task: Task): Promise<any> {
   if (process.stdout.isTTY === true || (process.stdout.isTTY === undefined && !process.env.CI)) {
     const graph = new TaskGraph();
     graph.addTask(task);
-    await runTaskGraphToInk(graph);
+    return await runTaskGraphToInk(graph);
   } else {
     const result = await task.run();
-    console.log(JSON.stringify(result, null, 2));
+    return result;
   }
 }
 
-export async function runGraph(graph: ITaskGraph): Promise<void> {
+export async function runGraph(graph: ITaskGraph): Promise<any> {
   if (process.stdout.isTTY === true || (process.stdout.isTTY === undefined && !process.env.CI)) {
-    await runTaskGraphToInk(graph);
+    return await runTaskGraphToInk(graph);
   } else {
     const result = await graph.run();
-    console.log(JSON.stringify(result, null, 2));
+    return result;
   }
 }
 
-const runTaskGraphToInk = async (graph: ITaskGraph) => {
+const runTaskGraphToInk = async (graph: ITaskGraph): Promise<any> => {
   // preserveScreen();
   const { unmount } = render(React.createElement(App, { graph }), {
     throttle: 50,
@@ -58,4 +58,5 @@ const runTaskGraphToInk = async (graph: ITaskGraph) => {
   } catch (e: any) {}
   await sleep(150);
   unmount();
+  return results;
 };

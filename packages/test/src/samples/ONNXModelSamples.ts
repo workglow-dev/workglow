@@ -146,15 +146,15 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       metadata: {},
     },
     {
-      model_id: "onnx:Falconsai/text_summarization:q8",
+      model_id: "onnx:Falconsai/text_summarization:fp32",
       title: "text_summarization",
-      description: "Falconsai/text_summarization quantized to 8bit",
+      description: "Falconsai/text_summarization",
       tasks: ["TextSummaryTask"],
       provider: HF_TRANSFORMERS_ONNX,
       provider_config: {
         pipeline: "summarization",
         model_path: "Falconsai/text_summarization",
-        dtype: "q8",
+        dtype: "fp32",
       },
       metadata: {},
     },
