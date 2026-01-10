@@ -5,14 +5,27 @@
  */
 
 import { hybridSearch } from "@workglow/ai";
-import { InMemoryVectorRepository, registerVectorRepository } from "@workglow/storage";
+import {
+  InMemoryVectorRepository,
+  registerVectorRepository,
+  VectorSchema,
+} from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("HybridSearchTask", () => {
   let repo: InMemoryVectorRepository<{ text: string; category?: string }>;
 
   beforeEach(async () => {
-    repo = new InMemoryVectorRepository<{ text: string; category?: string }>();
+    const schema = {
+      ...VectorSchema,
+      properties: {
+        ...VectorSchema.properties,
+        // @ts-expect-error - dimension is a custom property for vector types
+        vector: { type: "string", format: "TypedArray", dimension: 3 },
+      },
+      // @ts-expect-error - Custom dimension doesn't match VectorSchema type
+    } as typeof VectorSchema;
+    repo = new InMemoryVectorRepository<{ text: string; category?: string }>(schema, ["id"], []);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -33,7 +46,13 @@ describe("HybridSearchTask", () => {
     ];
 
     for (let i = 0; i < vectors.length; i++) {
-      await repo.upsert(`doc${i + 1}`, vectors[i], metadata[i]);
+      const docId = `doc${i + 1}`;
+      await repo.put({
+        id: `${docId}_0`,
+        docId,
+        vector: vectors[i] as any,
+        metadata: metadata[i],
+      } as any);
     }
   });
 

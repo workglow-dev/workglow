@@ -5,7 +5,12 @@
  */
 
 import { retrieval } from "@workglow/ai";
-import { InMemoryVectorRepository, registerVectorRepository } from "@workglow/storage";
+import {
+  InMemoryVectorRepository,
+  registerVectorRepository,
+  VectorSchema,
+} from "@workglow/storage";
+import { TypedArraySchema } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("RetrievalTask", () => {
@@ -19,14 +24,14 @@ describe("RetrievalTask", () => {
   }>;
 
   beforeEach(async () => {
-    repo = new InMemoryVectorRepository<{
-      text?: string;
-      content?: string;
-      chunk?: string;
-      category?: string;
-      title?: string;
-      author?: string;
-    }>();
+    const schema = {
+      ...VectorSchema,
+      properties: {
+        ...VectorSchema.properties,
+        vector: TypedArraySchema({ "x-dimensions": 3 }),
+      },
+    } as const satisfies DataPortSchemaObject;
+    repo = new InMemoryVectorRepository<Schema, ["id"]>(schema, ["id"], []);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -47,7 +52,13 @@ describe("RetrievalTask", () => {
     ];
 
     for (let i = 0; i < vectors.length; i++) {
-      await repo.upsert(`doc${i + 1}`, vectors[i], metadata[i]);
+      const docId = `doc${i + 1}`;
+      await repo.put({
+        id: `${docId}_0`,
+        docId,
+        vector: vectors[i] as any,
+        metadata: metadata[i],
+      } as any);
     }
   });
 
@@ -172,10 +183,15 @@ describe("RetrievalTask", () => {
 
   test("should apply metadata filter", async () => {
     // Add a document with specific metadata for filtering
-    await repo.upsert("filtered_doc", new Float32Array([1.0, 0.0, 0.0]), {
-      text: "Filtered document",
-      category: "test",
-    });
+    await repo.put({
+      id: "filtered_doc_0",
+      docId: "filtered_doc",
+      vector: new Float32Array([1.0, 0.0, 0.0]) as any,
+      metadata: {
+        text: "Filtered document",
+        category: "test",
+      },
+    } as any);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
@@ -244,10 +260,15 @@ describe("RetrievalTask", () => {
 
   test("should JSON.stringify metadata when no text/content/chunk fields", async () => {
     // Add document with only non-standard metadata
-    await repo.upsert("json_doc", new Float32Array([1.0, 0.0, 0.0]), {
-      title: "Title only",
-      author: "Author name",
-    });
+    await repo.put({
+      id: "json_doc_0",
+      docId: "json_doc",
+      vector: new Float32Array([1.0, 0.0, 0.0]) as any,
+      metadata: {
+        title: "Title only",
+        author: "Author name",
+      },
+    } as any);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 

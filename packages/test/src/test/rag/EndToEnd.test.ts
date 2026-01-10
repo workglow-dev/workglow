@@ -12,7 +12,11 @@ import {
   NodeIdGenerator,
   StructuralParser,
 } from "@workglow/ai";
-import { InMemoryTabularRepository, InMemoryVectorRepository } from "@workglow/storage";
+import {
+  InMemoryTabularRepository,
+  InMemoryVectorRepository,
+  VectorSchema,
+} from "@workglow/storage";
 import { describe, expect, it } from "vitest";
 
 describe("End-to-end hierarchical RAG", () => {
@@ -80,10 +84,17 @@ Finds patterns in data.`;
   });
 
   it("should demonstrate document repository integration", async () => {
-    const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+    const tabularStorage = new InMemoryTabularRepository<typeof DocumentStorageSchema, ["docId"]>(
+      DocumentStorageSchema,
+      ["docId"]
+    );
     await tabularStorage.setupDatabase();
 
-    const vectorStorage = new InMemoryVectorRepository();
+    const vectorStorage = new InMemoryVectorRepository<typeof VectorSchema, ["id"]>(
+      VectorSchema,
+      ["id"],
+      []
+    );
     await vectorStorage.setupDatabase();
 
     const docRepo = new DocumentRepository(tabularStorage, vectorStorage);

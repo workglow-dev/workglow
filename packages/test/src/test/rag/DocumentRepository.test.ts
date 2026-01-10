@@ -8,21 +8,30 @@ import {
   Document,
   DocumentRepository,
   DocumentStorageSchema,
+  InMemoryTabularRepository,
+  InMemoryVectorRepository,
   NodeIdGenerator,
   NodeKind,
   StructuralParser,
-} from "@workglow/ai";
-import { InMemoryTabularRepository, InMemoryVectorRepository } from "@workglow/storage";
+  VectorSchema,
+} from "@workglow/storage";
 import { beforeEach, describe, expect, it } from "vitest";
 
 describe("DocumentRepository", () => {
   let repo: DocumentRepository;
 
   beforeEach(async () => {
-    const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+    const tabularStorage = new InMemoryTabularRepository<typeof DocumentStorageSchema, ["docId"]>(
+      DocumentStorageSchema,
+      ["docId"]
+    );
     await tabularStorage.setupDatabase();
 
-    const vectorStorage = new InMemoryVectorRepository();
+    const vectorStorage = new InMemoryVectorRepository<typeof VectorSchema, ["id"]>(
+      VectorSchema,
+      ["id"],
+      []
+    );
     await vectorStorage.setupDatabase();
 
     repo = new DocumentRepository(tabularStorage, vectorStorage);

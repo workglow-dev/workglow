@@ -4,15 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { VectorStoreUpsertTask } from "@workglow/ai";
+import {
+  VectorChunkStorageEntity,
+  VectorChunkStorageSchema,
+  VectorStoreUpsertTask,
+} from "@workglow/ai";
 import { InMemoryVectorRepository, registerVectorRepository } from "@workglow/storage";
+import { FromSchema, TypedArraySchemaOptions } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("VectorStoreUpsertTask", () => {
-  let repo: InMemoryVectorRepository<{ text: string; source?: string }>;
+  let repo: InMemoryVectorRepository<ReturnType<typeof VectorChunkStorageSchema>, ["id"]>;
+
+  const schema = VectorChunkStorageSchema(3);
+  type Schema = ReturnType<typeof VectorChunkStorageSchema>;
+  type Entity = VectorChunkStorageEntity;
+  type Entity2 = FromSchema<Schema, TypedArraySchemaOptions>;
 
   beforeEach(async () => {
-    repo = new InMemoryVectorRepository<{ text: string; source?: string }>();
+    repo = new InMemoryVectorRepository(schema, ["id"], []);
     await repo.setupDatabase();
   });
 
@@ -27,20 +37,20 @@ describe("VectorStoreUpsertTask", () => {
     const task = new VectorStoreUpsertTask();
     const result = await task.run({
       repository: repo,
-      ids: "doc1",
-      vectors: [vector],
+      docId: "doc1",
+      vectors: vector,
       metadata: metadata,
     });
 
     expect(result.count).toBe(1);
-    expect(result.ids).toEqual(["doc1"]);
+    expect(result.docId).toBe("doc1");
+    expect(result.ids).toHaveLength(1);
 
     // Verify vector was stored
-    const retrieved = await repo.get("doc1");
+    const retrieved = await repo.get({ id: result.ids[0] });
     expect(retrieved).toBeDefined();
-    expect(retrieved?.id).toBe("doc1");
-    expect(retrieved?.metadata).toEqual(metadata);
-    expect(retrieved?.vector).toEqual(vector);
+    expect(retrieved?.doc_id).toBe("doc1");
+    expect(retrieved!.metadata).toEqual(metadata);
   });
 
   test("should upsert multiple vectors in bulk", async () => {
@@ -49,50 +59,47 @@ describe("VectorStoreUpsertTask", () => {
       new Float32Array([0.4, 0.5, 0.6]),
       new Float32Array([0.7, 0.8, 0.9]),
     ];
-    const metadata = [
-      { text: "Document 1", source: "doc1.txt" },
-      { text: "Document 2", source: "doc2.txt" },
-      { text: "Document 3", source: "doc3.txt" },
-    ];
+    const metadata = { text: "Document with multiple vectors", source: "doc.txt" };
 
     const task = new VectorStoreUpsertTask();
     const result = await task.run({
       repository: repo,
-      ids: ["doc1", "doc2", "doc3"],
+      docId: "doc1",
       vectors: vectors,
       metadata: metadata,
     });
 
     expect(result.count).toBe(3);
-    expect(result.ids).toEqual(["doc1", "doc2", "doc3"]);
+    expect(result.docId).toBe("doc1");
+    expect(result.ids).toHaveLength(3);
 
     // Verify all vectors were stored
     for (let i = 0; i < 3; i++) {
-      const retrieved = await repo.get(`doc${i + 1}`);
+      const retrieved = await repo.get({ id: result.ids[i] });
       expect(retrieved).toBeDefined();
-      expect(retrieved?.metadata).toEqual(metadata[i]);
-      expect(retrieved?.vector).toEqual(vectors[i]);
+      expect(retrieved?.doc_id).toBe("doc1");
+      expect(retrieved!.metadata).toEqual(metadata);
     }
   });
 
   test("should handle array of single item (normalized to bulk)", async () => {
-    const vector = new Float32Array([0.1, 0.2, 0.3]);
+    const vector = [new Float32Array([0.1, 0.2, 0.3])];
     const metadata = { text: "Single item as array" };
 
     const task = new VectorStoreUpsertTask();
     const result = await task.run({
       repository: repo,
-      ids: ["doc1"],
-      vectors: [vector],
-      metadata: [metadata],
+      docId: "doc1",
+      vectors: vector,
+      metadata: metadata,
     });
 
     expect(result.count).toBe(1);
-    expect(result.ids).toEqual(["doc1"]);
+    expect(result.docId).toBe("doc1");
 
-    const retrieved = await repo.get("doc1");
+    const retrieved = await repo.get({ id: result.ids[0] });
     expect(retrieved).toBeDefined();
-    expect(retrieved?.metadata).toEqual(metadata);
+    expect(retrieved!.metadata).toEqual(metadata);
   });
 
   test("should update existing vector when upserting with same ID", async () => {
@@ -103,41 +110,41 @@ describe("VectorStoreUpsertTask", () => {
 
     // First upsert
     const task1 = new VectorStoreUpsertTask();
-    await task1.run({
+    const result1 = await task1.run({
       repository: repo,
-      ids: "doc1",
-      vectors: [vector1],
+      docId: "doc1",
+      vectors: vector1,
       metadata: metadata1,
     });
 
     // Update with same ID
     const task2 = new VectorStoreUpsertTask();
-    await task2.run({
+    const result2 = await task2.run({
       repository: repo,
-      ids: "doc1",
-      vectors: [vector2],
+      docId: "doc1",
+      vectors: vector2,
       metadata: metadata2,
     });
 
-    const retrieved = await repo.get("doc1");
+    const retrieved = await repo.get({ id: result2.ids[0] });
     expect(retrieved).toBeDefined();
-    expect(retrieved?.vector).toEqual(vector2);
-    expect(retrieved?.metadata).toEqual(metadata2);
+    expect(retrieved!.metadata).toEqual(metadata2);
   });
 
-  test("should throw error on mismatched array lengths", async () => {
+  test("should accept multiple vectors with single metadata", async () => {
     const vectors = [new Float32Array([0.1, 0.2]), new Float32Array([0.3, 0.4])];
-    const metadata = [{ text: "Only one metadata" }];
+    const metadata = { text: "Shared metadata" };
 
     const task = new VectorStoreUpsertTask();
-    await expect(
-      task.run({
-        repository: repo,
-        ids: ["doc1", "doc2"],
-        vectors: vectors,
-        metadata: metadata,
-      })
-    ).rejects.toThrow("Mismatched array lengths");
+    const result = await task.run({
+      repository: repo,
+      docId: "doc1",
+      vectors: vectors,
+      metadata: metadata,
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.docId).toBe("doc1");
   });
 
   test("should handle quantized vectors (Int8Array)", async () => {
@@ -147,17 +154,16 @@ describe("VectorStoreUpsertTask", () => {
     const task = new VectorStoreUpsertTask();
     const result = await task.run({
       repository: repo,
-      ids: "doc1",
-      vectors: [vector],
+      docId: "doc1",
+      vectors: vector,
       metadata: metadata,
     });
 
     expect(result.count).toBe(1);
 
-    const retrieved = await repo.get("doc1");
+    const retrieved = await repo.get({ id: result.ids[0] });
     expect(retrieved).toBeDefined();
     expect(retrieved?.vector).toBeInstanceOf(Int8Array);
-    expect(retrieved?.vector).toEqual(vector);
   });
 
   test("should handle metadata without optional fields", async () => {
@@ -167,15 +173,15 @@ describe("VectorStoreUpsertTask", () => {
     const task = new VectorStoreUpsertTask();
     const result = await task.run({
       repository: repo,
-      ids: "doc1",
-      vectors: [vector],
+      docId: "doc1",
+      vectors: vector,
       metadata: metadata,
     });
 
     expect(result.count).toBe(1);
 
-    const retrieved = await repo.get("doc1");
-    expect(retrieved?.metadata).toEqual(metadata);
+    const retrieved = await repo.get({ id: result.ids[0] });
+    expect(retrieved!.metadata).toEqual(metadata);
   });
 
   test("should handle large batch upsert", async () => {
@@ -184,15 +190,12 @@ describe("VectorStoreUpsertTask", () => {
       { length: count },
       (_, i) => new Float32Array([i * 0.01, i * 0.02, i * 0.03])
     );
-    const metadata = Array.from({ length: count }, (_, i) => ({
-      text: `Document ${i + 1}`,
-    }));
-    const ids = Array.from({ length: count }, (_, i) => `doc${i + 1}`);
+    const metadata = { text: "Batch document" };
 
     const task = new VectorStoreUpsertTask();
     const result = await task.run({
       repository: repo,
-      ids: ids,
+      docId: "batch-doc",
       vectors: vectors,
       metadata: metadata,
     });
@@ -215,19 +218,18 @@ describe("VectorStoreUpsertTask", () => {
     // Pass repository as string ID instead of instance
     const result = await task.run({
       repository: "test-upsert-repo" as any,
-      ids: "doc1",
-      vectors: [vector],
+      docId: "doc1",
+      vectors: vector,
       metadata: metadata,
     });
 
     expect(result.count).toBe(1);
-    expect(result.ids).toEqual(["doc1"]);
+    expect(result.docId).toBe("doc1");
 
     // Verify vector was stored
-    const retrieved = await repo.get("doc1");
+    const retrieved = await repo.get({ id: result.ids[0] });
     expect(retrieved).toBeDefined();
-    expect(retrieved?.id).toBe("doc1");
-    expect(retrieved?.metadata).toEqual(metadata);
-    expect(retrieved?.vector).toEqual(vector);
+    expect(retrieved?.doc_id).toBe("doc1");
+    expect(retrieved!.metadata).toEqual(metadata);
   });
 });

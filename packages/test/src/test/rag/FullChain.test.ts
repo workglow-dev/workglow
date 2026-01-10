@@ -5,7 +5,7 @@
  */
 
 import { type ChunkNode, HierarchicalChunkerTaskOutput, NodeIdGenerator } from "@workglow/ai";
-import { InMemoryVectorRepository } from "@workglow/storage";
+import { InMemoryVectorRepository, VectorSchema } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
@@ -17,7 +17,7 @@ describe("Complete chainable workflow", () => {
       leafNodeId: string;
       depth: number;
       text: string;
-    }>();
+    }>(VectorSchema, ["id"], []);
     await vectorRepo.setupDatabase();
 
     const markdown = `# Test Document

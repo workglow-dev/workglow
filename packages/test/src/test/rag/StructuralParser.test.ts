@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { NodeIdGenerator, NodeKind, StructuralParser } from "@workglow/ai";
+import { NodeIdGenerator, NodeKind, StructuralParser } from "@workglow/storage";
 import { describe, expect, it } from "vitest";
 
 describe("StructuralParser", () => {

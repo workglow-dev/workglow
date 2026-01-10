@@ -5,14 +5,37 @@
  */
 
 import { VectorStoreSearchTask } from "@workglow/ai";
-import { InMemoryVectorRepository, registerVectorRepository } from "@workglow/storage";
+import {
+  InMemoryVectorRepository,
+  registerVectorRepository,
+  VectorSchema,
+} from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("VectorStoreSearchTask", () => {
-  let repo: InMemoryVectorRepository<{ text: string; category?: string }>;
+  let repo: InMemoryVectorRepository<typeof schema, ["id"]>;
+
+  const schema = {
+    ...VectorSchema,
+    properties: {
+      ...VectorSchema.properties,
+      // @ts-expect-error - dimension is a custom property for vector types
+      vector: { type: "string", format: "TypedArray", dimension: 3 },
+      metadata: {
+        type: "object",
+        format: "metadata",
+        properties: {
+          text: { type: "string" },
+          category: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+    // @ts-expect-error - Custom dimension doesn't match VectorSchema type
+  } as const;
 
   beforeEach(async () => {
-    repo = new InMemoryVectorRepository<{ text: string; category?: string }>();
+    repo = new InMemoryVectorRepository(schema, ["id"], []);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -33,7 +56,13 @@ describe("VectorStoreSearchTask", () => {
     ];
 
     for (let i = 0; i < vectors.length; i++) {
-      await repo.upsert(`doc${i + 1}`, vectors[i], metadata[i]);
+      const docId = `doc${i + 1}`;
+      await repo.put({
+        id: `${docId}_0`,
+        docId,
+        vector: vectors[i],
+        metadata: metadata[i],
+      });
     }
   });
 
@@ -179,7 +208,24 @@ describe("VectorStoreSearchTask", () => {
   });
 
   test("should handle empty repository", async () => {
-    const emptyRepo = new InMemoryVectorRepository<{ text: string }>();
+    const emptySchema = {
+      ...VectorSchema,
+      properties: {
+        ...VectorSchema.properties,
+        // @ts-expect-error - dimension is a custom property for vector types
+        vector: { type: "string", format: "TypedArray", dimension: 3 },
+        metadata: {
+          type: "object",
+          format: "metadata",
+          properties: {
+            text: { type: "string" },
+          },
+          additionalProperties: false,
+        },
+      },
+      // @ts-expect-error - Custom dimension doesn't match VectorSchema type
+    } as const;
+    const emptyRepo = new InMemoryVectorRepository(emptySchema, ["id"], []);
     await emptyRepo.setupDatabase();
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
