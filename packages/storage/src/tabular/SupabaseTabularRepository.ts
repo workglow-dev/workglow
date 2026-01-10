@@ -72,7 +72,6 @@ export class SupabaseTabularRepository<
    * Initializes the database table with the required schema.
    * Creates the table if it doesn't exist with primary key and value columns.
    * Must be called before using any other methods.
-   * Note: By default, assumes the table already exists (set isSetup in tests).
    */
   public async setupDatabase(): Promise<void> {
     const sql = `
