@@ -16,7 +16,7 @@ export * from "./kv/SupabaseKvRepository";
 export * from "./queue/IndexedDbQueueStorage";
 export * from "./queue/SupabaseQueueStorage";
 
-export * from "./limiter/IndexedDbRateLimiterStorage";
-export * from "./limiter/SupabaseRateLimiterStorage";
+export * from "./queue-limiter/IndexedDbRateLimiterStorage";
+export * from "./queue-limiter/SupabaseRateLimiterStorage";
 
 export * from "./util/IndexedDbTable";

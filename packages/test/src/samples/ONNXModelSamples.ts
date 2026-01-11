@@ -69,6 +69,18 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       metadata: {},
     },
     {
+      model_id: "onnx:onnx-community/NeuroBERT-NER-ONNX:q8",
+      title: "NeuroBERT NER",
+      description: "onnx-community/NeuroBERT-NER-ONNX",
+      tasks: ["TextNamedEntityRecognitionTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: {
+        pipeline: "token-classification",
+        model_path: "onnx-community/NeuroBERT-NER-ONNX",
+      },
+      metadata: {},
+    },
+    {
       model_id: "onnx:Xenova/distilbert-base-uncased-distilled-squad:q8",
       title: "distilbert-base-uncased-distilled-squad",
       description: "Xenova/distilbert-base-uncased-distilled-squad quantized to 8bit",

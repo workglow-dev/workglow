@@ -102,9 +102,7 @@ describe("IndexedDbTabularRepository", () => {
       let repo: IndexedDbTabularRepository<
         typeof RequiredColumnsSchema,
         typeof RequiredColumnsPK,
-        RequiredEntity,
-        Pick<RequiredEntity, "id">,
-        Omit<RequiredEntity, "id">
+        RequiredEntity
       >;
 
       beforeEach(async () => {
@@ -198,8 +196,7 @@ describe("IndexedDbTabularRepository", () => {
         typeof OptionalColumnsSchema,
         typeof OptionalColumnsPK,
         OptionalEntity,
-        Pick<OptionalEntity, "id">,
-        Omit<OptionalEntity, "id">
+        Pick<OptionalEntity, "id">
       >;
 
       beforeEach(async () => {
