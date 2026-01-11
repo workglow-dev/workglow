@@ -4,4 +4,4 @@ alwaysApply: true
 
 Use bun, not jest, not npm, not node
 
-To run tests: `bun test`. To run specific ones: `bun run <testfilename>`.
+To run tests: `bun test`. To run specific ones: `bun test <testfilename>`.
