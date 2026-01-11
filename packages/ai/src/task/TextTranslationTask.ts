@@ -87,7 +87,6 @@ export class TextTranslationTask extends AiTask<
   }
 }
 
-TaskRegistry.registerTask(TextTranslationTask);
 
 /**
  * Convenience function to run text translation tasks.

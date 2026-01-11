@@ -415,8 +415,6 @@ export class FetchUrlTask<
   }
 }
 
-TaskRegistry.registerTask(FetchUrlTask);
-
 export const fetchUrl = async (
   input: FetchUrlTaskInput,
   config: FetchUrlTaskConfig = {}

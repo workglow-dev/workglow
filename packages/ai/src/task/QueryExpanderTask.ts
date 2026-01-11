@@ -299,7 +299,6 @@ export class QueryExpanderTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(QueryExpanderTask);
 
 export const queryExpander = (input: QueryExpanderTaskInput, config?: JobQueueTaskConfig) => {
   return new QueryExpanderTask({} as QueryExpanderTaskInput, config).run(input);

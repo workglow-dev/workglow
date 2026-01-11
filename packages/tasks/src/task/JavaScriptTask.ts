@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, Task, TaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { Interpreter } from "../util/interpreter";
 
@@ -70,8 +70,6 @@ export class JavaScriptTask extends Task<JavaScriptTaskInput, JavaScriptTaskOutp
     return output;
   }
 }
-
-TaskRegistry.registerTask(JavaScriptTask);
 
 export const javaScript = (input: JavaScriptTaskInput, config: TaskConfig = {}) => {
   return new JavaScriptTask({}, config).run(input);

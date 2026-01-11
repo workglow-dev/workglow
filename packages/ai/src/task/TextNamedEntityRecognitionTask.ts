@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -96,7 +96,6 @@ export class TextNamedEntityRecognitionTask extends AiTask<
   }
 }
 
-TaskRegistry.registerTask(TextNamedEntityRecognitionTask);
 
 /**
  * Convenience function to run named entity recognition tasks.

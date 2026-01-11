@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -73,7 +73,6 @@ export class TextEmbeddingTask extends AiTask<TextEmbeddingTaskInput, TextEmbedd
   }
 }
 
-TaskRegistry.registerTask(TextEmbeddingTask);
 
 /**
  * Convenience function to create and run a text embedding task.

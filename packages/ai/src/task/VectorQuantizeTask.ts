@@ -238,7 +238,6 @@ export class VectorQuantizeTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(VectorQuantizeTask);
 
 export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: JobQueueTaskConfig) => {
   return new VectorQuantizeTask({} as VectorQuantizeTaskInput, config).run(input);

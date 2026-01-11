@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { TypeBoundingBox, TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -102,7 +102,6 @@ export class ObjectDetectionTask extends AiVisionTask<
   }
 }
 
-TaskRegistry.registerTask(ObjectDetectionTask);
 
 /**
  * Convenience function to run object detection tasks.

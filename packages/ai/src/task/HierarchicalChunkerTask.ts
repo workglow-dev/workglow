@@ -283,7 +283,6 @@ export class HierarchicalChunkerTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(HierarchicalChunkerTask);
 
 export const hierarchicalChunker = (
   input: HierarchicalChunkerTaskInput,

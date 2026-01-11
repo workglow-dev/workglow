@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -69,7 +69,6 @@ export class ImageEmbeddingTask extends AiVisionTask<
   }
 }
 
-TaskRegistry.registerTask(ImageEmbeddingTask);
 
 /**
  * Convenience function to run image embedding tasks.

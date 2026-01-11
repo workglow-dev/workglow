@@ -153,7 +153,6 @@ export class DocumentNodeVectorSearchTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(DocumentNodeVectorSearchTask);
 
 export const vectorStoreSearch = (
   input: VectorStoreSearchTaskInput,

@@ -420,7 +420,6 @@ export class TopicSegmenterTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(TopicSegmenterTask);
 
 export const topicSegmenter = (input: TopicSegmenterTaskInput, config?: JobQueueTaskConfig) => {
   return new TopicSegmenterTask({} as TopicSegmenterTaskInput, config).run(input);

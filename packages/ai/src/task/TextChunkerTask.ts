@@ -343,7 +343,6 @@ export class TextChunkerTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(TextChunkerTask);
 
 export const textChunker = (input: TextChunkerTaskInput, config?: JobQueueTaskConfig) => {
   return new TextChunkerTask({} as TextChunkerTaskInput, config).run(input);

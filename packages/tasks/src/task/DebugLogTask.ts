@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, Task, TaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const log_levels = ["dir", "log", "debug", "info", "warn", "error"] as const;
@@ -85,8 +85,6 @@ export class DebugLogTask<
     return output;
   }
 }
-
-TaskRegistry.registerTask(DebugLogTask);
 
 export const debugLog = (input: DebugLogTaskInput, config: TaskConfig = {}) => {
   const task = new DebugLogTask({}, config);

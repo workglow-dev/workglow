@@ -82,8 +82,6 @@ export class MergeTask<
   }
 }
 
-TaskRegistry.registerTask(MergeTask);
-
 export const merge = (input: MergeTaskInput, config: TaskConfig = {}) => {
   const task = new MergeTask({}, config);
   return task.run(input);

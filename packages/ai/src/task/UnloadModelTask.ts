@@ -63,7 +63,6 @@ export class UnloadModelTask extends AiTask<
   public static cacheable = false;
 }
 
-TaskRegistry.registerTask(UnloadModelTask);
 
 /**
  * Unload a model from memory and clear its cache.

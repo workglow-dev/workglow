@@ -212,17 +212,15 @@ export class FileLoaderTask extends BaseFileLoaderTask {
   }
 }
 
-// override the base registration
-TaskRegistry.registerTask(FileLoaderTask);
-
 export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
   return new FileLoaderTask({}, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    fileLoaderServer: CreateWorkflow<FileLoaderTaskInput, FileLoaderTaskOutput, JobQueueTaskConfig>;
+    fileLoader: CreateWorkflow<FileLoaderTaskInput, FileLoaderTaskOutput, JobQueueTaskConfig>;
   }
 }
 
-Workflow.prototype.fileLoaderServer = CreateWorkflow(FileLoaderTask);
+// Override fileLoader to use the server version that handles file:// URLs
+Workflow.prototype.fileLoader = CreateWorkflow(FileLoaderTask);

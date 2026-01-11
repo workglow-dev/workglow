@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -196,7 +196,6 @@ export class FaceLandmarkerTask extends AiVisionTask<
   }
 }
 
-TaskRegistry.registerTask(FaceLandmarkerTask);
 
 /**
  * Convenience function to run face landmark detection tasks.

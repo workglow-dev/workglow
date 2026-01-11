@@ -4,16 +4,13 @@
  * All Rights Reserved
  */
 
+import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
-import { IExecuteContext, IExecuteReactiveContext } from "./ITask";
-import { Task } from "./Task";
-import { TaskRegistry } from "./TaskRegistry";
-import { TaskConfig } from "./TaskTypes";
 
 export type InputTaskInput = Record<string, unknown>;
 export type InputTaskOutput = Record<string, unknown>;
 export type InputTaskConfig = TaskConfig & {
-  schema: DataPortSchema;
+  readonly schema: DataPortSchema;
 };
 
 export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskConfig> {
@@ -54,17 +51,19 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
     );
   }
 
-  public async execute(input: InputTaskInput, _context: IExecuteContext) {
+  public async execute(input: InputTaskInput) {
     return input as InputTaskOutput;
   }
 
-  public async executeReactive(
-    input: InputTaskInput,
-    _output: InputTaskOutput,
-    _context: IExecuteReactiveContext
-  ) {
+  public async executeReactive(input: InputTaskInput) {
     return input as InputTaskOutput;
   }
 }
 
-TaskRegistry.registerTask(InputTask);
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    input: CreateWorkflow<InputTaskInput, InputTaskOutput, TaskConfig>;
+  }
+}
+
+Workflow.prototype.input = CreateWorkflow(InputTask);

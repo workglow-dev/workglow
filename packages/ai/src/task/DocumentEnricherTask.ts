@@ -398,7 +398,6 @@ export class DocumentEnricherTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(DocumentEnricherTask);
 
 export const documentEnricher = (input: DocumentEnricherTaskInput, config?: JobQueueTaskConfig) => {
   return new DocumentEnricherTask({} as DocumentEnricherTaskInput, config).run(input);

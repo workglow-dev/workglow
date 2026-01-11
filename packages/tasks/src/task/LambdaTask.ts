@@ -103,9 +103,6 @@ export class LambdaTask<
   }
 }
 
-// Register LambdaTask with the task registry
-TaskRegistry.registerTask(LambdaTask);
-
 export function process(value: string): string;
 export function process(value: number): number;
 export function process(value: boolean): string;
