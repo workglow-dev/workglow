@@ -30,6 +30,9 @@ This module provides a flexible task processing system with support for various 
 ### A Simple Task
 
 ```typescript
+import { Task, type DataPortSchema } from "@workglow/task-graph";
+import { Type } from "@sinclair/typebox";
+
 interface MyTaskInput {
   input: number;
 }
@@ -178,6 +181,15 @@ static outputSchema = () => {
     }),
   }) satisfies DataPortSchema;
 };
+
+type MyInput = FromSchema<typeof MyInputSchema>;
+type MyOutput = FromSchema<typeof MyOutputSchema>;
+
+class MyTask extends Task<MyInput, MyOutput> {
+  static readonly type = "MyTask";
+  static inputSchema = () => MyInputSchema;
+  static outputSchema = () => MyOutputSchema;
+}
 ```
 
 ### Using Zod
@@ -201,13 +213,16 @@ const outputSchemaZod = z.object({
 type MyInput = z.infer<typeof inputSchemaZod>;
 type MyOutput = z.infer<typeof outputSchemaZod>;
 
-static inputSchema = () => {
-  return inputSchemaZod.toJSONSchema() as DataPortSchema;
-};
+class MyTask extends Task<MyInput, MyOutput> {
+  static readonly type = "MyTask";
+  static inputSchema = () => {
+    return inputSchemaZod.toJSONSchema() as DataPortSchema;
+  };
 
-static outputSchema = () => {
-  return outputSchemaZod.toJSONSchema() as DataPortSchema;
-};
+  static outputSchema = () => {
+    return outputSchemaZod.toJSONSchema() as DataPortSchema;
+  };
+}
 ```
 
 ## Registry & Queues

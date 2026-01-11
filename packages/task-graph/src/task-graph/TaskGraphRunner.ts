@@ -50,7 +50,7 @@ export type GraphResult<
 
 /**
  * Class for running a task graph
- * Manages the execution of tasks in a task graph, including provenance tracking and caching
+ * Manages the execution of tasks in a task graph, including caching
  */
 export class TaskGraphRunner {
   /**
@@ -58,11 +58,6 @@ export class TaskGraphRunner {
    */
   protected running = false;
   protected reactiveRunning = false;
-
-  /**
-   * Map of provenance input for each task
-   */
-  protected provenanceInput: Map<unknown, TaskInput>;
 
   /**
    * The task graph to run
@@ -99,7 +94,6 @@ export class TaskGraphRunner {
     protected reactiveScheduler = new TopologicalScheduler(graph)
   ) {
     this.graph = graph;
-    this.provenanceInput = new Map();
     graph.outputCache = outputCache;
     this.handleProgress = this.handleProgress.bind(this);
   }
@@ -136,10 +130,9 @@ export class TaskGraphRunner {
             // Only filter input for non-root tasks; root tasks get the full input
             const taskInput = isRootTask ? input : this.filterInputForTask(task, input);
 
-            const taskPromise = this.runTaskWithProvenance(
+            const taskPromise = this.runTask(
               task,
-              taskInput,
-              config?.parentProvenance || {}
+              taskInput
             );
             this.inProgressTasks!.set(task.config.id, taskPromise);
             const taskResult = await taskPromise;
@@ -333,39 +326,21 @@ export class TaskGraphRunner {
   }
 
   /**
-   * Retrieves the provenance input for a task
-   * @param node The task to retrieve provenance input for
-   * @returns The provenance input for the task
-   */
-  protected getInputProvenance(node: ITask): TaskInput {
-    const nodeProvenance: Provenance = {};
-    this.graph.getSourceDataflows(node.config.id).forEach((dataflow) => {
-      Object.assign(nodeProvenance, dataflow.provenance);
-    });
-    return nodeProvenance;
-  }
-
-  /**
    * Pushes the output of a task to its target tasks
    * @param node The task that produced the output
    * @param results The output of the task
-   * @param nodeProvenance The provenance input for the task
    */
-  protected async pushOutputFromNodeToEdges(
-    node: ITask,
-    results: TaskOutput,
-    nodeProvenance?: Provenance
-  ) {
+  protected async pushOutputFromNodeToEdges(node: ITask, results: TaskOutput) {
     const dataflows = this.graph.getTargetDataflows(node.config.id);
     for (const dataflow of dataflows) {
       const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow);
       // console.log("pushOutputFromNodeToEdges", dataflow.id, compatibility, Object.keys(results));
       if (compatibility === "static") {
-        dataflow.setPortData(results, nodeProvenance);
+        dataflow.setPortData(results);
       } else if (compatibility === "runtime") {
         const task = this.graph.getTask(dataflow.targetTaskId)!;
-        const narrowed = await task.narrowInput({ ...results });
-        dataflow.setPortData(narrowed, nodeProvenance);
+        const narrowed = await task.narrowInput({ ...results }, this.registry);
+        dataflow.setPortData(narrowed);
       } else {
         // don't push incompatible data
       }
@@ -494,33 +469,21 @@ export class TaskGraphRunner {
   }
 
   /**
-   * Runs a task with provenance input
+   * Runs a task
    * @param task The task to run
-   * @param parentProvenance The provenance input for the task
+   * @param input The input for the task
    * @returns The output of the task
    */
-  protected async runTaskWithProvenance<T>(
-    task: ITask,
-    input: TaskInput,
-    parentProvenance: Provenance
-  ): Promise<GraphSingleTaskResult<T>> {
-    // Update provenance for the current task
-    const nodeProvenance = {
-      ...parentProvenance,
-      ...this.getInputProvenance(task),
-      ...task.getProvenance(),
-    };
-    this.provenanceInput.set(task.config.id, nodeProvenance);
+  protected async runTask<T>(task: ITask, input: TaskInput): Promise<GraphSingleTaskResult<T>> {
     this.copyInputFromEdgesToNode(task);
 
     const results = await task.runner.run(input, {
-      nodeProvenance,
       outputCache: this.outputCache,
       updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
         await this.handleProgress(task, progress, message, ...args),
     });
 
-    await this.pushOutputFromNodeToEdges(task, results, nodeProvenance);
+    await this.pushOutputFromNodeToEdges(task, results);
 
     return {
       id: task.config.id,
@@ -706,7 +669,7 @@ export class TaskGraphRunner {
       progress = Math.round(completed / total);
     }
     this.pushStatusFromNodeToEdges(this.graph, task);
-    await this.pushOutputFromNodeToEdges(task, task.runOutputData, task.getProvenance());
+    await this.pushOutputFromNodeToEdges(task, task.runOutputData);
     this.graph.emit("graph_progress", progress, message, args);
   }
 }

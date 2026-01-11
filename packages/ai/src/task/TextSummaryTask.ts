@@ -4,21 +4,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  DeReplicateFromSchema,
+  JobQueueTaskConfig,
+  TaskRegistry,
+  TypeReplicateArray,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { DeReplicateFromSchema, TypeModel, TypeReplicateArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:TextSummaryTask"));
+const modelSchema = TypeModel("model:TextSummaryTask");
 
 export const TextSummaryInputSchema = {
   type: "object",
   properties: {
-    text: TypeReplicateArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to summarize",
-    }),
+    },
     model: modelSchema,
   },
   required: ["text", "model"],
@@ -40,8 +47,6 @@ export const TextSummaryOutputSchema = {
 
 export type TextSummaryTaskInput = FromSchema<typeof TextSummaryInputSchema>;
 export type TextSummaryTaskOutput = FromSchema<typeof TextSummaryOutputSchema>;
-export type TextSummaryTaskExecuteInput = DeReplicateFromSchema<typeof TextSummaryInputSchema>;
-export type TextSummaryTaskExecuteOutput = DeReplicateFromSchema<typeof TextSummaryOutputSchema>;
 
 /**
  * This summarizes a piece of text
@@ -70,7 +75,7 @@ TaskRegistry.registerTask(TextSummaryTask);
  * @returns Promise resolving to the summarized text output(s)
  */
 export const textSummary = async (input: TextSummaryTaskInput, config?: JobQueueTaskConfig) => {
-  return new TextSummaryTask(input, config).run();
+  return new TextSummaryTask({} as TextSummaryTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {

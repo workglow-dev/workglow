@@ -129,18 +129,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "text2text-generation",
         model_path: "Xenova/LaMini-Flan-T5-783M",
-      },
-      metadata: {},
-    },
-    {
-      model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
-      title: "LaMini-Flan-T5-783M",
-      description: "Xenova/LaMini-Flan-T5-783M quantized to 8bit",
-      tasks: ["TextGenerationTask", "TextRewriterTask"],
-      provider: HF_TRANSFORMERS_ONNX,
-      provider_config: {
-        pipeline: "text2text-generation",
-        model_path: "Xenova/LaMini-Flan-T5-783M",
         dtype: "q8",
       },
       metadata: {},
