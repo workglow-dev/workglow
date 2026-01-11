@@ -9,7 +9,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -419,7 +418,6 @@ export class TopicSegmenterTask extends Task<
     return merged;
   }
 }
-
 
 export const topicSegmenter = (input: TopicSegmenterTaskInput, config?: JobQueueTaskConfig) => {
   return new TopicSegmenterTask({} as TopicSegmenterTaskInput, config).run(input);

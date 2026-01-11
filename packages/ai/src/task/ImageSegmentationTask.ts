@@ -105,7 +105,6 @@ export class ImageSegmentationTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run image segmentation tasks.
  * Creates and executes an ImageSegmentationTask with the provided input.

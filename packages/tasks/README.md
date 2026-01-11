@@ -14,6 +14,7 @@ A package of task types for common operations, workflow management, and data pro
   - [JavaScriptTask](#javascripttask)
   - [LambdaTask](#lambdatask)
   - [JsonTask](#jsontask)
+  - [ArrayTask](#arraytask)
 - [Workflow Integration](#workflow-integration)
 - [Error Handling](#error-handling)
 - [Configuration](#configuration)
@@ -493,6 +494,78 @@ const dynamicWorkflow = await new JsonTask({
 - All registered task types are available
 - Automatic data flow between tasks
 - Enables configuration-driven workflows
+
+### ArrayTask
+
+A compound task that processes arrays by either executing directly for non-array inputs or creating parallel task instances for array inputs. Supports parallel processing of array elements and combination generation when multiple inputs are arrays.
+
+**Key Features:**
+
+- Automatically handles single values or arrays
+- Parallel execution for array inputs
+- Generates all combinations when multiple inputs are arrays
+- Uses `x-replicate` annotation to mark array-capable inputs
+
+**Examples:**
+
+```typescript
+import { ArrayTask, DataPortSchema } from "@workglow/tasks";
+
+class ArrayProcessorTask extends ArrayTask<{ items: string[] }, { results: string[] }> {
+  static readonly type = "ArrayProcessorTask";
+
+  static inputSchema() {
+    return {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+      },
+      required: ["items"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema() {
+    return {
+      type: "object",
+      properties: {
+        results: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+      },
+      required: ["results"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { items: string[] }) {
+    return { results: input.items.map((item) => item.toUpperCase()) };
+  }
+}
+
+// Process array items in parallel
+const task = new ArrayProcessorTask({
+  items: ["hello", "world", "foo", "bar"],
+});
+
+const result = await task.run();
+// { results: ["HELLO", "WORLD", "FOO", "BAR"] }
+```
+
+**Features:**
+
+- Parallel processing of array elements
+- Automatic task instance creation per array element
+- Combination generation for multiple array inputs
+- Seamless single-value and array handling
 
 ## Workflow Integration
 

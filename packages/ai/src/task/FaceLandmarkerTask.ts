@@ -196,7 +196,6 @@ export class FaceLandmarkerTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run face landmark detection tasks.
  * Creates and executes a FaceLandmarkerTask with the provided input.

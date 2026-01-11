@@ -69,7 +69,6 @@ export class ImageEmbeddingTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run image embedding tasks.
  * Creates and executes an ImageEmbeddingTask with the provided input.

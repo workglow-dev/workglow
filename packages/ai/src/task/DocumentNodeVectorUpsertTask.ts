@@ -13,7 +13,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import {
@@ -152,7 +151,6 @@ export class DocumentNodeVectorUpsertTask extends Task<
     };
   }
 }
-
 
 export const vectorStoreUpsert = (
   input: VectorStoreUpsertTaskInput,

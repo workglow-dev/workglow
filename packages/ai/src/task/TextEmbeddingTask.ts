@@ -73,7 +73,6 @@ export class TextEmbeddingTask extends AiTask<TextEmbeddingTaskInput, TextEmbedd
   }
 }
 
-
 /**
  * Convenience function to create and run a text embedding task.
  * @param input - Input containing text(s) and model(s) for embedding

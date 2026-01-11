@@ -79,7 +79,6 @@ export class TextFillMaskTask extends AiTask<TextFillMaskTaskInput, TextFillMask
   }
 }
 
-
 /**
  * Convenience function to run fill mask tasks.
  * Creates and executes a TextFillMaskTask with the provided input.

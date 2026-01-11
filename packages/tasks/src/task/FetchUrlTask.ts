@@ -17,7 +17,6 @@ import {
   JobQueueTaskConfig,
   TaskConfigurationError,
   TaskInvalidInputError,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";

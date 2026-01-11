@@ -16,7 +16,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -397,7 +396,6 @@ export class DocumentEnricherTask extends Task<
     return result.length > 0 ? result : undefined;
   }
 }
-
 
 export const documentEnricher = (input: DocumentEnricherTaskInput, config?: JobQueueTaskConfig) => {
   return new DocumentEnricherTask({} as DocumentEnricherTaskInput, config).run(input);

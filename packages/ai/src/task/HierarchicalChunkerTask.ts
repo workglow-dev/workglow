@@ -19,7 +19,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -159,7 +158,6 @@ export class HierarchicalChunkerTask extends Task<
       // Flat chunking: treat entire document as flat text
       await this.chunkFlat(root, doc_id, tokenBudget, chunks);
     }
-
     return {
       doc_id,
       chunks,
@@ -282,7 +280,6 @@ export class HierarchicalChunkerTask extends Task<
     return texts.join("\n\n");
   }
 }
-
 
 export const hierarchicalChunker = (
   input: HierarchicalChunkerTaskInput,

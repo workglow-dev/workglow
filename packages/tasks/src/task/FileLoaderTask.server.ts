@@ -9,7 +9,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   TaskAbortedError,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { readFile } from "node:fs/promises";

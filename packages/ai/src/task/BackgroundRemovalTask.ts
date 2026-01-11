@@ -61,7 +61,6 @@ export class BackgroundRemovalTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run background removal tasks.
  * Creates and executes a BackgroundRemovalTask with the provided input.

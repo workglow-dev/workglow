@@ -10,7 +10,6 @@ import {
   JobQueueTaskConfig,
   Task,
   TaskAbortedError,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";

@@ -160,7 +160,6 @@ export class FaceDetectorTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run face detection tasks.
  * Creates and executes a FaceDetectorTask with the provided input.

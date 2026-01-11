@@ -10,7 +10,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -139,7 +138,6 @@ export class StructuralParserTask extends Task<
     return count;
   }
 }
-
 
 export const structuralParser = (input: StructuralParserTaskInput, config?: JobQueueTaskConfig) => {
   return new StructuralParserTask({} as StructuralParserTaskInput, config).run(input);

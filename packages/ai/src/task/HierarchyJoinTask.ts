@@ -15,7 +15,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -227,7 +226,6 @@ export class HierarchyJoinTask extends Task<
     };
   }
 }
-
 
 export const hierarchyJoin = (input: HierarchyJoinTaskInput, config?: JobQueueTaskConfig) => {
   return new HierarchyJoinTask({} as HierarchyJoinTaskInput, config).run(input);

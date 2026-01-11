@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import "@workglow/ai"; // Trigger Workflow prototype extensions
 import type { ChunkToVectorTaskOutput, HierarchicalChunkerTaskOutput } from "@workglow/ai";
 import { type ChunkNode, NodeIdGenerator, StructuralParser } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";

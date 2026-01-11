@@ -13,7 +13,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import {
@@ -216,7 +215,6 @@ export class DocumentNodeVectorHybridSearchTask extends Task<
     return output;
   }
 }
-
 
 export const hybridSearch = async (
   input: HybridSearchTaskInput,
