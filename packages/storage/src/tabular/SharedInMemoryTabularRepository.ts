@@ -4,18 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, DataPortSchemaObject, FromSchema } from "@workglow/util";
 import {
+  createServiceToken,
+  DataPortSchemaObject,
+  FromSchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import { BaseTabularRepository } from "./BaseTabularRepository";
+import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
-  ITabularRepository,
+  SimplifyPrimaryKey,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
 import { InMemoryTabularRepository } from "./InMemoryTabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
-export const SHARED_IN_MEMORY_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.sharedInMemory");
+export const SHARED_IN_MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.sharedInMemory"
+);
 
 /**
  * Message types for BroadcastChannel communication
@@ -41,19 +47,12 @@ export class SharedInMemoryTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private channel: BroadcastChannel | null = null;
   private channelName: string;
-  private inMemoryRepo: InMemoryTabularRepository<
-    Schema,
-    PrimaryKeyNames,
-    Entity,
-    PrimaryKey,
-    Value
-  >;
+  private inMemoryRepo: InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private isInitialized = false;
   private syncInProgress = false;
 
@@ -73,13 +72,11 @@ export class SharedInMemoryTabularRepository<
   ) {
     super(schema, primaryKeyNames, indexes);
     this.channelName = channelName;
-    this.inMemoryRepo = new InMemoryTabularRepository<
-      Schema,
-      PrimaryKeyNames,
-      Entity,
-      PrimaryKey,
-      Value
-    >(schema, primaryKeyNames, indexes);
+    this.inMemoryRepo = new InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>(
+      schema,
+      primaryKeyNames,
+      indexes
+    );
 
     // Forward events from the in-memory repository
     this.setupEventForwarding();

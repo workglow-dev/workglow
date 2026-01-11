@@ -5,13 +5,20 @@
  */
 
 import { Sqlite } from "@workglow/sqlite";
-import { createServiceToken, DataPortSchemaObject, FromSchema, JsonSchema } from "@workglow/util";
+import {
+  createServiceToken,
+  DataPortSchemaObject,
+  FromSchema,
+  JsonSchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
 import { BaseSqlTabularRepository } from "./BaseSqlTabularRepository";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
   isSearchCondition,
-  ITabularRepository,
   SearchOperator,
+  SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
   ValueOptionType,
@@ -20,9 +27,9 @@ import {
 // Define local type for SQL operations
 type ExcludeDateKeyOptionType = Exclude<string | number | bigint, Date>;
 
-export const SQLITE_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.sqlite");
+export const SQLITE_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.sqlite"
+);
 
 const Database = Sqlite.Database;
 
@@ -38,10 +45,9 @@ export class SqliteTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** The SQLite database instance */
   private db: Sqlite.Database;
 
