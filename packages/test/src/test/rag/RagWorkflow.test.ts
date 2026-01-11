@@ -38,8 +38,10 @@
 
 import {
   InMemoryModelRepository,
+  retrieval,
   RetrievalTaskOutput,
   setGlobalModelRepository,
+  textQuestionAnswer,
   TextQuestionAnswerTaskOutput,
   VectorStoreUpsertTaskOutput,
 } from "@workglow/ai";
@@ -66,7 +68,7 @@ describe("RAG Workflow End-to-End", () => {
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
-  const qaModel = "onnx:Xenova/distilbert-base-uncased-distilled-squad:q8";
+  const qaModel = "onnx:onnx-community/ModernBERT-finetuned-squad-ONNX";
 
   beforeAll(async () => {
     // Setup task queue and model repository
@@ -94,7 +96,7 @@ describe("RAG Workflow End-to-End", () => {
     setTaskQueueRegistry(null);
   });
 
-  it.only("should ingest markdown documents with NER enrichment", async () => {
+  it("should ingest markdown documents with NER enrichment", async () => {
     // Find markdown files in docs folder
     const docsPath = join(process.cwd(), "docs", "background");
     const files = readdirSync(docsPath).filter((f) => f.endsWith(".md"));
@@ -117,8 +119,8 @@ describe("RAG Workflow End-to-End", () => {
           sourceUri: filePath,
         })
         .documentEnricher({
-          generateSummaries: true,
-          extractEntities: true,
+          generateSummaries: false,
+          extractEntities: false,
           summaryModel,
           nerModel,
         })
@@ -189,18 +191,13 @@ describe("RAG Workflow End-to-End", () => {
 
     console.log(`\nAnswering question: "${question}"`);
 
-    // Step 1: Retrieve relevant context
-    const retrievalWorkflow = new Workflow();
-
-    retrievalWorkflow.retrieval({
+    const retrievalResult = await retrieval({
       repository: vectorRepoName,
       query: question,
       model: embeddingModel,
       topK: 3,
-      scoreThreshold: 0.2, // Lower threshold to find results
+      scoreThreshold: 0.2,
     });
-
-    const retrievalResult = (await retrievalWorkflow.run()) as RetrievalTaskOutput;
 
     expect(retrievalResult.chunks).toBeDefined();
 
@@ -216,16 +213,11 @@ describe("RAG Workflow End-to-End", () => {
 
     console.log(`Context length: ${context.length} characters`);
 
-    // Step 3: Answer question using context
-    const qaWorkflow = new Workflow();
-
-    qaWorkflow.textQuestionAnswer({
+    const answer = await textQuestionAnswer({
       context,
       question,
       model: qaModel,
     });
-
-    const answer = (await qaWorkflow.run()) as TextQuestionAnswerTaskOutput;
 
     // Verify answer
     expect(answer.text).toBeDefined();

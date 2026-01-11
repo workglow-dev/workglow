@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  CreateWorkflow,
-  JobQueueTaskConfig,
-  Task,
-  TaskRegistry,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, JobQueueTaskConfig, Task, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -194,16 +188,16 @@ export class VectorQuantizeTask extends Task<
     if (values.length === 0) {
       return { min: 0, max: 1 };
     }
-    
+
     let min = values[0];
     let max = values[0];
-    
+
     for (let i = 1; i < values.length; i++) {
       const val = values[i];
       if (val < min) min = val;
       if (val > max) max = val;
     }
-    
+
     return { min, max };
   }
 
@@ -237,7 +231,6 @@ export class VectorQuantizeTask extends Task<
     return new Uint16Array(values.map((v) => Math.round(((v - min) / range) * 65535)));
   }
 }
-
 
 export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: JobQueueTaskConfig) => {
   return new VectorQuantizeTask({} as VectorQuantizeTaskInput, config).run(input);

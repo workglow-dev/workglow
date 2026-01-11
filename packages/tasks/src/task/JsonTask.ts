@@ -12,7 +12,6 @@ import {
   JsonTaskItem,
   TaskConfig,
   TaskConfigurationError,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";

@@ -10,7 +10,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import {
@@ -159,7 +158,6 @@ export class ChunkToVectorTask extends Task<
     };
   }
 }
-
 
 export const chunkToVector = (input: ChunkToVectorTaskInput, config?: JobQueueTaskConfig) => {
   return new ChunkToVectorTask({} as ChunkToVectorTaskInput, config).run(input);

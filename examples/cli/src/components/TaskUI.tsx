@@ -5,7 +5,8 @@
  */
 
 import { DownloadModelTask } from "@workglow/ai";
-import { ArrayTask, ITask, ITaskGraph, TaskStatus } from "@workglow/task-graph";
+import { ITask, ITaskGraph, TaskStatus } from "@workglow/task-graph";
+import { ArrayTask } from "@workglow/tasks";
 import type { FC } from "react";
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "retuink";

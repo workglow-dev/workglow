@@ -922,58 +922,6 @@ try {
 
 ## Advanced Patterns
 
-### Array Tasks (Parallel Processing)
-
-```typescript
-class ArrayProcessorTask extends ArrayTask<{ items: string[] }, { results: string[] }> {
-  static readonly type = "ArrayProcessorTask";
-
-  static inputSchema() {
-    return {
-      type: "object",
-      properties: {
-        items: {
-          type: "array",
-          items: {
-            type: "string",
-          },
-        },
-      },
-      required: ["items"],
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema() {
-    return {
-      type: "object",
-      properties: {
-        results: {
-          type: "array",
-          items: {
-            type: "string",
-          },
-        },
-      },
-      required: ["results"],
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(input: { items: string[] }) {
-    return { results: input.items.map((item) => item.toUpperCase()) };
-  }
-}
-
-// Process array items in parallel
-const task = new ArrayProcessorTask({
-  items: ["hello", "world", "foo", "bar"],
-});
-
-const result = await task.run();
-// { results: ["HELLO", "WORLD", "FOO", "BAR"] }
-```
-
 ### Job Queue Tasks
 
 ```typescript

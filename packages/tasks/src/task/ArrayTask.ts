@@ -12,12 +12,18 @@ import {
   type DataPortSchema,
 } from "@workglow/util";
 
-import { TaskGraph } from "../task-graph/TaskGraph";
-import { GraphResultArray, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
-import { GraphAsTask } from "./GraphAsTask";
-import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
-import { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
-import { TaskConfig, TaskInput, TaskOutput } from "./TaskTypes";
+import {
+  GraphAsTask,
+  GraphAsTaskRunner,
+  GraphResultArray,
+  JsonTaskItem,
+  PROPERTY_ARRAY,
+  TaskConfig,
+  TaskGraph,
+  TaskGraphItemJson,
+  TaskInput,
+  TaskOutput,
+} from "@workglow/task-graph";
 
 export const TypeReplicateArray = <T extends DataPortSchemaNonBoolean>(
   type: T,

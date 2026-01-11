@@ -13,7 +13,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import {
@@ -230,7 +229,6 @@ export class DocumentNodeRetrievalTask extends Task<
     return output;
   }
 }
-
 
 export const retrieval = (input: RetrievalTaskInput, config?: JobQueueTaskConfig) => {
   return new DocumentNodeRetrievalTask({} as RetrievalTaskInput, config).run(input);

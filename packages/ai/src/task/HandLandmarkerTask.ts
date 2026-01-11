@@ -174,7 +174,6 @@ export class HandLandmarkerTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run hand landmark detection tasks.
  * Creates and executes a HandLandmarkerTask with the provided input.

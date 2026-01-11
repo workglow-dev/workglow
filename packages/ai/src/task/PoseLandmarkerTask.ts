@@ -191,7 +191,6 @@ export class PoseLandmarkerTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run pose landmark detection tasks.
  * Creates and executes a PoseLandmarkerTask with the provided input.

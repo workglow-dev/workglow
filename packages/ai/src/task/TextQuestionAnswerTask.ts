@@ -72,7 +72,6 @@ export class TextQuestionAnswerTask extends AiTask<
   }
 }
 
-
 /**
  * Convenience function to run text question answer tasks.
  * Creates and executes a TextQuestionAnswerCompoundTask with the provided input.

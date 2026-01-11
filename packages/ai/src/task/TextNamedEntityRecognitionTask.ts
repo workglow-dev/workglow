@@ -96,7 +96,6 @@ export class TextNamedEntityRecognitionTask extends AiTask<
   }
 }
 
-
 /**
  * Convenience function to run named entity recognition tasks.
  * Creates and executes a TextNamedEntityRecognitionTask with the provided input.

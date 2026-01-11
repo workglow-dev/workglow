@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ArrayTask, ITask, TaskStatus } from "@workglow/task-graph";
+import { ITask, TaskStatus } from "@workglow/task-graph";
+import { ArrayTask } from "@workglow/tasks";
 import { Node, NodeProps } from "@xyflow/react";
 import { useEffect, useState } from "react";
 import { FiCloud, FiCloudLightning } from "react-icons/fi";

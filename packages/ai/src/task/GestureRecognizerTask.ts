@@ -202,7 +202,6 @@ export class GestureRecognizerTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run gesture recognition tasks.
  * Creates and executes a GestureRecognizerTask with the provided input.

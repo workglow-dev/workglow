@@ -72,7 +72,6 @@ export class ImageToTextTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run image to text tasks.
  * Creates and executes an ImageToTextTask with the provided input.

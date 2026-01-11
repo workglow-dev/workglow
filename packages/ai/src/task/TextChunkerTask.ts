@@ -9,7 +9,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -342,7 +341,6 @@ export class TextChunkerTask extends Task<
     return { chunks, metadata };
   }
 }
-
 
 export const textChunker = (input: TextChunkerTaskInput, config?: JobQueueTaskConfig) => {
   return new TextChunkerTask({} as TextChunkerTaskInput, config).run(input);

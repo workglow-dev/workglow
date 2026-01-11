@@ -97,7 +97,6 @@ export class TextClassificationTask extends AiTask<
   }
 }
 
-
 /**
  * Convenience function to run text classifier tasks.
  * Creates and executes a TextClassificationTask with the provided input.

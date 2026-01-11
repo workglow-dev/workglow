@@ -4,7 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export * from "./task/ArrayTask";
+export * from "./task/DebugLogTask";
+export * from "./task/DelayTask";
+export * from "./task/FetchUrlTask";
+export * from "./task/InputTask";
+export * from "./task/JavaScriptTask";
+export * from "./task/JsonTask";
+export * from "./task/LambdaTask";
+export * from "./task/MergeTask";
+export * from "./task/OutputTask";
+export * from "./task/SplitTask";
+
 import { TaskRegistry } from "@workglow/task-graph";
+import { ArrayTask } from "./task/ArrayTask";
 import { DebugLogTask } from "./task/DebugLogTask";
 import { DelayTask } from "./task/DelayTask";
 import { FetchUrlTask } from "./task/FetchUrlTask";
@@ -19,26 +32,18 @@ import { SplitTask } from "./task/SplitTask";
 // Register all common tasks with the TaskRegistry.
 // Centralized registration ensures tasks are available for JSON deserialization
 // and prevents tree-shaking issues.
-[
-  DebugLogTask,
-  DelayTask,
-  FetchUrlTask,
-  InputTask,
-  JavaScriptTask,
-  JsonTask,
-  LambdaTask,
-  MergeTask,
-  OutputTask,
-  SplitTask,
-].map(TaskRegistry.registerTask);
-
-export * from "./task/DebugLogTask";
-export * from "./task/DelayTask";
-export * from "./task/FetchUrlTask";
-export * from "./task/InputTask";
-export * from "./task/JavaScriptTask";
-export * from "./task/JsonTask";
-export * from "./task/LambdaTask";
-export * from "./task/MergeTask";
-export * from "./task/OutputTask";
-export * from "./task/SplitTask";
+export const registerCommonTasks = () => {
+  [
+    ArrayTask,
+    DebugLogTask,
+    DelayTask,
+    FetchUrlTask,
+    InputTask,
+    JavaScriptTask,
+    JsonTask,
+    LambdaTask,
+    MergeTask,
+    OutputTask,
+    SplitTask,
+  ].map(TaskRegistry.registerTask);
+};

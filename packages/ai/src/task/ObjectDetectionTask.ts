@@ -102,7 +102,6 @@ export class ObjectDetectionTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run object detection tasks.
  * Creates and executes an ObjectDetectionTask with the provided input.

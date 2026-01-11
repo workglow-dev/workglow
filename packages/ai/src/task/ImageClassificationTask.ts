@@ -81,7 +81,6 @@ export class ImageClassificationTask extends AiVisionTask<
   }
 }
 
-
 /**
  * Convenience function to run image classification tasks.
  * Creates and executes an ImageClassificationTask with the provided input.

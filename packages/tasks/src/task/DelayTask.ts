@@ -10,7 +10,6 @@ import {
   Task,
   TaskAbortedError,
   TaskConfig,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema, sleep } from "@workglow/util";

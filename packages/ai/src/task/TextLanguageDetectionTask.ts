@@ -120,7 +120,6 @@ export class TextLanguageDetectionTask extends AiTask<
   }
 }
 
-
 /**
  * Convenience function to run language detection tasks.
  * Creates and executes a TextLanguageDetectionTask with the provided input.

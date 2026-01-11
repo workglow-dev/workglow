@@ -9,7 +9,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -298,7 +297,6 @@ export class QueryExpanderTask extends Task<
     return modified;
   }
 }
-
 
 export const queryExpander = (input: QueryExpanderTaskInput, config?: JobQueueTaskConfig) => {
   return new QueryExpanderTask({} as QueryExpanderTaskInput, config).run(input);

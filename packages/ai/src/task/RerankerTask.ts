@@ -9,7 +9,6 @@ import {
   IExecuteContext,
   JobQueueTaskConfig,
   Task,
-  TaskRegistry,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -325,7 +324,6 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Jo
     return items;
   }
 }
-
 
 export const reranker = (input: RerankerTaskInput, config?: JobQueueTaskConfig) => {
   return new RerankerTask({} as RerankerTaskInput, config).run(input);

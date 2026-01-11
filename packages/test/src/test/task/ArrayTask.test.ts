@@ -5,7 +5,6 @@
  */
 
 import {
-  ArrayTask,
   Dataflow,
   IExecuteContext,
   ITask,
@@ -17,6 +16,7 @@ import {
   TaskOutput,
   TaskStatus,
 } from "@workglow/task-graph";
+import { ArrayTask } from "@workglow/tasks";
 import { ConvertAllToOptionalArray, DataPortSchema } from "@workglow/util";
 import { describe, expect, test, vi } from "vitest";
 
