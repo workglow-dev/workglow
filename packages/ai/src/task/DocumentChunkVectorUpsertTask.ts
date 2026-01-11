@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import {
+  AnyDocumentChunkVectorRepository,
+  TypeDocumentChunkVectorRepository,
+} from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -24,14 +27,14 @@ import { TypeSingleOrArray } from "./base/AiTaskSchemas";
 const inputSchema = {
   type: "object",
   properties: {
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "The document ID",
     },
-    repository: TypeVectorRepository({
-      title: "Vector Repository",
-      description: "The vector repository instance to store vectors in",
+    repository: TypeDocumentChunkVectorRepository({
+      title: "Document Chunk Vector Repository",
+      description: "The document chunk vector repository instance to store vectors in",
     }),
     vectors: TypeSingleOrArray(
       TypedArraySchema({
@@ -45,7 +48,7 @@ const inputSchema = {
       description: "Metadata associated with the vector",
     },
   },
-  required: ["repository", "docId", "vectors", "metadata"],
+  required: ["repository", "doc_id", "vectors", "metadata"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -57,7 +60,7 @@ const outputSchema = {
       title: "Count",
       description: "Number of vectors upserted",
     },
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "The document ID",
@@ -83,12 +86,12 @@ export type VectorStoreUpsertTaskOutput = FromSchema<typeof outputSchema>;
  * Task for upserting (insert or update) vectors into a vector repository.
  * Supports both single and bulk operations.
  */
-export class VectorStoreUpsertTask extends Task<
+export class DocumentChunkVectorUpsertTask extends Task<
   VectorStoreUpsertTaskInput,
   VectorStoreUpsertTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "VectorStoreUpsertTask";
+  public static type = "DocumentChunkVectorUpsertTask";
   public static category = "Vector Store";
   public static title = "Vector Store Upsert";
   public static description = "Store vector embeddings with metadata in a vector repository";
@@ -106,12 +109,12 @@ export class VectorStoreUpsertTask extends Task<
     input: VectorStoreUpsertTaskInput,
     context: IExecuteContext
   ): Promise<VectorStoreUpsertTaskOutput> {
-    const { repository, docId, vectors, metadata } = input;
+    const { repository, doc_id, vectors, metadata } = input;
 
     // Normalize inputs to arrays
     const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
 
-    const repo = repository as AnyVectorRepository;
+    const repo = repository as AnyDocumentChunkVectorRepository;
 
     await context.updateProgress(1, "Upserting vectors");
 
@@ -120,11 +123,11 @@ export class VectorStoreUpsertTask extends Task<
     // Bulk upsert if multiple items
     if (vectorArray.length > 1) {
       const entities = vectorArray.map((vector, i) => {
-        const id = `${docId}_${i}`;
+        const id = `${doc_id}_${i}`;
         idArray.push(id);
         return {
           id,
-          docId,
+          doc_id,
           vector: vector as any, // Store TypedArray directly (memory) or as string (SQL)
           metadata,
         };
@@ -132,31 +135,31 @@ export class VectorStoreUpsertTask extends Task<
       await repo.putBulk(entities as any);
     } else if (vectorArray.length === 1) {
       // Single upsert
-      const id = `${docId}_0`;
+      const id = `${doc_id}_0`;
       idArray.push(id);
       await repo.put({
         id,
-        docId,
+        doc_id,
         vector: vectorArray[0] as any, // Store TypedArray directly (memory) or as string (SQL)
         metadata,
       } as any);
     }
 
     return {
-      docId,
+      doc_id,
       ids: idArray,
       count: vectorArray.length,
     };
   }
 }
 
-TaskRegistry.registerTask(VectorStoreUpsertTask);
+TaskRegistry.registerTask(DocumentChunkVectorUpsertTask);
 
 export const vectorStoreUpsert = (
   input: VectorStoreUpsertTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new VectorStoreUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
+  return new DocumentChunkVectorUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -169,4 +172,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.vectorStoreUpsert = CreateWorkflow(VectorStoreUpsertTask);
+Workflow.prototype.vectorStoreUpsert = CreateWorkflow(DocumentChunkVectorUpsertTask);

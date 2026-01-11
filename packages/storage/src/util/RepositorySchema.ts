@@ -10,7 +10,10 @@ import type { JsonSchema } from "@workglow/util";
  * Semantic format types for repository schema annotations.
  * These are used by the InputResolver to determine how to resolve string IDs.
  */
-export type RepositorySemantic = "repository:tabular" | "repository:vector" | "repository:document";
+export type RepositorySemantic =
+  | "repository:tabular"
+  | "repository:document-chunk-vector"
+  | "repository:document";
 
 /**
  * Creates a JSON schema for a tabular repository input.
@@ -55,12 +58,14 @@ export function TypeTabularRepository<O extends Record<string, unknown> = {}>(
  * @param options Additional schema options to merge
  * @returns JSON schema for vector repository input
  */
-export function TypeVectorRepository<O extends Record<string, unknown> = {}>(options: O = {} as O) {
+export function TypeDocumentChunkVectorRepository<O extends Record<string, unknown> = {}>(
+  options: O = {} as O
+) {
   return {
-    title: "Vector Repository",
-    description: "Repository ID or instance for vector data storage",
+    title: "Document Chunk Vector Repository",
+    description: "Repository ID or instance for document chunk vector data storage",
     ...options,
-    format: "repository:vector" as const,
+    format: "repository:document-chunk-vector" as const,
     anyOf: [
       { type: "string" as const, title: "Repository ID" },
       { title: "Repository Instance", additionalProperties: true },

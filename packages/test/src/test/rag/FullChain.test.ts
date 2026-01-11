@@ -4,20 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type ChunkNode, HierarchicalChunkerTaskOutput, NodeIdGenerator } from "@workglow/ai";
-import { InMemoryVectorRepository, VectorSchema } from "@workglow/storage";
+import { HierarchicalChunkerTaskOutput } from "@workglow/ai";
+import {
+  ChunkNode,
+  InMemoryDocumentChunkVectorRepository,
+  NodeIdGenerator,
+} from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
 describe("Complete chainable workflow", () => {
   it("should chain from parsing to storage without loops", async () => {
-    const vectorRepo = new InMemoryVectorRepository<{
-      docId: string;
-      chunkId: string;
-      leafNodeId: string;
-      depth: number;
-      text: string;
-    }>(VectorSchema, ["id"], []);
+    const vectorRepo = new InMemoryDocumentChunkVectorRepository(3);
     await vectorRepo.setupDatabase();
 
     const markdown = `# Test Document
@@ -50,8 +48,8 @@ This is the second section with more content.`;
       .run();
 
     // Verify the chain worked - final output from hierarchicalChunker
-    expect(result.docId).toBeDefined();
-    expect(result.docId).toMatch(/^doc_[0-9a-f]{16}$/);
+    expect(result.doc_id).toBeDefined();
+    expect(result.doc_id).toMatch(/^doc_[0-9a-f]{16}$/);
     expect(result.chunks).toBeDefined();
     expect(result.text).toBeDefined();
     expect(result.count).toBeGreaterThan(0);
@@ -78,11 +76,11 @@ This is the second section with more content.`;
       .run();
 
     // Verify data flows correctly (final output from hierarchicalChunker)
-    expect(result.docId).toBeDefined();
+    expect(result.doc_id).toBeDefined();
     expect(result.chunks).toBeDefined();
     expect(result.text).toBeDefined();
 
-    // docId should flow through the chain to all chunks
+    // doc_id should flow through the chain to all chunks
     // PropertyArrayGraphResult makes chunks potentially an array of arrays
     const chunks = (
       Array.isArray(result.chunks) && result.chunks.length > 0
@@ -92,11 +90,11 @@ This is the second section with more content.`;
         : []
     ) as ChunkNode[];
     for (const chunk of chunks) {
-      expect(chunk.docId).toBe(result.docId);
+      expect(chunk.doc_id).toBe(result.doc_id);
     }
   });
 
-  it("should generate consistent docId across chains", async () => {
+  it("should generate consistent doc_id across chains", async () => {
     const markdown = "# Test\n\nContent.";
 
     // Run twice with same content
@@ -116,11 +114,11 @@ This is the second section with more content.`;
       })
       .run();
 
-    // Should generate same docId (deterministic)
-    expect(result1.docId).toBe(result2.docId);
+    // Should generate same doc_id (deterministic)
+    expect(result1.doc_id).toBe(result2.doc_id);
   });
 
-  it("should allow docId override for variant creation", async () => {
+  it("should allow doc_id override for variant creation", async () => {
     const markdown = "# Test\n\nContent.";
     const customId = await NodeIdGenerator.generateDocId("custom", markdown);
 
@@ -128,7 +126,7 @@ This is the second section with more content.`;
       .structuralParser({
         text: markdown,
         title: "Test",
-        docId: customId, // Override with custom ID
+        doc_id: customId, // Override with custom ID
       })
       .hierarchicalChunker({
         maxTokens: 512,
@@ -136,11 +134,11 @@ This is the second section with more content.`;
       .run()) as HierarchicalChunkerTaskOutput;
 
     // Should use the provided ID
-    expect(result.docId).toBe(customId);
+    expect(result.doc_id).toBe(customId);
 
     // All chunks should reference it
     for (const chunk of result.chunks) {
-      expect(chunk.docId).toBe(customId);
+      expect(chunk.doc_id).toBe(customId);
     }
   });
 });

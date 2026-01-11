@@ -4,13 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  estimateTokens,
-  hierarchicalChunker,
-  HierarchicalChunkerTask,
-  NodeIdGenerator,
-  StructuralParser,
-} from "@workglow/ai";
+import { hierarchicalChunker } from "@workglow/ai";
+import { estimateTokens, NodeIdGenerator, StructuralParser } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
@@ -24,11 +19,11 @@ This is a paragraph that should fit in one chunk.
 
 This is another paragraph.`;
 
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
     const result = await hierarchicalChunker({
-      docId,
+      doc_id: doc_id,
       documentTree: root,
       maxTokens: 512,
       overlap: 50,
@@ -44,7 +39,7 @@ This is another paragraph.`;
     // Each chunk should have required fields
     for (const chunk of result.chunks) {
       expect(chunk.chunkId).toBeDefined();
-      expect(chunk.docId).toBe(docId);
+      expect(chunk.doc_id).toBe(doc_id);
       expect(chunk.text).toBeDefined();
       expect(chunk.nodePath).toBeDefined();
       expect(chunk.nodePath.length).toBeGreaterThan(0);
@@ -57,12 +52,12 @@ This is another paragraph.`;
     const longText = "Lorem ipsum dolor sit amet. ".repeat(100);
     const markdown = `# Section\n\n${longText}`;
 
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Long");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Long");
 
     const maxTokens = 100;
     const result = await hierarchicalChunker({
-      docId,
+      doc_id,
       documentTree: root,
       maxTokens,
       overlap: 10,
@@ -83,13 +78,13 @@ This is another paragraph.`;
     const text = "Word ".repeat(200);
     const markdown = `# Section\n\n${text}`;
 
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Overlap");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Overlap");
 
     const maxTokens = 50;
     const overlap = 10;
     const result = await hierarchicalChunker({
-      docId,
+      doc_id,
       documentTree: root,
       maxTokens,
       overlap,
@@ -113,7 +108,6 @@ This is another paragraph.`;
     }
   });
 
-
   it("should handle flat strategy", async () => {
     const markdown = `# Section 1
 
@@ -123,12 +117,12 @@ Paragraph 1.
 
 Paragraph 2.`;
 
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Flat");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Flat");
 
     const result = await new Workflow()
       .hierarchicalChunker({
-        docId,
+        doc_id,
         documentTree: root,
         maxTokens: 512,
         overlap: 50,
@@ -147,11 +141,11 @@ Paragraph 2.`;
 
 Paragraph content.`;
 
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Paths");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Paths");
 
     const result = await hierarchicalChunker({
-      docId,
+      doc_id,
       documentTree: root,
       maxTokens: 512,
       overlap: 50,

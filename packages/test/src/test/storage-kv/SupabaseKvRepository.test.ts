@@ -10,17 +10,10 @@ import {
   SupabaseKvRepository,
   SupabaseTabularRepository,
 } from "@workglow/storage";
-import { DataPortSchemaObject, FromSchema, IncludeProps, uuid4 } from "@workglow/util";
+import { uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
-
-class SupabaseTabularTestRepository<
-  Schema extends DataPortSchemaObject,
-  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
-  PrimaryKey = FromSchema<IncludeProps<Schema, PrimaryKeyNames>>,
-  Entity = FromSchema<Schema>,
-> extends SupabaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {}
 
 describe("SupabaseKvRepository", () => {
   const client = createSupabaseMockClient();
@@ -31,12 +24,7 @@ describe("SupabaseKvRepository", () => {
       tableName,
       keyType,
       valueType,
-      new SupabaseTabularTestRepository(
-        client,
-        tableName,
-        DefaultKeyValueSchema,
-        DefaultKeyValueKey
-      )
+      new SupabaseTabularRepository(client, tableName, DefaultKeyValueSchema, DefaultKeyValueKey)
     );
   });
 });

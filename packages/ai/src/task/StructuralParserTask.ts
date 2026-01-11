@@ -40,7 +40,7 @@ const inputSchema = {
       title: "Source URI",
       description: "Source identifier for document ID generation",
     },
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "Pre-generated document ID (optional)",
@@ -53,7 +53,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "Generated or provided document ID",
@@ -68,7 +68,7 @@ const outputSchema = {
       description: "Total number of nodes in the tree",
     },
   },
-  required: ["docId", "documentTree", "nodeCount"],
+  required: ["doc_id", "documentTree", "nodeCount"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -102,28 +102,28 @@ export class StructuralParserTask extends Task<
     input: StructuralParserTaskInput,
     context: IExecuteContext
   ): Promise<StructuralParserTaskOutput> {
-    const { text, title, format = "auto", sourceUri, docId: providedDocId } = input;
+    const { text, title, format = "auto", sourceUri, doc_id: providedDocId } = input;
 
-    // Generate or use provided docId
-    const docId =
+    // Generate or use provided doc_id
+    const doc_id =
       providedDocId || (await NodeIdGenerator.generateDocId(sourceUri || "document", text));
 
     // Parse based on format
     let documentTree: DocumentNode;
     if (format === "markdown") {
-      documentTree = await StructuralParser.parseMarkdown(docId, text, title);
+      documentTree = await StructuralParser.parseMarkdown(doc_id, text, title);
     } else if (format === "text") {
-      documentTree = await StructuralParser.parsePlainText(docId, text, title);
+      documentTree = await StructuralParser.parsePlainText(doc_id, text, title);
     } else {
       // Auto-detect
-      documentTree = await StructuralParser.parse(docId, text, title);
+      documentTree = await StructuralParser.parse(doc_id, text, title);
     }
 
     // Count nodes
     const nodeCount = this.countNodes(documentTree);
 
     return {
-      docId,
+      doc_id,
       documentTree,
       nodeCount,
     };

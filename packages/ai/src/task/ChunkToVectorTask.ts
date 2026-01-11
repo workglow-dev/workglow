@@ -23,7 +23,7 @@ import {
 const inputSchema = {
   type: "object",
   properties: {
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "The document ID",
@@ -140,7 +140,7 @@ export class ChunkToVectorTask extends Task<
       texts.push(chunk.text);
 
       metadata.push({
-        docId: chunk.docId,
+        doc_id: chunk.doc_id,
         chunkId: chunk.chunkId,
         leafNodeId: chunk.nodePath[chunk.nodePath.length - 1],
         depth: chunk.depth,

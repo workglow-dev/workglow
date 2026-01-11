@@ -21,7 +21,7 @@ describe("Document", () => {
   const createTestChunks = (): ChunkNode[] => [
     {
       chunkId: "chunk1",
-      docId: "doc1",
+      doc_id: "doc1",
       text: "Test chunk",
       nodePath: ["root"],
       depth: 1,

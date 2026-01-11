@@ -25,10 +25,10 @@
  *    - Or a batch TextEmbedding node that accepts arrays
  *
  * 2. Semantic Search Pipeline:
- *    Query (input) → RetrievalTask → Results (output)
+ *    Query (input) → DocumentChunkRetrievalTask → Results (output)
  *
  * 3. Question Answering Pipeline:
- *    Question → RetrievalTask → ContextBuilder → TextQuestionAnswerTask → Answer
+ *    Question → DocumentChunkRetrievalTask → ContextBuilder → TextQuestionAnswerTask → Answer
  *
  * Models Used:
  *    - Xenova/all-MiniLM-L6-v2 (Text Embedding - 384D)
@@ -37,8 +37,6 @@
  */
 
 import {
-  DocumentRepository,
-  DocumentStorageSchema,
   InMemoryModelRepository,
   RetrievalTaskOutput,
   setGlobalModelRepository,
@@ -47,10 +45,12 @@ import {
 } from "@workglow/ai";
 import { register_HFT_InlineJobFns } from "@workglow/ai-provider";
 import {
+  DocumentRepository,
+  DocumentStorageKey,
+  DocumentStorageSchema,
+  InMemoryDocumentChunkVectorRepository,
   InMemoryTabularRepository,
-  InMemoryVectorRepository,
-  registerVectorRepository,
-  VectorSchema,
+  registerDocumentChunkVectorRepository,
 } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { readdirSync } from "fs";
@@ -60,11 +60,11 @@ import { registerHuggingfaceLocalModels } from "../../samples";
 export { FileLoaderTask } from "@workglow/tasks";
 
 describe("RAG Workflow End-to-End", () => {
-  let vectorRepo: InMemoryVectorRepository<typeof VectorSchema, readonly ["id"]>;
+  let vectorRepo: InMemoryDocumentChunkVectorRepository;
   let docRepo: DocumentRepository;
   const vectorRepoName = "rag-test-vector-repo";
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
-  const summaryModel = "onnx:Falconsai/text_summarization:auto";
+  const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
   const qaModel = "onnx:Xenova/distilbert-base-uncased-distilled-squad:q8";
 
@@ -77,13 +77,13 @@ describe("RAG Workflow End-to-End", () => {
     await registerHuggingfaceLocalModels();
 
     // Setup repositories
-    vectorRepo = new InMemoryVectorRepository(VectorSchema, ["id"]);
+    vectorRepo = new InMemoryDocumentChunkVectorRepository(3);
     await vectorRepo.setupDatabase();
 
     // Register vector repository for use in workflows
-    registerVectorRepository(vectorRepoName, vectorRepo);
+    registerDocumentChunkVectorRepository(vectorRepoName, vectorRepo);
 
-    const tabularRepo = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+    const tabularRepo = new InMemoryTabularRepository(DocumentStorageSchema, DocumentStorageKey);
     await tabularRepo.setupDatabase();
 
     docRepo = new DocumentRepository(tabularRepo, vectorRepo);

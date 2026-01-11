@@ -13,24 +13,15 @@ import type {
 } from "@workglow/util";
 import type { ITabularRepository, TabularEventListeners } from "../tabular/ITabularRepository";
 
-export type AnyVectorRepository = IVectorRepository<any, any, any>;
-
-/**
- * Find the property with format: "metadata" and extract its type
- */
-export type ExtractMetadataProperty<Schema extends DataPortSchemaObject> = {
-  [K in keyof Schema["properties"]]: Schema["properties"][K] extends { format: "metadata" }
-    ? K
-    : never;
-}[keyof Schema["properties"]];
+export type AnyDocumentChunkVectorRepository = IDocumentChunkVectorRepository<any, any, any>;
 
 /**
  * Options for vector search operations
  */
 export interface VectorSearchOptions<Metadata = Record<string, unknown>> {
-  topK?: number;
-  filter?: Partial<Metadata>;
-  scoreThreshold?: number;
+  readonly topK?: number;
+  readonly filter?: Partial<Metadata>;
+  readonly scoreThreshold?: number;
 }
 
 /**
@@ -39,14 +30,14 @@ export interface VectorSearchOptions<Metadata = Record<string, unknown>> {
 export interface HybridSearchOptions<
   Metadata = Record<string, unknown>,
 > extends VectorSearchOptions<Metadata> {
-  textQuery: string;
-  vectorWeight?: number;
+  readonly textQuery: string;
+  readonly vectorWeight?: number;
 }
 
 /**
- * Type definitions for vector repository events
+ * Type definitions for document chunk vector repository events
  */
-export interface VectorEventListeners<PrimaryKey, Entity> extends TabularEventListeners<
+export interface VectorChunkEventListeners<PrimaryKey, Entity> extends TabularEventListeners<
   PrimaryKey,
   Entity
 > {
@@ -54,21 +45,22 @@ export interface VectorEventListeners<PrimaryKey, Entity> extends TabularEventLi
   hybridSearch: (query: TypedArray, results: (Entity & { score: number })[]) => void;
 }
 
-export type VectorEventName = keyof VectorEventListeners<any, any>;
-export type VectorEventListener<
-  Event extends VectorEventName,
+export type VectorChunkEventName = keyof VectorChunkEventListeners<any, any>;
+export type VectorChunkEventListener<
+  Event extends VectorChunkEventName,
   PrimaryKey,
   Entity,
-> = VectorEventListeners<PrimaryKey, Entity>[Event];
+> = VectorChunkEventListeners<PrimaryKey, Entity>[Event];
 
-export type VectorEventParameters<
-  Event extends VectorEventName,
+export type VectorChunkEventParameters<
+  Event extends VectorChunkEventName,
   PrimaryKey,
   Entity,
-> = EventParameters<VectorEventListeners<PrimaryKey, Entity>, Event>;
+> = EventParameters<VectorChunkEventListeners<PrimaryKey, Entity>, Event>;
 
 /**
- * Interface defining the contract for vector storage repositories.
+ * Interface defining the contract for document chunk vector storage repositories.
+ * These repositories store vector embeddings with metadata for decument chunks.
  * Extends ITabularRepository to provide standard storage operations,
  * plus vector-specific similarity search capabilities.
  * Supports various vector types including quantized formats.
@@ -76,14 +68,18 @@ export type VectorEventParameters<
  * @typeParam Schema - The schema definition for the entity using JSON Schema
  * @typeParam PrimaryKeyNames - Array of property names that form the primary key
  * @typeParam Entity - The entity type
- * @typeParam PrimaryKey - The primary key type
- * @typeParam SearchResult - Type of search result including score and vector
  */
-export interface IVectorRepository<
+export interface IDocumentChunkVectorRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 > extends ITabularRepository<Schema, PrimaryKeyNames, Entity> {
+  /**
+   * Get the vector dimension
+   * @returns The vector dimension
+   */
+  getVectorDimensions(): number;
+
   /**
    * Search for similar vectors using similarity scoring
    * @param query - Query vector to compare against

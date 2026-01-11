@@ -1,0 +1,93 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  createServiceToken,
+  globalServiceRegistry,
+  registerInputResolver,
+  ServiceRegistry,
+} from "@workglow/util";
+import { AnyDocumentChunkVectorRepository } from "./IDocumentChunkVectorRepository";
+
+/**
+ * Service token for the documenbt chunk vector repository registry
+ * Maps repository IDs to IVectorChunkRepository instances
+ */
+export const DOCUMENT_CHUNK_VECTOR_REPOSITORIES = createServiceToken<
+  Map<string, AnyDocumentChunkVectorRepository>
+>("storage.document-chunk-vector.repositories");
+
+// Register default factory if not already registered
+if (!globalServiceRegistry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)) {
+  globalServiceRegistry.register(
+    DOCUMENT_CHUNK_VECTOR_REPOSITORIES,
+    (): Map<string, AnyDocumentChunkVectorRepository> => new Map(),
+    true
+  );
+}
+
+/**
+ * Gets the global document chunk vector repository registry
+ * @returns Map of document chunk vector repository ID to instance
+ */
+export function getGlobalDocumentChunkVectorRepositories(): Map<
+  string,
+  AnyDocumentChunkVectorRepository
+> {
+  return globalServiceRegistry.get(DOCUMENT_CHUNK_VECTOR_REPOSITORIES);
+}
+
+/**
+ * Registers a vector repository globally by ID
+ * @param id The unique identifier for this repository
+ * @param repository The repository instance to register
+ */
+export function registerDocumentChunkVectorRepository(
+  id: string,
+  repository: AnyDocumentChunkVectorRepository
+): void {
+  const repos = getGlobalDocumentChunkVectorRepositories();
+  repos.set(id, repository);
+}
+
+/**
+ * Gets a document chunk vector repository by ID from the global registry
+ * @param id The repository identifier
+ * @returns The repository instance or undefined if not found
+ */
+export function getDocumentChunkVectorRepository(
+  id: string
+): AnyDocumentChunkVectorRepository | undefined {
+  return getGlobalDocumentChunkVectorRepositories().get(id);
+}
+
+/**
+ * Resolves a repository ID to an IVectorChunkRepository from the registry.
+ * Used by the input resolver system.
+ */
+async function resolveDocumentChunkVectorRepositoryFromRegistry(
+  id: string,
+  format: string,
+  registry: ServiceRegistry
+): Promise<AnyDocumentChunkVectorRepository> {
+  const repos = registry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)
+    ? registry.get<Map<string, AnyDocumentChunkVectorRepository>>(
+        DOCUMENT_CHUNK_VECTOR_REPOSITORIES
+      )
+    : getGlobalDocumentChunkVectorRepositories();
+
+  const repo = repos.get(id);
+  if (!repo) {
+    throw new Error(`Document chunk vector repository "${id}" not found in registry`);
+  }
+  return repo;
+}
+
+// Register the repository resolver for format: "repository:document-chunk-vector"
+registerInputResolver(
+  "repository:document-chunk-vector",
+  resolveDocumentChunkVectorRepositoryFromRegistry
+);

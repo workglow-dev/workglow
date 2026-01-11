@@ -855,7 +855,6 @@ export class VectorOutputTask extends Task<{ text: string }, { vector: Float32Ar
         vector: {
           type: "array",
           format: "TypedArray",
-          "x-dimensions": 384,
           title: "Vector",
           description: "Output vector (singular name)",
         },
@@ -937,7 +936,6 @@ export class VectorOneOfOutputTask extends Task<{ text: string }, { embedding: F
             {
               type: "array",
               format: "TypedArray",
-              "x-dimensions": 384,
               title: "Single Embedding",
             },
             {
@@ -945,7 +943,6 @@ export class VectorOneOfOutputTask extends Task<{ text: string }, { embedding: F
               items: {
                 type: "array",
                 format: "TypedArray",
-                "x-dimensions": 384,
               },
               title: "Multiple Embeddings",
             },
@@ -978,7 +975,6 @@ export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: nu
             {
               type: "array",
               format: "TypedArray",
-              "x-dimensions": 384,
               title: "Single Vector",
             },
             {
@@ -986,7 +982,6 @@ export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: nu
               items: {
                 type: "array",
                 format: "TypedArray",
-                "x-dimensions": 384,
               },
               title: "Multiple Vectors",
             },
@@ -1128,7 +1123,6 @@ export class VectorOutputOnlyTask extends Task<{ size: number }, { vector: Float
         vector: {
           type: "array",
           format: "TypedArray",
-          "x-dimensions": 384,
           title: "Vector",
           description: "Output vector",
         },
@@ -1163,7 +1157,6 @@ export class TextVectorInputTask extends Task<
           type: "array",
           items: { type: "number" },
           format: "TypedArray",
-          "x-dimensions": 384,
           title: "Vector",
           description: "Input vector",
         },
@@ -1207,7 +1200,6 @@ export class PassthroughVectorTask extends Task<
         vector: {
           type: "array",
           format: "TypedArray",
-          "x-dimensions": 384,
           title: "Vector",
           description: "Input vector",
         },

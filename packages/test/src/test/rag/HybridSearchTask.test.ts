@@ -6,26 +6,16 @@
 
 import { hybridSearch } from "@workglow/ai";
 import {
-  InMemoryVectorRepository,
-  registerVectorRepository,
-  VectorSchema,
+  InMemoryDocumentChunkVectorRepository,
+  registerDocumentChunkVectorRepository,
 } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("HybridSearchTask", () => {
-  let repo: InMemoryVectorRepository<{ text: string; category?: string }>;
+describe("DocumentChunkVectorHybridSearchTask", () => {
+  let repo: InMemoryDocumentChunkVectorRepository;
 
   beforeEach(async () => {
-    const schema = {
-      ...VectorSchema,
-      properties: {
-        ...VectorSchema.properties,
-        // @ts-expect-error - dimension is a custom property for vector types
-        vector: { type: "string", format: "TypedArray", dimension: 3 },
-      },
-      // @ts-expect-error - Custom dimension doesn't match VectorSchema type
-    } as typeof VectorSchema;
-    repo = new InMemoryVectorRepository<{ text: string; category?: string }>(schema, ["id"], []);
+    repo = new InMemoryDocumentChunkVectorRepository(3);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -46,10 +36,10 @@ describe("HybridSearchTask", () => {
     ];
 
     for (let i = 0; i < vectors.length; i++) {
-      const docId = `doc${i + 1}`;
+      const doc_id = `doc${i + 1}`;
       await repo.put({
-        id: `${docId}_0`,
-        docId,
+        id: `${doc_id}_0`,
+        doc_id,
         vector: vectors[i] as any,
         metadata: metadata[i],
       } as any);
@@ -261,7 +251,7 @@ describe("HybridSearchTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerVectorRepository("test-hybrid-repo", repo);
+    registerDocumentChunkVectorRepository("test-hybrid-repo", repo);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "machine learning";

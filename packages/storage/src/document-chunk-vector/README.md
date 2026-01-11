@@ -354,7 +354,7 @@ When using hierarchical chunking, base vector metadata (stored in vector databas
 
 ```typescript
 metadata: {
-  docId: string,        // Document identifier
+  doc_id: string,        // Document identifier
   chunkId: string,      // Chunk identifier
   leafNodeId: string,   // Reference to document tree node
   depth: number,        // Hierarchy depth
@@ -376,7 +376,7 @@ enrichedMetadata: {
 }
 ```
 
-Note: `parentSummaries` is not stored in the vector database. It is computed on-demand by `HierarchyJoinTask` using `docId` and `leafNodeId` to look up ancestors from the document repository.
+Note: `parentSummaries` is not stored in the vector database. It is computed on-demand by `HierarchyJoinTask` using `doc_id` and `leafNodeId` to look up ancestors from the document repository.
 
 ## Document Repository
 
@@ -387,12 +387,12 @@ class DocumentRepository {
   constructor(tabularStorage: ITabularRepository, vectorStorage: IVectorRepository);
 
   upsert(document: Document): Promise<void>;
-  get(docId: string): Promise<Document | undefined>;
-  getNode(docId: string, nodeId: string): Promise<DocumentNode | undefined>;
-  getAncestors(docId: string, nodeId: string): Promise<DocumentNode[]>;
-  getChunks(docId: string): Promise<ChunkNode[]>;
-  findChunksByNodeId(docId: string, nodeId: string): Promise<ChunkNode[]>;
-  delete(docId: string): Promise<void>;
+  get(doc_id: string): Promise<Document | undefined>;
+  getNode(doc_id: string, nodeId: string): Promise<DocumentNode | undefined>;
+  getAncestors(doc_id: string, nodeId: string): Promise<DocumentNode[]>;
+  getChunks(doc_id: string): Promise<ChunkNode[]>;
+  findChunksByNodeId(doc_id: string, nodeId: string): Promise<ChunkNode[]>;
+  delete(doc_id: string): Promise<void>;
   list(): Promise<string[]>;
   search(query: TypedArray, options?: VectorSearchOptions): Promise<SearchResult[]>;
 }
@@ -420,14 +420,14 @@ import {
 const DocumentStorageSchema = {
   type: "object",
   properties: {
-    docId: { type: "string" },
+    doc_id: { type: "string" },
     data: { type: "string" },
   },
-  required: ["docId", "data"],
+  required: ["doc_id", "data"],
 } as const;
 
 // Initialize storage backends
-const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["docId"]);
+const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["doc_id"]);
 await tabularStorage.setupDatabase();
 
 const vectorStorage = new InMemoryVectorRepository();

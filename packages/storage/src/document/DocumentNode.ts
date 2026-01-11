@@ -21,7 +21,7 @@ import {
  */
 export class NodeIdGenerator {
   /**
-   * Generate docId from source URI and content hash
+   * Generate doc_id from source URI and content hash
    */
   static async generateDocId(sourceUri: string, content: string): Promise<string> {
     const contentHash = await sha256(content);
@@ -34,11 +34,11 @@ export class NodeIdGenerator {
    * Generate nodeId for structural nodes (document, section)
    */
   static async generateStructuralNodeId(
-    docId: string,
+    doc_id: string,
     kind: NodeKindType,
     range: NodeRange
   ): Promise<string> {
-    const combined = `${docId}|${kind}|${range.startOffset}:${range.endOffset}`;
+    const combined = `${doc_id}|${kind}|${range.startOffset}:${range.endOffset}`;
     const hash = await sha256(combined);
     return `node_${hash.substring(0, 16)}`;
   }
@@ -56,11 +56,11 @@ export class NodeIdGenerator {
    * Generate chunkId
    */
   static async generateChunkId(
-    docId: string,
+    doc_id: string,
     leafNodeId: string,
     chunkOrdinal: number
   ): Promise<string> {
-    const combined = `${docId}|${leafNodeId}|${chunkOrdinal}`;
+    const combined = `${doc_id}|${leafNodeId}|${chunkOrdinal}`;
     const hash = await sha256(combined);
     return `chunk_${hash.substring(0, 16)}`;
   }

@@ -6,6 +6,11 @@
 
 import type { DocumentRepository } from "@workglow/storage";
 import {
+  type ChunkMetadata,
+  ChunkMetadataArraySchema,
+  EnrichedChunkMetadataArraySchema,
+} from "@workglow/storage";
+import {
   CreateWorkflow,
   IExecuteContext,
   JobQueueTaskConfig,
@@ -14,11 +19,6 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  type ChunkMetadata,
-  ChunkMetadataArraySchema,
-  EnrichedChunkMetadataArraySchema,
-} from "@workglow/storage";
 
 const inputSchema = {
   type: "object",
@@ -148,11 +148,11 @@ export class HierarchyJoinTask extends Task<
         continue;
       }
 
-      // Extract docId and nodeId from metadata
-      const docId = originalMetadata.docId;
+      // Extract doc_id and nodeId from metadata
+      const doc_id = originalMetadata.doc_id;
       const leafNodeId = originalMetadata.leafNodeId;
 
-      if (!docId || !leafNodeId) {
+      if (!doc_id || !leafNodeId) {
         // Can't enrich without IDs
         enrichedMetadata.push(originalMetadata);
         continue;
@@ -160,7 +160,7 @@ export class HierarchyJoinTask extends Task<
 
       try {
         // Get ancestors from document repository
-        const ancestors = await repo.getAncestors(docId, leafNodeId);
+        const ancestors = await repo.getAncestors(doc_id, leafNodeId);
 
         const enriched: any = { ...originalMetadata };
 

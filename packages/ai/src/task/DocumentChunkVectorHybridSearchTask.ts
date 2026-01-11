@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import {
+  AnyDocumentChunkVectorRepository,
+  TypeDocumentChunkVectorRepository,
+} from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -23,9 +26,10 @@ import {
 const inputSchema = {
   type: "object",
   properties: {
-    repository: TypeVectorRepository({
-      title: "Vector Repository",
-      description: "The vector repository instance to search in (must support hybridSearch)",
+    repository: TypeDocumentChunkVectorRepository({
+      title: "Document Chunk Vector Repository",
+      description:
+        "The document chunk vector repository instance to search in (must support hybridSearch)",
     }),
     queryVector: TypedArraySchema({
       title: "Query Vector",
@@ -130,18 +134,18 @@ export type HybridSearchTaskOutput = FromSchema<typeof outputSchema, TypedArrayS
 
 /**
  * Task for hybrid search combining vector similarity and full-text search.
- * Requires a vector repository that supports hybridSearch (e.g., SeekDB, Postgres with pgvector).
+ * Requires a document chunk vector repository that supports hybridSearch (e.g., Postgres with pgvector).
  *
  * Hybrid search improves retrieval by combining:
  * - Semantic similarity (vector search) - understands meaning
  * - Keyword matching (full-text search) - finds exact terms
  */
-export class HybridSearchTask extends Task<
+export class DocumentChunkVectorHybridSearchTask extends Task<
   HybridSearchTaskInput,
   HybridSearchTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "HybridSearchTask";
+  public static type = "DocumentChunkVectorHybridSearchTask";
   public static category = "RAG";
   public static title = "Hybrid Search";
   public static description = "Combined vector + full-text search for improved retrieval";
@@ -171,13 +175,11 @@ export class HybridSearchTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as AnyVectorRepository;
+    const repo = repository as AnyDocumentChunkVectorRepository;
 
     // Check if repository supports hybrid search
     if (!repo.hybridSearch) {
-      throw new Error(
-        "Repository does not support hybrid search. Use SeekDbVectorRepository or PostgresVectorRepository."
-      );
+      throw new Error("Repository does not support hybrid search.");
     }
 
     // Convert to Float32Array for repository search (repo expects Float32Array by default)
@@ -215,13 +217,13 @@ export class HybridSearchTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(HybridSearchTask);
+TaskRegistry.registerTask(DocumentChunkVectorHybridSearchTask);
 
 export const hybridSearch = async (
   input: HybridSearchTaskInput,
   config?: JobQueueTaskConfig
 ): Promise<HybridSearchTaskOutput> => {
-  return new HybridSearchTask({} as HybridSearchTaskInput, config).run(input);
+  return new DocumentChunkVectorHybridSearchTask({} as HybridSearchTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -230,4 +232,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.hybridSearch = CreateWorkflow(HybridSearchTask);
+Workflow.prototype.hybridSearch = CreateWorkflow(DocumentChunkVectorHybridSearchTask);

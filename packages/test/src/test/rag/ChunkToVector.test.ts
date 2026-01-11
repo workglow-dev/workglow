@@ -4,26 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  ChunkNode,
-  ChunkToVectorTaskOutput,
-  HierarchicalChunkerTaskOutput,
-  NodeIdGenerator,
-  StructuralParser,
-} from "@workglow/ai";
+import type { ChunkToVectorTaskOutput, HierarchicalChunkerTaskOutput } from "@workglow/ai";
+import { type ChunkNode, NodeIdGenerator, StructuralParser } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
 describe("ChunkToVectorTask", () => {
   it("should transform chunks and vectors to vector store format", async () => {
     const markdown = "# Test\n\nContent.";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
     // Generate chunks using workflow
     const chunkResult = (await new Workflow()
       .hierarchicalChunker({
-        docId,
+        doc_id,
         documentTree: root,
         maxTokens: 512,
         overlap: 50,
@@ -32,9 +27,7 @@ describe("ChunkToVectorTask", () => {
       .run()) as HierarchicalChunkerTaskOutput;
 
     // Mock vectors (would normally come from TextEmbeddingTask)
-    const mockVectors = chunkResult.chunks.map(() => 
-      new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5])
-    );
+    const mockVectors = chunkResult.chunks.map(() => new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5]));
 
     // Transform to vector store format using workflow
     const result = (await new Workflow()
@@ -58,7 +51,7 @@ describe("ChunkToVectorTask", () => {
     // Check metadata structure
     for (let i = 0; i < result.metadata.length; i++) {
       const meta = result.metadata[i];
-      expect(meta.docId).toBe(docId);
+      expect(meta.doc_id).toBe(doc_id);
       expect(meta.chunkId).toBeDefined();
       expect(meta.leafNodeId).toBeDefined();
       expect(meta.depth).toBeDefined();
@@ -76,14 +69,14 @@ describe("ChunkToVectorTask", () => {
     const chunks = [
       {
         chunkId: "chunk_1",
-        docId: "doc_1",
+        doc_id: "doc_1",
         text: "Test",
         nodePath: ["node_1"],
         depth: 1,
       },
       {
         chunkId: "chunk_2",
-        docId: "doc_1",
+        doc_id: "doc_1",
         text: "Test 2",
         nodePath: ["node_1"],
         depth: 1,
@@ -93,18 +86,16 @@ describe("ChunkToVectorTask", () => {
     const vectors = [new Float32Array([1, 2, 3])]; // Only 1 vector for 2 chunks
 
     // Using workflow
-    await expect(
-      new Workflow()
-        .chunkToVector({ chunks, vectors })
-        .run()
-    ).rejects.toThrow("Mismatch");
+    await expect(new Workflow().chunkToVector({ chunks, vectors }).run()).rejects.toThrow(
+      "Mismatch"
+    );
   });
 
   it("should include enrichment in metadata if present", async () => {
     const chunks = [
       {
         chunkId: "chunk_1",
-        docId: "doc_1",
+        doc_id: "doc_1",
         text: "Test",
         nodePath: ["node_1"],
         depth: 1,

@@ -20,7 +20,7 @@ export class StructuralParser {
    * Parse markdown text into a hierarchical document tree
    */
   static async parseMarkdown(
-    docId: string,
+    doc_id: string,
     text: string,
     title: string
   ): Promise<DocumentRootNode> {
@@ -28,7 +28,7 @@ export class StructuralParser {
     let currentOffset = 0;
 
     const root: DocumentRootNode = {
-      nodeId: await NodeIdGenerator.generateStructuralNodeId(docId, NodeKind.DOCUMENT, {
+      nodeId: await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.DOCUMENT, {
         startOffset: 0,
         endOffset: text.length,
       }),
@@ -102,7 +102,7 @@ export class StructuralParser {
 
         const sectionStartOffset = currentOffset;
         const section: SectionNode = {
-          nodeId: await NodeIdGenerator.generateStructuralNodeId(docId, NodeKind.SECTION, {
+          nodeId: await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.SECTION, {
             startOffset: sectionStartOffset,
             endOffset: text.length, // Will be updated when section closes
           }),
@@ -154,12 +154,12 @@ export class StructuralParser {
    * Splits by double newlines to create paragraphs
    */
   static async parsePlainText(
-    docId: string,
+    doc_id: string,
     text: string,
     title: string
   ): Promise<DocumentRootNode> {
     const root: DocumentRootNode = {
-      nodeId: await NodeIdGenerator.generateStructuralNodeId(docId, NodeKind.DOCUMENT, {
+      nodeId: await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.DOCUMENT, {
         startOffset: 0,
         endOffset: text.length,
       }),
@@ -232,15 +232,15 @@ export class StructuralParser {
    * Auto-detect format and parse
    */
   static parse(
-    docId: string,
+    doc_id: string,
     text: string,
     title: string,
     format?: "markdown" | "text"
   ): Promise<DocumentRootNode> {
     if (format === "markdown" || (!format && this.looksLikeMarkdown(text))) {
-      return this.parseMarkdown(docId, text, title);
+      return this.parseMarkdown(doc_id, text, title);
     }
-    return this.parsePlainText(docId, text, title);
+    return this.parsePlainText(doc_id, text, title);
   }
 
   /**

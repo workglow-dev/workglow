@@ -77,7 +77,7 @@ TypeBox schemas are JSON Schema compatible and can be used directly:
 ```typescript
 import { InMemoryTabularRepository } from "@workglow/storage/tabular";
 import { Type, Static } from "@sinclair/typebox";
-import { DataPortSchemaObject, FromSchema, IncludeProps, ExcludeProps } from "@workglow/util";
+import { DataPortSchemaObject, FromSchema } from "@workglow/util";
 
 // Define schema using TypeBox
 const userSchema = Type.Object({

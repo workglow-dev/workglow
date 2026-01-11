@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ChunkNode, DocumentNode } from "@workglow/ai";
-import { Document, NodeKind } from "@workglow/ai";
+import type { ChunkNode, DocumentNode } from "@workglow/storage";
+import { Document, NodeKind } from "@workglow/storage";
 import { describe, expect, test } from "vitest";
 
 describe("Document", () => {
@@ -21,7 +21,7 @@ describe("Document", () => {
   const createTestChunks = (): ChunkNode[] => [
     {
       chunkId: "chunk1",
-      docId: "doc1",
+      doc_id: "doc1",
       text: "Test chunk",
       nodePath: ["root"],
       depth: 1,

@@ -4,18 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { hierarchicalChunker } from "@workglow/ai";
 import {
   Document,
   DocumentRepository,
+  DocumentStorageKey,
   DocumentStorageSchema,
-  hierarchicalChunker,
+  InMemoryDocumentChunkVectorRepository,
+  InMemoryTabularRepository,
   NodeIdGenerator,
   StructuralParser,
-} from "@workglow/ai";
-import {
-  InMemoryTabularRepository,
-  InMemoryVectorRepository,
-  VectorSchema,
 } from "@workglow/storage";
 import { describe, expect, it } from "vitest";
 
@@ -35,12 +33,12 @@ Uses labeled data.
 Finds patterns in data.`;
 
     // Parse into hierarchical tree
-    const docId = await NodeIdGenerator.generateDocId("ml-guide", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "ML Guide");
+    const doc_id = await NodeIdGenerator.generateDocId("ml-guide", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "ML Guide");
 
     // CHAINABLE DESIGN TEST - Use workflow to verify chaining
     const chunkResult = await hierarchicalChunker({
-      docId,
+      doc_id,
       documentTree: root,
       maxTokens: 256,
       overlap: 25,
@@ -60,15 +58,15 @@ Finds patterns in data.`;
 
   it("should manage document chunks", async () => {
     const markdown = "# Test Document\n\nThis is test content.";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(doc_id, root, { title: "Test" });
 
     const chunks = [
       {
         chunkId: "chunk_1",
-        docId,
+        doc_id: doc_id,
         text: "Test chunk 1",
         nodePath: [root.nodeId],
         depth: 1,
@@ -84,17 +82,13 @@ Finds patterns in data.`;
   });
 
   it("should demonstrate document repository integration", async () => {
-    const tabularStorage = new InMemoryTabularRepository<typeof DocumentStorageSchema, ["docId"]>(
+    const tabularStorage = new InMemoryTabularRepository<DocumentStorageSchema, DocumentStorageKey>(
       DocumentStorageSchema,
-      ["docId"]
+      DocumentStorageKey
     );
     await tabularStorage.setupDatabase();
 
-    const vectorStorage = new InMemoryVectorRepository<typeof VectorSchema, ["id"]>(
-      VectorSchema,
-      ["id"],
-      []
-    );
+    const vectorStorage = new InMemoryDocumentChunkVectorRepository(3);
     await vectorStorage.setupDatabase();
 
     const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
@@ -110,10 +104,10 @@ Content about topic A.
 
 Content about topic B.`;
 
-    const docId = await NodeIdGenerator.generateDocId("guide", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Guide");
+    const doc_id = await NodeIdGenerator.generateDocId("guide", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Guide");
 
-    const doc = new Document(docId, root, { title: "Guide" });
+    const doc = new Document(doc_id, root, { title: "Guide" });
 
     // Enrich (in real workflow this would use DocumentEnricherTask)
     // For test, manually add enrichment
@@ -124,12 +118,12 @@ Content about topic B.`;
       },
     };
 
-    const enrichedDoc = new Document(docId, enrichedRoot as any, doc.metadata);
+    const enrichedDoc = new Document(doc_id, enrichedRoot as any, doc.metadata);
     await docRepo.upsert(enrichedDoc);
 
     // Generate chunks using workflow (without embedding to avoid model requirement)
     const chunkResult = await hierarchicalChunker({
-      docId,
+      doc_id,
       documentTree: enrichedRoot,
       maxTokens: 256,
       overlap: 25,
@@ -142,7 +136,7 @@ Content about topic B.`;
     await docRepo.upsert(enrichedDoc);
 
     // Verify chunks were stored
-    const retrieved = await docRepo.getChunks(docId);
+    const retrieved = await docRepo.getChunks(doc_id);
     expect(retrieved).toBeDefined();
     expect(retrieved.length).toBe(chunkResult.count);
   });

@@ -5,7 +5,6 @@
  */
 
 import {
-  TypedArraySchema,
   TypedArraySchemaOptions,
   type DataPortSchemaObject,
   type FromSchema,
@@ -27,32 +26,18 @@ export const DocumentStorageSchema = {
       title: "Document Data",
       description: "JSON-serialized document",
     },
+    metadata: {
+      type: "object",
+      title: "Metadata",
+      description: "Metadata of the document",
+    },
   },
   required: ["doc_id", "data"],
   additionalProperties: true,
 } as const satisfies DataPortSchemaObject;
+export type DocumentStorageSchema = typeof DocumentStorageSchema;
 
-export type DocumentStorageEntity = FromSchema<typeof DocumentStorageSchema>;
+export const DocumentStorageKey = ["doc_id"] as const;
+export type DocumentStorageKey = typeof DocumentStorageKey;
 
-/**
- * Schema for vector storage in tabular format.
- * In-memory implementations may store vector as TypedArray directly,
- * while SQL implementations serialize to JSON string.
- */
-export const VectorChunkStorageSchema = (dimensions: number | number[]) =>
-  ({
-    type: "object",
-    properties: {
-      id: { type: "string" },
-      doc_id: { type: "string" },
-      vector: TypedArraySchema({ "x-dimensions": dimensions }), // TypedArray in memory, vector(N) in PostgreSQL with pgvector
-      metadata: { type: "object", format: "metadata", additionalProperties: true }, // TabularRepository handles JSON serialization
-    },
-    required: ["id", "doc_id", "vector", "metadata"],
-    additionalProperties: true,
-  }) as const satisfies DataPortSchemaObject;
-
-export type VectorChunkStorageEntity = FromSchema<
-  ReturnType<typeof VectorChunkStorageSchema>,
-  TypedArraySchemaOptions
->;
+export type DocumentStorageEntity = FromSchema<DocumentStorageSchema, TypedArraySchemaOptions>;

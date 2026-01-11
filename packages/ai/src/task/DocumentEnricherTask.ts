@@ -28,7 +28,7 @@ import { TypeModel } from "./base/AiTaskSchemas";
 const inputSchema = {
   type: "object",
   properties: {
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "The document ID",
@@ -71,7 +71,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "The document ID (passed through)",
@@ -91,7 +91,7 @@ const outputSchema = {
       description: "Number of entities extracted",
     },
   },
-  required: ["docId", "documentTree", "summaryCount", "entityCount"],
+  required: ["doc_id", "documentTree", "summaryCount", "entityCount"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -126,7 +126,7 @@ export class DocumentEnricherTask extends Task<
     context: IExecuteContext
   ): Promise<DocumentEnricherTaskOutput> {
     const {
-      docId,
+      doc_id,
       documentTree,
       generateSummaries = true,
       extractEntities = true,
@@ -167,7 +167,7 @@ export class DocumentEnricherTask extends Task<
     );
 
     return {
-      docId: docId as string,
+      doc_id: doc_id as string,
       documentTree: enrichedRoot,
       summaryCount,
       entityCount,

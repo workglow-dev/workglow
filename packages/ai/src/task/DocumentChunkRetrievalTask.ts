@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import {
+  AnyDocumentChunkVectorRepository,
+  TypeDocumentChunkVectorRepository,
+} from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -26,9 +29,9 @@ import { TextEmbeddingTask } from "./TextEmbeddingTask";
 const inputSchema = {
   type: "object",
   properties: {
-    repository: TypeVectorRepository({
-      title: "Vector Repository",
-      description: "The vector repository instance to search in",
+    repository: TypeDocumentChunkVectorRepository({
+      title: "Document Chunk Vector Repository",
+      description: "The document chunk vector repository instance to search in",
     }),
     query: {
       oneOf: [
@@ -142,12 +145,12 @@ export type RetrievalTaskOutput = FromSchema<typeof outputSchema, TypedArraySche
  * End-to-end retrieval task that combines embedding generation (if needed) and vector search.
  * Simplifies the RAG pipeline by handling the full retrieval process.
  */
-export class RetrievalTask extends Task<
+export class DocumentChunkRetrievalTask extends Task<
   RetrievalTaskInput,
   RetrievalTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "RetrievalTask";
+  public static type = "DocumentChunkRetrievalTask";
   public static category = "RAG";
   public static title = "Retrieval";
   public static description = "End-to-end retrieval: embed query and search for similar chunks";
@@ -173,7 +176,7 @@ export class RetrievalTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as AnyVectorRepository;
+    const repo = repository as AnyDocumentChunkVectorRepository;
 
     // Determine query vector
     let queryVector: TypedArray;
@@ -228,10 +231,10 @@ export class RetrievalTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(RetrievalTask);
+TaskRegistry.registerTask(DocumentChunkRetrievalTask);
 
 export const retrieval = (input: RetrievalTaskInput, config?: JobQueueTaskConfig) => {
-  return new RetrievalTask({} as RetrievalTaskInput, config).run(input);
+  return new DocumentChunkRetrievalTask({} as RetrievalTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -240,4 +243,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.retrieval = CreateWorkflow(RetrievalTask);
+Workflow.prototype.retrieval = CreateWorkflow(DocumentChunkRetrievalTask);

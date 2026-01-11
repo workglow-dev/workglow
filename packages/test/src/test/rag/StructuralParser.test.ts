@@ -26,8 +26,8 @@ Content for section 2.
 
 Nested content.`;
 
-      const docId = "doc_test123";
-      const root = await StructuralParser.parseMarkdown(docId, markdown, "Test Document");
+      const doc_id = "doc_test123";
+      const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test Document");
 
       expect(root.kind).toBe(NodeKind.DOCUMENT);
       expect(root.children.length).toBeGreaterThan(0);
@@ -47,8 +47,8 @@ Paragraph one.
 
 Paragraph two.`;
 
-      const docId = "doc_test456";
-      const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+      const doc_id = "doc_test456";
+      const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       expect(root.range.startOffset).toBe(0);
       expect(root.range.endOffset).toBe(markdown.length);
@@ -74,8 +74,8 @@ More content.
 
 Deep content.`;
 
-      const docId = "doc_test789";
-      const root = await StructuralParser.parseMarkdown(docId, markdown, "Nested Test");
+      const doc_id = "doc_test789";
+      const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Nested Test");
 
       // Find first section (Level 1)
       const level1 = root.children.find(
@@ -105,8 +105,8 @@ Second paragraph here.
 
 Third paragraph here.`;
 
-      const docId = "doc_plain123";
-      const root = await StructuralParser.parsePlainText(docId, text, "Plain Text");
+      const doc_id = "doc_plain123";
+      const root = await StructuralParser.parsePlainText(doc_id, text, "Plain Text");
 
       expect(root.kind).toBe(NodeKind.DOCUMENT);
       expect(root.children.length).toBe(3);
@@ -119,8 +119,8 @@ Third paragraph here.`;
     it("should handle single paragraph", async () => {
       const text = "Just one paragraph.";
 
-      const docId = "doc_plain456";
-      const root = await StructuralParser.parsePlainText(docId, text, "Single");
+      const doc_id = "doc_plain456";
+      const root = await StructuralParser.parsePlainText(doc_id, text, "Single");
 
       expect(root.children.length).toBe(1);
       expect(root.children[0].kind).toBe(NodeKind.PARAGRAPH);
@@ -131,9 +131,9 @@ Third paragraph here.`;
   describe("Auto-detect", () => {
     it("should auto-detect markdown", async () => {
       const markdown = "# Header\n\nParagraph.";
-      const docId = "doc_auto123";
+      const doc_id = "doc_auto123";
 
-      const root = await StructuralParser.parse(docId, markdown, "Auto");
+      const root = await StructuralParser.parse(doc_id, markdown, "Auto");
 
       // Should have detected markdown and created sections
       const hasSection = root.children.some((c) => c.kind === NodeKind.SECTION);
@@ -142,9 +142,9 @@ Third paragraph here.`;
 
     it("should default to plain text when no markdown markers", async () => {
       const text = "Just plain text here.";
-      const docId = "doc_auto456";
+      const doc_id = "doc_auto456";
 
-      const root = await StructuralParser.parse(docId, text, "Plain");
+      const root = await StructuralParser.parse(doc_id, text, "Plain");
 
       // Should be plain paragraph
       expect(root.children[0].kind).toBe(NodeKind.PARAGRAPH);
@@ -168,11 +168,11 @@ Third paragraph here.`;
     });
 
     it("should generate consistent structural node IDs", async () => {
-      const docId = "doc_test";
+      const doc_id = "doc_test";
       const range = { startOffset: 0, endOffset: 100 };
 
-      const id1 = await NodeIdGenerator.generateStructuralNodeId(docId, NodeKind.SECTION, range);
-      const id2 = await NodeIdGenerator.generateStructuralNodeId(docId, NodeKind.SECTION, range);
+      const id1 = await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.SECTION, range);
+      const id2 = await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.SECTION, range);
 
       expect(id1).toBe(id2);
       expect(id1).toMatch(/^node_[0-9a-f]{16}$/);
@@ -190,12 +190,12 @@ Third paragraph here.`;
     });
 
     it("should generate consistent chunk IDs", async () => {
-      const docId = "doc_test";
+      const doc_id = "doc_test";
       const leafNodeId = "node_leaf";
       const ordinal = 0;
 
-      const id1 = await NodeIdGenerator.generateChunkId(docId, leafNodeId, ordinal);
-      const id2 = await NodeIdGenerator.generateChunkId(docId, leafNodeId, ordinal);
+      const id1 = await NodeIdGenerator.generateChunkId(doc_id, leafNodeId, ordinal);
+      const id2 = await NodeIdGenerator.generateChunkId(doc_id, leafNodeId, ordinal);
 
       expect(id1).toBe(id2);
       expect(id1).toMatch(/^chunk_[0-9a-f]{16}$/);

@@ -7,13 +7,13 @@
 import {
   Document,
   DocumentRepository,
+  DocumentStorageKey,
   DocumentStorageSchema,
+  InMemoryDocumentChunkVectorRepository,
   InMemoryTabularRepository,
-  InMemoryVectorRepository,
   NodeIdGenerator,
   NodeKind,
   StructuralParser,
-  VectorSchema,
 } from "@workglow/storage";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -21,17 +21,13 @@ describe("DocumentRepository", () => {
   let repo: DocumentRepository;
 
   beforeEach(async () => {
-    const tabularStorage = new InMemoryTabularRepository<typeof DocumentStorageSchema, ["docId"]>(
+    const tabularStorage = new InMemoryTabularRepository<DocumentStorageSchema, DocumentStorageKey>(
       DocumentStorageSchema,
-      ["docId"]
+      DocumentStorageKey
     );
     await tabularStorage.setupDatabase();
 
-    const vectorStorage = new InMemoryVectorRepository<typeof VectorSchema, ["id"]>(
-      VectorSchema,
-      ["id"],
-      []
-    );
+    const vectorStorage = new InMemoryDocumentChunkVectorRepository(3);
     await vectorStorage.setupDatabase();
 
     repo = new DocumentRepository(tabularStorage, vectorStorage);
@@ -39,30 +35,30 @@ describe("DocumentRepository", () => {
 
   it("should store and retrieve documents", async () => {
     const markdown = "# Test\n\nContent.";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test Document" });
+    const doc = new Document(doc_id, root, { title: "Test Document" });
 
     await repo.upsert(doc);
-    const retrieved = await repo.get(docId);
+    const retrieved = await repo.get(doc_id);
 
     expect(retrieved).toBeDefined();
-    expect(retrieved?.docId).toBe(docId);
+    expect(retrieved?.doc_id).toBe(doc_id);
     expect(retrieved?.metadata.title).toBe("Test Document");
   });
 
   it("should retrieve nodes by ID", async () => {
     const markdown = "# Section\n\nParagraph.";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(doc_id, root, { title: "Test" });
     await repo.upsert(doc);
 
     // Get a child node
     const firstChild = root.children[0];
-    const retrieved = await repo.getNode(docId, firstChild.nodeId);
+    const retrieved = await repo.getNode(doc_id, firstChild.nodeId);
 
     expect(retrieved).toBeDefined();
     expect(retrieved?.nodeId).toBe(firstChild.nodeId);
@@ -75,10 +71,10 @@ describe("DocumentRepository", () => {
 
 Paragraph.`;
 
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(doc_id, root, { title: "Test" });
     await repo.upsert(doc);
 
     // Find a deeply nested node
@@ -88,7 +84,7 @@ Paragraph.`;
     const subsection = (section as any).children.find((c: any) => c.kind === NodeKind.SECTION);
     expect(subsection).toBeDefined();
 
-    const ancestors = await repo.getAncestors(docId, subsection.nodeId);
+    const ancestors = await repo.getAncestors(doc_id, subsection.nodeId);
 
     // Should include root, section, and subsection
     expect(ancestors.length).toBeGreaterThanOrEqual(3);
@@ -99,16 +95,16 @@ Paragraph.`;
 
   it("should handle chunks", async () => {
     const markdown = "# Test\n\nContent.";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(doc_id, root, { title: "Test" });
 
     // Add chunks
     const chunks = [
       {
         chunkId: "chunk_1",
-        docId,
+        doc_id,
         text: "Test chunk",
         nodePath: [root.nodeId],
         depth: 1,
@@ -120,7 +116,7 @@ Paragraph.`;
     await repo.upsert(doc);
 
     // Retrieve chunks
-    const retrievedChunks = await repo.getChunks(docId);
+    const retrievedChunks = await repo.getChunks(doc_id);
     expect(retrievedChunks).toBeDefined();
     expect(retrievedChunks.length).toBe(1);
   });
@@ -149,32 +145,32 @@ Paragraph.`;
 
   it("should delete documents", async () => {
     const markdown = "# Test";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(doc_id, root, { title: "Test" });
     await repo.upsert(doc);
 
-    expect(await repo.get(docId)).toBeDefined();
+    expect(await repo.get(doc_id)).toBeDefined();
 
-    await repo.delete(docId);
+    await repo.delete(doc_id);
 
-    expect(await repo.get(docId)).toBeUndefined();
+    expect(await repo.get(doc_id)).toBeUndefined();
   });
 });
 
 describe("Document", () => {
   it("should manage chunks", async () => {
     const markdown = "# Test";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(doc_id, root, { title: "Test" });
 
     const chunks = [
       {
         chunkId: "chunk_1",
-        docId,
+        doc_id,
         text: "Chunk 1",
         nodePath: [root.nodeId],
         depth: 1,
@@ -189,15 +185,15 @@ describe("Document", () => {
 
   it("should serialize and deserialize", async () => {
     const markdown = "# Test";
-    const docId = await NodeIdGenerator.generateDocId("test", markdown);
-    const root = await StructuralParser.parseMarkdown(docId, markdown, "Test");
+    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(docId, root, { title: "Test" });
+    const doc = new Document(doc_id, root, { title: "Test" });
 
     const chunks = [
       {
         chunkId: "chunk_1",
-        docId,
+        doc_id,
         text: "Chunk",
         nodePath: [root.nodeId],
         depth: 1,
@@ -211,7 +207,7 @@ describe("Document", () => {
     // Deserialize
     const restored = Document.fromJSON(JSON.stringify(json));
 
-    expect(restored.docId).toBe(doc.docId);
+    expect(restored.doc_id).toBe(doc.doc_id);
     expect(restored.metadata.title).toBe(doc.metadata.title);
     expect(restored.getChunks().length).toBe(1);
   });

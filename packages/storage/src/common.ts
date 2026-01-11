@@ -33,3 +33,8 @@ export * from "./document/DocumentRepositoryRegistry";
 export * from "./document/DocumentSchema";
 export * from "./document/DocumentStorageSchema";
 export * from "./document/StructuralParser";
+
+export * from "./document-chunk-vector/DocumentChunkVectorRepositoryRegistry";
+export * from "./document-chunk-vector/DocumentChunkVectorSchema";
+export * from "./document-chunk-vector/IDocumentChunkVectorRepository";
+export * from "./document-chunk-vector/InMemoryDocumentChunkVectorRepository";

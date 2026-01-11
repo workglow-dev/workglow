@@ -6,32 +6,16 @@
 
 import { retrieval } from "@workglow/ai";
 import {
-  InMemoryVectorRepository,
-  registerVectorRepository,
-  VectorSchema,
+  InMemoryDocumentChunkVectorRepository,
+  registerDocumentChunkVectorRepository,
 } from "@workglow/storage";
-import { TypedArraySchema } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("RetrievalTask", () => {
-  let repo: InMemoryVectorRepository<{
-    text?: string;
-    content?: string;
-    chunk?: string;
-    category?: string;
-    title?: string;
-    author?: string;
-  }>;
+describe("DocumentChunkRetrievalTask", () => {
+  let repo: InMemoryDocumentChunkVectorRepository;
 
   beforeEach(async () => {
-    const schema = {
-      ...VectorSchema,
-      properties: {
-        ...VectorSchema.properties,
-        vector: TypedArraySchema({ "x-dimensions": 3 }),
-      },
-    } as const satisfies DataPortSchemaObject;
-    repo = new InMemoryVectorRepository<Schema, ["id"]>(schema, ["id"], []);
+    repo = new InMemoryDocumentChunkVectorRepository(3);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -52,10 +36,10 @@ describe("RetrievalTask", () => {
     ];
 
     for (let i = 0; i < vectors.length; i++) {
-      const docId = `doc${i + 1}`;
+      const doc_id = `doc${i + 1}`;
       await repo.put({
-        id: `${docId}_0`,
-        docId,
+        id: `${doc_id}_0`,
+        doc_id,
         vector: vectors[i] as any,
         metadata: metadata[i],
       } as any);
@@ -185,7 +169,7 @@ describe("RetrievalTask", () => {
     // Add a document with specific metadata for filtering
     await repo.put({
       id: "filtered_doc_0",
-      docId: "filtered_doc",
+      doc_id: "filtered_doc",
       vector: new Float32Array([1.0, 0.0, 0.0]) as any,
       metadata: {
         text: "Filtered document",
@@ -262,7 +246,7 @@ describe("RetrievalTask", () => {
     // Add document with only non-standard metadata
     await repo.put({
       id: "json_doc_0",
-      docId: "json_doc",
+      doc_id: "json_doc",
       vector: new Float32Array([1.0, 0.0, 0.0]) as any,
       metadata: {
         title: "Title only",
@@ -287,7 +271,7 @@ describe("RetrievalTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerVectorRepository("test-retrieval-repo", repo);
+    registerDocumentChunkVectorRepository("test-retrieval-repo", repo);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 

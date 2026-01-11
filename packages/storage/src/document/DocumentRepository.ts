@@ -5,14 +5,18 @@
  */
 
 import type { TypedArray } from "@workglow/util";
+import { DocumentChunkVector } from "../document-chunk-vector/DocumentChunkVectorSchema";
+import type {
+  AnyDocumentChunkVectorRepository,
+  VectorSearchOptions,
+} from "../document-chunk-vector/IDocumentChunkVectorRepository";
 import type { ITabularRepository } from "../tabular/ITabularRepository";
-import type { IVectorChunkRepository, VectorSearchOptions } from "../vector/IVectorChunkRepository";
 import { Document } from "./Document";
 import { ChunkNode, DocumentNode } from "./DocumentSchema";
 import {
   DocumentStorageEntity,
+  DocumentStorageKey,
   DocumentStorageSchema,
-  VectorChunkStorageEntity,
 } from "./DocumentStorageSchema";
 /**
  * Document repository that uses TabularStorage for persistence and VectorStorage for search.
@@ -21,12 +25,11 @@ import {
  */
 export class DocumentRepository {
   private tabularStorage: ITabularRepository<
-    typeof DocumentStorageSchema,
-    ["doc_id"],
-    DocumentStorageEntity,
-    { doc_id: string }
+    DocumentStorageSchema,
+    DocumentStorageKey,
+    DocumentStorageEntity
   >;
-  private vectorStorage?: IVectorChunkRepository<any, any, any>;
+  private vectorStorage?: AnyDocumentChunkVectorRepository;
 
   /**
    * Creates a new DocumentRepository instance.
@@ -51,7 +54,7 @@ export class DocumentRepository {
       ["doc_id"],
       DocumentStorageEntity
     >,
-    vectorStorage?: IVectorChunkRepository<any, any, any>
+    vectorStorage?: AnyDocumentChunkVectorRepository
   ) {
     this.tabularStorage = tabularStorage;
     this.vectorStorage = vectorStorage;
@@ -63,7 +66,7 @@ export class DocumentRepository {
   async upsert(document: Document): Promise<void> {
     const serialized = JSON.stringify(document.toJSON ? document.toJSON() : document);
     await this.tabularStorage.put({
-      doc_id: document.docId,
+      doc_id: document.doc_id,
       data: serialized,
     });
   }
@@ -71,8 +74,8 @@ export class DocumentRepository {
   /**
    * Get a document by ID
    */
-  async get(docId: string): Promise<Document | undefined> {
-    const entity = await this.tabularStorage.get({ doc_id: docId });
+  async get(doc_id: string): Promise<Document | undefined> {
+    const entity = await this.tabularStorage.get({ doc_id: doc_id });
     if (!entity) {
       return undefined;
     }
@@ -82,15 +85,15 @@ export class DocumentRepository {
   /**
    * Delete a document
    */
-  async delete(docId: string): Promise<void> {
-    await this.tabularStorage.delete({ doc_id: docId });
+  async delete(doc_id: string): Promise<void> {
+    await this.tabularStorage.delete({ doc_id: doc_id });
   }
 
   /**
    * Get a specific node by ID
    */
-  async getNode(docId: string, nodeId: string): Promise<DocumentNode | undefined> {
-    const doc = await this.get(docId);
+  async getNode(doc_id: string, nodeId: string): Promise<DocumentNode | undefined> {
+    const doc = await this.get(doc_id);
     if (!doc) {
       return undefined;
     }
@@ -115,8 +118,8 @@ export class DocumentRepository {
   /**
    * Get ancestors of a node (from root to node)
    */
-  async getAncestors(docId: string, nodeId: string): Promise<DocumentNode[]> {
-    const doc = await this.get(docId);
+  async getAncestors(doc_id: string, nodeId: string): Promise<DocumentNode[]> {
+    const doc = await this.get(doc_id);
     if (!doc) {
       return [];
     }
@@ -169,8 +172,8 @@ export class DocumentRepository {
   /**
    * Get chunks for a document
    */
-  async getChunks(docId: string): Promise<ChunkNode[]> {
-    const doc = await this.get(docId);
+  async getChunks(doc_id: string): Promise<ChunkNode[]> {
+    const doc = await this.get(doc_id);
     if (!doc) {
       return [];
     }
@@ -180,8 +183,8 @@ export class DocumentRepository {
   /**
    * Find chunks that contain a specific nodeId in their path
    */
-  async findChunksByNodeId(docId: string, nodeId: string): Promise<ChunkNode[]> {
-    const doc = await this.get(docId);
+  async findChunksByNodeId(doc_id: string, nodeId: string): Promise<ChunkNode[]> {
+    const doc = await this.get(doc_id);
     if (!doc) {
       return [];
     }
@@ -213,7 +216,7 @@ export class DocumentRepository {
   async search(
     query: TypedArray,
     options?: VectorSearchOptions<Record<string, unknown>>
-  ): Promise<Array<VectorChunkStorageEntity>> {
+  ): Promise<Array<DocumentChunkVector<Record<string, unknown>, TypedArray>>> {
     return this.vectorStorage?.similaritySearch(query, options) || [];
   }
 }

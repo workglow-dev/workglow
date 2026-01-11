@@ -129,6 +129,10 @@ export class PostgresTabularRepository<
     return format.startsWith("TypedArray:") || format === "TypedArray";
   }
 
+  protected getVectorDimensions(typeDef: JsonSchema): number | undefined {
+    return undefined;
+  }
+
   /**
    * Maps TypeScript/JavaScript types to corresponding PostgreSQL data types.
    * Uses additional schema information like minimum/maximum values, nullable status,
@@ -158,7 +162,7 @@ export class PostgresTabularRepository<
 
         // Handle vector format (pgvector extension)
         if (this.isVectorFormat(actualType.format)) {
-          const dimension = actualType["x-dimensions"];
+          const dimension = this.getVectorDimensions(actualType);
           if (typeof dimension === "number") {
             return `vector(${dimension})`;
           }
@@ -411,13 +415,11 @@ export class PostgresTabularRepository<
     for (const [key, typeDef] of Object.entries<JsonSchema>(this.schema.properties)) {
       const actualType = this.getNonNullType(typeDef);
       if (typeof actualType !== "boolean" && this.isVectorFormat(actualType.format)) {
-        const dimension = actualType["x-dimensions"];
+        const dimension = this.getVectorDimensions(actualType);
         if (typeof dimension === "number") {
           vectorColumns.push({ column: key, dimension });
         } else {
-          console.warn(
-            `Invalid vector format for column ${key}: ${actualType.format} [${actualType["x-dimensions"]}], skipping`
-          );
+          console.warn(`Invalid vector format for column ${key}: ${actualType.format}, skipping`);
         }
       }
     }

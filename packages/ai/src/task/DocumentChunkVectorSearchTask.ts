@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyVectorRepository, TypeVectorRepository } from "@workglow/storage";
+import {
+  AnyDocumentChunkVectorRepository,
+  TypeDocumentChunkVectorRepository,
+} from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -16,7 +19,6 @@ import {
 import {
   DataPortSchema,
   FromSchema,
-  TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
@@ -24,7 +26,7 @@ import {
 const inputSchema = {
   type: "object",
   properties: {
-    repository: TypeVectorRepository({
+    repository: TypeDocumentChunkVectorRepository({
       title: "Vector Repository",
       description: "The vector repository instance to search in",
     }),
@@ -108,12 +110,12 @@ export type VectorStoreSearchTaskOutput = FromSchema<typeof outputSchema, TypedA
  * Task for searching similar vectors in a vector repository.
  * Returns top-K most similar vectors with their metadata and scores.
  */
-export class VectorStoreSearchTask extends Task<
+export class DocumentChunkVectorSearchTask extends Task<
   VectorStoreSearchTaskInput,
   VectorStoreSearchTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "VectorStoreSearchTask";
+  public static type = "DocumentChunkVectorSearchTask";
   public static category = "Vector Store";
   public static title = "Vector Store Search";
   public static description = "Search for similar vectors in a vector repository";
@@ -133,9 +135,9 @@ export class VectorStoreSearchTask extends Task<
   ): Promise<VectorStoreSearchTaskOutput> {
     const { repository, query, topK = 10, filter, scoreThreshold = 0 } = input;
 
-    const repo = repository as AnyVectorRepository;
+    const repo = repository as AnyDocumentChunkVectorRepository;
 
-    const results = await repo.similaritySearch(query as unknown as TypedArray, {
+    const results = await repo.similaritySearch(query, {
       topK,
       filter,
       scoreThreshold,
@@ -151,13 +153,13 @@ export class VectorStoreSearchTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(VectorStoreSearchTask);
+TaskRegistry.registerTask(DocumentChunkVectorSearchTask);
 
 export const vectorStoreSearch = (
   input: VectorStoreSearchTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new VectorStoreSearchTask({} as VectorStoreSearchTaskInput, config).run(input);
+  return new DocumentChunkVectorSearchTask({} as VectorStoreSearchTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -170,4 +172,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.vectorStoreSearch = CreateWorkflow(VectorStoreSearchTask);
+Workflow.prototype.vectorStoreSearch = CreateWorkflow(DocumentChunkVectorSearchTask);

@@ -424,7 +424,7 @@ export const ChunkNodeSchema = () =>
         title: "Chunk ID",
         description: "Unique identifier for this chunk",
       },
-      docId: {
+      doc_id: {
         type: "string",
         title: "Document ID",
         description: "ID of the parent document",
@@ -447,7 +447,7 @@ export const ChunkNodeSchema = () =>
       },
       enrichment: ChunkEnrichmentSchema,
     },
-    required: ["chunkId", "docId", "text", "nodePath", "depth"],
+    required: ["chunkId", "doc_id", "text", "nodePath", "depth"],
     additionalProperties: false,
   }) as const satisfies DataPortSchema;
 
@@ -464,7 +464,7 @@ export type ChunkNode = FromSchema<ReturnType<typeof ChunkNodeSchema>>;
 export const ChunkMetadataSchema = {
   type: "object",
   properties: {
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "ID of the parent document",
@@ -507,7 +507,7 @@ export const ChunkMetadataSchema = {
       description: "Named entities extracted from the chunk",
     },
   },
-  required: ["docId", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
+  required: ["doc_id", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
@@ -530,7 +530,7 @@ export const ChunkMetadataArraySchema = {
 export const EnrichedChunkMetadataSchema = {
   type: "object",
   properties: {
-    docId: {
+    doc_id: {
       type: "string",
       title: "Document ID",
       description: "ID of the parent document",
@@ -585,7 +585,7 @@ export const EnrichedChunkMetadataSchema = {
       description: "Titles of ancestor section nodes",
     },
   },
-  required: ["docId", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
+  required: ["doc_id", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 

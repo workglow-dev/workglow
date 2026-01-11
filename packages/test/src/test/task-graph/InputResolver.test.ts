@@ -5,9 +5,9 @@
  */
 
 import {
+  AnyTabularRepository,
   getGlobalTabularRepositories,
   InMemoryTabularRepository,
-  ITabularRepository,
   registerTabularRepository,
   TypeTabularRepository,
 } from "@workglow/storage";
@@ -217,7 +217,7 @@ describe("InputResolver", () => {
       }
 
       async execute(
-        input: { repository: ITabularRepository<any, any, any, any, any>; query: string },
+        input: { repository: AnyTabularRepository; query: string },
         _context: IExecuteContext
       ): Promise<{ results: any[] }> {
         const { repository } = input;

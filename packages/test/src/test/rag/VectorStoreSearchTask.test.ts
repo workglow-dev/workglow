@@ -4,38 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { VectorStoreSearchTask } from "@workglow/ai";
+import { DocumentChunkVectorSearchTask } from "@workglow/ai";
 import {
-  InMemoryVectorRepository,
-  registerVectorRepository,
-  VectorSchema,
+  InMemoryDocumentChunkVectorRepository,
+  registerDocumentChunkVectorRepository,
 } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("VectorStoreSearchTask", () => {
-  let repo: InMemoryVectorRepository<typeof schema, ["id"]>;
-
-  const schema = {
-    ...VectorSchema,
-    properties: {
-      ...VectorSchema.properties,
-      // @ts-expect-error - dimension is a custom property for vector types
-      vector: { type: "string", format: "TypedArray", dimension: 3 },
-      metadata: {
-        type: "object",
-        format: "metadata",
-        properties: {
-          text: { type: "string" },
-          category: { type: "string" },
-        },
-        additionalProperties: false,
-      },
-    },
-    // @ts-expect-error - Custom dimension doesn't match VectorSchema type
-  } as const;
+describe("DocumentChunkVectorSearchTask", () => {
+  let repo: InMemoryDocumentChunkVectorRepository;
 
   beforeEach(async () => {
-    repo = new InMemoryVectorRepository(schema, ["id"], []);
+    repo = new InMemoryDocumentChunkVectorRepository(3);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -56,10 +36,10 @@ describe("VectorStoreSearchTask", () => {
     ];
 
     for (let i = 0; i < vectors.length; i++) {
-      const docId = `doc${i + 1}`;
+      const doc_id = `doc${i + 1}`;
       await repo.put({
-        id: `${docId}_0`,
-        docId,
+        chunk_id: `${doc_id}_0`,
+        doc_id,
         vector: vectors[i],
         metadata: metadata[i],
       });
@@ -73,7 +53,7 @@ describe("VectorStoreSearchTask", () => {
   test("should search and return top K results", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -98,7 +78,7 @@ describe("VectorStoreSearchTask", () => {
   test("should respect topK limit", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -112,7 +92,7 @@ describe("VectorStoreSearchTask", () => {
   test("should filter by metadata", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -130,7 +110,7 @@ describe("VectorStoreSearchTask", () => {
   test("should apply score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -147,7 +127,7 @@ describe("VectorStoreSearchTask", () => {
   test("should return empty results when no matches", async () => {
     const queryVector = new Float32Array([0.0, 0.0, 1.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -165,7 +145,7 @@ describe("VectorStoreSearchTask", () => {
   test("should handle default topK value", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -179,7 +159,7 @@ describe("VectorStoreSearchTask", () => {
   test("should work with quantized query vectors (Int8Array)", async () => {
     const queryVector = new Int8Array([127, 0, 0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -194,7 +174,7 @@ describe("VectorStoreSearchTask", () => {
   test("should return results sorted by similarity score", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -208,29 +188,12 @@ describe("VectorStoreSearchTask", () => {
   });
 
   test("should handle empty repository", async () => {
-    const emptySchema = {
-      ...VectorSchema,
-      properties: {
-        ...VectorSchema.properties,
-        // @ts-expect-error - dimension is a custom property for vector types
-        vector: { type: "string", format: "TypedArray", dimension: 3 },
-        metadata: {
-          type: "object",
-          format: "metadata",
-          properties: {
-            text: { type: "string" },
-          },
-          additionalProperties: false,
-        },
-      },
-      // @ts-expect-error - Custom dimension doesn't match VectorSchema type
-    } as const;
-    const emptyRepo = new InMemoryVectorRepository(emptySchema, ["id"], []);
+    const emptyRepo = new InMemoryDocumentChunkVectorRepository(3);
     await emptyRepo.setupDatabase();
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: emptyRepo,
       query: queryVector,
@@ -247,7 +210,7 @@ describe("VectorStoreSearchTask", () => {
   test("should combine filter and score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -267,11 +230,11 @@ describe("VectorStoreSearchTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerVectorRepository("test-vector-repo", repo);
+    registerDocumentChunkVectorRepository("test-vector-repo", repo);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new VectorStoreSearchTask();
+    const task = new DocumentChunkVectorSearchTask();
     // Pass repository as string ID instead of instance
     const result = await task.run({
       repository: "test-vector-repo" as any,

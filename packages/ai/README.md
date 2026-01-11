@@ -412,23 +412,23 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 ### Vector and Storage Tasks
 
-| Task                    | Description                              |
-| ----------------------- | ---------------------------------------- |
-| `ChunkToVectorTask`     | Transforms chunks to vector store format |
-| `VectorStoreUpsertTask` | Stores vectors in a repository           |
-| `VectorStoreSearchTask` | Searches vectors by similarity           |
-| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency |
+| Task                            | Description                              |
+| ------------------------------- | ---------------------------------------- |
+| `ChunkToVectorTask`             | Transforms chunks to vector store format |
+| `DocumentChunkVectorUpsertTask` | Stores vectors in a repository           |
+| `DocumentChunkVectorSearchTask` | Searches vectors by similarity           |
+| `VectorQuantizeTask`            | Quantizes vectors for storage efficiency |
 
 ### Retrieval and Generation Tasks
 
-| Task                 | Description                                   |
-| -------------------- | --------------------------------------------- |
-| `QueryExpanderTask`  | Expands queries for better retrieval coverage |
-| `HybridSearchTask`   | Combines vector and full-text search          |
-| `RerankerTask`       | Reranks search results for relevance          |
-| `HierarchyJoinTask`  | Enriches results with parent context          |
-| `ContextBuilderTask` | Builds context for LLM prompts                |
-| `RetrievalTask`      | Orchestrates end-to-end retrieval             |
+| Task                                  | Description                                   |
+| ------------------------------------- | --------------------------------------------- |
+| `QueryExpanderTask`                   | Expands queries for better retrieval coverage |
+| `DocumentChunkVectorHybridSearchTask` | Combines vector and full-text search          |
+| `RerankerTask`                        | Reranks search results for relevance          |
+| `HierarchyJoinTask`                   | Enriches results with parent context          |
+| `ContextBuilderTask`                  | Builds context for LLM prompts                |
+| `DocumentChunkRetrievalTask`          | Orchestrates end-to-end retrieval             |
 
 ### Complete RAG Workflow Example
 
@@ -519,14 +519,14 @@ Each node contains:
 
 Each task passes through what the next task needs:
 
-| Task                  | Passes Through          | Adds                                 |
-| --------------------- | ----------------------- | ------------------------------------ |
-| `structuralParser`    | -                       | `docId`, `documentTree`, `nodeCount` |
-| `documentEnricher`    | `docId`, `documentTree` | `summaryCount`, `entityCount`        |
-| `hierarchicalChunker` | `docId`                 | `chunks`, `text[]`, `count`          |
-| `textEmbedding`       | (implicit)              | `vector[]`                           |
-| `chunkToVector`       | -                       | `ids[]`, `vectors[]`, `metadata[]`   |
-| `vectorStoreUpsert`   | -                       | `count`, `ids`                       |
+| Task                  | Passes Through           | Adds                                  |
+| --------------------- | ------------------------ | ------------------------------------- |
+| `structuralParser`    | -                        | `doc_id`, `documentTree`, `nodeCount` |
+| `documentEnricher`    | `doc_id`, `documentTree` | `summaryCount`, `entityCount`         |
+| `hierarchicalChunker` | `doc_id`                 | `chunks`, `text[]`, `count`           |
+| `textEmbedding`       | (implicit)               | `vector[]`                            |
+| `chunkToVector`       | -                        | `ids[]`, `vectors[]`, `metadata[]`    |
+| `vectorStoreUpsert`   | -                        | `count`, `ids`                        |
 
 This design eliminates the need for external loops - the entire pipeline chains together naturally.
 
