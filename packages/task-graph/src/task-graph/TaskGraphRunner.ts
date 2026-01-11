@@ -8,13 +8,14 @@ import {
   collectPropertyValues,
   ConvertAllToOptionalArray,
   globalServiceRegistry,
+  ServiceRegistry,
   uuid4,
 } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import { ITask } from "../task/ITask";
 import { TaskAbortedError, TaskConfigurationError, TaskError } from "../task/TaskError";
-import { Provenance, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
+import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS } from "./Dataflow";
 import { TaskGraph, TaskGraphRunConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
@@ -68,6 +69,10 @@ export class TaskGraphRunner {
    * Output cache repository
    */
   protected outputCache?: TaskOutputRepository;
+  /**
+   * Service registry for this graph run
+   */
+  protected registry: ServiceRegistry = globalServiceRegistry;
   /**
    * AbortController for cancelling graph execution
    */
@@ -130,10 +135,7 @@ export class TaskGraphRunner {
             // Only filter input for non-root tasks; root tasks get the full input
             const taskInput = isRootTask ? input : this.filterInputForTask(task, input);
 
-            const taskPromise = this.runTask(
-              task,
-              taskInput
-            );
+            const taskPromise = this.runTask(task, taskInput);
             this.inProgressTasks!.set(task.config.id, taskPromise);
             const taskResult = await taskPromise;
 
@@ -481,6 +483,7 @@ export class TaskGraphRunner {
       outputCache: this.outputCache,
       updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
         await this.handleProgress(task, progress, message, ...args),
+      registry: this.registry,
     });
 
     await this.pushOutputFromNodeToEdges(task, results);
@@ -535,10 +538,18 @@ export class TaskGraphRunner {
    * @param parentSignal Optional abort signal from parent
    */
   protected async handleStart(config?: TaskGraphRunConfig): Promise<void> {
+    // Setup registry - create child from global if not provided
+    if (config?.registry !== undefined) {
+      this.registry = config.registry;
+    } else {
+      // Create a child container that inherits from global but allows overrides
+      this.registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
+    }
+
     if (config?.outputCache !== undefined) {
       if (typeof config.outputCache === "boolean") {
         if (config.outputCache === true) {
-          this.outputCache = globalServiceRegistry.get(TASK_OUTPUT_REPOSITORY);
+          this.outputCache = this.registry.get(TASK_OUTPUT_REPOSITORY);
         } else {
           this.outputCache = undefined;
         }

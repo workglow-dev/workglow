@@ -216,25 +216,6 @@ const result = await task.run();
 // Output: { similarity: 0.85 }
 ```
 
-### Document Processing Tasks
-
-#### DocumentSplitterTask
-
-Splits documents into smaller chunks for processing.
-
-```typescript
-import { DocumentSplitterTask } from "@workglow/ai";
-
-const task = new DocumentSplitterTask({
-  document: "Very long document content...",
-  chunkSize: 1000,
-  chunkOverlap: 200,
-});
-
-const result = await task.run();
-// Output: { chunks: ["chunk1...", "chunk2...", "chunk3..."] }
-```
-
 ### Model Management Tasks
 
 #### DownloadModelTask
@@ -415,29 +396,139 @@ const result = await workflow
 console.log("Final similarity score:", result.similarity);
 ```
 
-## Document Processing
+## RAG (Retrieval-Augmented Generation) Pipelines
 
-The package includes document processing capabilities:
+The AI package provides a comprehensive set of tasks for building RAG pipelines. These tasks chain together in workflows without requiring external loops.
+
+### Document Processing Tasks
+
+| Task                      | Description                                           |
+| ------------------------- | ----------------------------------------------------- |
+| `StructuralParserTask`    | Parses markdown/text into hierarchical document trees |
+| `TextChunkerTask`         | Splits text into chunks with configurable strategies  |
+| `HierarchicalChunkerTask` | Token-aware chunking that respects document structure |
+| `TopicSegmenterTask`      | Segments text by topic using heuristics or embeddings |
+| `DocumentEnricherTask`    | Adds summaries and entities to document nodes         |
+
+### Vector and Storage Tasks
+
+| Task                           | Description                              |
+| ------------------------------ | ---------------------------------------- |
+| `ChunkToVectorTask`            | Transforms chunks to vector store format |
+| `DocumentNodeVectorUpsertTask` | Stores vectors in a repository           |
+| `DocumentNodeVectorSearchTask` | Searches vectors by similarity           |
+| `VectorQuantizeTask`           | Quantizes vectors for storage efficiency |
+
+### Retrieval and Generation Tasks
+
+| Task                                 | Description                                   |
+| ------------------------------------ | --------------------------------------------- |
+| `QueryExpanderTask`                  | Expands queries for better retrieval coverage |
+| `DocumentNodeVectorHybridSearchTask` | Combines vector and full-text search          |
+| `RerankerTask`                       | Reranks search results for relevance          |
+| `HierarchyJoinTask`                  | Enriches results with parent context          |
+| `ContextBuilderTask`                 | Builds context for LLM prompts                |
+| `DocumentNodeRetrievalTask`          | Orchestrates end-to-end retrieval             |
+
+### Complete RAG Workflow Example
 
 ```typescript
-import { Document, DocumentConverterMarkdown } from "@workglow/ai";
+import { Workflow } from "@workglow/task-graph";
+import { InMemoryVectorRepository } from "@workglow/storage";
 
-// Create a document
-const doc = new Document("# My Document\n\nThis is content...", { title: "Sample Doc" });
+const vectorRepo = new InMemoryVectorRepository();
+await vectorRepo.setupDatabase();
 
-// Convert markdown to structured format
-const converter = new DocumentConverterMarkdown();
-const processedDoc = await converter.convert(doc);
+// Document ingestion - fully chainable, no loops required
+await new Workflow()
+  .structuralParser({
+    text: markdownContent,
+    title: "Documentation",
+    format: "markdown",
+  })
+  .documentEnricher({
+    generateSummaries: true,
+    extractEntities: true,
+  })
+  .hierarchicalChunker({
+    maxTokens: 512,
+    overlap: 50,
+    strategy: "hierarchical",
+  })
+  .textEmbedding({
+    model: "Xenova/all-MiniLM-L6-v2",
+  })
+  .chunkToVector()
+  .vectorStoreUpsert({
+    repository: vectorRepo,
+  })
+  .run();
 
-// Use with document splitter
-const splitter = new DocumentSplitterTask({
-  document: processedDoc.content,
-  chunkSize: 500,
-  chunkOverlap: 50,
-});
-
-const chunks = await splitter.run();
+// Query pipeline
+const answer = await new Workflow()
+  .queryExpander({
+    query: "What is transfer learning?",
+    method: "multi-query",
+    numVariations: 3,
+  })
+  .textEmbedding({
+    model: "Xenova/all-MiniLM-L6-v2",
+  })
+  .vectorStoreSearch({
+    repository: vectorRepo,
+    topK: 10,
+    scoreThreshold: 0.5,
+  })
+  .reranker({
+    query: "What is transfer learning?",
+    topK: 5,
+  })
+  .contextBuilder({
+    format: "markdown",
+    maxLength: 2000,
+  })
+  .textQuestionAnswer({
+    question: "What is transfer learning?",
+    model: "Xenova/LaMini-Flan-T5-783M",
+  })
+  .run();
 ```
+
+### Hierarchical Document Structure
+
+Documents are represented as trees with typed nodes:
+
+```typescript
+type DocumentNode =
+  | DocumentRootNode // Root of document
+  | SectionNode // Headers, structural sections
+  | ParagraphNode // Text blocks
+  | SentenceNode // Fine-grained (optional)
+  | TopicNode; // Detected topic segments
+```
+
+Each node contains:
+
+- `nodeId` - Deterministic content-based ID
+- `range` - Source character offsets
+- `text` - Content
+- `enrichment` - Summaries, entities, keywords (optional)
+- `children` - Child nodes (for parent nodes)
+
+### Task Data Flow
+
+Each task passes through what the next task needs:
+
+| Task                  | Passes Through           | Adds                                  |
+| --------------------- | ------------------------ | ------------------------------------- |
+| `structuralParser`    | -                        | `doc_id`, `documentTree`, `nodeCount` |
+| `documentEnricher`    | `doc_id`, `documentTree` | `summaryCount`, `entityCount`         |
+| `hierarchicalChunker` | `doc_id`                 | `chunks`, `text[]`, `count`           |
+| `textEmbedding`       | (implicit)               | `vector[]`                            |
+| `chunkToVector`       | -                        | `ids[]`, `vectors[]`, `metadata[]`    |
+| `vectorStoreUpsert`   | -                        | `count`, `ids`                        |
+
+This design eliminates the need for external loops - the entire pipeline chains together naturally.
 
 ## Error Handling
 
@@ -465,6 +556,46 @@ try {
 ```
 
 ## Advanced Configuration
+
+### Model Input Resolution
+
+AI tasks accept model inputs as either string identifiers or direct `ModelConfig` objects. When a string is provided, the TaskRunner automatically resolves it to a `ModelConfig` before task execution using the `ModelRepository`.
+
+```typescript
+import { TextGenerationTask } from "@workglow/ai";
+
+// Using a model ID (resolved from ModelRepository)
+const task1 = new TextGenerationTask({
+  model: "onnx:Xenova/gpt2:q8",
+  prompt: "Generate text",
+});
+
+// Using a direct ModelConfig object
+const task2 = new TextGenerationTask({
+  model: {
+    model_id: "onnx:Xenova/gpt2:q8",
+    provider: "hf-transformers-onnx",
+    tasks: ["TextGenerationTask"],
+    title: "GPT-2",
+    provider_config: { pipeline: "text-generation" },
+  },
+  prompt: "Generate text",
+});
+
+// Both approaches work identically
+```
+
+This resolution is handled by the input resolver system, which inspects schema `format` annotations (like `"model"` or `"model:TextGenerationTask"`) to determine how string values should be resolved.
+
+### Supported Format Annotations
+
+| Format                            | Description                              | Resolver                   |
+| --------------------------------- | ---------------------------------------- | -------------------------- |
+| `model`                           | Any AI model configuration               | ModelRepository            |
+| `model:TaskName`                  | Model compatible with specific task type | ModelRepository            |
+| `repository:tabular`              | Tabular data repository                  | TabularRepositoryRegistry  |
+| `repository:document-node-vector` | Vector storage repository                | VectorRepositoryRegistry   |
+| `repository:document`             | Document repository                      | DocumentRepositoryRegistry |
 
 ### Custom Model Validation
 

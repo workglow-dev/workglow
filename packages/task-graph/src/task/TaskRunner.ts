@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry } from "@workglow/util";
+import { globalServiceRegistry, ServiceRegistry } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
+import { resolveSchemaInputs } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
+import { Task } from "./Task";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
 import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
 
@@ -43,6 +45,11 @@ export class TaskRunner<
   protected outputCache?: TaskOutputRepository;
 
   /**
+   * The service registry for the task
+   */
+  protected registry: ServiceRegistry = globalServiceRegistry;
+
+  /**
    * Constructor for TaskRunner
    * @param task The task to run
    */
@@ -67,6 +74,15 @@ export class TaskRunner<
 
     try {
       this.task.setInput(overrides);
+
+      // Resolve schema-annotated inputs (models, repositories) before validation
+      const schema = (this.task.constructor as typeof Task).inputSchema();
+      this.task.runInputData = (await resolveSchemaInputs(
+        this.task.runInputData as Record<string, unknown>,
+        schema,
+        { registry: this.registry }
+      )) as Input;
+
       const isValid = await this.task.validateInput(this.task.runInputData);
       if (!isValid) {
         throw new TaskInvalidInputError("Invalid input data");
@@ -112,6 +128,14 @@ export class TaskRunner<
       return this.task.runOutputData as Output;
     }
     this.task.setInput(overrides);
+
+    // Resolve schema-annotated inputs (models, repositories) before validation
+    const schema = (this.task.constructor as typeof Task).inputSchema();
+    this.task.runInputData = (await resolveSchemaInputs(
+      this.task.runInputData as Record<string, unknown>,
+      schema,
+      { registry: this.registry }
+    )) as Input;
 
     await this.handleStartReactive();
 
@@ -164,6 +188,7 @@ export class TaskRunner<
       signal: this.abortController!.signal,
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
+      registry: this.registry,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
   }
@@ -209,6 +234,10 @@ export class TaskRunner<
 
     if (config.updateProgress) {
       this.updateProgress = config.updateProgress;
+    }
+
+    if (config.registry) {
+      this.registry = config.registry;
     }
 
     this.task.emit("start");
