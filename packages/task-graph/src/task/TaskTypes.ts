@@ -61,8 +61,6 @@ export type CompoundTaskOutput =
       [key: string]: unknown | unknown[] | undefined;
     };
 
-/** Type for task provenance metadata */
-export type Provenance = DataPorts;
 
 /** Type for task type names */
 export type TaskTypeName = string;
@@ -81,8 +79,6 @@ export interface IConfig {
   /** Optional display name for the task */
   name?: string;
 
-  /** Optional metadata about task origin */
-  provenance?: Provenance;
 
   /** Optional ID of the runner to use for this task */
   runnerId?: string;

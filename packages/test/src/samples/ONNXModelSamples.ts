@@ -69,6 +69,18 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       metadata: {},
     },
     {
+      model_id: "onnx:onnx-community/NeuroBERT-NER-ONNX:q8",
+      title: "NeuroBERT NER",
+      description: "onnx-community/NeuroBERT-NER-ONNX",
+      tasks: ["TextNamedEntityRecognitionTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: {
+        pipeline: "token-classification",
+        model_path: "onnx-community/NeuroBERT-NER-ONNX",
+      },
+      metadata: {},
+    },
+    {
       model_id: "onnx:Xenova/distilbert-base-uncased-distilled-squad:q8",
       title: "distilbert-base-uncased-distilled-squad",
       description: "Xenova/distilbert-base-uncased-distilled-squad quantized to 8bit",
@@ -117,18 +129,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
         pipeline: "text-generation",
         model_path: "Xenova/distilgpt2",
         dtype: "q8",
-      },
-      metadata: {},
-    },
-    {
-      model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
-      title: "LaMini-Flan-T5-783M",
-      description: "Xenova/LaMini-Flan-T5-783M quantized to 8bit",
-      tasks: ["TextGenerationTask", "TextRewriterTask"],
-      provider: HF_TRANSFORMERS_ONNX,
-      provider_config: {
-        pipeline: "text2text-generation",
-        model_path: "Xenova/LaMini-Flan-T5-783M",
       },
       metadata: {},
     },

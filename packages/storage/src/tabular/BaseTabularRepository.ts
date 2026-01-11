@@ -10,10 +10,13 @@ import {
   EventEmitter,
   FromSchema,
   makeFingerprint,
+  TypedArraySchemaOptions,
 } from "@workglow/util";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
   ITabularRepository,
+  SimplifyPrimaryKey,
   TabularChangePayload,
   TabularEventListener,
   TabularEventListeners,
@@ -23,7 +26,7 @@ import {
   ValueOptionType,
 } from "./ITabularRepository";
 
-export const TABULAR_REPOSITORY = createServiceToken<ITabularRepository<any, any, any, any, any>>(
+export const TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
   "storage.tabularRepository"
 );
 
@@ -36,14 +39,14 @@ export const TABULAR_REPOSITORY = createServiceToken<ITabularRepository<any, any
  * @template Schema - The schema definition for the entity using JSON Schema
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export abstract class TabularRepository<
+export abstract class BaseTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
   Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> implements ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+> implements ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Event emitter for repository events */
   protected events = new EventEmitter<TabularEventListeners<PrimaryKey, Entity>>();
 
@@ -52,7 +55,7 @@ export abstract class TabularRepository<
   protected valueSchema: DataPortSchemaObject;
 
   /**
-   * Creates a new TabularRepository instance
+   * Creates a new BaseTabularRepository instance
    * @param schema - Schema defining the structure of the entity
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable. Each string or single column creates a single-column index,

@@ -120,7 +120,7 @@ console.log(result); // { result: 60 }
 
 // 2.3 Create a helper function
 export const MultiplyBy2 = (input: { value: number }) => {
-  return new MultiplyBy2Task(input).run();
+  return new MultiplyBy2Task().run(input);
 };
 const first = await MultiplyBy2({ value: 15 });
 const second = await MultiplyBy2({ value: first.result });

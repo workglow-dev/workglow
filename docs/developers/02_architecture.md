@@ -242,11 +242,10 @@ classDiagram
 
   class TaskGraphRunner{
     Map<number, Task[]> layers
-    Map<unknown, TaskInput> provenanceInput
     TaskGraph dag
     TaskOutputRepository repository
     assignLayers(Task[] sortedNodes)
-    runGraph(TaskInput parentProvenance) TaskOutput
+    runGraph(TaskInput input) TaskOutput
     runGraphReactive() TaskOutput
   }
 
@@ -255,7 +254,6 @@ classDiagram
 The TaskGraphRunner is responsible for executing tasks in a task graph. Key features include:
 
 - **Layer-based Execution**: Tasks are organized into layers based on dependencies, allowing parallel execution of independent tasks
-- **Provenance Tracking**: Tracks the lineage and input data that led to each task's output
 - **Caching Support**: Can use a TaskOutputRepository to cache task outputs and avoid re-running tasks
 - **Reactive Mode**: Supports reactive execution where tasks can respond to input changes without full re-execution
 - **Smart Task Scheduling**: Automatically determines task execution order based on dependencies

@@ -4,18 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, DataPortSchemaObject, FromSchema } from "@workglow/util";
+import {
+  createServiceToken,
+  DataPortSchemaObject,
+  FromSchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import { InMemoryTabularRepository } from "./InMemoryTabularRepository";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
   ITabularRepository,
+  SimplifyPrimaryKey,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
-export const CACHED_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.cached");
+export const CACHED_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.cached"
+);
 
 /**
  * A tabular repository wrapper that adds caching layer to a durable repository.
@@ -29,12 +36,11 @@ export class CachedTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
-  public readonly cache: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value>;
-  private durable: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value>;
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+  public readonly cache: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
+  private durable: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private cacheInitialized = false;
 
   /**
@@ -48,8 +54,8 @@ export class CachedTabularRepository<
    *                    while each array creates a compound index with columns in the specified order.
    */
   constructor(
-    durable: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value>,
-    cache?: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value>,
+    durable: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>,
+    cache?: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>,
     schema?: Schema,
     primaryKeyNames?: PrimaryKeyNames,
     indexes?: readonly (keyof Entity | readonly (keyof Entity)[])[]
@@ -70,13 +76,11 @@ export class CachedTabularRepository<
     if (cache) {
       this.cache = cache;
     } else {
-      this.cache = new InMemoryTabularRepository<
-        Schema,
-        PrimaryKeyNames,
-        Entity,
-        PrimaryKey,
-        Value
-      >(schema, primaryKeyNames, indexes || []);
+      this.cache = new InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>(
+        schema,
+        primaryKeyNames,
+        indexes || []
+      );
     }
 
     // Forward events from both cache and durable

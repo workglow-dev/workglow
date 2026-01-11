@@ -9,19 +9,21 @@ import {
   DataPortSchemaObject,
   FromSchema,
   makeFingerprint,
+  TypedArraySchemaOptions,
 } from "@workglow/util";
+import { BaseTabularRepository } from "./BaseTabularRepository";
 import {
+  AnyTabularRepository,
   DeleteSearchCriteria,
   isSearchCondition,
-  ITabularRepository,
+  SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
 } from "./ITabularRepository";
-import { TabularRepository } from "./TabularRepository";
 
-export const MEMORY_TABULAR_REPOSITORY = createServiceToken<
-  ITabularRepository<any, any, any, any, any>
->("storage.tabularRepository.inMemory");
+export const MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+  "storage.tabularRepository.inMemory"
+);
 
 /**
  * A generic in-memory key-value repository implementation.
@@ -34,10 +36,9 @@ export class InMemoryTabularRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
-  Entity = FromSchema<Schema>,
-  PrimaryKey = Pick<Entity, PrimaryKeyNames[number] & keyof Entity>,
-  Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends TabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
+> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Internal storage using a Map with fingerprint strings as keys */
   values = new Map<string, Entity>();
 

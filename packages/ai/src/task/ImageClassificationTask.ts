@@ -6,21 +6,15 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import {
-  DeReplicateFromSchema,
-  TypeCategory,
-  TypeImageInput,
-  TypeModel,
-  TypeReplicateArray,
-} from "./base/AiTaskSchemas";
+import { TypeCategory, TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
-const modelSchema = TypeReplicateArray(TypeModel("model:ImageClassificationTask"));
+const modelSchema = TypeModel("model:ImageClassificationTask");
 
 export const ImageClassificationInputSchema = {
   type: "object",
   properties: {
-    image: TypeReplicateArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
     categories: {
       type: "array",
@@ -64,12 +58,6 @@ export const ImageClassificationOutputSchema = {
 
 export type ImageClassificationTaskInput = FromSchema<typeof ImageClassificationInputSchema>;
 export type ImageClassificationTaskOutput = FromSchema<typeof ImageClassificationOutputSchema>;
-export type ImageClassificationTaskExecuteInput = DeReplicateFromSchema<
-  typeof ImageClassificationInputSchema
->;
-export type ImageClassificationTaskExecuteOutput = DeReplicateFromSchema<
-  typeof ImageClassificationOutputSchema
->;
 
 /**
  * Classifies images into categories using vision models.
@@ -105,7 +93,7 @@ export const imageClassification = (
   input: ImageClassificationTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new ImageClassificationTask(input, config).run();
+  return new ImageClassificationTask({} as ImageClassificationTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
