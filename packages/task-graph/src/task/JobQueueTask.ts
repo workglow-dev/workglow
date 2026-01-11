@@ -5,7 +5,7 @@
  */
 
 import { Job, JobConstructorParam } from "@workglow/job-queue";
-import { ArrayTask } from "./ArrayTask";
+import { GraphAsTask } from "./GraphAsTask";
 import { IExecuteContext } from "./ITask";
 import { getJobQueueFactory } from "./JobQueueFactory";
 import { JobTaskFailedError, TaskConfigurationError } from "./TaskError";
@@ -47,7 +47,7 @@ export abstract class JobQueueTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
   Config extends JobQueueTaskConfig = JobQueueTaskConfig,
-> extends ArrayTask<Input, Output, Config> {
+> extends GraphAsTask<Input, Output, Config> {
   static readonly type: string = "JobQueueTask";
   static canRunDirectly = true;
 
@@ -60,7 +60,7 @@ export abstract class JobQueueTask<
 
   public jobClass: new (config: JobConstructorParam<Input, Output>) => Job<Input, Output>;
 
-  constructor(input: Input = {} as Input, config: Config = {} as Config) {
+  constructor(input: Partial<Input> = {} as Input, config: Config = {} as Config) {
     config.queue ??= true;
     super(input, config);
     this.jobClass = Job as unknown as new (

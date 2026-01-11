@@ -23,10 +23,10 @@ import {
 } from "./TaskGraphRunner";
 
 // Type definitions for the workflow
-export type CreateWorkflow<I extends DataPorts, _O extends DataPorts, C extends TaskConfig> = (
+export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends TaskConfig> = (
   input?: Partial<I>,
   config?: Partial<C>
-) => Workflow;
+) => Workflow<I, O>;
 
 // Event types
 export type WorkflowEventListeners = {
@@ -57,9 +57,10 @@ let taskIdCounter = 0;
  * Class for building and managing a task graph
  * Provides methods for adding tasks, connecting outputs to inputs, and running the task graph
  */
-export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPorts = DataPorts>
-  implements IWorkflow<Input, Output>
-{
+export class Workflow<
+  Input extends DataPorts = DataPorts,
+  Output extends DataPorts = DataPorts,
+> implements IWorkflow<Input, Output> {
   /**
    * Creates a new Workflow
    *
@@ -99,10 +100,10 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     C extends TaskConfig = TaskConfig,
   >(taskClass: ITaskConstructor<I, O, C>): CreateWorkflow<I, O, C> {
     const helper = function (
-      this: Workflow,
+      this: Workflow<any, any>,
       input: Partial<I> = {},
       config: Partial<C> = {}
-    ): Workflow {
+    ) {
       this._error = "";
 
       const parent = getLastTask(this);
@@ -150,7 +151,19 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
             [toInputPortId, toPortInputSchema]: [string, JsonSchema]
           ) => boolean
         ): Map<string, string> => {
-          // If either schema is true (accepts everything), skip auto-matching
+          if (typeof sourceSchema === "object") {
+            if (
+              targetSchema === true ||
+              (typeof targetSchema === "object" && targetSchema.additionalProperties === true)
+            ) {
+              for (const fromOutputPortId of Object.keys(sourceSchema.properties || {})) {
+                matches.set(fromOutputPortId, fromOutputPortId);
+                this.connect(parent.config.id, fromOutputPortId, task.config.id, fromOutputPortId);
+              }
+              return matches;
+            }
+          }
+          // If either schema is true or false, skip auto-matching
           // as we cannot determine the appropriate connections
           if (typeof sourceSchema === "boolean" || typeof targetSchema === "boolean") {
             return matches;
@@ -177,51 +190,277 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
           return matches;
         };
 
-        // Try to match outputs to inputs using different strategies
+        /**
+         * Extracts specific type identifiers (format, $id) from a schema,
+         * looking inside oneOf/anyOf wrappers if needed.
+         */
+        const getSpecificTypeIdentifiers = (
+          schema: JsonSchema
+        ): { formats: Set<string>; ids: Set<string> } => {
+          const formats = new Set<string>();
+          const ids = new Set<string>();
+
+          if (typeof schema === "boolean") {
+            return { formats, ids };
+          }
+
+          // Helper to extract from a single schema object
+          const extractFromSchema = (s: any): void => {
+            if (!s || typeof s !== "object" || Array.isArray(s)) return;
+            if (s.format) formats.add(s.format);
+            if (s.$id) ids.add(s.$id);
+          };
+
+          // Check top-level format/$id
+          extractFromSchema(schema);
+
+          // Check inside oneOf/anyOf
+          const checkUnion = (schemas: JsonSchema[] | undefined): void => {
+            if (!schemas) return;
+            for (const s of schemas) {
+              if (typeof s === "boolean") continue;
+              extractFromSchema(s);
+              // Also check nested items for array types
+              if (s.items && typeof s.items === "object" && !Array.isArray(s.items)) {
+                extractFromSchema(s.items);
+              }
+            }
+          };
+
+          checkUnion(schema.oneOf as JsonSchema[] | undefined);
+          checkUnion(schema.anyOf as JsonSchema[] | undefined);
+
+          // Check items for array types (single schema, not tuple)
+          if (schema.items && typeof schema.items === "object" && !Array.isArray(schema.items)) {
+            extractFromSchema(schema.items);
+          }
+
+          return { formats, ids };
+        };
+
+        /**
+         * Checks if output schema type is compatible with input schema type.
+         * Handles $id matching, format matching, and oneOf/anyOf unions.
+         */
+        const isTypeCompatible = (
+          fromPortOutputSchema: JsonSchema,
+          toPortInputSchema: JsonSchema,
+          requireSpecificType: boolean = false
+        ): boolean => {
+          if (typeof fromPortOutputSchema === "boolean" || typeof toPortInputSchema === "boolean") {
+            return fromPortOutputSchema === true && toPortInputSchema === true;
+          }
+
+          // Extract specific type identifiers from both schemas
+          const outputIds = getSpecificTypeIdentifiers(fromPortOutputSchema);
+          const inputIds = getSpecificTypeIdentifiers(toPortInputSchema);
+
+          // Check if any format matches
+          for (const format of outputIds.formats) {
+            if (inputIds.formats.has(format)) {
+              return true;
+            }
+          }
+
+          // Check if any $id matches
+          for (const id of outputIds.ids) {
+            if (inputIds.ids.has(id)) {
+              return true;
+            }
+          }
+
+          // For type-only fallback, we require specific types (not primitives)
+          // to avoid over-matching strings, numbers, etc.
+          if (requireSpecificType) {
+            return false;
+          }
+
+          // $id both blank at top level - check type directly (only for name-matched ports)
+          const idTypeBlank =
+            fromPortOutputSchema.$id === undefined && toPortInputSchema.$id === undefined;
+          if (!idTypeBlank) return false;
+
+          // Direct type match (for primitives, only when names also match)
+          if (fromPortOutputSchema.type === toPortInputSchema.type) return true;
+
+          // Check if output type matches any option in oneOf/anyOf
+          const matchesOneOf =
+            toPortInputSchema.oneOf?.some((schema: any) => {
+              if (typeof schema === "boolean") return schema;
+              return schema.type === fromPortOutputSchema.type;
+            }) ?? false;
+
+          const matchesAnyOf =
+            toPortInputSchema.anyOf?.some((schema: any) => {
+              if (typeof schema === "boolean") return schema;
+              return schema.type === fromPortOutputSchema.type;
+            }) ?? false;
+
+          return matchesOneOf || matchesAnyOf;
+        };
+
+        // Strategy 1: Match by type AND port name (highest priority)
         makeMatch(
           ([fromOutputPortId, fromPortOutputSchema], [toInputPortId, toPortInputSchema]) => {
-            // Skip if either schema is boolean
-            if (
-              typeof fromPortOutputSchema === "boolean" ||
-              typeof toPortInputSchema === "boolean"
-            ) {
-              if (fromPortOutputSchema === true && toPortInputSchema === true) {
-                return true;
-              }
-              return false;
-            }
-            // $id matches
-            const idTypeMatch =
-              fromPortOutputSchema.$id !== undefined &&
-              fromPortOutputSchema.$id === toPortInputSchema.$id;
-            // $id both blank
-            const idTypeBlank =
-              fromPortOutputSchema.$id === undefined && undefined === toPortInputSchema.$id;
-            const typeMatch =
-              idTypeBlank &&
-              (fromPortOutputSchema.type === toPortInputSchema.type ||
-                (toPortInputSchema.oneOf?.some((i: any) => i.type == fromPortOutputSchema.type) ??
-                  false));
             const outputPortIdMatch = fromOutputPortId === toInputPortId;
             const outputPortIdOutputInput =
               fromOutputPortId === "output" && toInputPortId === "input";
             const portIdsCompatible = outputPortIdMatch || outputPortIdOutputInput;
-            return (idTypeMatch || typeMatch) && portIdsCompatible;
+
+            return (
+              portIdsCompatible && isTypeCompatible(fromPortOutputSchema, toPortInputSchema, false)
+            );
           }
         );
 
-        // If no matches were found, remove the task and report an error
-        if (matches.size === 0) {
+        // Strategy 2: Match by specific type only (fallback for unmatched ports)
+        // Only matches specific types like TypedArray (with format), not primitives
+        // This allows connecting ports with different names but compatible specific types
+        makeMatch(
+          ([_fromOutputPortId, fromPortOutputSchema], [_toInputPortId, toPortInputSchema]) => {
+            return isTypeCompatible(fromPortOutputSchema, toPortInputSchema, true);
+          }
+        );
+
+        // Strategy 3: Look back through earlier tasks for unmatched required inputs
+        // Extract required inputs from target schema
+        const requiredInputs = new Set<string>(
+          typeof targetSchema === "object" ? (targetSchema.required as string[]) || [] : []
+        );
+
+        // Filter out required inputs that are already provided in the input parameter
+        // These don't need to be connected from previous tasks
+        const providedInputKeys = new Set(Object.keys(input || {}));
+        const requiredInputsNeedingConnection = [...requiredInputs].filter(
+          (r) => !providedInputKeys.has(r)
+        );
+
+        // Compute unmatched required inputs (that aren't already provided)
+        let unmatchedRequired = requiredInputsNeedingConnection.filter((r) => !matches.has(r));
+
+        // If there are unmatched required inputs, iterate backwards through earlier tasks
+        if (unmatchedRequired.length > 0) {
+          const nodes = this._graph.getTasks();
+          const parentIndex = nodes.findIndex((n) => n.config.id === parent.config.id);
+
+          // Iterate backwards from task before parent
+          for (let i = parentIndex - 1; i >= 0 && unmatchedRequired.length > 0; i--) {
+            const earlierTask = nodes[i];
+            const earlierOutputSchema = earlierTask.outputSchema();
+
+            // Helper function to match from an earlier task (only for unmatched required inputs)
+            const makeMatchFromEarlier = (
+              comparator: (
+                [fromOutputPortId, fromPortOutputSchema]: [string, JsonSchema],
+                [toInputPortId, toPortInputSchema]: [string, JsonSchema]
+              ) => boolean
+            ): void => {
+              if (typeof earlierOutputSchema === "boolean" || typeof targetSchema === "boolean") {
+                return;
+              }
+
+              for (const [fromOutputPortId, fromPortOutputSchema] of Object.entries(
+                earlierOutputSchema.properties || {}
+              )) {
+                for (const requiredInputId of unmatchedRequired) {
+                  const toPortInputSchema = (targetSchema.properties as any)?.[requiredInputId];
+                  if (
+                    !matches.has(requiredInputId) &&
+                    toPortInputSchema &&
+                    comparator(
+                      [fromOutputPortId, fromPortOutputSchema],
+                      [requiredInputId, toPortInputSchema]
+                    )
+                  ) {
+                    matches.set(requiredInputId, fromOutputPortId);
+                    this.connect(
+                      earlierTask.config.id,
+                      fromOutputPortId,
+                      task.config.id,
+                      requiredInputId
+                    );
+                  }
+                }
+              }
+            };
+
+            // Try both matching strategies for earlier tasks
+            // Strategy 1: Match by type AND port name
+            makeMatchFromEarlier(
+              ([fromOutputPortId, fromPortOutputSchema], [toInputPortId, toPortInputSchema]) => {
+                const outputPortIdMatch = fromOutputPortId === toInputPortId;
+                const outputPortIdOutputInput =
+                  fromOutputPortId === "output" && toInputPortId === "input";
+                const portIdsCompatible = outputPortIdMatch || outputPortIdOutputInput;
+
+                return (
+                  portIdsCompatible &&
+                  isTypeCompatible(fromPortOutputSchema, toPortInputSchema, false)
+                );
+              }
+            );
+
+            // Strategy 2: Match by specific type only
+            makeMatchFromEarlier(
+              ([_fromOutputPortId, fromPortOutputSchema], [_toInputPortId, toPortInputSchema]) => {
+                return isTypeCompatible(fromPortOutputSchema, toPortInputSchema, true);
+              }
+            );
+
+            // Update unmatched required inputs
+            unmatchedRequired = unmatchedRequired.filter((r) => !matches.has(r));
+          }
+        }
+
+        // Updated failure condition: only fail when required inputs (that need connection) remain unmatched
+        const stillUnmatchedRequired = requiredInputsNeedingConnection.filter(
+          (r) => !matches.has(r)
+        );
+        if (stillUnmatchedRequired.length > 0) {
           this._error =
-            `Could not find a match between the outputs of ${parent.type} and the inputs of ${task.type}. ` +
-            `You now need to connect the outputs to the inputs via connect() manually before adding this task. Task not added.`;
+            `Could not find matches for required inputs [${stillUnmatchedRequired.join(", ")}] of ${task.type}. ` +
+            `Attempted to match from ${parent.type} and earlier tasks. Task not added.`;
 
           console.error(this._error);
           this.graph.removeTask(task.config.id);
+        } else if (matches.size === 0 && requiredInputsNeedingConnection.length === 0) {
+          // No matches were made AND no required inputs need connection
+          // This happens in two cases:
+          // 1. Task has required inputs, but they were all provided as parameters
+          // 2. Task has no required inputs (all optional)
+
+          // If task has required inputs that were all provided as parameters, allow the task
+          const hasRequiredInputs = requiredInputs.size > 0;
+          const allRequiredInputsProvided =
+            hasRequiredInputs && [...requiredInputs].every((r) => providedInputKeys.has(r));
+
+          // If no required inputs (all optional), check if there are defaults
+          const hasInputsWithDefaults =
+            typeof targetSchema === "object" &&
+            targetSchema.properties &&
+            Object.values(targetSchema.properties).some(
+              (prop: any) => prop && typeof prop === "object" && "default" in prop
+            );
+
+          // Allow if:
+          // - All required inputs were provided as parameters, OR
+          // - No required inputs and task has defaults
+          // Otherwise fail (no required inputs, no defaults, no matches)
+          if (!allRequiredInputsProvided && !hasInputsWithDefaults) {
+            this._error =
+              `Could not find a match between the outputs of ${parent.type} and the inputs of ${task.type}. ` +
+              `You now need to connect the outputs to the inputs via connect() manually before adding this task. Task not added.`;
+
+            console.error(this._error);
+            this.graph.removeTask(task.config.id);
+          }
         }
       }
 
-      return this;
+      // Preserve input type from the start of the chain
+      // If this is the first task, set both input and output types
+      // Otherwise, only update the output type (input type is preserved from 'this')
+      return this as any;
     };
 
     // Copy metadata from the task class
@@ -233,7 +472,7 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     helper.cacheable = taskClass.cacheable;
     helper.workflowCreate = true;
 
-    return helper;
+    return helper as CreateWorkflow<I, O, C>;
   }
 
   /**
@@ -296,7 +535,6 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
     try {
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
-        parentProvenance: {},
         outputCache: this._repository,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
@@ -597,7 +835,11 @@ export class Workflow<Input extends DataPorts = DataPorts, Output extends DataPo
       if (targetSchema === false) {
         throw new WorkflowError(`Target task has schema 'false' and accepts no inputs`);
       }
-      // If targetSchema is true, we skip validation as it accepts everything
+      if (targetSchema === true) {
+        // do nothing, we allow additional properties
+      }
+    } else if (targetSchema.additionalProperties === true) {
+      // do nothing, we allow additional properties
     } else if (!targetSchema.properties?.[targetTaskPortId]) {
       throw new WorkflowError(`Input ${targetTaskPortId} not found on target task`);
     }

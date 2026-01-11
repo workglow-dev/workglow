@@ -88,8 +88,8 @@ TaskRegistry.registerTask(DelayTask);
  * @param {delay} - The delay in milliseconds
  */
 export const delay = (input: DelayTaskInput, config: TaskConfig = {}) => {
-  const task = new DelayTask(input, config);
-  return task.run();
+  const task = new DelayTask({}, config);
+  return task.run(input);
 };
 
 declare module "@workglow/task-graph" {

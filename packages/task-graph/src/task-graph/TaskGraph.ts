@@ -8,7 +8,7 @@ import { DirectedAcyclicGraph, EventEmitter, uuid4 } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
-import type { Provenance, TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
+import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction } from "./Conversions";
 import { Dataflow, type DataflowIdType } from "./Dataflow";
 import type { ITaskGraph } from "./ITaskGraph";
@@ -37,8 +37,6 @@ export interface TaskGraphRunConfig {
   outputCache?: TaskOutputRepository | boolean;
   /** Optional signal to abort the task graph */
   parentSignal?: AbortSignal;
-  /** Optional provenance to use for this task graph */
-  parentProvenance?: Provenance;
 }
 
 class TaskGraphDAG extends DirectedAcyclicGraph<
@@ -102,7 +100,6 @@ export class TaskGraph implements ITaskGraph {
   ): Promise<GraphResultArray<ExecuteOutput>> {
     return this.runner.runGraph<ExecuteOutput>(input, {
       outputCache: config?.outputCache || this.outputCache,
-      parentProvenance: config?.parentProvenance || {},
       parentSignal: config?.parentSignal || undefined,
     });
   }

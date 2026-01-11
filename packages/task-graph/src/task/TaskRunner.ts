@@ -10,7 +10,7 @@ import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
-import { Provenance, TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
+import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
 
 /**
  * Responsible for running tasks
@@ -26,11 +26,6 @@ export class TaskRunner<
    */
   protected running = false;
   protected reactiveRunning = false;
-
-  /**
-   * Provenance information for the task
-   */
-  protected nodeProvenance: Provenance = {};
 
   /**
    * The task to run
@@ -168,7 +163,6 @@ export class TaskRunner<
     const result = await this.task.execute(input, {
       signal: this.abortController!.signal,
       updateProgress: this.handleProgress.bind(this),
-      nodeProvenance: this.nodeProvenance,
       own: this.own,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
@@ -192,7 +186,6 @@ export class TaskRunner<
   protected async handleStart(config: IRunConfig = {}): Promise<void> {
     if (this.task.status === TaskStatus.PROCESSING) return;
 
-    this.nodeProvenance = {};
     this.running = true;
 
     this.task.startedAt = new Date();
@@ -203,8 +196,6 @@ export class TaskRunner<
     this.abortController.signal.addEventListener("abort", () => {
       this.handleAbort();
     });
-
-    this.nodeProvenance = config.nodeProvenance ?? {};
 
     const cache = this.task.config.outputCache ?? config.outputCache;
     if (cache === true) {
@@ -260,7 +251,6 @@ export class TaskRunner<
     this.task.progress = 100;
     this.task.status = TaskStatus.COMPLETED;
     this.abortController = undefined;
-    this.nodeProvenance = {};
 
     this.task.emit("complete");
     this.task.emit("status", this.task.status);
@@ -276,7 +266,6 @@ export class TaskRunner<
     this.task.progress = 100;
     this.task.completedAt = new Date();
     this.abortController = undefined;
-    this.nodeProvenance = {};
     this.task.emit("disabled");
     this.task.emit("status", this.task.status);
   }
@@ -303,7 +292,6 @@ export class TaskRunner<
     this.task.error =
       err instanceof TaskError ? err : new TaskFailedError(err?.message || "Task failed");
     this.abortController = undefined;
-    this.nodeProvenance = {};
     this.task.emit("error", this.task.error);
     this.task.emit("status", this.task.status);
   }

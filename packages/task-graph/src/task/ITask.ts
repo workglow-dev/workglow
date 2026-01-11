@@ -19,14 +19,13 @@ import type {
 } from "./TaskEvents";
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
-import type { Provenance, TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
+import type { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
 
 /**
  * Context for task execution
  */
 export interface IExecuteContext {
   signal: AbortSignal;
-  nodeProvenance: Provenance;
   updateProgress: (progress: number, message?: string, ...args: any[]) => Promise<void>;
   own: <T extends ITask | ITaskGraph | IWorkflow>(i: T) => T;
 }
@@ -142,7 +141,6 @@ export interface ITaskEvents {
  * Interface for task serialization
  */
 export interface ITaskSerialization {
-  getProvenance(): Provenance;
   toJSON(): JsonTaskItem | TaskGraphItemJson;
   toDependencyJSON(): JsonTaskItem;
   id(): unknown;
@@ -168,7 +166,9 @@ export interface ITask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends ITaskState<Config>,
+>
+  extends
+    ITaskState<Config>,
     ITaskIO<Input>,
     ITaskEvents,
     ITaskLifecycle<Input, Output, Config>,

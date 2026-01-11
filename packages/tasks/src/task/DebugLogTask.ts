@@ -89,8 +89,8 @@ export class DebugLogTask<
 TaskRegistry.registerTask(DebugLogTask);
 
 export const debugLog = (input: DebugLogTaskInput, config: TaskConfig = {}) => {
-  const task = new DebugLogTask(input, config);
-  return task.run();
+  const task = new DebugLogTask({}, config);
+  return task.run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -97,7 +97,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
   /**
    * Implementation of full run mode - returns complete results
    */
-  async execute(): Promise<TestIOTaskOutput> {
+  async execute(_input: TestIOTaskInput, _context: IExecuteContext): Promise<TestIOTaskOutput> {
     return { all: true, key: "full", reactiveOnly: false };
   }
 }
@@ -680,8 +680,11 @@ export class StringTask extends Task<{ input: string }, { output: string }, Task
   /**
    * Returns the input string as output
    */
-  async execute() {
-    return { output: this.runInputData.input };
+  async executeReactive(
+    input: { input: string },
+    _output: { output: string }
+  ): Promise<{ output: string }> {
+    return { output: input.input };
   }
 }
 
@@ -719,8 +722,8 @@ export class NumberToStringTask extends Task<{ input: number }, { output: string
   /**
    * Returns the input string as output
    */
-  async execute() {
-    return { output: String(this.runInputData.input) };
+  async execute(input: { input: number }, _context: IExecuteContext): Promise<{ output: string }> {
+    return { output: String(input.input) };
   }
 }
 
@@ -759,8 +762,8 @@ export class NumberTask extends Task<{ input: number }, { output: number }, Task
   /**
    * Returns the input number as output
    */
-  async execute() {
-    return { output: this.runInputData.input };
+  async execute(input: { input: number }, _context: IExecuteContext): Promise<{ output: number }> {
+    return { output: input.input };
   }
 }
 
@@ -826,6 +829,190 @@ export class TestAddTask extends Task<TestAddTaskInput, TestAddTaskOutput> {
 }
 
 /**
+ * Task that outputs a TypedArray with port name "vector" (singular)
+ * Used for testing type-only matching with different port names
+ */
+export class VectorOutputTask extends Task<{ text: string }, { vector: Float32Array }> {
+  static type = "VectorOutputTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "Input text",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        vector: {
+          type: "array",
+          format: "TypedArray",
+          title: "Vector",
+          description: "Output vector (singular name)",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { text: string }): Promise<{ vector: Float32Array }> {
+    return { vector: new Float32Array([0.1, 0.2, 0.3]) };
+  }
+}
+
+/**
+ * Task that accepts a TypedArray with port name "vectors" (plural)
+ * Used for testing type-only matching with different port names
+ */
+export class VectorsInputTask extends Task<{ vectors: Float32Array }, { count: number }> {
+  static type = "VectorsInputTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        vectors: {
+          type: "array",
+          format: "TypedArray",
+          title: "Vectors",
+          description: "Input vectors (plural name)",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        count: {
+          type: "number",
+          description: "Length of the vector",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { vectors: Float32Array }): Promise<{ count: number }> {
+    return { count: input.vectors.length };
+  }
+}
+
+/**
+ * Task that outputs a TypedArray wrapped in oneOf (like TypeSingleOrArray)
+ */
+export class VectorOneOfOutputTask extends Task<{ text: string }, { embedding: Float32Array }> {
+  static type = "VectorOneOfOutputTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "Input text",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        embedding: {
+          oneOf: [
+            {
+              type: "array",
+              format: "TypedArray",
+              title: "Single Embedding",
+            },
+            {
+              type: "array",
+              items: {
+                type: "array",
+                format: "TypedArray",
+              },
+              title: "Multiple Embeddings",
+            },
+          ],
+          title: "Embedding",
+          description: "Output embedding (oneOf wrapper)",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { text: string }): Promise<{ embedding: Float32Array }> {
+    return { embedding: new Float32Array([0.4, 0.5, 0.6]) };
+  }
+}
+
+/**
+ * Task that accepts a TypedArray wrapped in anyOf
+ */
+export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: number }> {
+  static type = "VectorAnyOfInputTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        data: {
+          anyOf: [
+            {
+              type: "array",
+              format: "TypedArray",
+              title: "Single Vector",
+            },
+            {
+              type: "array",
+              items: {
+                type: "array",
+                format: "TypedArray",
+              },
+              title: "Multiple Vectors",
+            },
+          ],
+          title: "Data",
+          description: "Input data (anyOf wrapper)",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        sum: {
+          type: "number",
+          description: "Sum of vector elements",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { data: Float32Array }): Promise<{ sum: number }> {
+    return { sum: Array.from(input.data).reduce((a, b) => a + b, 0) };
+  }
+}
+
+/**
  * Module augmentation to register test task types in the workflow system
  */
 declare module "@workglow/task-graph" {
@@ -839,6 +1026,22 @@ declare module "@workglow/task-graph" {
     numberToString: CreateWorkflow<{ input: number }, { output: string }, TaskConfig>;
     number: CreateWorkflow<{ input: number }, { output: number }, TaskConfig>;
     testAdd: CreateWorkflow<TestAddTaskInput, TestAddTaskOutput, TaskConfig>;
+    vectorOutput: CreateWorkflow<{ text: string }, { vector: Float32Array }, TaskConfig>;
+    vectorsInput: CreateWorkflow<{ vectors: Float32Array }, { count: number }, TaskConfig>;
+    vectorOneOfOutput: CreateWorkflow<{ text: string }, { embedding: Float32Array }, TaskConfig>;
+    vectorAnyOfInput: CreateWorkflow<{ data: Float32Array }, { sum: number }, TaskConfig>;
+    textOutput: CreateWorkflow<{ input: string }, { text: string }, TaskConfig>;
+    vectorOutputOnly: CreateWorkflow<{ size: number }, { vector: Float32Array }, TaskConfig>;
+    textVectorInput: CreateWorkflow<
+      { text: string; vector: Float32Array },
+      { result: string },
+      TaskConfig
+    >;
+    passthroughVector: CreateWorkflow<
+      { vector: Float32Array },
+      { vector: Float32Array },
+      TaskConfig
+    >;
   }
 }
 
@@ -852,3 +1055,179 @@ Workflow.prototype.string = CreateWorkflow(StringTask);
 Workflow.prototype.numberToString = CreateWorkflow(NumberToStringTask);
 Workflow.prototype.number = CreateWorkflow(NumberTask);
 Workflow.prototype.testAdd = CreateWorkflow(TestAddTask);
+Workflow.prototype.vectorOutput = CreateWorkflow(VectorOutputTask);
+Workflow.prototype.vectorsInput = CreateWorkflow(VectorsInputTask);
+Workflow.prototype.vectorOneOfOutput = CreateWorkflow(VectorOneOfOutputTask);
+Workflow.prototype.vectorAnyOfInput = CreateWorkflow(VectorAnyOfInputTask);
+/**
+ * Task that outputs only text - for testing multi-source matching
+ */
+export class TextOutputTask extends Task<{ input: string }, { text: string }> {
+  static type = "TextOutputTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        input: {
+          type: "string",
+          description: "Input string",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "Output text",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { input: string }): Promise<{ text: string }> {
+    return { text: input.input };
+  }
+}
+
+/**
+ * Task that outputs only a vector - for testing multi-source matching
+ */
+export class VectorOutputOnlyTask extends Task<{ size: number }, { vector: Float32Array }> {
+  static type = "VectorOutputOnlyTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        size: {
+          type: "number",
+          description: "Vector size",
+          default: 3,
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        vector: {
+          type: "array",
+          format: "TypedArray",
+          title: "Vector",
+          description: "Output vector",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { size: number }): Promise<{ vector: Float32Array }> {
+    return { vector: new Float32Array(input.size || 3).fill(1.0) };
+  }
+}
+
+/**
+ * Task that requires both text and vector inputs - for testing multi-source matching
+ */
+export class TextVectorInputTask extends Task<
+  { text: string; vector: Float32Array },
+  { result: string }
+> {
+  static type = "TextVectorInputTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "Input text",
+        },
+        vector: {
+          type: "array",
+          items: { type: "number" },
+          format: "TypedArray",
+          title: "Vector",
+          description: "Input vector",
+        },
+      },
+      required: ["text", "vector"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: {
+          type: "string",
+          description: "Combined result",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { text: string; vector: Float32Array }): Promise<{ result: string }> {
+    return { result: `${input.text} with vector of length ${input.vector.length}` };
+  }
+}
+
+/**
+ * Task that passes through a vector - for testing multi-hop matching
+ */
+export class PassthroughVectorTask extends Task<
+  { vector: Float32Array },
+  { vector: Float32Array }
+> {
+  static type = "PassthroughVectorTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        vector: {
+          type: "array",
+          format: "TypedArray",
+          title: "Vector",
+          description: "Input vector",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        vector: {
+          type: "array",
+          format: "TypedArray",
+          title: "Vector",
+          description: "Output vector (passthrough)",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { vector: Float32Array }): Promise<{ vector: Float32Array }> {
+    return { vector: input.vector };
+  }
+}
+Workflow.prototype.textOutput = CreateWorkflow(TextOutputTask);
+Workflow.prototype.vectorOutputOnly = CreateWorkflow(VectorOutputOnlyTask);
+Workflow.prototype.textVectorInput = CreateWorkflow(TextVectorInputTask);
+Workflow.prototype.passthroughVector = CreateWorkflow(PassthroughVectorTask);
