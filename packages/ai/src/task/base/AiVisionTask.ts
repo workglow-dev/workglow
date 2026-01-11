@@ -19,16 +19,12 @@ export interface AiVisionTaskSingleInput extends TaskInput {
   model: string | ModelConfig;
 }
 
-export interface AiVisionArrayTaskInput extends TaskInput {
-  model: string | ModelConfig | (string | ModelConfig)[];
-}
-
 /**
  * A base class for AI related tasks that run in a job queue.
  * Extends the JobQueueTask class to provide LLM-specific functionality.
  */
 export class AiVisionTask<
-  Input extends AiVisionArrayTaskInput = AiVisionArrayTaskInput,
+  Input extends AiVisionTaskSingleInput = AiVisionTaskSingleInput,
   Output extends TaskOutput = TaskOutput,
   Config extends JobQueueTaskConfig = JobQueueTaskConfig,
 > extends AiTask<Input, Output, Config> {

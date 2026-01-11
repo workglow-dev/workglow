@@ -28,6 +28,7 @@ Modular storage solutions for Workglow.AI platform with multiple backend impleme
   - [Node.js Environment](#nodejs-environment)
   - [Bun Environment](#bun-environment)
 - [Advanced Features](#advanced-features)
+  - [Repository Registry](#repository-registry)
   - [Event-Driven Architecture](#event-driven-architecture)
   - [Compound Primary Keys](#compound-primary-keys)
   - [Custom File Layout (KV on filesystem)](#custom-file-layout-kv-on-filesystem)
@@ -520,6 +521,95 @@ const cloudData = new SupabaseTabularRepository(supabase, "items", ItemSchema, [
 ```
 
 ## Advanced Features
+
+### Repository Registry
+
+Repositories can be registered globally by ID, allowing tasks to reference them by name rather than passing direct instances. This is useful for configuring repositories once at application startup and referencing them throughout your task graphs.
+
+#### Registering Repositories
+
+```typescript
+import {
+  registerTabularRepository,
+  getTabularRepository,
+  InMemoryTabularRepository,
+} from "@workglow/storage";
+
+// Define your schema
+const userSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    name: { type: "string" },
+    email: { type: "string" },
+  },
+  required: ["id", "name", "email"],
+  additionalProperties: false,
+} as const;
+
+// Create and register a repository
+const userRepo = new InMemoryTabularRepository(userSchema, ["id"] as const);
+registerTabularRepository("users", userRepo);
+
+// Later, retrieve the repository by ID
+const repo = getTabularRepository("users");
+```
+
+#### Using Repositories in Tasks
+
+When using repositories with tasks, you can pass either the repository ID or a direct instance. The TaskRunner automatically resolves string IDs using the registry.
+
+```typescript
+import { TypeTabularRepository } from "@workglow/storage";
+
+// In your task's input schema, use TypeTabularRepository
+static inputSchema() {
+  return {
+    type: "object",
+    properties: {
+      dataSource: TypeTabularRepository({
+        title: "User Repository",
+        description: "Repository containing user records",
+      }),
+    },
+    required: ["dataSource"],
+  };
+}
+
+// Both approaches work:
+await task.run({ dataSource: "users" });           // Resolved from registry
+await task.run({ dataSource: userRepoInstance }); // Direct instance
+```
+
+#### Schema Helper Functions
+
+The package provides schema helper functions for defining repository inputs with proper format annotations:
+
+```typescript
+import {
+  TypeTabularRepository,
+  TypeVectorRepository,
+  TypeDocumentRepository,
+} from "@workglow/storage";
+
+// Tabular repository (format: "repository:tabular")
+const tabularSchema = TypeTabularRepository({
+  title: "Data Source",
+  description: "Tabular data repository",
+});
+
+// Vector repository (format: "repository:document-node-vector")
+const vectorSchema = TypeVectorRepository({
+  title: "Embeddings Store",
+  description: "Vector embeddings repository",
+});
+
+// Document repository (format: "repository:document")
+const docSchema = TypeDocumentRepository({
+  title: "Document Store",
+  description: "Document storage repository",
+});
+```
 
 ### Event-Driven Architecture
 
