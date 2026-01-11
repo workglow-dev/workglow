@@ -9,15 +9,15 @@ import type { TypedArray } from "@workglow/util";
 import { cosineSimilarity } from "@workglow/util";
 import { SqliteTabularRepository } from "../tabular/SqliteTabularRepository";
 import {
-  DocumentChunkVector,
-  DocumentChunkVectorKey,
-  DocumentChunkVectorSchema,
-} from "./DocumentChunkVectorSchema";
+  DocumentNodeVector,
+  DocumentNodeVectorKey,
+  DocumentNodeVectorSchema,
+} from "./DocumentNodeVectorSchema";
 import type {
   HybridSearchOptions,
-  IDocumentChunkVectorRepository,
+  IDocumentNodeVectorRepository,
   VectorSearchOptions,
-} from "./IDocumentChunkVectorRepository";
+} from "./IDocumentNodeVectorRepository";
 
 /**
  * Check if metadata matches filter
@@ -38,20 +38,20 @@ function matchesFilter<Metadata>(metadata: Metadata, filter: Partial<Metadata>):
  * @template Metadata - The metadata type for the document chunk
  * @template Vector - The vector type for the document chunk
  */
-export class SqliteDocumentChunkVectorRepository<
+export class SqliteDocumentNodeVectorRepository<
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
 >
   extends SqliteTabularRepository<
-    typeof DocumentChunkVectorSchema,
-    typeof DocumentChunkVectorKey,
-    DocumentChunkVector<Metadata, Vector>
+    typeof DocumentNodeVectorSchema,
+    typeof DocumentNodeVectorKey,
+    DocumentNodeVector<Metadata, Vector>
   >
   implements
-    IDocumentChunkVectorRepository<
-      typeof DocumentChunkVectorSchema,
-      typeof DocumentChunkVectorKey,
-      DocumentChunkVector<Metadata, Vector>
+    IDocumentNodeVectorRepository<
+      typeof DocumentNodeVectorSchema,
+      typeof DocumentNodeVectorKey,
+      DocumentNodeVector<Metadata, Vector>
     >
 {
   private vectorDimensions: number;
@@ -70,7 +70,7 @@ export class SqliteDocumentChunkVectorRepository<
     dimensions: number,
     VectorType: new (array: number[]) => TypedArray = Float32Array
   ) {
-    super(dbOrPath, table, DocumentChunkVectorSchema, DocumentChunkVectorKey);
+    super(dbOrPath, table, DocumentNodeVectorSchema, DocumentNodeVectorKey);
 
     this.vectorDimensions = dimensions;
     this.VectorType = VectorType;
@@ -92,7 +92,7 @@ export class SqliteDocumentChunkVectorRepository<
 
   async similaritySearch(query: TypedArray, options: VectorSearchOptions<Metadata> = {}) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
-    const results: Array<DocumentChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
 
     const allEntities = (await this.getAll()) || [];
 
@@ -137,7 +137,7 @@ export class SqliteDocumentChunkVectorRepository<
       return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
-    const results: Array<DocumentChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
     const allEntities = (await this.getAll()) || [];
     const queryLower = textQuery.toLowerCase();
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);

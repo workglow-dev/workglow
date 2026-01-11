@@ -6,16 +6,16 @@
 
 import { retrieval } from "@workglow/ai";
 import {
-  InMemoryDocumentChunkVectorRepository,
-  registerDocumentChunkVectorRepository,
+  InMemoryDocumentNodeVectorRepository,
+  registerDocumentNodeVectorRepository,
 } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("DocumentChunkRetrievalTask", () => {
-  let repo: InMemoryDocumentChunkVectorRepository;
+describe("DocumentNodeRetrievalTask", () => {
+  let repo: InMemoryDocumentNodeVectorRepository;
 
   beforeEach(async () => {
-    repo = new InMemoryDocumentChunkVectorRepository(3);
+    repo = new InMemoryDocumentNodeVectorRepository(3);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -38,11 +38,11 @@ describe("DocumentChunkRetrievalTask", () => {
     for (let i = 0; i < vectors.length; i++) {
       const doc_id = `doc${i + 1}`;
       await repo.put({
-        id: `${doc_id}_0`,
+        chunk_id: `${doc_id}_0`,
         doc_id,
-        vector: vectors[i] as any,
+        vector: vectors[i],
         metadata: metadata[i],
-      } as any);
+      });
     }
   });
 
@@ -168,14 +168,14 @@ describe("DocumentChunkRetrievalTask", () => {
   test("should apply metadata filter", async () => {
     // Add a document with specific metadata for filtering
     await repo.put({
-      id: "filtered_doc_0",
+      chunk_id: "filtered_doc_0",
       doc_id: "filtered_doc",
-      vector: new Float32Array([1.0, 0.0, 0.0]) as any,
+      vector: new Float32Array([1.0, 0.0, 0.0]),
       metadata: {
         text: "Filtered document",
         category: "test",
       },
-    } as any);
+    });
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
@@ -187,7 +187,7 @@ describe("DocumentChunkRetrievalTask", () => {
     });
 
     expect(result.count).toBe(1);
-    expect(result.ids[0]).toBe("filtered_doc");
+    expect(result.ids[0]).toBe("filtered_doc_0");
   });
 
   test("should apply score threshold", async () => {
@@ -245,14 +245,14 @@ describe("DocumentChunkRetrievalTask", () => {
   test("should JSON.stringify metadata when no text/content/chunk fields", async () => {
     // Add document with only non-standard metadata
     await repo.put({
-      id: "json_doc_0",
+      chunk_id: "json_doc_0",
       doc_id: "json_doc",
-      vector: new Float32Array([1.0, 0.0, 0.0]) as any,
+      vector: new Float32Array([1.0, 0.0, 0.0]),
       metadata: {
         title: "Title only",
         author: "Author name",
       },
-    } as any);
+    });
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
@@ -271,7 +271,7 @@ describe("DocumentChunkRetrievalTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerDocumentChunkVectorRepository("test-retrieval-repo", repo);
+    registerDocumentNodeVectorRepository("test-retrieval-repo", repo);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 

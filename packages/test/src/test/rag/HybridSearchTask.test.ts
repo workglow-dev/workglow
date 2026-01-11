@@ -6,16 +6,16 @@
 
 import { hybridSearch } from "@workglow/ai";
 import {
-  InMemoryDocumentChunkVectorRepository,
-  registerDocumentChunkVectorRepository,
+  InMemoryDocumentNodeVectorRepository,
+  registerDocumentNodeVectorRepository,
 } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("DocumentChunkVectorHybridSearchTask", () => {
-  let repo: InMemoryDocumentChunkVectorRepository;
+describe("DocumentNodeVectorHybridSearchTask", () => {
+  let repo: InMemoryDocumentNodeVectorRepository;
 
   beforeEach(async () => {
-    repo = new InMemoryDocumentChunkVectorRepository(3);
+    repo = new InMemoryDocumentNodeVectorRepository(3);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -251,7 +251,7 @@ describe("DocumentChunkVectorHybridSearchTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerDocumentChunkVectorRepository("test-hybrid-repo", repo);
+    registerDocumentNodeVectorRepository("test-hybrid-repo", repo);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "machine learning";

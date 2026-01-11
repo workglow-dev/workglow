@@ -25,10 +25,10 @@
  *    - Or a batch TextEmbedding node that accepts arrays
  *
  * 2. Semantic Search Pipeline:
- *    Query (input) → DocumentChunkRetrievalTask → Results (output)
+ *    Query (input) → DocumentNodeRetrievalTask → Results (output)
  *
  * 3. Question Answering Pipeline:
- *    Question → DocumentChunkRetrievalTask → ContextBuilder → TextQuestionAnswerTask → Answer
+ *    Question → DocumentNodeRetrievalTask → ContextBuilder → TextQuestionAnswerTask → Answer
  *
  * Models Used:
  *    - Xenova/all-MiniLM-L6-v2 (Text Embedding - 384D)
@@ -48,9 +48,9 @@ import {
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryDocumentChunkVectorRepository,
+  InMemoryDocumentNodeVectorRepository,
   InMemoryTabularRepository,
-  registerDocumentChunkVectorRepository,
+  registerDocumentNodeVectorRepository,
 } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { readdirSync } from "fs";
@@ -60,7 +60,7 @@ import { registerHuggingfaceLocalModels } from "../../samples";
 export { FileLoaderTask } from "@workglow/tasks";
 
 describe("RAG Workflow End-to-End", () => {
-  let vectorRepo: InMemoryDocumentChunkVectorRepository;
+  let vectorRepo: InMemoryDocumentNodeVectorRepository;
   let docRepo: DocumentRepository;
   const vectorRepoName = "rag-test-vector-repo";
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
@@ -77,11 +77,11 @@ describe("RAG Workflow End-to-End", () => {
     await registerHuggingfaceLocalModels();
 
     // Setup repositories
-    vectorRepo = new InMemoryDocumentChunkVectorRepository(3);
+    vectorRepo = new InMemoryDocumentNodeVectorRepository(3);
     await vectorRepo.setupDatabase();
 
     // Register vector repository for use in workflows
-    registerDocumentChunkVectorRepository(vectorRepoName, vectorRepo);
+    registerDocumentNodeVectorRepository(vectorRepoName, vectorRepo);
 
     const tabularRepo = new InMemoryTabularRepository(DocumentStorageSchema, DocumentStorageKey);
     await tabularRepo.setupDatabase();
@@ -117,8 +117,8 @@ describe("RAG Workflow End-to-End", () => {
           sourceUri: filePath,
         })
         .documentEnricher({
-          generateSummaries: false,
-          extractEntities: false,
+          generateSummaries: true,
+          extractEntities: true,
           summaryModel,
           nerModel,
         })

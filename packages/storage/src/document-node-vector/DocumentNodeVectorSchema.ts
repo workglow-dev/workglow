@@ -9,7 +9,7 @@ import { TypedArraySchema, type DataPortSchemaObject, type TypedArray } from "@w
 /**
  * Default schema for document chunk storage with vector embeddings
  */
-export const DocumentChunkVectorSchema = {
+export const DocumentNodeVectorSchema = {
   type: "object",
   properties: {
     chunk_id: { type: "string" },
@@ -19,12 +19,12 @@ export const DocumentChunkVectorSchema = {
   },
   additionalProperties: false,
 } as const satisfies DataPortSchemaObject;
-export type DocumentChunkVectorSchema = typeof DocumentChunkVectorSchema;
+export type DocumentNodeVectorSchema = typeof DocumentNodeVectorSchema;
 
-export const DocumentChunkVectorKey = ["chunk_id"] as const;
-export type DocumentChunkVectorKey = typeof DocumentChunkVectorKey;
+export const DocumentNodeVectorKey = ["chunk_id"] as const;
+export type DocumentNodeVectorKey = typeof DocumentNodeVectorKey;
 
-export interface DocumentChunkVector<
+export interface DocumentNodeVector<
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
 > {

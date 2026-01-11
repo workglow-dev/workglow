@@ -12,7 +12,7 @@ import type { JsonSchema } from "@workglow/util";
  */
 export type RepositorySemantic =
   | "repository:tabular"
-  | "repository:document-chunk-vector"
+  | "repository:document-node-vector"
   | "repository:document";
 
 /**
@@ -58,14 +58,14 @@ export function TypeTabularRepository<O extends Record<string, unknown> = {}>(
  * @param options Additional schema options to merge
  * @returns JSON schema for vector repository input
  */
-export function TypeDocumentChunkVectorRepository<O extends Record<string, unknown> = {}>(
+export function TypeDocumentNodeVectorRepository<O extends Record<string, unknown> = {}>(
   options: O = {} as O
 ) {
   return {
     title: "Document Chunk Vector Repository",
     description: "Repository ID or instance for document chunk vector data storage",
     ...options,
-    format: "repository:document-chunk-vector" as const,
+    format: "repository:document-node-vector" as const,
     anyOf: [
       { type: "string" as const, title: "Repository ID" },
       { title: "Repository Instance", additionalProperties: true },

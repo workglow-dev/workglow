@@ -43,35 +43,35 @@ const TypedArraySchemaOptions = {
   ...FromSchemaDefaultOptions,
   deserialize: [
     {
-      pattern: { type: "object", format: "TypedArray:Float64Array" },
+      pattern: { type: "array", format: "TypedArray:Float64Array" },
       output: Float64Array,
     },
     {
-      pattern: { type: "object", format: "TypedArray:Float32Array" },
+      pattern: { type: "array", format: "TypedArray:Float32Array" },
       output: Float32Array,
     },
     {
-      pattern: { type: "object", format: "TypedArray:Float16Array" },
+      pattern: { type: "array", format: "TypedArray:Float16Array" },
       output: Float16Array,
     },
     {
-      pattern: { type: "object", format: "TypedArray:Int16Array" },
+      pattern: { type: "array", format: "TypedArray:Int16Array" },
       output: Int16Array,
     },
     {
-      pattern: { type: "object", format: "TypedArray:Int8Array" },
+      pattern: { type: "array", format: "TypedArray:Int8Array" },
       output: Int8Array,
     },
     {
-      pattern: { type: "object", format: "TypedArray:Uint8Array" },
+      pattern: { type: "array", format: "TypedArray:Uint8Array" },
       output: Uint8Array,
     },
     {
-      pattern: { type: "object", format: "TypedArray:Uint16Array" },
+      pattern: { type: "array", format: "TypedArray:Uint16Array" },
       output: Uint16Array,
     },
     {
-      pattern: { type: "object", format: "TypedArray" },
+      pattern: { type: "array", format: "TypedArray" },
       output: TypedArrayType,
     },
   ],
@@ -86,7 +86,7 @@ export type VectorFromSchema<SCHEMA extends JsonSchema> = FromSchema<
 
 export const TypedArraySchema = (annotations: Record<string, unknown> = {}) => {
   return {
-    type: "object",
+    type: "array",
     format: "TypedArray",
     title: "Typed Array",
     description: "A typed array (Float32Array, Int8Array, etc.)",

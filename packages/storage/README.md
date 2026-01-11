@@ -598,7 +598,7 @@ const tabularSchema = TypeTabularRepository({
   description: "Tabular data repository",
 });
 
-// Vector repository (format: "repository:document-chunk-vector")
+// Vector repository (format: "repository:document-node-vector")
 const vectorSchema = TypeVectorRepository({
   title: "Embeddings Store",
   description: "Vector embeddings repository",

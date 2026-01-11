@@ -5,8 +5,8 @@
  */
 
 import {
-  AnyDocumentChunkVectorRepository,
-  TypeDocumentChunkVectorRepository,
+  AnyDocumentNodeVectorRepository,
+  TypeDocumentNodeVectorRepository,
 } from "@workglow/storage";
 import {
   CreateWorkflow,
@@ -32,7 +32,7 @@ const inputSchema = {
       title: "Document ID",
       description: "The document ID",
     },
-    repository: TypeDocumentChunkVectorRepository({
+    repository: TypeDocumentNodeVectorRepository({
       title: "Document Chunk Vector Repository",
       description: "The document chunk vector repository instance to store vectors in",
     }),
@@ -86,12 +86,12 @@ export type VectorStoreUpsertTaskOutput = FromSchema<typeof outputSchema>;
  * Task for upserting (insert or update) vectors into a vector repository.
  * Supports both single and bulk operations.
  */
-export class DocumentChunkVectorUpsertTask extends Task<
+export class DocumentNodeVectorUpsertTask extends Task<
   VectorStoreUpsertTaskInput,
   VectorStoreUpsertTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "DocumentChunkVectorUpsertTask";
+  public static type = "DocumentNodeVectorUpsertTask";
   public static category = "Vector Store";
   public static title = "Vector Store Upsert";
   public static description = "Store vector embeddings with metadata in a vector repository";
@@ -114,7 +114,7 @@ export class DocumentChunkVectorUpsertTask extends Task<
     // Normalize inputs to arrays
     const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
 
-    const repo = repository as AnyDocumentChunkVectorRepository;
+    const repo = repository as AnyDocumentNodeVectorRepository;
 
     await context.updateProgress(1, "Upserting vectors");
 
@@ -123,10 +123,10 @@ export class DocumentChunkVectorUpsertTask extends Task<
     // Bulk upsert if multiple items
     if (vectorArray.length > 1) {
       const entities = vectorArray.map((vector, i) => {
-        const id = `${doc_id}_${i}`;
-        idArray.push(id);
+        const chunk_id = `${doc_id}_${i}`;
+        idArray.push(chunk_id);
         return {
-          id,
+          chunk_id,
           doc_id,
           vector: vector as any, // Store TypedArray directly (memory) or as string (SQL)
           metadata,
@@ -135,10 +135,10 @@ export class DocumentChunkVectorUpsertTask extends Task<
       await repo.putBulk(entities as any);
     } else if (vectorArray.length === 1) {
       // Single upsert
-      const id = `${doc_id}_0`;
-      idArray.push(id);
+      const chunk_id = `${doc_id}_0`;
+      idArray.push(chunk_id);
       await repo.put({
-        id,
+        chunk_id,
         doc_id,
         vector: vectorArray[0] as any, // Store TypedArray directly (memory) or as string (SQL)
         metadata,
@@ -153,13 +153,13 @@ export class DocumentChunkVectorUpsertTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(DocumentChunkVectorUpsertTask);
+TaskRegistry.registerTask(DocumentNodeVectorUpsertTask);
 
 export const vectorStoreUpsert = (
   input: VectorStoreUpsertTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new DocumentChunkVectorUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
+  return new DocumentNodeVectorUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -172,4 +172,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.vectorStoreUpsert = CreateWorkflow(DocumentChunkVectorUpsertTask);
+Workflow.prototype.vectorStoreUpsert = CreateWorkflow(DocumentNodeVectorUpsertTask);

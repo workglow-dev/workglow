@@ -263,26 +263,26 @@ The `@workglow/ai` package provides a comprehensive set of tasks for building RA
 
 ### Vector and Embedding Tasks
 
-| Task                            | Description                                    |
-| ------------------------------- | ---------------------------------------------- |
-| `TextEmbeddingTask`             | Generates embeddings using configurable models |
-| `ChunkToVectorTask`             | Transforms chunks to vector store format       |
-| `DocumentChunkVectorUpsertTask` | Stores vectors in a repository                 |
-| `DocumentChunkVectorSearchTask` | Searches vectors by similarity                 |
-| `VectorQuantizeTask`            | Quantizes vectors for storage efficiency       |
+| Task                           | Description                                    |
+| ------------------------------ | ---------------------------------------------- |
+| `TextEmbeddingTask`            | Generates embeddings using configurable models |
+| `ChunkToVectorTask`            | Transforms chunks to vector store format       |
+| `DocumentNodeVectorUpsertTask` | Stores vectors in a repository                 |
+| `DocumentNodeVectorSearchTask` | Searches vectors by similarity                 |
+| `VectorQuantizeTask`           | Quantizes vectors for storage efficiency       |
 
 ### Retrieval and Generation Tasks
 
-| Task                                  | Description                                   |
-| ------------------------------------- | --------------------------------------------- |
-| `QueryExpanderTask`                   | Expands queries for better retrieval coverage |
-| `DocumentChunkVectorHybridSearchTask` | Combines vector and full-text search          |
-| `RerankerTask`                        | Reranks search results for relevance          |
-| `HierarchyJoinTask`                   | Enriches results with parent context          |
-| `ContextBuilderTask`                  | Builds context for LLM prompts                |
-| `DocumentChunkRetrievalTask`          | Orchestrates end-to-end retrieval             |
-| `TextQuestionAnswerTask`              | Generates answers from context                |
-| `TextGenerationTask`                  | General text generation                       |
+| Task                                 | Description                                   |
+| ------------------------------------ | --------------------------------------------- |
+| `QueryExpanderTask`                  | Expands queries for better retrieval coverage |
+| `DocumentNodeVectorHybridSearchTask` | Combines vector and full-text search          |
+| `RerankerTask`                       | Reranks search results for relevance          |
+| `HierarchyJoinTask`                  | Enriches results with parent context          |
+| `ContextBuilderTask`                 | Builds context for LLM prompts                |
+| `DocumentNodeRetrievalTask`          | Orchestrates end-to-end retrieval             |
+| `TextQuestionAnswerTask`             | Generates answers from context                |
+| `TextGenerationTask`                 | General text generation                       |
 
 ### Chainable RAG Pipeline Example
 

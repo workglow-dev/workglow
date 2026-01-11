@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentChunkVectorSearchTask } from "@workglow/ai";
+import { DocumentNodeVectorSearchTask } from "@workglow/ai";
 import {
-  InMemoryDocumentChunkVectorRepository,
-  registerDocumentChunkVectorRepository,
+  InMemoryDocumentNodeVectorRepository,
+  registerDocumentNodeVectorRepository,
 } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("DocumentChunkVectorSearchTask", () => {
-  let repo: InMemoryDocumentChunkVectorRepository;
+describe("DocumentNodeVectorSearchTask", () => {
+  let repo: InMemoryDocumentNodeVectorRepository;
 
   beforeEach(async () => {
-    repo = new InMemoryDocumentChunkVectorRepository(3);
+    repo = new InMemoryDocumentNodeVectorRepository(3);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -53,7 +53,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should search and return top K results", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -71,14 +71,14 @@ describe("DocumentChunkVectorSearchTask", () => {
       expect(result.scores[i - 1]).toBeGreaterThanOrEqual(result.scores[i]);
     }
 
-    // Most similar should be doc1 (exact match)
-    expect(result.ids[0]).toBe("doc1");
+    // Most similar should be doc1_0 (exact match)
+    expect(result.ids[0]).toBe("doc1_0");
   });
 
   test("should respect topK limit", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -92,7 +92,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should filter by metadata", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -110,7 +110,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should apply score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -127,7 +127,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should return empty results when no matches", async () => {
     const queryVector = new Float32Array([0.0, 0.0, 1.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -145,7 +145,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should handle default topK value", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -159,7 +159,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should work with quantized query vectors (Int8Array)", async () => {
     const queryVector = new Int8Array([127, 0, 0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -174,7 +174,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should return results sorted by similarity score", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -188,12 +188,12 @@ describe("DocumentChunkVectorSearchTask", () => {
   });
 
   test("should handle empty repository", async () => {
-    const emptyRepo = new InMemoryDocumentChunkVectorRepository(3);
+    const emptyRepo = new InMemoryDocumentNodeVectorRepository(3);
     await emptyRepo.setupDatabase();
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: emptyRepo,
       query: queryVector,
@@ -210,7 +210,7 @@ describe("DocumentChunkVectorSearchTask", () => {
   test("should combine filter and score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -230,11 +230,11 @@ describe("DocumentChunkVectorSearchTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerDocumentChunkVectorRepository("test-vector-repo", repo);
+    registerDocumentNodeVectorRepository("test-vector-repo", repo);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentChunkVectorSearchTask();
+    const task = new DocumentNodeVectorSearchTask();
     // Pass repository as string ID instead of instance
     const result = await task.run({
       repository: "test-vector-repo" as any,
@@ -248,7 +248,7 @@ describe("DocumentChunkVectorSearchTask", () => {
     expect(result.metadata).toHaveLength(3);
     expect(result.scores).toHaveLength(3);
 
-    // Most similar should be doc1 (exact match)
-    expect(result.ids[0]).toBe("doc1");
+    // Most similar should be doc1_0 (exact match)
+    expect(result.ids[0]).toBe("doc1_0");
   });
 });
