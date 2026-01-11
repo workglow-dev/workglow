@@ -141,7 +141,6 @@ export class VectorSimilarityTask extends GraphAsTask<
   }
 }
 
-TaskRegistry.registerTask(VectorSimilarityTask);
 
 export const similarity = (input: VectorSimilarityTaskInput, config?: JobQueueTaskConfig) => {
   return new VectorSimilarityTask({} as VectorSimilarityTaskInput, config).run(input);

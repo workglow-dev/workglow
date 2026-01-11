@@ -77,9 +77,6 @@ export class DelayTask<
   }
 }
 
-// Register DelayTask with the task registry
-TaskRegistry.registerTask(DelayTask);
-
 /**
  * DelayTask
  *

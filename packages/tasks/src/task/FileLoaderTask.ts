@@ -405,8 +405,6 @@ export class FileLoaderTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(FileLoaderTask);
-
 export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
   return new FileLoaderTask({}, config).run(input);
 };

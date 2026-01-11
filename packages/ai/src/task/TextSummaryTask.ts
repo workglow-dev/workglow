@@ -66,7 +66,6 @@ export class TextSummaryTask extends AiTask<TextSummaryTaskInput, TextSummaryTas
   }
 }
 
-TaskRegistry.registerTask(TextSummaryTask);
 
 /**
  * Convenience function to run text summary tasks.

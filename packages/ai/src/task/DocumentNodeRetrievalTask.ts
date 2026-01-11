@@ -231,7 +231,6 @@ export class DocumentNodeRetrievalTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(DocumentNodeRetrievalTask);
 
 export const retrieval = (input: RetrievalTaskInput, config?: JobQueueTaskConfig) => {
   return new DocumentNodeRetrievalTask({} as RetrievalTaskInput, config).run(input);

@@ -326,7 +326,6 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Jo
   }
 }
 
-TaskRegistry.registerTask(RerankerTask);
 
 export const reranker = (input: RerankerTaskInput, config?: JobQueueTaskConfig) => {
   return new RerankerTask({} as RerankerTaskInput, config).run(input);

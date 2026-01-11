@@ -160,7 +160,6 @@ export class ChunkToVectorTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(ChunkToVectorTask);
 
 export const chunkToVector = (input: ChunkToVectorTaskInput, config?: JobQueueTaskConfig) => {
   return new ChunkToVectorTask({} as ChunkToVectorTaskInput, config).run(input);

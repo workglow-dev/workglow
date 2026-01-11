@@ -69,7 +69,6 @@ export class TextRewriterTask extends AiTask<TextRewriterTaskInput, TextRewriter
   }
 }
 
-TaskRegistry.registerTask(TextRewriterTask);
 
 /**
  * Convenience function to run text rewriter tasks.

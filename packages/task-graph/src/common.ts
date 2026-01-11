@@ -4,17 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export * from "./task/Task";
+
 export * from "./task/ArrayTask";
 export * from "./task/ConditionalTask";
 export * from "./task/GraphAsTask";
 export * from "./task/GraphAsTaskRunner";
 export * from "./task/InputResolver";
-export * from "./task/InputTask";
 export * from "./task/ITask";
 export * from "./task/JobQueueFactory";
 export * from "./task/JobQueueTask";
-export * from "./task/OutputTask";
-export * from "./task/Task";
 export * from "./task/TaskError";
 export * from "./task/TaskEvents";
 export * from "./task/TaskJSON";

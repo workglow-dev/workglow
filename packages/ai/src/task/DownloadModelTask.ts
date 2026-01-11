@@ -97,7 +97,6 @@ export class DownloadModelTask extends AiTask<
   }
 }
 
-TaskRegistry.registerTask(DownloadModelTask);
 
 /**
  * Download a model from a remote source and cache it locally.

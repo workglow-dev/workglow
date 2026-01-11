@@ -4,6 +4,92 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { TaskRegistry } from "@workglow/task-graph";
+import { BackgroundRemovalTask } from "./BackgroundRemovalTask";
+import { ChunkToVectorTask } from "./ChunkToVectorTask";
+import { ContextBuilderTask } from "./ContextBuilderTask";
+import { DocumentEnricherTask } from "./DocumentEnricherTask";
+import { DocumentNodeRetrievalTask } from "./DocumentNodeRetrievalTask";
+import { DocumentNodeVectorHybridSearchTask } from "./DocumentNodeVectorHybridSearchTask";
+import { DocumentNodeVectorSearchTask } from "./DocumentNodeVectorSearchTask";
+import { DocumentNodeVectorUpsertTask } from "./DocumentNodeVectorUpsertTask";
+import { DownloadModelTask } from "./DownloadModelTask";
+import { FaceDetectorTask } from "./FaceDetectorTask";
+import { FaceLandmarkerTask } from "./FaceLandmarkerTask";
+import { GestureRecognizerTask } from "./GestureRecognizerTask";
+import { HandLandmarkerTask } from "./HandLandmarkerTask";
+import { HierarchicalChunkerTask } from "./HierarchicalChunkerTask";
+import { HierarchyJoinTask } from "./HierarchyJoinTask";
+import { ImageClassificationTask } from "./ImageClassificationTask";
+import { ImageEmbeddingTask } from "./ImageEmbeddingTask";
+import { ImageSegmentationTask } from "./ImageSegmentationTask";
+import { ImageToTextTask } from "./ImageToTextTask";
+import { ObjectDetectionTask } from "./ObjectDetectionTask";
+import { PoseLandmarkerTask } from "./PoseLandmarkerTask";
+import { QueryExpanderTask } from "./QueryExpanderTask";
+import { RerankerTask } from "./RerankerTask";
+import { StructuralParserTask } from "./StructuralParserTask";
+import { TextChunkerTask } from "./TextChunkerTask";
+import { TextClassificationTask } from "./TextClassificationTask";
+import { TextEmbeddingTask } from "./TextEmbeddingTask";
+import { TextFillMaskTask } from "./TextFillMaskTask";
+import { TextGenerationTask } from "./TextGenerationTask";
+import { TextLanguageDetectionTask } from "./TextLanguageDetectionTask";
+import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
+import { TextQuestionAnswerTask } from "./TextQuestionAnswerTask";
+import { TextRewriterTask } from "./TextRewriterTask";
+import { TextSummaryTask } from "./TextSummaryTask";
+import { TextTranslationTask } from "./TextTranslationTask";
+import { TopicSegmenterTask } from "./TopicSegmenterTask";
+import { UnloadModelTask } from "./UnloadModelTask";
+import { VectorQuantizeTask } from "./VectorQuantizeTask";
+import { VectorSimilarityTask } from "./VectorSimilarityTask";
+
+// Register all AI tasks with the TaskRegistry.
+// Centralized registration ensures tasks are available for JSON deserialization
+// and prevents tree-shaking issues.
+[
+  BackgroundRemovalTask,
+  ChunkToVectorTask,
+  ContextBuilderTask,
+  DocumentEnricherTask,
+  DocumentNodeRetrievalTask,
+  DocumentNodeVectorHybridSearchTask,
+  DocumentNodeVectorSearchTask,
+  DocumentNodeVectorUpsertTask,
+  DownloadModelTask,
+  FaceDetectorTask,
+  FaceLandmarkerTask,
+  GestureRecognizerTask,
+  HandLandmarkerTask,
+  HierarchicalChunkerTask,
+  HierarchyJoinTask,
+  ImageClassificationTask,
+  ImageEmbeddingTask,
+  ImageSegmentationTask,
+  ImageToTextTask,
+  ObjectDetectionTask,
+  PoseLandmarkerTask,
+  QueryExpanderTask,
+  RerankerTask,
+  StructuralParserTask,
+  TextChunkerTask,
+  TextClassificationTask,
+  TextEmbeddingTask,
+  TextFillMaskTask,
+  TextGenerationTask,
+  TextLanguageDetectionTask,
+  TextNamedEntityRecognitionTask,
+  TextQuestionAnswerTask,
+  TextRewriterTask,
+  TextSummaryTask,
+  TextTranslationTask,
+  TopicSegmenterTask,
+  UnloadModelTask,
+  VectorQuantizeTask,
+  VectorSimilarityTask,
+].map(TaskRegistry.registerTask);
+
 export * from "./BackgroundRemovalTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";

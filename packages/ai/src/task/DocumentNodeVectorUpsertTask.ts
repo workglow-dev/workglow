@@ -153,7 +153,6 @@ export class DocumentNodeVectorUpsertTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(DocumentNodeVectorUpsertTask);
 
 export const vectorStoreUpsert = (
   input: VectorStoreUpsertTaskInput,

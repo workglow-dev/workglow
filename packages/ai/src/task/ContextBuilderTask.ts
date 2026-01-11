@@ -320,7 +320,6 @@ export class ContextBuilderTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(ContextBuilderTask);
 
 export const contextBuilder = (input: ContextBuilderTaskInput, config?: JobQueueTaskConfig) => {
   return new ContextBuilderTask({} as ContextBuilderTaskInput, config).run(input);

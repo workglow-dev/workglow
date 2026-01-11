@@ -217,7 +217,6 @@ export class DocumentNodeVectorHybridSearchTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(DocumentNodeVectorHybridSearchTask);
 
 export const hybridSearch = async (
   input: HybridSearchTaskInput,

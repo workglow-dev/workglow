@@ -96,9 +96,6 @@ export class JsonTask<
   }
 }
 
-// Register JsonTask with the task registry
-TaskRegistry.registerTask(JsonTask);
-
 /**
  * Convenience function to create and run a JsonTask
  */

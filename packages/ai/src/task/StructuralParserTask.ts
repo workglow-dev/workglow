@@ -140,7 +140,6 @@ export class StructuralParserTask extends Task<
   }
 }
 
-TaskRegistry.registerTask(StructuralParserTask);
 
 export const structuralParser = (input: StructuralParserTaskInput, config?: JobQueueTaskConfig) => {
   return new StructuralParserTask({} as StructuralParserTaskInput, config).run(input);

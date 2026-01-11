@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, Task, TaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const inputSchema = {
@@ -84,8 +84,6 @@ export class SplitTask<
     return output;
   }
 }
-
-TaskRegistry.registerTask(SplitTask);
 
 export const split = (input: SplitTaskInput, config: TaskConfig = {}) => {
   const task = new SplitTask({}, config);
