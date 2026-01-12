@@ -138,13 +138,13 @@ When defining task input schemas, you can use `format` annotations to enable aut
 
 The system supports several format annotations out of the box:
 
-| Format                            | Description                         | Helper Function                      |
-| --------------------------------- | ----------------------------------- | ------------------------------------ |
-| `model`                           | Any AI model configuration          | `TypeModel()`                        |
-| `model:TaskName`                  | Model compatible with specific task | —                                    |
-| `repository:tabular`              | Tabular data repository             | `TypeTabularRepository()`            |
-| `repository:document-node-vector` | Vector storage repository           | `TypeDocumentNodeVectorRepository()` |
-| `repository:document`             | Document repository                 | `TypeDocumentRepository()`           |
+| Format                            | Description                         | Helper Function               |
+| --------------------------------- | ----------------------------------- | ----------------------------- |
+| `model`                           | Any AI model configuration          | `TypeModel()`                 |
+| `model:TaskName`                  | Model compatible with specific task | —                             |
+| `repository:tabular`              | Tabular data repository             | `TypeTabularRepository()`     |
+| `repository:document-node-vector` | Vector storage repository           | `TypeChunkVectorRepository()` |
+| `repository:document`             | Document repository                 | `TypeDocumentRepository()`    |
 
 ### Example: Using Format Annotations
 
@@ -263,26 +263,26 @@ The `@workglow/ai` package provides a comprehensive set of tasks for building RA
 
 ### Vector and Embedding Tasks
 
-| Task                           | Description                                    |
-| ------------------------------ | ---------------------------------------------- |
-| `TextEmbeddingTask`            | Generates embeddings using configurable models |
-| `ChunkToVectorTask`            | Transforms chunks to vector store format       |
-| `DocumentNodeVectorUpsertTask` | Stores vectors in a repository                 |
-| `DocumentNodeVectorSearchTask` | Searches vectors by similarity                 |
-| `VectorQuantizeTask`           | Quantizes vectors for storage efficiency       |
+| Task                    | Description                                    |
+| ----------------------- | ---------------------------------------------- |
+| `TextEmbeddingTask`     | Generates embeddings using configurable models |
+| `ChunkToVectorTask`     | Transforms chunks to vector store format       |
+| `ChunkVectorUpsertTask` | Stores vectors in a repository                 |
+| `ChunkVectorSearchTask` | Searches vectors by similarity                 |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency       |
 
 ### Retrieval and Generation Tasks
 
-| Task                                 | Description                                   |
-| ------------------------------------ | --------------------------------------------- |
-| `QueryExpanderTask`                  | Expands queries for better retrieval coverage |
-| `DocumentNodeVectorHybridSearchTask` | Combines vector and full-text search          |
-| `RerankerTask`                       | Reranks search results for relevance          |
-| `HierarchyJoinTask`                  | Enriches results with parent context          |
-| `ContextBuilderTask`                 | Builds context for LLM prompts                |
-| `DocumentNodeRetrievalTask`          | Orchestrates end-to-end retrieval             |
-| `TextQuestionAnswerTask`             | Generates answers from context                |
-| `TextGenerationTask`                 | General text generation                       |
+| Task                          | Description                                   |
+| ----------------------------- | --------------------------------------------- |
+| `QueryExpanderTask`           | Expands queries for better retrieval coverage |
+| `ChunkVectorHybridSearchTask` | Combines vector and full-text search          |
+| `RerankerTask`                | Reranks search results for relevance          |
+| `HierarchyJoinTask`           | Enriches results with parent context          |
+| `ContextBuilderTask`          | Builds context for LLM prompts                |
+| `DocumentNodeRetrievalTask`   | Orchestrates end-to-end retrieval             |
+| `TextQuestionAnswerTask`      | Generates answers from context                |
+| `TextGenerationTask`          | General text generation                       |
 
 ### Chainable RAG Pipeline Example
 

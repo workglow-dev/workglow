@@ -412,23 +412,23 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 ### Vector and Storage Tasks
 
-| Task                           | Description                              |
-| ------------------------------ | ---------------------------------------- |
-| `ChunkToVectorTask`            | Transforms chunks to vector store format |
-| `DocumentNodeVectorUpsertTask` | Stores vectors in a repository           |
-| `DocumentNodeVectorSearchTask` | Searches vectors by similarity           |
-| `VectorQuantizeTask`           | Quantizes vectors for storage efficiency |
+| Task                    | Description                              |
+| ----------------------- | ---------------------------------------- |
+| `ChunkToVectorTask`     | Transforms chunks to vector store format |
+| `ChunkVectorUpsertTask` | Stores vectors in a repository           |
+| `ChunkVectorSearchTask` | Searches vectors by similarity           |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency |
 
 ### Retrieval and Generation Tasks
 
-| Task                                 | Description                                   |
-| ------------------------------------ | --------------------------------------------- |
-| `QueryExpanderTask`                  | Expands queries for better retrieval coverage |
-| `DocumentNodeVectorHybridSearchTask` | Combines vector and full-text search          |
-| `RerankerTask`                       | Reranks search results for relevance          |
-| `HierarchyJoinTask`                  | Enriches results with parent context          |
-| `ContextBuilderTask`                 | Builds context for LLM prompts                |
-| `DocumentNodeRetrievalTask`          | Orchestrates end-to-end retrieval             |
+| Task                          | Description                                   |
+| ----------------------------- | --------------------------------------------- |
+| `QueryExpanderTask`           | Expands queries for better retrieval coverage |
+| `ChunkVectorHybridSearchTask` | Combines vector and full-text search          |
+| `RerankerTask`                | Reranks search results for relevance          |
+| `HierarchyJoinTask`           | Enriches results with parent context          |
+| `ContextBuilderTask`          | Builds context for LLM prompts                |
+| `DocumentNodeRetrievalTask`   | Orchestrates end-to-end retrieval             |
 
 ### Complete RAG Workflow Example
 

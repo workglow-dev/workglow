@@ -13,7 +13,7 @@ import type {
 } from "@workglow/util";
 import type { ITabularRepository, TabularEventListeners } from "../tabular/ITabularRepository";
 
-export type AnyDocumentNodeVectorRepository = IDocumentNodeVectorRepository<any, any, any>;
+export type AnyChunkVectorRepository = IChunkVectorRepository<any, any, any>;
 
 /**
  * Options for vector search operations
@@ -69,7 +69,7 @@ export type VectorChunkEventParameters<
  * @typeParam PrimaryKeyNames - Array of property names that form the primary key
  * @typeParam Entity - The entity type
  */
-export interface IDocumentNodeVectorRepository<
+export interface IChunkVectorRepository<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,

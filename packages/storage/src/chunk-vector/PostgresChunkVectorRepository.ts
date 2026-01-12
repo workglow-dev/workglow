@@ -7,16 +7,12 @@
 import { cosineSimilarity, type TypedArray } from "@workglow/util";
 import type { Pool } from "pg";
 import { PostgresTabularRepository } from "../tabular/PostgresTabularRepository";
-import {
-  DocumentNodeVector,
-  DocumentNodeVectorKey,
-  DocumentNodeVectorSchema,
-} from "./DocumentNodeVectorSchema";
+import { ChunkVector, ChunkVectorKey, ChunkVectorSchema } from "./ChunkVectorSchema";
 import type {
   HybridSearchOptions,
-  IDocumentNodeVectorRepository,
+  IChunkVectorRepository,
   VectorSearchOptions,
-} from "./IDocumentNodeVectorRepository";
+} from "./IChunkVectorRepository";
 
 /**
  * PostgreSQL document chunk vector repository implementation using pgvector extension.
@@ -30,20 +26,20 @@ import type {
  * @template Metadata - The metadata type for the document chunk
  * @template Vector - The vector type for the document chunk
  */
-export class PostgresDocumentNodeVectorRepository<
+export class PostgresChunkVectorRepository<
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
 >
   extends PostgresTabularRepository<
-    typeof DocumentNodeVectorSchema,
-    typeof DocumentNodeVectorKey,
-    DocumentNodeVector<Metadata, Vector>
+    typeof ChunkVectorSchema,
+    typeof ChunkVectorKey,
+    ChunkVector<Metadata, Vector>
   >
   implements
-    IDocumentNodeVectorRepository<
-      typeof DocumentNodeVectorSchema,
-      typeof DocumentNodeVectorKey,
-      DocumentNodeVector<Metadata, Vector>
+    IChunkVectorRepository<
+      typeof ChunkVectorSchema,
+      typeof ChunkVectorKey,
+      ChunkVector<Metadata, Vector>
     >
 {
   private vectorDimensions: number;
@@ -61,7 +57,7 @@ export class PostgresDocumentNodeVectorRepository<
     dimensions: number,
     VectorType: new (array: number[]) => TypedArray = Float32Array
   ) {
-    super(db, table, DocumentNodeVectorSchema, DocumentNodeVectorKey);
+    super(db, table, ChunkVectorSchema, ChunkVectorKey);
 
     this.vectorDimensions = dimensions;
     this.VectorType = VectorType;
@@ -74,7 +70,7 @@ export class PostgresDocumentNodeVectorRepository<
   async similaritySearch(
     query: TypedArray,
     options: VectorSearchOptions<Metadata> = {}
-  ): Promise<Array<DocumentNodeVector<Metadata, Vector> & { score: number }>> {
+  ): Promise<Array<ChunkVector<Metadata, Vector> & { score: number }>> {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
 
     try {
@@ -113,7 +109,7 @@ export class PostgresDocumentNodeVectorRepository<
       const result = await this.db.query(sql, params);
 
       // Fetch vectors separately for each result
-      const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
+      const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
       for (const row of result.rows) {
         const vectorResult = await this.db.query(
           `SELECT vector::text FROM "${this.table}" WHERE id = $1`,
@@ -188,7 +184,7 @@ export class PostgresDocumentNodeVectorRepository<
       const result = await this.db.query(sql, params);
 
       // Fetch vectors separately for each result
-      const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
+      const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
       for (const row of result.rows) {
         const vectorResult = await this.db.query(
           `SELECT vector::text FROM "${this.table}" WHERE id = $1`,
@@ -218,7 +214,7 @@ export class PostgresDocumentNodeVectorRepository<
   private async searchFallback(query: TypedArray, options: VectorSearchOptions<Metadata>) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
     const allRows = (await this.getAll()) || [];
-    const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
 
     for (const row of allRows) {
       const vector = row.vector;
@@ -248,7 +244,7 @@ export class PostgresDocumentNodeVectorRepository<
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     const allRows = (await this.getAll()) || [];
-    const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
     const queryLower = textQuery.toLowerCase();
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 

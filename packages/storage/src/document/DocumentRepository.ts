@@ -5,11 +5,11 @@
  */
 
 import type { TypedArray } from "@workglow/util";
-import { DocumentNodeVector } from "../document-node-vector/DocumentNodeVectorSchema";
+import { ChunkVector } from "../chunk-vector/ChunkVectorSchema";
 import type {
-  AnyDocumentNodeVectorRepository,
+  AnyChunkVectorRepository,
   VectorSearchOptions,
-} from "../document-node-vector/IDocumentNodeVectorRepository";
+} from "../chunk-vector/IChunkVectorRepository";
 import type { ITabularRepository } from "../tabular/ITabularRepository";
 import { Document } from "./Document";
 import { ChunkNode, DocumentNode } from "./DocumentSchema";
@@ -29,7 +29,7 @@ export class DocumentRepository {
     DocumentStorageKey,
     DocumentStorageEntity
   >;
-  private vectorStorage?: AnyDocumentNodeVectorRepository;
+  private vectorStorage?: AnyChunkVectorRepository;
 
   /**
    * Creates a new DocumentRepository instance.
@@ -54,7 +54,7 @@ export class DocumentRepository {
       ["doc_id"],
       DocumentStorageEntity
     >,
-    vectorStorage?: AnyDocumentNodeVectorRepository
+    vectorStorage?: AnyChunkVectorRepository
   ) {
     this.tabularStorage = tabularStorage;
     this.vectorStorage = vectorStorage;
@@ -216,7 +216,7 @@ export class DocumentRepository {
   async search(
     query: TypedArray,
     options?: VectorSearchOptions<Record<string, unknown>>
-  ): Promise<Array<DocumentNodeVector<Record<string, unknown>, TypedArray>>> {
+  ): Promise<Array<ChunkVector<Record<string, unknown>, TypedArray>>> {
     return this.vectorStorage?.similaritySearch(query, options) || [];
   }
 }

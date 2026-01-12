@@ -58,7 +58,7 @@ export function TypeTabularRepository<O extends Record<string, unknown> = {}>(
  * @param options Additional schema options to merge
  * @returns JSON schema for vector repository input
  */
-export function TypeDocumentNodeVectorRepository<O extends Record<string, unknown> = {}>(
+export function TypeChunkVectorRepository<O extends Record<string, unknown> = {}>(
   options: O = {} as O
 ) {
   return {

@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AnyDocumentNodeVectorRepository,
-  TypeDocumentNodeVectorRepository,
-} from "@workglow/storage";
+import { AnyChunkVectorRepository, TypeChunkVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -31,7 +28,7 @@ const inputSchema = {
       title: "Document ID",
       description: "The document ID",
     },
-    repository: TypeDocumentNodeVectorRepository({
+    repository: TypeChunkVectorRepository({
       title: "Document Chunk Vector Repository",
       description: "The document chunk vector repository instance to store vectors in",
     }),
@@ -85,12 +82,12 @@ export type VectorStoreUpsertTaskOutput = FromSchema<typeof outputSchema>;
  * Task for upserting (insert or update) vectors into a vector repository.
  * Supports both single and bulk operations.
  */
-export class DocumentNodeVectorUpsertTask extends Task<
+export class ChunkVectorUpsertTask extends Task<
   VectorStoreUpsertTaskInput,
   VectorStoreUpsertTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "DocumentNodeVectorUpsertTask";
+  public static type = "ChunkVectorUpsertTask";
   public static category = "Vector Store";
   public static title = "Vector Store Upsert";
   public static description = "Store vector embeddings with metadata in a vector repository";
@@ -113,7 +110,7 @@ export class DocumentNodeVectorUpsertTask extends Task<
     // Normalize inputs to arrays
     const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
 
-    const repo = repository as AnyDocumentNodeVectorRepository;
+    const repo = repository as AnyChunkVectorRepository;
 
     await context.updateProgress(1, "Upserting vectors");
 
@@ -156,7 +153,7 @@ export const vectorStoreUpsert = (
   input: VectorStoreUpsertTaskInput,
   config?: JobQueueTaskConfig
 ) => {
-  return new DocumentNodeVectorUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
+  return new ChunkVectorUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -169,4 +166,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.vectorStoreUpsert = CreateWorkflow(DocumentNodeVectorUpsertTask);
+Workflow.prototype.vectorStoreUpsert = CreateWorkflow(ChunkVectorUpsertTask);
