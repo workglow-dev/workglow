@@ -10,21 +10,21 @@ import {
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
-import { AnyDocumentNodeVectorRepository } from "./IDocumentNodeVectorRepository";
+import { AnyChunkVectorRepository } from "./IChunkVectorRepository";
 
 /**
  * Service token for the documenbt chunk vector repository registry
  * Maps repository IDs to IVectorChunkRepository instances
  */
 export const DOCUMENT_CHUNK_VECTOR_REPOSITORIES = createServiceToken<
-  Map<string, AnyDocumentNodeVectorRepository>
+  Map<string, AnyChunkVectorRepository>
 >("storage.document-node-vector.repositories");
 
 // Register default factory if not already registered
 if (!globalServiceRegistry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)) {
   globalServiceRegistry.register(
     DOCUMENT_CHUNK_VECTOR_REPOSITORIES,
-    (): Map<string, AnyDocumentNodeVectorRepository> => new Map(),
+    (): Map<string, AnyChunkVectorRepository> => new Map(),
     true
   );
 }
@@ -33,10 +33,7 @@ if (!globalServiceRegistry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)) {
  * Gets the global document chunk vector repository registry
  * @returns Map of document chunk vector repository ID to instance
  */
-export function getGlobalDocumentNodeVectorRepositories(): Map<
-  string,
-  AnyDocumentNodeVectorRepository
-> {
+export function getGlobalChunkVectorRepositories(): Map<string, AnyChunkVectorRepository> {
   return globalServiceRegistry.get(DOCUMENT_CHUNK_VECTOR_REPOSITORIES);
 }
 
@@ -45,11 +42,11 @@ export function getGlobalDocumentNodeVectorRepositories(): Map<
  * @param id The unique identifier for this repository
  * @param repository The repository instance to register
  */
-export function registerDocumentNodeVectorRepository(
+export function registerChunkVectorRepository(
   id: string,
-  repository: AnyDocumentNodeVectorRepository
+  repository: AnyChunkVectorRepository
 ): void {
-  const repos = getGlobalDocumentNodeVectorRepositories();
+  const repos = getGlobalChunkVectorRepositories();
   repos.set(id, repository);
 }
 
@@ -58,24 +55,22 @@ export function registerDocumentNodeVectorRepository(
  * @param id The repository identifier
  * @returns The repository instance or undefined if not found
  */
-export function getDocumentNodeVectorRepository(
-  id: string
-): AnyDocumentNodeVectorRepository | undefined {
-  return getGlobalDocumentNodeVectorRepositories().get(id);
+export function getChunkVectorRepository(id: string): AnyChunkVectorRepository | undefined {
+  return getGlobalChunkVectorRepositories().get(id);
 }
 
 /**
  * Resolves a repository ID to an IVectorChunkRepository from the registry.
  * Used by the input resolver system.
  */
-async function resolveDocumentNodeVectorRepositoryFromRegistry(
+async function resolveChunkVectorRepositoryFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): Promise<AnyDocumentNodeVectorRepository> {
+): Promise<AnyChunkVectorRepository> {
   const repos = registry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)
-    ? registry.get<Map<string, AnyDocumentNodeVectorRepository>>(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)
-    : getGlobalDocumentNodeVectorRepositories();
+    ? registry.get<Map<string, AnyChunkVectorRepository>>(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)
+    : getGlobalChunkVectorRepositories();
 
   const repo = repos.get(id);
   if (!repo) {
@@ -85,7 +80,4 @@ async function resolveDocumentNodeVectorRepositoryFromRegistry(
 }
 
 // Register the repository resolver for format: "repository:document-node-vector"
-registerInputResolver(
-  "repository:document-node-vector",
-  resolveDocumentNodeVectorRepositoryFromRegistry
-);
+registerInputResolver("repository:document-node-vector", resolveChunkVectorRepositoryFromRegistry);

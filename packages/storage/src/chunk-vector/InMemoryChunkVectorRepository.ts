@@ -7,16 +7,12 @@
 import type { TypedArray } from "@workglow/util";
 import { cosineSimilarity } from "@workglow/util";
 import { InMemoryTabularRepository } from "../tabular/InMemoryTabularRepository";
-import {
-  DocumentNodeVector,
-  DocumentNodeVectorKey,
-  DocumentNodeVectorSchema,
-} from "./DocumentNodeVectorSchema";
+import { ChunkVector, ChunkVectorKey, ChunkVectorSchema } from "./ChunkVectorSchema";
 import type {
   HybridSearchOptions,
-  IDocumentNodeVectorRepository,
+  IChunkVectorRepository,
   VectorSearchOptions,
-} from "./IDocumentNodeVectorRepository";
+} from "./IChunkVectorRepository";
 
 /**
  * Check if metadata matches filter
@@ -58,20 +54,20 @@ function textRelevance(text: string, query: string): number {
  * @template Metadata - The metadata type for the document chunk
  * @template Vector - The vector type for the document chunk
  */
-export class InMemoryDocumentNodeVectorRepository<
+export class InMemoryChunkVectorRepository<
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
 >
   extends InMemoryTabularRepository<
-    typeof DocumentNodeVectorSchema,
-    typeof DocumentNodeVectorKey,
-    DocumentNodeVector<Metadata, Vector>
+    typeof ChunkVectorSchema,
+    typeof ChunkVectorKey,
+    ChunkVector<Metadata, Vector>
   >
   implements
-    IDocumentNodeVectorRepository<
-      typeof DocumentNodeVectorSchema,
-      typeof DocumentNodeVectorKey,
-      DocumentNodeVector<Metadata, Vector>
+    IChunkVectorRepository<
+      typeof ChunkVectorSchema,
+      typeof ChunkVectorKey,
+      ChunkVector<Metadata, Vector>
     >
 {
   private vectorDimensions: number;
@@ -83,7 +79,7 @@ export class InMemoryDocumentNodeVectorRepository<
    * @param VectorType - The type of vector to use (defaults to Float32Array)
    */
   constructor(dimensions: number, VectorType: new (array: number[]) => TypedArray = Float32Array) {
-    super(DocumentNodeVectorSchema, DocumentNodeVectorKey);
+    super(ChunkVectorSchema, ChunkVectorKey);
 
     this.vectorDimensions = dimensions;
     this.VectorType = VectorType;
@@ -102,7 +98,7 @@ export class InMemoryDocumentNodeVectorRepository<
     options: VectorSearchOptions<Record<string, unknown>> = {}
   ) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
-    const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
 
     const allEntities = (await this.getAll()) || [];
 
@@ -145,7 +141,7 @@ export class InMemoryDocumentNodeVectorRepository<
       return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
-    const results: Array<DocumentNodeVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {

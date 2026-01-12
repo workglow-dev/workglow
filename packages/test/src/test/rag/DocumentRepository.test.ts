@@ -9,7 +9,7 @@ import {
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryDocumentNodeVectorRepository,
+  InMemoryChunkVectorRepository,
   InMemoryTabularRepository,
   NodeIdGenerator,
   NodeKind,
@@ -19,7 +19,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 describe("DocumentRepository", () => {
   let repo: DocumentRepository;
-  let vectorStorage: InMemoryDocumentNodeVectorRepository;
+  let vectorStorage: InMemoryChunkVectorRepository;
 
   beforeEach(async () => {
     const tabularStorage = new InMemoryTabularRepository<DocumentStorageSchema, DocumentStorageKey>(
@@ -28,7 +28,7 @@ describe("DocumentRepository", () => {
     );
     await tabularStorage.setupDatabase();
 
-    vectorStorage = new InMemoryDocumentNodeVectorRepository(3);
+    vectorStorage = new InMemoryChunkVectorRepository(3);
     await vectorStorage.setupDatabase();
 
     repo = new DocumentRepository(tabularStorage, vectorStorage);

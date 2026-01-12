@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AnyDocumentNodeVectorRepository,
-  TypeDocumentNodeVectorRepository,
-} from "@workglow/storage";
+import { AnyChunkVectorRepository, TypeChunkVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -18,42 +15,33 @@ import {
 import {
   DataPortSchema,
   FromSchema,
-  TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { TypeModel } from "./base/AiTaskSchemas";
-import { TextEmbeddingTask } from "./TextEmbeddingTask";
 
 const inputSchema = {
   type: "object",
   properties: {
-    repository: TypeDocumentNodeVectorRepository({
+    repository: TypeChunkVectorRepository({
       title: "Document Chunk Vector Repository",
-      description: "The document chunk vector repository instance to search in",
-    }),
-    query: {
-      oneOf: [
-        { type: "string" },
-        TypedArraySchema({
-          title: "Query Vector",
-          description: "Pre-computed query vector",
-        }),
-      ],
-      title: "Query",
-      description: "Query string or pre-computed query vector",
-    },
-    model: TypeModel("model:TextEmbeddingTask", {
-      title: "Model",
       description:
-        "Text embedding model to use for query embedding (required when query is a string)",
+        "The document chunk vector repository instance to search in (must support hybridSearch)",
     }),
+    queryVector: TypedArraySchema({
+      title: "Query Vector",
+      description: "The query vector for semantic search",
+    }),
+    queryText: {
+      type: "string",
+      title: "Query Text",
+      description: "The query text for full-text search",
+    },
     topK: {
       type: "number",
       title: "Top K",
       description: "Number of top results to return",
       minimum: 1,
-      default: 5,
+      default: 10,
     },
     filter: {
       type: "object",
@@ -63,10 +51,18 @@ const inputSchema = {
     scoreThreshold: {
       type: "number",
       title: "Score Threshold",
-      description: "Minimum similarity score threshold (0-1)",
+      description: "Minimum combined score threshold (0-1)",
       minimum: 0,
       maximum: 1,
       default: 0,
+    },
+    vectorWeight: {
+      type: "number",
+      title: "Vector Weight",
+      description: "Weight for vector similarity (0-1), remainder goes to text relevance",
+      minimum: 0,
+      maximum: 1,
+      default: 0.7,
     },
     returnVectors: {
       type: "boolean",
@@ -75,15 +71,7 @@ const inputSchema = {
       default: false,
     },
   },
-  required: ["repository", "query"],
-  if: {
-    properties: {
-      query: { type: "string" },
-    },
-  },
-  then: {
-    required: ["repository", "query", "model"],
-  },
+  required: ["repository", "queryVector", "queryText"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -116,7 +104,7 @@ const outputSchema = {
       type: "array",
       items: { type: "number" },
       title: "Scores",
-      description: "Similarity scores for each result",
+      description: "Combined relevance scores for each result",
     },
     vectors: {
       type: "array",
@@ -137,22 +125,26 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type RetrievalTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
-export type RetrievalTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
+export type HybridSearchTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
+export type HybridSearchTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
 
 /**
- * End-to-end retrieval task that combines embedding generation (if needed) and vector search.
- * Simplifies the RAG pipeline by handling the full retrieval process.
+ * Task for hybrid search combining vector similarity and full-text search.
+ * Requires a document chunk vector repository that supports hybridSearch (e.g., Postgres with pgvector).
+ *
+ * Hybrid search improves retrieval by combining:
+ * - Semantic similarity (vector search) - understands meaning
+ * - Keyword matching (full-text search) - finds exact terms
  */
-export class DocumentNodeRetrievalTask extends Task<
-  RetrievalTaskInput,
-  RetrievalTaskOutput,
+export class ChunkVectorHybridSearchTask extends Task<
+  HybridSearchTaskInput,
+  HybridSearchTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "DocumentNodeRetrievalTask";
+  public static type = "ChunkVectorHybridSearchTask";
   public static category = "RAG";
-  public static title = "Retrieval";
-  public static description = "End-to-end retrieval: embed query and search for similar chunks";
+  public static title = "Hybrid Search";
+  public static description = "Combined vector + full-text search for improved retrieval";
   public static cacheable = true;
 
   public static inputSchema(): DataPortSchema {
@@ -163,58 +155,49 @@ export class DocumentNodeRetrievalTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  async execute(input: RetrievalTaskInput, context: IExecuteContext): Promise<RetrievalTaskOutput> {
+  async execute(
+    input: HybridSearchTaskInput,
+    context: IExecuteContext
+  ): Promise<HybridSearchTaskOutput> {
     const {
       repository,
-      query,
-      topK = 5,
+      queryVector,
+      queryText,
+      topK = 10,
       filter,
-      model,
       scoreThreshold = 0,
+      vectorWeight = 0.7,
       returnVectors = false,
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as AnyDocumentNodeVectorRepository;
+    const repo = repository as AnyChunkVectorRepository;
 
-    // Determine query vector
-    let queryVector: TypedArray;
-    if (typeof query === "string") {
-      // If query is a string, model must be provided (enforced by schema)
-      if (!model) {
-        throw new Error(
-          "Model is required when query is a string. Please provide a model with format 'model:TextEmbeddingTask'."
-        );
-      }
-      const embeddingTask = context.own(new TextEmbeddingTask({ text: query, model }));
-      const embeddingResult = await embeddingTask.run();
-      queryVector = Array.isArray(embeddingResult.vector)
-        ? embeddingResult.vector[0]
-        : embeddingResult.vector;
-    } else {
-      // Query is already a vector
-      queryVector = query as TypedArray;
+    // Check if repository supports hybrid search
+    if (!repo.hybridSearch) {
+      throw new Error("Repository does not support hybrid search.");
     }
 
     // Convert to Float32Array for repository search (repo expects Float32Array by default)
     const searchVector =
       queryVector instanceof Float32Array ? queryVector : new Float32Array(queryVector);
 
-    // Search vector repository
-    const results = await repo.similaritySearch(searchVector, {
+    // Perform hybrid search
+    const results = await repo.hybridSearch(searchVector, {
+      textQuery: queryText,
       topK,
       filter,
       scoreThreshold,
+      vectorWeight,
     });
 
     // Extract text chunks from metadata
-    // Assumes metadata has a 'text' or 'content' field
     const chunks = results.map((r) => {
-      const meta = r.metadata as any;
+      const meta = r.metadata as Record<string, string>;
       return meta.text || meta.content || meta.chunk || JSON.stringify(meta);
     });
 
-    const output: RetrievalTaskOutput = {
+    const output: HybridSearchTaskOutput = {
       chunks,
       ids: results.map((r) => r.chunk_id),
       metadata: results.map((r) => r.metadata),
@@ -230,14 +213,17 @@ export class DocumentNodeRetrievalTask extends Task<
   }
 }
 
-export const retrieval = (input: RetrievalTaskInput, config?: JobQueueTaskConfig) => {
-  return new DocumentNodeRetrievalTask({} as RetrievalTaskInput, config).run(input);
+export const hybridSearch = async (
+  input: HybridSearchTaskInput,
+  config?: JobQueueTaskConfig
+): Promise<HybridSearchTaskOutput> => {
+  return new ChunkVectorHybridSearchTask({} as HybridSearchTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    retrieval: CreateWorkflow<RetrievalTaskInput, RetrievalTaskOutput, JobQueueTaskConfig>;
+    hybridSearch: CreateWorkflow<HybridSearchTaskInput, HybridSearchTaskOutput, JobQueueTaskConfig>;
   }
 }
 
-Workflow.prototype.retrieval = CreateWorkflow(DocumentNodeRetrievalTask);
+Workflow.prototype.hybridSearch = CreateWorkflow(ChunkVectorHybridSearchTask);

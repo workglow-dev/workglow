@@ -4,18 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentNodeVectorUpsertTask } from "@workglow/ai";
-import {
-  InMemoryDocumentNodeVectorRepository,
-  registerDocumentNodeVectorRepository,
-} from "@workglow/storage";
+import { ChunkVectorUpsertTask } from "@workglow/ai";
+import { InMemoryChunkVectorRepository, registerChunkVectorRepository } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("DocumentNodeVectorUpsertTask", () => {
-  let repo: InMemoryDocumentNodeVectorRepository;
+describe("ChunkVectorUpsertTask", () => {
+  let repo: InMemoryChunkVectorRepository;
 
   beforeEach(async () => {
-    repo = new InMemoryDocumentNodeVectorRepository(3);
+    repo = new InMemoryChunkVectorRepository(3);
     await repo.setupDatabase();
   });
 
@@ -27,7 +24,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     const vector = new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5]);
     const metadata = { text: "Test document", source: "test.txt" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     const result = await task.run({
       repository: repo,
       doc_id: "doc1",
@@ -54,7 +51,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     ];
     const metadata = { text: "Document with multiple vectors", source: "doc.txt" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     const result = await task.run({
       repository: repo,
       doc_id: "doc1",
@@ -79,7 +76,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     const vector = [new Float32Array([0.1, 0.2, 0.3])];
     const metadata = { text: "Single item as array" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     const result = await task.run({
       repository: repo,
       doc_id: "doc1",
@@ -102,7 +99,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     const metadata2 = { text: "Updated document", source: "updated.txt" };
 
     // First upsert
-    const task1 = new DocumentNodeVectorUpsertTask();
+    const task1 = new ChunkVectorUpsertTask();
     const result1 = await task1.run({
       repository: repo,
       doc_id: "doc1",
@@ -111,7 +108,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     });
 
     // Update with same ID
-    const task2 = new DocumentNodeVectorUpsertTask();
+    const task2 = new ChunkVectorUpsertTask();
     const result2 = await task2.run({
       repository: repo,
       doc_id: "doc1",
@@ -128,7 +125,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     const vectors = [new Float32Array([0.1, 0.2]), new Float32Array([0.3, 0.4])];
     const metadata = { text: "Shared metadata" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     const result = await task.run({
       repository: repo,
       doc_id: "doc1",
@@ -144,7 +141,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     const vector = new Int8Array([127, -128, 64, -64, 0]);
     const metadata = { text: "Quantized vector" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     const result = await task.run({
       repository: repo,
       doc_id: "doc1",
@@ -163,7 +160,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     const vector = new Float32Array([0.1, 0.2, 0.3]);
     const metadata = { text: "Simple metadata" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     const result = await task.run({
       repository: repo,
       doc_id: "doc1",
@@ -185,7 +182,7 @@ describe("DocumentNodeVectorUpsertTask", () => {
     );
     const metadata = { text: "Batch document" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     const result = await task.run({
       repository: repo,
       doc_id: "batch-doc",
@@ -202,12 +199,12 @@ describe("DocumentNodeVectorUpsertTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerDocumentNodeVectorRepository("test-upsert-repo", repo);
+    registerChunkVectorRepository("test-upsert-repo", repo);
 
     const vector = new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5]);
     const metadata = { text: "Test document", source: "test.txt" };
 
-    const task = new DocumentNodeVectorUpsertTask();
+    const task = new ChunkVectorUpsertTask();
     // Pass repository as string ID instead of instance
     const result = await task.run({
       repository: "test-upsert-repo" as any,

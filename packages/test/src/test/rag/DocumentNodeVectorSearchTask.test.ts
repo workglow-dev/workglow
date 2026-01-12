@@ -4,18 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentNodeVectorSearchTask } from "@workglow/ai";
-import {
-  InMemoryDocumentNodeVectorRepository,
-  registerDocumentNodeVectorRepository,
-} from "@workglow/storage";
+import { ChunkVectorSearchTask } from "@workglow/ai";
+import { InMemoryChunkVectorRepository, registerChunkVectorRepository } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("DocumentNodeVectorSearchTask", () => {
-  let repo: InMemoryDocumentNodeVectorRepository;
+describe("ChunkVectorSearchTask", () => {
+  let repo: InMemoryChunkVectorRepository;
 
   beforeEach(async () => {
-    repo = new InMemoryDocumentNodeVectorRepository(3);
+    repo = new InMemoryChunkVectorRepository(3);
     await repo.setupDatabase();
 
     // Populate repository with test data
@@ -53,7 +50,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should search and return top K results", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -78,7 +75,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should respect topK limit", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -92,7 +89,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should filter by metadata", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -110,7 +107,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should apply score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -127,7 +124,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should return empty results when no matches", async () => {
     const queryVector = new Float32Array([0.0, 0.0, 1.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -145,7 +142,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should handle default topK value", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -159,7 +156,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should work with quantized query vectors (Int8Array)", async () => {
     const queryVector = new Int8Array([127, 0, 0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -174,7 +171,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should return results sorted by similarity score", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -188,12 +185,12 @@ describe("DocumentNodeVectorSearchTask", () => {
   });
 
   test("should handle empty repository", async () => {
-    const emptyRepo = new InMemoryDocumentNodeVectorRepository(3);
+    const emptyRepo = new InMemoryChunkVectorRepository(3);
     await emptyRepo.setupDatabase();
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: emptyRepo,
       query: queryVector,
@@ -210,7 +207,7 @@ describe("DocumentNodeVectorSearchTask", () => {
   test("should combine filter and score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     const result = await task.run({
       repository: repo,
       query: queryVector,
@@ -230,11 +227,11 @@ describe("DocumentNodeVectorSearchTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerDocumentNodeVectorRepository("test-vector-repo", repo);
+    registerChunkVectorRepository("test-vector-repo", repo);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const task = new DocumentNodeVectorSearchTask();
+    const task = new ChunkVectorSearchTask();
     // Pass repository as string ID instead of instance
     const result = await task.run({
       repository: "test-vector-repo" as any,

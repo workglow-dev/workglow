@@ -6,13 +6,13 @@
 
 import { TaskRegistry } from "@workglow/task-graph";
 import { BackgroundRemovalTask } from "./BackgroundRemovalTask";
+import { DocumentNodeRetrievalTask } from "./ChunkRetrievalTask";
 import { ChunkToVectorTask } from "./ChunkToVectorTask";
+import { ChunkVectorHybridSearchTask } from "./ChunkVectorHybridSearchTask";
+import { ChunkVectorSearchTask } from "./ChunkVectorSearchTask";
+import { ChunkVectorUpsertTask } from "./ChunkVectorUpsertTask";
 import { ContextBuilderTask } from "./ContextBuilderTask";
 import { DocumentEnricherTask } from "./DocumentEnricherTask";
-import { DocumentNodeRetrievalTask } from "./DocumentNodeRetrievalTask";
-import { DocumentNodeVectorHybridSearchTask } from "./DocumentNodeVectorHybridSearchTask";
-import { DocumentNodeVectorSearchTask } from "./DocumentNodeVectorSearchTask";
-import { DocumentNodeVectorUpsertTask } from "./DocumentNodeVectorUpsertTask";
 import { DownloadModelTask } from "./DownloadModelTask";
 import { FaceDetectorTask } from "./FaceDetectorTask";
 import { FaceLandmarkerTask } from "./FaceLandmarkerTask";
@@ -55,9 +55,9 @@ export const registerAiTasks = () => {
     ContextBuilderTask,
     DocumentEnricherTask,
     DocumentNodeRetrievalTask,
-    DocumentNodeVectorHybridSearchTask,
-    DocumentNodeVectorSearchTask,
-    DocumentNodeVectorUpsertTask,
+    ChunkVectorHybridSearchTask,
+    ChunkVectorSearchTask,
+    ChunkVectorUpsertTask,
     DownloadModelTask,
     FaceDetectorTask,
     FaceLandmarkerTask,
@@ -95,13 +95,13 @@ export const registerAiTasks = () => {
 export * from "./BackgroundRemovalTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";
+export * from "./ChunkRetrievalTask";
 export * from "./ChunkToVectorTask";
+export * from "./ChunkVectorHybridSearchTask";
+export * from "./ChunkVectorSearchTask";
+export * from "./ChunkVectorUpsertTask";
 export * from "./ContextBuilderTask";
 export * from "./DocumentEnricherTask";
-export * from "./DocumentNodeRetrievalTask";
-export * from "./DocumentNodeVectorHybridSearchTask";
-export * from "./DocumentNodeVectorSearchTask";
-export * from "./DocumentNodeVectorUpsertTask";
 export * from "./DownloadModelTask";
 export * from "./FaceDetectorTask";
 export * from "./FaceLandmarkerTask";

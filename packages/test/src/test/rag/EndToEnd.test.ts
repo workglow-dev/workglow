@@ -10,7 +10,7 @@ import {
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryDocumentNodeVectorRepository,
+  InMemoryChunkVectorRepository,
   InMemoryTabularRepository,
   NodeIdGenerator,
   StructuralParser,
@@ -88,7 +88,7 @@ Finds patterns in data.`;
     );
     await tabularStorage.setupDatabase();
 
-    const vectorStorage = new InMemoryDocumentNodeVectorRepository(3);
+    const vectorStorage = new InMemoryChunkVectorRepository(3);
     await vectorStorage.setupDatabase();
 
     const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
