@@ -1,15 +1,13 @@
-# Vector Storage Module
+# Chunk Vector Storage Module
 
-A flexible vector storage solution with multiple backend implementations for RAG (Retrieval-Augmented Generation) pipelines. Provides a consistent interface for vector CRUD operations with similarity search and hybrid search capabilities.
+Storage for document chunk embeddings with vector similarity search capabilities. Extends the tabular repository pattern to add vector search functionality for RAG (Retrieval-Augmented Generation) pipelines.
 
 ## Features
 
 - **Multiple Storage Backends:**
-  - 🧠 `InMemoryVectorRepository` - Fast in-memory storage for testing and small datasets
-  - 📁 `SqliteVectorRepository` - Persistent SQLite storage for local applications
-  - 🐘 `PostgresVectorRepository` - PostgreSQL with pgvector extension for production
-  - 🔍 `SeekDbVectorRepository` - SeekDB/OceanBase with native hybrid search
-  - 📱 `EdgeVecRepository` - Edge/browser deployment with IndexedDB and WebGPU support
+  - 🧠 `InMemoryChunkVectorRepository` - Fast in-memory storage for testing and small datasets
+  - 📁 `SqliteChunkVectorRepository` - Persistent SQLite storage for local applications
+  - 🐘 `PostgresChunkVectorRepository` - PostgreSQL with pgvector extension for production
 
 - **Quantized Vector Support:**
   - Float32Array (standard 32-bit floating point)
@@ -20,17 +18,16 @@ A flexible vector storage solution with multiple backend implementations for RAG
   - Int16Array (16-bit signed - quantization)
   - Uint16Array (16-bit unsigned - quantization)
 
-- **Advanced Search Capabilities:**
+- **Search Capabilities:**
   - Vector similarity search (cosine similarity)
-  - Hybrid search (vector + full-text)
+  - Hybrid search (vector + full-text keyword matching)
   - Metadata filtering
   - Top-K retrieval with score thresholds
 
-- **Production Ready:**
-  - Type-safe interfaces
-  - Event emitters for monitoring
-  - Bulk operations support
-  - Efficient indexing strategies
+- **Built on Tabular Repositories:**
+  - Extends `ITabularRepository` for standard CRUD operations
+  - Inherits event emitter pattern for monitoring
+  - Type-safe schema-based storage
 
 ## Installation
 
@@ -40,70 +37,67 @@ bun install @workglow/storage
 
 ## Usage
 
-### In-Memory Repository (Testing/Browser)
+### In-Memory Repository (Testing/Development)
 
 ```typescript
-import { InMemoryVectorRepository } from "@workglow/storage";
+import { InMemoryChunkVectorRepository } from "@workglow/storage";
 
-// Standard Float32 vectors
-const repo = new InMemoryVectorRepository<{ text: string; source: string }>();
+// Create repository with 384 dimensions
+const repo = new InMemoryChunkVectorRepository(384);
 await repo.setupDatabase();
 
-// Upsert vectors
-await repo.upsert(
-  "doc1",
-  new Float32Array([0.1, 0.2, 0.3, ...]),
-  { text: "Hello world", source: "example.txt" }
-);
+// Store a chunk with its embedding
+await repo.put({
+  chunk_id: "chunk-001",
+  doc_id: "doc-001",
+  vector: new Float32Array([0.1, 0.2, 0.3 /* ... 384 dims */]),
+  metadata: { text: "Hello world", source: "example.txt" },
+});
 
-// Search for similar vectors
-const results = await repo.similaritySearch(
-  new Float32Array([0.15, 0.25, 0.35, ...]),
-  { topK: 5, scoreThreshold: 0.7 }
-);
+// Search for similar chunks
+const results = await repo.similaritySearch(new Float32Array([0.15, 0.25, 0.35 /* ... */]), {
+  topK: 5,
+  scoreThreshold: 0.7,
+});
 ```
 
 ### Quantized Vectors (Reduced Storage)
 
 ```typescript
-import { InMemoryVectorRepository } from "@workglow/storage";
+import { InMemoryChunkVectorRepository } from "@workglow/storage";
 
 // Use Int8Array for 4x smaller storage (binary quantization)
-const repo = new InMemoryVectorRepository<
-  { text: string },
-  Int8Array
->();
+const repo = new InMemoryChunkVectorRepository<{ text: string }, Int8Array>(384, Int8Array);
 await repo.setupDatabase();
 
 // Store quantized vectors
-await repo.upsert(
-  "doc1",
-  new Int8Array([127, -128, 64, ...]),
-  { text: "Quantized embedding" }
-);
+await repo.put({
+  chunk_id: "chunk-001",
+  doc_id: "doc-001",
+  vector: new Int8Array([127, -128, 64 /* ... */]),
+  metadata: { category: "ai" },
+});
 
 // Search with quantized query
-const results = await repo.similaritySearch(
-  new Int8Array([100, -50, 75, ...]),
-  { topK: 5 }
-);
+const results = await repo.similaritySearch(new Int8Array([100, -50, 75 /* ... */]), { topK: 5 });
 ```
 
 ### SQLite Repository (Local Persistence)
 
 ```typescript
-import { SqliteVectorRepository } from "@workglow/storage";
+import { SqliteChunkVectorRepository } from "@workglow/storage";
 
-const repo = new SqliteVectorRepository<{ text: string }>(
+const repo = new SqliteChunkVectorRepository<{ text: string }>(
   "./vectors.db", // database path
-  "embeddings"    // table name
+  "chunks",       // table name
+  768             // vector dimension
 );
 await repo.setupDatabase();
 
-// Bulk upsert
-await repo.upsertBulk([
-  { id: "1", vector: new Float32Array([...]), metadata: { text: "..." } },
-  { id: "2", vector: new Float32Array([...]), metadata: { text: "..." } },
+// Bulk insert using inherited tabular methods
+await repo.putMany([
+  { chunk_id: "1", doc_id: "doc1", vector: new Float32Array([...]), metadata: { text: "..." } },
+  { chunk_id: "2", doc_id: "doc1", vector: new Float32Array([...]), metadata: { text: "..." } },
 ]);
 ```
 
@@ -111,18 +105,25 @@ await repo.upsertBulk([
 
 ```typescript
 import { Pool } from "pg";
-import { PostgresVectorRepository } from "@workglow/storage";
+import { PostgresChunkVectorRepository } from "@workglow/storage";
 
 const pool = new Pool({ connectionString: "postgresql://..." });
-const repo = new PostgresVectorRepository<{ text: string; category: string }>(
+const repo = new PostgresChunkVectorRepository<{ text: string; category: string }>(
   pool,
-  "vectors",
+  "chunks",
   384 // vector dimension
 );
 await repo.setupDatabase();
 
+// Native pgvector similarity search with filter
+const results = await repo.similaritySearch(queryVector, {
+  topK: 10,
+  filter: { category: "ai" },
+  scoreThreshold: 0.5,
+});
+
 // Hybrid search (vector + full-text)
-const results = await repo.hybridSearch(queryVector, {
+const hybridResults = await repo.hybridSearch(queryVector, {
   textQuery: "machine learning",
   topK: 10,
   vectorWeight: 0.7,
@@ -130,106 +131,137 @@ const results = await repo.hybridSearch(queryVector, {
 });
 ```
 
-### SeekDB (Hybrid Search Database)
+## Data Model
+
+### ChunkVector Schema
+
+Each chunk vector entry contains:
 
 ```typescript
-import mysql from "mysql2/promise";
-import { SeekDbVectorRepository } from "@workglow/storage";
-
-const pool = mysql.createPool({ host: "...", database: "..." });
-const repo = new SeekDbVectorRepository<{ text: string }>(
-  pool,
-  "vectors",
-  768 // vector dimension
-);
-await repo.setupDatabase();
-
-// Native hybrid search
-const results = await repo.hybridSearch(queryVector, {
-  textQuery: "neural networks",
-  topK: 5,
-  vectorWeight: 0.6,
-});
-```
-
-### EdgeVec (Browser/Edge Deployment)
-
-```typescript
-import { EdgeVecRepository } from "@workglow/storage";
-
-const repo = new EdgeVecRepository<{ text: string }>({
-  dbName: "my-vectors", // IndexedDB name
-  enableWebGPU: true, // Enable GPU acceleration
-});
-await repo.setupDatabase();
-
-// Works entirely in the browser
-await repo.upsert("1", vector, { text: "..." });
-const results = await repo.similaritySearch(queryVector, { topK: 3 });
-```
-
-## API Documentation
-
-### Core Methods
-
-All repositories implement the `IVectorRepository` interface:
-
-```typescript
-interface IVectorRepository<Metadata> {
-  // Setup
-  setupDatabase(): Promise<void>;
-
-  // CRUD Operations
-  upsert(id: string, vector: Float32Array, metadata: Metadata): Promise<void>;
-  upsertBulk(items: VectorEntry<Metadata>[]): Promise<void>;
-  get(id: string): Promise<VectorEntry<Metadata> | undefined>;
-  delete(id: string): Promise<void>;
-  deleteBulk(ids: string[]): Promise<void>;
-  deleteByFilter(filter: Partial<Metadata>): Promise<void>;
-
-  // Search
-  search(
-    query: Float32Array,
-    options?: VectorSearchOptions<Metadata>
-  ): Promise<SearchResult<Metadata>[]>;
-  hybridSearch?(
-    query: Float32Array,
-    options: HybridSearchOptions<Metadata>
-  ): Promise<SearchResult<Metadata>[]>;
-
-  // Utility
-  size(): Promise<number>;
-  clear(): Promise<void>;
-  destroy(): void;
-
-  // Events
-  on(event: "upsert" | "delete" | "search", callback: Function): void;
+interface ChunkVector<
+  Metadata extends Record<string, unknown> = Record<string, unknown>,
+  Vector extends TypedArray = Float32Array,
+> {
+  chunk_id: string; // Unique identifier for the chunk
+  doc_id: string; // Parent document identifier
+  vector: Vector; // Embedding vector
+  metadata: Metadata; // Custom metadata (text content, entities, etc.)
 }
+```
+
+### Default Schema
+
+```typescript
+const ChunkVectorSchema = {
+  type: "object",
+  properties: {
+    chunk_id: { type: "string" },
+    doc_id: { type: "string" },
+    vector: TypedArraySchema(),
+    metadata: { type: "object", additionalProperties: true },
+  },
+  additionalProperties: false,
+} as const;
+
+const ChunkVectorKey = ["chunk_id"] as const;
+```
+
+## API Reference
+
+### IChunkVectorRepository Interface
+
+Extends `ITabularRepository` with vector-specific methods:
+
+```typescript
+interface IChunkVectorRepository<Schema, PrimaryKeyNames, Entity> extends ITabularRepository<
+  Schema,
+  PrimaryKeyNames,
+  Entity
+> {
+  // Get the vector dimension
+  getVectorDimensions(): number;
+
+  // Vector similarity search
+  similaritySearch(
+    query: TypedArray,
+    options?: VectorSearchOptions
+  ): Promise<(Entity & { score: number })[]>;
+
+  // Hybrid search (optional - not all implementations support it)
+  hybridSearch?(
+    query: TypedArray,
+    options: HybridSearchOptions
+  ): Promise<(Entity & { score: number })[]>;
+}
+```
+
+### Inherited Tabular Methods
+
+From `ITabularRepository`:
+
+```typescript
+// Setup
+setupDatabase(): Promise<void>;
+
+// CRUD Operations
+put(entity: Entity): Promise<void>;
+putMany(entities: Entity[]): Promise<void>;
+get(key: PrimaryKey): Promise<Entity | undefined>;
+getAll(): Promise<Entity[] | undefined>;
+delete(key: PrimaryKey): Promise<void>;
+deleteMany(keys: PrimaryKey[]): Promise<void>;
+
+// Utility
+size(): Promise<number>;
+clear(): Promise<void>;
+destroy(): void;
 ```
 
 ### Search Options
 
 ```typescript
-interface VectorSearchOptions<Metadata> {
-  topK?: number; // Number of results (default: 10)
-  filter?: Partial<Metadata>; // Filter by metadata
-  scoreThreshold?: number; // Minimum score (0-1)
+interface VectorSearchOptions<Metadata = Record<string, unknown>> {
+  readonly topK?: number; // Number of results (default: 10)
+  readonly filter?: Partial<Metadata>; // Filter by metadata fields
+  readonly scoreThreshold?: number; // Minimum score 0-1 (default: 0)
 }
 
 interface HybridSearchOptions<Metadata> extends VectorSearchOptions<Metadata> {
-  textQuery: string; // Full-text query
-  vectorWeight?: number; // Vector weight 0-1 (default: 0.7)
+  readonly textQuery: string; // Full-text query keywords
+  readonly vectorWeight?: number; // Vector weight 0-1 (default: 0.7)
 }
+```
+
+## Global Registry
+
+Register and retrieve chunk vector repositories globally:
+
+```typescript
+import {
+  registerChunkVectorRepository,
+  getChunkVectorRepository,
+  getGlobalChunkVectorRepositories,
+} from "@workglow/storage";
+
+// Register a repository
+registerChunkVectorRepository("my-chunks", repo);
+
+// Retrieve by ID
+const repo = getChunkVectorRepository("my-chunks");
+
+// Get all registered repositories
+const allRepos = getGlobalChunkVectorRepositories();
 ```
 
 ## Quantization Benefits
 
-Quantized vectors can significantly reduce storage and improve performance:
+Quantized vectors reduce storage and can improve performance:
 
 | Vector Type  | Bytes/Dim | Storage vs Float32 | Use Case                             |
 | ------------ | --------- | ------------------ | ------------------------------------ |
 | Float32Array | 4         | 100% (baseline)    | Standard embeddings                  |
 | Float64Array | 8         | 200%               | High precision needed                |
+| Float16Array | 2         | 50%                | Great precision/size tradeoff        |
 | Int16Array   | 2         | 50%                | Good precision/size tradeoff         |
 | Int8Array    | 1         | 25%                | Binary quantization, max compression |
 | Uint8Array   | 1         | 25%                | Quantized embeddings [0-255]         |
@@ -243,7 +275,7 @@ Quantized vectors can significantly reduce storage and improve performance:
 
 ### InMemory
 
-- **Best for:** Testing, small datasets (<10K vectors), browser apps
+- **Best for:** Testing, small datasets (<10K vectors), development
 - **Pros:** Fastest, no dependencies, supports all vector types
 - **Cons:** No persistence, memory limited
 
@@ -251,194 +283,57 @@ Quantized vectors can significantly reduce storage and improve performance:
 
 - **Best for:** Local apps, medium datasets (<100K vectors)
 - **Pros:** Persistent, single file, no server
-- **Cons:** No native vector indexing, slower for large datasets
+- **Cons:** No native vector indexing (linear scan), slower for large datasets
 
 ### PostgreSQL + pgvector
 
 - **Best for:** Production, large datasets (>100K vectors)
-- **Pros:** HNSW indexing, efficient, scalable
+- **Pros:** Native HNSW/IVFFlat indexing, efficient similarity search, scalable
 - **Cons:** Requires PostgreSQL server and pgvector extension
+- **Setup:** `CREATE EXTENSION vector;`
 
-### SeekDB
+## Integration with DocumentRepository
 
-- **Best for:** Hybrid search workloads, production
-- **Pros:** Native hybrid search, MySQL-compatible
-- **Cons:** Requires SeekDB/OceanBase instance
-
-### EdgeVec
-
-- **Best for:** Privacy-sensitive apps, offline-first, edge computing
-- **Pros:** No server, IndexedDB persistence, WebGPU acceleration
-- **Cons:** Limited by browser storage, smaller datasets
-
-## Integration with RAG Tasks
-
-The vector repositories integrate seamlessly with RAG tasks:
-
-```typescript
-import { InMemoryVectorRepository } from "@workglow/storage";
-import { Workflow } from "@workglow/task-graph";
-
-const repo = new InMemoryVectorRepository();
-await repo.setupDatabase();
-
-const workflow = new Workflow()
-  // Load and chunk document
-  .fileLoader({ path: "./doc.md" })
-  .textChunker({ chunkSize: 512, chunkOverlap: 50 })
-
-  // Generate embeddings
-  .textEmbedding({ model: "Xenova/all-MiniLM-L6-v2" })
-
-  // Store in vector repository
-  .vectorStoreUpsert({ repository: repo });
-
-await workflow.run();
-
-// Later: Search
-const searchWorkflow = new Workflow()
-  .textEmbedding({ text: "What is RAG?", model: "..." })
-  .vectorStoreSearch({ repository: repo, topK: 5 })
-  .contextBuilder({ format: "markdown" })
-  .textQuestionAnswer({ question: "What is RAG?" });
-
-const result = await searchWorkflow.run();
-```
-
-## Hierarchical Document Integration
-
-For document-level storage and hierarchical context enrichment, use vector repositories alongside document repositories:
-
-```typescript
-import { InMemoryVectorRepository, InMemoryDocumentRepository } from "@workglow/storage";
-import { Workflow } from "@workglow/task-graph";
-
-const vectorRepo = new InMemoryVectorRepository();
-const docRepo = new InMemoryDocumentRepository();
-await vectorRepo.setupDatabase();
-
-// Ingestion with hierarchical structure
-await new Workflow()
-  .structuralParser({
-    text: markdownContent,
-    title: "Documentation",
-    format: "markdown",
-  })
-  .hierarchicalChunker({
-    maxTokens: 512,
-    overlap: 50,
-    strategy: "hierarchical",
-  })
-  .textEmbedding({ model: "Xenova/all-MiniLM-L6-v2" })
-  .chunkToVector()
-  .vectorStoreUpsert({ repository: vectorRepo })
-  .run();
-
-// Retrieval with parent context
-const result = await new Workflow()
-  .textEmbedding({ text: query, model: "Xenova/all-MiniLM-L6-v2" })
-  .vectorStoreSearch({ repository: vectorRepo, topK: 10 })
-  .hierarchyJoin({
-    documentRepository: docRepo,
-    includeParentSummaries: true,
-    includeEntities: true,
-  })
-  .reranker({ query, topK: 5 })
-  .contextBuilder({ format: "markdown" })
-  .run();
-```
-
-### Vector Metadata for Hierarchical Documents
-
-When using hierarchical chunking, base vector metadata (stored in vector database) includes:
-
-```typescript
-metadata: {
-  doc_id: string,        // Document identifier
-  chunkId: string,      // Chunk identifier
-  leafNodeId: string,   // Reference to document tree node
-  depth: number,        // Hierarchy depth
-  text: string,         // Chunk text content
-  nodePath: string[],   // Node IDs from root to leaf
-  // From enrichment (optional):
-  summary?: string,     // Summary of the chunk content
-  entities?: Entity[],  // Named entities extracted from the chunk
-}
-```
-
-After `HierarchyJoinTask`, enriched metadata includes additional fields:
-
-```typescript
-enrichedMetadata: {
-  // ... all base metadata fields above ...
-  parentSummaries?: string[],  // Summaries from ancestor nodes (looked up on-demand)
-  sectionTitles?: string[],     // Titles of ancestor section nodes
-}
-```
-
-Note: `parentSummaries` is not stored in the vector database. It is computed on-demand by `HierarchyJoinTask` using `doc_id` and `leafNodeId` to look up ancestors from the document repository.
-
-## Document Repository
-
-The `IDocumentRepository` interface provides storage for hierarchical document structures:
-
-```typescript
-class DocumentRepository {
-  constructor(tabularStorage: ITabularRepository, vectorStorage: IVectorRepository);
-
-  upsert(document: Document): Promise<void>;
-  get(doc_id: string): Promise<Document | undefined>;
-  getNode(doc_id: string, nodeId: string): Promise<DocumentNode | undefined>;
-  getAncestors(doc_id: string, nodeId: string): Promise<DocumentNode[]>;
-  getChunks(doc_id: string): Promise<ChunkNode[]>;
-  findChunksByNodeId(doc_id: string, nodeId: string): Promise<ChunkNode[]>;
-  delete(doc_id: string): Promise<void>;
-  list(): Promise<string[]>;
-  search(query: TypedArray, options?: VectorSearchOptions): Promise<SearchResult[]>;
-}
-```
-
-### Document Repository
-
-The `DocumentRepository` class provides a unified interface for storing hierarchical documents and searching chunks. It uses composition of storage backends:
-
-| Component            | Purpose                                      |
-| -------------------- | -------------------------------------------- |
-| `ITabularRepository` | Stores document structure and metadata       |
-| `IVectorRepository`  | Enables similarity search on document chunks |
-
-**Example Usage:**
+The chunk vector repository works alongside `DocumentRepository` for hierarchical document storage:
 
 ```typescript
 import {
   DocumentRepository,
+  InMemoryChunkVectorRepository,
   InMemoryTabularRepository,
-  InMemoryVectorRepository,
 } from "@workglow/storage";
-
-// Define schema for document storage
-const DocumentStorageSchema = {
-  type: "object",
-  properties: {
-    doc_id: { type: "string" },
-    data: { type: "string" },
-  },
-  required: ["doc_id", "data"],
-} as const;
+import { DocumentStorageSchema } from "@workglow/storage";
 
 // Initialize storage backends
 const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["doc_id"]);
 await tabularStorage.setupDatabase();
 
-const vectorStorage = new InMemoryVectorRepository();
+const vectorStorage = new InMemoryChunkVectorRepository(384);
 await vectorStorage.setupDatabase();
 
-// Create document repository
+// Create document repository with both storages
 const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
 
-// Use the repository
+// Store document structure in tabular, chunks in vector
 await docRepo.upsert(document);
+
+// Search chunks by vector similarity
 const results = await docRepo.search(queryVector, { topK: 5 });
+```
+
+### Chunk Metadata for Hierarchical Documents
+
+When using hierarchical chunking, chunk metadata typically includes:
+
+```typescript
+metadata: {
+  text: string;           // Chunk text content
+  leafNodeId?: string;    // Reference to document tree node
+  depth?: number;         // Hierarchy depth
+  nodePath?: string[];    // Node IDs from root to leaf
+  summary?: string;       // Summary of the chunk content
+  entities?: Entity[];    // Named entities extracted from the chunk
+}
 ```
 
 ## License
