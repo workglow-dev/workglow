@@ -23,26 +23,27 @@ import { TypeSingleOrArray } from "./base/AiTaskSchemas";
 const inputSchema = {
   type: "object",
   properties: {
+    repository: TypeChunkVectorRepository({
+      title: "Document Chunk Vector Repository",
+      description: "The document chunk vector repository instance to store vectors in",
+    }),
     doc_id: {
       type: "string",
       title: "Document ID",
       description: "The document ID",
     },
-    repository: TypeChunkVectorRepository({
-      title: "Document Chunk Vector Repository",
-      description: "The document chunk vector repository instance to store vectors in",
-    }),
     vectors: TypeSingleOrArray(
       TypedArraySchema({
-        title: "Vector",
-        description: "The vector embedding",
+        title: "Vectors",
+        description: "The vector embeddings",
       })
     ),
-    metadata: {
+    metadata: TypeSingleOrArray({
       type: "object",
       title: "Metadata",
       description: "Metadata associated with the vector",
-    },
+      additionalProperties: true,
+    }),
   },
   required: ["repository", "doc_id", "vectors", "metadata"],
   additionalProperties: false,
@@ -61,14 +62,14 @@ const outputSchema = {
       title: "Document ID",
       description: "The document ID",
     },
-    ids: {
+    chunk_ids: {
       type: "array",
       items: { type: "string" },
-      title: "IDs",
-      description: "IDs of upserted vectors",
+      title: "Chunk IDs",
+      description: "Chunk IDs of upserted vectors",
     },
   },
-  required: ["count", "ids"],
+  required: ["count", "doc_id", "chunk_ids"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -109,42 +110,50 @@ export class ChunkVectorUpsertTask extends Task<
 
     // Normalize inputs to arrays
     const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
+    const metadataArray = Array.isArray(metadata)
+      ? metadata
+      : Array(vectorArray.length).fill(metadata);
 
     const repo = repository as AnyChunkVectorRepository;
 
     await context.updateProgress(1, "Upserting vectors");
 
-    const idArray: string[] = [];
+    const chunk_ids: string[] = [];
 
     // Bulk upsert if multiple items
     if (vectorArray.length > 1) {
+      if (vectorArray.length !== metadataArray.length) {
+        throw new Error("Mismatch: vectors and metadata arrays must have the same length");
+      }
       const entities = vectorArray.map((vector, i) => {
         const chunk_id = `${doc_id}_${i}`;
-        idArray.push(chunk_id);
+        const metadataItem = metadataArray[i];
+        chunk_ids.push(chunk_id);
         return {
           chunk_id,
           doc_id,
-          vector: vector as any, // Store TypedArray directly (memory) or as string (SQL)
-          metadata,
+          vector,
+          metadata: metadataItem,
         };
       });
-      await repo.putBulk(entities as any);
+      await repo.putBulk(entities);
     } else if (vectorArray.length === 1) {
       // Single upsert
       const chunk_id = `${doc_id}_0`;
-      idArray.push(chunk_id);
+      const metadataItem = metadataArray[0];
+      chunk_ids.push(chunk_id);
       await repo.put({
         chunk_id,
         doc_id,
-        vector: vectorArray[0] as any, // Store TypedArray directly (memory) or as string (SQL)
-        metadata,
-      } as any);
+        vector: vectorArray[0],
+        metadata: metadataItem,
+      });
     }
 
     return {
       doc_id,
-      ids: idArray,
-      count: vectorArray.length,
+      chunk_ids,
+      count: chunk_ids.length,
     };
   }
 }

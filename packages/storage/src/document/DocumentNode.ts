@@ -132,3 +132,32 @@ export function getNodePath(root: DocumentNode, targetNodeId: string): string[] 
 
   return search(root) ? path : undefined;
 }
+
+/**
+ * Get document range for a node path
+ */
+export function getDocumentRange(root: DocumentNode, nodePath: string[]): NodeRange {
+  let currentNode = root as DocumentRootNode | SectionNode | TopicNode;
+
+  // Start from index 1 since nodePath[0] is the root
+  for (let i = 1; i < nodePath.length; i++) {
+    const targetId = nodePath[i];
+    const children = currentNode.children;
+    let found: DocumentNode | undefined;
+
+    for (let j = 0; j < children.length; j++) {
+      if (children[j].nodeId === targetId) {
+        found = children[j];
+        break;
+      }
+    }
+
+    if (!found) {
+      throw new Error(`Node with id ${targetId} not found in path`);
+    }
+
+    currentNode = found as DocumentRootNode | SectionNode | TopicNode;
+  }
+
+  return currentNode.range;
+}
