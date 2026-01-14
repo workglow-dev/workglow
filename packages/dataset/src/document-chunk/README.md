@@ -1,52 +1,38 @@
-# Chunk Vector Storage Module
+# Document Chunk Dataset
 
-Storage for document chunk embeddings with vector similarity search capabilities. Extends the tabular repository pattern to add vector search functionality for RAG (Retrieval-Augmented Generation) pipelines.
+Document-specific schema and utilities for storing document chunk embeddings. Uses the general-purpose vector storage from `@workglow/storage` with a predefined schema for document chunks in RAG (Retrieval-Augmented Generation) pipelines.
 
 ## Features
 
-- **Multiple Storage Backends:**
-  - 🧠 `InMemoryChunkVectorStorage` - Fast in-memory storage for testing and small datasets
-  - 📁 `SqliteChunkVectorStorage` - Persistent SQLite storage for local applications
-  - 🐘 `PostgresChunkVectorStorage` - PostgreSQL with pgvector extension for production
-
-- **Quantized Vector Support:**
-  - Float32Array (standard 32-bit floating point)
-  - Float16Array (16-bit floating point)
-  - Float64Array (64-bit high precision)
-  - Int8Array (8-bit signed - binary quantization)
-  - Uint8Array (8-bit unsigned - quantization)
-  - Int16Array (16-bit signed - quantization)
-  - Uint16Array (16-bit unsigned - quantization)
-
-- **Search Capabilities:**
-  - Vector similarity search (cosine similarity)
-  - Hybrid search (vector + full-text keyword matching)
-  - Metadata filtering
-  - Top-K retrieval with score thresholds
-
-- **Built on Tabular Repositories:**
-  - Extends `ITabularStorage` for standard CRUD operations
-  - Inherits event emitter pattern for monitoring
-  - Type-safe schema-based storage
+- **Predefined Schema**: `DocumentChunkSchema` with fields for chunk_id, doc_id, vector, and metadata
+- **Registry Pattern**: Register and retrieve chunk storage instances globally
+- **Type Safety**: Full TypeScript type definitions for document chunks
+- **Storage Agnostic**: Works with any vector storage backend (InMemory, SQLite, PostgreSQL)
 
 ## Installation
 
 ```bash
-bun install @workglow/storage
+bun install @workglow/dataset @workglow/storage
 ```
 
 ## Usage
 
-### In-Memory Repository (Testing/Development)
+### Basic Usage with InMemoryVectorStorage
 
 ```typescript
-import { InMemoryChunkVectorStorage } from "@workglow/storage";
+import { DocumentChunkSchema, DocumentChunkPrimaryKey } from "@workglow/dataset";
+import { InMemoryVectorStorage } from "@workglow/storage";
 
-// Create repository with 384 dimensions
-const repo = new InMemoryChunkVectorStorage(384);
+// Create storage using the DocumentChunkSchema
+const repo = new InMemoryVectorStorage(
+  DocumentChunkSchema,
+  DocumentChunkPrimaryKey,
+  [], // indexes (optional)
+  384 // vector dimensions
+);
 await repo.setupDatabase();
 
-// Store a chunk with its embedding
+// Store a document chunk with its embedding
 await repo.put({
   chunk_id: "chunk-001",
   doc_id: "doc-001",
@@ -64,10 +50,17 @@ const results = await repo.similaritySearch(new Float32Array([0.15, 0.25, 0.35 /
 ### Quantized Vectors (Reduced Storage)
 
 ```typescript
-import { InMemoryChunkVectorStorage } from "@workglow/storage";
+import { DocumentChunkSchema, DocumentChunkPrimaryKey } from "@workglow/dataset";
+import { InMemoryVectorStorage } from "@workglow/storage";
 
 // Use Int8Array for 4x smaller storage (binary quantization)
-const repo = new InMemoryChunkVectorStorage<{ text: string }, Int8Array>(384, Int8Array);
+const repo = new InMemoryVectorStorage(
+  DocumentChunkSchema,
+  DocumentChunkPrimaryKey,
+  [],
+  384,
+  Int8Array // Specify vector type
+);
 await repo.setupDatabase();
 
 // Store quantized vectors
@@ -82,15 +75,19 @@ await repo.put({
 const results = await repo.similaritySearch(new Int8Array([100, -50, 75 /* ... */]), { topK: 5 });
 ```
 
-### SQLite Repository (Local Persistence)
+### SQLite Storage (Local Persistence)
 
 ```typescript
-import { SqliteChunkVectorStorage } from "@workglow/storage";
+import { DocumentChunkSchema, DocumentChunkPrimaryKey } from "@workglow/dataset";
+import { SqliteVectorStorage } from "@workglow/storage";
 
-const repo = new SqliteChunkVectorStorage<{ text: string }>(
-  "./vectors.db", // database path
-  "chunks",       // table name
-  768             // vector dimension
+const repo = new SqliteVectorStorage(
+  "./vectors.db",          // database path
+  "chunks",                // table name
+  DocumentChunkSchema,
+  DocumentChunkPrimaryKey,
+  [],                      // indexes
+  768                      // vector dimension
 );
 await repo.setupDatabase();
 
@@ -105,12 +102,16 @@ await repo.putMany([
 
 ```typescript
 import { Pool } from "pg";
-import { PostgresChunkVectorStorage } from "@workglow/storage";
+import { DocumentChunkSchema, DocumentChunkPrimaryKey } from "@workglow/dataset";
+import { PostgresVectorStorage } from "@workglow/storage";
 
 const pool = new Pool({ connectionString: "postgresql://..." });
-const repo = new PostgresChunkVectorStorage<{ text: string; category: string }>(
+const repo = new PostgresVectorStorage(
   pool,
   "chunks",
+  DocumentChunkSchema,
+  DocumentChunkPrimaryKey,
+  [],
   384 // vector dimension
 );
 await repo.setupDatabase();
@@ -131,14 +132,39 @@ const hybridResults = await repo.hybridSearch(queryVector, {
 });
 ```
 
-## Data Model
+## Schema Definition
 
-### ChunkVector Schema
+### DocumentChunkSchema
 
-Each chunk vector entry contains:
+The predefined schema for document chunks:
 
 ```typescript
-interface ChunkVector<
+import { TypedArraySchema } from "@workglow/util";
+
+export const DocumentChunkSchema = {
+  type: "object",
+  properties: {
+    chunk_id: { type: "string" },
+    doc_id: { type: "string" },
+    vector: TypedArraySchema(), // Automatically detected as vector column
+    metadata: {
+      type: "object",
+      format: "metadata", // Marked for filtering support
+      additionalProperties: true,
+    },
+  },
+  additionalProperties: false,
+} as const;
+
+export const DocumentChunkPrimaryKey = ["chunk_id"] as const;
+```
+
+### DocumentChunk Type
+
+TypeScript interface for document chunks:
+
+```typescript
+interface DocumentChunk<
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
 > {
@@ -147,23 +173,6 @@ interface ChunkVector<
   vector: Vector; // Embedding vector
   metadata: Metadata; // Custom metadata (text content, entities, etc.)
 }
-```
-
-### Default Schema
-
-```typescript
-const ChunkVectorSchema = {
-  type: "object",
-  properties: {
-    chunk_id: { type: "string" },
-    doc_id: { type: "string" },
-    vector: TypedArraySchema(),
-    metadata: { type: "object", additionalProperties: true },
-  },
-  additionalProperties: false,
-} as const;
-
-const ChunkVectorKey = ["chunk_id"] as const;
 ```
 
 ## API Reference
@@ -234,23 +243,29 @@ interface HybridSearchOptions<Metadata> extends VectorSearchOptions<Metadata> {
 
 ## Global Registry
 
-Register and retrieve chunk vector repositories globally:
+Register and retrieve chunk vector storage instances globally:
 
 ```typescript
 import {
+  DocumentChunkSchema,
+  DocumentChunkPrimaryKey,
   registerChunkVectorRepository,
-  getChunkVectorRepository,
-  getGlobalChunkVectorRepositories,
-} from "@workglow/storage";
+  getDocumentChunkDataset,
+  getGlobalDocumentChunkDataset,
+} from "@workglow/dataset";
+import { InMemoryVectorStorage } from "@workglow/storage";
 
-// Register a repository
+// Create and register a storage instance
+const repo = new InMemoryVectorStorage(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 384);
+await repo.setupDatabase();
+
 registerChunkVectorRepository("my-chunks", repo);
 
 // Retrieve by ID
-const repo = getChunkVectorRepository("my-chunks");
+const retrievedRepo = getDocumentChunkDataset("my-chunks");
 
-// Get all registered repositories
-const allRepos = getGlobalChunkVectorRepositories();
+// Get all registered storage instances
+const allRepos = getGlobalDocumentChunkDataset();
 ```
 
 ## Quantization Benefits
@@ -294,21 +309,27 @@ Quantized vectors reduce storage and can improve performance:
 
 ## Integration with DocumentRepository
 
-The chunk vector repository works alongside `DocumentRepository` for hierarchical document storage:
+Document chunk storage works alongside `DocumentRepository` for hierarchical document management:
 
 ```typescript
 import {
   DocumentRepository,
-  InMemoryChunkVectorStorage,
-  InMemoryTabularStorage,
-} from "@workglow/storage";
-import { DocumentStorageSchema } from "@workglow/storage";
+  DocumentStorageSchema,
+  DocumentChunkSchema,
+  DocumentChunkPrimaryKey,
+} from "@workglow/dataset";
+import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 
 // Initialize storage backends
 const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, ["doc_id"]);
 await tabularStorage.setupDatabase();
 
-const vectorStorage = new InMemoryChunkVectorStorage(384);
+const vectorStorage = new InMemoryVectorStorage(
+  DocumentChunkSchema,
+  DocumentChunkPrimaryKey,
+  [],
+  384
+);
 await vectorStorage.setupDatabase();
 
 // Create document repository with both storages

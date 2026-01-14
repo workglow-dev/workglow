@@ -5,15 +5,36 @@
  */
 
 import { retrieval } from "@workglow/ai";
-import { InMemoryChunkVectorStorage, registerChunkVectorRepository } from "@workglow/dataset";
+import {
+  DocumentChunk,
+  DocumentChunkDataset,
+  DocumentChunkPrimaryKey,
+  DocumentChunkSchema,
+  registerDocumentChunkDataset,
+} from "@workglow/dataset";
+import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("DocumentNodeRetrievalTask", () => {
-  let repo: InMemoryChunkVectorStorage;
+  let storage: InMemoryVectorStorage<
+    typeof DocumentChunkSchema,
+    typeof DocumentChunkPrimaryKey,
+    Record<string, unknown>,
+    Float32Array,
+    DocumentChunk
+  >;
+  let dataset: DocumentChunkDataset;
 
   beforeEach(async () => {
-    repo = new InMemoryChunkVectorStorage(3);
-    await repo.setupDatabase();
+    storage = new InMemoryVectorStorage<
+      typeof DocumentChunkSchema,
+      typeof DocumentChunkPrimaryKey,
+      Record<string, unknown>,
+      Float32Array,
+      DocumentChunk
+    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
+    await storage.setupDatabase();
+    dataset = new DocumentChunkDataset(storage);
 
     // Populate repository with test data
     const vectors = [
@@ -34,7 +55,7 @@ describe("DocumentNodeRetrievalTask", () => {
 
     for (let i = 0; i < vectors.length; i++) {
       const doc_id = `doc${i + 1}`;
-      await repo.put({
+      await dataset.put({
         chunk_id: `${doc_id}_0`,
         doc_id,
         vector: vectors[i],
@@ -44,14 +65,14 @@ describe("DocumentNodeRetrievalTask", () => {
   });
 
   afterEach(() => {
-    repo.destroy();
+    storage.destroy();
   });
 
   test("should retrieve chunks with query vector", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 3,
     });
@@ -71,7 +92,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 5,
     });
@@ -93,7 +114,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([0.0, 1.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 5,
     });
@@ -109,7 +130,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([0.0, 0.0, 1.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 5,
     });
@@ -125,7 +146,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 3,
       returnVectors: true,
@@ -140,7 +161,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 3,
       returnVectors: false,
@@ -153,7 +174,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 2,
     });
@@ -164,7 +185,7 @@ describe("DocumentNodeRetrievalTask", () => {
 
   test("should apply metadata filter", async () => {
     // Add a document with specific metadata for filtering
-    await repo.put({
+    await dataset.put({
       chunk_id: "filtered_doc_0",
       doc_id: "filtered_doc",
       vector: new Float32Array([1.0, 0.0, 0.0]),
@@ -177,7 +198,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 10,
       filter: { category: "test" },
@@ -191,7 +212,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 10,
       scoreThreshold: 0.9,
@@ -206,7 +227,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryEmbedding = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryEmbedding,
       topK: 3,
     });
@@ -219,7 +240,7 @@ describe("DocumentNodeRetrievalTask", () => {
     await expect(
       // @ts-expect-error - query is string but no model is provided
       retrieval({
-        repository: repo,
+        dataset,
         query: "test query string",
         topK: 3,
       })
@@ -230,7 +251,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
     });
 
@@ -241,7 +262,7 @@ describe("DocumentNodeRetrievalTask", () => {
 
   test("should JSON.stringify metadata when no text/content/chunk fields", async () => {
     // Add document with only non-standard metadata
-    await repo.put({
+    await dataset.put({
       chunk_id: "json_doc_0",
       doc_id: "json_doc",
       vector: new Float32Array([1.0, 0.0, 0.0]),
@@ -254,7 +275,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await retrieval({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 10,
     });
@@ -268,13 +289,13 @@ describe("DocumentNodeRetrievalTask", () => {
 
   test("should resolve repository from string ID", async () => {
     // Register repository by ID
-    registerChunkVectorRepository("test-retrieval-repo", repo);
+    registerDocumentChunkDataset("test-retrieval-repo", dataset);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     // Pass repository as string ID instead of instance
     const result = await retrieval({
-      repository: "test-retrieval-repo" as any,
+      dataset: "test-retrieval-repo",
       query: queryVector,
       topK: 3,
     });

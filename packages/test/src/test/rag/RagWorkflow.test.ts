@@ -46,14 +46,17 @@ import {
   VectorStoreUpsertTaskOutput,
 } from "@workglow/ai";
 import { register_HFT_InlineJobFns } from "@workglow/ai-provider";
-import { InMemoryTabularStorage } from "@workglow/storage";
 import {
+  DocumentChunk,
+  DocumentChunkDataset,
+  DocumentChunkPrimaryKey,
+  DocumentChunkSchema,
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryChunkVectorStorage,
-  registerChunkVectorRepository,
+  registerDocumentChunkDataset,
 } from "@workglow/dataset";
+import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { readdirSync } from "fs";
 import { join } from "path";
@@ -62,7 +65,14 @@ import { registerHuggingfaceLocalModels } from "../../samples";
 export { FileLoaderTask } from "@workglow/tasks";
 
 describe("RAG Workflow End-to-End", () => {
-  let vectorRepo: InMemoryChunkVectorStorage;
+  let storage: InMemoryVectorStorage<
+    typeof DocumentChunkSchema,
+    typeof DocumentChunkPrimaryKey,
+    Record<string, unknown>,
+    Float32Array,
+    DocumentChunk
+  >;
+  let vectorDataset: DocumentChunkDataset;
   let docRepo: DocumentRepository;
   const vectorRepoName = "rag-test-vector-repo";
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
@@ -79,16 +89,23 @@ describe("RAG Workflow End-to-End", () => {
     await registerHuggingfaceLocalModels();
 
     // Setup repositories
-    vectorRepo = new InMemoryChunkVectorStorage(3);
-    await vectorRepo.setupDatabase();
+    storage = new InMemoryVectorStorage<
+      typeof DocumentChunkSchema,
+      typeof DocumentChunkPrimaryKey,
+      Record<string, unknown>,
+      Float32Array,
+      DocumentChunk
+    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
+    await storage.setupDatabase();
+    vectorDataset = new DocumentChunkDataset(storage);
 
-    // Register vector repository for use in workflows
-    registerChunkVectorRepository(vectorRepoName, vectorRepo);
+    // Register vector dataset for use in workflows
+    registerDocumentChunkDataset(vectorRepoName, vectorDataset);
 
     const tabularRepo = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
     await tabularRepo.setupDatabase();
 
-    docRepo = new DocumentRepository(tabularRepo, vectorRepo);
+    docRepo = new DocumentRepository(tabularRepo, vectorDataset as any);
   });
 
   afterAll(async () => {
@@ -133,7 +150,7 @@ describe("RAG Workflow End-to-End", () => {
           model: embeddingModel,
         })
         .vectorStoreUpsert({
-          repository: vectorRepoName,
+          dataset: vectorRepoName,
         });
 
       const result = (await ingestionWorkflow.run()) as VectorStoreUpsertTaskOutput;
@@ -156,7 +173,7 @@ describe("RAG Workflow End-to-End", () => {
     const searchWorkflow = new Workflow();
 
     searchWorkflow.retrieval({
-      repository: vectorRepoName,
+      dataset: vectorRepoName,
       query,
       model: embeddingModel,
       topK: 5,
@@ -192,7 +209,7 @@ describe("RAG Workflow End-to-End", () => {
     console.log(`\nAnswering question: "${question}"`);
 
     const retrievalResult = await retrieval({
-      repository: vectorRepoName,
+      dataset: vectorRepoName,
       query: question,
       model: embeddingModel,
       topK: 3,
@@ -235,7 +252,7 @@ describe("RAG Workflow End-to-End", () => {
     // Step 1: Retrieve context
     const retrievalWorkflow = new Workflow();
     retrievalWorkflow.retrieval({
-      repository: vectorRepoName,
+      dataset: vectorRepoName,
       query: question,
       model: embeddingModel,
       topK: 3,

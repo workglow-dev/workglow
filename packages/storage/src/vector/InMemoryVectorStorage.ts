@@ -4,15 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TypedArray } from "@workglow/util";
+import type {
+  DataPortSchemaObject,
+  FromSchema,
+  TypedArray,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
 import { cosineSimilarity } from "@workglow/util";
 import { InMemoryTabularStorage } from "../tabular/InMemoryTabularStorage";
-import { ChunkVector, ChunkVectorKey, ChunkVectorSchema } from "./ChunkVectorSchema";
-import type {
-  HybridSearchOptions,
-  IChunkVectorStorage,
-  VectorSearchOptions,
-} from "./IChunkVectorStorage";
+import {
+  getMetadataProperty,
+  getVectorProperty,
+  type HybridSearchOptions,
+  type IVectorStorage,
+  type VectorSearchOptions,
+} from "./IVectorStorage";
 
 /**
  * Check if metadata matches filter
@@ -54,35 +60,45 @@ function textRelevance(text: string, query: string): number {
  * @template Metadata - The metadata type for the document chunk
  * @template Vector - The vector type for the document chunk
  */
-export class InMemoryChunkVectorStorage<
+export class InMemoryVectorStorage<
+  Schema extends DataPortSchemaObject,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
-  extends InMemoryTabularStorage<
-    typeof ChunkVectorSchema,
-    typeof ChunkVectorKey,
-    ChunkVector<Metadata, Vector>
-  >
-  implements
-    IChunkVectorStorage<
-      typeof ChunkVectorSchema,
-      typeof ChunkVectorKey,
-      ChunkVector<Metadata, Vector>
-    >
+  extends InMemoryTabularStorage<Schema, PrimaryKeyNames, Entity>
+  implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
   private VectorType: new (array: number[]) => TypedArray;
+  private vectorPropertyName: keyof Entity;
+  private metadataPropertyName: keyof Entity | undefined;
 
   /**
    * Creates a new in-memory document chunk vector repository
    * @param dimensions - The number of dimensions of the vector
    * @param VectorType - The type of vector to use (defaults to Float32Array)
    */
-  constructor(dimensions: number, VectorType: new (array: number[]) => TypedArray = Float32Array) {
-    super(ChunkVectorSchema, ChunkVectorKey);
+  constructor(
+    schema: Schema,
+    primaryKeyNames: PrimaryKeyNames,
+    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    dimensions: number,
+    VectorType: new (array: number[]) => TypedArray = Float32Array
+  ) {
+    super(schema, primaryKeyNames, indexes);
 
     this.vectorDimensions = dimensions;
     this.VectorType = VectorType;
+
+    // Cache vector and metadata property names from schema
+    const vectorProp = getVectorProperty(schema);
+    if (!vectorProp) {
+      throw new Error("Schema must have a property with type array and format TypedArray");
+    }
+    this.vectorPropertyName = vectorProp as keyof Entity;
+    this.metadataPropertyName = getMetadataProperty(schema) as keyof Entity | undefined;
   }
 
   /**
@@ -98,13 +114,15 @@ export class InMemoryChunkVectorStorage<
     options: VectorSearchOptions<Record<string, unknown>> = {}
   ) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
-    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<Entity & { score: number }> = [];
 
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
-      const vector = entity.vector;
-      const metadata = entity.metadata;
+      const vector = entity[this.vectorPropertyName] as TypedArray;
+      const metadata = this.metadataPropertyName
+        ? (entity[this.metadataPropertyName] as Metadata)
+        : ({} as Metadata);
 
       // Apply filter if provided
       if (filter && !matchesFilter(metadata, filter)) {
@@ -121,9 +139,8 @@ export class InMemoryChunkVectorStorage<
 
       results.push({
         ...entity,
-        vector,
         score,
-      });
+      } as Entity & { score: number });
     }
 
     // Sort by score descending and take top K
@@ -141,13 +158,15 @@ export class InMemoryChunkVectorStorage<
       return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
-    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<Entity & { score: number }> = [];
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
       // In memory, vectors are stored as TypedArrays directly (not serialized)
-      const vector = entity.vector;
-      const metadata = entity.metadata;
+      const vector = entity[this.vectorPropertyName] as TypedArray;
+      const metadata = this.metadataPropertyName
+        ? (entity[this.metadataPropertyName] as Metadata)
+        : ({} as Metadata);
 
       // Apply filter if provided
       if (filter && !matchesFilter(metadata, filter)) {
@@ -171,9 +190,8 @@ export class InMemoryChunkVectorStorage<
 
       results.push({
         ...entity,
-        vector,
         score: combinedScore,
-      });
+      } as Entity & { score: number });
     }
 
     // Sort by combined score descending and take top K

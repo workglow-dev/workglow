@@ -42,7 +42,7 @@ function getSchemaFormat(schema: unknown): string | undefined {
 /**
  * Gets the format prefix from a format string.
  * For "model:TextEmbedding" returns "model"
- * For "repository:tabular" returns "repository"
+ * For "storage:tabular" returns "storage"
  */
 function getFormatPrefix(format: string): string {
   const colonIndex = format.indexOf(":");
@@ -88,7 +88,7 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
     const format = getSchemaFormat(propSchema);
     if (!format) continue;
 
-    // Try full format first (e.g., "repository:document-node-vector"), then fall back to prefix (e.g., "repository")
+    // Try full format first (e.g., "dataset:document-chunk"), then fall back to prefix (e.g., "dataset")
     let resolver = resolvers.get(format);
     if (!resolver) {
       const prefix = getFormatPrefix(format);

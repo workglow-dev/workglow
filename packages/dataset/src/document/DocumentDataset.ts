@@ -4,31 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AnyVectorStorage, ITabularStorage, VectorSearchOptions } from "@workglow/storage";
+import type { VectorSearchOptions } from "@workglow/storage";
 import type { TypedArray } from "@workglow/util";
-import type { DocumentChunk } from "../document-chunk/DocumentChunkSchema";
+import type { DocumentChunk, DocumentChunkStorage } from "../document-chunk/DocumentChunkSchema";
 import { Document } from "./Document";
 import { ChunkNode, DocumentNode } from "./DocumentSchema";
-import {
-  DocumentStorageEntity,
-  DocumentStorageKey,
-  DocumentStorageSchema,
-} from "./DocumentStorageSchema";
+import { DocumentStorageEntity, DocumentTabularStorage } from "./DocumentStorageSchema";
+
 /**
- * Document repository that uses TabularStorage for persistence and VectorStorage for search.
+ * Document dataset that uses TabularStorage for document persistence and VectorStorage for chunk persistence and similarity search.
  * This is a unified implementation that composes storage backends rather than using
  * inheritance/interface patterns.
  */
-export class DocumentRepository {
-  private tabularStorage: ITabularStorage<
-    DocumentStorageSchema,
-    DocumentStorageKey,
-    DocumentStorageEntity
-  >;
-  private vectorStorage?: AnyVectorStorage;
+export class DocumentDataset {
+  private tabularStorage: DocumentTabularStorage;
+  private vectorStorage?: DocumentChunkStorage;
 
   /**
-   * Creates a new DocumentRepository instance.
+   * Creates a new DocumentDataset instance.
    *
    * @param tabularStorage - Pre-initialized tabular storage for document persistence
    * @param vectorStorage - Pre-initialized vector storage for chunk similarity search
@@ -41,17 +34,10 @@ export class DocumentRepository {
    * const vectorStorage = new InMemoryVectorStorage();
    * await vectorStorage.setupDatabase();
    *
-   * const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
+   * const docDataset = new DocumentDataset(tabularStorage, vectorStorage);
    * ```
    */
-  constructor(
-    tabularStorage: ITabularStorage<
-      typeof DocumentStorageSchema,
-      ["doc_id"],
-      DocumentStorageEntity
-    >,
-    vectorStorage?: AnyVectorStorage
-  ) {
+  constructor(tabularStorage: DocumentTabularStorage, vectorStorage?: DocumentChunkStorage) {
     this.tabularStorage = tabularStorage;
     this.vectorStorage = vectorStorage;
   }
@@ -200,7 +186,7 @@ export class DocumentRepository {
     if (!entities) {
       return [];
     }
-    return entities.map((e) => e.doc_id);
+    return entities.map((e: DocumentStorageEntity) => e.doc_id);
   }
 
   /**
@@ -212,7 +198,7 @@ export class DocumentRepository {
   async search(
     query: TypedArray,
     options?: VectorSearchOptions<Record<string, unknown>>
-  ): Promise<Array<DocumentChunk<Record<string, unknown>, TypedArray> & { score: number }>> {
-    return (this.vectorStorage?.similaritySearch(query, options) || []) as any;
+  ): Promise<Array<DocumentChunk<Record<string, unknown>, TypedArray>>> {
+    return this.vectorStorage?.similaritySearch(query, options) || [];
   }
 }

@@ -5,9 +5,9 @@
  */
 
 import {
-  type ChunkMetadata,
   ChunkMetadataArraySchema,
   EnrichedChunkMetadataArraySchema,
+  type ChunkMetadata,
   type DocumentRepository,
 } from "@workglow/dataset";
 import {

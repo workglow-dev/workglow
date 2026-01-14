@@ -4,63 +4,81 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cosineSimilarity, type TypedArray } from "@workglow/util";
-import type { Pool } from "pg";
-import { PostgresTabularStorage } from "@workglow/storage";
-import { ChunkVector, ChunkVectorKey, ChunkVectorSchema } from "./ChunkVectorSchema";
 import type {
-  HybridSearchOptions,
-  IChunkVectorStorage,
-  VectorSearchOptions,
-} from "./IChunkVectorStorage";
+  DataPortSchemaObject,
+  FromSchema,
+  TypedArray,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import { cosineSimilarity } from "@workglow/util";
+import type { Pool } from "pg";
+import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
+import {
+  getMetadataProperty,
+  getVectorProperty,
+  type HybridSearchOptions,
+  type IVectorStorage,
+  type VectorSearchOptions,
+} from "./IVectorStorage";
 
 /**
- * PostgreSQL document chunk vector repository implementation using pgvector extension.
- * Extends PostgresTabularRepository for storage.
+ * PostgreSQL vector repository implementation using pgvector extension.
+ * Extends PostgresTabularStorage for storage.
  * Provides efficient vector similarity search with native database support.
  *
  * Requirements:
  * - PostgreSQL database with pgvector extension installed
  * - CREATE EXTENSION vector;
  *
- * @template Metadata - The metadata type for the document chunk
- * @template Vector - The vector type for the document chunk
+ * @template Metadata - The metadata type
+ * @template Vector - The vector type
  */
-export class PostgresChunkVectorStorage<
+export class PostgresVectorStorage<
+  Schema extends DataPortSchemaObject,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
-  extends PostgresTabularStorage<
-    typeof ChunkVectorSchema,
-    typeof ChunkVectorKey,
-    ChunkVector<Metadata, Vector>
-  >
-  implements
-    IChunkVectorStorage<
-      typeof ChunkVectorSchema,
-      typeof ChunkVectorKey,
-      ChunkVector<Metadata, Vector>
-    >
+  extends PostgresTabularStorage<Schema, PrimaryKeyNames, Entity>
+  implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
   private VectorType: new (array: number[]) => TypedArray;
+  private vectorPropertyName: keyof Entity;
+  private metadataPropertyName: keyof Entity | undefined;
+
   /**
-   * Creates a new PostgreSQL document chunk vector repository
+   * Creates a new PostgreSQL vector repository
    * @param db - PostgreSQL connection pool
    * @param table - The name of the table to use for storage
+   * @param schema - The schema definition for the entity
+   * @param primaryKeyNames - Array of property names that form the primary key
+   * @param indexes - Array of columns or column arrays to make searchable
    * @param dimensions - The number of dimensions of the vector
    * @param VectorType - The type of vector to use (defaults to Float32Array)
    */
   constructor(
     db: Pool,
     table: string,
+    schema: Schema,
+    primaryKeyNames: PrimaryKeyNames,
+    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
     dimensions: number,
     VectorType: new (array: number[]) => TypedArray = Float32Array
   ) {
-    super(db, table, ChunkVectorSchema, ChunkVectorKey);
+    super(db, table, schema, primaryKeyNames, indexes);
 
     this.vectorDimensions = dimensions;
     this.VectorType = VectorType;
+
+    // Cache vector and metadata property names from schema
+    const vectorProp = getVectorProperty(schema);
+    if (!vectorProp) {
+      throw new Error("Schema must have a property with type array and format TypedArray");
+    }
+    this.vectorPropertyName = vectorProp as keyof Entity;
+    this.metadataPropertyName = getMetadataProperty(schema) as keyof Entity | undefined;
   }
 
   getVectorDimensions(): number {
@@ -70,26 +88,29 @@ export class PostgresChunkVectorStorage<
   async similaritySearch(
     query: TypedArray,
     options: VectorSearchOptions<Metadata> = {}
-  ): Promise<Array<ChunkVector<Metadata, Vector> & { score: number }>> {
+  ): Promise<Array<Entity & { score: number }>> {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
 
     try {
       // Try native pgvector search first
       const queryVector = `[${Array.from(query).join(",")}]`;
+      const vectorCol = String(this.vectorPropertyName);
+      const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
+      
       let sql = `
         SELECT 
           *,
-          1 - (vector <=> $1::vector) as score
+          1 - (${vectorCol} <=> $1::vector) as score
         FROM "${this.table}"
       `;
 
       const params: any[] = [queryVector];
       let paramIndex = 2;
 
-      if (filter && Object.keys(filter).length > 0) {
+      if (filter && Object.keys(filter).length > 0 && metadataCol) {
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
-          conditions.push(`metadata->>'${key}' = $${paramIndex}`);
+          conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
           paramIndex++;
         }
@@ -98,31 +119,31 @@ export class PostgresChunkVectorStorage<
 
       if (scoreThreshold > 0) {
         sql += filter ? " AND" : " WHERE";
-        sql += ` (1 - (vector <=> $1::vector)) >= $${paramIndex}`;
+        sql += ` (1 - (${vectorCol} <=> $1::vector)) >= $${paramIndex}`;
         params.push(scoreThreshold);
         paramIndex++;
       }
 
-      sql += ` ORDER BY vector <=> $1::vector LIMIT $${paramIndex}`;
+      sql += ` ORDER BY ${vectorCol} <=> $1::vector LIMIT $${paramIndex}`;
       params.push(topK);
 
       const result = await this.db.query(sql, params);
 
       // Fetch vectors separately for each result
-      const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+      const results: Array<Entity & { score: number }> = [];
       for (const row of result.rows) {
         const vectorResult = await this.db.query(
-          `SELECT vector::text FROM "${this.table}" WHERE id = $1`,
-          [row.id]
+          `SELECT ${vectorCol}::text FROM "${this.table}" WHERE ${this.getPrimaryKeyWhereClause(row)}`,
+          this.getPrimaryKeyValues(row)
         );
-        const vectorStr = vectorResult.rows[0]?.vector || "[]";
+        const vectorStr = vectorResult.rows[0]?.[vectorCol] || "[]";
         const vectorArray = JSON.parse(vectorStr);
 
         results.push({
           ...row,
-          vector: new this.VectorType(vectorArray),
+          [this.vectorPropertyName]: new this.VectorType(vectorArray),
           score: parseFloat(row.score),
-        } as any);
+        } as Entity & { score: number });
       }
 
       return results;
@@ -144,13 +165,15 @@ export class PostgresChunkVectorStorage<
       // Try native hybrid search with pgvector + full-text
       const queryVector = `[${Array.from(query).join(",")}]`;
       const tsQuery = textQuery.split(/\s+/).join(" & ");
+      const vectorCol = String(this.vectorPropertyName);
+      const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
 
       let sql = `
         SELECT 
           *,
           (
-            $2 * (1 - (vector <=> $1::vector)) +
-            $3 * ts_rank(to_tsvector('english', metadata::text), to_tsquery('english', $4))
+            $2 * (1 - (${vectorCol} <=> $1::vector)) +
+            $3 * ts_rank(to_tsvector('english', ${metadataCol || "''"}::text), to_tsquery('english', $4))
           ) as score
         FROM "${this.table}"
       `;
@@ -158,10 +181,10 @@ export class PostgresChunkVectorStorage<
       const params: any[] = [queryVector, vectorWeight, 1 - vectorWeight, tsQuery];
       let paramIndex = 5;
 
-      if (filter && Object.keys(filter).length > 0) {
+      if (filter && Object.keys(filter).length > 0 && metadataCol) {
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
-          conditions.push(`metadata->>'${key}' = $${paramIndex}`);
+          conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
           paramIndex++;
         }
@@ -171,8 +194,8 @@ export class PostgresChunkVectorStorage<
       if (scoreThreshold > 0) {
         sql += filter ? " AND" : " WHERE";
         sql += ` (
-          $2 * (1 - (vector <=> $1::vector)) +
-          $3 * ts_rank(to_tsvector('english', metadata::text), to_tsquery('english', $4))
+          $2 * (1 - (${vectorCol} <=> $1::vector)) +
+          $3 * ts_rank(to_tsvector('english', ${metadataCol || "''"}::text), to_tsquery('english', $4))
         ) >= $${paramIndex}`;
         params.push(scoreThreshold);
         paramIndex++;
@@ -184,20 +207,20 @@ export class PostgresChunkVectorStorage<
       const result = await this.db.query(sql, params);
 
       // Fetch vectors separately for each result
-      const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+      const results: Array<Entity & { score: number }> = [];
       for (const row of result.rows) {
         const vectorResult = await this.db.query(
-          `SELECT vector::text FROM "${this.table}" WHERE id = $1`,
-          [row.id]
+          `SELECT ${vectorCol}::text FROM "${this.table}" WHERE ${this.getPrimaryKeyWhereClause(row)}`,
+          this.getPrimaryKeyValues(row)
         );
-        const vectorStr = vectorResult.rows[0]?.vector || "[]";
+        const vectorStr = vectorResult.rows[0]?.[vectorCol] || "[]";
         const vectorArray = JSON.parse(vectorStr);
 
         results.push({
           ...row,
-          vector: new this.VectorType(vectorArray),
+          [this.vectorPropertyName]: new this.VectorType(vectorArray),
           score: parseFloat(row.score),
-        } as any);
+        } as Entity & { score: number });
       }
 
       return results;
@@ -214,11 +237,13 @@ export class PostgresChunkVectorStorage<
   private async searchFallback(query: TypedArray, options: VectorSearchOptions<Metadata>) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
     const allRows = (await this.getAll()) || [];
-    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<Entity & { score: number }> = [];
 
     for (const row of allRows) {
-      const vector = row.vector;
-      const metadata = row.metadata;
+      const vector = row[this.vectorPropertyName] as TypedArray;
+      const metadata = this.metadataPropertyName
+        ? (row[this.metadataPropertyName] as Metadata)
+        : ({} as Metadata);
 
       if (filter && !this.matchesFilter(metadata, filter)) {
         continue;
@@ -227,7 +252,7 @@ export class PostgresChunkVectorStorage<
       const score = cosineSimilarity(query, vector);
 
       if (score >= scoreThreshold) {
-        results.push({ ...row, vector, score });
+        results.push({ ...row, score } as Entity & { score: number });
       }
     }
 
@@ -244,13 +269,15 @@ export class PostgresChunkVectorStorage<
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     const allRows = (await this.getAll()) || [];
-    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<Entity & { score: number }> = [];
     const queryLower = textQuery.toLowerCase();
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
     for (const row of allRows) {
-      const vector = row.vector;
-      const metadata = row.metadata;
+      const vector = row[this.vectorPropertyName] as TypedArray;
+      const metadata = this.metadataPropertyName
+        ? (row[this.metadataPropertyName] as Metadata)
+        : ({} as Metadata);
 
       if (filter && !this.matchesFilter(metadata, filter)) {
         continue;
@@ -272,7 +299,7 @@ export class PostgresChunkVectorStorage<
       const combinedScore = vectorWeight * vectorScore + (1 - vectorWeight) * textScore;
 
       if (combinedScore >= scoreThreshold) {
-        results.push({ ...row, vector, score: combinedScore });
+        results.push({ ...row, score: combinedScore } as Entity & { score: number });
       }
     }
 
@@ -280,6 +307,17 @@ export class PostgresChunkVectorStorage<
     const topResults = results.slice(0, topK);
 
     return topResults;
+  }
+
+  private getPrimaryKeyWhereClause(row: any): string {
+    const conditions = this.primaryKeyNames.map(
+      (key, idx) => `${String(key)} = $${idx + 1}`
+    );
+    return conditions.join(" AND ");
+  }
+
+  private getPrimaryKeyValues(row: any): any[] {
+    return this.primaryKeyNames.map((key) => row[key]);
   }
 
   private matchesFilter(metadata: Metadata, filter: Partial<Metadata>): boolean {

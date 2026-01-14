@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentNode, NodeIdGenerator, StructuralParser } from "@workglow/dataset";
+import { DocumentNode, StructuralParser } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -12,7 +12,7 @@ import {
   Task,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema, uuid4 } from "@workglow/util";
 
 const inputSchema = {
   type: "object",
@@ -104,8 +104,7 @@ export class StructuralParserTask extends Task<
     const { text, title, format = "auto", sourceUri, doc_id: providedDocId } = input;
 
     // Generate or use provided doc_id
-    const doc_id =
-      providedDocId || (await NodeIdGenerator.generateDocId(sourceUri || "document", text));
+    const doc_id = providedDocId || uuid4();
 
     // Parse based on format
     let documentTree: DocumentNode;

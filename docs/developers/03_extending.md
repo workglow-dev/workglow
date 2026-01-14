@@ -138,13 +138,13 @@ When defining task input schemas, you can use `format` annotations to enable aut
 
 The system supports several format annotations out of the box:
 
-| Format                            | Description                         | Helper Function               |
-| --------------------------------- | ----------------------------------- | ----------------------------- |
-| `model`                           | Any AI model configuration          | `TypeModel()`                 |
-| `model:TaskName`                  | Model compatible with specific task | —                             |
-| `repository:tabular`              | Tabular data repository             | `TypeTabularRepository()`     |
-| `repository:document-node-vector` | Vector storage repository           | `TypeChunkVectorRepository()` |
-| `repository:document`             | Document repository                 | `TypeDocumentRepository()`    |
+| Format                         | Description                         | Helper Function               |
+| ------------------------------ | ----------------------------------- | ----------------------------- |
+| `model`                        | Any AI model configuration          | `TypeModel()`                 |
+| `model:TaskName`               | Model compatible with specific task | —                             |
+| `storage:tabular`              | Tabular data dataset                | `TypeTabularRepository()`     |
+| `dataset:document-node-vector` | Vector storage dataset              | `TypeChunkVectorRepository()` |
+| `dataset:document`             | Document dataset                    | `TypeDocumentRepository()`    |
 
 ### Example: Using Format Annotations
 
@@ -316,7 +316,7 @@ await new Workflow()
   })
   .chunkToVector()
   .vectorStoreUpsert({
-    repository: vectorRepo,
+    dataset: vectorDataset,
   })
   .run();
 ```
@@ -330,7 +330,7 @@ const answer = await new Workflow()
     model: "Xenova/all-MiniLM-L6-v2",
   })
   .vectorStoreSearch({
-    repository: vectorRepo,
+    dataset: vectorDataset,
     topK: 10,
   })
   .reranker({

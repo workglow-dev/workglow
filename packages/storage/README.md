@@ -592,7 +592,7 @@ import {
   TypeDocumentRepository,
 } from "@workglow/storage";
 
-// Tabular repository (format: "repository:tabular")
+// Tabular repository (format: "storage:tabular")
 const tabularSchema = TypeTabularRepository({
   title: "Data Source",
   description: "Tabular data repository",
@@ -1081,11 +1081,7 @@ describe("UserRepository", () => {
   let userRepo: InMemoryTabularStorage<typeof UserSchema, ["id"]>;
 
   beforeEach(() => {
-    userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
-      UserSchema,
-      ["id"],
-      ["email"]
-    );
+    userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(UserSchema, ["id"], ["email"]);
   });
 
   test("should create and retrieve user", async () => {

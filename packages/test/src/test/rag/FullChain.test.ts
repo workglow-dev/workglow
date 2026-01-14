@@ -5,7 +5,9 @@
  */
 
 import { HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { ChunkNode, InMemoryChunkVectorStorage, NodeIdGenerator } from "@workglow/dataset";
+import { ChunkNode, DocumentChunkPrimaryKey, DocumentChunkSchema } from "@workglow/dataset";
+import { uuid4 } from "@workglow/util";
+import { InMemoryVectorStorage } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { beforeAll, describe, expect, it } from "vitest";
 import { registerTasks } from "../../binding/RegisterTasks";
@@ -16,8 +18,13 @@ describe("Complete chainable workflow", () => {
   });
 
   it("should chain from parsing to storage without loops", async () => {
-    const vectorRepo = new InMemoryChunkVectorStorage(3);
-    await vectorRepo.setupDatabase();
+    const storage = new InMemoryVectorStorage(
+      DocumentChunkSchema,
+      DocumentChunkPrimaryKey,
+      [],
+      3
+    );
+    await storage.setupDatabase();
 
     const markdown = `# Test Document
 
@@ -96,7 +103,7 @@ This is the second section with more content.`;
 
   it("should allow doc_id override for variant creation", async () => {
     const markdown = "# Test\n\nContent.";
-    const customId = await NodeIdGenerator.generateDocId("custom", markdown);
+    const customId = uuid4();
 
     const result = (await new Workflow()
       .structuralParser({

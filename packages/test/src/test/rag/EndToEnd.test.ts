@@ -7,14 +7,17 @@
 import { hierarchicalChunker } from "@workglow/ai";
 import {
   Document,
+  DocumentChunk,
+  DocumentChunkDataset,
+  DocumentChunkPrimaryKey,
+  DocumentChunkSchema,
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryChunkVectorStorage,
-  NodeIdGenerator,
   StructuralParser,
 } from "@workglow/dataset";
-import { InMemoryTabularStorage } from "@workglow/storage";
+import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
+import { uuid4 } from "@workglow/util";
 import { beforeAll, describe, expect, it } from "vitest";
 import { registerTasks } from "../../binding/RegisterTasks";
 
@@ -38,7 +41,7 @@ Uses labeled data.
 Finds patterns in data.`;
 
     // Parse into hierarchical tree
-    const doc_id = await NodeIdGenerator.generateDocId("ml-guide", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "ML Guide");
 
     const chunkResult = await hierarchicalChunker({
@@ -62,7 +65,7 @@ Finds patterns in data.`;
 
   it("should manage document chunks", async () => {
     const markdown = "# Test Document\n\nThis is test content.";
-    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
     const doc = new Document(doc_id, root, { title: "Test" });
@@ -92,10 +95,17 @@ Finds patterns in data.`;
     );
     await tabularStorage.setupDatabase();
 
-    const vectorStorage = new InMemoryChunkVectorStorage(3);
-    await vectorStorage.setupDatabase();
+    const storage = new InMemoryVectorStorage<
+      typeof DocumentChunkSchema,
+      typeof DocumentChunkPrimaryKey,
+      Record<string, unknown>,
+      Float32Array,
+      DocumentChunk
+    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
+    await storage.setupDatabase();
+    const vectorDataset = new DocumentChunkDataset(storage);
 
-    const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
+    const docRepo = new DocumentRepository(tabularStorage, vectorDataset as any);
 
     // Create document with enriched hierarchy
     const markdown = `# Guide
@@ -108,7 +118,7 @@ Content about topic A.
 
 Content about topic B.`;
 
-    const doc_id = await NodeIdGenerator.generateDocId("guide", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Guide");
 
     const doc = new Document(doc_id, root, { title: "Guide" });

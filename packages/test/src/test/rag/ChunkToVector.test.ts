@@ -6,14 +6,15 @@
 
 import "@workglow/ai"; // Trigger Workflow prototype extensions
 import type { ChunkToVectorTaskOutput, HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { type ChunkNode, NodeIdGenerator, StructuralParser } from "@workglow/dataset";
+import { type ChunkNode, StructuralParser } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
+import { uuid4 } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
 describe("ChunkToVectorTask", () => {
   it("should transform chunks and vectors to vector store format", async () => {
     const markdown = "# Test\n\nContent.";
-    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
     // Generate chunks using workflow

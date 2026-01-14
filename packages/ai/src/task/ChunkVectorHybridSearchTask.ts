@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyChunkVectorStorage, TypeChunkVectorRepository } from "@workglow/dataset";
+import { DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -22,7 +22,7 @@ import {
 const inputSchema = {
   type: "object",
   properties: {
-    repository: TypeChunkVectorRepository({
+    dataset: TypeDocumentChunkDataset({
       title: "Document Chunk Vector Repository",
       description:
         "The document chunk vector repository instance to search in (must support hybridSearch)",
@@ -71,7 +71,7 @@ const inputSchema = {
       default: false,
     },
   },
-  required: ["repository", "queryVector", "queryText"],
+  required: ["dataset", "queryVector", "queryText"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -160,7 +160,7 @@ export class ChunkVectorHybridSearchTask extends Task<
     context: IExecuteContext
   ): Promise<HybridSearchTaskOutput> {
     const {
-      repository,
+      dataset,
       queryVector,
       queryText,
       topK = 10,
@@ -171,11 +171,11 @@ export class ChunkVectorHybridSearchTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as AnyChunkVectorStorage;
+    const repo = dataset as DocumentChunkDataset;
 
     // Check if repository supports hybrid search
     if (!repo.hybridSearch) {
-      throw new Error("Repository does not support hybrid search.");
+      throw new Error("Dataset does not support hybrid search.");
     }
 
     // Convert to Float32Array for repository search (repo expects Float32Array by default)
