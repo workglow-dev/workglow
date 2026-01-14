@@ -13,7 +13,7 @@ import {
   type ChunkNode,
   type DocumentNode,
   type TokenBudget,
-} from "@workglow/storage";
+} from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,

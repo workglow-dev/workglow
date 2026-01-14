@@ -5,7 +5,7 @@
  */
 
 import { hierarchicalChunker } from "@workglow/ai";
-import { estimateTokens, NodeIdGenerator, StructuralParser } from "@workglow/storage";
+import { estimateTokens, NodeIdGenerator, StructuralParser } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 

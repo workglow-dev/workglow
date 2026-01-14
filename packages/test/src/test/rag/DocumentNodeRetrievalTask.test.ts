@@ -5,7 +5,7 @@
  */
 
 import { retrieval } from "@workglow/ai";
-import { InMemoryChunkVectorStorage, registerChunkVectorRepository } from "@workglow/storage";
+import { InMemoryChunkVectorStorage, registerChunkVectorRepository } from "@workglow/dataset";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("DocumentNodeRetrievalTask", () => {

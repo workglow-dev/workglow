@@ -98,12 +98,14 @@
       "name": "@workglow/ai",
       "version": "0.0.85",
       "devDependencies": {
+        "@workglow/dataset": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
       },
       "peerDependencies": {
+        "@workglow/dataset": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
@@ -135,6 +137,18 @@
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
+        "@workglow/util": "workspace:*",
+      },
+    },
+    "packages/dataset": {
+      "name": "@workglow/dataset",
+      "version": "0.0.85",
+      "devDependencies": {
+        "@workglow/storage": "workspace:*",
+        "@workglow/util": "workspace:*",
+      },
+      "peerDependencies": {
+        "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
       },
     },
@@ -229,6 +243,7 @@
         "@types/pg": "^8.15.5",
         "@workglow/ai": "workspace:*",
         "@workglow/ai-provider": "workspace:*",
+        "@workglow/dataset": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
@@ -244,6 +259,7 @@
         "@supabase/supabase-js": "^2.89.0",
         "@workglow/ai": "workspace:*",
         "@workglow/ai-provider": "workspace:*",
+        "@workglow/dataset": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
@@ -736,6 +752,8 @@
     "@workglow/ai-provider": ["@workglow/ai-provider@workspace:packages/ai-provider"],
 
     "@workglow/cli": ["@workglow/cli@workspace:examples/cli"],
+
+    "@workglow/dataset": ["@workglow/dataset@workspace:packages/dataset"],
 
     "@workglow/debug": ["@workglow/debug@workspace:packages/debug"],
 

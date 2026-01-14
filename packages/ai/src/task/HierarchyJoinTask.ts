@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DocumentRepository } from "@workglow/storage";
 import {
   type ChunkMetadata,
   ChunkMetadataArraySchema,
   EnrichedChunkMetadataArraySchema,
-} from "@workglow/storage";
+  type DocumentRepository,
+} from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,

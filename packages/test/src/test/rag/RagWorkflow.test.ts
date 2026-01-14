@@ -46,14 +46,14 @@ import {
   VectorStoreUpsertTaskOutput,
 } from "@workglow/ai";
 import { register_HFT_InlineJobFns } from "@workglow/ai-provider";
+import { InMemoryTabularStorage } from "@workglow/storage";
 import {
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
   InMemoryChunkVectorStorage,
-  InMemoryTabularStorage,
   registerChunkVectorRepository,
-} from "@workglow/storage";
+} from "@workglow/dataset";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { readdirSync } from "fs";
 import { join } from "path";

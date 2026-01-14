@@ -10,8 +10,6 @@ export * from "./tabular/InMemoryTabularStorage";
 export * from "./tabular/ITabularStorage";
 export * from "./tabular/TabularStorageRegistry";
 
-export * from "./util/RepositorySchema";
-
 export * from "./kv/IKvStorage";
 export * from "./kv/InMemoryKvStorage";
 export * from "./kv/KvStorage";
@@ -26,15 +24,7 @@ export * from "./queue-limiter/IRateLimiterStorage";
 export * from "./util/HybridSubscriptionManager";
 export * from "./util/PollingSubscriptionManager";
 
-export * from "./document/Document";
-export * from "./document/DocumentNode";
-export * from "./document/DocumentRepository";
-export * from "./document/DocumentRepositoryRegistry";
-export * from "./document/DocumentSchema";
-export * from "./document/DocumentStorageSchema";
-export * from "./document/StructuralParser";
-
-export * from "./chunk-vector/ChunkVectorStorageRegistry";
-export * from "./chunk-vector/ChunkVectorSchema";
-export * from "./chunk-vector/IChunkVectorStorage";
-export * from "./chunk-vector/InMemoryChunkVectorStorage";
+export * from "./vector/ChunkVectorSchema";
+export * from "./vector/ChunkVectorStorageRegistry";
+export * from "./vector/IChunkVectorStorage";
+export * from "./vector/InMemoryChunkVectorStorage";

@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { InMemoryTabularStorage } from "@workglow/storage";
 import {
   Document,
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
   InMemoryChunkVectorStorage,
-  InMemoryTabularStorage,
   NodeIdGenerator,
   NodeKind,
   StructuralParser,
-} from "@workglow/storage";
+} from "@workglow/dataset";
 import { beforeEach, describe, expect, it } from "vitest";
 
 describe("DocumentRepository", () => {

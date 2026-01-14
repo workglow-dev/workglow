@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentNode, NodeIdGenerator, StructuralParser } from "@workglow/storage";
+import { DocumentNode, NodeIdGenerator, StructuralParser } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,

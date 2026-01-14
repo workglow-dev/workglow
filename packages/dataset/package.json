@@ -1,8 +1,8 @@
 {
-  "name": "@workglow/ai",
+  "name": "@workglow/dataset",
   "type": "module",
   "version": "0.0.85",
-  "description": "Core AI functionality for Workglow, including task execution, model management, and AI pipeline orchestration.",
+  "description": "Dataset package for Workglow.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
     "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
@@ -19,6 +19,22 @@
     "test": "bun test",
     "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
   },
+  "peerDependencies": {
+    "@workglow/storage": "workspace:*",
+    "@workglow/util": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@workglow/storage": {
+      "optional": false
+    },
+    "@workglow/util": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@workglow/storage": "workspace:*",
+    "@workglow/util": "workspace:*"
+  },
   "exports": {
     ".": {
       "react-native": "./dist/browser.js",
@@ -34,36 +50,5 @@
   ],
   "publishConfig": {
     "access": "public"
-  },
-  "peerDependencies": {
-    "@workglow/dataset": "workspace:*",
-    "@workglow/job-queue": "workspace:*",
-    "@workglow/storage": "workspace:*",
-    "@workglow/task-graph": "workspace:*",
-    "@workglow/util": "workspace:*"
-  },
-  "peerDependenciesMeta": {
-    "@workglow/dataset": {
-      "optional": false
-    },
-    "@workglow/job-queue": {
-      "optional": false
-    },
-    "@workglow/storage": {
-      "optional": false
-    },
-    "@workglow/task-graph": {
-      "optional": false
-    },
-    "@workglow/util": {
-      "optional": false
-    }
-  },
-  "devDependencies": {
-    "@workglow/dataset": "workspace:*",
-    "@workglow/job-queue": "workspace:*",
-    "@workglow/storage": "workspace:*",
-    "@workglow/task-graph": "workspace:*",
-    "@workglow/util": "workspace:*"
   }
 }

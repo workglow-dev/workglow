@@ -1,6 +1,6 @@
 TODO.md
 
-- [ ] Rename repositories in the packages/storage to use the word Storage instead of Repository.
+- [x] Rename repositories in the packages/storage to use the word Storage instead of Repository.
 - [ ] Vector Storage (not chunk storage)
   - [ ] Rename the files from packages/storage/src/vector-storage to packages/storage/src/vector
   - [ ] No fixed column names, use the schema to define the columns.

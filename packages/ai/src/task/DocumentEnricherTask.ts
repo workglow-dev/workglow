@@ -10,7 +10,7 @@ import {
   type DocumentNode,
   type Entity,
   type NodeEnrichment,
-} from "@workglow/storage";
+} from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
