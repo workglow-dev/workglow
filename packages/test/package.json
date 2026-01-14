@@ -35,6 +35,7 @@
   "peerDependencies": {
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
+    "@workglow/dataset": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
@@ -50,6 +51,9 @@
       "optional": false
     },
     "@workglow/ai-provider": {
+      "optional": false
+    },
+    "@workglow/dataset": {
       "optional": false
     },
     "@workglow/job-queue": {
@@ -75,6 +79,7 @@
     "@electric-sql/pglite": "^0.3.11",
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
+    "@workglow/dataset": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/sqlite": "workspace:*",
     "@workglow/storage": "workspace:*",

@@ -9,8 +9,8 @@ import {
   getGlobalTabularRepositories,
   InMemoryTabularStorage,
   registerTabularRepository,
-  TypeTabularRepository,
 } from "@workglow/storage";
+import { TypeTabularRepository } from "@workglow/dataset";
 import { IExecuteContext, resolveSchemaInputs, Task, TaskRegistry } from "@workglow/task-graph";
 import {
   getInputResolvers,

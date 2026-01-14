@@ -11,13 +11,18 @@ import {
   DocumentStorageKey,
   DocumentStorageSchema,
   InMemoryChunkVectorStorage,
-  InMemoryTabularStorage,
   NodeIdGenerator,
   StructuralParser,
-} from "@workglow/storage";
-import { describe, expect, it } from "vitest";
+} from "@workglow/dataset";
+import { InMemoryTabularStorage } from "@workglow/storage";
+import { beforeAll, describe, expect, it } from "vitest";
+import { registerTasks } from "../../binding/RegisterTasks";
 
 describe("End-to-end hierarchical RAG", () => {
+  beforeAll(async () => {
+    registerTasks();
+  });
+
   it("should demonstrate chainable design (chunks → text array)", async () => {
     // Sample markdown document
     const markdown = `# Machine Learning
@@ -36,7 +41,6 @@ Finds patterns in data.`;
     const doc_id = await NodeIdGenerator.generateDocId("ml-guide", markdown);
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "ML Guide");
 
-    // CHAINABLE DESIGN TEST - Use workflow to verify chaining
     const chunkResult = await hierarchicalChunker({
       doc_id,
       documentTree: root,

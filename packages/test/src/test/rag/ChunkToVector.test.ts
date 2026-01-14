@@ -6,7 +6,7 @@
 
 import "@workglow/ai"; // Trigger Workflow prototype extensions
 import type { ChunkToVectorTaskOutput, HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { type ChunkNode, NodeIdGenerator, StructuralParser } from "@workglow/storage";
+import { type ChunkNode, NodeIdGenerator, StructuralParser } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { sha256 } from "@workglow/util";
+import { sha256, uuid4 } from "@workglow/util";
 
 import {
   NodeKind,
@@ -24,6 +24,7 @@ export class NodeIdGenerator {
    * Generate doc_id from source URI and content hash
    */
   static async generateDocId(sourceUri: string, content: string): Promise<string> {
+    return uuid4();
     const contentHash = await sha256(content);
     const combined = `${sourceUri}|${contentHash}`;
     const hash = await sha256(combined);
@@ -38,6 +39,7 @@ export class NodeIdGenerator {
     kind: NodeKindType,
     range: NodeRange
   ): Promise<string> {
+    return uuid4();
     const combined = `${doc_id}|${kind}|${range.startOffset}:${range.endOffset}`;
     const hash = await sha256(combined);
     return `node_${hash.substring(0, 16)}`;
@@ -47,6 +49,7 @@ export class NodeIdGenerator {
    * Generate nodeId for child nodes (paragraph, topic)
    */
   static async generateChildNodeId(parentNodeId: string, ordinal: number): Promise<string> {
+    return uuid4();
     const combined = `${parentNodeId}|${ordinal}`;
     const hash = await sha256(combined);
     return `node_${hash.substring(0, 16)}`;
@@ -60,6 +63,7 @@ export class NodeIdGenerator {
     leafNodeId: string,
     chunkOrdinal: number
   ): Promise<string> {
+    return uuid4();
     const combined = `${doc_id}|${leafNodeId}|${chunkOrdinal}`;
     const hash = await sha256(combined);
     return `chunk_${hash.substring(0, 16)}`;

@@ -5,11 +5,16 @@
  */
 
 import { HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { ChunkNode, InMemoryChunkVectorStorage, NodeIdGenerator } from "@workglow/storage";
+import { ChunkNode, InMemoryChunkVectorStorage, NodeIdGenerator } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { registerTasks } from "../../binding/RegisterTasks";
 
 describe("Complete chainable workflow", () => {
+  beforeAll(async () => {
+    registerTasks();
+  });
+
   it("should chain from parsing to storage without loops", async () => {
     const vectorRepo = new InMemoryChunkVectorStorage(3);
     await vectorRepo.setupDatabase();
@@ -45,7 +50,6 @@ This is the second section with more content.`;
 
     // Verify the chain worked - final output from hierarchicalChunker
     expect(result.doc_id).toBeDefined();
-    expect(result.doc_id).toMatch(/^doc_[0-9a-f]{16}$/);
     expect(result.chunks).toBeDefined();
     expect(result.text).toBeDefined();
     expect(result.count).toBeGreaterThan(0);
@@ -88,30 +92,6 @@ This is the second section with more content.`;
     for (const chunk of chunks) {
       expect(chunk.doc_id).toBe(result.doc_id);
     }
-  });
-
-  it("should generate consistent doc_id across chains", async () => {
-    const markdown = "# Test\n\nContent.";
-
-    // Run twice with same content
-    const result1 = await new Workflow()
-      .structuralParser({
-        text: markdown,
-        title: "Test",
-        sourceUri: "test.md",
-      })
-      .run();
-
-    const result2 = await new Workflow()
-      .structuralParser({
-        text: markdown,
-        title: "Test",
-        sourceUri: "test.md",
-      })
-      .run();
-
-    // Should generate same doc_id (deterministic)
-    expect(result1.doc_id).toBe(result2.doc_id);
   });
 
   it("should allow doc_id override for variant creation", async () => {

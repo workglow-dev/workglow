@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ChunkNodeSchema, type ChunkNode } from "@workglow/storage";
+import { ChunkNodeSchema, type ChunkNode } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,

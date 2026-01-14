@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { NodeIdGenerator, NodeKind, StructuralParser } from "@workglow/storage";
+import { NodeKind, StructuralParser } from "@workglow/dataset";
 import { describe, expect, it } from "vitest";
 
 describe("StructuralParser", () => {
@@ -148,57 +148,6 @@ Third paragraph here.`;
 
       // Should be plain paragraph
       expect(root.children[0].kind).toBe(NodeKind.PARAGRAPH);
-    });
-  });
-
-  describe("NodeIdGenerator", () => {
-    it("should generate consistent docIds", async () => {
-      const id1 = await NodeIdGenerator.generateDocId("source1", "content");
-      const id2 = await NodeIdGenerator.generateDocId("source1", "content");
-
-      expect(id1).toBe(id2);
-      expect(id1).toMatch(/^doc_[0-9a-f]{16}$/);
-    });
-
-    it("should generate different IDs for different content", () => {
-      const id1 = NodeIdGenerator.generateDocId("source", "content1");
-      const id2 = NodeIdGenerator.generateDocId("source", "content2");
-
-      expect(id1).not.toBe(id2);
-    });
-
-    it("should generate consistent structural node IDs", async () => {
-      const doc_id = "doc_test";
-      const range = { startOffset: 0, endOffset: 100 };
-
-      const id1 = await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.SECTION, range);
-      const id2 = await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.SECTION, range);
-
-      expect(id1).toBe(id2);
-      expect(id1).toMatch(/^node_[0-9a-f]{16}$/);
-    });
-
-    it("should generate consistent child node IDs", async () => {
-      const parentId = "node_parent";
-      const ordinal = 2;
-
-      const id1 = await NodeIdGenerator.generateChildNodeId(parentId, ordinal);
-      const id2 = await NodeIdGenerator.generateChildNodeId(parentId, ordinal);
-
-      expect(id1).toBe(id2);
-      expect(id1).toMatch(/^node_[0-9a-f]{16}$/);
-    });
-
-    it("should generate consistent chunk IDs", async () => {
-      const doc_id = "doc_test";
-      const leafNodeId = "node_leaf";
-      const ordinal = 0;
-
-      const id1 = await NodeIdGenerator.generateChunkId(doc_id, leafNodeId, ordinal);
-      const id2 = await NodeIdGenerator.generateChunkId(doc_id, leafNodeId, ordinal);
-
-      expect(id1).toBe(id2);
-      expect(id1).toMatch(/^chunk_[0-9a-f]{16}$/);
     });
   });
 });

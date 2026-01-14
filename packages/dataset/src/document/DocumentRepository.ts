@@ -10,7 +10,7 @@ import type {
   AnyChunkVectorStorage,
   VectorSearchOptions,
 } from "../chunk-vector/IChunkVectorStorage";
-import type { ITabularStorage } from "../tabular/ITabularStorage";
+import type { ITabularStorage } from "@workglow/storage";
 import { Document } from "./Document";
 import { ChunkNode, DocumentNode } from "./DocumentSchema";
 import {
@@ -204,7 +204,7 @@ export class DocumentRepository {
     if (!entities) {
       return [];
     }
-    return entities.map((e) => e.doc_id);
+    return entities.map((e: DocumentStorageEntity) => e.doc_id);
   }
 
   /**

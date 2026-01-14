@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ChunkNode, DocumentNode } from "@workglow/storage";
-import { Document, NodeKind } from "@workglow/storage";
+import type { ChunkNode, DocumentNode } from "@workglow/dataset";
+import { Document, NodeKind } from "@workglow/dataset";
 import { describe, expect, test } from "vitest";
 
 describe("Document", () => {
