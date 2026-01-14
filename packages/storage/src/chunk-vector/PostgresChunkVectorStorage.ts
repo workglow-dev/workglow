@@ -6,13 +6,13 @@
 
 import { cosineSimilarity, type TypedArray } from "@workglow/util";
 import type { Pool } from "pg";
-import { PostgresTabularRepository } from "../tabular/PostgresTabularRepository";
+import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
 import { ChunkVector, ChunkVectorKey, ChunkVectorSchema } from "./ChunkVectorSchema";
 import type {
   HybridSearchOptions,
-  IChunkVectorRepository,
+  IChunkVectorStorage,
   VectorSearchOptions,
-} from "./IChunkVectorRepository";
+} from "./IChunkVectorStorage";
 
 /**
  * PostgreSQL document chunk vector repository implementation using pgvector extension.
@@ -26,17 +26,17 @@ import type {
  * @template Metadata - The metadata type for the document chunk
  * @template Vector - The vector type for the document chunk
  */
-export class PostgresChunkVectorRepository<
+export class PostgresChunkVectorStorage<
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
 >
-  extends PostgresTabularRepository<
+  extends PostgresTabularStorage<
     typeof ChunkVectorSchema,
     typeof ChunkVectorKey,
     ChunkVector<Metadata, Vector>
   >
   implements
-    IChunkVectorRepository<
+    IChunkVectorStorage<
       typeof ChunkVectorSchema,
       typeof ChunkVectorKey,
       ChunkVector<Metadata, Vector>

@@ -11,17 +11,17 @@ import {
   makeFingerprint,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { BaseTabularRepository } from "./BaseTabularRepository";
+import { BaseTabularStorage } from "./BaseTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
   isSearchCondition,
   SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
-export const MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.inMemory"
 );
 
@@ -32,18 +32,18 @@ export const MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository
  * @template Schema - The schema definition for the entity using JSON Schema
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class InMemoryTabularRepository<
+export class InMemoryTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Internal storage using a Map with fingerprint strings as keys */
   values = new Map<string, Entity>();
 
   /**
-   * Creates a new InMemoryTabularRepository instance
+   * Creates a new InMemoryTabularStorage instance
    * @param schema - Schema defining the structure of the entity
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable. Each string or single column creates a single-column index,

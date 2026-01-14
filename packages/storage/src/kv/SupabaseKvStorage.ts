@@ -6,11 +6,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceToken, JsonSchema } from "@workglow/util";
-import { SupabaseTabularRepository } from "../tabular/SupabaseTabularRepository";
-import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvRepository } from "./IKvRepository";
-import { KvViaTabularRepository } from "./KvViaTabularRepository";
+import { SupabaseTabularStorage } from "../tabular/SupabaseTabularStorage";
+import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
+import { KvViaTabularStorage } from "./KvViaTabularStorage";
 
-export const SUPABASE_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, any>>(
+export const SUPABASE_KV_REPOSITORY = createServiceToken<IKvStorage<string, any, any>>(
   "storage.kvRepository.supabase"
 );
 
@@ -22,14 +22,14 @@ export const SUPABASE_KV_REPOSITORY = createServiceToken<IKvRepository<string, a
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export class SupabaseKvRepository extends KvViaTabularRepository {
-  public tabularRepository: SupabaseTabularRepository<
+export class SupabaseKvStorage extends KvViaTabularStorage {
+  public tabularRepository: SupabaseTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;
 
   /**
-   * Creates a new SupabaseKvRepository instance
+   * Creates a new SupabaseKvStorage instance
    *
    * @param client - Supabase client instance
    * @param tableName - Name of the table to store data
@@ -41,7 +41,7 @@ export class SupabaseKvRepository extends KvViaTabularRepository {
     public tableName: string,
     keySchema: JsonSchema = { type: "string" },
     valueSchema: JsonSchema = {},
-    tabularRepository?: SupabaseTabularRepository<
+    tabularRepository?: SupabaseTabularStorage<
       typeof DefaultKeyValueSchema,
       typeof DefaultKeyValueKey
     >
@@ -49,6 +49,6 @@ export class SupabaseKvRepository extends KvViaTabularRepository {
     super(keySchema, valueSchema);
     this.tabularRepository =
       tabularRepository ??
-      new SupabaseTabularRepository(client, tableName, DefaultKeyValueSchema, DefaultKeyValueKey);
+      new SupabaseTabularStorage(client, tableName, DefaultKeyValueSchema, DefaultKeyValueKey);
   }
 }

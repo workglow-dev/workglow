@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ITabularRepository, TabularChangePayload } from "@workglow/storage";
+import { ITabularStorage, TabularChangePayload } from "@workglow/storage";
 import { FromSchema, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CompoundPrimaryKeyNames, CompoundSchema } from "./genericTabularRepositoryTests";
@@ -15,7 +15,7 @@ import { CompoundPrimaryKeyNames, CompoundSchema } from "./genericTabularReposit
 
 export function runGenericTabularRepositorySubscriptionTests(
   createRepository: () => Promise<
-    ITabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>
+    ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>
   >,
   options?: {
     /** Whether this repository implementation uses polling (needs longer waits) */
@@ -37,7 +37,7 @@ export function runGenericTabularRepositorySubscriptionTests(
   const initWaitTime = usesPolling ? Math.max(pollingIntervalMs * 4, 150) : 10;
 
   describe("Subscription Tests", () => {
-    let repository: ITabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let repository: ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(async () => {
       repository = await createRepository();

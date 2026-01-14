@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IndexedDbQueueStorage, IndexedDbTabularRepository } from "@workglow/storage";
+import { IndexedDbQueueStorage, IndexedDbTabularStorage } from "@workglow/storage";
 import { sleep, uuid4 } from "@workglow/util";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
  */
 
 describe("IndexedDB Hybrid Subscription Integration", () => {
-  describe("IndexedDbTabularRepository with HybridSubscriptionManager", () => {
+  describe("IndexedDbTabularStorage with HybridSubscriptionManager", () => {
     const schema = {
       type: "object" as const,
       properties: {
@@ -37,7 +37,7 @@ describe("IndexedDB Hybrid Subscription Integration", () => {
     });
 
     it("should use HybridSubscriptionManager instead of PollingSubscriptionManager", async () => {
-      const repo = new IndexedDbTabularRepository(tableName, schema, ["id"] as const, [], {
+      const repo = new IndexedDbTabularStorage(tableName, schema, ["id"] as const, [], {
         useBroadcastChannel: true,
         backupPollingIntervalMs: 5000,
       });
@@ -69,7 +69,7 @@ describe("IndexedDB Hybrid Subscription Integration", () => {
 
     it("should detect changes faster than polling interval", async () => {
       // Set a long backup polling interval to ensure we're not relying on it
-      const repo = new IndexedDbTabularRepository(tableName, schema, ["id"] as const, [], {
+      const repo = new IndexedDbTabularStorage(tableName, schema, ["id"] as const, [], {
         useBroadcastChannel: false,
         backupPollingIntervalMs: 10000,
       });
@@ -104,7 +104,7 @@ describe("IndexedDB Hybrid Subscription Integration", () => {
     });
 
     it("should handle multiple rapid changes efficiently", async () => {
-      const repo = new IndexedDbTabularRepository(tableName, schema, ["id"] as const, [], {
+      const repo = new IndexedDbTabularStorage(tableName, schema, ["id"] as const, [], {
         useBroadcastChannel: false,
         backupPollingIntervalMs: 5000,
       });
@@ -138,7 +138,7 @@ describe("IndexedDB Hybrid Subscription Integration", () => {
     });
 
     it("should support disabling BroadcastChannel", async () => {
-      const repo = new IndexedDbTabularRepository(tableName, schema, ["id"] as const, [], {
+      const repo = new IndexedDbTabularStorage(tableName, schema, ["id"] as const, [], {
         useBroadcastChannel: false,
         backupPollingIntervalMs: 0,
       });
@@ -165,7 +165,7 @@ describe("IndexedDB Hybrid Subscription Integration", () => {
     });
 
     it("should handle delete operations", async () => {
-      const repo = new IndexedDbTabularRepository(tableName, schema, ["id"] as const, [], {
+      const repo = new IndexedDbTabularStorage(tableName, schema, ["id"] as const, [], {
         useBroadcastChannel: false,
         backupPollingIntervalMs: 0,
       });
@@ -199,7 +199,7 @@ describe("IndexedDB Hybrid Subscription Integration", () => {
     });
 
     it("should handle bulk operations", async () => {
-      const repo = new IndexedDbTabularRepository(tableName, schema, ["id"] as const, [], {
+      const repo = new IndexedDbTabularStorage(tableName, schema, ["id"] as const, [], {
         useBroadcastChannel: false,
         backupPollingIntervalMs: 0,
       });
@@ -405,7 +405,7 @@ describe("IndexedDB Hybrid Subscription Integration", () => {
       };
 
       // Test with hybrid subscription (backup polling disabled)
-      const hybridRepo = new IndexedDbTabularRepository(
+      const hybridRepo = new IndexedDbTabularStorage(
         tableName + "_hybrid",
         schema,
         ["id"] as const,

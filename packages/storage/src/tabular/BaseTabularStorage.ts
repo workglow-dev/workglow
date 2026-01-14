@@ -13,9 +13,9 @@ import {
   TypedArraySchemaOptions,
 } from "@workglow/util";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
-  ITabularRepository,
+  ITabularStorage,
   SimplifyPrimaryKey,
   TabularChangePayload,
   TabularEventListener,
@@ -24,9 +24,9 @@ import {
   TabularEventParameters,
   TabularSubscribeOptions,
   ValueOptionType,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
-export const TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository"
 );
 
@@ -39,14 +39,14 @@ export const TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
  * @template Schema - The schema definition for the entity using JSON Schema
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export abstract class BaseTabularRepository<
+export abstract class BaseTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
   Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> implements ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> implements ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Event emitter for repository events */
   protected events = new EventEmitter<TabularEventListeners<PrimaryKey, Entity>>();
 
@@ -55,7 +55,7 @@ export abstract class BaseTabularRepository<
   protected valueSchema: DataPortSchemaObject;
 
   /**
-   * Creates a new BaseTabularRepository instance
+   * Creates a new BaseTabularStorage instance
    * @param schema - Schema defining the structure of the entity
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable. Each string or single column creates a single-column index,

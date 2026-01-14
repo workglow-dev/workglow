@@ -11,9 +11,9 @@ import type {
   TypedArray,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import type { ITabularRepository, TabularEventListeners } from "../tabular/ITabularRepository";
+import type { ITabularStorage, TabularEventListeners } from "../tabular/ITabularStorage";
 
-export type AnyChunkVectorRepository = IChunkVectorRepository<any, any, any>;
+export type AnyChunkVectorStorage = IChunkVectorStorage<any, any, any>;
 
 /**
  * Options for vector search operations
@@ -69,11 +69,11 @@ export type VectorChunkEventParameters<
  * @typeParam PrimaryKeyNames - Array of property names that form the primary key
  * @typeParam Entity - The entity type
  */
-export interface IChunkVectorRepository<
+export interface IChunkVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
-> extends ITabularRepository<Schema, PrimaryKeyNames, Entity> {
+> extends ITabularStorage<Schema, PrimaryKeyNames, Entity> {
   /**
    * Get the vector dimension
    * @returns The vector dimension

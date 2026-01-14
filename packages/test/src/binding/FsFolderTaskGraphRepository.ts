@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FsFolderTabularRepository } from "@workglow/storage";
+import { FsFolderTabularStorage } from "@workglow/storage";
 import {
   TaskGraphPrimaryKeyNames,
   TaskGraphSchema,
@@ -23,7 +23,7 @@ export const FS_FOLDER_TASK_GRAPH_REPOSITORY = createServiceToken<TaskGraphTabul
 export class FsFolderTaskGraphRepository extends TaskGraphTabularRepository {
   constructor(folderPath: string) {
     super({
-      tabularRepository: new FsFolderTabularRepository(
+      tabularRepository: new FsFolderTabularStorage(
         folderPath,
         TaskGraphSchema,
         TaskGraphPrimaryKeyNames

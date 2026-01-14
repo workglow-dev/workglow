@@ -10,21 +10,21 @@ import {
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
-import { AnyChunkVectorRepository } from "./IChunkVectorRepository";
+import { AnyChunkVectorStorage } from "./IChunkVectorStorage";
 
 /**
  * Service token for the documenbt chunk vector repository registry
  * Maps repository IDs to IVectorChunkRepository instances
  */
 export const DOCUMENT_CHUNK_VECTOR_REPOSITORIES = createServiceToken<
-  Map<string, AnyChunkVectorRepository>
+  Map<string, AnyChunkVectorStorage>
 >("storage.document-node-vector.repositories");
 
 // Register default factory if not already registered
 if (!globalServiceRegistry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)) {
   globalServiceRegistry.register(
     DOCUMENT_CHUNK_VECTOR_REPOSITORIES,
-    (): Map<string, AnyChunkVectorRepository> => new Map(),
+    (): Map<string, AnyChunkVectorStorage> => new Map(),
     true
   );
 }
@@ -33,7 +33,7 @@ if (!globalServiceRegistry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)) {
  * Gets the global document chunk vector repository registry
  * @returns Map of document chunk vector repository ID to instance
  */
-export function getGlobalChunkVectorRepositories(): Map<string, AnyChunkVectorRepository> {
+export function getGlobalChunkVectorRepositories(): Map<string, AnyChunkVectorStorage> {
   return globalServiceRegistry.get(DOCUMENT_CHUNK_VECTOR_REPOSITORIES);
 }
 
@@ -44,7 +44,7 @@ export function getGlobalChunkVectorRepositories(): Map<string, AnyChunkVectorRe
  */
 export function registerChunkVectorRepository(
   id: string,
-  repository: AnyChunkVectorRepository
+  repository: AnyChunkVectorStorage
 ): void {
   const repos = getGlobalChunkVectorRepositories();
   repos.set(id, repository);
@@ -55,7 +55,7 @@ export function registerChunkVectorRepository(
  * @param id The repository identifier
  * @returns The repository instance or undefined if not found
  */
-export function getChunkVectorRepository(id: string): AnyChunkVectorRepository | undefined {
+export function getChunkVectorRepository(id: string): AnyChunkVectorStorage | undefined {
   return getGlobalChunkVectorRepositories().get(id);
 }
 
@@ -67,9 +67,9 @@ async function resolveChunkVectorRepositoryFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): Promise<AnyChunkVectorRepository> {
+): Promise<AnyChunkVectorStorage> {
   const repos = registry.has(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)
-    ? registry.get<Map<string, AnyChunkVectorRepository>>(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)
+    ? registry.get<Map<string, AnyChunkVectorStorage>>(DOCUMENT_CHUNK_VECTOR_REPOSITORIES)
     : getGlobalChunkVectorRepositories();
 
   const repo = repos.get(id);

@@ -5,11 +5,11 @@
  */
 
 import { createServiceToken, JsonSchema } from "@workglow/util";
-import { PostgresTabularRepository } from "../tabular/PostgresTabularRepository";
-import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvRepository } from "./IKvRepository";
-import { KvViaTabularRepository } from "./KvViaTabularRepository";
+import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
+import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
+import { KvViaTabularStorage } from "./KvViaTabularStorage";
 
-export const POSTGRES_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, any>>(
+export const POSTGRES_KV_REPOSITORY = createServiceToken<IKvStorage<string, any, any>>(
   "storage.kvRepository.postgres"
 );
 
@@ -21,14 +21,14 @@ export const POSTGRES_KV_REPOSITORY = createServiceToken<IKvRepository<string, a
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export class PostgresKvRepository extends KvViaTabularRepository {
-  public tabularRepository: PostgresTabularRepository<
+export class PostgresKvStorage extends KvViaTabularStorage {
+  public tabularRepository: PostgresTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;
 
   /**
-   * Creates a new KvRepository instance
+   * Creates a new KvStorage instance
    */
   constructor(
     public db: any,
@@ -37,7 +37,7 @@ export class PostgresKvRepository extends KvViaTabularRepository {
     valueSchema: JsonSchema = {}
   ) {
     super(keySchema, valueSchema);
-    this.tabularRepository = new PostgresTabularRepository(
+    this.tabularRepository = new PostgresTabularStorage(
       db,
       dbName,
       DefaultKeyValueSchema,

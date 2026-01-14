@@ -5,9 +5,9 @@
  */
 
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   getGlobalTabularRepositories,
-  InMemoryTabularRepository,
+  InMemoryTabularStorage,
   registerTabularRepository,
   TypeTabularRepository,
 } from "@workglow/storage";
@@ -32,11 +32,11 @@ describe("InputResolver", () => {
     additionalProperties: false,
   } as const;
 
-  let testRepo: InMemoryTabularRepository<typeof testEntitySchema, readonly ["id"]>;
+  let testRepo: InMemoryTabularStorage<typeof testEntitySchema, readonly ["id"]>;
 
   beforeEach(async () => {
     // Create and register a test repository
-    testRepo = new InMemoryTabularRepository(testEntitySchema, ["id"] as const);
+    testRepo = new InMemoryTabularStorage(testEntitySchema, ["id"] as const);
     await testRepo.setupDatabase();
     registerTabularRepository("test-repo", testRepo);
   });
@@ -217,7 +217,7 @@ describe("InputResolver", () => {
       }
 
       async execute(
-        input: { repository: AnyTabularRepository; query: string },
+        input: { repository: AnyTabularStorage; query: string },
         _context: IExecuteContext
       ): Promise<{ results: any[] }> {
         const { repository } = input;

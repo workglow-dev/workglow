@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FsFolderTabularRepository } from "@workglow/storage";
+import { FsFolderTabularStorage } from "@workglow/storage";
 import { mkdirSync, rmSync } from "fs";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { runGenericTabularRepositorySubscriptionTests } from "./genericTabularRepositorySubscriptionTests";
@@ -20,7 +20,7 @@ import {
 
 const testDir = ".cache/test/testing";
 
-describe("FsFolderTabularRepository", () => {
+describe("FsFolderTabularStorage", () => {
   beforeEach(() => {
     try {
       mkdirSync(testDir, { recursive: true });
@@ -37,14 +37,14 @@ describe("FsFolderTabularRepository", () => {
   describe("basic functionality", () => {
     runGenericTabularRepositoryTests(
       async () =>
-        new FsFolderTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+        new FsFolderTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
           testDir,
           CompoundSchema,
           CompoundPrimaryKeyNames
         ),
       undefined,
       async () =>
-        new FsFolderTabularRepository<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>(
+        new FsFolderTabularStorage<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>(
           testDir,
           AllTypesSchema,
           AllTypesPrimaryKeyNames
@@ -54,7 +54,7 @@ describe("FsFolderTabularRepository", () => {
 
   runGenericTabularRepositorySubscriptionTests(
     async () =>
-      new FsFolderTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      new FsFolderTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         testDir,
         CompoundSchema,
         CompoundPrimaryKeyNames
@@ -66,7 +66,7 @@ describe("FsFolderTabularRepository", () => {
   describe("search functionality", () => {
     test("should throw error when attempting to search", async () => {
       try {
-        const repo = new FsFolderTabularRepository<
+        const repo = new FsFolderTabularStorage<
           typeof SearchSchema,
           typeof SearchPrimaryKeyNames
         >(testDir, SearchSchema, SearchPrimaryKeyNames, [

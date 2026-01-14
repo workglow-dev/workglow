@@ -593,7 +593,7 @@ This resolution is handled by the input resolver system, which inspects schema `
 | --------------------------------- | ---------------------------------------- | -------------------------- |
 | `model`                           | Any AI model configuration               | ModelRepository            |
 | `model:TaskName`                  | Model compatible with specific task type | ModelRepository            |
-| `repository:tabular`              | Tabular data repository                  | TabularRepositoryRegistry  |
+| `repository:tabular`              | Tabular data repository                  | TabularStorageRegistry  |
 | `repository:document-node-vector` | Vector storage repository                | VectorRepositoryRegistry   |
 | `repository:document`             | Document repository                      | DocumentRepositoryRegistry |
 

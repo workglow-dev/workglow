@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SqliteTabularRepository } from "@workglow/storage";
+import { SqliteTabularStorage } from "@workglow/storage";
 import {
   TaskGraphPrimaryKeyNames,
   TaskGraphSchema,
@@ -23,7 +23,7 @@ export const SQLITE_TASK_GRAPH_REPOSITORY = createServiceToken<TaskGraphTabularR
 export class SqliteTaskGraphRepository extends TaskGraphTabularRepository {
   constructor(dbOrPath: string, table: string = "task_graphs") {
     super({
-      tabularRepository: new SqliteTabularRepository(
+      tabularRepository: new SqliteTabularStorage(
         dbOrPath,
         table,
         TaskGraphSchema,

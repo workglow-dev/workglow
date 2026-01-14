@@ -5,7 +5,7 @@
  */
 
 import { DataPortSchemaObject, EventParameters } from "@workglow/util";
-import { JSONValue } from "../tabular/ITabularRepository";
+import { JSONValue } from "../tabular/ITabularStorage";
 
 /**
  * Default schema types for simple string row data
@@ -52,7 +52,7 @@ export type KvEventParameters<Event extends KvEventName, Key, Value, Combined> =
  * @typeParam Value - Type for the value struct re
  * @typeParam Combined - Combined type of Key & Value
  */
-export interface IKvRepository<
+export interface IKvStorage<
   Key extends string | number = string,
   Value extends any = any,
   Combined = { key: Key; value: Value },

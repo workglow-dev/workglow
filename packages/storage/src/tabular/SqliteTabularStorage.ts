@@ -12,9 +12,9 @@ import {
   JsonSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { BaseSqlTabularRepository } from "./BaseSqlTabularRepository";
+import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
   isSearchCondition,
   SearchOperator,
@@ -22,18 +22,18 @@ import {
   TabularChangePayload,
   TabularSubscribeOptions,
   ValueOptionType,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
 // Define local type for SQL operations
 type ExcludeDateKeyOptionType = Exclude<string | number | bigint, Date>;
 
-export const SQLITE_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const SQLITE_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.sqlite"
 );
 
 const Database = Sqlite.Database;
 
-// SqliteTabularRepository is a key-value store that uses SQLite as the backend for
+// SqliteTabularStorage is a key-value store that uses SQLite as the backend for
 // in app data.
 
 /**
@@ -41,13 +41,13 @@ const Database = Sqlite.Database;
  * @template Schema - The schema definition for the entity
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class SqliteTabularRepository<
+export class SqliteTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseSqlTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** The SQLite database instance */
   private db: Sqlite.Database;
 
@@ -738,7 +738,7 @@ export class SqliteTabularRepository<
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
-    throw new Error("subscribeToChanges is not supported for SqliteTabularRepository");
+    throw new Error("subscribeToChanges is not supported for SqliteTabularStorage");
   }
 
   /**

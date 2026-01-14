@@ -5,11 +5,11 @@
  */
 
 import { createServiceToken, JsonSchema } from "@workglow/util";
-import { IndexedDbTabularRepository } from "../tabular/IndexedDbTabularRepository";
-import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvRepository } from "./IKvRepository";
-import { KvViaTabularRepository } from "./KvViaTabularRepository";
+import { IndexedDbTabularStorage } from "../tabular/IndexedDbTabularStorage";
+import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
+import { KvViaTabularStorage } from "./KvViaTabularStorage";
 
-export const IDB_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, any>>(
+export const IDB_KV_REPOSITORY = createServiceToken<IKvStorage<string, any, any>>(
   "storage.kvRepository.indexedDb"
 );
 
@@ -21,14 +21,14 @@ export const IDB_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, a
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export class IndexedDbKvRepository extends KvViaTabularRepository {
-  public tabularRepository: IndexedDbTabularRepository<
+export class IndexedDbKvStorage extends KvViaTabularStorage {
+  public tabularRepository: IndexedDbTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;
 
   /**
-   * Creates a new KvRepository instance
+   * Creates a new KvStorage instance
    */
   constructor(
     public dbName: string,
@@ -36,7 +36,7 @@ export class IndexedDbKvRepository extends KvViaTabularRepository {
     valueSchema: JsonSchema = {}
   ) {
     super(keySchema, valueSchema);
-    this.tabularRepository = new IndexedDbTabularRepository(
+    this.tabularRepository = new IndexedDbTabularStorage(
       dbName,
       DefaultKeyValueSchema,
       DefaultKeyValueKey

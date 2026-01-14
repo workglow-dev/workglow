@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { PostgresTabularRepository } from "@workglow/storage";
+import { PostgresTabularStorage } from "@workglow/storage";
 import {
   TaskGraphPrimaryKeyNames,
   TaskGraphSchema,
@@ -24,7 +24,7 @@ export const POSTGRES_TASK_GRAPH_REPOSITORY = createServiceToken<TaskGraphTabula
 export class PostgresTaskGraphRepository extends TaskGraphTabularRepository {
   constructor(db: Pool, table: string = "task_graphs") {
     super({
-      tabularRepository: new PostgresTabularRepository(
+      tabularRepository: new PostgresTabularStorage(
         db,
         table,
         TaskGraphSchema,

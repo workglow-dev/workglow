@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryTabularRepository } from "@workglow/storage";
+import { InMemoryTabularStorage } from "@workglow/storage";
 import { describe } from "vitest";
 import { runGenericTabularRepositorySubscriptionTests } from "./genericTabularRepositorySubscriptionTests";
 import {
@@ -17,21 +17,21 @@ import {
   SearchSchema,
 } from "./genericTabularRepositoryTests";
 
-describe("InMemoryTabularRepository", () => {
+describe("InMemoryTabularStorage", () => {
   runGenericTabularRepositoryTests(
     async () =>
-      new InMemoryTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      new InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         CompoundSchema,
         CompoundPrimaryKeyNames
       ),
     async () =>
-      new InMemoryTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+      new InMemoryTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
         SearchSchema,
         SearchPrimaryKeyNames,
         ["category", ["category", "subcategory"], ["subcategory", "category"], "value"]
       ),
     async () =>
-      new InMemoryTabularRepository<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>(
+      new InMemoryTabularStorage<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>(
         AllTypesSchema,
         AllTypesPrimaryKeyNames
       )
@@ -39,7 +39,7 @@ describe("InMemoryTabularRepository", () => {
 
   runGenericTabularRepositorySubscriptionTests(
     async () =>
-      new InMemoryTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      new InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         CompoundSchema,
         CompoundPrimaryKeyNames
       ),

@@ -10,8 +10,8 @@ import {
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryChunkVectorRepository,
-  InMemoryTabularRepository,
+  InMemoryChunkVectorStorage,
+  InMemoryTabularStorage,
   NodeIdGenerator,
   StructuralParser,
 } from "@workglow/storage";
@@ -82,13 +82,13 @@ Finds patterns in data.`;
   });
 
   it("should demonstrate document repository integration", async () => {
-    const tabularStorage = new InMemoryTabularRepository<DocumentStorageSchema, DocumentStorageKey>(
+    const tabularStorage = new InMemoryTabularStorage<DocumentStorageSchema, DocumentStorageKey>(
       DocumentStorageSchema,
       DocumentStorageKey
     );
     await tabularStorage.setupDatabase();
 
-    const vectorStorage = new InMemoryChunkVectorRepository(3);
+    const vectorStorage = new InMemoryChunkVectorStorage(3);
     await vectorStorage.setupDatabase();
 
     const docRepo = new DocumentRepository(tabularStorage, vectorStorage);

@@ -5,11 +5,11 @@
  */
 
 import { createServiceToken, JsonSchema } from "@workglow/util";
-import { InMemoryTabularRepository } from "../tabular/InMemoryTabularRepository";
-import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvRepository } from "./IKvRepository";
-import { KvViaTabularRepository } from "./KvViaTabularRepository";
+import { InMemoryTabularStorage } from "../tabular/InMemoryTabularStorage";
+import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
+import { KvViaTabularStorage } from "./KvViaTabularStorage";
 
-export const MEMORY_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, any>>(
+export const MEMORY_KV_REPOSITORY = createServiceToken<IKvStorage<string, any, any>>(
   "storage.kvRepository.inMemory"
 );
 
@@ -21,18 +21,18 @@ export const MEMORY_KV_REPOSITORY = createServiceToken<IKvRepository<string, any
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export class InMemoryKvRepository extends KvViaTabularRepository {
-  public tabularRepository: InMemoryTabularRepository<
+export class InMemoryKvStorage extends KvViaTabularStorage {
+  public tabularRepository: InMemoryTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;
 
   /**
-   * Creates a new KvRepository instance
+   * Creates a new KvStorage instance
    */
   constructor(keySchema: JsonSchema = { type: "string" }, valueSchema: JsonSchema = {}) {
     super(keySchema, valueSchema);
-    this.tabularRepository = new InMemoryTabularRepository(
+    this.tabularRepository = new InMemoryTabularStorage(
       DefaultKeyValueSchema,
       DefaultKeyValueKey
     );

@@ -5,7 +5,7 @@
  */
 
 import { ModelPrimaryKeyNames, ModelRecordSchema, ModelRepository } from "@workglow/ai";
-import { SqliteTabularRepository } from "@workglow/storage";
+import { SqliteTabularStorage } from "@workglow/storage";
 
 /**
  * SQLite implementation of a model repository.
@@ -14,7 +14,7 @@ import { SqliteTabularRepository } from "@workglow/storage";
 export class SqliteModelRepository extends ModelRepository {
   constructor(dbOrPath: string, tableModels: string = "aimodel") {
     super(
-      new SqliteTabularRepository(dbOrPath, tableModels, ModelRecordSchema, ModelPrimaryKeyNames)
+      new SqliteTabularStorage(dbOrPath, tableModels, ModelRecordSchema, ModelPrimaryKeyNames)
     );
   }
 }

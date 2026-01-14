@@ -10,10 +10,10 @@ import {
   JsonSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { BaseTabularRepository } from "./BaseTabularRepository";
-import { SimplifyPrimaryKey, ValueOptionType } from "./ITabularRepository";
+import { BaseTabularStorage } from "./BaseTabularStorage";
+import { SimplifyPrimaryKey, ValueOptionType } from "./ITabularStorage";
 
-// BaseTabularRepository is a tabular store that uses SQLite and Postgres use as common code
+// BaseTabularStorage is a tabular store that uses SQLite and Postgres use as common code
 
 /**
  * Base class for SQL-based tabular repositories that implements common functionality
@@ -22,16 +22,16 @@ import { SimplifyPrimaryKey, ValueOptionType } from "./ITabularRepository";
  * @template Schema - The schema definition for the entity using JSON Schema
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export abstract class BaseSqlTabularRepository<
+export abstract class BaseSqlTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
   Value = Omit<Entity, PrimaryKeyNames[number] & keyof Entity>,
-> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+> extends BaseTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
   /**
-   * Creates a new instance of BaseSqlTabularRepository
+   * Creates a new instance of BaseSqlTabularStorage
    * @param table - The name of the database table to use for storage
    * @param schema - Schema defining the structure of the entity
    * @param primaryKeyNames - Array of property names that form the primary key

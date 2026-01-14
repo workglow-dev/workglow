@@ -132,7 +132,7 @@ export type SimplifyPrimaryKey<
  * @typeParam Schema - The schema definition for the entity using JSON Schema
  * @typeParam PrimaryKeyNames - Array of property names that form the primary key
  */
-export interface ITabularRepository<
+export interface ITabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
@@ -212,4 +212,4 @@ export interface ITabularRepository<
   [Symbol.asyncDispose](): Promise<void>;
 }
 
-export type AnyTabularRepository = ITabularRepository<any, any, any, any>;
+export type AnyTabularStorage = ITabularStorage<any, any, any, any>;

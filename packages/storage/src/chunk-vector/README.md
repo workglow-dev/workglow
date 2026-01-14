@@ -5,9 +5,9 @@ Storage for document chunk embeddings with vector similarity search capabilities
 ## Features
 
 - **Multiple Storage Backends:**
-  - 🧠 `InMemoryChunkVectorRepository` - Fast in-memory storage for testing and small datasets
-  - 📁 `SqliteChunkVectorRepository` - Persistent SQLite storage for local applications
-  - 🐘 `PostgresChunkVectorRepository` - PostgreSQL with pgvector extension for production
+  - 🧠 `InMemoryChunkVectorStorage` - Fast in-memory storage for testing and small datasets
+  - 📁 `SqliteChunkVectorStorage` - Persistent SQLite storage for local applications
+  - 🐘 `PostgresChunkVectorStorage` - PostgreSQL with pgvector extension for production
 
 - **Quantized Vector Support:**
   - Float32Array (standard 32-bit floating point)
@@ -25,7 +25,7 @@ Storage for document chunk embeddings with vector similarity search capabilities
   - Top-K retrieval with score thresholds
 
 - **Built on Tabular Repositories:**
-  - Extends `ITabularRepository` for standard CRUD operations
+  - Extends `ITabularStorage` for standard CRUD operations
   - Inherits event emitter pattern for monitoring
   - Type-safe schema-based storage
 
@@ -40,10 +40,10 @@ bun install @workglow/storage
 ### In-Memory Repository (Testing/Development)
 
 ```typescript
-import { InMemoryChunkVectorRepository } from "@workglow/storage";
+import { InMemoryChunkVectorStorage } from "@workglow/storage";
 
 // Create repository with 384 dimensions
-const repo = new InMemoryChunkVectorRepository(384);
+const repo = new InMemoryChunkVectorStorage(384);
 await repo.setupDatabase();
 
 // Store a chunk with its embedding
@@ -64,10 +64,10 @@ const results = await repo.similaritySearch(new Float32Array([0.15, 0.25, 0.35 /
 ### Quantized Vectors (Reduced Storage)
 
 ```typescript
-import { InMemoryChunkVectorRepository } from "@workglow/storage";
+import { InMemoryChunkVectorStorage } from "@workglow/storage";
 
 // Use Int8Array for 4x smaller storage (binary quantization)
-const repo = new InMemoryChunkVectorRepository<{ text: string }, Int8Array>(384, Int8Array);
+const repo = new InMemoryChunkVectorStorage<{ text: string }, Int8Array>(384, Int8Array);
 await repo.setupDatabase();
 
 // Store quantized vectors
@@ -85,9 +85,9 @@ const results = await repo.similaritySearch(new Int8Array([100, -50, 75 /* ... *
 ### SQLite Repository (Local Persistence)
 
 ```typescript
-import { SqliteChunkVectorRepository } from "@workglow/storage";
+import { SqliteChunkVectorStorage } from "@workglow/storage";
 
-const repo = new SqliteChunkVectorRepository<{ text: string }>(
+const repo = new SqliteChunkVectorStorage<{ text: string }>(
   "./vectors.db", // database path
   "chunks",       // table name
   768             // vector dimension
@@ -105,10 +105,10 @@ await repo.putMany([
 
 ```typescript
 import { Pool } from "pg";
-import { PostgresChunkVectorRepository } from "@workglow/storage";
+import { PostgresChunkVectorStorage } from "@workglow/storage";
 
 const pool = new Pool({ connectionString: "postgresql://..." });
-const repo = new PostgresChunkVectorRepository<{ text: string; category: string }>(
+const repo = new PostgresChunkVectorStorage<{ text: string; category: string }>(
   pool,
   "chunks",
   384 // vector dimension
@@ -168,12 +168,12 @@ const ChunkVectorKey = ["chunk_id"] as const;
 
 ## API Reference
 
-### IChunkVectorRepository Interface
+### IChunkVectorStorage Interface
 
-Extends `ITabularRepository` with vector-specific methods:
+Extends `ITabularStorage` with vector-specific methods:
 
 ```typescript
-interface IChunkVectorRepository<Schema, PrimaryKeyNames, Entity> extends ITabularRepository<
+interface IChunkVectorStorage<Schema, PrimaryKeyNames, Entity> extends ITabularStorage<
   Schema,
   PrimaryKeyNames,
   Entity
@@ -197,7 +197,7 @@ interface IChunkVectorRepository<Schema, PrimaryKeyNames, Entity> extends ITabul
 
 ### Inherited Tabular Methods
 
-From `ITabularRepository`:
+From `ITabularStorage`:
 
 ```typescript
 // Setup
@@ -299,16 +299,16 @@ The chunk vector repository works alongside `DocumentRepository` for hierarchica
 ```typescript
 import {
   DocumentRepository,
-  InMemoryChunkVectorRepository,
-  InMemoryTabularRepository,
+  InMemoryChunkVectorStorage,
+  InMemoryTabularStorage,
 } from "@workglow/storage";
 import { DocumentStorageSchema } from "@workglow/storage";
 
 // Initialize storage backends
-const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["doc_id"]);
+const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, ["doc_id"]);
 await tabularStorage.setupDatabase();
 
-const vectorStorage = new InMemoryChunkVectorRepository(384);
+const vectorStorage = new InMemoryChunkVectorStorage(384);
 await vectorStorage.setupDatabase();
 
 // Create document repository with both storages

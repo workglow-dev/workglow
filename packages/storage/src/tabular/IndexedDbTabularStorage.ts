@@ -17,18 +17,18 @@ import {
   ExpectedIndexDefinition,
   MigrationOptions,
 } from "../util/IndexedDbTable";
-import { BaseTabularRepository } from "./BaseTabularRepository";
+import { BaseTabularStorage } from "./BaseTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
   isSearchCondition,
   SearchOperator,
   SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
-export const IDB_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const IDB_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.indexedDb"
 );
 
@@ -38,13 +38,13 @@ export const IDB_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
  * @template Schema - The schema definition for the entity
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class IndexedDbTabularRepository<
+export class IndexedDbTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   /** Promise that resolves to the IndexedDB database instance */
   private db: IDBDatabase | undefined;
   /** Promise to track ongoing database setup to prevent concurrent setup calls */

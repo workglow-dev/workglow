@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyChunkVectorRepository, TypeChunkVectorRepository } from "@workglow/storage";
+import { AnyChunkVectorStorage, TypeChunkVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -171,7 +171,7 @@ export class ChunkVectorHybridSearchTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as AnyChunkVectorRepository;
+    const repo = repository as AnyChunkVectorStorage;
 
     // Check if repository supports hybrid search
     if (!repo.hybridSearch) {

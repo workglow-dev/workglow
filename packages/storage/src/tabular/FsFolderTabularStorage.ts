@@ -15,16 +15,16 @@ import {
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PollingSubscriptionManager } from "../util/PollingSubscriptionManager";
-import { BaseTabularRepository } from "./BaseTabularRepository";
+import { BaseTabularStorage } from "./BaseTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
   SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
-export const FS_FOLDER_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const FS_FOLDER_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.fsFolder"
 );
 
@@ -35,13 +35,13 @@ export const FS_FOLDER_TABULAR_REPOSITORY = createServiceToken<AnyTabularReposit
  * @template Schema - The schema definition for the entity
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class FsFolderTabularRepository<
+export class FsFolderTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private folderPath: string;
   /** Shared polling subscription manager */
   private pollingManager: PollingSubscriptionManager<
@@ -51,7 +51,7 @@ export class FsFolderTabularRepository<
   > | null = null;
 
   /**
-   * Creates a new FsFolderTabularRepository instance.
+   * Creates a new FsFolderTabularStorage instance.
    *
    * @param folderPath - The directory path where the JSON files will be stored
    * @param schema - Schema defining the structure of the entity
@@ -218,7 +218,7 @@ export class FsFolderTabularRepository<
    * @throws {Error} Always throws an error indicating search is not supported
    */
   async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    throw new Error("Search not supported for FsFolderTabularRepository");
+    throw new Error("Search not supported for FsFolderTabularStorage");
   }
 
   /**
@@ -240,7 +240,7 @@ export class FsFolderTabularRepository<
    * @throws Error always - deleteSearch is not supported for filesystem storage
    */
   async deleteSearch(_criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    throw new Error("deleteSearch is not supported for FsFolderTabularRepository");
+    throw new Error("deleteSearch is not supported for FsFolderTabularStorage");
   }
 
   /**

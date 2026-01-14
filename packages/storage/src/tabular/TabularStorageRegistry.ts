@@ -10,13 +10,13 @@ import {
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
-import { AnyTabularRepository } from "./ITabularRepository";
+import { AnyTabularStorage } from "./ITabularStorage";
 
 /**
  * Service token for the tabular repository registry
- * Maps repository IDs to ITabularRepository instances
+ * Maps repository IDs to ITabularStorage instances
  */
-export const TABULAR_REPOSITORIES = createServiceToken<Map<string, AnyTabularRepository>>(
+export const TABULAR_REPOSITORIES = createServiceToken<Map<string, AnyTabularStorage>>(
   "storage.tabular.repositories"
 );
 
@@ -24,7 +24,7 @@ export const TABULAR_REPOSITORIES = createServiceToken<Map<string, AnyTabularRep
 if (!globalServiceRegistry.has(TABULAR_REPOSITORIES)) {
   globalServiceRegistry.register(
     TABULAR_REPOSITORIES,
-    (): Map<string, AnyTabularRepository> => new Map(),
+    (): Map<string, AnyTabularStorage> => new Map(),
     true
   );
 }
@@ -33,7 +33,7 @@ if (!globalServiceRegistry.has(TABULAR_REPOSITORIES)) {
  * Gets the global tabular repository registry
  * @returns Map of tabular repository ID to instance
  */
-export function getGlobalTabularRepositories(): Map<string, AnyTabularRepository> {
+export function getGlobalTabularRepositories(): Map<string, AnyTabularStorage> {
   return globalServiceRegistry.get(TABULAR_REPOSITORIES);
 }
 
@@ -42,7 +42,7 @@ export function getGlobalTabularRepositories(): Map<string, AnyTabularRepository
  * @param id The unique identifier for this repository
  * @param repository The repository instance to register
  */
-export function registerTabularRepository(id: string, repository: AnyTabularRepository): void {
+export function registerTabularRepository(id: string, repository: AnyTabularStorage): void {
   const repos = getGlobalTabularRepositories();
   repos.set(id, repository);
 }
@@ -52,7 +52,7 @@ export function registerTabularRepository(id: string, repository: AnyTabularRepo
  * @param id The repository identifier
  * @returns The repository instance or undefined if not found
  */
-export function getTabularRepository(id: string): AnyTabularRepository | undefined {
+export function getTabularRepository(id: string): AnyTabularStorage | undefined {
   return getGlobalTabularRepositories().get(id);
 }
 
@@ -64,7 +64,7 @@ function resolveRepositoryFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): AnyTabularRepository {
+): AnyTabularStorage {
   const repos = registry.has(TABULAR_REPOSITORIES)
     ? registry.get(TABULAR_REPOSITORIES)
     : getGlobalTabularRepositories();

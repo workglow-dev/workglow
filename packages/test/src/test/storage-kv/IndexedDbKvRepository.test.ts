@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IndexedDbKvRepository } from "@workglow/storage";
+import { IndexedDbKvStorage } from "@workglow/storage";
 import { uuid4 } from "@workglow/util";
 import "fake-indexeddb/auto";
 import { describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
-describe("IndexedDbKvRepository", () => {
+describe("IndexedDbKvStorage", () => {
   const dbName = `idx_test_${uuid4().replace(/-/g, "_")}`;
 
   runGenericKvRepositoryTests(
-    async (keyType, valueType) => new IndexedDbKvRepository(`${dbName}`, keyType, valueType)
+    async (keyType, valueType) => new IndexedDbKvStorage(`${dbName}`, keyType, valueType)
   );
 });

@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SqliteKvRepository } from "@workglow/storage";
+import { SqliteKvStorage } from "@workglow/storage";
 import { uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
-describe("SqliteKvRepository", () => {
+describe("SqliteKvStorage", () => {
   runGenericKvRepositoryTests(
     async (keyType, valueType) =>
-      new SqliteKvRepository(
+      new SqliteKvStorage(
         ":memory:",
         `sql_test_${uuid4().replace(/-/g, "_")}`,
         keyType,

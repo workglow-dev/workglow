@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type BaseTabularRepository } from "@workglow/storage";
+import { type BaseTabularStorage } from "@workglow/storage";
 import { EventEmitter, EventParameters } from "@workglow/util";
 
 import { ModelPrimaryKeyNames, ModelRecord, ModelRecordSchema } from "./ModelSchema";
@@ -37,12 +37,12 @@ export class ModelRepository {
   /**
    * Repository for storing and managing Model instances
    */
-  protected readonly modelTabularRepository: BaseTabularRepository<
+  protected readonly modelTabularRepository: BaseTabularStorage<
     typeof ModelRecordSchema,
     typeof ModelPrimaryKeyNames
   >;
   constructor(
-    modelTabularRepository: BaseTabularRepository<
+    modelTabularRepository: BaseTabularStorage<
       typeof ModelRecordSchema,
       typeof ModelPrimaryKeyNames
     >

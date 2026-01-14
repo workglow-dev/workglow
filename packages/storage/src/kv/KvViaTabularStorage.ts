@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { BaseTabularRepository } from "../tabular/BaseTabularRepository";
-import { DefaultKeyValueKey, DefaultKeyValueSchema } from "./IKvRepository";
-import { KvRepository } from "./KvRepository";
+import type { BaseTabularStorage } from "../tabular/BaseTabularStorage";
+import { DefaultKeyValueKey, DefaultKeyValueSchema } from "./IKvStorage";
+import { KvStorage } from "./KvStorage";
 
 /**
  * Abstract base class for key-value storage repositories that uses a tabular repository for storage.
@@ -16,12 +16,12 @@ import { KvRepository } from "./KvRepository";
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export abstract class KvViaTabularRepository<
+export abstract class KvViaTabularStorage<
   Key extends string = string,
   Value extends any = any,
   Combined = { key: Key; value: Value },
-> extends KvRepository<Key, Value, Combined> {
-  public abstract tabularRepository: BaseTabularRepository<
+> extends KvStorage<Key, Value, Combined> {
+  public abstract tabularRepository: BaseTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;

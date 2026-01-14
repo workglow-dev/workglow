@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FsFolderKvRepository } from "@workglow/storage";
+import { FsFolderKvStorage } from "@workglow/storage";
 import { mkdirSync, rmSync } from "fs";
 import { afterEach, beforeEach, describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
 const testDir = ".cache/test/kv-fs-folder";
 
-describe("FsFolderKvRepository", () => {
+describe("FsFolderKvStorage", () => {
   beforeEach(() => {
     try {
       mkdirSync(testDir, { recursive: true });
@@ -30,7 +30,7 @@ describe("FsFolderKvRepository", () => {
       typeof valueType === "object" && valueType !== null && "type" in valueType
         ? String(valueType.type)
         : "data";
-    return new FsFolderKvRepository(
+    return new FsFolderKvStorage(
       testDir,
       (key) => `${String(key)}.${schemaType}`,
       keyType,

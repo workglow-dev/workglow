@@ -13,9 +13,9 @@ import {
   TypedArraySchemaOptions,
 } from "@workglow/util";
 import type { Pool } from "pg";
-import { BaseSqlTabularRepository } from "./BaseSqlTabularRepository";
+import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
   isSearchCondition,
   SearchOperator,
@@ -23,31 +23,31 @@ import {
   TabularChangePayload,
   TabularSubscribeOptions,
   ValueOptionType,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
-export const POSTGRES_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const POSTGRES_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.postgres"
 );
 
 /**
- * A PostgreSQL-based tabular repository implementation that extends BaseSqlTabularRepository.
+ * A PostgreSQL-based tabular repository implementation that extends BaseSqlTabularStorage.
  * This class provides persistent storage for data in a PostgreSQL database,
  * making it suitable for multi-user scenarios.
  *
  * @template Schema - The schema definition for the entity
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class PostgresTabularRepository<
+export class PostgresTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseSqlTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   protected db: Pool;
 
   /**
-   * Creates a new PostgresTabularRepository instance.
+   * Creates a new PostgresTabularStorage instance.
    *
    * @param db - PostgreSQL db
    * @param table - Name of the table to store data (defaults to "tabular_store")
@@ -817,7 +817,7 @@ export class PostgresTabularRepository<
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
-    throw new Error("subscribeToChanges is not supported for PostgresTabularRepository");
+    throw new Error("subscribeToChanges is not supported for PostgresTabularStorage");
   }
 
   /**

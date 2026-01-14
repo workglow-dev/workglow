@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DefaultKeyValueSchema, IKvRepository } from "@workglow/storage";
+import { DefaultKeyValueSchema, IKvStorage } from "@workglow/storage";
 import { FromSchema, JsonSchema } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 export function runGenericKvRepositoryTests(
-  createRepository: (keyType: JsonSchema, valueType: JsonSchema) => Promise<IKvRepository<any, any>>
+  createRepository: (keyType: JsonSchema, valueType: JsonSchema) => Promise<IKvStorage<any, any>>
 ) {
   describe("with default schemas (key and value)", () => {
-    let repository: IKvRepository<
+    let repository: IKvStorage<
       FromSchema<typeof DefaultKeyValueSchema.properties.key>,
       FromSchema<typeof DefaultKeyValueSchema.properties.value>
     >;
@@ -64,7 +64,7 @@ export function runGenericKvRepositoryTests(
   });
 
   describe("with json value", () => {
-    let repository: IKvRepository<string, { option: string; success: boolean }>;
+    let repository: IKvStorage<string, { option: string; success: boolean }>;
 
     beforeEach(async () => {
       repository = (await createRepository(
@@ -77,7 +77,7 @@ export function runGenericKvRepositoryTests(
           },
           additionalProperties: false,
         }
-      )) as IKvRepository<string, { option: string; success: boolean }>;
+      )) as IKvStorage<string, { option: string; success: boolean }>;
       await (repository as any).setupDatabase?.();
     });
 

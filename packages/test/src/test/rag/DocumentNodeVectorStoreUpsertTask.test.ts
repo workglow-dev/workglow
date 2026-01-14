@@ -5,14 +5,14 @@
  */
 
 import { ChunkVectorUpsertTask } from "@workglow/ai";
-import { InMemoryChunkVectorRepository, registerChunkVectorRepository } from "@workglow/storage";
+import { InMemoryChunkVectorStorage, registerChunkVectorRepository } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("ChunkVectorUpsertTask", () => {
-  let repo: InMemoryChunkVectorRepository;
+  let repo: InMemoryChunkVectorStorage;
 
   beforeEach(async () => {
-    repo = new InMemoryChunkVectorRepository(3);
+    repo = new InMemoryChunkVectorStorage(3);
     await repo.setupDatabase();
   });
 
@@ -34,10 +34,10 @@ describe("ChunkVectorUpsertTask", () => {
 
     expect(result.count).toBe(1);
     expect(result.doc_id).toBe("doc1");
-    expect(result.ids).toHaveLength(1);
+    expect(result.chunk_ids).toHaveLength(1);
 
     // Verify vector was stored
-    const retrieved = await repo.get({ chunk_id: result.ids[0] });
+    const retrieved = await repo.get({ chunk_id: result.chunk_ids[0] });
     expect(retrieved).toBeDefined();
     expect(retrieved?.doc_id).toBe("doc1");
     expect(retrieved!.metadata).toEqual(metadata);
@@ -61,11 +61,11 @@ describe("ChunkVectorUpsertTask", () => {
 
     expect(result.count).toBe(3);
     expect(result.doc_id).toBe("doc1");
-    expect(result.ids).toHaveLength(3);
+    expect(result.chunk_ids).toHaveLength(3);
 
     // Verify all vectors were stored
     for (let i = 0; i < 3; i++) {
-      const retrieved = await repo.get({ chunk_id: result.ids[i] });
+      const retrieved = await repo.get({ chunk_id: result.chunk_ids[i] });
       expect(retrieved).toBeDefined();
       expect(retrieved?.doc_id).toBe("doc1");
       expect(retrieved!.metadata).toEqual(metadata);
@@ -87,7 +87,7 @@ describe("ChunkVectorUpsertTask", () => {
     expect(result.count).toBe(1);
     expect(result.doc_id).toBe("doc1");
 
-    const retrieved = await repo.get({ chunk_id: result.ids[0] });
+    const retrieved = await repo.get({ chunk_id: result.chunk_ids[0] });
     expect(retrieved).toBeDefined();
     expect(retrieved!.metadata).toEqual(metadata);
   });
@@ -116,7 +116,7 @@ describe("ChunkVectorUpsertTask", () => {
       metadata: metadata2,
     });
 
-    const retrieved = await repo.get({ chunk_id: result2.ids[0] });
+    const retrieved = await repo.get({ chunk_id: result2.chunk_ids[0] });
     expect(retrieved).toBeDefined();
     expect(retrieved!.metadata).toEqual(metadata2);
   });
@@ -151,7 +151,7 @@ describe("ChunkVectorUpsertTask", () => {
 
     expect(result.count).toBe(1);
 
-    const retrieved = await repo.get({ chunk_id: result.ids[0] });
+    const retrieved = await repo.get({ chunk_id: result.chunk_ids[0] });
     expect(retrieved).toBeDefined();
     expect(retrieved?.vector).toBeInstanceOf(Int8Array);
   });
@@ -170,7 +170,7 @@ describe("ChunkVectorUpsertTask", () => {
 
     expect(result.count).toBe(1);
 
-    const retrieved = await repo.get({ chunk_id: result.ids[0] });
+    const retrieved = await repo.get({ chunk_id: result.chunk_ids[0] });
     expect(retrieved!.metadata).toEqual(metadata);
   });
 
@@ -191,7 +191,7 @@ describe("ChunkVectorUpsertTask", () => {
     });
 
     expect(result.count).toBe(count);
-    expect(result.ids).toHaveLength(count);
+    expect(result.chunk_ids).toHaveLength(count);
 
     const size = await repo.size();
     expect(size).toBe(count);
@@ -217,7 +217,7 @@ describe("ChunkVectorUpsertTask", () => {
     expect(result.doc_id).toBe("doc1");
 
     // Verify vector was stored
-    const retrieved = await repo.get({ chunk_id: result.ids[0] });
+    const retrieved = await repo.get({ chunk_id: result.chunk_ids[0] });
     expect(retrieved).toBeDefined();
     expect(retrieved?.doc_id).toBe("doc1");
     expect(retrieved!.metadata).toEqual(metadata);

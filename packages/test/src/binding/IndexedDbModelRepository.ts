@@ -5,7 +5,7 @@
  */
 
 import { ModelPrimaryKeyNames, ModelRecordSchema, ModelRepository } from "@workglow/ai";
-import { IndexedDbTabularRepository } from "@workglow/storage";
+import { IndexedDbTabularStorage } from "@workglow/storage";
 
 /**
  * IndexedDB implementation of a model repository.
@@ -13,6 +13,6 @@ import { IndexedDbTabularRepository } from "@workglow/storage";
  */
 export class IndexedDbModelRepository extends ModelRepository {
   constructor(tableModels: string = "models") {
-    super(new IndexedDbTabularRepository(tableModels, ModelRecordSchema, ModelPrimaryKeyNames));
+    super(new IndexedDbTabularStorage(tableModels, ModelRecordSchema, ModelPrimaryKeyNames));
   }
 }

@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryKvRepository } from "@workglow/storage";
+import { InMemoryKvStorage } from "@workglow/storage";
 import { describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
-describe("InMemoryKvRepository", () => {
+describe("InMemoryKvStorage", () => {
   runGenericKvRepositoryTests(
-    async (keyType, valueType) => new InMemoryKvRepository(keyType, valueType)
+    async (keyType, valueType) => new InMemoryKvStorage(keyType, valueType)
   );
 });

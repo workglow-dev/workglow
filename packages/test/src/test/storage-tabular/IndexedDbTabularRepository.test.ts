@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IndexedDbTabularRepository } from "@workglow/storage";
+import { IndexedDbTabularStorage } from "@workglow/storage";
 import type { DataPortSchemaObject, FromSchema } from "@workglow/util";
 import { uuid4 } from "@workglow/util";
 import "fake-indexeddb/auto";
@@ -21,25 +21,25 @@ import {
   SearchSchema,
 } from "./genericTabularRepositoryTests";
 
-describe("IndexedDbTabularRepository", () => {
+describe("IndexedDbTabularStorage", () => {
   const dbName = `idx_test_${uuid4().replace(/-/g, "_")}`;
 
   runGenericTabularRepositoryTests(
     async () =>
-      new IndexedDbTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      new IndexedDbTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         `${dbName}_complex`,
         CompoundSchema,
         CompoundPrimaryKeyNames
       ),
     async () =>
-      new IndexedDbTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+      new IndexedDbTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
         `${dbName}_compound`,
         SearchSchema,
         SearchPrimaryKeyNames,
         ["category", ["category", "subcategory"], ["subcategory", "category"], "value"]
       ),
     async () => {
-      const repo = new IndexedDbTabularRepository<
+      const repo = new IndexedDbTabularStorage<
         typeof AllTypesSchema,
         typeof AllTypesPrimaryKeyNames
       >(`${dbName}_alltypes`, AllTypesSchema, AllTypesPrimaryKeyNames);
@@ -52,7 +52,7 @@ describe("IndexedDbTabularRepository", () => {
     async () => {
       // Use a unique database name for each test to avoid conflicts
       const uniqueDbName = `${dbName}_subscription_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      return new IndexedDbTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      return new IndexedDbTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         uniqueDbName,
         CompoundSchema,
         CompoundPrimaryKeyNames,
@@ -99,14 +99,14 @@ describe("IndexedDbTabularRepository", () => {
     type OptionalEntity = FromSchema<typeof OptionalColumnsSchema>;
 
     describe("with all required columns (efficient cursor-based)", () => {
-      let repo: IndexedDbTabularRepository<
+      let repo: IndexedDbTabularStorage<
         typeof RequiredColumnsSchema,
         typeof RequiredColumnsPK,
         RequiredEntity
       >;
 
       beforeEach(async () => {
-        repo = new IndexedDbTabularRepository(
+        repo = new IndexedDbTabularStorage(
           `${dbName}_required`,
           RequiredColumnsSchema,
           RequiredColumnsPK,
@@ -192,7 +192,7 @@ describe("IndexedDbTabularRepository", () => {
     });
 
     describe("with optional columns (full table scan)", () => {
-      let repo: IndexedDbTabularRepository<
+      let repo: IndexedDbTabularStorage<
         typeof OptionalColumnsSchema,
         typeof OptionalColumnsPK,
         OptionalEntity,
@@ -200,7 +200,7 @@ describe("IndexedDbTabularRepository", () => {
       >;
 
       beforeEach(async () => {
-        repo = new IndexedDbTabularRepository(
+        repo = new IndexedDbTabularStorage(
           `${dbName}_optional`,
           OptionalColumnsSchema,
           OptionalColumnsPK,
