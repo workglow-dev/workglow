@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyChunkVectorStorage, TypeChunkVectorRepository } from "@workglow/dataset";
+import { DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -25,7 +25,7 @@ import { TextEmbeddingTask } from "./TextEmbeddingTask";
 const inputSchema = {
   type: "object",
   properties: {
-    repository: TypeChunkVectorRepository({
+    dataset: TypeDocumentChunkDataset({
       title: "Document Chunk Vector Repository",
       description: "The document chunk vector repository instance to search in",
     }),
@@ -72,14 +72,14 @@ const inputSchema = {
       default: false,
     },
   },
-  required: ["repository", "query"],
+  required: ["dataset", "query"],
   if: {
     properties: {
       query: { type: "string" },
     },
   },
   then: {
-    required: ["repository", "query", "model"],
+    required: ["dataset", "query", "model"],
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -162,7 +162,7 @@ export class DocumentNodeRetrievalTask extends Task<
 
   async execute(input: RetrievalTaskInput, context: IExecuteContext): Promise<RetrievalTaskOutput> {
     const {
-      repository,
+      dataset,
       query,
       topK = 5,
       filter,
@@ -172,7 +172,7 @@ export class DocumentNodeRetrievalTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as AnyChunkVectorStorage;
+    const repo = dataset as DocumentChunkDataset;
 
     // Determine query vector
     let queryVector: TypedArray;

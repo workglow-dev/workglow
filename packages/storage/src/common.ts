@@ -24,7 +24,5 @@ export * from "./queue-limiter/IRateLimiterStorage";
 export * from "./util/HybridSubscriptionManager";
 export * from "./util/PollingSubscriptionManager";
 
-export * from "./vector/ChunkVectorSchema";
-export * from "./vector/ChunkVectorStorageRegistry";
-export * from "./vector/IChunkVectorStorage";
-export * from "./vector/InMemoryChunkVectorStorage";
+export * from "./vector/InMemoryVectorStorage";
+export * from "./vector/IVectorStorage";

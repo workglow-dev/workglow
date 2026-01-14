@@ -25,8 +25,8 @@ export * from "./queue-limiter/PostgresRateLimiterStorage";
 export * from "./queue-limiter/SqliteRateLimiterStorage";
 export * from "./queue-limiter/SupabaseRateLimiterStorage";
 
-export * from "./vector/PostgresChunkVectorStorage";
-export * from "./vector/SqliteChunkVectorStorage";
+export * from "./vector/PostgresVectorStorage";
+export * from "./vector/SqliteVectorStorage";
 
 // testing
 export * from "./kv/IndexedDbKvStorage";

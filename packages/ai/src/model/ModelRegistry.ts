@@ -59,7 +59,7 @@ async function resolveModelFromRegistry(
 
   if (Array.isArray(id)) {
     const results = await Promise.all(id.map((i) => modelRepo.findByName(i)));
-    return results.filter((model) => model !== undefined) as ModelConfig[];
+    return results.filter((model): model is NonNullable<typeof model> => model !== undefined);
   }
 
   const model = await modelRepo.findByName(id);

@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "include": ["src/common.ts", "src/common-server.ts", "src/*/**/*"],
   "files": ["./src/types.ts"],
-  "exclude": ["dist", "src/chunk-vector/PostgresChunkVectorStorage.ts", "src/chunk-vector/SqliteChunkVectorStorage.ts"],
+  "exclude": ["dist"],
   "compilerOptions": {
     "composite": true,
     "outDir": "./dist",

@@ -5,8 +5,9 @@
  */
 
 import { hierarchicalChunker } from "@workglow/ai";
-import { estimateTokens, NodeIdGenerator, StructuralParser } from "@workglow/dataset";
+import { estimateTokens, StructuralParser } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
+import { uuid4 } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
 describe("HierarchicalChunkerTask", () => {
@@ -19,7 +20,7 @@ This is a paragraph that should fit in one chunk.
 
 This is another paragraph.`;
 
-    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
     const result = await hierarchicalChunker({
@@ -52,7 +53,7 @@ This is another paragraph.`;
     const longText = "Lorem ipsum dolor sit amet. ".repeat(100);
     const markdown = `# Section\n\n${longText}`;
 
-    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Long");
 
     const maxTokens = 100;
@@ -78,7 +79,7 @@ This is another paragraph.`;
     const text = "Word ".repeat(200);
     const markdown = `# Section\n\n${text}`;
 
-    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Overlap");
 
     const maxTokens = 50;
@@ -117,7 +118,7 @@ Paragraph 1.
 
 Paragraph 2.`;
 
-    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Flat");
 
     const result = await new Workflow()
@@ -141,7 +142,7 @@ Paragraph 2.`;
 
 Paragraph content.`;
 
-    const doc_id = await NodeIdGenerator.generateDocId("test", markdown);
+    const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Paths");
 
     const result = await hierarchicalChunker({

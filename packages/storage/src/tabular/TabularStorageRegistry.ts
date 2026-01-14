@@ -70,10 +70,10 @@ function resolveRepositoryFromRegistry(
     : getGlobalTabularRepositories();
   const repo = repos.get(id);
   if (!repo) {
-    throw new Error(`Tabular repository "${id}" not found in registry`);
+    throw new Error(`Tabular storage "${id}" not found in registry`);
   }
   return repo;
 }
 
-// Register the repository resolver for format: "repository:tabular"
-registerInputResolver("repository:tabular", resolveRepositoryFromRegistry);
+// Register the repository resolver for format: "storage:tabular"
+registerInputResolver("storage:tabular", resolveRepositoryFromRegistry);

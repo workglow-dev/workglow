@@ -239,7 +239,7 @@ The TaskRunner automatically resolves schema-annotated string inputs to their co
 
 ### How It Works
 
-When a task's input schema includes properties with `format` annotations (such as `"model"`, `"model:TaskName"`, or `"repository:tabular"`), the TaskRunner inspects each input property:
+When a task's input schema includes properties with `format` annotations (such as `"model"`, `"model:TaskName"`, or `"storage:tabular"`), the TaskRunner inspects each input property:
 
 - **String values** are looked up in the appropriate registry and resolved to instances
 - **Object values** (already instances) pass through unchanged

@@ -1,13 +1,13 @@
-# Chunk Vector Storage Module
+# Vector Storage Module
 
-Storage for document chunk embeddings with vector similarity search capabilities. Extends the tabular repository pattern to add vector search functionality for RAG (Retrieval-Augmented Generation) pipelines.
+General-purpose vector storage with similarity search capabilities. Schema-driven approach that automatically detects vector and metadata columns. Extends the tabular storage pattern to add vector search functionality.
 
 ## Features
 
 - **Multiple Storage Backends:**
-  - 🧠 `InMemoryChunkVectorStorage` - Fast in-memory storage for testing and small datasets
-  - 📁 `SqliteChunkVectorStorage` - Persistent SQLite storage for local applications
-  - 🐘 `PostgresChunkVectorStorage` - PostgreSQL with pgvector extension for production
+  - 🧠 `InMemoryVectorStorage` - Fast in-memory storage for testing and small datasets
+  - 📁 `SqliteVectorStorage` - Persistent SQLite storage for local applications
+  - 🐘 `PostgresVectorStorage` - PostgreSQL with pgvector extension for production
 
 - **Quantized Vector Support:**
   - Float32Array (standard 32-bit floating point)
@@ -37,24 +37,40 @@ bun install @workglow/storage
 
 ## Usage
 
-### In-Memory Repository (Testing/Development)
+### In-Memory Storage (Testing/Development)
 
 ```typescript
-import { InMemoryChunkVectorStorage } from "@workglow/storage";
+import { InMemoryVectorStorage } from "@workglow/storage";
+import { TypedArraySchema } from "@workglow/util";
 
-// Create repository with 384 dimensions
-const repo = new InMemoryChunkVectorStorage(384);
+// Define your schema with a vector column
+const MyVectorSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    embedding: TypedArraySchema(), // Vector column (automatically detected)
+    metadata: { type: "object", format: "metadata", additionalProperties: true },
+  },
+  additionalProperties: false,
+} as const;
+
+// Create repository with schema
+const repo = new InMemoryVectorStorage(
+  MyVectorSchema,
+  ["id"], // Primary key
+  [], // Indexes (optional)
+  384 // Vector dimensions
+);
 await repo.setupDatabase();
 
-// Store a chunk with its embedding
+// Store entities with embeddings
 await repo.put({
-  chunk_id: "chunk-001",
-  doc_id: "doc-001",
-  vector: new Float32Array([0.1, 0.2, 0.3 /* ... 384 dims */]),
+  id: "item-001",
+  embedding: new Float32Array([0.1, 0.2, 0.3 /* ... 384 dims */]),
   metadata: { text: "Hello world", source: "example.txt" },
 });
 
-// Search for similar chunks
+// Search for similar vectors
 const results = await repo.similaritySearch(new Float32Array([0.15, 0.25, 0.35 /* ... */]), {
   topK: 5,
   scoreThreshold: 0.7,
@@ -64,40 +80,70 @@ const results = await repo.similaritySearch(new Float32Array([0.15, 0.25, 0.35 /
 ### Quantized Vectors (Reduced Storage)
 
 ```typescript
-import { InMemoryChunkVectorStorage } from "@workglow/storage";
+import { InMemoryVectorStorage } from "@workglow/storage";
+import { TypedArraySchema } from "@workglow/util";
+
+const QuantizedSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    embedding: TypedArraySchema(),
+    tags: { type: "object", format: "metadata", additionalProperties: true },
+  },
+  additionalProperties: false,
+} as const;
 
 // Use Int8Array for 4x smaller storage (binary quantization)
-const repo = new InMemoryChunkVectorStorage<{ text: string }, Int8Array>(384, Int8Array);
+const repo = new InMemoryVectorStorage(
+  QuantizedSchema,
+  ["id"],
+  [],
+  384,
+  Int8Array // Specify vector type
+);
 await repo.setupDatabase();
 
 // Store quantized vectors
 await repo.put({
-  chunk_id: "chunk-001",
-  doc_id: "doc-001",
-  vector: new Int8Array([127, -128, 64 /* ... */]),
-  metadata: { category: "ai" },
+  id: "item-001",
+  embedding: new Int8Array([127, -128, 64 /* ... */]),
+  tags: { category: "ai" },
 });
 
 // Search with quantized query
 const results = await repo.similaritySearch(new Int8Array([100, -50, 75 /* ... */]), { topK: 5 });
 ```
 
-### SQLite Repository (Local Persistence)
+### SQLite Storage (Local Persistence)
 
 ```typescript
-import { SqliteChunkVectorStorage } from "@workglow/storage";
+import { SqliteVectorStorage } from "@workglow/storage";
+import { TypedArraySchema } from "@workglow/util";
 
-const repo = new SqliteChunkVectorStorage<{ text: string }>(
-  "./vectors.db", // database path
-  "chunks",       // table name
-  768             // vector dimension
+const MySchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    vector: TypedArraySchema(),
+    data: { type: "object", format: "metadata", additionalProperties: true },
+  },
+  additionalProperties: false,
+} as const;
+
+const repo = new SqliteVectorStorage(
+  "./vectors.db",  // database path
+  "vectors",       // table name
+  MySchema,
+  ["id"],
+  [],
+  768              // vector dimension
 );
 await repo.setupDatabase();
 
 // Bulk insert using inherited tabular methods
 await repo.putMany([
-  { chunk_id: "1", doc_id: "doc1", vector: new Float32Array([...]), metadata: { text: "..." } },
-  { chunk_id: "2", doc_id: "doc1", vector: new Float32Array([...]), metadata: { text: "..." } },
+  { id: "1", vector: new Float32Array([...]), data: { text: "..." } },
+  { id: "2", vector: new Float32Array([...]), data: { text: "..." } },
 ]);
 ```
 
@@ -105,12 +151,26 @@ await repo.putMany([
 
 ```typescript
 import { Pool } from "pg";
-import { PostgresChunkVectorStorage } from "@workglow/storage";
+import { PostgresVectorStorage } from "@workglow/storage";
+import { TypedArraySchema } from "@workglow/util";
+
+const MySchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    vector: TypedArraySchema(),
+    info: { type: "object", format: "metadata", additionalProperties: true },
+  },
+  additionalProperties: false,
+} as const;
 
 const pool = new Pool({ connectionString: "postgresql://..." });
-const repo = new PostgresChunkVectorStorage<{ text: string; category: string }>(
+const repo = new PostgresVectorStorage(
   pool,
-  "chunks",
+  "vectors",
+  MySchema,
+  ["id"],
+  [],
   384 // vector dimension
 );
 await repo.setupDatabase();
@@ -131,40 +191,35 @@ const hybridResults = await repo.hybridSearch(queryVector, {
 });
 ```
 
-## Data Model
+## Schema-Driven Design
 
-### ChunkVector Schema
-
-Each chunk vector entry contains:
+The vector storage automatically detects which column contains the vector by looking for properties with `format: "TypedArray"` in your schema:
 
 ```typescript
-interface ChunkVector<
-  Metadata extends Record<string, unknown> = Record<string, unknown>,
-  Vector extends TypedArray = Float32Array,
-> {
-  chunk_id: string; // Unique identifier for the chunk
-  doc_id: string; // Parent document identifier
-  vector: Vector; // Embedding vector
-  metadata: Metadata; // Custom metadata (text content, entities, etc.)
-}
-```
+import { TypedArraySchema } from "@workglow/util";
 
-### Default Schema
-
-```typescript
-const ChunkVectorSchema = {
+// Vector column is automatically detected by the storage implementation
+const MySchema = {
   type: "object",
   properties: {
-    chunk_id: { type: "string" },
-    doc_id: { type: "string" },
-    vector: TypedArraySchema(),
-    metadata: { type: "object", additionalProperties: true },
+    id: { type: "string" },
+    embedding: TypedArraySchema(), // ← Detected as vector column
+    metadata: {
+      type: "object",
+      format: "metadata", // ← Detected as metadata column (optional)
+      additionalProperties: true,
+    },
+    created_at: { type: "string" },
   },
   additionalProperties: false,
 } as const;
-
-const ChunkVectorKey = ["chunk_id"] as const;
 ```
+
+**Key Points:**
+
+- **Vector Column**: Any property with `type: "array"` and `format: "TypedArray"` (or `format: "TypedArray:*"`)
+- **Metadata Column**: Any property with `type: "object"` and `format: "metadata"` (optional, used for filtering)
+- **Flexible Schema**: Add any additional properties you need - the storage will work with your schema
 
 ## API Reference
 
@@ -237,11 +292,8 @@ interface HybridSearchOptions<Metadata> extends VectorSearchOptions<Metadata> {
 Register and retrieve chunk vector repositories globally:
 
 ```typescript
-import {
-  registerChunkVectorRepository,
-  getChunkVectorRepository,
-  getGlobalChunkVectorRepositories,
-} from "@workglow/storage";
+import { getChunkVectorRepository, getGlobalChunkVectorRepositories } from "@workglow/storage";
+import { registerChunkVectorRepository, getGlobalChunkVectorRepositories } from "@workglow/dataset";
 
 // Register a repository
 registerChunkVectorRepository("my-chunks", repo);

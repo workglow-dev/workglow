@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { NodeIdGenerator } from "./DocumentNode";
+import { uuid4 } from "@workglow/util";
 import {
   type DocumentRootNode,
   NodeKind,
@@ -28,10 +28,7 @@ export class StructuralParser {
     let currentOffset = 0;
 
     const root: DocumentRootNode = {
-      nodeId: await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.DOCUMENT, {
-        startOffset: 0,
-        endOffset: text.length,
-      }),
+      nodeId: uuid4(),
       kind: NodeKind.DOCUMENT,
       range: { startOffset: 0, endOffset: text.length },
       text: title,
@@ -51,10 +48,7 @@ export class StructuralParser {
           const paragraphEndOffset = currentOffset;
 
           const paragraph: ParagraphNode = {
-            nodeId: await NodeIdGenerator.generateChildNodeId(
-              currentParentStack[currentParentStack.length - 1].nodeId,
-              currentParentStack[currentParentStack.length - 1].children.length
-            ),
+            nodeId: uuid4(),
             kind: NodeKind.PARAGRAPH,
             range: {
               startOffset: paragraphStartOffset,
@@ -102,10 +96,7 @@ export class StructuralParser {
 
         const sectionStartOffset = currentOffset;
         const section: SectionNode = {
-          nodeId: await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.SECTION, {
-            startOffset: sectionStartOffset,
-            endOffset: text.length, // Will be updated when section closes
-          }),
+          nodeId: uuid4(),
           kind: NodeKind.SECTION,
           level,
           title: headerTitle,
@@ -159,10 +150,7 @@ export class StructuralParser {
     title: string
   ): Promise<DocumentRootNode> {
     const root: DocumentRootNode = {
-      nodeId: await NodeIdGenerator.generateStructuralNodeId(doc_id, NodeKind.DOCUMENT, {
-        startOffset: 0,
-        endOffset: text.length,
-      }),
+      nodeId: uuid4(),
       kind: NodeKind.DOCUMENT,
       range: { startOffset: 0, endOffset: text.length },
       text: title,
@@ -186,7 +174,7 @@ export class StructuralParser {
         const endOffset = startOffset + paragraphText.length;
 
         const paragraph: ParagraphNode = {
-          nodeId: await NodeIdGenerator.generateChildNodeId(root.nodeId, paragraphIndex),
+          nodeId: uuid4(),
           kind: NodeKind.PARAGRAPH,
           range: {
             startOffset,
@@ -213,7 +201,7 @@ export class StructuralParser {
         const endOffset = startOffset + paragraphText.length;
 
         const paragraph: ParagraphNode = {
-          nodeId: await NodeIdGenerator.generateChildNodeId(root.nodeId, paragraphIndex),
+          nodeId: uuid4(),
           kind: NodeKind.PARAGRAPH,
           range: {
             startOffset,

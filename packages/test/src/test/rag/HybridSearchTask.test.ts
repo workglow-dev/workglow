@@ -5,15 +5,36 @@
  */
 
 import { hybridSearch } from "@workglow/ai";
-import { InMemoryChunkVectorStorage, registerChunkVectorRepository } from "@workglow/dataset";
+import {
+  DocumentChunk,
+  DocumentChunkDataset,
+  DocumentChunkPrimaryKey,
+  DocumentChunkSchema,
+  registerDocumentChunkDataset,
+} from "@workglow/dataset";
+import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("ChunkVectorHybridSearchTask", () => {
-  let repo: InMemoryChunkVectorStorage;
+  let storage: InMemoryVectorStorage<
+    typeof DocumentChunkSchema,
+    typeof DocumentChunkPrimaryKey,
+    Record<string, unknown>,
+    Float32Array,
+    DocumentChunk
+  >;
+  let dataset: DocumentChunkDataset;
 
   beforeEach(async () => {
-    repo = new InMemoryChunkVectorStorage(3);
-    await repo.setupDatabase();
+    storage = new InMemoryVectorStorage<
+      typeof DocumentChunkSchema,
+      typeof DocumentChunkPrimaryKey,
+      Record<string, unknown>,
+      Float32Array,
+      DocumentChunk
+    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
+    await storage.setupDatabase();
+    dataset = new DocumentChunkDataset(storage);
 
     // Populate repository with test data
     const vectors = [
@@ -34,17 +55,17 @@ describe("ChunkVectorHybridSearchTask", () => {
 
     for (let i = 0; i < vectors.length; i++) {
       const doc_id = `doc${i + 1}`;
-      await repo.put({
-        id: `${doc_id}_0`,
+      await dataset.put({
+        chunk_id: `${doc_id}_0`,
         doc_id,
-        vector: vectors[i] as any,
+        vector: vectors[i],
         metadata: metadata[i],
-      } as any);
+      });
     }
   });
 
   afterEach(() => {
-    repo.destroy();
+    storage.destroy();
   });
 
   test("should perform hybrid search with vector and text query", async () => {
@@ -52,7 +73,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine learning";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -75,7 +96,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
@@ -95,7 +116,7 @@ describe("ChunkVectorHybridSearchTask", () => {
 
     // Test with high vector weight
     const resultHighVector = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
@@ -104,7 +125,7 @@ describe("ChunkVectorHybridSearchTask", () => {
 
     // Test with low vector weight (high text weight)
     const resultHighText = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
@@ -121,7 +142,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -138,7 +159,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -153,7 +174,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "learning";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 10,
@@ -171,7 +192,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 10,
@@ -189,7 +210,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "document";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 2,
@@ -204,7 +225,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "learning";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
     });
@@ -219,7 +240,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
@@ -236,7 +257,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      repository: repo,
+      dataset,
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -247,15 +268,15 @@ describe("ChunkVectorHybridSearchTask", () => {
   });
 
   test("should resolve repository from string ID", async () => {
-    // Register repository by ID
-    registerChunkVectorRepository("test-hybrid-repo", repo);
+    // Register dataset by ID
+    registerDocumentChunkDataset("test-hybrid-repo", dataset);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "machine learning";
 
     // Pass repository as string ID instead of instance
     const result = await hybridSearch({
-      repository: "test-hybrid-repo" as any,
+      dataset: "test-hybrid-repo",
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,

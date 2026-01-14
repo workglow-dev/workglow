@@ -9,7 +9,6 @@ import {
   estimateTokens,
   getChildren,
   hasChildren,
-  NodeIdGenerator,
   type ChunkNode,
   type DocumentNode,
   type TokenBudget,
@@ -21,7 +20,7 @@ import {
   Task,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema, uuid4 } from "@workglow/util";
 
 const inputSchema = {
   type: "object",
@@ -207,7 +206,7 @@ export class HierarchicalChunkerTask extends Task<
 
     if (estimateTokens(text) <= tokenBudget.maxTokensPerChunk - tokenBudget.reservedTokens) {
       // Text fits in one chunk
-      const chunkId = await NodeIdGenerator.generateChunkId(doc_id, leafNodeId, 0);
+      const chunkId = uuid4();
       chunks.push({
         chunkId,
         doc_id,
@@ -226,7 +225,7 @@ export class HierarchicalChunkerTask extends Task<
       const endOffset = Math.min(startOffset + maxChars, text.length);
       const chunkText = text.substring(startOffset, endOffset);
 
-      const chunkId = await NodeIdGenerator.generateChunkId(doc_id, leafNodeId, chunkOrdinal);
+      const chunkId = uuid4();
 
       chunks.push({
         chunkId,

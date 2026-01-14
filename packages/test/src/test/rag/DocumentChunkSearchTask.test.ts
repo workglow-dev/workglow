@@ -5,15 +5,36 @@
  */
 
 import { ChunkVectorSearchTask } from "@workglow/ai";
-import { InMemoryChunkVectorStorage, registerChunkVectorRepository } from "@workglow/dataset";
+import {
+  DocumentChunk,
+  DocumentChunkDataset,
+  DocumentChunkPrimaryKey,
+  DocumentChunkSchema,
+  registerDocumentChunkDataset,
+} from "@workglow/dataset";
+import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("ChunkVectorSearchTask", () => {
-  let repo: InMemoryChunkVectorStorage;
+  let storage: InMemoryVectorStorage<
+    typeof DocumentChunkSchema,
+    typeof DocumentChunkPrimaryKey,
+    Record<string, unknown>,
+    Float32Array,
+    DocumentChunk
+  >;
+  let dataset: DocumentChunkDataset;
 
   beforeEach(async () => {
-    repo = new InMemoryChunkVectorStorage(3);
-    await repo.setupDatabase();
+    storage = new InMemoryVectorStorage<
+      typeof DocumentChunkSchema,
+      typeof DocumentChunkPrimaryKey,
+      Record<string, unknown>,
+      Float32Array,
+      DocumentChunk
+    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
+    await storage.setupDatabase();
+    dataset = new DocumentChunkDataset(storage);
 
     // Populate repository with test data
     const vectors = [
@@ -34,7 +55,7 @@ describe("ChunkVectorSearchTask", () => {
 
     for (let i = 0; i < vectors.length; i++) {
       const doc_id = `doc${i + 1}`;
-      await repo.put({
+      await dataset.put({
         chunk_id: `${doc_id}_0`,
         doc_id,
         vector: vectors[i],
@@ -44,7 +65,7 @@ describe("ChunkVectorSearchTask", () => {
   });
 
   afterEach(() => {
-    repo.destroy();
+    storage.destroy();
   });
 
   test("should search and return top K results", async () => {
@@ -52,7 +73,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset: dataset,
       query: queryVector,
       topK: 3,
     });
@@ -77,7 +98,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 2,
     });
@@ -91,7 +112,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 10,
       filter: { category: "tech" },
@@ -109,7 +130,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 10,
       scoreThreshold: 0.9,
@@ -126,7 +147,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 10,
       filter: { category: "nonexistent" },
@@ -144,7 +165,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
     });
 
@@ -158,7 +179,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 3,
     });
@@ -173,7 +194,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 5,
     });
@@ -185,14 +206,21 @@ describe("ChunkVectorSearchTask", () => {
   });
 
   test("should handle empty repository", async () => {
-    const emptyRepo = new InMemoryChunkVectorStorage(3);
-    await emptyRepo.setupDatabase();
+    const emptyStorage = new InMemoryVectorStorage<
+      typeof DocumentChunkSchema,
+      typeof DocumentChunkPrimaryKey,
+      Record<string, unknown>,
+      Float32Array,
+      DocumentChunk
+    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
+    await emptyStorage.setupDatabase();
+    const emptyDataset = new DocumentChunkDataset(emptyStorage);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: emptyRepo,
+      dataset: emptyDataset,
       query: queryVector,
       topK: 10,
     });
@@ -201,7 +229,7 @@ describe("ChunkVectorSearchTask", () => {
     expect(result.ids).toHaveLength(0);
     expect(result.scores).toHaveLength(0);
 
-    emptyRepo.destroy();
+    emptyStorage.destroy();
   });
 
   test("should combine filter and score threshold", async () => {
@@ -209,7 +237,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      repository: repo,
+      dataset,
       query: queryVector,
       topK: 10,
       filter: { category: "tech" },
@@ -226,15 +254,15 @@ describe("ChunkVectorSearchTask", () => {
   });
 
   test("should resolve repository from string ID", async () => {
-    // Register repository by ID
-    registerChunkVectorRepository("test-vector-repo", repo);
+    // Register dataset by ID
+    registerDocumentChunkDataset("test-vector-repo", dataset);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const task = new ChunkVectorSearchTask();
     // Pass repository as string ID instead of instance
     const result = await task.run({
-      repository: "test-vector-repo" as any,
+      dataset: "test-vector-repo",
       query: queryVector,
       topK: 3,
     });

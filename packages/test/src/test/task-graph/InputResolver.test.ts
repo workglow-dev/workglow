@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { TypeTabularStorage } from "@workglow/dataset";
 import {
   AnyTabularStorage,
   getGlobalTabularRepositories,
   InMemoryTabularStorage,
   registerTabularRepository,
 } from "@workglow/storage";
-import { TypeTabularRepository } from "@workglow/dataset";
 import { IExecuteContext, resolveSchemaInputs, Task, TaskRegistry } from "@workglow/task-graph";
 import {
   getInputResolvers,
@@ -32,19 +32,19 @@ describe("InputResolver", () => {
     additionalProperties: false,
   } as const;
 
-  let testRepo: InMemoryTabularStorage<typeof testEntitySchema, readonly ["id"]>;
+  let testDataset: InMemoryTabularStorage<typeof testEntitySchema, readonly ["id"]>;
 
   beforeEach(async () => {
     // Create and register a test repository
-    testRepo = new InMemoryTabularStorage(testEntitySchema, ["id"] as const);
-    await testRepo.setupDatabase();
-    registerTabularRepository("test-repo", testRepo);
+    testDataset = new InMemoryTabularStorage(testEntitySchema, ["id"] as const);
+    await testDataset.setupDatabase();
+    registerTabularRepository("test-dataset", testDataset);
   });
 
   afterEach(() => {
     // Clean up the registry
-    getGlobalTabularRepositories().delete("test-repo");
-    testRepo.destroy();
+    getGlobalTabularRepositories().delete("test-dataset");
+    testDataset.destroy();
   });
 
   describe("resolveSchemaInputs", () => {
@@ -52,47 +52,47 @@ describe("InputResolver", () => {
       const schema: DataPortSchema = {
         type: "object",
         properties: {
-          repository: TypeTabularRepository(),
+          dataset: TypeTabularStorage(),
         },
       };
 
-      const input = { repository: testRepo };
+      const input = { dataset: testDataset };
       const resolved = await resolveSchemaInputs(input, schema, {
         registry: globalServiceRegistry,
       });
 
-      expect(resolved.repository).toBe(testRepo);
+      expect(resolved.dataset).toBe(testDataset);
     });
 
-    test("should resolve string repository ID to instance", async () => {
+    test("should resolve string dataset ID to instance", async () => {
       const schema: DataPortSchema = {
         type: "object",
         properties: {
-          repository: TypeTabularRepository(),
+          dataset: TypeTabularStorage(),
         },
       };
 
-      const input = { repository: "test-repo" };
+      const input = { dataset: "test-dataset" };
       const resolved = await resolveSchemaInputs(input, schema, {
         registry: globalServiceRegistry,
       });
 
-      expect(resolved.repository).toBe(testRepo);
+      expect(resolved.dataset).toBe(testDataset);
     });
 
-    test("should throw error for unknown repository ID", async () => {
+    test("should throw error for unknown dataset ID", async () => {
       const schema: DataPortSchema = {
         type: "object",
         properties: {
-          repository: TypeTabularRepository(),
+          dataset: TypeTabularStorage(),
         },
       };
 
-      const input = { repository: "non-existent-repo" };
+      const input = { dataset: "non-existent-dataset" };
 
       await expect(
         resolveSchemaInputs(input, schema, { registry: globalServiceRegistry })
-      ).rejects.toThrow('Tabular repository "non-existent-repo" not found');
+      ).rejects.toThrow('Tabular storage "non-existent-dataset" not found');
     });
 
     test("should not resolve properties without format annotation", async () => {
@@ -183,24 +183,24 @@ describe("InputResolver", () => {
   });
 
   describe("Integration with Task", () => {
-    // Define a test task that uses a repository
-    class RepositoryConsumerTask extends Task<
-      { repository: any; query: string },
+    // Define a test task that uses a dataset
+    class DatasetConsumerTask extends Task<
+      { dataset: AnyTabularStorage | string; query: string },
       { results: any[] }
     > {
-      public static type = "RepositoryConsumerTask";
+      public static type = "DatasetConsumerTask";
 
       public static inputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: {
-            repository: TypeTabularRepository({
-              title: "Data Repository",
-              description: "Repository to query",
+            dataset: TypeTabularStorage({
+              title: "Data Storage",
+              description: "Storage to query",
             }),
             query: { type: "string", title: "Query" },
           },
-          required: ["repository", "query"],
+          required: ["dataset", "query"],
           additionalProperties: false,
         };
       }
@@ -217,31 +217,31 @@ describe("InputResolver", () => {
       }
 
       async execute(
-        input: { repository: AnyTabularStorage; query: string },
+        input: { dataset: AnyTabularStorage; query: string },
         _context: IExecuteContext
       ): Promise<{ results: any[] }> {
-        const { repository } = input;
-        // In a real task, we'd search the repository
-        const results = await repository.getAll();
+        const { dataset } = input;
+        // In a real task, we'd search the dataset
+        const results = await dataset.getAll();
         return { results: results ?? [] };
       }
     }
 
     beforeEach(() => {
-      TaskRegistry.registerTask(RepositoryConsumerTask);
+      TaskRegistry.registerTask(DatasetConsumerTask);
     });
 
     afterEach(() => {
-      TaskRegistry.all.delete(RepositoryConsumerTask.type);
+      TaskRegistry.all.delete(DatasetConsumerTask.type);
     });
 
-    test("should resolve repository when running task with string ID", async () => {
+    test("should resolve dataset when running task with string ID", async () => {
       // Add some test data
-      await testRepo.put({ id: "1", name: "Test Item" });
+      await testDataset.put({ id: "1", name: "Test Item" });
 
-      const task = new RepositoryConsumerTask();
+      const task = new DatasetConsumerTask();
       const result = await task.run({
-        repository: "test-repo",
+        dataset: "test-dataset",
         query: "test",
       });
 
@@ -249,12 +249,12 @@ describe("InputResolver", () => {
       expect(result.results[0]).toEqual({ id: "1", name: "Test Item" });
     });
 
-    test("should work with direct repository instance", async () => {
-      await testRepo.put({ id: "2", name: "Direct Item" });
+    test("should work with direct dataset instance", async () => {
+      await testDataset.put({ id: "2", name: "Direct Item" });
 
-      const task = new RepositoryConsumerTask();
+      const task = new DatasetConsumerTask();
       const result = await task.run({
-        repository: testRepo,
+        dataset: testDataset,
         query: "test",
       });
 

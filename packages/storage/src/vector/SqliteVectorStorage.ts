@@ -5,15 +5,21 @@
  */
 
 import { Sqlite } from "@workglow/sqlite";
-import type { TypedArray } from "@workglow/util";
+import type {
+  DataPortSchemaObject,
+  FromSchema,
+  TypedArray,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
 import { cosineSimilarity } from "@workglow/util";
 import { SqliteTabularStorage } from "../tabular/SqliteTabularStorage";
-import { ChunkVector, ChunkVectorKey, ChunkVectorSchema } from "./ChunkVectorSchema";
-import type {
-  HybridSearchOptions,
-  IChunkVectorStorage,
-  VectorSearchOptions,
-} from "./IChunkVectorStorage";
+import {
+  getMetadataProperty,
+  getVectorProperty,
+  type HybridSearchOptions,
+  type IVectorStorage,
+  type VectorSearchOptions,
+} from "./IVectorStorage";
 
 /**
  * Check if metadata matches filter
@@ -28,33 +34,31 @@ function matchesFilter<Metadata>(metadata: Metadata, filter: Partial<Metadata>):
 }
 
 /**
- * SQLite document chunk vector repository implementation using tabular storage underneath.
+ * SQLite vector repository implementation using tabular storage underneath.
  * Stores vectors as JSON-encoded arrays with metadata.
  *
- * @template Metadata - The metadata type for the document chunk
- * @template Vector - The vector type for the document chunk
+ * @template Vector - The vector type for the vector
+ * @template Metadata - The metadata type for the vector
+ * @template Schema - The schema for the vector
+ * @template PrimaryKeyNames - The primary key names for the vector
  */
-export class SqliteChunkVectorStorage<
-  Metadata extends Record<string, unknown> = Record<string, unknown>,
+export class SqliteVectorStorage<
+  Schema extends DataPortSchemaObject,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Vector extends TypedArray = Float32Array,
+  Metadata extends Record<string, unknown> | undefined = Record<string, unknown>,
+  Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
-  extends SqliteTabularStorage<
-    typeof ChunkVectorSchema,
-    typeof ChunkVectorKey,
-    ChunkVector<Metadata, Vector>
-  >
-  implements
-    IChunkVectorStorage<
-      typeof ChunkVectorSchema,
-      typeof ChunkVectorKey,
-      ChunkVector<Metadata, Vector>
-    >
+  extends SqliteTabularStorage<Schema, PrimaryKeyNames, Entity>
+  implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
   private VectorType: new (array: number[]) => TypedArray;
+  private vectorPropertyName: keyof Entity;
+  private metadataPropertyName: keyof Entity | undefined;
 
   /**
-   * Creates a new SQLite document chunk vector repository
+   * Creates a new SQLite vector repository
    * @param dbOrPath - Either a Database instance or a path to the SQLite database file
    * @param table - The name of the table to use for storage (defaults to 'vectors')
    * @param dimensions - The number of dimensions of the vector
@@ -63,13 +67,24 @@ export class SqliteChunkVectorStorage<
   constructor(
     dbOrPath: string | Sqlite.Database,
     table: string = "vectors",
+    schema: Schema,
+    primaryKeyNames: PrimaryKeyNames,
+    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
     dimensions: number,
     VectorType: new (array: number[]) => TypedArray = Float32Array
   ) {
-    super(dbOrPath, table, ChunkVectorSchema, ChunkVectorKey);
+    super(dbOrPath, table, schema, primaryKeyNames, indexes);
 
     this.vectorDimensions = dimensions;
     this.VectorType = VectorType;
+
+    // Cache vector and metadata property names from schema
+    const vectorProp = getVectorProperty(schema);
+    if (!vectorProp) {
+      throw new Error("Schema must have a property with type array and format TypedArray");
+    }
+    this.vectorPropertyName = vectorProp as keyof Entity;
+    this.metadataPropertyName = getMetadataProperty(schema) as keyof Entity | undefined;
   }
 
   getVectorDimensions(): number {
@@ -88,15 +103,17 @@ export class SqliteChunkVectorStorage<
 
   async similaritySearch(query: TypedArray, options: VectorSearchOptions<Metadata> = {}) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
-    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<Entity & { score: number }> = [];
 
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
       // SQLite stores vectors as JSON strings, need to deserialize
-      const vectorRaw = entity.vector as unknown as string;
+      const vectorRaw = entity[this.vectorPropertyName] as unknown as string;
       const vector = this.deserializeVector(vectorRaw);
-      const metadata = entity.metadata;
+      const metadata = this.metadataPropertyName
+        ? (entity[this.metadataPropertyName] as Metadata)
+        : ({} as Metadata);
 
       // Apply filter if provided
       if (filter && !matchesFilter(metadata, filter)) {
@@ -113,9 +130,8 @@ export class SqliteChunkVectorStorage<
 
       results.push({
         ...entity,
-        vector,
         score,
-      } as any);
+      } as Entity & { score: number });
     }
 
     // Sort by score descending and take top K
@@ -133,19 +149,18 @@ export class SqliteChunkVectorStorage<
       return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
-    const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
+    const results: Array<Entity & { score: number }> = [];
     const allEntities = (await this.getAll()) || [];
     const queryLower = textQuery.toLowerCase();
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
     for (const entity of allEntities) {
       // SQLite stores vectors as JSON strings, need to deserialize
-      const vectorRaw = entity.vector as unknown as string;
-      const vector =
-        typeof vectorRaw === "string"
-          ? this.deserializeVector(vectorRaw)
-          : (vectorRaw as TypedArray);
-      const metadata = entity.metadata;
+      const vectorRaw = entity[this.vectorPropertyName] as unknown as string;
+      const vector = this.deserializeVector(vectorRaw);
+      const metadata = this.metadataPropertyName
+        ? (entity[this.metadataPropertyName] as Metadata)
+        : ({} as Metadata);
 
       // Apply filter if provided
       if (filter && !matchesFilter(metadata, filter)) {
@@ -178,9 +193,8 @@ export class SqliteChunkVectorStorage<
 
       results.push({
         ...entity,
-        vector,
         score: combinedScore,
-      } as any);
+      } as Entity & { score: number });
     }
 
     // Sort by combined score descending and take top K

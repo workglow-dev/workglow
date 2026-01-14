@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyChunkVectorStorage, TypeChunkVectorRepository } from "@workglow/dataset";
+import { DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -23,7 +23,7 @@ import { TypeSingleOrArray } from "./base/AiTaskSchemas";
 const inputSchema = {
   type: "object",
   properties: {
-    repository: TypeChunkVectorRepository({
+    dataset: TypeDocumentChunkDataset({
       title: "Document Chunk Vector Repository",
       description: "The document chunk vector repository instance to store vectors in",
     }),
@@ -45,7 +45,7 @@ const inputSchema = {
       additionalProperties: true,
     }),
   },
-  required: ["repository", "doc_id", "vectors", "metadata"],
+  required: ["dataset", "doc_id", "vectors", "metadata"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -91,7 +91,7 @@ export class ChunkVectorUpsertTask extends Task<
   public static type = "ChunkVectorUpsertTask";
   public static category = "Vector Store";
   public static title = "Vector Store Upsert";
-  public static description = "Store vector embeddings with metadata in a vector repository";
+  public static description = "Store vector embeddings with metadata in a document chunk dataset";
   public static cacheable = false; // Has side effects
 
   public static inputSchema(): DataPortSchema {
@@ -106,7 +106,7 @@ export class ChunkVectorUpsertTask extends Task<
     input: VectorStoreUpsertTaskInput,
     context: IExecuteContext
   ): Promise<VectorStoreUpsertTaskOutput> {
-    const { repository, doc_id, vectors, metadata } = input;
+    const { dataset, doc_id, vectors, metadata } = input;
 
     // Normalize inputs to arrays
     const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
@@ -114,7 +114,7 @@ export class ChunkVectorUpsertTask extends Task<
       ? metadata
       : Array(vectorArray.length).fill(metadata);
 
-    const repo = repository as AnyChunkVectorStorage;
+    const repo = dataset as DocumentChunkDataset;
 
     await context.updateProgress(1, "Upserting vectors");
 

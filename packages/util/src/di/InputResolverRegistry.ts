@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, globalServiceRegistry } from "./ServiceRegistry";
 import type { ServiceRegistry } from "./ServiceRegistry";
+import { createServiceToken, globalServiceRegistry } from "./ServiceRegistry";
 
 /**
  * A resolver function that converts a string ID to an instance.
@@ -13,7 +13,7 @@ import type { ServiceRegistry } from "./ServiceRegistry";
  * Throws an error if the ID is not found.
  *
  * @param id The string ID to resolve
- * @param format The full format string (e.g., "model:TextEmbedding", "repository:tabular")
+ * @param format The full format string (e.g., "model:TextEmbedding", "storage:tabular")
  * @param registry The service registry to use for lookups
  */
 export type InputResolverFn = (
@@ -26,9 +26,8 @@ export type InputResolverFn = (
  * Service token for the input resolver registry.
  * Maps format prefixes to resolver functions.
  */
-export const INPUT_RESOLVERS = createServiceToken<Map<string, InputResolverFn>>(
-  "task.input.resolvers"
-);
+export const INPUT_RESOLVERS =
+  createServiceToken<Map<string, InputResolverFn>>("task.input.resolvers");
 
 // Register default factory if not already registered
 if (!globalServiceRegistry.has(INPUT_RESOLVERS)) {
@@ -51,7 +50,7 @@ export function getInputResolvers(): Map<string, InputResolverFn> {
  * Registers an input resolver for a format prefix.
  * The resolver will be called for any format that starts with this prefix.
  *
- * @param formatPrefix The format prefix to match (e.g., "model", "repository")
+ * @param formatPrefix The format prefix to match (e.g., "model", "dataset")
  * @param resolver The resolver function
  *
  * @example
@@ -64,16 +63,16 @@ export function getInputResolvers(): Map<string, InputResolverFn> {
  *   return model;
  * });
  *
- * // Register repository resolver
- * registerInputResolver("repository", (id, format, registry) => {
- *   const repoType = format.split(":")[1]; // "tabular", "vector", etc.
- *   if (repoType === "tabular") {
- *     const repos = registry.get(TABULAR_REPOSITORIES);
- *     const repo = repos.get(id);
- *     if (!repo) throw new Error(`Repository "${id}" not found`);
- *     return repo;
+ * // Register dataset resolver
+ * registerInputResolver("dataset", (id, format, registry) => {
+ *   const datasetType = format.split(":")[1]; // "tabular", "vector", etc.
+ *   if (datasetType === "tabular") {
+ *     const datasets = registry.get(TABULAR_DATASETS);
+ *     const dataset = datasets.get(id);
+ *     if (!dataset) throw new Error(`Dataset "${id}" not found`);
+ *     return dataset;
  *   }
- *   throw new Error(`Unknown repository type: ${repoType}`);
+ *   throw new Error(`Unknown dataset type: ${datasetType}`);
  * });
  * ```
  */

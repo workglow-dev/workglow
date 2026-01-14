@@ -4,71 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { sha256, uuid4 } from "@workglow/util";
-
 import {
   NodeKind,
   type DocumentNode,
   type DocumentRootNode,
-  type NodeKind as NodeKindType,
   type NodeRange,
   type SectionNode,
   type TopicNode,
 } from "./DocumentSchema";
-
-/**
- * Utility functions for ID generation
- */
-export class NodeIdGenerator {
-  /**
-   * Generate doc_id from source URI and content hash
-   */
-  static async generateDocId(sourceUri: string, content: string): Promise<string> {
-    return uuid4();
-    const contentHash = await sha256(content);
-    const combined = `${sourceUri}|${contentHash}`;
-    const hash = await sha256(combined);
-    return `doc_${hash.substring(0, 16)}`;
-  }
-
-  /**
-   * Generate nodeId for structural nodes (document, section)
-   */
-  static async generateStructuralNodeId(
-    doc_id: string,
-    kind: NodeKindType,
-    range: NodeRange
-  ): Promise<string> {
-    return uuid4();
-    const combined = `${doc_id}|${kind}|${range.startOffset}:${range.endOffset}`;
-    const hash = await sha256(combined);
-    return `node_${hash.substring(0, 16)}`;
-  }
-
-  /**
-   * Generate nodeId for child nodes (paragraph, topic)
-   */
-  static async generateChildNodeId(parentNodeId: string, ordinal: number): Promise<string> {
-    return uuid4();
-    const combined = `${parentNodeId}|${ordinal}`;
-    const hash = await sha256(combined);
-    return `node_${hash.substring(0, 16)}`;
-  }
-
-  /**
-   * Generate chunkId
-   */
-  static async generateChunkId(
-    doc_id: string,
-    leafNodeId: string,
-    chunkOrdinal: number
-  ): Promise<string> {
-    return uuid4();
-    const combined = `${doc_id}|${leafNodeId}|${chunkOrdinal}`;
-    const hash = await sha256(combined);
-    return `chunk_${hash.substring(0, 16)}`;
-  }
-}
 
 /**
  * Approximate token counting (v1)

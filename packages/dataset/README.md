@@ -592,22 +592,22 @@ import {
   TypeDocumentRepository,
 } from "@workglow/storage";
 
-// Tabular repository (format: "repository:tabular")
+// Tabular repository (format: "storage:tabular")
 const tabularSchema = TypeTabularRepository({
   title: "Data Source",
-  description: "Tabular data repository",
+  description: "Tabular data storage",
 });
 
-// Vector repository (format: "repository:document-node-vector")
+// Vector repository (format: "dataset:document-chunk")
 const vectorSchema = TypeVectorRepository({
   title: "Embeddings Store",
-  description: "Vector embeddings repository",
+  description: "Vector embeddings dataset",
 });
 
-// Document repository (format: "repository:document")
+// Document repository (format: "dataset:document")
 const docSchema = TypeDocumentRepository({
   title: "Document Store",
-  description: "Document storage repository",
+  description: "Document storage dataset",
 });
 ```
 
@@ -1081,11 +1081,7 @@ describe("UserRepository", () => {
   let userRepo: InMemoryTabularStorage<typeof UserSchema, ["id"]>;
 
   beforeEach(() => {
-    userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
-      UserSchema,
-      ["id"],
-      ["email"]
-    );
+    userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(UserSchema, ["id"], ["email"]);
   });
 
   test("should create and retrieve user", async () => {

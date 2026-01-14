@@ -8,17 +8,20 @@ import type {
   DataPortSchemaObject,
   EventParameters,
   FromSchema,
+  JsonSchema,
   TypedArray,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import type { ITabularStorage, TabularEventListeners } from "@workglow/storage";
+import type { ITabularStorage, TabularEventListeners } from "../tabular/ITabularStorage";
 
-export type AnyChunkVectorStorage = IChunkVectorStorage<any, any, any>;
+export type AnyVectorStorage = IVectorStorage<any, any, any, any>;
 
 /**
  * Options for vector search operations
  */
-export interface VectorSearchOptions<Metadata = Record<string, unknown>> {
+export interface VectorSearchOptions<
+  Metadata extends Record<string, unknown> | undefined = Record<string, unknown>,
+> {
   readonly topK?: number;
   readonly filter?: Partial<Metadata>;
   readonly scoreThreshold?: number;
@@ -28,7 +31,7 @@ export interface VectorSearchOptions<Metadata = Record<string, unknown>> {
  * Options for hybrid search (vector + full-text)
  */
 export interface HybridSearchOptions<
-  Metadata = Record<string, unknown>,
+  Metadata extends Record<string, unknown> | undefined = Record<string, unknown>,
 > extends VectorSearchOptions<Metadata> {
   readonly textQuery: string;
   readonly vectorWeight?: number;
@@ -37,7 +40,7 @@ export interface HybridSearchOptions<
 /**
  * Type definitions for document chunk vector repository events
  */
-export interface VectorChunkEventListeners<PrimaryKey, Entity> extends TabularEventListeners<
+export interface VectorEventListeners<PrimaryKey, Entity> extends TabularEventListeners<
   PrimaryKey,
   Entity
 > {
@@ -45,23 +48,23 @@ export interface VectorChunkEventListeners<PrimaryKey, Entity> extends TabularEv
   hybridSearch: (query: TypedArray, results: (Entity & { score: number })[]) => void;
 }
 
-export type VectorChunkEventName = keyof VectorChunkEventListeners<any, any>;
-export type VectorChunkEventListener<
-  Event extends VectorChunkEventName,
+export type VectorEventName = keyof VectorEventListeners<any, any>;
+export type VectorEventListener<
+  Event extends VectorEventName,
   PrimaryKey,
   Entity,
-> = VectorChunkEventListeners<PrimaryKey, Entity>[Event];
+> = VectorEventListeners<PrimaryKey, Entity>[Event];
 
-export type VectorChunkEventParameters<
-  Event extends VectorChunkEventName,
+export type VectorEventParameters<
+  Event extends VectorEventName,
   PrimaryKey,
   Entity,
-> = EventParameters<VectorChunkEventListeners<PrimaryKey, Entity>, Event>;
+> = EventParameters<VectorEventListeners<PrimaryKey, Entity>, Event>;
 
 /**
- * Interface defining the contract for document chunk vector storage repositories.
- * These repositories store vector embeddings with metadata for decument chunks.
- * Extends ITabularRepository to provide standard storage operations,
+ * Interface defining the contract for vector storage repositories.
+ * These repositories store vector embeddings with metadata.
+ * Extends ITabularStorage to provide standard storage operations,
  * plus vector-specific similarity search capabilities.
  * Supports various vector types including quantized formats.
  *
@@ -69,10 +72,13 @@ export type VectorChunkEventParameters<
  * @typeParam PrimaryKeyNames - Array of property names that form the primary key
  * @typeParam Entity - The entity type
  */
-export interface IChunkVectorStorage<
+export interface IVectorStorage<
+  Metadata extends Record<string, unknown> | undefined,
   Schema extends DataPortSchemaObject,
-  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]> = ReadonlyArray<
+    keyof Schema["properties"]
+  >,
 > extends ITabularStorage<Schema, PrimaryKeyNames, Entity> {
   /**
    * Get the vector dimension
@@ -88,7 +94,7 @@ export interface IChunkVectorStorage<
    */
   similaritySearch(
     query: TypedArray,
-    options?: VectorSearchOptions<Record<string, unknown>>
+    options?: VectorSearchOptions<Metadata>
   ): Promise<(Entity & { score: number })[]>;
 
   /**
@@ -100,6 +106,39 @@ export interface IChunkVectorStorage<
    */
   hybridSearch?(
     query: TypedArray,
-    options: HybridSearchOptions<Record<string, unknown>>
+    options: HybridSearchOptions<Metadata>
   ): Promise<(Entity & { score: number })[]>;
+}
+
+/**
+ * TODO: Given a schema, return the vector column by searching for a property with a TypedArray format (or TypedArray:xxx format)
+ */
+
+export function getVectorProperty<Schema extends DataPortSchemaObject>(
+  schema: Schema
+): keyof Schema["properties"] | undefined {
+  for (const [key, value] of Object.entries<JsonSchema>(schema.properties)) {
+    if (
+      typeof value !== "boolean" &&
+      value.type === "array" &&
+      (value.format === "TypedArray" || value.format?.startsWith("TypedArray:"))
+    ) {
+      return key;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Given a schema, return the property which is an object with format "metadata"
+ */
+export function getMetadataProperty<Schema extends DataPortSchemaObject>(
+  schema: Schema
+): keyof Schema["properties"] | undefined {
+  for (const [key, value] of Object.entries<JsonSchema>(schema.properties)) {
+    if (typeof value !== "boolean" && value.type === "object" && value.format === "metadata") {
+      return key;
+    }
+  }
+  return undefined;
 }
