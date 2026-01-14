@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IndexedDbTabularRepository } from "@workglow/storage";
+import { IndexedDbTabularStorage } from "@workglow/storage";
 import {
   TaskOutputPrimaryKeyNames,
   TaskOutputSchema,
@@ -23,7 +23,7 @@ export const IDB_TASK_OUTPUT_REPOSITORY = createServiceToken<IndexedDbTaskOutput
 export class IndexedDbTaskOutputRepository extends TaskOutputTabularRepository {
   constructor(table: string = "task_outputs") {
     super({
-      tabularRepository: new IndexedDbTabularRepository(
+      tabularRepository: new IndexedDbTabularStorage(
         table,
         TaskOutputSchema,
         TaskOutputPrimaryKeyNames,

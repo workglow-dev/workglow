@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyChunkVectorRepository, TypeChunkVectorRepository } from "@workglow/storage";
+import { AnyChunkVectorStorage, TypeChunkVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -172,7 +172,7 @@ export class DocumentNodeRetrievalTask extends Task<
     } = input;
 
     // Repository is resolved by input resolver system before execution
-    const repo = repository as AnyChunkVectorRepository;
+    const repo = repository as AnyChunkVectorStorage;
 
     // Determine query vector
     let queryVector: TypedArray;

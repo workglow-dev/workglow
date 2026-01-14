@@ -10,16 +10,16 @@ import {
   FromSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { BaseTabularRepository } from "./BaseTabularRepository";
+import { BaseTabularStorage } from "./BaseTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
   SimplifyPrimaryKey,
   TabularSubscribeOptions,
-} from "./ITabularRepository";
-import { InMemoryTabularRepository } from "./InMemoryTabularRepository";
+} from "./ITabularStorage";
+import { InMemoryTabularStorage } from "./InMemoryTabularStorage";
 
-export const SHARED_IN_MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const SHARED_IN_MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.sharedInMemory"
 );
 
@@ -37,27 +37,27 @@ type BroadcastMessage =
 
 /**
  * A tabular repository implementation that shares data across browser tabs/windows
- * using BroadcastChannel API. Uses InMemoryTabularRepository internally and
+ * using BroadcastChannel API. Uses InMemoryTabularStorage internally and
  * synchronizes changes across all instances.
  *
  * @template Schema - The schema definition for the entity using JSON Schema
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class SharedInMemoryTabularRepository<
+export class SharedInMemoryTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private channel: BroadcastChannel | null = null;
   private channelName: string;
-  private inMemoryRepo: InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
+  private inMemoryRepo: InMemoryTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private isInitialized = false;
   private syncInProgress = false;
 
   /**
-   * Creates a new SharedInMemoryTabularRepository instance
+   * Creates a new SharedInMemoryTabularStorage instance
    * @param channelName - Unique name for the BroadcastChannel (defaults to "tabular_store")
    * @param schema - Schema defining the structure of the entity
    * @param primaryKeyNames - Array of property names that form the primary key
@@ -72,7 +72,7 @@ export class SharedInMemoryTabularRepository<
   ) {
     super(schema, primaryKeyNames, indexes);
     this.channelName = channelName;
-    this.inMemoryRepo = new InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>(
+    this.inMemoryRepo = new InMemoryTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>(
       schema,
       primaryKeyNames,
       indexes
@@ -115,7 +115,7 @@ export class SharedInMemoryTabularRepository<
   }
 
   /**
-   * Sets up event forwarding from the internal InMemoryTabularRepository
+   * Sets up event forwarding from the internal InMemoryTabularStorage
    */
   private setupEventForwarding(): void {
     this.inMemoryRepo.on("put", (entity) => {
@@ -333,7 +333,7 @@ export class SharedInMemoryTabularRepository<
 
   /**
    * Subscribes to changes in the repository.
-   * Delegates to the internal InMemoryTabularRepository which monitors local changes.
+   * Delegates to the internal InMemoryTabularStorage which monitors local changes.
    * Changes from other tabs/windows are already propagated via BroadcastChannel.
    *
    * @param callback - Function called when a change occurs

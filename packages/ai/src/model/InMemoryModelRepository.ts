@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryTabularRepository } from "@workglow/storage";
+import { InMemoryTabularStorage } from "@workglow/storage";
 import { ModelRepository } from "./ModelRepository";
 import { ModelPrimaryKeyNames, ModelRecordSchema } from "./ModelSchema";
 
@@ -14,6 +14,6 @@ import { ModelPrimaryKeyNames, ModelRecordSchema } from "./ModelSchema";
  */
 export class InMemoryModelRepository extends ModelRepository {
   constructor() {
-    super(new InMemoryTabularRepository(ModelRecordSchema, ModelPrimaryKeyNames));
+    super(new InMemoryTabularStorage(ModelRecordSchema, ModelPrimaryKeyNames));
   }
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryTabularRepository } from "@workglow/storage";
+import { InMemoryTabularStorage } from "@workglow/storage";
 import {
   TaskOutputPrimaryKeyNames,
   TaskOutputSchema,
@@ -23,7 +23,7 @@ export const MEMORY_TASK_OUTPUT_REPOSITORY = createServiceToken<InMemoryTaskOutp
 export class InMemoryTaskOutputRepository extends TaskOutputTabularRepository {
   constructor() {
     super({
-      tabularRepository: new InMemoryTabularRepository(
+      tabularRepository: new InMemoryTabularStorage(
         TaskOutputSchema,
         TaskOutputPrimaryKeyNames,
         ["createdAt"]

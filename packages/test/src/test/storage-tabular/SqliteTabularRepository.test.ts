@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SqliteTabularRepository } from "@workglow/storage";
+import { SqliteTabularStorage } from "@workglow/storage";
 import { uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import {
@@ -17,17 +17,17 @@ import {
   SearchSchema,
 } from "./genericTabularRepositoryTests";
 
-describe("SqliteTabularRepository", () => {
+describe("SqliteTabularStorage", () => {
   runGenericTabularRepositoryTests(
     async () =>
-      new SqliteTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      new SqliteTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         ":memory:",
         `sql_test_${uuid4().replace(/-/g, "_")}`,
         CompoundSchema,
         CompoundPrimaryKeyNames
       ),
     async () =>
-      new SqliteTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+      new SqliteTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
         ":memory:",
         `sql_test_${uuid4().replace(/-/g, "_")}`,
         SearchSchema,
@@ -35,7 +35,7 @@ describe("SqliteTabularRepository", () => {
         ["category", ["category", "subcategory"], ["subcategory", "category"], "value"]
       ),
     async () => {
-      const repo = new SqliteTabularRepository<
+      const repo = new SqliteTabularStorage<
         typeof AllTypesSchema,
         typeof AllTypesPrimaryKeyNames
       >(

@@ -5,11 +5,11 @@
  */
 
 import { createServiceToken, JsonSchema } from "@workglow/util";
-import { SqliteTabularRepository } from "../tabular/SqliteTabularRepository";
-import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvRepository } from "./IKvRepository";
-import { KvViaTabularRepository } from "./KvViaTabularRepository";
+import { SqliteTabularStorage } from "../tabular/SqliteTabularStorage";
+import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
+import { KvViaTabularStorage } from "./KvViaTabularStorage";
 
-export const SQLITE_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, any>>(
+export const SQLITE_KV_REPOSITORY = createServiceToken<IKvStorage<string, any, any>>(
   "storage.kvRepository.sqlite"
 );
 
@@ -21,14 +21,14 @@ export const SQLITE_KV_REPOSITORY = createServiceToken<IKvRepository<string, any
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export class SqliteKvRepository extends KvViaTabularRepository {
-  public tabularRepository: SqliteTabularRepository<
+export class SqliteKvStorage extends KvViaTabularStorage {
+  public tabularRepository: SqliteTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;
 
   /**
-   * Creates a new KvRepository instance
+   * Creates a new KvStorage instance
    */
   constructor(
     public db: any,
@@ -37,7 +37,7 @@ export class SqliteKvRepository extends KvViaTabularRepository {
     valueSchema: JsonSchema = {}
   ) {
     super(keySchema, valueSchema);
-    this.tabularRepository = new SqliteTabularRepository(
+    this.tabularRepository = new SqliteTabularStorage(
       db,
       dbName,
       DefaultKeyValueSchema,

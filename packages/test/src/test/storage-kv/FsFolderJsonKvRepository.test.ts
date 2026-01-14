@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FsFolderJsonKvRepository } from "@workglow/storage";
+import { FsFolderJsonKvStorage } from "@workglow/storage";
 import { mkdirSync, rmSync } from "fs";
 import { afterEach, beforeEach, describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
 const testDir = ".cache/test/kv-fs-folder-json";
 
-describe("FsFolderJsonKvRepository", () => {
+describe("FsFolderJsonKvStorage", () => {
   beforeEach(() => {
     try {
       mkdirSync(testDir, { recursive: true });
@@ -25,6 +25,6 @@ describe("FsFolderJsonKvRepository", () => {
   });
 
   runGenericKvRepositoryTests(async (keyType, valueType) => {
-    return new FsFolderJsonKvRepository(testDir, keyType, valueType);
+    return new FsFolderJsonKvStorage(testDir, keyType, valueType);
   });
 });

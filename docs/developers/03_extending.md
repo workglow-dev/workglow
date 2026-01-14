@@ -185,7 +185,7 @@ export class MyTask extends Task<MyTaskInput> {
 
   async executeReactive(input: MyTaskInput) {
     // By the time execute runs, model is a ModelConfig object
-    // and dataSource is an ITabularRepository instance
+    // and dataSource is an ITabularStorage instance
     const { model, dataSource, prompt } = input;
     // ...
   }

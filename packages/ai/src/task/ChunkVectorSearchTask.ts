@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyChunkVectorRepository, TypeChunkVectorRepository } from "@workglow/storage";
+import { AnyChunkVectorStorage, TypeChunkVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -131,7 +131,7 @@ export class ChunkVectorSearchTask extends Task<
   ): Promise<VectorStoreSearchTaskOutput> {
     const { repository, query, topK = 10, filter, scoreThreshold = 0 } = input;
 
-    const repo = repository as AnyChunkVectorRepository;
+    const repo = repository as AnyChunkVectorStorage;
 
     const results = await repo.similaritySearch(query, {
       topK,

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryTabularRepository } from "@workglow/storage";
+import { InMemoryTabularStorage } from "@workglow/storage";
 import {
   TaskGraphPrimaryKeyNames,
   TaskGraphSchema,
@@ -23,7 +23,7 @@ export const MEMORY_TASK_GRAPH_REPOSITORY = createServiceToken<TaskGraphTabularR
 export class InMemoryTaskGraphRepository extends TaskGraphTabularRepository {
   constructor() {
     super({
-      tabularRepository: new InMemoryTabularRepository(TaskGraphSchema, TaskGraphPrimaryKeyNames),
+      tabularRepository: new InMemoryTabularStorage(TaskGraphSchema, TaskGraphPrimaryKeyNames),
     });
   }
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AnyChunkVectorRepository, TypeChunkVectorRepository } from "@workglow/storage";
+import { AnyChunkVectorStorage, TypeChunkVectorRepository } from "@workglow/storage";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -114,7 +114,7 @@ export class ChunkVectorUpsertTask extends Task<
       ? metadata
       : Array(vectorArray.length).fill(metadata);
 
-    const repo = repository as AnyChunkVectorRepository;
+    const repo = repository as AnyChunkVectorStorage;
 
     await context.updateProgress(1, "Upserting vectors");
 

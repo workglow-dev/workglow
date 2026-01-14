@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type BaseTabularRepository } from "@workglow/storage";
+import { type BaseTabularStorage } from "@workglow/storage";
 import { compress, DataPortSchemaObject, decompress, makeFingerprint } from "@workglow/util";
 import { TaskInput, TaskOutput } from "../task/TaskTypes";
 import { TaskOutputRepository } from "./TaskOutputRepository";
@@ -27,7 +27,7 @@ export const TaskOutputSchema = {
 
 export const TaskOutputPrimaryKeyNames = ["key", "taskType"] as const;
 
-export type TaskOutputRepositoryStorage = BaseTabularRepository<
+export type TaskOutputRepositoryStorage = BaseTabularStorage<
   typeof TaskOutputSchema,
   typeof TaskOutputPrimaryKeyNames
 >;

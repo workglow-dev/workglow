@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CachedTabularRepository, InMemoryTabularRepository } from "@workglow/storage";
+import { CachedTabularStorage, InMemoryTabularStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runGenericTabularRepositorySubscriptionTests } from "./genericTabularRepositorySubscriptionTests";
 import {
@@ -17,15 +17,15 @@ import {
 
 const spyOn = vi.spyOn;
 
-describe("CachedTabularRepository", () => {
+describe("CachedTabularStorage", () => {
   describe("generic repository tests", () => {
     runGenericTabularRepositoryTests(
       async () => {
-        const durable = new InMemoryTabularRepository<
+        const durable = new InMemoryTabularStorage<
           typeof CompoundSchema,
           typeof CompoundPrimaryKeyNames
         >(CompoundSchema, CompoundPrimaryKeyNames);
-        return new CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+        return new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
           durable,
           undefined,
           CompoundSchema,
@@ -33,7 +33,7 @@ describe("CachedTabularRepository", () => {
         );
       },
       async () => {
-        const durable = new InMemoryTabularRepository<
+        const durable = new InMemoryTabularStorage<
           typeof SearchSchema,
           typeof SearchPrimaryKeyNames
         >(SearchSchema, SearchPrimaryKeyNames, [
@@ -42,7 +42,7 @@ describe("CachedTabularRepository", () => {
           ["subcategory", "category"],
           "value",
         ]);
-        return new CachedTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+        return new CachedTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
           durable,
           undefined,
           SearchSchema,
@@ -55,11 +55,11 @@ describe("CachedTabularRepository", () => {
 
   runGenericTabularRepositorySubscriptionTests(
     async () => {
-      const durable = new InMemoryTabularRepository<
+      const durable = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
-      return new CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      return new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         durable,
         undefined,
         CompoundSchema,
@@ -70,15 +70,15 @@ describe("CachedTabularRepository", () => {
   );
 
   describe("caching behavior", () => {
-    let durable: InMemoryTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
-    let cached: CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let durable: InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let cached: CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(() => {
-      durable = new InMemoryTabularRepository<
+      durable = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
-      cached = new CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      cached = new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         durable,
         undefined,
         CompoundSchema,
@@ -353,15 +353,15 @@ describe("CachedTabularRepository", () => {
   });
 
   describe("cache management", () => {
-    let durable: InMemoryTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
-    let cached: CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let durable: InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let cached: CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(() => {
-      durable = new InMemoryTabularRepository<
+      durable = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
-      cached = new CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      cached = new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         durable,
         undefined,
         CompoundSchema,
@@ -428,12 +428,12 @@ describe("CachedTabularRepository", () => {
 
     it("should handle cache initialization errors gracefully", async () => {
       // Create a mock durable that throws on getAll
-      const errorDurable = new InMemoryTabularRepository<
+      const errorDurable = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
 
-      const cachedWithError = new CachedTabularRepository<
+      const cachedWithError = new CachedTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(errorDurable, undefined, CompoundSchema, CompoundPrimaryKeyNames);
@@ -450,15 +450,15 @@ describe("CachedTabularRepository", () => {
   });
 
   describe("event forwarding", () => {
-    let durable: InMemoryTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
-    let cached: CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let durable: InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let cached: CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(() => {
-      durable = new InMemoryTabularRepository<
+      durable = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
-      cached = new CachedTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      cached = new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         durable,
         undefined,
         CompoundSchema,
@@ -569,17 +569,17 @@ describe("CachedTabularRepository", () => {
 
   describe("custom cache repository", () => {
     it("should use provided cache repository", async () => {
-      const durable = new InMemoryTabularRepository<
+      const durable = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
 
-      const customCache = new InMemoryTabularRepository<
+      const customCache = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
 
-      const cached = new CachedTabularRepository<
+      const cached = new CachedTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(durable, customCache, CompoundSchema, CompoundPrimaryKeyNames);
@@ -605,27 +605,27 @@ describe("CachedTabularRepository", () => {
 
   describe("constructor validation", () => {
     it("should throw error if schema and primaryKeyNames are not provided", () => {
-      const durable = new InMemoryTabularRepository<
+      const durable = new InMemoryTabularStorage<
         typeof CompoundSchema,
         typeof CompoundPrimaryKeyNames
       >(CompoundSchema, CompoundPrimaryKeyNames);
 
       expect(() => {
-        new CachedTabularRepository(durable);
+        new CachedTabularStorage(durable);
       }).toThrow("Schema and primaryKeyNames must be provided");
     });
   });
 
   describe("deleteSearch", () => {
-    let durable: InMemoryTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
-    let cached: CachedTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
+    let durable: InMemoryTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
+    let cached: CachedTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
 
     beforeEach(() => {
-      durable = new InMemoryTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+      durable = new InMemoryTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
         SearchSchema,
         SearchPrimaryKeyNames
       );
-      cached = new CachedTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+      cached = new CachedTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
         durable,
         undefined,
         SearchSchema,

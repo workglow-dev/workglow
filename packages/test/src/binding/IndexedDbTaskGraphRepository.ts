@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IndexedDbTabularRepository } from "@workglow/storage";
+import { IndexedDbTabularStorage } from "@workglow/storage";
 import {
   TaskGraphPrimaryKeyNames,
   TaskGraphSchema,
@@ -23,7 +23,7 @@ export const IDB_TASK_GRAPH_REPOSITORY = createServiceToken<TaskGraphTabularRepo
 export class IndexedDbTaskGraphRepository extends TaskGraphTabularRepository {
   constructor(table: string = "task_graphs") {
     super({
-      tabularRepository: new IndexedDbTabularRepository(
+      tabularRepository: new IndexedDbTabularStorage(
         table,
         TaskGraphSchema,
         TaskGraphPrimaryKeyNames

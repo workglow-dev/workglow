@@ -9,9 +9,9 @@ A collection of storage implementations for tabular data with multiple backend s
   - [Using TypeBox](#using-typebox)
   - [Using Zod 4](#using-zod-4)
 - [Implementations](#implementations)
-  - [InMemoryTabularRepository](#inmemorytabularrepository)
-  - [SqliteTabularRepository](#sqlitetabularrepository)
-  - [PostgresTabularRepository](#postgrestabularrepository)
+  - [InMemoryTabularStorage](#inmemorytabularrepository)
+  - [SqliteTabularStorage](#sqlitetabularrepository)
+  - [PostgresTabularStorage](#postgrestabularrepository)
   - [IndexedDbTabularRepository](#indexeddbtabularrepository)
   - [FsFolderTabularRepository](#fsfoldertabularrepository)
 - [Events](#events)
@@ -43,7 +43,7 @@ npm install @workglow/storage
 ## Basic Usage
 
 ```typescript
-import { InMemoryTabularRepository } from "@workglow/storage/tabular";
+import { InMemoryTabularStorage } from "@workglow/storage/tabular";
 
 // Define schema and primary keys
 const schema = {
@@ -55,8 +55,8 @@ const schema = {
 
 const primaryKeys = ["id"] as const;
 // Create repository instance (when using const schemas, the next three generics
-// on InMemoryTabularRepository are automatically created for you)
-const repo = new InMemoryTabularRepository<typeof schema, typeof primaryKeys>(schema, primaryKeys);
+// on InMemoryTabularStorage are automatically created for you)
+const repo = new InMemoryTabularStorage<typeof schema, typeof primaryKeys>(schema, primaryKeys);
 
 // Basic operations
 await repo.put({ id: "1", name: "Alice", age: 30, active: true });
@@ -75,7 +75,7 @@ You can define schemas using plain JSON Schema objects, or use schema libraries 
 TypeBox schemas are JSON Schema compatible and can be used directly:
 
 ```typescript
-import { InMemoryTabularRepository } from "@workglow/storage/tabular";
+import { InMemoryTabularStorage } from "@workglow/storage/tabular";
 import { Type, Static } from "@sinclair/typebox";
 import { DataPortSchemaObject, FromSchema } from "@workglow/util";
 
@@ -98,7 +98,7 @@ type UserEntity = FromSchema<typeof userSchema>;
 
 // IMPORTANT: You must explicitly provide generic type parameters for t
 // TypeScript cannot infer them from TypeBox schemas
-const repo = new InMemoryTabularRepository<typeof userSchema, typeof primaryKeys, UserEntity>(
+const repo = new InMemoryTabularStorage<typeof userSchema, typeof primaryKeys, UserEntity>(
   userSchema,
   primaryKeys,
   ["email", "active"] as const // Indexes
@@ -119,7 +119,7 @@ await repo.put({
 Zod 4 has built-in JSON Schema support using the `.toJSONSchema()` method:
 
 ```typescript
-import { InMemoryTabularRepository } from "@workglow/storage/tabular";
+import { InMemoryTabularStorage } from "@workglow/storage/tabular";
 import { z } from "zod";
 import { DataPortSchemaObject } from "@workglow/util";
 
@@ -141,7 +141,7 @@ type UserEntity = z.infer<typeof userSchemaZod>;
 
 // IMPORTANT: You must explicitly provide generic type parameters
 // TypeScript cannot infer them from Zod schemas (even after conversion)
-const repo = new InMemoryTabularRepository<typeof userSchema, typeof primaryKeys, UserEntity>(
+const repo = new InMemoryTabularStorage<typeof userSchema, typeof primaryKeys, UserEntity>(
   userSchema,
   primaryKeys,
   ["email", "active"] as const // Indexes
@@ -159,14 +159,14 @@ await repo.put({
 
 ## Implementations
 
-### InMemoryTabularRepository
+### InMemoryTabularStorage
 
 - Ideal for testing/development
 - No persistence
 - Fast search capabilities
 
 ```typescript
-const repo = new InMemoryTabularRepository<
+const repo = new InMemoryTabularStorage<
   typeof schema,
   typeof primaryKeys,
   Entity, // required if using TypeBox, Zod, etc, otherwise automatically created
@@ -175,13 +175,13 @@ const repo = new InMemoryTabularRepository<
 >(schema, primaryKeys, ["name", "active"]);
 ```
 
-### SqliteTabularRepository
+### SqliteTabularStorage
 
 - Embedded SQLite database
 - File-based or in-memory
 
 ```typescript
-const repo = new SqliteTabularRepository<
+const repo = new SqliteTabularStorage<
   typeof schema,
   typeof primaryKeys,
   Entity, // required if using TypeBox, Zod, etc, otherwise automatically created
@@ -196,7 +196,7 @@ const repo = new SqliteTabularRepository<
 );
 ```
 
-### PostgresTabularRepository
+### PostgresTabularStorage
 
 - PostgreSQL backend
 - Connection pooling support
@@ -207,7 +207,7 @@ import { Pool } from "pg";
 const pool = new Pool({
   /* config */
 });
-const repo = new PostgresTabularRepository<
+const repo = new PostgresTabularStorage<
   typeof schema,
   typeof primaryKeys,
   Entity, // required if using TypeBox, Zod, etc, otherwise automatically created

@@ -7,10 +7,10 @@
 import type { TypedArray } from "@workglow/util";
 import { ChunkVector } from "../chunk-vector/ChunkVectorSchema";
 import type {
-  AnyChunkVectorRepository,
+  AnyChunkVectorStorage,
   VectorSearchOptions,
-} from "../chunk-vector/IChunkVectorRepository";
-import type { ITabularRepository } from "../tabular/ITabularRepository";
+} from "../chunk-vector/IChunkVectorStorage";
+import type { ITabularStorage } from "../tabular/ITabularStorage";
 import { Document } from "./Document";
 import { ChunkNode, DocumentNode } from "./DocumentSchema";
 import {
@@ -24,12 +24,12 @@ import {
  * inheritance/interface patterns.
  */
 export class DocumentRepository {
-  private tabularStorage: ITabularRepository<
+  private tabularStorage: ITabularStorage<
     DocumentStorageSchema,
     DocumentStorageKey,
     DocumentStorageEntity
   >;
-  private vectorStorage?: AnyChunkVectorRepository;
+  private vectorStorage?: AnyChunkVectorStorage;
 
   /**
    * Creates a new DocumentRepository instance.
@@ -39,22 +39,22 @@ export class DocumentRepository {
    *
    * @example
    * ```typescript
-   * const tabularStorage = new InMemoryTabularRepository(DocumentStorageSchema, ["doc_id"]);
+   * const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, ["doc_id"]);
    * await tabularStorage.setupDatabase();
    *
-   * const vectorStorage = new InMemoryVectorRepository();
+   * const vectorStorage = new InMemoryVectorStorage();
    * await vectorStorage.setupDatabase();
    *
    * const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
    * ```
    */
   constructor(
-    tabularStorage: ITabularRepository<
+    tabularStorage: ITabularStorage<
       typeof DocumentStorageSchema,
       ["doc_id"],
       DocumentStorageEntity
     >,
-    vectorStorage?: AnyChunkVectorRepository
+    vectorStorage?: AnyChunkVectorStorage
   ) {
     this.tabularStorage = tabularStorage;
     this.vectorStorage = vectorStorage;

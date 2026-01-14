@@ -33,8 +33,8 @@ Modular storage solutions for Workglow.AI platform with multiple backend impleme
   - [Compound Primary Keys](#compound-primary-keys)
   - [Custom File Layout (KV on filesystem)](#custom-file-layout-kv-on-filesystem)
 - [API Reference](#api-reference)
-  - [IKvRepository\<Key, Value\>](#ikvrepositorykey-value)
-  - [ITabularRepository\<Schema, PrimaryKeyNames\>](#itabularrepositoryschema-primarykeynames)
+  - [IKvStorage\<Key, Value\>](#ikvrepositorykey-value)
+  - [ITabularStorage\<Schema, PrimaryKeyNames\>](#itabularrepositoryschema-primarykeynames)
   - [IQueueStorage\<Input, Output\>](#iqueuestorageinput-output)
 - [Examples](#examples)
   - [User Management System](#user-management-system)
@@ -47,16 +47,16 @@ Modular storage solutions for Workglow.AI platform with multiple backend impleme
 
 ```typescript
 // Key-Value Storage (simple data)
-import { InMemoryKvRepository } from "@workglow/storage";
+import { InMemoryKvStorage } from "@workglow/storage";
 
-const kvStore = new InMemoryKvRepository<string, { name: string; age: number }>();
+const kvStore = new InMemoryKvStorage<string, { name: string; age: number }>();
 await kvStore.put("user:123", { name: "Alice", age: 30 });
 const kvUser = await kvStore.get("user:123"); // { name: "Alice", age: 30 }
 ```
 
 ```typescript
 // Tabular Storage (structured data with schemas)
-import { InMemoryTabularRepository } from "@workglow/storage";
+import { InMemoryTabularStorage } from "@workglow/storage";
 import { JsonSchema } from "@workglow/util";
 
 const userSchema = {
@@ -71,7 +71,7 @@ const userSchema = {
   additionalProperties: false,
 } as const satisfies JsonSchema;
 
-const userRepo = new InMemoryTabularRepository<typeof userSchema, ["id"]>(
+const userRepo = new InMemoryTabularStorage<typeof userSchema, ["id"]>(
   userSchema,
   ["id"], // primary key
   ["email"] // additional indexes
@@ -139,7 +139,7 @@ The package uses conditional exports, so importing from `@workglow/storage` auto
 
 ```typescript
 // Import from the top-level package; it resolves to the correct target per environment
-import { InMemoryKvRepository, SqliteTabularRepository } from "@workglow/storage";
+import { InMemoryKvStorage, SqliteTabularStorage } from "@workglow/storage";
 ```
 
 ## Storage Types
@@ -151,10 +151,10 @@ Simple key-value storage for unstructured or semi-structured data.
 #### Basic Usage
 
 ```typescript
-import { InMemoryKvRepository, FsFolderJsonKvRepository } from "@workglow/storage";
+import { InMemoryKvStorage, FsFolderJsonKvRepository } from "@workglow/storage";
 
 // In-memory (for testing/caching)
-const cache = new InMemoryKvRepository<string, any>();
+const cache = new InMemoryKvStorage<string, any>();
 await cache.put("config", { theme: "dark", language: "en" });
 
 // File-based JSON (persistent)
@@ -190,7 +190,7 @@ const supabaseStore = new SupabaseKvRepository(supabase, "settings");
 #### Bulk Operations
 
 ```typescript
-const store = new InMemoryKvRepository<string, { name: string; score: number }>();
+const store = new InMemoryKvStorage<string, { name: string; score: number }>();
 
 // Bulk insert
 await store.putBulk([
@@ -209,7 +209,7 @@ const count = await store.size(); // 2
 #### Event Handling
 
 ```typescript
-const store = new InMemoryKvRepository<string, any>();
+const store = new InMemoryKvStorage<string, any>();
 
 // Listen to storage events
 store.on("put", (key, value) => {
@@ -232,7 +232,7 @@ Structured storage with schemas, primary keys, and indexing for complex data rel
 
 ```typescript
 import { JsonSchema } from "@workglow/util";
-import { InMemoryTabularRepository } from "@workglow/storage";
+import { InMemoryTabularStorage } from "@workglow/storage";
 
 // Define your entity schema
 const UserSchema = {
@@ -250,7 +250,7 @@ const UserSchema = {
 } as const satisfies JsonSchema;
 
 // Create repository with primary key and indexes
-const userRepo = new InMemoryTabularRepository<typeof UserSchema, ["id"]>(
+const userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
   UserSchema,
   ["id"], // Primary key (can be compound: ["dept", "id"])
   ["email", "department", ["department", "age"]] // Indexes for fast lookups
@@ -343,9 +343,9 @@ await userRepo.deleteSearch({
 
 ```typescript
 // SQLite (Node.js/Bun)
-import { SqliteTabularRepository } from "@workglow/storage";
+import { SqliteTabularStorage } from "@workglow/storage";
 
-const sqliteUsers = new SqliteTabularRepository<typeof UserSchema, ["id"]>(
+const sqliteUsers = new SqliteTabularStorage<typeof UserSchema, ["id"]>(
   "./users.db",
   "users",
   UserSchema,
@@ -354,11 +354,11 @@ const sqliteUsers = new SqliteTabularRepository<typeof UserSchema, ["id"]>(
 );
 
 // PostgreSQL (Node.js/Bun)
-import { PostgresTabularRepository } from "@workglow/storage";
+import { PostgresTabularStorage } from "@workglow/storage";
 import { Pool } from "pg";
 
 const pool = new Pool({ connectionString: "postgresql://..." });
-const pgUsers = new PostgresTabularRepository<typeof UserSchema, ["id"]>(
+const pgUsers = new PostgresTabularStorage<typeof UserSchema, ["id"]>(
   pool,
   "users",
   UserSchema,
@@ -489,13 +489,13 @@ const cloudJobQueue = new SupabaseQueueStorage(supabase, "background-jobs");
 ```typescript
 import {
   SqliteKvRepository,
-  PostgresTabularRepository,
+  PostgresTabularStorage,
   FsFolderJsonKvRepository,
 } from "@workglow/storage";
 
 // Mix and match storage backends
 const cache = new FsFolderJsonKvRepository("./cache");
-const users = new PostgresTabularRepository(pool, "users", UserSchema, ["id"]);
+const users = new PostgresTabularStorage(pool, "users", UserSchema, ["id"]);
 ```
 
 ### Bun Environment
@@ -503,7 +503,7 @@ const users = new PostgresTabularRepository(pool, "users", UserSchema, ["id"]);
 ```typescript
 // Bun has access to all implementations
 import {
-  SqliteTabularRepository,
+  SqliteTabularStorage,
   FsFolderJsonKvRepository,
   PostgresQueueStorage,
   SupabaseTabularRepository,
@@ -513,7 +513,7 @@ import { Database } from "bun:sqlite";
 import { createClient } from "@supabase/supabase-js";
 
 const db = new Database("./app.db");
-const data = new SqliteTabularRepository(db, "items", ItemSchema, ["id"]);
+const data = new SqliteTabularStorage(db, "items", ItemSchema, ["id"]);
 
 // Or use Supabase for cloud storage
 const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
@@ -532,7 +532,7 @@ Repositories can be registered globally by ID, allowing tasks to reference them 
 import {
   registerTabularRepository,
   getTabularRepository,
-  InMemoryTabularRepository,
+  InMemoryTabularStorage,
 } from "@workglow/storage";
 
 // Define your schema
@@ -548,7 +548,7 @@ const userSchema = {
 } as const;
 
 // Create and register a repository
-const userRepo = new InMemoryTabularRepository(userSchema, ["id"] as const);
+const userRepo = new InMemoryTabularStorage(userSchema, ["id"] as const);
 registerTabularRepository("users", userRepo);
 
 // Later, retrieve the repository by ID
@@ -616,7 +616,7 @@ const docSchema = TypeDocumentRepository({
 All storage implementations support event emission for monitoring and reactive programming:
 
 ```typescript
-const store = new InMemoryTabularRepository(UserSchema, ["id"]);
+const store = new InMemoryTabularStorage(UserSchema, ["id"]);
 
 // Monitor all operations
 store.on("put", (entity) => console.log("User created/updated:", entity));
@@ -645,7 +645,7 @@ const OrderLineSchema = {
   additionalProperties: false,
 } as const satisfies JsonSchema;
 
-const orderLines = new InMemoryTabularRepository<typeof OrderLineSchema, ["orderId", "lineNumber"]>(
+const orderLines = new InMemoryTabularStorage<typeof OrderLineSchema, ["orderId", "lineNumber"]>(
   OrderLineSchema,
   ["orderId", "lineNumber"], // Compound primary key
   ["productId"] // Additional index
@@ -684,12 +684,12 @@ await files.put("note-1", "Hello world");
 
 ## API Reference
 
-### IKvRepository<Key, Value>
+### IKvStorage<Key, Value>
 
 Core interface for key-value storage:
 
 ```typescript
-interface IKvRepository<Key, Value> {
+interface IKvStorage<Key, Value> {
   // Core operations
   put(key: Key, value: Value): Promise<void>;
   putBulk(items: Array<{ key: Key; value: Value }>): Promise<void>;
@@ -708,12 +708,12 @@ interface IKvRepository<Key, Value> {
 }
 ```
 
-### ITabularRepository<Schema, PrimaryKeyNames>
+### ITabularStorage<Schema, PrimaryKeyNames>
 
 Core interface for tabular storage:
 
 ```typescript
-interface ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
+interface ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
   // Core operations
   put(entity: Entity): Promise<void>;
   putBulk(entities: Entity[]): Promise<void>;
@@ -795,7 +795,7 @@ interface IQueueStorage<Input, Output> {
 
 ```typescript
 import { JsonSchema, FromSchema } from "@workglow/util";
-import { InMemoryTabularRepository, InMemoryKvRepository } from "@workglow/storage";
+import { InMemoryTabularStorage, InMemoryKvStorage } from "@workglow/storage";
 
 // User profile with tabular storage
 const UserSchema = {
@@ -817,14 +817,14 @@ const UserSchema = {
   additionalProperties: false,
 } as const satisfies JsonSchema;
 
-const userRepo = new InMemoryTabularRepository<typeof UserSchema, ["id"]>(
+const userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
   UserSchema,
   ["id"],
   ["email", "username"]
 );
 
 // User sessions with KV storage
-const sessionStore = new InMemoryKvRepository<string, { userId: string; expiresAt: string }>();
+const sessionStore = new InMemoryKvStorage<string, { userId: string; expiresAt: string }>();
 
 // User management class
 class UserManager {
@@ -1075,13 +1075,13 @@ bun test --grep "Sqlite"      # Native tests
 
 ```typescript
 import { describe, test, expect, beforeEach } from "vitest";
-import { InMemoryTabularRepository } from "@workglow/storage";
+import { InMemoryTabularStorage } from "@workglow/storage";
 
 describe("UserRepository", () => {
-  let userRepo: InMemoryTabularRepository<typeof UserSchema, ["id"]>;
+  let userRepo: InMemoryTabularStorage<typeof UserSchema, ["id"]>;
 
   beforeEach(() => {
-    userRepo = new InMemoryTabularRepository<typeof UserSchema, ["id"]>(
+    userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
       UserSchema,
       ["id"],
       ["email"]

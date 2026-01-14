@@ -7,10 +7,10 @@
 import { createServiceToken, JsonSchema } from "@workglow/util";
 import { mkdir, readFile, rm, unlink, writeFile } from "fs/promises";
 import path from "path";
-import { IKvRepository } from "./IKvRepository";
-import { KvRepository } from "./KvRepository";
+import { IKvStorage } from "./IKvStorage";
+import { KvStorage } from "./KvStorage";
 
-export const FS_FOLDER_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, any>>(
+export const FS_FOLDER_KV_REPOSITORY = createServiceToken<IKvStorage<string, any, any>>(
   "storage.kvRepository.fsFolder"
 );
 
@@ -22,13 +22,13 @@ export const FS_FOLDER_KV_REPOSITORY = createServiceToken<IKvRepository<string, 
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export class FsFolderKvRepository<
+export class FsFolderKvStorage<
   Key extends string = string,
   Value extends any = any,
   Combined = { key: Key; value: Value },
-> extends KvRepository<Key, Value, Combined> {
+> extends KvStorage<Key, Value, Combined> {
   /**
-   * Creates a new KvRepository instance
+   * Creates a new KvStorage instance
    */
   constructor(
     public folderPath: string,

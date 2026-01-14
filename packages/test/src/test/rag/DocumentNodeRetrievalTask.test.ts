@@ -5,14 +5,14 @@
  */
 
 import { retrieval } from "@workglow/ai";
-import { InMemoryChunkVectorRepository, registerChunkVectorRepository } from "@workglow/storage";
+import { InMemoryChunkVectorStorage, registerChunkVectorRepository } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 describe("DocumentNodeRetrievalTask", () => {
-  let repo: InMemoryChunkVectorRepository;
+  let repo: InMemoryChunkVectorStorage;
 
   beforeEach(async () => {
-    repo = new InMemoryChunkVectorRepository(3);
+    repo = new InMemoryChunkVectorStorage(3);
     await repo.setupDatabase();
 
     // Populate repository with test data

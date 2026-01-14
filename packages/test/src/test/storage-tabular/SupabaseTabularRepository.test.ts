@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SupabaseTabularRepository } from "@workglow/storage";
+import { SupabaseTabularStorage } from "@workglow/storage";
 import { uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
@@ -20,17 +20,17 @@ import {
 
 const client = createSupabaseMockClient();
 
-describe("SupabaseTabularRepository", () => {
+describe("SupabaseTabularStorage", () => {
   runGenericTabularRepositoryTests(
     async () =>
-      new SupabaseTabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      new SupabaseTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         client,
         `supabase_test_${uuid4().replace(/-/g, "_")}`,
         CompoundSchema,
         CompoundPrimaryKeyNames
       ),
     async () =>
-      new SupabaseTabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+      new SupabaseTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
         client,
         `supabase_test_${uuid4().replace(/-/g, "_")}`,
         SearchSchema,
@@ -38,7 +38,7 @@ describe("SupabaseTabularRepository", () => {
         ["category", ["category", "subcategory"], ["subcategory", "category"], "value"]
       ),
     async () => {
-      const repo = new SupabaseTabularRepository<
+      const repo = new SupabaseTabularStorage<
         typeof AllTypesSchema,
         typeof AllTypesPrimaryKeyNames
       >(

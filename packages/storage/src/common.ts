@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./tabular/BaseTabularRepository";
-export * from "./tabular/CachedTabularRepository";
-export * from "./tabular/InMemoryTabularRepository";
-export * from "./tabular/ITabularRepository";
-export * from "./tabular/TabularRepositoryRegistry";
+export * from "./tabular/BaseTabularStorage";
+export * from "./tabular/CachedTabularStorage";
+export * from "./tabular/InMemoryTabularStorage";
+export * from "./tabular/ITabularStorage";
+export * from "./tabular/TabularStorageRegistry";
 
 export * from "./util/RepositorySchema";
 
-export * from "./kv/IKvRepository";
-export * from "./kv/InMemoryKvRepository";
-export * from "./kv/KvRepository";
-export * from "./kv/KvViaTabularRepository";
+export * from "./kv/IKvStorage";
+export * from "./kv/InMemoryKvStorage";
+export * from "./kv/KvStorage";
+export * from "./kv/KvViaTabularStorage";
 
 export * from "./queue/InMemoryQueueStorage";
 export * from "./queue/IQueueStorage";
@@ -34,7 +34,7 @@ export * from "./document/DocumentSchema";
 export * from "./document/DocumentStorageSchema";
 export * from "./document/StructuralParser";
 
-export * from "./chunk-vector/ChunkVectorRepositoryRegistry";
+export * from "./chunk-vector/ChunkVectorStorageRegistry";
 export * from "./chunk-vector/ChunkVectorSchema";
-export * from "./chunk-vector/IChunkVectorRepository";
-export * from "./chunk-vector/InMemoryChunkVectorRepository";
+export * from "./chunk-vector/IChunkVectorStorage";
+export * from "./chunk-vector/InMemoryChunkVectorStorage";

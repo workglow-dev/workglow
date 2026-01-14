@@ -9,8 +9,8 @@ import {
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryChunkVectorRepository,
-  InMemoryTabularRepository,
+  InMemoryChunkVectorStorage,
+  InMemoryTabularStorage,
   NodeIdGenerator,
   NodeKind,
   StructuralParser,
@@ -19,16 +19,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 describe("DocumentRepository", () => {
   let repo: DocumentRepository;
-  let vectorStorage: InMemoryChunkVectorRepository;
+  let vectorStorage: InMemoryChunkVectorStorage;
 
   beforeEach(async () => {
-    const tabularStorage = new InMemoryTabularRepository<DocumentStorageSchema, DocumentStorageKey>(
+    const tabularStorage = new InMemoryTabularStorage<DocumentStorageSchema, DocumentStorageKey>(
       DocumentStorageSchema,
       DocumentStorageKey
     );
     await tabularStorage.setupDatabase();
 
-    vectorStorage = new InMemoryChunkVectorRepository(3);
+    vectorStorage = new InMemoryChunkVectorStorage(3);
     await vectorStorage.setupDatabase();
 
     repo = new DocumentRepository(tabularStorage, vectorStorage);
@@ -205,7 +205,7 @@ Paragraph.`;
 
   it("should return empty list for empty repository", async () => {
     // Create fresh empty repo
-    const tabularStorage = new InMemoryTabularRepository<DocumentStorageSchema, DocumentStorageKey>(
+    const tabularStorage = new InMemoryTabularStorage<DocumentStorageSchema, DocumentStorageKey>(
       DocumentStorageSchema,
       DocumentStorageKey
     );
@@ -341,7 +341,7 @@ Paragraph.`;
   });
 
   it("should return empty array for search when no vector storage configured", async () => {
-    const tabularStorage = new InMemoryTabularRepository<DocumentStorageSchema, DocumentStorageKey>(
+    const tabularStorage = new InMemoryTabularStorage<DocumentStorageSchema, DocumentStorageKey>(
       DocumentStorageSchema,
       DocumentStorageKey
     );

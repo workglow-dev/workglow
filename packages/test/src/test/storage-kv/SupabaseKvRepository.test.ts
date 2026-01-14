@@ -7,24 +7,24 @@
 import {
   DefaultKeyValueKey,
   DefaultKeyValueSchema,
-  SupabaseKvRepository,
-  SupabaseTabularRepository,
+  SupabaseKvStorage,
+  SupabaseTabularStorage,
 } from "@workglow/storage";
 import { uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
-describe("SupabaseKvRepository", () => {
+describe("SupabaseKvStorage", () => {
   const client = createSupabaseMockClient();
   runGenericKvRepositoryTests(async (keyType, valueType) => {
     const tableName = `supabase_test_${uuid4().replace(/-/g, "_")}`;
-    return new SupabaseKvRepository(
+    return new SupabaseKvStorage(
       client,
       tableName,
       keyType,
       valueType,
-      new SupabaseTabularRepository(client, tableName, DefaultKeyValueSchema, DefaultKeyValueKey)
+      new SupabaseTabularStorage(client, tableName, DefaultKeyValueSchema, DefaultKeyValueKey)
     );
   });
 });

@@ -23,7 +23,7 @@ A flexible key-value storage solution with multiple backend implementations. Pro
   - 💾 `IndexedDbKvRepository` - Browser IndexedDB storage
   - 🐘 `PostgresKvRepository` - PostgreSQL database storage
   - 📁 `SqliteKvRepository` - SQLite database storage
-  - 🧠 `InMemoryKvRepository` - Volatile memory storage
+  - 🧠 `InMemoryKvStorage` - Volatile memory storage
 - Type-safe key/value definitions
 - JSON value serialization support
 - Event emitter for storage operations (put/get/delete)
@@ -104,9 +104,9 @@ await sqliteRepo.put("temp:789", "cached_value");
 ### In-Memory Storage
 
 ```typescript
-import { InMemoryKvRepository } from "@workglow/storage/kv";
+import { InMemoryKvStorage } from "@workglow/storage/kv";
 
-const memRepo = new InMemoryKvRepository(
+const memRepo = new InMemoryKvStorage(
   "string", // Key type
   "json" // Value type
 );

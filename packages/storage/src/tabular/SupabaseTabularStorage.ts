@@ -12,9 +12,9 @@ import {
   JsonSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { BaseSqlTabularRepository } from "./BaseSqlTabularRepository";
+import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
   isSearchCondition,
   SearchOperator,
@@ -23,32 +23,32 @@ import {
   TabularChangeType,
   TabularSubscribeOptions,
   ValueOptionType,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
-export const SUPABASE_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const SUPABASE_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.supabase"
 );
 
 /**
- * A Supabase-based tabular repository implementation that extends BaseSqlTabularRepository.
+ * A Supabase-based tabular repository implementation that extends BaseSqlTabularStorage.
  * This class provides persistent storage for data in a Supabase database,
  * making it suitable for multi-user scenarios.
  *
  * @template Schema - The schema definition for the entity
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class SupabaseTabularRepository<
+export class SupabaseTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseSqlTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+> extends BaseSqlTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
   private client: SupabaseClient;
   private realtimeChannel: RealtimeChannel | null = null;
 
   /**
-   * Creates a new SupabaseTabularRepository instance.
+   * Creates a new SupabaseTabularStorage instance.
    *
    * @param client - Supabase client instance
    * @param table - Name of the table to store data (defaults to "tabular_store")

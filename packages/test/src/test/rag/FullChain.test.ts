@@ -5,13 +5,13 @@
  */
 
 import { HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { ChunkNode, InMemoryChunkVectorRepository, NodeIdGenerator } from "@workglow/storage";
+import { ChunkNode, InMemoryChunkVectorStorage, NodeIdGenerator } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
 describe("Complete chainable workflow", () => {
   it("should chain from parsing to storage without loops", async () => {
-    const vectorRepo = new InMemoryChunkVectorRepository(3);
+    const vectorRepo = new InMemoryChunkVectorStorage(3);
     await vectorRepo.setupDatabase();
 
     const markdown = `# Test Document

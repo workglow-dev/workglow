@@ -6,16 +6,16 @@
 
 export * from "./common";
 
-export * from "./tabular/FsFolderTabularRepository";
-export * from "./tabular/PostgresTabularRepository";
-export * from "./tabular/SqliteTabularRepository";
-export * from "./tabular/SupabaseTabularRepository";
+export * from "./tabular/FsFolderTabularStorage";
+export * from "./tabular/PostgresTabularStorage";
+export * from "./tabular/SqliteTabularStorage";
+export * from "./tabular/SupabaseTabularStorage";
 
-export * from "./kv/FsFolderJsonKvRepository";
-export * from "./kv/FsFolderKvRepository";
-export * from "./kv/PostgresKvRepository";
-export * from "./kv/SqliteKvRepository";
-export * from "./kv/SupabaseKvRepository";
+export * from "./kv/FsFolderJsonKvStorage";
+export * from "./kv/FsFolderKvStorage";
+export * from "./kv/PostgresKvStorage";
+export * from "./kv/SqliteKvStorage";
+export * from "./kv/SupabaseKvStorage";
 
 export * from "./queue/PostgresQueueStorage";
 export * from "./queue/SqliteQueueStorage";
@@ -25,12 +25,12 @@ export * from "./queue-limiter/PostgresRateLimiterStorage";
 export * from "./queue-limiter/SqliteRateLimiterStorage";
 export * from "./queue-limiter/SupabaseRateLimiterStorage";
 
-export * from "./chunk-vector/PostgresChunkVectorRepository";
-export * from "./chunk-vector/SqliteChunkVectorRepository";
+export * from "./chunk-vector/PostgresChunkVectorStorage";
+export * from "./chunk-vector/SqliteChunkVectorStorage";
 
 // testing
-export * from "./kv/IndexedDbKvRepository";
+export * from "./kv/IndexedDbKvStorage";
 export * from "./queue-limiter/IndexedDbRateLimiterStorage";
 export * from "./queue/IndexedDbQueueStorage";
-export * from "./tabular/IndexedDbTabularRepository";
+export * from "./tabular/IndexedDbTabularStorage";
 export * from "./util/IndexedDbTable";

@@ -10,52 +10,52 @@ import {
   FromSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { BaseTabularRepository } from "./BaseTabularRepository";
-import { InMemoryTabularRepository } from "./InMemoryTabularRepository";
+import { BaseTabularStorage } from "./BaseTabularStorage";
+import { InMemoryTabularStorage } from "./InMemoryTabularStorage";
 import {
-  AnyTabularRepository,
+  AnyTabularStorage,
   DeleteSearchCriteria,
-  ITabularRepository,
+  ITabularStorage,
   SimplifyPrimaryKey,
   TabularSubscribeOptions,
-} from "./ITabularRepository";
+} from "./ITabularStorage";
 
-export const CACHED_TABULAR_REPOSITORY = createServiceToken<AnyTabularRepository>(
+export const CACHED_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.cached"
 );
 
 /**
  * A tabular repository wrapper that adds caching layer to a durable repository.
- * Uses InMemoryTabularRepository or SharedInMemoryTabularRepository as a cache
+ * Uses InMemoryTabularStorage or SharedInMemoryTabularStorage as a cache
  * for faster access to frequently used data.
  *
  * @template Schema - The schema definition for the entity using JSON Schema
  * @template PrimaryKeyNames - Array of property names that form the primary key
  */
-export class CachedTabularRepository<
+export class CachedTabularStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   // computed types
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
   PrimaryKey = SimplifyPrimaryKey<Entity, PrimaryKeyNames>,
-> extends BaseTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
-  public readonly cache: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
-  private durable: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
+> extends BaseTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey> {
+  public readonly cache: ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
+  private durable: ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private cacheInitialized = false;
 
   /**
-   * Creates a new CachedTabularRepository instance
+   * Creates a new CachedTabularStorage instance
    * @param durable - The durable repository to use as the source of truth
-   * @param cache - Optional cache repository (InMemoryTabularRepository or SharedInMemoryTabularRepository).
-   *                 If not provided, a new InMemoryTabularRepository will be created.
+   * @param cache - Optional cache repository (InMemoryTabularStorage or SharedInMemoryTabularStorage).
+   *                 If not provided, a new InMemoryTabularStorage will be created.
    * @param schema - Schema defining the structure of the entity
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable. Each string or single column creates a single-column index,
    *                    while each array creates a compound index with columns in the specified order.
    */
   constructor(
-    durable: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>,
-    cache?: ITabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>,
+    durable: ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>,
+    cache?: ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>,
     schema?: Schema,
     primaryKeyNames?: PrimaryKeyNames,
     indexes?: readonly (keyof Entity | readonly (keyof Entity)[])[]
@@ -65,7 +65,7 @@ export class CachedTabularRepository<
     // So we require them to be provided or assume they match
     if (!schema || !primaryKeyNames) {
       throw new Error(
-        "Schema and primaryKeyNames must be provided when creating CachedTabularRepository"
+        "Schema and primaryKeyNames must be provided when creating CachedTabularStorage"
       );
     }
 
@@ -76,7 +76,7 @@ export class CachedTabularRepository<
     if (cache) {
       this.cache = cache;
     } else {
-      this.cache = new InMemoryTabularRepository<Schema, PrimaryKeyNames, Entity, PrimaryKey>(
+      this.cache = new InMemoryTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>(
         schema,
         primaryKeyNames,
         indexes || []

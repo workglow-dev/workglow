@@ -252,7 +252,7 @@ This resolution happens automatically before `validateInput()` is called, so by 
 import { Task } from "@workglow/task-graph";
 import { TypeTabularRepository } from "@workglow/storage";
 
-class DataProcessingTask extends Task<{ repository: ITabularRepository; query: string }> {
+class DataProcessingTask extends Task<{ repository: ITabularStorage; query: string }> {
   static readonly type = "DataProcessingTask";
 
   static inputSchema() {
@@ -270,7 +270,7 @@ class DataProcessingTask extends Task<{ repository: ITabularRepository; query: s
   }
 
   async execute(input: DataProcessingTaskInput, context: IExecuteContext) {
-    // repository is guaranteed to be an ITabularRepository instance
+    // repository is guaranteed to be an ITabularStorage instance
     const data = await input.repository.getAll();
     return { results: data };
   }

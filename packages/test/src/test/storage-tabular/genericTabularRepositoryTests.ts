@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ITabularRepository } from "@workglow/storage";
+import { ITabularStorage } from "@workglow/storage";
 import { DataPortSchemaObject, FromSchema } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -79,17 +79,17 @@ export const AllTypesSchema = {
 
 export function runGenericTabularRepositoryTests(
   createCompoundPkRepository: () => Promise<
-    ITabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>
+    ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>
   >,
   createSearchableRepository?: () => Promise<
-    ITabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>
+    ITabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>
   >,
   createAllTypesRepository?: () => Promise<
-    ITabularRepository<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>
+    ITabularStorage<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>
   >
 ) {
   describe("with compound primary keys", () => {
-    let repository: ITabularRepository<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+    let repository: ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(async () => {
       repository = await createCompoundPkRepository();
@@ -207,7 +207,7 @@ export function runGenericTabularRepositoryTests(
   // Only run compound index tests if createCompoundRepository is provided
   if (createSearchableRepository) {
     describe("with searchable indexes", () => {
-      let searchableRepo: ITabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
+      let searchableRepo: ITabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
 
       beforeEach(async () => {
         searchableRepo = await createSearchableRepository();
@@ -343,7 +343,7 @@ export function runGenericTabularRepositoryTests(
     });
 
     describe(`deleteSearch tests`, () => {
-      let repository: ITabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
+      let repository: ITabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
 
       beforeEach(async () => {
         repository = await createSearchableRepository();
@@ -803,7 +803,7 @@ export function runGenericTabularRepositoryTests(
     });
 
     describe("return value tests with timestamps", () => {
-      let repository: ITabularRepository<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
+      let repository: ITabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
 
       beforeEach(async () => {
         repository = await createSearchableRepository();
@@ -983,7 +983,7 @@ export function runGenericTabularRepositoryTests(
   if (createAllTypesRepository) {
     describe("data type coverage", () => {
       type AllTypesRecord = FromSchema<typeof AllTypesSchema>;
-      let repository: ITabularRepository<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>;
+      let repository: ITabularStorage<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>;
 
       beforeEach(async () => {
         repository = await createAllTypesRepository();

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SqliteTabularRepository } from "@workglow/storage";
+import { SqliteTabularStorage } from "@workglow/storage";
 import {
   TaskOutputPrimaryKeyNames,
   TaskOutputSchema,
@@ -23,7 +23,7 @@ export const SQLITE_TASK_OUTPUT_REPOSITORY = createServiceToken<SqliteTaskOutput
 export class SqliteTaskOutputRepository extends TaskOutputTabularRepository {
   constructor(dbOrPath: string, table: string = "task_outputs") {
     super({
-      tabularRepository: new SqliteTabularRepository(
+      tabularRepository: new SqliteTabularStorage(
         dbOrPath,
         table,
         TaskOutputSchema,

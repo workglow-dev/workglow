@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FsFolderTabularRepository } from "@workglow/storage";
+import { FsFolderTabularStorage } from "@workglow/storage";
 import {
   TaskOutputPrimaryKeyNames,
   TaskOutputSchema,
@@ -23,7 +23,7 @@ export const FS_FOLDER_TASK_OUTPUT_REPOSITORY = createServiceToken<FsFolderTaskO
 export class FsFolderTaskOutputRepository extends TaskOutputTabularRepository {
   constructor(folderPath: string) {
     super({
-      tabularRepository: new FsFolderTabularRepository(
+      tabularRepository: new FsFolderTabularStorage(
         folderPath,
         TaskOutputSchema,
         TaskOutputPrimaryKeyNames

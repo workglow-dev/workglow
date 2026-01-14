@@ -4,16 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Sqlite } from "@workglow/sqlite";
 import type { TypedArray } from "@workglow/util";
 import { cosineSimilarity } from "@workglow/util";
-import { SqliteTabularRepository } from "../tabular/SqliteTabularRepository";
+import { InMemoryTabularStorage } from "../tabular/InMemoryTabularStorage";
 import { ChunkVector, ChunkVectorKey, ChunkVectorSchema } from "./ChunkVectorSchema";
 import type {
   HybridSearchOptions,
-  IChunkVectorRepository,
+  IChunkVectorStorage,
   VectorSearchOptions,
-} from "./IChunkVectorRepository";
+} from "./IChunkVectorStorage";
 
 /**
  * Check if metadata matches filter
@@ -28,23 +27,44 @@ function matchesFilter<Metadata>(metadata: Metadata, filter: Partial<Metadata>):
 }
 
 /**
- * SQLite document chunk vector repository implementation using tabular storage underneath.
- * Stores vectors as JSON-encoded arrays with metadata.
+ * Simple full-text search scoring (keyword matching)
+ */
+function textRelevance(text: string, query: string): number {
+  const textLower = text.toLowerCase();
+  const queryLower = query.toLowerCase();
+  const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
+  if (queryWords.length === 0) {
+    return 0;
+  }
+  let matches = 0;
+  for (const word of queryWords) {
+    if (textLower.includes(word)) {
+      matches++;
+    }
+  }
+  return matches / queryWords.length;
+}
+
+/**
+ * In-memory document chunk vector repository implementation.
+ * Extends InMemoryTabularRepository for storage.
+ * Suitable for testing and small-scale browser applications.
+ * Supports all vector types including quantized formats.
  *
  * @template Metadata - The metadata type for the document chunk
  * @template Vector - The vector type for the document chunk
  */
-export class SqliteChunkVectorRepository<
+export class InMemoryChunkVectorStorage<
   Metadata extends Record<string, unknown> = Record<string, unknown>,
   Vector extends TypedArray = Float32Array,
 >
-  extends SqliteTabularRepository<
+  extends InMemoryTabularStorage<
     typeof ChunkVectorSchema,
     typeof ChunkVectorKey,
     ChunkVector<Metadata, Vector>
   >
   implements
-    IChunkVectorRepository<
+    IChunkVectorStorage<
       typeof ChunkVectorSchema,
       typeof ChunkVectorKey,
       ChunkVector<Metadata, Vector>
@@ -54,48 +74,36 @@ export class SqliteChunkVectorRepository<
   private VectorType: new (array: number[]) => TypedArray;
 
   /**
-   * Creates a new SQLite document chunk vector repository
-   * @param dbOrPath - Either a Database instance or a path to the SQLite database file
-   * @param table - The name of the table to use for storage (defaults to 'vectors')
+   * Creates a new in-memory document chunk vector repository
    * @param dimensions - The number of dimensions of the vector
    * @param VectorType - The type of vector to use (defaults to Float32Array)
    */
-  constructor(
-    dbOrPath: string | Sqlite.Database,
-    table: string = "vectors",
-    dimensions: number,
-    VectorType: new (array: number[]) => TypedArray = Float32Array
-  ) {
-    super(dbOrPath, table, ChunkVectorSchema, ChunkVectorKey);
+  constructor(dimensions: number, VectorType: new (array: number[]) => TypedArray = Float32Array) {
+    super(ChunkVectorSchema, ChunkVectorKey);
 
     this.vectorDimensions = dimensions;
     this.VectorType = VectorType;
   }
 
+  /**
+   * Get the vector dimensions
+   * @returns The vector dimensions
+   */
   getVectorDimensions(): number {
     return this.vectorDimensions;
   }
 
-  /**
-   * Deserialize vector from JSON string
-   * Defaults to Float32Array for compatibility with typical embedding vectors
-   */
-  private deserializeVector(vectorJson: string): TypedArray {
-    const array = JSON.parse(vectorJson);
-    // Default to Float32Array for typical use case (embeddings)
-    return new this.VectorType(array);
-  }
-
-  async similaritySearch(query: TypedArray, options: VectorSearchOptions<Metadata> = {}) {
+  async similaritySearch(
+    query: TypedArray,
+    options: VectorSearchOptions<Record<string, unknown>> = {}
+  ) {
     const { topK = 10, filter, scoreThreshold = 0 } = options;
     const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
 
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
-      // SQLite stores vectors as JSON strings, need to deserialize
-      const vectorRaw = entity.vector as unknown as string;
-      const vector = this.deserializeVector(vectorRaw);
+      const vector = entity.vector;
       const metadata = entity.metadata;
 
       // Apply filter if provided
@@ -115,7 +123,7 @@ export class SqliteChunkVectorRepository<
         ...entity,
         vector,
         score,
-      } as any);
+      });
     }
 
     // Sort by score descending and take top K
@@ -125,7 +133,7 @@ export class SqliteChunkVectorRepository<
     return topResults;
   }
 
-  async hybridSearch(query: TypedArray, options: HybridSearchOptions<Metadata>) {
+  async hybridSearch(query: TypedArray, options: HybridSearchOptions<Record<string, unknown>>) {
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
@@ -135,16 +143,10 @@ export class SqliteChunkVectorRepository<
 
     const results: Array<ChunkVector<Metadata, Vector> & { score: number }> = [];
     const allEntities = (await this.getAll()) || [];
-    const queryLower = textQuery.toLowerCase();
-    const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
     for (const entity of allEntities) {
-      // SQLite stores vectors as JSON strings, need to deserialize
-      const vectorRaw = entity.vector as unknown as string;
-      const vector =
-        typeof vectorRaw === "string"
-          ? this.deserializeVector(vectorRaw)
-          : (vectorRaw as TypedArray);
+      // In memory, vectors are stored as TypedArrays directly (not serialized)
+      const vector = entity.vector;
       const metadata = entity.metadata;
 
       // Apply filter if provided
@@ -156,17 +158,8 @@ export class SqliteChunkVectorRepository<
       const vectorScore = cosineSimilarity(query, vector);
 
       // Calculate text relevance (simple keyword matching)
-      const metadataText = JSON.stringify(metadata).toLowerCase();
-      let textScore = 0;
-      if (queryWords.length > 0) {
-        let matches = 0;
-        for (const word of queryWords) {
-          if (metadataText.includes(word)) {
-            matches++;
-          }
-        }
-        textScore = matches / queryWords.length;
-      }
+      const metadataText = Object.values(metadata).join(" ").toLowerCase();
+      const textScore = textRelevance(metadataText, textQuery);
 
       // Combine scores
       const combinedScore = vectorWeight * vectorScore + (1 - vectorWeight) * textScore;
@@ -180,7 +173,7 @@ export class SqliteChunkVectorRepository<
         ...entity,
         vector,
         score: combinedScore,
-      } as any);
+      });
     }
 
     // Sort by combined score descending and take top K

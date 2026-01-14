@@ -50,8 +50,8 @@ import {
   DocumentRepository,
   DocumentStorageKey,
   DocumentStorageSchema,
-  InMemoryChunkVectorRepository,
-  InMemoryTabularRepository,
+  InMemoryChunkVectorStorage,
+  InMemoryTabularStorage,
   registerChunkVectorRepository,
 } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
@@ -62,7 +62,7 @@ import { registerHuggingfaceLocalModels } from "../../samples";
 export { FileLoaderTask } from "@workglow/tasks";
 
 describe("RAG Workflow End-to-End", () => {
-  let vectorRepo: InMemoryChunkVectorRepository;
+  let vectorRepo: InMemoryChunkVectorStorage;
   let docRepo: DocumentRepository;
   const vectorRepoName = "rag-test-vector-repo";
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
@@ -79,13 +79,13 @@ describe("RAG Workflow End-to-End", () => {
     await registerHuggingfaceLocalModels();
 
     // Setup repositories
-    vectorRepo = new InMemoryChunkVectorRepository(3);
+    vectorRepo = new InMemoryChunkVectorStorage(3);
     await vectorRepo.setupDatabase();
 
     // Register vector repository for use in workflows
     registerChunkVectorRepository(vectorRepoName, vectorRepo);
 
-    const tabularRepo = new InMemoryTabularRepository(DocumentStorageSchema, DocumentStorageKey);
+    const tabularRepo = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
     await tabularRepo.setupDatabase();
 
     docRepo = new DocumentRepository(tabularRepo, vectorRepo);

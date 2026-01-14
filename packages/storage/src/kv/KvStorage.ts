@@ -5,17 +5,17 @@
  */
 
 import { createServiceToken, EventEmitter, JsonSchema, makeFingerprint } from "@workglow/util";
-import { JSONValue } from "../tabular/ITabularRepository";
+import { JSONValue } from "../tabular/ITabularStorage";
 import {
-    IKvRepository,
+    IKvStorage,
     KvEventListener,
     KvEventListeners,
     KvEventName,
     KvEventParameters,
-} from "./IKvRepository";
+} from "./IKvStorage";
 
 export const KV_REPOSITORY =
-  createServiceToken<IKvRepository<any, any, any>>("storage.kvRepository");
+  createServiceToken<IKvStorage<any, any, any>>("storage.kvRepository");
 
 /**
  * Abstract base class for key-value storage repositories.
@@ -25,17 +25,17 @@ export const KV_REPOSITORY =
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export abstract class KvRepository<
+export abstract class KvStorage<
   Key extends string = string,
   Value extends any = any,
   Combined = { key: Key; value: Value },
-> implements IKvRepository<Key, Value, Combined>
+> implements IKvStorage<Key, Value, Combined>
 {
   /** Event emitter for repository events */
   protected events = new EventEmitter<KvEventListeners<Key, Value, Combined>>();
 
   /**
-   * Creates a new KvRepository instance
+   * Creates a new KvStorage instance
    */
   constructor(
     public keySchema: JsonSchema = { type: "string" },

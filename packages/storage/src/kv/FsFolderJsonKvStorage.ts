@@ -5,11 +5,11 @@
  */
 
 import { createServiceToken, JsonSchema } from "@workglow/util";
-import { FsFolderTabularRepository } from "../tabular/FsFolderTabularRepository";
-import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvRepository } from "./IKvRepository";
-import { KvViaTabularRepository } from "./KvViaTabularRepository";
+import { FsFolderTabularStorage } from "../tabular/FsFolderTabularStorage";
+import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
+import { KvViaTabularStorage } from "./KvViaTabularStorage";
 
-export const FS_FOLDER_JSON_KV_REPOSITORY = createServiceToken<IKvRepository<string, any, any>>(
+export const FS_FOLDER_JSON_KV_REPOSITORY = createServiceToken<IKvStorage<string, any, any>>(
   "storage.kvRepository.fsFolderJson"
 );
 
@@ -21,14 +21,14 @@ export const FS_FOLDER_JSON_KV_REPOSITORY = createServiceToken<IKvRepository<str
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
-export class FsFolderJsonKvRepository extends KvViaTabularRepository {
-  public tabularRepository: FsFolderTabularRepository<
+export class FsFolderJsonKvStorage extends KvViaTabularStorage {
+  public tabularRepository: FsFolderTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;
 
   /**
-   * Creates a new KvRepository instance
+   * Creates a new KvStorage instance
    */
   constructor(
     public folderPath: string,
@@ -36,7 +36,7 @@ export class FsFolderJsonKvRepository extends KvViaTabularRepository {
     valueSchema: JsonSchema = {}
   ) {
     super(keySchema, valueSchema);
-    this.tabularRepository = new FsFolderTabularRepository(
+    this.tabularRepository = new FsFolderTabularStorage(
       folderPath,
       DefaultKeyValueSchema,
       DefaultKeyValueKey

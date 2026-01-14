@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { BaseTabularRepository } from "@workglow/storage";
+import type { BaseTabularStorage } from "@workglow/storage";
 import { DataPortSchemaObject } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { createGraphFromGraphJSON } from "../task/TaskJSON";
@@ -24,7 +24,7 @@ export const TaskGraphPrimaryKeyNames = ["key"] as const;
 /**
  * Options for the TaskGraphRepository
  */
-export type TaskGraphRepositoryStorage = BaseTabularRepository<
+export type TaskGraphRepositoryStorage = BaseTabularStorage<
   typeof TaskGraphSchema,
   typeof TaskGraphPrimaryKeyNames
 >;
