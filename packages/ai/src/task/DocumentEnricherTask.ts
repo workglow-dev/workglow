@@ -374,7 +374,7 @@ export class DocumentEnricherTask extends Task<
       }
     }
 
-    const text = node.text.trim();
+    const text = node.text?.trim();
     if (text && extract) {
       const nodeEntities = await extract(text);
       if (nodeEntities?.length) {

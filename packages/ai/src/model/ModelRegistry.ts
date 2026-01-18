@@ -52,15 +52,10 @@ async function resolveModelFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): Promise<ModelConfig | ModelConfig[] | undefined> {
+): Promise<ModelConfig | undefined> {
   const modelRepo = registry.has(MODEL_REPOSITORY)
     ? registry.get<ModelRepository>(MODEL_REPOSITORY)
     : getGlobalModelRepository();
-
-  if (Array.isArray(id)) {
-    const results = await Promise.all(id.map((i) => modelRepo.findByName(i)));
-    return results.filter((model): model is NonNullable<typeof model> => model !== undefined);
-  }
 
   const model = await modelRepo.findByName(id);
   if (!model) {

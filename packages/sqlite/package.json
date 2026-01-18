@@ -38,13 +38,13 @@
     ".": {
       "react-native": "./dist/browser.js",
       "browser": "./dist/browser.js",
-      "bun": "./src/bun.ts",
-      "types": "./src/types.ts",
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
       "import": "./dist/node.js"
     },
     "./bun": {
-      "types": "./src/bun.ts",
-      "import": "./src/bun.ts"
+      "types": "./dist/bun.d.ts",
+      "import": "./dist/bun.js"
     },
     "./node": {
       "types": "./dist/node.d.ts",
