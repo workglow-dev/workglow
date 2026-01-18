@@ -335,7 +335,8 @@ async function performDestructiveMigration(
   tableName: string,
   primaryKey: string | string[],
   expectedIndexes: ExpectedIndexDefinition[],
-  options: MigrationOptions = {}
+  options: MigrationOptions = {},
+  autoIncrement: boolean = false
 ): Promise<IDBDatabase> {
   if (!options.allowDestructiveMigration) {
     throw new Error(
@@ -411,7 +412,7 @@ async function performDestructiveMigration(
     }
 
     // Create new object store with new schema
-    const store = db.createObjectStore(tableName, { keyPath: primaryKey });
+    const store = db.createObjectStore(tableName, { keyPath: primaryKey, autoIncrement });
 
     // Create indexes
     for (const idx of expectedIndexes) {
@@ -444,7 +445,8 @@ async function createNewDatabase(
   tableName: string,
   primaryKey: string | string[],
   expectedIndexes: ExpectedIndexDefinition[],
-  options: MigrationOptions = {}
+  options: MigrationOptions = {},
+  autoIncrement: boolean = false
 ): Promise<IDBDatabase> {
   options.onMigrationProgress?.(`Creating new database: ${tableName}`, 0);
 
@@ -468,7 +470,7 @@ async function createNewDatabase(
     }
 
     // Create main object store
-    const store = db.createObjectStore(tableName, { keyPath: primaryKey });
+    const store = db.createObjectStore(tableName, { keyPath: primaryKey, autoIncrement });
 
     // Create indexes
     for (const idx of expectedIndexes) {
@@ -500,7 +502,8 @@ export async function ensureIndexedDbTable(
   tableName: string,
   primaryKey: string | string[],
   expectedIndexes: ExpectedIndexDefinition[] = [],
-  options: MigrationOptions = {}
+  options: MigrationOptions = {},
+  autoIncrement: boolean = false
 ): Promise<IDBDatabase> {
   try {
     // Try to open existing database at current version (or create if doesn't exist)
@@ -523,7 +526,7 @@ export async function ensureIndexedDbTable(
         `Database ${tableName} does not exist or has version conflict, creating...`,
         0
       );
-      return await createNewDatabase(tableName, primaryKey, expectedIndexes, options);
+      return await createNewDatabase(tableName, primaryKey, expectedIndexes, options, autoIncrement);
     }
 
     // If database was just created, we need to create the stores
@@ -549,7 +552,7 @@ export async function ensureIndexedDbTable(
         }
 
         // Create main object store
-        const store = db.createObjectStore(tableName, { keyPath: primaryKey });
+        const store = db.createObjectStore(tableName, { keyPath: primaryKey, autoIncrement });
 
         // Create indexes
         for (const idx of expectedIndexes) {
@@ -596,7 +599,7 @@ export async function ensureIndexedDbTable(
       // Object store doesn't exist, create it
       options.onMigrationProgress?.(`Object store ${tableName} does not exist, creating...`, 0);
       db.close();
-      return await createNewDatabase(tableName, primaryKey, expectedIndexes, options);
+      return await createNewDatabase(tableName, primaryKey, expectedIndexes, options, autoIncrement);
     }
 
     // Compare schemas to determine what migration is needed
@@ -638,7 +641,7 @@ export async function ensureIndexedDbTable(
         `Schema change requires object store recreation for ${tableName}`,
         0
       );
-      db = await performDestructiveMigration(db, tableName, primaryKey, expectedIndexes, options);
+      db = await performDestructiveMigration(db, tableName, primaryKey, expectedIndexes, options, autoIncrement);
     } else {
       options.onMigrationProgress?.(`Performing incremental migration for ${tableName}`, 0);
       db = await performIncrementalMigration(db, tableName, diff, options);

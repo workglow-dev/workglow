@@ -307,13 +307,13 @@ Quantized vectors reduce storage and can improve performance:
 - **Cons:** Requires PostgreSQL server and pgvector extension
 - **Setup:** `CREATE EXTENSION vector;`
 
-## Integration with DocumentRepository
+## Integration with DocumentDataset
 
-Document chunk storage works alongside `DocumentRepository` for hierarchical document management:
+Document chunk storage works alongside `DocumentDataset` for hierarchical document management:
 
 ```typescript
 import {
-  DocumentRepository,
+  DocumentDataset,
   DocumentStorageSchema,
   DocumentChunkSchema,
   DocumentChunkPrimaryKey,
@@ -332,14 +332,14 @@ const vectorStorage = new InMemoryVectorStorage(
 );
 await vectorStorage.setupDatabase();
 
-// Create document repository with both storages
-const docRepo = new DocumentRepository(tabularStorage, vectorStorage);
+// Create document dataset with both storages
+const docDataset = new DocumentDataset(tabularStorage, vectorStorage);
 
 // Store document structure in tabular, chunks in vector
-await docRepo.upsert(document);
+await docDataset.upsert(document);
 
 // Search chunks by vector similarity
-const results = await docRepo.search(queryVector, { topK: 5 });
+const results = await docDataset.search(queryVector, { topK: 5 });
 ```
 
 ### Chunk Metadata for Hierarchical Documents

@@ -51,7 +51,7 @@ import {
   DocumentChunkDataset,
   DocumentChunkPrimaryKey,
   DocumentChunkSchema,
-  DocumentRepository,
+  DocumentDataset,
   DocumentStorageKey,
   DocumentStorageSchema,
   registerDocumentChunkDataset,
@@ -73,7 +73,7 @@ describe("RAG Workflow End-to-End", () => {
     DocumentChunk
   >;
   let vectorDataset: DocumentChunkDataset;
-  let docRepo: DocumentRepository;
+  let docRepo: DocumentDataset;
   const vectorRepoName = "rag-test-vector-repo";
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
@@ -105,7 +105,7 @@ describe("RAG Workflow End-to-End", () => {
     const tabularRepo = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
     await tabularRepo.setupDatabase();
 
-    docRepo = new DocumentRepository(tabularRepo, vectorDataset as any);
+    docRepo = new DocumentDataset(tabularRepo, storage);
   });
 
   afterAll(async () => {
@@ -149,7 +149,7 @@ describe("RAG Workflow End-to-End", () => {
         .textEmbedding({
           model: embeddingModel,
         })
-        .vectorStoreUpsert({
+        .chunkVectorUpsert({
           dataset: vectorRepoName,
         });
 

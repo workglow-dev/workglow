@@ -15,16 +15,16 @@ import type { ChunkNode, DocumentMetadata, DocumentNode } from "./DocumentSchema
  * - Separate persistence for document structure vs vectors
  */
 export class Document {
-  public readonly doc_id: string;
+  public doc_id: string | undefined;
   public readonly metadata: DocumentMetadata;
   public readonly root: DocumentNode;
   private chunks: ChunkNode[];
 
   constructor(
-    doc_id: string,
     root: DocumentNode,
     metadata: DocumentMetadata,
-    chunks: ChunkNode[] = []
+    chunks: ChunkNode[] = [],
+    doc_id?: string
   ) {
     this.doc_id = doc_id;
     this.root = root;
@@ -47,6 +47,13 @@ export class Document {
   }
 
   /**
+   * Set the document ID
+   */
+  setDocId(doc_id: string): void {
+    this.doc_id = doc_id;
+  }
+
+  /**
    * Find chunks by nodeId
    */
   findChunksByNodeId(nodeId: string): ChunkNode[] {
@@ -57,13 +64,11 @@ export class Document {
    * Serialize to JSON
    */
   toJSON(): {
-    doc_id: string;
     metadata: DocumentMetadata;
     root: DocumentNode;
     chunks: ChunkNode[];
   } {
     return {
-      doc_id: this.doc_id,
       metadata: this.metadata,
       root: this.root,
       chunks: this.chunks,
@@ -73,9 +78,9 @@ export class Document {
   /**
    * Deserialize from JSON
    */
-  static fromJSON(json: string): Document {
+  static fromJSON(json: string, doc_id?: string): Document {
     const obj = JSON.parse(json);
-    const doc = new Document(obj.doc_id, obj.root, obj.metadata, obj.chunks);
-    return doc;
+    return new Document(obj.root, obj.metadata, obj.chunks, doc_id);
   }
+
 }

@@ -7,8 +7,9 @@
 import {
   ChunkMetadataArraySchema,
   EnrichedChunkMetadataArraySchema,
+  TypeDocumentDataset,
   type ChunkMetadata,
-  type DocumentRepository,
+  type DocumentDataset,
 } from "@workglow/dataset";
 import {
   CreateWorkflow,
@@ -22,10 +23,10 @@ import { DataPortSchema, FromSchema } from "@workglow/util";
 const inputSchema = {
   type: "object",
   properties: {
-    documentRepository: {
-      title: "Document Repository",
-      description: "The document repository to query for hierarchy",
-    },
+    documents: TypeDocumentDataset({
+      title: "Documents",
+      description: "The documents dataset to query for hierarchy",
+    }),
     chunks: {
       type: "array",
       items: { type: "string" },
@@ -58,7 +59,7 @@ const inputSchema = {
       default: true,
     },
   },
-  required: ["documentRepository", "chunks", "ids", "metadata", "scores"],
+  required: ["documents", "chunks", "ids", "metadata", "scores"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -125,7 +126,7 @@ export class HierarchyJoinTask extends Task<
     context: IExecuteContext
   ): Promise<HierarchyJoinTaskOutput> {
     const {
-      documentRepository,
+      documents,
       chunks,
       ids,
       metadata,
@@ -134,7 +135,7 @@ export class HierarchyJoinTask extends Task<
       includeEntities = true,
     } = input;
 
-    const repo = documentRepository as DocumentRepository;
+    const repo = documents as DocumentDataset;
     const enrichedMetadata: any[] = [];
 
     for (let i = 0; i < ids.length; i++) {

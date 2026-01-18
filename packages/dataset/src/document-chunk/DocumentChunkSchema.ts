@@ -13,7 +13,7 @@ import { TypedArraySchema, type DataPortSchemaObject, type TypedArray } from "@w
 export const DocumentChunkSchema = {
   type: "object",
   properties: {
-    chunk_id: { type: "string" },
+    chunk_id: { type: "string", "x-auto-generated": true },
     doc_id: { type: "string" },
     vector: TypedArraySchema(),
     metadata: { type: "object", format: "metadata", additionalProperties: true },
@@ -35,8 +35,23 @@ export interface DocumentChunk<
   metadata: Metadata;
 }
 
+/**
+ * Type for inserting document chunks - chunk_id is optional (auto-generated)
+ */
+export type InsertDocumentChunk<
+  Metadata extends Record<string, unknown> = Record<string, unknown>,
+  Vector extends TypedArray = TypedArray,
+> = Omit<DocumentChunk<Metadata, Vector>, "chunk_id"> &
+  Partial<Pick<DocumentChunk<Metadata, Vector>, "chunk_id">>;
+
+/**
+ * Type for the primary key of document chunks
+ */
+export type DocumentChunkKey = { chunk_id: string };
+
 export type DocumentChunkStorage = IVectorStorage<
   Record<string, unknown>,
   typeof DocumentChunkSchema,
-  DocumentChunk
+  DocumentChunk,
+  DocumentChunkPrimaryKey
 >;

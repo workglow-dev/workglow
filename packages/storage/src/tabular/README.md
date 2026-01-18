@@ -157,6 +157,178 @@ await repo.put({
 });
 ```
 
+## Auto-Generated Primary Keys
+
+TabularStorage supports automatic generation of primary keys, allowing the storage backend to generate IDs when entities are inserted without them. This is useful for:
+
+- Security: Preventing clients from choosing arbitrary IDs
+- Simplicity: No need to generate IDs client-side
+- Database features: Leveraging native auto-increment and UUID generation
+
+### Schema Configuration
+
+Mark a primary key column as auto-generated using the `x-auto-generated: true` annotation:
+
+```typescript
+const UserSchema = {
+  type: "object",
+  properties: {
+    id: { type: "integer", "x-auto-generated": true }, // Auto-increment
+    name: { type: "string" },
+    email: { type: "string" },
+  },
+  required: ["id", "name", "email"],
+  additionalProperties: false,
+} as const satisfies DataPortSchemaObject;
+
+const DocumentSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", "x-auto-generated": true }, // UUID
+    title: { type: "string" },
+    content: { type: "string" },
+  },
+  required: ["id", "title", "content"],
+  additionalProperties: false,
+} as const satisfies DataPortSchemaObject;
+```
+
+**Generation Strategy (inferred from column type):**
+- `type: "integer"` → Auto-increment (SERIAL, INTEGER PRIMARY KEY, counter)
+- `type: "string"` → UUID via `uuid4()` from `@workglow/util`
+
+**Constraints:**
+- Only the **first column** in a compound primary key can be auto-generated
+- Only **one column** can be auto-generated per table
+
+### Basic Usage
+
+```typescript
+import { InMemoryTabularStorage } from "@workglow/storage/tabular";
+
+const userStorage = new InMemoryTabularStorage(UserSchema, ["id"] as const);
+await userStorage.setupDatabase();
+
+// Insert without providing ID - it will be auto-generated
+const user = await userStorage.put({ 
+  name: "Alice", 
+  email: "alice@example.com" 
+});
+console.log(user.id); // 1 (auto-generated)
+
+// TypeScript enforces: id is optional on insert, required on returned entity
+```
+
+### Client-Provided Keys Configuration
+
+Control whether clients can provide values for auto-generated keys:
+
+```typescript
+const storage = new PostgresTabularStorage(
+  db, 
+  "users", 
+  UserSchema, 
+  ["id"] as const, 
+  [], // indexes
+  { clientProvidedKeys: "if-missing" } // configuration
+);
+```
+
+**Options:**
+
+| Setting | Behavior | Use Case |
+|---------|----------|----------|
+| `"if-missing"` (default) | Use client value if provided, generate otherwise | Flexible - supports both auto-generation and client-specified IDs |
+| `"never"` | Always generate, ignore client values | Maximum security - never trust client IDs |
+| `"always"` | Require client to provide value | Testing/migration - enforce client-side ID generation |
+
+**Examples:**
+
+```typescript
+// Default: "if-missing" - flexible
+const flexibleStorage = new InMemoryTabularStorage(
+  UserSchema, 
+  ["id"] as const
+);
+
+// Without ID - auto-generated
+await flexibleStorage.put({ name: "Bob", email: "bob@example.com" });
+
+// With ID - uses client value
+await flexibleStorage.put({ id: 999, name: "Charlie", email: "charlie@example.com" });
+
+// Secure mode: "never" - always generate
+const secureStorage = new PostgresTabularStorage(
+  db, 
+  "users", 
+  UserSchema, 
+  ["id"] as const, 
+  [],
+  { clientProvidedKeys: "never" }
+);
+
+// Even if client provides id, it will be ignored and regenerated
+const result = await secureStorage.put({ 
+  id: 999, // Ignored!
+  name: "Diana", 
+  email: "diana@example.com" 
+});
+// result.id will be database-generated, NOT 999
+
+// Testing mode: "always" - require client ID
+const testStorage = new InMemoryTabularStorage(
+  UserSchema, 
+  ["id"] as const,
+  [],
+  { clientProvidedKeys: "always" }
+);
+
+// Must provide ID or throws error
+await testStorage.put({ 
+  id: 1, 
+  name: "Eve", 
+  email: "eve@example.com" 
+}); // OK
+
+await testStorage.put({ 
+  name: "Frank", 
+  email: "frank@example.com" 
+}); // Throws Error!
+```
+
+### Backend-Specific Behavior
+
+Each storage backend implements auto-generation differently:
+
+| Backend | Integer (autoincrement) | String (UUID) |
+|---------|------------------------|---------------|
+| **InMemoryTabularStorage** | Internal counter (1, 2, 3...) | `uuid4()` from `@workglow/util` |
+| **SqliteTabularStorage** | `INTEGER PRIMARY KEY AUTOINCREMENT` | `uuid4()` client-side |
+| **PostgresTabularStorage** | `SERIAL`/`BIGSERIAL` | `gen_random_uuid()` database-side |
+| **SupabaseTabularStorage** | `SERIAL` | `gen_random_uuid()` database-side |
+| **IndexedDbTabularStorage** | `autoIncrement: true` | `uuid4()` client-side |
+| **FsFolderTabularStorage** | Internal counter | `uuid4()` from `@workglow/util` |
+
+### Constraints
+
+1. **Only first column**: Only the first primary key column can be auto-generated
+2. **Single auto-gen key**: Only one column per table can be auto-generated
+3. **Type inference**: Generation strategy is inferred from column type (integer → autoincrement, string → UUID)
+
+### Type Safety
+
+TypeScript enforces correct usage through the type system:
+
+```typescript
+// Auto-generated key is OPTIONAL on insert
+const entity = { name: "Alice", email: "alice@example.com" };
+await storage.put(entity); // ✅ OK - id can be omitted
+
+// Returned entity has ALL fields REQUIRED
+const result = await storage.put(entity);
+const id: number = result.id; // ✅ OK - id is guaranteed to exist
+```
+
 ## Implementations
 
 ### InMemoryTabularStorage

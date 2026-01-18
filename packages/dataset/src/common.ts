@@ -10,7 +10,6 @@ export * from "./document/Document";
 export * from "./document/DocumentDataset";
 export * from "./document/DocumentDatasetRegistry";
 export * from "./document/DocumentNode";
-export * from "./document/DocumentRepository";
 export * from "./document/DocumentSchema";
 export * from "./document/DocumentStorageSchema";
 export * from "./document/StructuralParser";
