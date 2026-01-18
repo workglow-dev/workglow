@@ -101,10 +101,12 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
     if (typeof value === "string") {
       resolved[key] = await resolver(value, format, config.registry);
     }
-    // Handle arrays of strings - pass the entire array to the resolver
-    // (resolvers like resolveModelFromRegistry handle arrays even though typed as string)
+    // Handle arrays of strings - iterate and resolve each element
     else if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
-      resolved[key] = await resolver(value as unknown as string, format, config.registry);
+      const results = await Promise.all(
+        (value as string[]).map((item) => resolver(item, format, config.registry))
+      );
+      resolved[key] = results.filter((result) => result !== undefined);
     }
     // Skip if not a string or array of strings (already resolved or direct instance)
   }
