@@ -49,13 +49,14 @@ describe("DocumentDataset", () => {
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test Document" });
+    const doc = new Document(root, { title: "Test Document" });
 
-    await dataset.upsert(doc);
-    const retrieved = await dataset.get(doc_id);
+    const inserted = await dataset.upsert(doc);
+    const retrieved = await dataset.get(inserted.doc_id!);
 
     expect(retrieved).toBeDefined();
-    expect(retrieved?.doc_id).toBe(doc_id);
+    expect(retrieved?.doc_id).toBeDefined();
+    expect(retrieved?.doc_id).toBe(inserted.doc_id);
     expect(retrieved?.metadata.title).toBe("Test Document");
   });
 
@@ -64,12 +65,12 @@ describe("DocumentDataset", () => {
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
-    await dataset.upsert(doc);
+    const doc = new Document(root, { title: "Test" });
+    const inserted = await dataset.upsert(doc);
 
     // Get a child node
     const firstChild = root.children[0];
-    const retrieved = await dataset.getNode(doc_id, firstChild.nodeId);
+    const retrieved = await dataset.getNode(inserted.doc_id!, firstChild.nodeId);
 
     expect(retrieved).toBeDefined();
     expect(retrieved?.nodeId).toBe(firstChild.nodeId);
@@ -85,8 +86,8 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
-    await dataset.upsert(doc);
+    const doc = new Document(root, { title: "Test" });
+    const inserted = await dataset.upsert(doc);
 
     // Find a deeply nested node
     const section = root.children.find((c) => c.kind === NodeKind.SECTION);
@@ -95,7 +96,7 @@ Paragraph.`;
     const subsection = (section as any).children.find((c: any) => c.kind === NodeKind.SECTION);
     expect(subsection).toBeDefined();
 
-    const ancestors = await dataset.getAncestors(doc_id, subsection.nodeId);
+    const ancestors = await dataset.getAncestors(inserted.doc_id!, subsection.nodeId);
 
     // Should include root, section, and subsection
     expect(ancestors.length).toBeGreaterThanOrEqual(3);
@@ -109,13 +110,13 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" });
 
     // Add chunks
     const chunks = [
       {
         chunkId: "chunk_1",
-        doc_id,
+        doc_id: doc_id,
         text: "Test chunk",
         nodePath: [root.nodeId],
         depth: 1,
@@ -124,10 +125,10 @@ Paragraph.`;
 
     doc.setChunks(chunks);
 
-    await dataset.upsert(doc);
+    const inserted = await dataset.upsert(doc);
 
     // Retrieve chunks
-    const retrievedChunks = await dataset.getChunks(doc_id);
+    const retrievedChunks = await dataset.getChunks(inserted.doc_id!);
     expect(retrievedChunks).toBeDefined();
     expect(retrievedChunks.length).toBe(1);
   });
@@ -142,16 +143,16 @@ Paragraph.`;
     const root1 = await StructuralParser.parseMarkdown(id1, markdown1, "Doc 1");
     const root2 = await StructuralParser.parseMarkdown(id2, markdown2, "Doc 2");
 
-    const doc1 = new Document(id1, root1, { title: "Doc 1" });
-    const doc2 = new Document(id2, root2, { title: "Doc 2" });
+    const doc1 = new Document(root1, { title: "Doc 1" });
+    const doc2 = new Document(root2, { title: "Doc 2" });
 
-    await dataset.upsert(doc1);
-    await dataset.upsert(doc2);
+    const inserted1 = await dataset.upsert(doc1);
+    const inserted2 = await dataset.upsert(doc2);
 
     const list = await dataset.list();
     expect(list.length).toBe(2);
-    expect(list).toContain(id1);
-    expect(list).toContain(id2);
+    expect(list).toContain(inserted1.doc_id);
+    expect(list).toContain(inserted2.doc_id);
   });
 
   it("should delete documents", async () => {
@@ -159,14 +160,14 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
-    await dataset.upsert(doc);
+    const doc = new Document(root, { title: "Test" });
+    const inserted = await dataset.upsert(doc);
 
-    expect(await dataset.get(doc_id)).toBeDefined();
+    expect(await dataset.get(inserted.doc_id!)).toBeDefined();
 
-    await dataset.delete(doc_id);
+    await dataset.delete(inserted.doc_id!);
 
-    expect(await dataset.get(doc_id)).toBeUndefined();
+    expect(await dataset.get(inserted.doc_id!)).toBeUndefined();
   });
 
   it("should return undefined for non-existent document", async () => {
@@ -184,10 +185,10 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
-    await dataset.upsert(doc);
+    const doc = new Document(root, { title: "Test" });
+    const inserted = await dataset.upsert(doc);
 
-    const result = await dataset.getNode(doc_id, "non-existent-node-id");
+    const result = await dataset.getNode(inserted.doc_id!, "non-existent-node-id");
     expect(result).toBeUndefined();
   });
 
@@ -201,10 +202,10 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
-    await dataset.upsert(doc);
+    const doc = new Document(root, { title: "Test" });
+    const inserted = await dataset.upsert(doc);
 
-    const result = await dataset.getAncestors(doc_id, "non-existent-node-id");
+    const result = await dataset.getAncestors(inserted.doc_id!, "non-existent-node-id");
     expect(result).toEqual([]);
   });
 
@@ -238,13 +239,13 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc1 = new Document(doc_id, root, { title: "Original Title" });
-    await dataset.upsert(doc1);
+    const doc1 = new Document(root, { title: "Original Title" });
+    const inserted1 = await dataset.upsert(doc1);
 
-    const doc2 = new Document(doc_id, root, { title: "Updated Title" });
+    const doc2 = new Document(root, { title: "Updated Title" }, [], inserted1.doc_id);
     await dataset.upsert(doc2);
 
-    const retrieved = await dataset.get(doc_id);
+    const retrieved = await dataset.get(inserted1.doc_id!);
     expect(retrieved?.metadata.title).toBe("Updated Title");
 
     const list = await dataset.list();
@@ -256,28 +257,29 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" });
+    const inserted = await dataset.upsert(doc);
 
     const chunks = [
       {
         chunkId: "chunk_1",
-        doc_id,
+        doc_id: inserted.doc_id!,
         text: "First chunk",
         nodePath: [root.nodeId, "child-1"],
         depth: 2,
       },
       {
         chunkId: "chunk_2",
-        doc_id,
+        doc_id: inserted.doc_id!,
         text: "Second chunk",
         nodePath: [root.nodeId, "child-2"],
         depth: 2,
       },
     ];
-    doc.setChunks(chunks);
-    await dataset.upsert(doc);
+    inserted.setChunks(chunks);
+    await dataset.upsert(inserted);
 
-    const result = await dataset.findChunksByNodeId(doc_id, root.nodeId);
+    const result = await dataset.findChunksByNodeId(inserted.doc_id!, root.nodeId);
     expect(result.length).toBe(2);
   });
 
@@ -286,11 +288,11 @@ Paragraph.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" });
     doc.setChunks([]);
-    await dataset.upsert(doc);
+    const inserted = await dataset.upsert(doc);
 
-    const result = await dataset.findChunksByNodeId(doc_id, "non-matching-node");
+    const result = await dataset.findChunksByNodeId(inserted.doc_id!, "non-matching-node");
     expect(result).toEqual([]);
   });
 
@@ -372,7 +374,7 @@ describe("Document", () => {
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" }, [], doc_id);
 
     const chunks = [
       {
@@ -395,7 +397,7 @@ describe("Document", () => {
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" }, [], doc_id);
 
     const chunks = [
       {
@@ -408,11 +410,12 @@ describe("Document", () => {
     ];
     doc.setChunks(chunks);
 
-    // Serialize
+    // Serialize (doc_id is NOT included in JSON)
     const json = doc.toJSON();
+    expect(json).not.toHaveProperty("doc_id");
 
-    // Deserialize
-    const restored = Document.fromJSON(JSON.stringify(json));
+    // Deserialize (doc_id is passed separately)
+    const restored = Document.fromJSON(JSON.stringify(json), doc_id);
 
     expect(restored.doc_id).toBe(doc.doc_id);
     expect(restored.metadata.title).toBe(doc.metadata.title);
@@ -424,7 +427,7 @@ describe("Document", () => {
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" }, [], doc_id);
 
     const chunks = [
       {
@@ -463,7 +466,7 @@ describe("Document", () => {
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" }, [], doc_id);
 
     const chunks = [
       {
@@ -485,7 +488,7 @@ describe("Document", () => {
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" }, [], doc_id);
     doc.setChunks([]);
 
     const result = doc.findChunksByNodeId("any-node");

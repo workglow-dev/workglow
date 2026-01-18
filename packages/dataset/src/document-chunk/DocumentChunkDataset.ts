@@ -6,7 +6,12 @@
 
 import type { VectorSearchOptions } from "@workglow/storage";
 import type { TypedArray } from "@workglow/util";
-import type { DocumentChunk, DocumentChunkStorage } from "./DocumentChunkSchema";
+import type {
+  DocumentChunk,
+  DocumentChunkKey,
+  DocumentChunkStorage,
+  InsertDocumentChunk,
+} from "./DocumentChunkSchema";
 
 /**
  * Document Chunk Dataset
@@ -32,14 +37,14 @@ export class DocumentChunkDataset {
   /**
    * Store a document chunk
    */
-  async put(chunk: DocumentChunk): Promise<DocumentChunk> {
+  async put(chunk: InsertDocumentChunk): Promise<DocumentChunk> {
     return this.storage.put(chunk);
   }
 
   /**
    * Store multiple document chunks
    */
-  async putBulk(chunks: DocumentChunk[]): Promise<DocumentChunk[]> {
+  async putBulk(chunks: InsertDocumentChunk[]): Promise<DocumentChunk[]> {
     return this.storage.putBulk(chunks);
   }
 
@@ -47,14 +52,16 @@ export class DocumentChunkDataset {
    * Get a document chunk by ID
    */
   async get(chunk_id: string): Promise<DocumentChunk | undefined> {
-    return this.storage.get({ chunk_id } as any);
+    const key: DocumentChunkKey = { chunk_id };
+    return this.storage.get(key);
   }
 
   /**
    * Delete a document chunk
    */
   async delete(chunk_id: string): Promise<void> {
-    return this.storage.delete({ chunk_id } as any);
+    const key: DocumentChunkKey = { chunk_id };
+    return this.storage.delete(key);
   }
 
   /**

@@ -19,6 +19,7 @@ export const DocumentStorageSchema = {
   properties: {
     doc_id: {
       type: "string",
+      "x-auto-generated": true,
       title: "Document ID",
       description: "Unique identifier for the document",
     },
@@ -42,6 +43,12 @@ export const DocumentStorageKey = ["doc_id"] as const;
 export type DocumentStorageKey = typeof DocumentStorageKey;
 
 export type DocumentStorageEntity = FromSchema<DocumentStorageSchema, TypedArraySchemaOptions>;
+
+/**
+ * Type for inserting documents - doc_id is optional (auto-generated)
+ */
+export type InsertDocumentStorageEntity = Omit<DocumentStorageEntity, "doc_id"> &
+  Partial<Pick<DocumentStorageEntity, "doc_id">>;
 
 export type DocumentTabularStorage = ITabularStorage<
   typeof DocumentStorageSchema,

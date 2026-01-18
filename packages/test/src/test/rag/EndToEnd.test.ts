@@ -11,7 +11,7 @@ import {
   DocumentChunkDataset,
   DocumentChunkPrimaryKey,
   DocumentChunkSchema,
-  DocumentRepository,
+  DocumentDataset,
   DocumentStorageKey,
   DocumentStorageSchema,
   StructuralParser,
@@ -68,7 +68,7 @@ Finds patterns in data.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-    const doc = new Document(doc_id, root, { title: "Test" });
+    const doc = new Document(root, { title: "Test" }, [], doc_id);
 
     const chunks = [
       {
@@ -105,7 +105,7 @@ Finds patterns in data.`;
     await storage.setupDatabase();
     const vectorDataset = new DocumentChunkDataset(storage);
 
-    const docRepo = new DocumentRepository(tabularStorage, vectorDataset as any);
+    const docRepo = new DocumentDataset(tabularStorage, storage);
 
     // Create document with enriched hierarchy
     const markdown = `# Guide
@@ -121,7 +121,8 @@ Content about topic B.`;
     const doc_id = uuid4();
     const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Guide");
 
-    const doc = new Document(doc_id, root, { title: "Guide" });
+    const doc = new Document(root, { title: "Guide" });
+    const inserted = await docRepo.upsert(doc);
 
     // Enrich (in real workflow this would use DocumentEnricherTask)
     // For test, manually add enrichment
@@ -132,12 +133,12 @@ Content about topic B.`;
       },
     };
 
-    const enrichedDoc = new Document(doc_id, enrichedRoot as any, doc.metadata);
+    const enrichedDoc = new Document(enrichedRoot as any, doc.metadata, [], inserted.doc_id);
     await docRepo.upsert(enrichedDoc);
 
     // Generate chunks using workflow (without embedding to avoid model requirement)
     const chunkResult = await hierarchicalChunker({
-      doc_id,
+      doc_id: inserted.doc_id!,
       documentTree: enrichedRoot,
       maxTokens: 256,
       overlap: 25,
@@ -150,7 +151,7 @@ Content about topic B.`;
     await docRepo.upsert(enrichedDoc);
 
     // Verify chunks were stored
-    const retrieved = await docRepo.getChunks(doc_id);
+    const retrieved = await docRepo.getChunks(inserted.doc_id!);
     expect(retrieved).toBeDefined();
     expect(retrieved.length).toBe(chunkResult.count);
   });

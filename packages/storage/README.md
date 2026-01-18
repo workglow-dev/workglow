@@ -257,6 +257,47 @@ const userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
 );
 ```
 
+#### Auto-Generated Primary Keys
+
+TabularStorage supports automatic ID generation by marking schema properties with `x-auto-generated: true`:
+
+```typescript
+const UserSchema = {
+  type: "object",
+  properties: {
+    id: { type: "integer", "x-auto-generated": true }, // Auto-increment
+    name: { type: "string" },
+    email: { type: "string" },
+  },
+  required: ["id", "name", "email"],
+} as const;
+
+const storage = new PostgresTabularStorage(db, "users", UserSchema, ["id"] as const);
+
+// Insert without providing ID - database generates it
+const user = await storage.put({ name: "Alice", email: "alice@example.com" });
+console.log(user.id); // 1 (auto-generated)
+```
+
+**Generation Strategy** (inferred from type):
+- `type: "integer"` → Auto-increment (SERIAL, INTEGER PRIMARY KEY, counter)
+- `type: "string"` → UUID via `uuid4()` from `@workglow/util`
+
+**Configuration Options:**
+
+```typescript
+new PostgresTabularStorage(
+  db, "users", UserSchema, ["id"], [],
+  { clientProvidedKeys: "if-missing" } // "never" | "if-missing" | "always"
+);
+```
+
+- `"if-missing"` (default): Use client value if provided, generate otherwise
+- `"never"`: Always generate (most secure)
+- `"always"`: Require client value (for testing)
+
+See [Tabular Storage README](./src/tabular/README.md) for detailed documentation.
+
 #### CRUD Operations
 
 ```typescript

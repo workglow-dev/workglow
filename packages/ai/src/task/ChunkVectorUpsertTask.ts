@@ -118,47 +118,50 @@ export class ChunkVectorUpsertTask extends Task<
 
     await context.updateProgress(1, "Upserting vectors");
 
-    const chunk_ids: string[] = [];
-
     // Bulk upsert if multiple items
     if (vectorArray.length > 1) {
       if (vectorArray.length !== metadataArray.length) {
         throw new Error("Mismatch: vectors and metadata arrays must have the same length");
       }
       const entities = vectorArray.map((vector, i) => {
-        const chunk_id = `${doc_id}_${i}`;
         const metadataItem = metadataArray[i];
-        chunk_ids.push(chunk_id);
         return {
-          chunk_id,
           doc_id,
           vector,
           metadata: metadataItem,
         };
       });
-      await repo.putBulk(entities);
+      const results = await repo.putBulk(entities);
+      const chunk_ids = results.map((r) => r.chunk_id);
+      return {
+        doc_id,
+        chunk_ids,
+        count: chunk_ids.length,
+      };
     } else if (vectorArray.length === 1) {
       // Single upsert
-      const chunk_id = `${doc_id}_0`;
       const metadataItem = metadataArray[0];
-      chunk_ids.push(chunk_id);
-      await repo.put({
-        chunk_id,
+      const result = await repo.put({
         doc_id,
         vector: vectorArray[0],
         metadata: metadataItem,
       });
+      return {
+        doc_id,
+        chunk_ids: [result.chunk_id],
+        count: 1,
+      };
     }
 
     return {
       doc_id,
-      chunk_ids,
-      count: chunk_ids.length,
+      chunk_ids: [],
+      count: 0,
     };
   }
 }
 
-export const vectorStoreUpsert = (
+export const chunkVectorUpsert = (
   input: VectorStoreUpsertTaskInput,
   config?: JobQueueTaskConfig
 ) => {
@@ -167,7 +170,7 @@ export const vectorStoreUpsert = (
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    vectorStoreUpsert: CreateWorkflow<
+    chunkVectorUpsert: CreateWorkflow<
       VectorStoreUpsertTaskInput,
       VectorStoreUpsertTaskOutput,
       JobQueueTaskConfig
@@ -175,4 +178,4 @@ declare module "@workglow/task-graph" {
   }
 }
 
-Workflow.prototype.vectorStoreUpsert = CreateWorkflow(ChunkVectorUpsertTask);
+Workflow.prototype.chunkVectorUpsert = CreateWorkflow(ChunkVectorUpsertTask);

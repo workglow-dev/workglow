@@ -29,7 +29,7 @@ describe("Document", () => {
   ];
 
   test("setChunks and getChunks", () => {
-    const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
+    const doc = new Document(createTestDocumentNode(), { title: "Test" }, [], "doc1");
 
     doc.setChunks(createTestChunks());
 
@@ -40,7 +40,7 @@ describe("Document", () => {
   });
 
   test("findChunksByNodeId", () => {
-    const doc = new Document("doc1", createTestDocumentNode(), { title: "Test" });
+    const doc = new Document(createTestDocumentNode(), { title: "Test" }, [], "doc1");
 
     doc.setChunks(createTestChunks());
 

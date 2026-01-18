@@ -9,7 +9,11 @@ import type { TypedArray } from "@workglow/util";
 import type { DocumentChunk, DocumentChunkStorage } from "../document-chunk/DocumentChunkSchema";
 import { Document } from "./Document";
 import { ChunkNode, DocumentNode } from "./DocumentSchema";
-import { DocumentStorageEntity, DocumentTabularStorage } from "./DocumentStorageSchema";
+import {
+  DocumentStorageEntity,
+  DocumentTabularStorage,
+  InsertDocumentStorageEntity,
+} from "./DocumentStorageSchema";
 
 /**
  * Document dataset that uses TabularStorage for document persistence and VectorStorage for chunk persistence and similarity search.
@@ -44,13 +48,22 @@ export class DocumentDataset {
 
   /**
    * Upsert a document
+   * @returns The document with the generated doc_id if it was auto-generated
    */
-  async upsert(document: Document): Promise<void> {
-    const serialized = JSON.stringify(document.toJSON ? document.toJSON() : document);
-    await this.tabularStorage.put({
+  async upsert(document: Document): Promise<Document> {
+    const serialized = JSON.stringify(document.toJSON());
+    
+    const insertEntity: InsertDocumentStorageEntity = {
       doc_id: document.doc_id,
       data: serialized,
-    });
+    };
+    const entity = await this.tabularStorage.put(insertEntity);
+
+    // If doc_id was auto-generated, return document with the generated ID
+    if (document.doc_id !== entity.doc_id) {
+      document.setDocId(entity.doc_id);
+    }
+    return document;
   }
 
   /**
@@ -61,7 +74,7 @@ export class DocumentDataset {
     if (!entity) {
       return undefined;
     }
-    return Document.fromJSON(entity.data);
+    return Document.fromJSON(entity.data, entity.doc_id);
   }
 
   /**
