@@ -4,18 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { retrieval } from "@workglow/ai";
+import { chunkRetrieval } from "@workglow/ai";
 import {
-  DocumentChunk,
-  DocumentChunkDataset,
+  DocumentChunk, DocumentChunkDataset,
   DocumentChunkPrimaryKey,
   DocumentChunkSchema,
-  registerDocumentChunkDataset,
+  registerDocumentChunkDataset
 } from "@workglow/dataset";
 import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-describe("DocumentNodeRetrievalTask", () => {
+describe("ChunkRetrievalTask", () => {
   let storage: InMemoryVectorStorage<
     typeof DocumentChunkSchema,
     typeof DocumentChunkPrimaryKey,
@@ -71,7 +70,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should retrieve chunks with query vector", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 3,
@@ -91,7 +90,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should extract text from metadata.text field", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 5,
@@ -113,7 +112,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should extract text from metadata.content field as fallback", async () => {
     const queryVector = new Float32Array([0.0, 1.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 5,
@@ -129,7 +128,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should extract text from metadata.chunk field as fallback", async () => {
     const queryVector = new Float32Array([0.0, 0.0, 1.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 5,
@@ -145,7 +144,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should return vectors when returnVectors is true", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 3,
@@ -160,7 +159,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should not return vectors when returnVectors is false", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 3,
@@ -173,7 +172,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should respect topK parameter", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 2,
@@ -197,7 +196,7 @@ describe("DocumentNodeRetrievalTask", () => {
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 10,
@@ -211,7 +210,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should apply score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 10,
@@ -226,7 +225,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should use queryEmbedding when provided", async () => {
     const queryEmbedding = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryEmbedding,
       topK: 3,
@@ -239,7 +238,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should throw error when query is string without model", async () => {
     await expect(
       // @ts-expect-error - query is string but no model is provided
-      retrieval({
+      chunkRetrieval({
         dataset,
         query: "test query string",
         topK: 3,
@@ -250,7 +249,7 @@ describe("DocumentNodeRetrievalTask", () => {
   test("should handle default topK value", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
     });
@@ -274,7 +273,7 @@ describe("DocumentNodeRetrievalTask", () => {
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset,
       query: queryVector,
       topK: 10,
@@ -294,7 +293,7 @@ describe("DocumentNodeRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     // Pass repository as string ID instead of instance
-    const result = await retrieval({
+    const result = await chunkRetrieval({
       dataset: "test-retrieval-repo",
       query: queryVector,
       topK: 3,

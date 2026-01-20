@@ -134,21 +134,21 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type RetrievalTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
-export type RetrievalTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
+export type ChunkRetrievalTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
+export type ChunkRetrievalTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
 
 /**
  * End-to-end retrieval task that combines embedding generation (if needed) and vector search.
  * Simplifies the RAG pipeline by handling the full retrieval process.
  */
-export class DocumentNodeRetrievalTask extends Task<
-  RetrievalTaskInput,
-  RetrievalTaskOutput,
+export class ChunkRetrievalTask extends Task<
+  ChunkRetrievalTaskInput,
+  ChunkRetrievalTaskOutput,
   JobQueueTaskConfig
 > {
-  public static type = "DocumentNodeRetrievalTask";
+  public static type = "ChunkRetrievalTask";
   public static category = "RAG";
-  public static title = "Retrieval";
+  public static title = "Chunk Retrieval";
   public static description = "End-to-end retrieval: embed query and search for similar chunks";
   public static cacheable = true;
 
@@ -160,7 +160,7 @@ export class DocumentNodeRetrievalTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  async execute(input: RetrievalTaskInput, context: IExecuteContext): Promise<RetrievalTaskOutput> {
+  async execute(input: ChunkRetrievalTaskInput, context: IExecuteContext): Promise<ChunkRetrievalTaskOutput> {
     const {
       dataset,
       query,
@@ -211,7 +211,7 @@ export class DocumentNodeRetrievalTask extends Task<
       return meta.text || meta.content || meta.chunk || JSON.stringify(meta);
     });
 
-    const output: RetrievalTaskOutput = {
+    const output: ChunkRetrievalTaskOutput = {
       chunks,
       ids: results.map((r) => r.chunk_id),
       metadata: results.map((r) => r.metadata),
@@ -227,14 +227,14 @@ export class DocumentNodeRetrievalTask extends Task<
   }
 }
 
-export const retrieval = (input: RetrievalTaskInput, config?: JobQueueTaskConfig) => {
-  return new DocumentNodeRetrievalTask({} as RetrievalTaskInput, config).run(input);
+export const chunkRetrieval = (input: ChunkRetrievalTaskInput, config?: JobQueueTaskConfig) => {
+  return new ChunkRetrievalTask({} as ChunkRetrievalTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    retrieval: CreateWorkflow<RetrievalTaskInput, RetrievalTaskOutput, JobQueueTaskConfig>;
+    chunkRetrieval: CreateWorkflow<ChunkRetrievalTaskInput, ChunkRetrievalTaskOutput, JobQueueTaskConfig>;
   }
 }
 
-Workflow.prototype.retrieval = CreateWorkflow(DocumentNodeRetrievalTask);
+Workflow.prototype.chunkRetrieval = CreateWorkflow(ChunkRetrievalTask);

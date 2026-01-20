@@ -6,7 +6,7 @@
 
 import { TaskRegistry } from "@workglow/task-graph";
 import { BackgroundRemovalTask } from "./BackgroundRemovalTask";
-import { DocumentNodeRetrievalTask } from "./ChunkRetrievalTask";
+import { ChunkRetrievalTask } from "./ChunkRetrievalTask";
 import { ChunkToVectorTask } from "./ChunkToVectorTask";
 import { ChunkVectorHybridSearchTask } from "./ChunkVectorHybridSearchTask";
 import { ChunkVectorSearchTask } from "./ChunkVectorSearchTask";
@@ -54,7 +54,7 @@ export const registerAiTasks = () => {
     ChunkToVectorTask,
     ContextBuilderTask,
     DocumentEnricherTask,
-    DocumentNodeRetrievalTask,
+    ChunkRetrievalTask,
     ChunkVectorHybridSearchTask,
     ChunkVectorSearchTask,
     ChunkVectorUpsertTask,
@@ -133,3 +133,4 @@ export * from "./TopicSegmenterTask";
 export * from "./UnloadModelTask";
 export * from "./VectorQuantizeTask";
 export * from "./VectorSimilarityTask";
+

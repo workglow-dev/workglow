@@ -280,7 +280,7 @@ The `@workglow/ai` package provides a comprehensive set of tasks for building RA
 | `RerankerTask`                | Reranks search results for relevance          |
 | `HierarchyJoinTask`           | Enriches results with parent context          |
 | `ContextBuilderTask`          | Builds context for LLM prompts                |
-| `DocumentNodeRetrievalTask`   | Orchestrates end-to-end retrieval             |
+| `ChunkRetrievalTask`   | Orchestrates end-to-end retrieval             |
 | `TextQuestionAnswerTask`      | Generates answers from context                |
 | `TextGenerationTask`          | General text generation                       |
 

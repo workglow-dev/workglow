@@ -60,7 +60,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src/**/*.md"
   ],
   "publishConfig": {
     "access": "public"

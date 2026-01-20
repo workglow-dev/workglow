@@ -25,10 +25,10 @@
  *    - Or a batch TextEmbedding node that accepts arrays
  *
  * 2. Semantic Search Pipeline:
- *    Query (input) → DocumentNodeRetrievalTask → Results (output)
+ *    Query (input) → ChunkRetrievalTask → Results (output)
  *
  * 3. Question Answering Pipeline:
- *    Question → DocumentNodeRetrievalTask → ContextBuilder → TextQuestionAnswerTask → Answer
+ *    Question → ChunkRetrievalTask → ContextBuilder → TextQuestionAnswerTask → Answer
  *
  * Models Used:
  *    - Xenova/all-MiniLM-L6-v2 (Text Embedding - 384D)
@@ -37,13 +37,13 @@
  */
 
 import {
+  chunkRetrieval,
+  ChunkRetrievalTaskOutput,
   InMemoryModelRepository,
-  retrieval,
-  RetrievalTaskOutput,
   setGlobalModelRepository,
   textQuestionAnswer,
   TextQuestionAnswerTaskOutput,
-  VectorStoreUpsertTaskOutput,
+  VectorStoreUpsertTaskOutput
 } from "@workglow/ai";
 import { register_HFT_InlineJobFns } from "@workglow/ai-provider";
 import {
@@ -172,7 +172,7 @@ describe("RAG Workflow End-to-End", () => {
     // Create search workflow
     const searchWorkflow = new Workflow();
 
-    searchWorkflow.retrieval({
+    searchWorkflow.chunkRetrieval({
       dataset: vectorRepoName,
       query,
       model: embeddingModel,
@@ -180,7 +180,7 @@ describe("RAG Workflow End-to-End", () => {
       scoreThreshold: 0.3,
     });
 
-    const searchResult = (await searchWorkflow.run()) as RetrievalTaskOutput;
+    const searchResult = (await searchWorkflow.run()) as ChunkRetrievalTaskOutput;
 
     // Verify search results
     expect(searchResult.chunks).toBeDefined();
@@ -208,7 +208,7 @@ describe("RAG Workflow End-to-End", () => {
 
     console.log(`\nAnswering question: "${question}"`);
 
-    const retrievalResult = await retrieval({
+    const retrievalResult = await chunkRetrieval({
       dataset: vectorRepoName,
       query: question,
       model: embeddingModel,
@@ -251,7 +251,7 @@ describe("RAG Workflow End-to-End", () => {
 
     // Step 1: Retrieve context
     const retrievalWorkflow = new Workflow();
-    retrievalWorkflow.retrieval({
+    retrievalWorkflow.chunkRetrieval({
       dataset: vectorRepoName,
       query: question,
       model: embeddingModel,
@@ -259,7 +259,7 @@ describe("RAG Workflow End-to-End", () => {
       scoreThreshold: 0.2,
     });
 
-    const retrievalResult = (await retrievalWorkflow.run()) as RetrievalTaskOutput;
+    const retrievalResult = (await retrievalWorkflow.run()) as ChunkRetrievalTaskOutput;
 
     if (retrievalResult.chunks.length === 0) {
       console.log("No chunks found, skipping QA step");
