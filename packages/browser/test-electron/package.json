@@ -1,0 +1,12 @@
+{
+  "name": "electron-test-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "test": "ELECTRON_DISABLE_SANDBOX=1 xvfb-run -a electron main.js --no-sandbox"
+  },
+  "devDependencies": {
+    "electron": "^40.0.0"
+  }
+}
