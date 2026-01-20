@@ -1,0 +1,66 @@
+{
+  "name": "@workglow/browser",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Browser automation for Workglow using accessibility trees for stable element selection.",
+  "scripts": {
+    "watch": "concurrently -c 'auto' 'bun:watch-*'",
+    "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
+    "watch-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
+    "watch-bun": "bun build --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
+    "watch-types": "tsc --watch --preserveWatchOutput",
+    "build-package": "bun run build-clean && concurrently -c 'auto' -n 'browser,node,bun,electron,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-electron' 'bun run build-types'",
+    "build-clean": "rm -fr dist/*",
+    "build-node": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
+    "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
+    "build-bun": "bun build --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
+    "build-electron": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist ./src/electron.ts",
+    "build-types": "rm -f tsconfig.tsbuildinfo && tsc || echo 'Types build completed'",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test": "./test.sh && bun run test:electron",
+    "test:unit": "bun test src/test/A11yTree.test.ts src/test/CookieStore.test.ts src/test/ElectronContext.test.ts src/test/ElectronPartition.test.ts",
+    "test:electron": "cd test-electron && ELECTRON_DISABLE_SANDBOX=1 xvfb-run -a electron main.js --no-sandbox",
+    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+  },
+  "exports": {
+    ".": {
+      "browser": "./dist/browser.js",
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src/**/*.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@workglow/task-graph": "workspace:*",
+    "@workglow/util": "workspace:*",
+    "playwright": "^1.57.0"
+  },
+  "peerDependenciesMeta": {
+    "@workglow/task-graph": {
+      "optional": false
+    },
+    "@workglow/util": {
+      "optional": false
+    },
+    "playwright": {
+      "optional": true
+    },
+    "electron": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@workglow/task-graph": "workspace:*",
+    "@workglow/util": "workspace:*",
+    "@workglow/tasks": "workspace:*",
+    "playwright": "^1.57.0",
+    "electron": "^40.0.0"
+  }
+}

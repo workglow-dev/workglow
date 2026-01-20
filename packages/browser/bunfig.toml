@@ -1,0 +1,6 @@
+[test]
+# Limit concurrency to prevent resource exhaustion with browser tests
+maxConcurrency = 1
+
+# Note: Browser tests require a display server on Linux.
+# - Or run manually: `xvfb-run -a bun test --max-concurrency=1 [test files]`
