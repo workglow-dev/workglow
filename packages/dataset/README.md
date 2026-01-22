@@ -367,11 +367,11 @@ const pgUsers = new PostgresTabularStorage<typeof UserSchema, ["id"]>(
 );
 
 // Supabase (Node.js/Bun)
-import { SupabaseTabularRepository } from "@workglow/storage";
+import { SupabaseTabularStorage } from "@workglow/storage";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
-const supabaseUsers = new SupabaseTabularRepository<typeof UserSchema, ["id"]>(
+const supabaseUsers = new SupabaseTabularStorage<typeof UserSchema, ["id"]>(
   supabase,
   "users",
   UserSchema,
@@ -380,8 +380,8 @@ const supabaseUsers = new SupabaseTabularRepository<typeof UserSchema, ["id"]>(
 );
 
 // IndexedDB (Browser)
-import { IndexedDbTabularRepository } from "@workglow/storage";
-const browserUsers = new IndexedDbTabularRepository<typeof UserSchema, ["id"]>(
+import { IndexedDbTabularStorage } from "@workglow/storage";
+const browserUsers = new IndexedDbTabularStorage<typeof UserSchema, ["id"]>(
   "users",
   UserSchema,
   ["id"],
@@ -389,8 +389,8 @@ const browserUsers = new IndexedDbTabularRepository<typeof UserSchema, ["id"]>(
 );
 
 // File-based (Node.js/Bun)
-import { FsFolderTabularRepository } from "@workglow/storage";
-const fileUsers = new FsFolderTabularRepository<typeof UserSchema, ["id"]>(
+import { FsFolderTabularStorage } from "@workglow/storage";
+const fileUsers = new FsFolderTabularStorage<typeof UserSchema, ["id"]>(
   "./data/users",
   UserSchema,
   ["id"],
@@ -464,23 +464,23 @@ await jobQueue.deleteJobsByStatusAndAge(JobStatus.COMPLETED, 24 * 60 * 60 * 1000
 ```typescript
 import {
   IndexedDbKvRepository,
-  IndexedDbTabularRepository,
+  IndexedDbTabularStorage,
   IndexedDbQueueStorage,
   SupabaseKvRepository,
-  SupabaseTabularRepository,
+  SupabaseTabularStorage,
   SupabaseQueueStorage,
 } from "@workglow/storage";
 import { createClient } from "@supabase/supabase-js";
 
 // Local browser storage with IndexedDB
 const settings = new IndexedDbKvRepository("app-settings");
-const userData = new IndexedDbTabularRepository("users", UserSchema, ["id"]);
+const userData = new IndexedDbTabularStorage("users", UserSchema, ["id"]);
 const jobQueue = new IndexedDbQueueStorage<any, any>("background-jobs");
 
 // Or use Supabase for cloud storage from the browser
 const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
 const cloudSettings = new SupabaseKvRepository(supabase, "app-settings");
-const cloudUserData = new SupabaseTabularRepository(supabase, "users", UserSchema, ["id"]);
+const cloudUserData = new SupabaseTabularStorage(supabase, "users", UserSchema, ["id"]);
 const cloudJobQueue = new SupabaseQueueStorage(supabase, "background-jobs");
 ```
 
@@ -506,7 +506,7 @@ import {
   SqliteTabularStorage,
   FsFolderJsonKvRepository,
   PostgresQueueStorage,
-  SupabaseTabularRepository,
+  SupabaseTabularStorage,
 } from "@workglow/storage";
 
 import { Database } from "bun:sqlite";
@@ -517,7 +517,7 @@ const data = new SqliteTabularStorage(db, "items", ItemSchema, ["id"]);
 
 // Or use Supabase for cloud storage
 const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
-const cloudData = new SupabaseTabularRepository(supabase, "items", ItemSchema, ["id"]);
+const cloudData = new SupabaseTabularStorage(supabase, "items", ItemSchema, ["id"]);
 ```
 
 ## Advanced Features
@@ -530,8 +530,8 @@ Repositories can be registered globally by ID, allowing tasks to reference them 
 
 ```typescript
 import {
-  registerTabularRepository,
-  getTabularRepository,
+  registerTabularStorage,
+  getTabularStorage,
   InMemoryTabularStorage,
 } from "@workglow/storage";
 
@@ -549,10 +549,10 @@ const userSchema = {
 
 // Create and register a repository
 const userRepo = new InMemoryTabularStorage(userSchema, ["id"] as const);
-registerTabularRepository("users", userRepo);
+registerTabularStorage("users", userRepo);
 
 // Later, retrieve the repository by ID
-const repo = getTabularRepository("users");
+const repo = getTabularStorage("users");
 ```
 
 #### Using Repositories in Tasks
@@ -560,14 +560,14 @@ const repo = getTabularRepository("users");
 When using repositories with tasks, you can pass either the repository ID or a direct instance. The TaskRunner automatically resolves string IDs using the registry.
 
 ```typescript
-import { TypeTabularRepository } from "@workglow/storage";
+import { TypeTabularStorage } from "@workglow/storage";
 
-// In your task's input schema, use TypeTabularRepository
+// In your task's input schema, use TypeTabularStorage
 static inputSchema() {
   return {
     type: "object",
     properties: {
-      dataSource: TypeTabularRepository({
+      dataSource: TypeTabularStorage({
         title: "User Repository",
         description: "Repository containing user records",
       }),
@@ -587,13 +587,13 @@ The package provides schema helper functions for defining repository inputs with
 
 ```typescript
 import {
-  TypeTabularRepository,
+  TypeTabularStorage,
   TypeVectorRepository,
   TypeDocumentRepository,
 } from "@workglow/storage";
 
 // Tabular repository (format: "storage:tabular")
-const tabularSchema = TypeTabularRepository({
+const tabularSchema = TypeTabularStorage({
   title: "Data Source",
   description: "Tabular data storage",
 });
@@ -931,7 +931,7 @@ class ConfigManager {
 import { createClient } from "@supabase/supabase-js";
 import { JsonSchema } from "@workglow/util";
 import {
-  SupabaseTabularRepository,
+  SupabaseTabularStorage,
   SupabaseKvRepository,
   SupabaseQueueStorage,
 } from "@workglow/storage";
@@ -972,7 +972,7 @@ const OrderSchema = {
 } as const satisfies JsonSchema;
 
 // Create repositories
-const products = new SupabaseTabularRepository<typeof ProductSchema, ["id"]>(
+const products = new SupabaseTabularStorage<typeof ProductSchema, ["id"]>(
   supabase,
   "products",
   ProductSchema,
@@ -980,7 +980,7 @@ const products = new SupabaseTabularRepository<typeof ProductSchema, ["id"]>(
   ["category", "name"] // Indexed columns for fast searching
 );
 
-const orders = new SupabaseTabularRepository<typeof OrderSchema, ["id"]>(
+const orders = new SupabaseTabularStorage<typeof OrderSchema, ["id"]>(
   supabase,
   "orders",
   OrderSchema,
@@ -1062,7 +1062,7 @@ bun test
 
 # Run specific test suites
 bun test --grep "KvRepository"
-bun test --grep "TabularRepository"
+bun test --grep "TabularStorage"
 bun test --grep "QueueStorage"
 
 # Test specific environments

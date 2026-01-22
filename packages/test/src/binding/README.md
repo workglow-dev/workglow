@@ -66,7 +66,7 @@ Tests include:
 
 ## Architecture Notes
 
-- All repositories use a TabularRepository pattern internally
+- All repositories use a TabularStorage pattern internally
 - Schema definitions are centralized in `TaskGraphSchema`/`TaskOutputSchema`
 - Primary key configurations are managed through `PrimaryKeyNames` constants
 - Event emitters provide hooks for monitoring repository operations

@@ -24,5 +24,7 @@ import { GraphAsTask } from "./GraphAsTask";
 import { TaskRegistry } from "./TaskRegistry";
 
 export const registerBaseTasks = () => {
-  [ConditionalTask, GraphAsTask].map(TaskRegistry.registerTask);
+  const tasks = [ConditionalTask, GraphAsTask];
+  tasks.map(TaskRegistry.registerTask);
+  return tasks;
 };

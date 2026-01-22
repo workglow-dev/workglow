@@ -12,8 +12,8 @@ A collection of storage implementations for tabular data with multiple backend s
   - [InMemoryTabularStorage](#inmemorytabularrepository)
   - [SqliteTabularStorage](#sqlitetabularrepository)
   - [PostgresTabularStorage](#postgrestabularrepository)
-  - [IndexedDbTabularRepository](#indexeddbtabularrepository)
-  - [FsFolderTabularRepository](#fsfoldertabularrepository)
+  - [IndexedDbTabularStorage](#indexeddbtabularrepository)
+  - [FsFolderTabularStorage](#fsfoldertabularrepository)
 - [Events](#events)
 - [Testing](#testing)
 - [License](#license)
@@ -194,10 +194,12 @@ const DocumentSchema = {
 ```
 
 **Generation Strategy (inferred from column type):**
+
 - `type: "integer"` → Auto-increment (SERIAL, INTEGER PRIMARY KEY, counter)
 - `type: "string"` → UUID via `uuid4()` from `@workglow/util`
 
 **Constraints:**
+
 - Only the **first column** in a compound primary key can be auto-generated
 - Only **one column** can be auto-generated per table
 
@@ -210,9 +212,9 @@ const userStorage = new InMemoryTabularStorage(UserSchema, ["id"] as const);
 await userStorage.setupDatabase();
 
 // Insert without providing ID - it will be auto-generated
-const user = await userStorage.put({ 
-  name: "Alice", 
-  email: "alice@example.com" 
+const user = await userStorage.put({
+  name: "Alice",
+  email: "alice@example.com",
 });
 console.log(user.id); // 1 (auto-generated)
 
@@ -225,10 +227,10 @@ Control whether clients can provide values for auto-generated keys:
 
 ```typescript
 const storage = new PostgresTabularStorage(
-  db, 
-  "users", 
-  UserSchema, 
-  ["id"] as const, 
+  db,
+  "users",
+  UserSchema,
+  ["id"] as const,
   [], // indexes
   { clientProvidedKeys: "if-missing" } // configuration
 );
@@ -236,20 +238,17 @@ const storage = new PostgresTabularStorage(
 
 **Options:**
 
-| Setting | Behavior | Use Case |
-|---------|----------|----------|
+| Setting                  | Behavior                                         | Use Case                                                          |
+| ------------------------ | ------------------------------------------------ | ----------------------------------------------------------------- |
 | `"if-missing"` (default) | Use client value if provided, generate otherwise | Flexible - supports both auto-generation and client-specified IDs |
-| `"never"` | Always generate, ignore client values | Maximum security - never trust client IDs |
-| `"always"` | Require client to provide value | Testing/migration - enforce client-side ID generation |
+| `"never"`                | Always generate, ignore client values            | Maximum security - never trust client IDs                         |
+| `"always"`               | Require client to provide value                  | Testing/migration - enforce client-side ID generation             |
 
 **Examples:**
 
 ```typescript
 // Default: "if-missing" - flexible
-const flexibleStorage = new InMemoryTabularStorage(
-  UserSchema, 
-  ["id"] as const
-);
+const flexibleStorage = new InMemoryTabularStorage(UserSchema, ["id"] as const);
 
 // Without ID - auto-generated
 await flexibleStorage.put({ name: "Bob", email: "bob@example.com" });
@@ -258,41 +257,33 @@ await flexibleStorage.put({ name: "Bob", email: "bob@example.com" });
 await flexibleStorage.put({ id: 999, name: "Charlie", email: "charlie@example.com" });
 
 // Secure mode: "never" - always generate
-const secureStorage = new PostgresTabularStorage(
-  db, 
-  "users", 
-  UserSchema, 
-  ["id"] as const, 
-  [],
-  { clientProvidedKeys: "never" }
-);
+const secureStorage = new PostgresTabularStorage(db, "users", UserSchema, ["id"] as const, [], {
+  clientProvidedKeys: "never",
+});
 
 // Even if client provides id, it will be ignored and regenerated
-const result = await secureStorage.put({ 
+const result = await secureStorage.put({
   id: 999, // Ignored!
-  name: "Diana", 
-  email: "diana@example.com" 
+  name: "Diana",
+  email: "diana@example.com",
 });
 // result.id will be database-generated, NOT 999
 
 // Testing mode: "always" - require client ID
-const testStorage = new InMemoryTabularStorage(
-  UserSchema, 
-  ["id"] as const,
-  [],
-  { clientProvidedKeys: "always" }
-);
+const testStorage = new InMemoryTabularStorage(UserSchema, ["id"] as const, [], {
+  clientProvidedKeys: "always",
+});
 
 // Must provide ID or throws error
-await testStorage.put({ 
-  id: 1, 
-  name: "Eve", 
-  email: "eve@example.com" 
+await testStorage.put({
+  id: 1,
+  name: "Eve",
+  email: "eve@example.com",
 }); // OK
 
-await testStorage.put({ 
-  name: "Frank", 
-  email: "frank@example.com" 
+await testStorage.put({
+  name: "Frank",
+  email: "frank@example.com",
 }); // Throws Error!
 ```
 
@@ -300,14 +291,14 @@ await testStorage.put({
 
 Each storage backend implements auto-generation differently:
 
-| Backend | Integer (autoincrement) | String (UUID) |
-|---------|------------------------|---------------|
-| **InMemoryTabularStorage** | Internal counter (1, 2, 3...) | `uuid4()` from `@workglow/util` |
-| **SqliteTabularStorage** | `INTEGER PRIMARY KEY AUTOINCREMENT` | `uuid4()` client-side |
-| **PostgresTabularStorage** | `SERIAL`/`BIGSERIAL` | `gen_random_uuid()` database-side |
-| **SupabaseTabularStorage** | `SERIAL` | `gen_random_uuid()` database-side |
-| **IndexedDbTabularStorage** | `autoIncrement: true` | `uuid4()` client-side |
-| **FsFolderTabularStorage** | Internal counter | `uuid4()` from `@workglow/util` |
+| Backend                     | Integer (autoincrement)             | String (UUID)                     |
+| --------------------------- | ----------------------------------- | --------------------------------- |
+| **InMemoryTabularStorage**  | Internal counter (1, 2, 3...)       | `uuid4()` from `@workglow/util`   |
+| **SqliteTabularStorage**    | `INTEGER PRIMARY KEY AUTOINCREMENT` | `uuid4()` client-side             |
+| **PostgresTabularStorage**  | `SERIAL`/`BIGSERIAL`                | `gen_random_uuid()` database-side |
+| **SupabaseTabularStorage**  | `SERIAL`                            | `gen_random_uuid()` database-side |
+| **IndexedDbTabularStorage** | `autoIncrement: true`               | `uuid4()` client-side             |
+| **FsFolderTabularStorage**  | Internal counter                    | `uuid4()` from `@workglow/util`   |
 
 ### Constraints
 
@@ -394,13 +385,13 @@ const repo = new PostgresTabularStorage<
 );
 ```
 
-### IndexedDbTabularRepository
+### IndexedDbTabularStorage
 
 - Browser-based storage
 - Automatic schema migration
 
 ```typescript
-const repo = new IndexedDbTabularRepository<
+const repo = new IndexedDbTabularStorage<
   typeof schema,
   typeof primaryKeys,
   Entity, // required if using TypeBox, Zod, etc, otherwise automatically created
@@ -414,13 +405,13 @@ const repo = new IndexedDbTabularRepository<
 );
 ```
 
-### FsFolderTabularRepository
+### FsFolderTabularStorage
 
 - Filesystem storage (one JSON file per record)
 - Simple persistence format
 
 ```typescript
-const repo = new FsFolderTabularRepository<
+const repo = new FsFolderTabularStorage<
   typeof schema,
   typeof primaryKeys,
   Entity, // required if using TypeBox, Zod, etc, otherwise automatically created

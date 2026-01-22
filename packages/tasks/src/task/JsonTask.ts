@@ -54,6 +54,9 @@ export class JsonTask<
 > extends GraphAsTask<Input, Output, Config> {
   public static type = "JsonTask";
   public static category = "Hidden";
+  public static title = "JSON Task";
+  public static description =
+    "A task that creates and manages task graphs from JSON configurations";
 
   public static inputSchema() {
     return inputSchema;

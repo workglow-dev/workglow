@@ -53,7 +53,7 @@ function textRelevance(text: string, query: string): number {
 
 /**
  * In-memory document chunk vector repository implementation.
- * Extends InMemoryTabularRepository for storage.
+ * Extends InMemoryTabularStorage for storage.
  * Suitable for testing and small-scale browser applications.
  * Supports all vector types including quantized formats.
  *

@@ -90,7 +90,7 @@ export class ChunkVectorUpsertTask extends Task<
 > {
   public static type = "ChunkVectorUpsertTask";
   public static category = "Vector Store";
-  public static title = "Vector Store Upsert";
+  public static title = "Add to Vector Store";
   public static description = "Store vector embeddings with metadata in a document chunk dataset";
   public static cacheable = false; // Has side effects
 

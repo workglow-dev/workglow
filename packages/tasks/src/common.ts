@@ -33,7 +33,7 @@ import { SplitTask } from "./task/SplitTask";
 // Centralized registration ensures tasks are available for JSON deserialization
 // and prevents tree-shaking issues.
 export const registerCommonTasks = () => {
-  [
+  const tasks = [
     ArrayTask,
     DebugLogTask,
     DelayTask,
@@ -45,5 +45,7 @@ export const registerCommonTasks = () => {
     MergeTask,
     OutputTask,
     SplitTask,
-  ].map(TaskRegistry.registerTask);
+  ];
+  tasks.map(TaskRegistry.registerTask);
+  return tasks;
 };

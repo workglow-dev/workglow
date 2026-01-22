@@ -49,7 +49,7 @@ import { VectorSimilarityTask } from "./VectorSimilarityTask";
 // Centralized registration ensures tasks are available for JSON deserialization
 // and prevents tree-shaking issues.
 export const registerAiTasks = () => {
-  [
+  const tasks = [
     BackgroundRemovalTask,
     ChunkToVectorTask,
     ContextBuilderTask,
@@ -89,7 +89,9 @@ export const registerAiTasks = () => {
     UnloadModelTask,
     VectorQuantizeTask,
     VectorSimilarityTask,
-  ].map(TaskRegistry.registerTask);
+  ];
+  tasks.map(TaskRegistry.registerTask);
+  return tasks;
 };
 
 export * from "./BackgroundRemovalTask";
@@ -133,4 +135,3 @@ export * from "./TopicSegmenterTask";
 export * from "./UnloadModelTask";
 export * from "./VectorQuantizeTask";
 export * from "./VectorSimilarityTask";
-

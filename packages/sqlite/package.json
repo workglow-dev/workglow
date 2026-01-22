@@ -43,8 +43,8 @@
       "import": "./dist/node.js"
     },
     "./bun": {
-      "types": "./dist/bun.d.ts",
-      "import": "./dist/bun.js"
+      "types": "./src/bun.ts",
+      "import": "./src/bun.ts"
     },
     "./node": {
       "types": "./dist/node.d.ts",

@@ -202,10 +202,11 @@ export class ConditionalTask<
   static type: TaskTypeName = "ConditionalTask";
 
   /** Category for UI organization and filtering */
-  static category = "Flow Control";
+  static category = "Hidden";
 
   /** Human-readable title for display in UIs */
   static title = "Conditional Task";
+  static description = "Evaluates conditions to determine which dataflows are active";
 
   /** This task has dynamic schemas that change based on branch configuration */
   static hasDynamicSchemas: boolean = true;

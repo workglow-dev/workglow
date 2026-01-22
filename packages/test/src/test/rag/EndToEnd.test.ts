@@ -125,7 +125,7 @@ Content about topic B.`;
     const inserted = await docRepo.upsert(doc);
 
     // Enrich (in real workflow this would use DocumentEnricherTask)
-    // For test, manually add enrichment
+    // For test, manually add enrichment to keep fast
     const enrichedRoot = {
       ...root,
       enrichment: {

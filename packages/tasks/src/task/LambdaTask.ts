@@ -65,6 +65,8 @@ export class LambdaTask<
   Config extends LambdaTaskConfig<Input, Output> = LambdaTaskConfig<Input, Output>,
 > extends Task<Input, Output, Config> {
   public static type = "LambdaTask";
+  public static title = "Lambda Task";
+  public static description = "A task that wraps a provided function and its input";
   public static category = "Hidden";
   public static cacheable = true;
   public static inputSchema() {
@@ -140,7 +142,11 @@ export function lambda<I extends TaskInput, O extends TaskOutput>(
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    lambda: CreateWorkflow<LambdaTaskInput, LambdaTaskOutput, LambdaTaskConfig<LambdaTaskInput, LambdaTaskOutput>>;
+    lambda: CreateWorkflow<
+      LambdaTaskInput,
+      LambdaTaskOutput,
+      LambdaTaskConfig<LambdaTaskInput, LambdaTaskOutput>
+    >;
   }
 }
 

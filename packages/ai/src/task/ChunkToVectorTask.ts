@@ -100,7 +100,7 @@ export class ChunkToVectorTask extends Task<
 > {
   public static type = "ChunkToVectorTask";
   public static category = "Document";
-  public static title = "Chunk to Vector Transform";
+  public static title = "Chunk to Vector";
   public static description = "Transform chunks and embeddings to vector store format";
   public static cacheable = true;
 

@@ -250,7 +250,7 @@ This resolution happens automatically before `validateInput()` is called, so by 
 
 ```typescript
 import { Task } from "@workglow/task-graph";
-import { TypeTabularRepository } from "@workglow/storage";
+import { TypeTabularStorage } from "@workglow/storage";
 
 class DataProcessingTask extends Task<{ repository: ITabularStorage; query: string }> {
   static readonly type = "DataProcessingTask";
@@ -259,7 +259,7 @@ class DataProcessingTask extends Task<{ repository: ITabularStorage; query: stri
     return {
       type: "object",
       properties: {
-        repository: TypeTabularRepository({
+        repository: TypeTabularStorage({
           title: "Data Source",
           description: "Repository to query",
         }),

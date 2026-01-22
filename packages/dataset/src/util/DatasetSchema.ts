@@ -24,7 +24,7 @@ export type DatasetSemantic = "dataset:tabular" | "dataset:document-chunk" | "da
  * const inputSchema = {
  *   type: "object",
  *   properties: {
- *     dataSource: TypeTabularRepository({
+ *     dataSource: TypeTabularStorage({
  *       title: "User Database",
  *       description: "Dataset containing user records",
  *     }),

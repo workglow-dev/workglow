@@ -56,12 +56,13 @@
     }
   },
   "devDependencies": {
+    "@types/papaparse": "^5.5.2",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*"
   },
   "dependencies": {
-    "csv-parse": "^6.1.0"
+    "papaparse": "^5.5.3"
   }
 }

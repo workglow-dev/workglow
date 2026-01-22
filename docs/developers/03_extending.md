@@ -142,7 +142,7 @@ The system supports several format annotations out of the box:
 | ------------------------------ | ----------------------------------- | ----------------------------- |
 | `model`                        | Any AI model configuration          | `TypeModel()`                 |
 | `model:TaskName`               | Model compatible with specific task | —                             |
-| `storage:tabular`              | Tabular data dataset                | `TypeTabularRepository()`     |
+| `storage:tabular`              | Tabular data dataset                | `TypeTabularStorage()`        |
 | `dataset:document-node-vector` | Vector storage dataset              | `TypeChunkVectorRepository()` |
 | `dataset:document`             | Document dataset                    | `TypeDocumentRepository()`    |
 
@@ -150,7 +150,7 @@ The system supports several format annotations out of the box:
 
 ```typescript
 import { Task, type DataPortSchema } from "@workglow/task-graph";
-import { TypeTabularRepository } from "@workglow/storage";
+import { TypeTabularStorage } from "@workglow/storage";
 import { FromSchema } from "@workglow/util";
 
 const MyTaskInputSchema = {
@@ -167,7 +167,7 @@ const MyTaskInputSchema = {
       ],
     },
     // Repository input - uses helper function
-    dataSource: TypeTabularRepository({
+    dataSource: TypeTabularStorage({
       title: "Data Source",
       description: "Repository containing source data",
     }),
@@ -280,7 +280,7 @@ The `@workglow/ai` package provides a comprehensive set of tasks for building RA
 | `RerankerTask`                | Reranks search results for relevance          |
 | `HierarchyJoinTask`           | Enriches results with parent context          |
 | `ContextBuilderTask`          | Builds context for LLM prompts                |
-| `ChunkRetrievalTask`   | Orchestrates end-to-end retrieval             |
+| `ChunkRetrievalTask`          | Orchestrates end-to-end retrieval             |
 | `TextQuestionAnswerTask`      | Generates answers from context                |
 | `TextGenerationTask`          | General text generation                       |
 

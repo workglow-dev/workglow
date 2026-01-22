@@ -38,6 +38,8 @@ export class GraphAsTask<
   // ========================================================================
 
   public static type: TaskTypeName = "GraphAsTask";
+  public static title: string = "Graph as Task";
+  public static description: string = "A task that contains a subgraph of tasks";
   public static category: string = "Hidden";
   public static compoundMerge: CompoundMergeStrategy = PROPERTY_ARRAY;
 

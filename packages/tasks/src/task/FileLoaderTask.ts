@@ -13,7 +13,7 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { parse } from "csv-parse/sync";
+import Papa from "papaparse";
 import { FetchUrlTask, FetchUrlTaskOutput } from "./FetchUrlTask";
 
 const inputSchema = {
@@ -183,11 +183,12 @@ export class FileLoaderTask extends Task<
    */
   protected parseCsvContent(content: string): Array<Record<string, string>> {
     try {
-      return parse(content, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
+      const result = Papa.parse<Record<string, string>>(content, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.trim(),
       });
+      return result.data;
     } catch (error) {
       throw new Error(`Failed to parse CSV: ${error}`);
     }
