@@ -1017,31 +1017,29 @@ export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: nu
  */
 declare module "@workglow/task-graph" {
   interface Workflow {
-    testSimple: CreateWorkflow<{ input: string }, { output: string }, TaskConfig>;
-    testOutput: CreateWorkflow<{ input: string }, { customOutput: string }, TaskConfig>;
-    testInput: CreateWorkflow<{ customInput: string }, { output: string }, TaskConfig>;
-    failing: CreateWorkflow<{}, {}, TaskConfig>;
-    longRunning: CreateWorkflow<{}, {}, TaskConfig>;
-    string: CreateWorkflow<{ input: string }, { output: string }, TaskConfig>;
-    numberToString: CreateWorkflow<{ input: number }, { output: string }, TaskConfig>;
-    number: CreateWorkflow<{ input: number }, { output: number }, TaskConfig>;
-    testAdd: CreateWorkflow<TestAddTaskInput, TestAddTaskOutput, TaskConfig>;
-    vectorOutput: CreateWorkflow<{ text: string }, { vector: Float32Array }, TaskConfig>;
-    vectorsInput: CreateWorkflow<{ vectors: Float32Array }, { count: number }, TaskConfig>;
-    vectorOneOfOutput: CreateWorkflow<{ text: string }, { embedding: Float32Array }, TaskConfig>;
-    vectorAnyOfInput: CreateWorkflow<{ data: Float32Array }, { sum: number }, TaskConfig>;
-    textOutput: CreateWorkflow<{ input: string }, { text: string }, TaskConfig>;
-    vectorOutputOnly: CreateWorkflow<{ size: number }, { vector: Float32Array }, TaskConfig>;
-    textVectorInput: CreateWorkflow<
-      { text: string; vector: Float32Array },
-      { result: string },
-      TaskConfig
-    >;
-    passthroughVector: CreateWorkflow<
-      { vector: Float32Array },
-      { vector: Float32Array },
-      TaskConfig
-    >;
+    testSimple(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    testOutput(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    testInput(input?: Partial<{ customInput: string }>, config?: Partial<TaskConfig>): this;
+    failing(input?: Partial<{}>, config?: Partial<TaskConfig>): this;
+    longRunning(input?: Partial<{}>, config?: Partial<TaskConfig>): this;
+    string(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    numberToString(input?: Partial<{ input: number }>, config?: Partial<TaskConfig>): this;
+    number(input?: Partial<{ input: number }>, config?: Partial<TaskConfig>): this;
+    testAdd(input?: Partial<TestAddTaskInput>, config?: Partial<TaskConfig>): this;
+    vectorOutput(input?: Partial<{ text: string }>, config?: Partial<TaskConfig>): this;
+    vectorsInput(input?: Partial<{ vectors: Float32Array }>, config?: Partial<TaskConfig>): this;
+    vectorOneOfOutput(input?: Partial<{ text: string }>, config?: Partial<TaskConfig>): this;
+    vectorAnyOfInput(input?: Partial<{ data: Float32Array }>, config?: Partial<TaskConfig>): this;
+    textOutput(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    vectorOutputOnly(input?: Partial<{ size: number }>, config?: Partial<TaskConfig>): this;
+    textVectorInput(
+      input?: Partial<{ text: string; vector: Float32Array }>,
+      config?: Partial<TaskConfig>
+    ): this;
+    passthroughVector(
+      input?: Partial<{ vector: Float32Array }>,
+      config?: Partial<TaskConfig>
+    ): this;
   }
 }
 

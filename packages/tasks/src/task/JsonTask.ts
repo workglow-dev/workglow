@@ -102,7 +102,6 @@ export const json = (input: JsonTaskInput, config: TaskConfig = {}) => {
   return new JsonTask({}, config).run(input);
 };
 
-// Add Json task workflow to Workflow interface
 declare module "@workglow/task-graph" {
   interface Workflow {
     json: CreateWorkflow<JsonTaskInput, JsonTaskOutput, TaskConfig>;

@@ -66,9 +66,8 @@ export class OutputTask extends Task<OutputTaskInput, OutputTaskOutput, OutputTa
  */
 declare module "@workglow/task-graph" {
   interface Workflow {
-    output: CreateWorkflow<OutputTaskInput, OutputTaskOutput, TaskConfig>;
+    output: CreateWorkflow<OutputTaskInput, OutputTaskOutput, OutputTaskConfig>;
   }
 }
 
-// Register the workflow method
 Workflow.prototype.output = CreateWorkflow(OutputTask);

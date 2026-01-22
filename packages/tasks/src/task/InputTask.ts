@@ -62,7 +62,7 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    input: CreateWorkflow<InputTaskInput, InputTaskOutput, TaskConfig>;
+    input: CreateWorkflow<InputTaskInput, InputTaskOutput, InputTaskConfig>;
   }
 }
 

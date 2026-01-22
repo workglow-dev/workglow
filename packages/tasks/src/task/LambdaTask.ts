@@ -16,7 +16,7 @@ import {
   TaskOutput,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util";
 
 interface LambdaTaskConfig<
   Input extends TaskInput = TaskInput,
@@ -52,16 +52,16 @@ const outputSchema = {
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
-export type LambdaTaskInput = FromSchema<typeof inputSchema>;
-export type LambdaTaskOutput = FromSchema<typeof outputSchema>;
+export type LambdaTaskInput = Record<string, any>;
+export type LambdaTaskOutput = Record<string, any>;
 /**
  * LambdaTask provides a way to execute arbitrary functions within the task framework
  * It wraps a provided function and its input into a task that can be integrated
  * into task graphs and workflows
  */
 export class LambdaTask<
-  Input extends TaskInput = TaskInput,
-  Output extends TaskOutput = TaskOutput,
+  Input extends TaskInput = LambdaTaskInput,
+  Output extends TaskOutput = LambdaTaskOutput,
   Config extends LambdaTaskConfig<Input, Output> = LambdaTaskConfig<Input, Output>,
 > extends Task<Input, Output, Config> {
   public static type = "LambdaTask";
@@ -138,13 +138,9 @@ export function lambda<I extends TaskInput, O extends TaskOutput>(
   return task.run();
 }
 
-// Add Lambda task workflow to Workflow interface
 declare module "@workglow/task-graph" {
   interface Workflow {
-    lambda: <I extends TaskInput, O extends TaskOutput>(
-      input: Partial<I>,
-      config: LambdaTaskConfig<I, O>
-    ) => Workflow;
+    lambda: CreateWorkflow<LambdaTaskInput, LambdaTaskOutput, LambdaTaskConfig<LambdaTaskInput, LambdaTaskOutput>>;
   }
 }
 
