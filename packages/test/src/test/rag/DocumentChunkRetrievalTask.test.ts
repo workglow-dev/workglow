@@ -6,10 +6,11 @@
 
 import { chunkRetrieval } from "@workglow/ai";
 import {
-  DocumentChunk, DocumentChunkDataset,
+  DocumentChunk,
+  DocumentChunkDataset,
   DocumentChunkPrimaryKey,
   DocumentChunkSchema,
-  registerDocumentChunkDataset
+  registerDocumentChunkDataset,
 } from "@workglow/dataset";
 import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -78,7 +79,7 @@ describe("ChunkRetrievalTask", () => {
 
     expect(result.count).toBe(3);
     expect(result.chunks).toHaveLength(3);
-    expect(result.ids).toHaveLength(3);
+    expect(result.chunk_ids).toHaveLength(3);
     expect(result.metadata).toHaveLength(3);
     expect(result.scores).toHaveLength(3);
 
@@ -204,7 +205,7 @@ describe("ChunkRetrievalTask", () => {
     });
 
     expect(result.count).toBe(1);
-    expect(result.ids[0]).toBe("filtered_doc_0");
+    expect(result.chunk_ids[0]).toBe("filtered_doc_0");
   });
 
   test("should apply score threshold", async () => {
@@ -301,7 +302,7 @@ describe("ChunkRetrievalTask", () => {
 
     expect(result.count).toBe(3);
     expect(result.chunks).toHaveLength(3);
-    expect(result.ids).toHaveLength(3);
+    expect(result.chunk_ids).toHaveLength(3);
     expect(result.metadata).toHaveLength(3);
     expect(result.scores).toHaveLength(3);
 
