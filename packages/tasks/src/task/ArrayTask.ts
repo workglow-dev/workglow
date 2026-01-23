@@ -103,6 +103,17 @@ export class ArrayTask<
   }
 
   /**
+   * Merges the reactive results into the output
+   * @param input The input to the task
+   * @param output The output of the task
+   * @param reactiveResults The reactive results from the subtasks
+   * @returns The merged output
+   */
+  public executeMerge(_input: Input, output: Output): Output {
+    return output;
+  }
+
+  /**
    * Regenerates the task subgraph based on input arrays
    */
   public regenerateGraph(): void {
@@ -173,7 +184,7 @@ export class ArrayTask<
       Array.isArray(input[key]) ? (input[key] as Array<Input[keyof Input]>) : []
     );
 
-    const indices = arraysToCombine.map(() => 0);
+    const indices = new Array(arraysToCombine.length).fill(0);
     const combinations: number[][] = [];
     let done = false;
 
@@ -254,19 +265,18 @@ class ArrayTaskRunner<
     return super.executeTaskChildren({} as Input);
   }
 
-  /**
-   * Override to handle single task mode (no children) properly.
-   * In single task mode, call the task's executeReactive directly without fixInput.
-   */
   public async executeTaskReactive(input: Input, output: Output): Promise<Output> {
-    const reactiveResults = await super.executeTaskReactive(input, output);
+    await super.executeTaskReactive(input, output);
     if (this.task.hasChildren()) {
-      // Multiple subtasks: use parent implementation
-      return reactiveResults;
-    } else {
-      // Single task mode: call task's executeReactive directly
-      this.task.runOutputData = Object.assign({}, output, reactiveResults ?? {}) as Output;
-      return this.task.runOutputData as Output;
+      this.task.runOutputData = this.task.executeMerge(input, this.task.runOutputData as Output);
     }
+    return this.task.runOutputData as Output;
+  }
+  public async executeTask(input: Input): Promise<Output> {
+    await super.executeTask(input);
+    if (this.task.hasChildren()) {
+      this.task.runOutputData = this.task.executeMerge(input, this.task.runOutputData as Output);
+    }
+    return this.task.runOutputData as Output;
   }
 }

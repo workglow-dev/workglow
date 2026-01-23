@@ -310,6 +310,86 @@ class JobQueueReactiveTask2 extends JobQueueTask<JobQueueTestInput, JobQueueTest
   }
 }
 
+interface QueryTestInput extends TaskInput {
+  query: string;
+  val: number;
+}
+
+interface QueryTestOutput extends TaskOutput {
+  result: string;
+  val: number;
+}
+
+/**
+ * Create a task that appends "-output" to a query string
+ * Has one replicated input (query) and one normal input (val)
+ */
+class QueryAppendTask extends ArrayTask<
+  ConvertAllToOptionalArray<QueryTestInput>,
+  ConvertAllToOptionalArray<QueryTestOutput>,
+  TaskConfig
+> {
+  public static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        query: {
+          oneOf: [
+            { type: "string", default: "" },
+            { type: "array", items: { type: "string", default: "" } },
+          ],
+          "x-replicate": true,
+        },
+        val: {
+          type: "number",
+          default: 0,
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
+        },
+        val: {
+          type: "number",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public async execute(input: QueryTestInput): Promise<QueryTestOutput> {
+    return {
+      result: `${input.query}-output`,
+      val: input.val,
+    };
+  }
+
+  public async executeReactive(
+    input: QueryTestInput,
+    output: QueryTestOutput
+  ): Promise<QueryTestOutput> {
+    return {
+      result: `${output.result ?? input.query}-reactive`,
+      val: input.val,
+    };
+  }
+
+  /**
+   * Override merge to keep non-replicated properties (val) as single values
+   */
+  public executeMerge(input: QueryTestInput, output: QueryTestOutput): QueryTestOutput {
+    output.val = input.val;
+    return output;
+  }
+}
+
 describe("ArrayTask", () => {
   test("MultiplyRunTask in task mode run plain", async () => {
     const task = new MultiplyRunTask({
@@ -745,5 +825,41 @@ describe("ArrayTask", () => {
     expect(task1.runOutputData).toEqual({ result: 14 });
     expect(task2.runOutputData).toEqual({ result: 28 });
     expect(results[0].data).toEqual({ result: 28 });
+  });
+
+  test("QueryAppendTask with single string input run reactive", async () => {
+    const task = new QueryAppendTask({
+      query: "test",
+      val: 1,
+    });
+    const results = await task.runReactive();
+    expect(results).toEqual({ result: "test-reactive", val: 1 });
+  });
+
+  test("QueryAppendTask with array string input run reactive", async () => {
+    const task = new QueryAppendTask({
+      query: ["test1", "test2"],
+      val: 2,
+    });
+    const results = await task.runReactive();
+    expect(results).toEqual({ result: ["test1-reactive", "test2-reactive"], val: 2 });
+  });
+
+  test("QueryAppendTask with single string input", async () => {
+    const task = new QueryAppendTask({
+      query: "test",
+      val: 1,
+    });
+    const results = await task.run();
+    expect(results).toEqual({ result: "test-output-reactive", val: 1 });
+  });
+
+  test("QueryAppendTask with array string input", async () => {
+    const task = new QueryAppendTask({
+      query: ["test1", "test2"],
+      val: 2,
+    });
+    const results = await task.run();
+    expect(results).toEqual({ result: ["test1-output-reactive", "test2-output-reactive"], val: 2 });
   });
 });
