@@ -30,6 +30,10 @@
  *
  * Models Used:
  *   - Qwen3 Embedding 0.6B (1024D) for text embedding
+ *   - BGE Reranker Base for cross-encoder reranking
+ *   - Falconsai text_summarization for document summaries
+ *   - NeuroBERT NER for named entity recognition
+ *   - LaMini Flan T5 783M for query expansion
  *
  * Sample Document:
  *   - history_of_the_united_states.md
@@ -66,8 +70,14 @@ import { registerHuggingfaceLocalModels } from "../../samples";
 export { FileLoaderTask } from "@workglow/tasks";
 
 describe("End-to-End RAG Pipeline", () => {
-  // Configuration
+  // Configuration - Models
   const embeddingModel = "onnx:Qwen3-Embedding-0.6B:auto";
+  const rerankerModel = "onnx:Xenova/bge-reranker-base:q8";
+  const summaryModel = "onnx:Falconsai/text_summarization:fp32";
+  const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
+  const textGenerationModel = "onnx:Xenova/LaMini-Flan-T5-783M:q8";
+
+  // Configuration - Datasets
   const vectorDatasetName = "e2e-rag-test-dataset";
   const documentDatasetName = "e2e-rag-document-dataset";
   const sampleFileName = "history_of_the_united_states.md";
@@ -152,8 +162,10 @@ describe("End-to-End RAG Pipeline", () => {
         sourceUri: sampleFilePath,
       })
       .documentEnricher({
-        generateSummaries: false, // Keep test faster
-        extractEntities: false,
+        generateSummaries: true,
+        summaryModel,
+        extractEntities: true,
+        nerModel,
       })
       .hierarchicalChunker({
         maxTokens: 512,
@@ -206,7 +218,8 @@ describe("End-to-End RAG Pipeline", () => {
       })
       .reranker({
         query, // Must provide explicitly - not auto-connected from ChunkRetrieval
-        method: "simple",
+        method: "cross-encoder",
+        model: rerankerModel,
         topK: 5,
       })
       .contextBuilder({
@@ -319,10 +332,12 @@ describe("End-to-End RAG Pipeline", () => {
 
     // Use QueryExpander to generate multiple query variations
     // This improves retrieval coverage by searching with different phrasings
+    // Note: model parameter is for future LLM-based expansion (currently rule-based)
     const expanderWorkflow = new Workflow().queryExpander({
       query,
-      method: "multi-query",
+      method: "paraphrase",
       numVariations: 3,
+      model: textGenerationModel,
     });
 
     expect(expanderWorkflow.error).toBe("");
@@ -335,7 +350,7 @@ describe("End-to-End RAG Pipeline", () => {
     expect(Array.isArray(expanderResult.queries)).toBe(true);
     expect(expanderResult.queries.length).toBeGreaterThan(1);
     expect(expanderResult.originalQuery).toBe(query);
-    expect(expanderResult.method).toBe("multi-query");
+    expect(expanderResult.method).toBe("paraphrase");
     expect(expanderResult.count).toBe(expanderResult.queries.length);
 
     console.log(`  → Generated ${expanderResult.count} query variations:`);
@@ -360,7 +375,8 @@ describe("End-to-End RAG Pipeline", () => {
         })
         .reranker({
           query: expandedQuery,
-          method: "simple",
+          method: "cross-encoder",
+          model: rerankerModel,
           topK: 2,
         });
 
@@ -573,75 +589,73 @@ describe("End-to-End RAG Pipeline", () => {
 
     console.log(`  → Created ${dataflows.length} dataflows between tasks`);
 
-    // Test full retrieval workflow with all RAG tasks:
-    // ChunkRetrieval → Reranker → ContextBuilder
+    // Test full retrieval workflow chaining 4 RAG tasks in a single workflow:
+    // ChunkRetrieval → HierarchyJoin → Reranker → ContextBuilder
+    // This demonstrates the real power of workflow composition - tasks automatically
+    // connect their outputs to subsequent task inputs.
     const retrievalWorkflow = new Workflow()
       .chunkRetrieval({ dataset: vectorDatasetName, query: "test", model: embeddingModel })
-      .reranker({ query: "test", method: "simple", topK: 5 })
+      .hierarchyJoin({ documents: documentDatasetName })
+      .reranker({ query: "test", method: "cross-encoder", model: rerankerModel, topK: 5 })
       .contextBuilder({ format: "numbered", includeMetadata: true });
 
     const retrievalTasks = retrievalWorkflow.graph.getTasks();
-    expect(retrievalTasks.length).toBe(3);
+    expect(retrievalTasks.length).toBe(4);
     expect(retrievalWorkflow.error).toBe("");
 
     const retrievalTaskTypes = retrievalTasks.map((t) => t.type);
     expect(retrievalTaskTypes).toContain("ChunkRetrievalTask");
+    expect(retrievalTaskTypes).toContain("HierarchyJoinTask");
     expect(retrievalTaskTypes).toContain("RerankerTask");
     expect(retrievalTaskTypes).toContain("ContextBuilderTask");
 
-    console.log(`  → Retrieval workflow has ${retrievalTasks.length} RAG tasks`);
+    console.log(`  → Retrieval workflow chains ${retrievalTasks.length} RAG tasks`);
     console.log(`  → Task chain: ${retrievalTaskTypes.join(" → ")}`);
 
-    // Test QueryExpander workflow
-    const queryExpanderWorkflow = new Workflow().queryExpander({
+    // Verify dataflows between RAG tasks
+    const retrievalDataflows = retrievalWorkflow.graph.getDataflows();
+    expect(retrievalDataflows.length).toBeGreaterThan(0);
+    console.log(`  → Created ${retrievalDataflows.length} dataflows between RAG tasks`);
+
+    // Test HybridSearch → Reranker → ContextBuilder chain
+    // This shows an alternative retrieval path using hybrid search
+    const hybridRetrievalWorkflow = new Workflow()
+      .textEmbedding({ text: "test query", model: embeddingModel })
+      .hybridSearch({
+        dataset: vectorDatasetName,
+        queryText: "test query",
+        topK: 5,
+      })
+      .reranker({ query: "test query", method: "cross-encoder", model: rerankerModel, topK: 3 })
+      .contextBuilder({ format: "markdown" });
+
+    const hybridTasks = hybridRetrievalWorkflow.graph.getTasks();
+    expect(hybridTasks.length).toBe(4);
+    expect(hybridRetrievalWorkflow.error).toBe("");
+
+    const hybridTaskTypes = hybridTasks.map((t) => t.type);
+    expect(hybridTaskTypes).toContain("TextEmbeddingTask");
+    expect(hybridTaskTypes).toContain("ChunkVectorHybridSearchTask");
+    expect(hybridTaskTypes).toContain("RerankerTask");
+    expect(hybridTaskTypes).toContain("ContextBuilderTask");
+
+    console.log(`  → Hybrid retrieval workflow chains ${hybridTasks.length} tasks`);
+    console.log(`  → Task chain: ${hybridTaskTypes.join(" → ")}`);
+
+    // Demonstrate QueryExpander standalone - it outputs `queries` array
+    // ChunkRetrieval expects `query`, so they can't auto-connect (known gap)
+    // The workaround is to run QueryExpander first, then loop over results
+    const queryExpandWorkflow = new Workflow().queryExpander({
       query: "test query",
-      method: "multi-query",
+      method: "paraphrase",
       numVariations: 3,
+      model: textGenerationModel,
     });
 
-    const queryExpanderTasks = queryExpanderWorkflow.graph.getTasks();
-    expect(queryExpanderTasks.length).toBe(1);
-    expect(queryExpanderWorkflow.error).toBe("");
-    expect(queryExpanderTasks[0].type).toBe("QueryExpanderTask");
+    const queryExpandTasks = queryExpandWorkflow.graph.getTasks();
+    expect(queryExpandTasks.length).toBe(1);
+    expect(queryExpandTasks[0].type).toBe("QueryExpanderTask");
 
-    console.log(`  → QueryExpander workflow verified`);
-
-    // Test HybridSearch workflow structure
-    const hybridSearchWorkflow = new Workflow().hybridSearch({
-      dataset: vectorDatasetName,
-      queryVector: new Float32Array(1024),
-      queryText: "test",
-      topK: 5,
-    });
-
-    const hybridTasks = hybridSearchWorkflow.graph.getTasks();
-    expect(hybridTasks.length).toBe(1);
-    expect(hybridSearchWorkflow.error).toBe("");
-    expect(hybridTasks[0].type).toBe("ChunkVectorHybridSearchTask");
-
-    console.log(`  → HybridSearch workflow verified`);
-
-    // Test HierarchyJoin workflow structure
-    const hierarchyJoinWorkflow = new Workflow().hierarchyJoin({
-      documents: documentDatasetName,
-      chunks: ["test"],
-      chunk_ids: ["id1"],
-      metadata: [
-        {
-          doc_id: "doc1",
-          chunkId: "chunk1",
-          leafNodeId: "node1",
-          depth: 0,
-          nodePath: ["root"],
-          text: "test",
-        },
-      ],
-      scores: [0.9],
-    });
-
-    const hierarchyTasks = hierarchyJoinWorkflow.graph.getTasks();
-    expect(hierarchyTasks.length).toBe(1);
-    expect(hierarchyJoinWorkflow.error).toBe("");
-    expect(hierarchyTasks[0].type).toBe("HierarchyJoinTask");
+    console.log(`  → QueryExpander verified (outputs 'queries' array for manual iteration)`);
   });
 });

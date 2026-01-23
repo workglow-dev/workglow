@@ -346,6 +346,19 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       },
       metadata: {},
     },
+    {
+      model_id: "onnx:Xenova/bge-reranker-base:q8",
+      title: "BGE Reranker Base",
+      description: "Cross-encoder reranker model for relevance scoring",
+      tasks: ["TextClassificationTask", "RerankerTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: {
+        pipeline: "text-classification",
+        model_path: "Xenova/bge-reranker-base",
+        dtype: "q8",
+      },
+      metadata: {},
+    },
   ];
 
   for (const model of onnxModels) {

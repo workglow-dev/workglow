@@ -12,7 +12,10 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
+
+import { ModelConfig } from "../model/ModelSchema";
 import { TextClassificationTask } from "./TextClassificationTask";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const inputSchema = {
   type: "object",
@@ -57,11 +60,10 @@ const inputSchema = {
       description: "Method to use for reranking",
       default: "simple",
     },
-    model: {
-      type: "string",
+    model: TypeModel("model:RerankerTask", {
       title: "Reranker Model",
       description: "Cross-encoder model to use for reranking",
-    },
+    }),
   },
   required: ["query", "chunks"],
   additionalProperties: false,
@@ -148,6 +150,11 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Jo
 
     switch (method) {
       case "cross-encoder":
+        if (!model) {
+          throw new Error(
+            "No cross-encoder model found. Please provide a model with format 'model:RerankerTask'."
+          );
+        }
         rankedItems = await this.crossEncoderRerank(
           query,
           chunks,
@@ -185,7 +192,7 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Jo
     chunks: string[],
     scores: number[],
     metadata: any[],
-    model: string | undefined,
+    model: string | ModelConfig,
     context: IExecuteContext
   ): Promise<RankedItem[]> {
     if (chunks.length === 0) {
