@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
+import { DocumentChunk, DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -15,11 +15,12 @@ import {
 import {
   DataPortSchema,
   FromSchema,
+  isTypedArray,
   TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util";
-import { TypeModel } from "./base/AiTaskSchemas";
+import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { TextEmbeddingTask } from "./TextEmbeddingTask";
 
 const inputSchema = {
@@ -29,7 +30,7 @@ const inputSchema = {
       title: "Document Chunk Vector Repository",
       description: "The document chunk vector repository instance to search in",
     }),
-    query: {
+    query: TypeSingleOrArray({
       oneOf: [
         { type: "string" },
         TypedArraySchema({
@@ -39,7 +40,7 @@ const inputSchema = {
       ],
       title: "Query",
       description: "Query string or pre-computed query vector",
-    },
+    }),
     model: TypeModel("model:TextEmbeddingTask", {
       title: "Model",
       description:
@@ -81,6 +82,7 @@ const inputSchema = {
   then: {
     required: ["dataset", "query", "model"],
   },
+  else: {},
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -93,7 +95,7 @@ const outputSchema = {
       title: "Text Chunks",
       description: "Retrieved text chunks",
     },
-    ids: {
+    chunk_ids: {
       type: "array",
       items: { type: "string" },
       title: "IDs",
@@ -130,7 +132,7 @@ const outputSchema = {
       description: "Number of results returned",
     },
   },
-  required: ["chunks", "ids", "metadata", "scores", "count"],
+  required: ["chunks", "chunk_ids", "metadata", "scores", "count"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -160,7 +162,10 @@ export class ChunkRetrievalTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  async execute(input: ChunkRetrievalTaskInput, context: IExecuteContext): Promise<ChunkRetrievalTaskOutput> {
+  async execute(
+    input: ChunkRetrievalTaskInput,
+    context: IExecuteContext
+  ): Promise<ChunkRetrievalTaskOutput> {
     const {
       dataset,
       query,
@@ -175,9 +180,13 @@ export class ChunkRetrievalTask extends Task<
     const repo = dataset as DocumentChunkDataset;
 
     // Determine query vector
-    let queryVector: TypedArray;
-    if (typeof query === "string") {
-      // If query is a string, model must be provided (enforced by schema)
+    let queryVectors: TypedArray[];
+
+    if (
+      typeof query === "string" ||
+      (Array.isArray(query) && query.every((q) => typeof q === "string"))
+    ) {
+      // If query is a string or array of strings, model must be provided (enforced by schema)
       if (!model) {
         throw new Error(
           "Model is required when query is a string. Please provide a model with format 'model:TextEmbeddingTask'."
@@ -185,24 +194,30 @@ export class ChunkRetrievalTask extends Task<
       }
       const embeddingTask = context.own(new TextEmbeddingTask({ text: query, model }));
       const embeddingResult = await embeddingTask.run();
-      queryVector = Array.isArray(embeddingResult.vector)
-        ? embeddingResult.vector[0]
-        : embeddingResult.vector;
-    } else {
+      queryVectors = Array.isArray(embeddingResult.vector)
+        ? embeddingResult.vector
+        : [embeddingResult.vector];
+    } else if (isTypedArray(query) || (Array.isArray(query) && query.every(isTypedArray))) {
       // Query is already a vector
-      queryVector = query as TypedArray;
+      queryVectors = Array.isArray(query) ? query : [query];
+    } else {
+      throw new Error("Query must be a string, array of strings, or TypedArray");
     }
 
-    // Convert to Float32Array for repository search (repo expects Float32Array by default)
-    const searchVector =
-      queryVector instanceof Float32Array ? queryVector : new Float32Array(queryVector);
+    // Convert to Float32Array for repository search (TODO: Check if repo expects Float32Array by default)
+    const searchVectors = queryVectors.map((v) =>
+      v instanceof Float32Array ? v : new Float32Array(v)
+    );
 
-    // Search vector repository
-    const results = await repo.similaritySearch(searchVector, {
-      topK,
-      filter,
-      scoreThreshold,
-    });
+    const results: Array<DocumentChunk & { score: number }> = [];
+    for (const searchVector of searchVectors) {
+      const res = await repo.similaritySearch(searchVector, {
+        topK,
+        filter,
+        scoreThreshold,
+      });
+      results.push(...res);
+    }
 
     // Extract text chunks from metadata
     // Assumes metadata has a 'text' or 'content' field
@@ -213,7 +228,7 @@ export class ChunkRetrievalTask extends Task<
 
     const output: ChunkRetrievalTaskOutput = {
       chunks,
-      ids: results.map((r) => r.chunk_id),
+      chunk_ids: results.map((r) => r.chunk_id),
       metadata: results.map((r) => r.metadata),
       scores: results.map((r) => r.score),
       count: results.length,
@@ -233,7 +248,11 @@ export const chunkRetrieval = (input: ChunkRetrievalTaskInput, config?: JobQueue
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    chunkRetrieval: CreateWorkflow<ChunkRetrievalTaskInput, ChunkRetrievalTaskOutput, JobQueueTaskConfig>;
+    chunkRetrieval: CreateWorkflow<
+      ChunkRetrievalTaskInput,
+      ChunkRetrievalTaskOutput,
+      JobQueueTaskConfig
+    >;
   }
 }
 

@@ -69,6 +69,20 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       metadata: {},
     },
     {
+      model_id: "onnx:Qwen3-Embedding-0.6B:auto",
+      title: "Qwen3 Embedding 0.6B",
+      description: "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+      tasks: ["TextEmbeddingTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: {
+        pipeline: "feature-extraction",
+        model_path: "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+        native_dimensions: 1024,
+        mrl: true,
+      },
+      metadata: {},
+    },
+    {
       model_id: "onnx:onnx-community/NeuroBERT-NER-ONNX:q8",
       title: "NeuroBERT NER",
       description: "onnx-community/NeuroBERT-NER-ONNX",

@@ -33,7 +33,7 @@ const inputSchema = {
       title: "Chunks",
       description: "Retrieved text chunks",
     },
-    ids: {
+    chunk_ids: {
       type: "array",
       items: { type: "string" },
       title: "Chunk IDs",
@@ -59,7 +59,7 @@ const inputSchema = {
       default: true,
     },
   },
-  required: ["documents", "chunks", "ids", "metadata", "scores"],
+  required: ["documents", "chunks", "chunk_ids", "metadata", "scores"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -72,7 +72,7 @@ const outputSchema = {
       title: "Chunks",
       description: "Retrieved text chunks",
     },
-    ids: {
+    chunk_ids: {
       type: "array",
       items: { type: "string" },
       title: "Chunk IDs",
@@ -91,7 +91,7 @@ const outputSchema = {
       description: "Number of results",
     },
   },
-  required: ["chunks", "ids", "metadata", "scores", "count"],
+  required: ["chunks", "chunk_ids", "metadata", "scores", "count"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -128,7 +128,7 @@ export class HierarchyJoinTask extends Task<
     const {
       documents,
       chunks,
-      ids,
+      chunk_ids,
       metadata,
       scores,
       includeParentSummaries = true,
@@ -138,8 +138,8 @@ export class HierarchyJoinTask extends Task<
     const repo = documents as DocumentDataset;
     const enrichedMetadata: any[] = [];
 
-    for (let i = 0; i < ids.length; i++) {
-      const chunkId = ids[i];
+    for (let i = 0; i < chunk_ids.length; i++) {
+      const chunkId = chunk_ids[i];
       const originalMetadata: ChunkMetadata | undefined = metadata[i];
 
       if (!originalMetadata) {
@@ -220,7 +220,7 @@ export class HierarchyJoinTask extends Task<
 
     return {
       chunks,
-      ids,
+      chunk_ids,
       metadata: enrichedMetadata,
       scores,
       count: chunks.length,
