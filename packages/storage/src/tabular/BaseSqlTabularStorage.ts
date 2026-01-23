@@ -247,15 +247,15 @@ export abstract class BaseSqlTabularStorage<
     if (actualType.contentEncoding === "blob") {
       const v: any = value;
       if (v instanceof Uint8Array) {
-        return v as unknown as ValueOptionType;
+        return v;
       }
       if (typeof Buffer !== "undefined" && v instanceof Buffer) {
-        return new Uint8Array(v) as unknown as ValueOptionType;
+        return new Uint8Array(v);
       }
       if (Array.isArray(v)) {
-        return new Uint8Array(v) as unknown as ValueOptionType;
+        return new Uint8Array(v);
       }
-      return v as unknown as ValueOptionType;
+      return v;
     } else if (value instanceof Date) {
       // Convert all Date objects to ISO string regardless of type definition
       return value.toISOString();

@@ -36,6 +36,10 @@ export type TypedArrayString =
   | "TypedArray:Int16Array"
   | "TypedArray:Uint16Array";
 
+export function isTypedArray(value: unknown): value is TypedArray {
+  return ArrayBuffer.isView(value) && !(value instanceof DataView);
+}
+
 // Type-only value for use in deserialize patterns
 const TypedArrayType = null as any as TypedArray;
 

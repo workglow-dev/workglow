@@ -72,7 +72,7 @@ export function TypeModel<
   } as const satisfies JsonSchema;
 }
 
-export function TypeSingleOrArray<T extends DataPortSchemaNonBoolean>(type: T) {
+export function TypeSingleOrArray<const T extends DataPortSchemaNonBoolean>(type: T) {
   return {
     anyOf: [type, { type: "array", items: type }],
   } as const satisfies JsonSchema;

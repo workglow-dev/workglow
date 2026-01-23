@@ -25,7 +25,7 @@ import {
   TaskOutput,
 } from "@workglow/task-graph";
 
-export const TypeReplicateArray = <T extends DataPortSchemaNonBoolean>(
+export const TypeReplicateArray = <const T extends DataPortSchemaNonBoolean>(
   type: T,
   annotations: Record<string, unknown> = {}
 ) =>

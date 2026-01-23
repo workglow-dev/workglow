@@ -275,7 +275,7 @@
       "version": "0.0.85",
       "dependencies": {
         "@sroussey/json-schema-library": "^10.5.3",
-        "@sroussey/json-schema-to-ts": "3.1.3",
+        "@sroussey/json-schema-to-ts": "3.1.4",
       },
     },
   },
@@ -640,9 +640,11 @@
 
     "@sroussey/json-schema-library": ["@sroussey/json-schema-library@10.5.3", "", { "dependencies": { "@sagold/json-pointer": "^7.2.1", "@sagold/json-query": "^6.2.0", "deepmerge": "^4.3.1", "fast-copy": "^3.0.2", "fast-deep-equal": "^3.1.3", "smtp-address-parser": "1.0.10", "uri-js": "^4.4.1", "valid-url": "^1.0.9" } }, "sha512-B+4Q84gJk56qAuM/4UAOm/pmmy2p+YtLChl0JBhgz8Qk4J0lDxgJh0JtT/CX5mew7Eq5nv6t9zuqdFLM6yQoDQ=="],
 
-    "@sroussey/json-schema-to-ts": ["@sroussey/json-schema-to-ts@3.1.3", "", { "dependencies": { "ts-algebra": "^2.0.0" } }, "sha512-N4j/Mz1YkZHvQfStIvtS4DiQLltzzU84jFt6qoo0DsUHV+n3UDfduWlYQSwov8gS9iJliIJ4L4Vb15k5HVdLwg=="],
+    "@sroussey/json-schema-to-ts": ["@sroussey/json-schema-to-ts@3.1.4", "", { "dependencies": { "@sroussey/ts-algebra": "^2.0.0" } }, "sha512-wGYvgjUI0MoFTICZSoqJEB16bvXJ8lViVHrl3GNNRH871fuk3L6QlsmhWgAr/J0UKHyL1Swz6FVo5ABJTifbKg=="],
 
     "@sroussey/transformers": ["@sroussey/transformers@3.8.2", "", { "dependencies": { "@huggingface/jinja": "^0.5.3", "onnxruntime-node": "1.23.2", "onnxruntime-web": "1.23.2", "sharp": "^0.34.5" } }, "sha512-K9g7aGnUZ8xdBBhrt6rZIB1rnFY1H4VggGCsrJoEL6tvhm5/Z+VpAHGduvdNS/s2a3lTsJt+scxfTU4DQ0T5JA=="],
+
+    "@sroussey/ts-algebra": ["@sroussey/ts-algebra@2.0.0", "", {}, "sha512-QdgxDA4skBPwEktX96HKxHfmGSlJyvFzp0xt/eR0PCpm/yCAYu5yIfuLeYhHFZeKviNnT5u8NGkLmD+dMCOHMw=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.0.0", "", {}, "sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA=="],
 
@@ -1661,8 +1663,6 @@
     "to-regex-range": ["to-regex-range@5.0.1", "", { "dependencies": { "is-number": "^7.0.0" } }, "sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=="],
 
     "tree-kill": ["tree-kill@1.2.2", "", { "bin": { "tree-kill": "cli.js" } }, "sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A=="],
-
-    "ts-algebra": ["ts-algebra@2.0.0", "", {}, "sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw=="],
 
     "ts-api-utils": ["ts-api-utils@2.4.0", "", { "peerDependencies": { "typescript": ">=4.8.4" } }, "sha512-3TaVTaAv2gTiMB35i3FiGJaRfwb3Pyn/j3m/bfAvGe8FB7CF6u+LMYqYlDh7reQf7UNvoTvdfAqHGmPGOSsPmA=="],
 
