@@ -1,5 +1,21 @@
 # @workglow/test
 
+## 0.0.86
+
+### Patch Changes
+
+- Add concept of Datasets, rename all storage class in storage to end in storage, added some RAG tasks
+- Updated dependencies
+  - @workglow/ai@0.0.86
+  - @workglow/ai-provider@0.0.86
+  - @workglow/dataset@0.0.86
+  - @workglow/job-queue@0.0.86
+  - @workglow/sqlite@0.0.86
+  - @workglow/storage@0.0.86
+  - @workglow/task-graph@0.0.86
+  - @workglow/tasks@0.0.86
+  - @workglow/util@0.0.86
+
 ## 0.0.85
 
 ### Patch Changes
