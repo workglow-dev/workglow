@@ -43,7 +43,7 @@ const inputSchema = {
       description: "Embeddings from TextEmbeddingTask",
     },
   },
-  required: [],
+  required: ["chunks", "vectors"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
