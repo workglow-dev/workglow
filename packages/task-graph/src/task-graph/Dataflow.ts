@@ -96,13 +96,15 @@ export class Dataflow {
   }
 
   getPortData(): TaskOutput {
+    let result: TaskOutput;
     if (this.targetTaskPortId === DATAFLOW_ALL_PORTS) {
-      return this.value;
+      result = this.value;
     } else if (this.targetTaskPortId === DATAFLOW_ERROR_PORT) {
-      return { [DATAFLOW_ERROR_PORT]: this.error };
+      result = { [DATAFLOW_ERROR_PORT]: this.error };
     } else {
-      return { [this.targetTaskPortId]: this.value };
+      result = { [this.targetTaskPortId]: this.value };
     }
+    return result;
   }
 
   toJSON(): DataflowJson {
