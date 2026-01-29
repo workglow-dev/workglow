@@ -1,7 +1,7 @@
 {
   "name": "@workglow/dataset",
   "type": "module",
-  "version": "0.0.86",
+  "version": "0.0.87",
   "description": "Dataset package for Workglow.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

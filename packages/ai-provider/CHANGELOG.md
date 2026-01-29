@@ -1,5 +1,17 @@
 # @workglow/ai-provider
 
+## 0.0.87
+
+### Patch Changes
+
+- Update supabase version and relax model config
+- Updated dependencies
+  - @workglow/task-graph@0.0.87
+  - @workglow/storage@0.0.87
+  - @workglow/ai@0.0.87
+  - @workglow/job-queue@0.0.87
+  - @workglow/util@0.0.87
+
 ## 0.0.86
 
 ### Patch Changes

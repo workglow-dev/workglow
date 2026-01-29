@@ -1,5 +1,14 @@
 # @workglow/dataset
 
+## 0.0.87
+
+### Patch Changes
+
+- Update supabase version and relax model config
+- Updated dependencies
+  - @workglow/storage@0.0.87
+  - @workglow/util@0.0.87
+
 ## 0.0.86
 
 ### Patch Changes
