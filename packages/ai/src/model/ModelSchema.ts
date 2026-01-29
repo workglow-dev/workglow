@@ -26,7 +26,7 @@ export const ModelConfigSchema = {
   },
   required: ["provider", "provider_config"],
   format: "model",
-  additionalProperties: false,
+  additionalProperties: true,
 } as const satisfies DataPortSchemaObject;
 
 /**
