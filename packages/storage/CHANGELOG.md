@@ -1,5 +1,14 @@
 # @workglow/storage
 
+## 0.0.89
+
+### Patch Changes
+
+- Fix subgraph reactive
+- Updated dependencies
+  - @workglow/sqlite@0.0.89
+  - @workglow/util@0.0.89
+
 ## 0.0.88
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.89
+
+### Patch Changes
+
+- Fix subgraph reactive
+
 ## 0.0.88
 
 ### Patch Changes

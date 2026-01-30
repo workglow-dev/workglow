@@ -1,5 +1,21 @@
 # @workglow/test
 
+## 0.0.89
+
+### Patch Changes
+
+- Fix subgraph reactive
+- Updated dependencies
+  - @workglow/ai@0.0.89
+  - @workglow/ai-provider@0.0.89
+  - @workglow/dataset@0.0.89
+  - @workglow/job-queue@0.0.89
+  - @workglow/sqlite@0.0.89
+  - @workglow/storage@0.0.89
+  - @workglow/task-graph@0.0.89
+  - @workglow/tasks@0.0.89
+  - @workglow/util@0.0.89
+
 ## 0.0.88
 
 ### Patch Changes

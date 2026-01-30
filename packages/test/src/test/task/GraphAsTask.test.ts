@@ -1,4 +1,4 @@
-import { Dataflow, GraphAsTask, Task, TaskGraph, TaskInput } from "@workglow/task-graph";
+import { Dataflow, GraphAsTask, Task, TaskGraph } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
@@ -824,7 +824,16 @@ describe("GraphAsTask Dynamic Schema", () => {
   });
 
   describe("Reactive Execution Input Propagation", () => {
-    it("should pass input to subgraph runReactive", async () => {
+    /**
+     * These tests verify that during reactive execution on PENDING tasks:
+     * 1. Root tasks (no incoming dataflows) receive input from the parent GraphAsTask
+     * 2. Non-root tasks receive input from upstream dataflows
+     *
+     * IMPORTANT: Reactive execution only updates PENDING tasks.
+     * Once run() is called and tasks become COMPLETED, their outputs are locked.
+     */
+
+    it("should pass input to PENDING root tasks in subgraph during runReactive", async () => {
       // Create a subgraph with just an InputTask -> OutputTask
       const subGraph = new TaskGraph();
       const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
@@ -836,32 +845,31 @@ describe("GraphAsTask Dynamic Schema", () => {
       // Connect InputTask.value -> OutputTask.value
       subGraph.addDataflow(new Dataflow("input", "value", "output", "value"));
 
-      const graphAsTask = new TestGraphAsTask_Value({ value: "initial" }, { id: "group", subGraph });
+      const graphAsTask = new TestGraphAsTask_Value(
+        { value: "initial" },
+        { id: "group", subGraph }
+      );
 
-      // First run to initialize - verify the graph works
-      const runResult = await graphAsTask.run({ value: "initial" });
-      expect(runResult.value).toBe("initial");
+      // All tasks are PENDING - no run() called yet
+      expect(inputTask.status).toBe("PENDING");
+      expect(outputTask.status).toBe("PENDING");
 
-      // Verify the subgraph's InputTask received the input
-      expect(inputTask.runInputData).toEqual({ value: "initial" });
-      expect(inputTask.runOutputData).toEqual({ value: "initial" });
+      // Call runReactive on PENDING tasks - this should work
+      const reactiveResult = await graphAsTask.runReactive({ value: "first" });
 
-      // Now run reactive with new values
-      // Before the fix, the subgraph would run with empty input for root tasks
-      // After the fix, root tasks should receive the parent's runInputData
-      const reactiveResult = await graphAsTask.runReactive({ value: "updated" });
+      // Check that the inner InputTask received the input (root task gets parent input)
+      expect(inputTask.runInputData).toEqual({ value: "first" });
 
-      // Check that the parent GraphAsTask received the new input
-      expect(graphAsTask.runInputData).toEqual({ value: "updated" });
+      // Check the final result propagated through the graph
+      expect(reactiveResult.value).toBe("first");
 
-      // Check that the inner InputTask received the new input
-      expect(inputTask.runInputData).toEqual({ value: "updated" });
-
-      // Check the final result
-      expect(reactiveResult.value).toBe("updated");
+      // Call runReactive again with different values - still PENDING
+      const reactiveResult2 = await graphAsTask.runReactive({ value: "second" });
+      expect(reactiveResult2.value).toBe("second");
+      expect(inputTask.runInputData).toEqual({ value: "second" });
     });
 
-    it("should propagate input to compute task in subgraph", async () => {
+    it("should propagate input through PENDING subgraph tasks", async () => {
       // Create a subgraph: InputTask -> ComputeTask
       const subGraph = new TaskGraph();
       const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
@@ -876,24 +884,54 @@ describe("GraphAsTask Dynamic Schema", () => {
 
       const graphAsTask = new TestGraphAsTask_AB({ a: 5, b: 3 }, { id: "group", subGraph });
 
-      // First run to initialize
+      // All tasks are PENDING
+      expect(inputTask.status).toBe("PENDING");
+      expect(computeTask.status).toBe("PENDING");
+
+      // Run reactive on PENDING tasks
+      const reactiveResult = await graphAsTask.runReactive({ a: 10, b: 7 });
+
+      // Check that the root InputTask received the input
+      expect(inputTask.runInputData).toEqual({ a: 10, b: 7 });
+
+      // Check that ComputeTask received input from dataflow and computed correctly
+      expect(computeTask.runInputData).toEqual({ a: 10, b: 7 });
+      expect(reactiveResult.result).toBe(17); // 10 + 7 = 17
+
+      // Run reactive again with different values
+      const reactiveResult2 = await graphAsTask.runReactive({ a: 100, b: 1 });
+      expect(reactiveResult2.result).toBe(101); // 100 + 1 = 101
+    });
+
+    it("should lock output after run() - COMPLETED tasks return cached output", async () => {
+      // Create a subgraph: InputTask -> ComputeTask
+      const subGraph = new TaskGraph();
+      const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
+      const computeTask = new GraphAsTask_ComputeTask({}, { id: "compute" });
+
+      subGraph.addTask(inputTask);
+      subGraph.addTask(computeTask);
+
+      subGraph.addDataflow(new Dataflow("input", "a", "compute", "a"));
+      subGraph.addDataflow(new Dataflow("input", "b", "compute", "b"));
+
+      const graphAsTask = new TestGraphAsTask_AB({ a: 5, b: 3 }, { id: "group", subGraph });
+
+      // Run the graph - this locks all task outputs
       const runResult = await graphAsTask.run({ a: 5, b: 3 });
       expect(runResult.result).toBe(8); // 5 + 3 = 8
 
-      // Verify inner InputTask state
-      expect(inputTask.runInputData).toEqual({ a: 5, b: 3 });
+      // All tasks are now COMPLETED
+      expect(inputTask.status).toBe("COMPLETED");
+      expect(computeTask.status).toBe("COMPLETED");
 
-      // Now run reactive with new values
-      const reactiveResult = await graphAsTask.runReactive({ a: 10, b: 7 });
+      // Call runReactive on COMPLETED tasks - should return cached output
+      // (COMPLETED tasks are immutable, their outputs don't change)
+      const reactiveResult = await graphAsTask.runReactive({ a: 100, b: 200 });
 
-      // Check that the parent received the new input
-      expect(graphAsTask.runInputData).toEqual({ a: 10, b: 7 });
-
-      // Check that the inner InputTask received the new input
-      expect(inputTask.runInputData).toEqual({ a: 10, b: 7 });
-
-      // Check the computation result: 10 + 7 = 17
-      expect(reactiveResult.result).toBe(17);
+      // The output should still be the original cached result
+      // because COMPLETED tasks return their locked output
+      expect(reactiveResult.result).toBe(8); // Still 8, not 300
     });
   });
 });
