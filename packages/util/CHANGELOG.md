@@ -1,10 +1,16 @@
 # @workglow/util
 
+## 0.0.88
+
+### Patch Changes
+
+- Revert adding loop tasks, push other fixes
+
 ## 0.0.87
 
 ### Patch Changes
 
-- Update supabase version and relax model config
+- bad version with loop not ready for prime time
 
 ## 0.0.86
 

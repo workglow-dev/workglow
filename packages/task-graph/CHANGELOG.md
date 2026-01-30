@@ -1,13 +1,23 @@
 # @workglow/task-graph
 
+## 0.0.88
+
+### Patch Changes
+
+- Revert adding loop tasks, push other fixes
+- Updated dependencies
+  - @workglow/job-queue@0.0.88
+  - @workglow/storage@0.0.88
+  - @workglow/util@0.0.88
+
 ## 0.0.87
 
 ### Patch Changes
 
-- Update supabase version and relax model config
+- bad version with loop not ready for prime time
 - Updated dependencies
-  - @workglow/storage@0.0.87
   - @workglow/job-queue@0.0.87
+  - @workglow/storage@0.0.87
   - @workglow/util@0.0.87
 
 ## 0.0.86
