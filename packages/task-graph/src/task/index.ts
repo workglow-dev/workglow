@@ -32,7 +32,7 @@ import { TaskRegistry } from "./TaskRegistry";
 import { WhileTask } from "./WhileTask";
 
 export const registerBaseTasks = () => {
-  const tasks = [ConditionalTask, GraphAsTask, MapTask, WhileTask, ReduceTask];
+  const tasks = [GraphAsTask, ConditionalTask, MapTask, WhileTask, ReduceTask];
   tasks.map(TaskRegistry.registerTask);
   return tasks;
 };

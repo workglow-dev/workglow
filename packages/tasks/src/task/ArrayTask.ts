@@ -73,7 +73,7 @@ export type DeReplicateFromSchema<S extends { properties: Record<string, any> }>
  * 2. Creates a subGraph with one task instance per array element if any input is an array
  * 3. Creates all combinations if multiple inputs are arrays
  */
-export class ArrayTask<
+export abstract class ArrayTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
   Config extends TaskConfig = TaskConfig,

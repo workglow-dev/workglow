@@ -17,7 +17,6 @@ export * from "./task/OutputTask";
 export * from "./task/SplitTask";
 
 import { TaskRegistry } from "@workglow/task-graph";
-import { ArrayTask } from "./task/ArrayTask";
 import { DebugLogTask } from "./task/DebugLogTask";
 import { DelayTask } from "./task/DelayTask";
 import { FetchUrlTask } from "./task/FetchUrlTask";
@@ -34,7 +33,6 @@ import { SplitTask } from "./task/SplitTask";
 // and prevents tree-shaking issues.
 export const registerCommonTasks = () => {
   const tasks = [
-    ArrayTask,
     DebugLogTask,
     DelayTask,
     FetchUrlTask,
