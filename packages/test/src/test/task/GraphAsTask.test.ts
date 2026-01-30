@@ -3,8 +3,10 @@ import { DataPortSchema } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
 // Test tasks with specific input/output schemas
+// NOTE: These type names must be unique across all test files to avoid
+// static schema cache pollution in Task._inputSchemaNode
 class TaskA extends Task {
-  static type = "TaskA";
+  static type = "GraphAsTask_TaskA";
   static category = "Test";
 
   static inputSchema(): DataPortSchema {
@@ -45,7 +47,7 @@ class TaskA extends Task {
 }
 
 class TaskB extends Task {
-  static type = "TaskB";
+  static type = "GraphAsTask_TaskB";
   static category = "Test";
 
   static inputSchema(): DataPortSchema {
@@ -81,7 +83,7 @@ class TaskB extends Task {
 }
 
 class TaskC extends Task {
-  static type = "TaskC";
+  static type = "GraphAsTask_TaskC";
   static category = "Test";
 
   static inputSchema(): DataPortSchema {

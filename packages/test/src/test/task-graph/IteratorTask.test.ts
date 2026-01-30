@@ -1436,7 +1436,7 @@ describe("Workflow Integration - Template Graph Access", () => {
     }
 
     class TaskA extends Task<TaskInput, CompatibleOutput> {
-      public static type = "TaskA";
+      public static type = "IteratorTask_TaskA";
       public static inputSchema(): DataPortSchema {
         return {
           type: "object",
@@ -1457,7 +1457,7 @@ describe("Workflow Integration - Template Graph Access", () => {
     }
 
     class TaskB extends Task<CompatibleInput, TaskOutput> {
-      public static type = "TaskB";
+      public static type = "IteratorTask_TaskB";
       public static inputSchema(): DataPortSchema {
         return {
           type: "object",
