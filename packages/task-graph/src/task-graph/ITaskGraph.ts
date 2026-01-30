@@ -23,7 +23,7 @@ export interface ITaskGraph {
     input?: TaskInput,
     config?: TaskGraphRunConfig
   ): Promise<GraphResultArray<ExecuteOutput>>;
-  runReactive<Output extends TaskOutput>(): Promise<GraphResultArray<Output>>;
+  runReactive<Output extends TaskOutput>(input?: TaskInput): Promise<GraphResultArray<Output>>;
   mergeExecuteOutputsToRunOutput<
     ExecuteOutput extends TaskOutput,
     Merge extends CompoundMergeStrategy = CompoundMergeStrategy,

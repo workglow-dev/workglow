@@ -36,13 +36,12 @@ export class GraphAsTaskRunner<
   /**
    * Protected method for reactive execution delegation
    *
-   * Note: Reactive execution doesn't accept input parameters by design.
-   * It works with the graph's internal state and dataflow connections.
-   * Tasks in the subgraph will use their existing runInputData (from defaults
-   * or previous execution) combined with dataflow connections.
+   * For GraphAsTask, we pass the parent's runInputData to the subgraph's runReactive.
+   * This ensures that root tasks in the subgraph (like InputTask) receive the
+   * parent's input values after resetInputData() is called.
    */
   protected async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
-    return this.task.subGraph!.runReactive<Output>();
+    return this.task.subGraph!.runReactive<Output>(this.task.runInputData);
   }
 
   protected async handleDisable(): Promise<void> {
