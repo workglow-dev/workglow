@@ -111,8 +111,10 @@ export class TaskGraph implements ITaskGraph {
    * @returns A promise that resolves when all tasks are complete
    * @throws TaskError if any tasks have failed
    */
-  public runReactive<Output extends TaskOutput>(): Promise<GraphResultArray<Output>> {
-    return this.runner.runGraphReactive<Output>();
+  public runReactive<Output extends TaskOutput>(
+    input: TaskInput = {} as TaskInput
+  ): Promise<GraphResultArray<Output>> {
+    return this.runner.runGraphReactive<Output>(input);
   }
 
   /**

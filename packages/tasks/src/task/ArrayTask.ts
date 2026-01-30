@@ -265,6 +265,15 @@ class ArrayTaskRunner<
     return super.executeTaskChildren({} as Input);
   }
 
+  /**
+   * Override to pass empty input to subgraph for reactive execution.
+   * Child tasks will use their defaults instead of parent input.
+   */
+  protected async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
+    // Don't pass parent input - child tasks have their input set via defaults during creation
+    return this.task.subGraph!.runReactive<Output>({});
+  }
+
   public async executeTaskReactive(input: Input, output: Output): Promise<Output> {
     await super.executeTaskReactive(input, output);
     if (this.task.hasChildren()) {

@@ -186,15 +186,20 @@ export class TaskGraphRunner {
 
   /**
    * Runs the task graph in a reactive manner
+   * @param input Optional input to pass to root tasks (tasks with no incoming dataflows)
    * @returns A promise that resolves when all tasks are complete
    * @throws TaskConfigurationError if the graph is already running reactively
    */
-  public async runGraphReactive<Output extends TaskOutput>(): Promise<GraphResultArray<Output>> {
+  public async runGraphReactive<Output extends TaskOutput>(
+    input: TaskInput = {} as TaskInput
+  ): Promise<GraphResultArray<Output>> {
     await this.handleStartReactive();
 
     const results: GraphResultArray<Output> = [];
     try {
       for await (const task of this.reactiveScheduler.tasks()) {
+        const isRootTask = this.graph.getSourceDataflows(task.config.id).length === 0;
+
         if (task.status === TaskStatus.PENDING) {
           task.resetInputData();
           this.copyInputFromEdgesToNode(task);
@@ -209,7 +214,13 @@ export class TaskGraphRunner {
           //   }
           // }
         }
-        const taskResult = await task.runReactive();
+
+        // For root tasks (no incoming dataflows), apply the input parameter
+        // This is important for GraphAsTask subgraphs where the InputTask needs
+        // to receive the parent's input values
+        const taskInput = isRootTask ? input : {};
+
+        const taskResult = await task.runReactive(taskInput);
 
         await this.pushOutputFromNodeToEdges(task, taskResult);
         if (this.graph.getTargetDataflows(task.config.id).length === 0) {

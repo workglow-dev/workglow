@@ -1,6 +1,176 @@
-import { Dataflow, GraphAsTask, Task, TaskGraph } from "@workglow/task-graph";
+import { Dataflow, GraphAsTask, Task, TaskGraph, TaskInput } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+
+// InputTask-like task that passes through its input as output
+class GraphAsTask_InputTask extends Task<Record<string, unknown>, Record<string, unknown>> {
+  static type = "GraphAsTask_InputTask";
+  static category = "Test";
+  static hasDynamicSchemas = true;
+  static cacheable = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+
+  async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+}
+
+// ComputeTask that adds two numbers
+class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { result: number }> {
+  static type = "GraphAsTask_ComputeTask";
+  static category = "Test";
+  static cacheable = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        a: { type: "number" },
+        b: { type: "number" },
+      },
+      required: ["a", "b"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { a: number; b: number }): Promise<{ result: number }> {
+    return { result: input.a + input.b };
+  }
+
+  async executeReactive(input: { a: number; b: number }): Promise<{ result: number }> {
+    return { result: input.a + input.b };
+  }
+}
+
+// OutputTask that passes through its input
+class GraphAsTask_OutputTask extends Task<Record<string, unknown>, Record<string, unknown>> {
+  static type = "GraphAsTask_OutputTask";
+  static category = "Test";
+  static cacheable = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+
+  async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+}
+
+// Custom GraphAsTask with explicit schemas for testing reactive execution
+class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { result: number }> {
+  static type = "TestGraphAsTask_AB";
+  static category = "Test";
+  static hasDynamicSchemas = true;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        a: { type: "number" },
+        b: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public inputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_AB).inputSchema();
+  }
+
+  public outputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_AB).outputSchema();
+  }
+}
+
+class TestGraphAsTask_Value extends GraphAsTask<{ value: string }, { value: string }> {
+  static type = "TestGraphAsTask_Value";
+  static category = "Test";
+  static hasDynamicSchemas = true;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "string" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "string" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public inputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_Value).inputSchema();
+  }
+
+  public outputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_Value).outputSchema();
+  }
+}
 
 // Test tasks with specific input/output schemas
 class TaskA extends Task {
@@ -650,6 +820,80 @@ describe("GraphAsTask Dynamic Schema", () => {
       // Both should have TaskA's inputs, but graph2 might have different structure
       expect(inputSchema1).toBeDefined();
       expect(inputSchema2).toBeDefined();
+    });
+  });
+
+  describe("Reactive Execution Input Propagation", () => {
+    it("should pass input to subgraph runReactive", async () => {
+      // Create a subgraph with just an InputTask -> OutputTask
+      const subGraph = new TaskGraph();
+      const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
+      const outputTask = new GraphAsTask_OutputTask({}, { id: "output" });
+
+      subGraph.addTask(inputTask);
+      subGraph.addTask(outputTask);
+
+      // Connect InputTask.value -> OutputTask.value
+      subGraph.addDataflow(new Dataflow("input", "value", "output", "value"));
+
+      const graphAsTask = new TestGraphAsTask_Value({ value: "initial" }, { id: "group", subGraph });
+
+      // First run to initialize - verify the graph works
+      const runResult = await graphAsTask.run({ value: "initial" });
+      expect(runResult.value).toBe("initial");
+
+      // Verify the subgraph's InputTask received the input
+      expect(inputTask.runInputData).toEqual({ value: "initial" });
+      expect(inputTask.runOutputData).toEqual({ value: "initial" });
+
+      // Now run reactive with new values
+      // Before the fix, the subgraph would run with empty input for root tasks
+      // After the fix, root tasks should receive the parent's runInputData
+      const reactiveResult = await graphAsTask.runReactive({ value: "updated" });
+
+      // Check that the parent GraphAsTask received the new input
+      expect(graphAsTask.runInputData).toEqual({ value: "updated" });
+
+      // Check that the inner InputTask received the new input
+      expect(inputTask.runInputData).toEqual({ value: "updated" });
+
+      // Check the final result
+      expect(reactiveResult.value).toBe("updated");
+    });
+
+    it("should propagate input to compute task in subgraph", async () => {
+      // Create a subgraph: InputTask -> ComputeTask
+      const subGraph = new TaskGraph();
+      const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
+      const computeTask = new GraphAsTask_ComputeTask({}, { id: "compute" });
+
+      subGraph.addTask(inputTask);
+      subGraph.addTask(computeTask);
+
+      // Connect InputTask.a -> ComputeTask.a and InputTask.b -> ComputeTask.b
+      subGraph.addDataflow(new Dataflow("input", "a", "compute", "a"));
+      subGraph.addDataflow(new Dataflow("input", "b", "compute", "b"));
+
+      const graphAsTask = new TestGraphAsTask_AB({ a: 5, b: 3 }, { id: "group", subGraph });
+
+      // First run to initialize
+      const runResult = await graphAsTask.run({ a: 5, b: 3 });
+      expect(runResult.result).toBe(8); // 5 + 3 = 8
+
+      // Verify inner InputTask state
+      expect(inputTask.runInputData).toEqual({ a: 5, b: 3 });
+
+      // Now run reactive with new values
+      const reactiveResult = await graphAsTask.runReactive({ a: 10, b: 7 });
+
+      // Check that the parent received the new input
+      expect(graphAsTask.runInputData).toEqual({ a: 10, b: 7 });
+
+      // Check that the inner InputTask received the new input
+      expect(inputTask.runInputData).toEqual({ a: 10, b: 7 });
+
+      // Check the computation result: 10 + 7 = 17
+      expect(reactiveResult.result).toBe(17);
     });
   });
 });
