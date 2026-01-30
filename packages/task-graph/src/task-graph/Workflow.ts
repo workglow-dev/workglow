@@ -38,7 +38,7 @@ export function CreateWorkflow<
 }
 
 /**
- * Type for loop workflow methods (forEach, map, batch, while, reduce).
+ * Type for loop workflow methods (map, while, reduce).
  * Represents the method signature with proper `this` context.
  * Loop methods take only a config parameter - input is not used for loop tasks.
  */
@@ -52,7 +52,7 @@ export type CreateLoopWorkflow<
  * Factory function that creates a loop workflow method for a given task class.
  * Returns a method that can be assigned to Workflow.prototype.
  *
- * @param taskClass - The iterator task class (ForEachTask, MapTask, etc.)
+ * @param taskClass - The iterator task class (MapTask, ReduceTask, etc.)
  * @returns A method that creates the task and returns a loop builder workflow
  */
 export function CreateLoopWorkflow<
@@ -75,7 +75,7 @@ export function CreateLoopWorkflow<
 }
 
 /**
- * Type for end loop workflow methods (endForEach, endMap, etc.).
+ * Type for end loop workflow methods (endMap, endBatch, etc.).
  */
 export type EndLoopWorkflow = (this: Workflow) => Workflow;
 
@@ -121,7 +121,7 @@ class WorkflowTask<I extends DataPorts, O extends DataPorts> extends GraphAsTask
  * Provides methods for adding tasks, connecting outputs to inputs, and running the task graph
  *
  * When used with a parent workflow (loop builder mode), this class redirects task additions
- * to the iterator task's template graph until an end method (endMap, endForEach, etc.) is called.
+ * to the iterator task's template graph until an end method (endMap, endBatch, etc.) is called.
  */
 export class Workflow<
   Input extends DataPorts = DataPorts,

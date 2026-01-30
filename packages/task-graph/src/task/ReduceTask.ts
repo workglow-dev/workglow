@@ -6,13 +6,9 @@
 
 import type { DataPortSchema } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import {
-  CreateEndLoopWorkflow,
-  CreateLoopWorkflow,
-  Workflow,
-} from "../task-graph/Workflow";
-import { IteratorTask, IteratorTaskConfig } from "./IteratorTask";
+import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import type { IExecuteContext } from "./ITask";
+import { IteratorTask, IteratorTaskConfig } from "./IteratorTask";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
 /**
@@ -93,12 +89,12 @@ export class ReduceTask<
   public static description: string =
     "Processes array elements sequentially with an accumulator (fold)";
 
-
   constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
-    // Force sequential execution for reduce
+    // Force sequential execution for reduce (parallel-limited with concurrency of 1)
     const reduceConfig = {
       ...config,
-      executionMode: "sequential" as const,
+      executionMode: "parallel-limited" as const,
+      concurrencyLimit: 1,
     };
     super(input, reduceConfig as Config);
   }

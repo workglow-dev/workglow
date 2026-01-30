@@ -62,7 +62,7 @@ export class MergeTask<
     return outputSchema;
   }
 
-  async execute(input: Input, context: IExecuteContext): Promise<Output> {
+  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     // Get all input keys and sort them for deterministic order
     const keys = Object.keys(input).sort();
 

@@ -6,11 +6,7 @@
 
 import type { DataPortSchema } from "@workglow/util";
 import { PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
-import {
-  CreateEndLoopWorkflow,
-  CreateLoopWorkflow,
-  Workflow,
-} from "../task-graph/Workflow";
+import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import { IteratorTask, IteratorTaskConfig } from "./IteratorTask";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
@@ -45,7 +41,7 @@ export interface MapTaskConfig extends IteratorTaskConfig {
  * - Transforms each array element through inner workflow
  * - Collects and returns array of results
  * - Maintains result order by default
- * - Configurable execution modes (parallel, sequential, etc.)
+ * - Configurable execution modes (parallel, parallel-limited)
  * - Optional flattening of nested arrays
  *
  * ## Usage
@@ -79,8 +75,7 @@ export class MapTask<
   public static type: TaskTypeName = "MapTask";
   public static category: string = "Flow Control";
   public static title: string = "Map";
-  public static description: string =
-    "Transforms an array by running a workflow for each element";
+  public static description: string = "Transforms an array by running a workflow for each element";
 
   /**
    * MapTask always uses PROPERTY_ARRAY merge strategy to collect results.

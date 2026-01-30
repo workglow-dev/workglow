@@ -11,7 +11,7 @@ import { GraphResultArray } from "../task-graph/TaskGraphRunner";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { ExecutionMode, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
 import { getTaskQueueRegistry, RegisteredQueue } from "./TaskQueueRegistry";
-import type { TaskConfig, TaskInput, TaskOutput } from "./TaskTypes";
+import type { TaskInput, TaskOutput } from "./TaskTypes";
 
 /**
  * Job class for iterator task items.
@@ -58,8 +58,6 @@ class IteratorItemJob<Input extends TaskInput, Output extends TaskOutput> extend
  * This runner manages:
  * - Dynamic queue creation based on execution mode
  * - Concurrency limiting for parallel-limited mode
- * - Sequential execution for sequential mode
- * - Batch grouping for batched mode
  */
 export class IteratorTaskRunner<
   Input extends TaskInput = TaskInput,
@@ -122,14 +120,8 @@ export class IteratorTaskRunner<
    */
   protected getConcurrencyForMode(mode: ExecutionMode): number {
     switch (mode) {
-      case "sequential":
-        return 1;
       case "parallel-limited":
         return this.task.concurrencyLimit;
-      case "batched":
-        // For batched mode, we process one batch at a time
-        // but items within a batch can be parallel
-        return this.task.batchSize;
       case "parallel":
       default:
         return Infinity;
@@ -195,18 +187,30 @@ export class IteratorTaskRunner<
   // ========================================================================
 
   /**
-   * Execute the iterator's children based on execution mode.
+   * Execute the iterator's children based on execution mode and batch configuration.
+   *
+   * Execution modes:
+   * - parallel: All items run concurrently (unless batchSize is set)
+   * - parallel-limited: Items/batches run with concurrency limit
+   *
+   * When batchSize is set:
+   * - Items are grouped into batches
+   * - Items within each batch run fully in parallel
+   * - Batches are processed according to execution mode
    */
   protected async executeTaskChildren(input: Input): Promise<GraphResultArray<Output>> {
     const executionMode = this.task.executionMode;
+    const batchSize = this.task.batchSize;
 
+    // If batching is enabled, use batched execution
+    if (batchSize !== undefined && batchSize > 0) {
+      return this.executeBatched(input, batchSize);
+    }
+
+    // No batching - use standard execution modes
     switch (executionMode) {
-      case "sequential":
-        return this.executeSequential(input);
       case "parallel-limited":
         return this.executeParallelLimited(input);
-      case "batched":
-        return this.executeBatched(input);
       case "parallel":
       default:
         // Use default parallel execution from parent
@@ -215,37 +219,14 @@ export class IteratorTaskRunner<
   }
 
   /**
-   * Execute iterations sequentially (one at a time).
-   */
-  protected async executeSequential(input: Input): Promise<GraphResultArray<Output>> {
-    const tasks = this.task.subGraph.getTasks();
-    const results: GraphResultArray<Output> = [];
-
-    for (const task of tasks) {
-      if (this.abortController?.signal.aborted) {
-        break;
-      }
-
-      const taskResult = await task.run(input);
-      results.push({
-        id: task.config.id,
-        type: task.type,
-        data: taskResult as Output,
-      });
-    }
-
-    return results;
-  }
-
-  /**
-   * Execute iterations with a concurrency limit.
+   * Execute iterations with a concurrency limit (no batching).
    */
   protected async executeParallelLimited(input: Input): Promise<GraphResultArray<Output>> {
     const tasks = this.task.subGraph.getTasks();
     const results: GraphResultArray<Output> = [];
     const limit = this.task.concurrencyLimit;
 
-    // Process in chunks of 'limit' size
+    // Process items with concurrency limit
     for (let i = 0; i < tasks.length; i += limit) {
       if (this.abortController?.signal.aborted) {
         break;
@@ -270,36 +251,60 @@ export class IteratorTaskRunner<
 
   /**
    * Execute iterations in batches.
+   * Items within each batch run fully in parallel.
+   * Batches are processed according to execution mode:
+   * - parallel: All batches run concurrently
+   * - parallel-limited: Batches run with concurrency limit
    */
-  protected async executeBatched(input: Input): Promise<GraphResultArray<Output>> {
+  protected async executeBatched(
+    input: Input,
+    batchSize: number
+  ): Promise<GraphResultArray<Output>> {
     const tasks = this.task.subGraph.getTasks();
     const results: GraphResultArray<Output> = [];
-    const batchSize = this.task.batchSize;
 
-    // Process in batches
+    // Group tasks into batches
+    const batches: (typeof tasks)[] = [];
     for (let i = 0; i < tasks.length; i += batchSize) {
+      batches.push(tasks.slice(i, i + batchSize));
+    }
+
+    // Determine batch concurrency based on execution mode
+    const executionMode = this.task.executionMode;
+    const batchConcurrency =
+      executionMode === "parallel-limited" ? this.task.concurrencyLimit : batches.length;
+
+    // Process batches with concurrency limit
+    for (let i = 0; i < batches.length; i += batchConcurrency) {
       if (this.abortController?.signal.aborted) {
         break;
       }
 
-      const batch = tasks.slice(i, i + batchSize);
+      const batchGroup = batches.slice(i, i + batchConcurrency);
 
-      // Execute batch items in parallel
-      const batchPromises = batch.map(async (task) => {
-        const taskResult = await task.run(input);
-        return {
-          id: task.config.id,
-          type: task.type,
-          data: taskResult as Output,
-        };
+      // Execute each batch in the group concurrently
+      // Items within each batch also run fully in parallel
+      const groupPromises = batchGroup.map(async (batch) => {
+        const batchPromises = batch.map(async (task) => {
+          const taskResult = await task.run(input);
+          return {
+            id: task.config.id,
+            type: task.type,
+            data: taskResult as Output,
+          };
+        });
+        return Promise.all(batchPromises);
       });
 
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
+      const groupResults = await Promise.all(groupPromises);
+      for (const batchResults of groupResults) {
+        results.push(...batchResults);
+      }
 
-      // Emit progress for batch completion
-      const progress = Math.round(((i + batch.length) / tasks.length) * 100);
-      this.task.emit("progress", progress, `Completed batch ${Math.ceil((i + 1) / batchSize)}`);
+      // Emit progress for batch group completion
+      const completedItems = Math.min((i + batchConcurrency) * batchSize, tasks.length);
+      const progress = Math.round((completedItems / tasks.length) * 100);
+      this.task.emit("progress", progress, `Completed ${completedItems}/${tasks.length} items`);
     }
 
     return results;

@@ -113,7 +113,7 @@ export class Task<
    * @throws TaskError if the task fails
    * @returns The output of the task or undefined if no changes
    */
-  public async execute(input: Input, context: IExecuteContext): Promise<Output | undefined> {
+  public async execute(_input: Input, context: IExecuteContext): Promise<Output | undefined> {
     if (context.signal?.aborted) {
       throw new TaskAbortedError("Task aborted");
     }
@@ -130,9 +130,9 @@ export class Task<
    * @returns The updated output of the task or undefined if no changes
    */
   public async executeReactive(
-    input: Input,
+    _input: Input,
     output: Output,
-    context: IExecuteReactiveContext
+    _context: IExecuteReactiveContext
   ): Promise<Output | undefined> {
     return output;
   }

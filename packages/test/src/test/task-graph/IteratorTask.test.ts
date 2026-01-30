@@ -5,8 +5,6 @@
  */
 
 import {
-  BatchTask,
-  ForEachTask,
   IExecuteContext,
   IteratorTask,
   MapTask,
@@ -154,22 +152,55 @@ describe("IteratorTask", () => {
 
       expect(task.executionMode).toBe("parallel");
       expect(task.concurrencyLimit).toBe(5);
-      expect(task.batchSize).toBe(10);
     });
 
     test("should respect custom configuration", () => {
       const task = new TestIteratorTask<ArrayInput>(
         {},
         {
-          executionMode: "sequential",
+          executionMode: "parallel-limited",
           concurrencyLimit: 3,
+        }
+      );
+
+      expect(task.executionMode).toBe("parallel-limited");
+      expect(task.concurrencyLimit).toBe(3);
+    });
+
+    test("should support batchSize configuration", () => {
+      const task = new TestIteratorTask<ArrayInput>(
+        {},
+        {
+          batchSize: 10,
+        }
+      );
+
+      expect(task.batchSize).toBe(10);
+    });
+
+    test("should support combined batchSize and concurrencyLimit", () => {
+      // When both are set:
+      // - Items are grouped into batches of batchSize
+      // - Items within each batch run fully in parallel
+      // - Batches run with concurrencyLimit parallelism
+      const task = new TestIteratorTask<ArrayInput>(
+        {},
+        {
+          executionMode: "parallel-limited",
+          concurrencyLimit: 2,
           batchSize: 5,
         }
       );
 
-      expect(task.executionMode).toBe("sequential");
-      expect(task.concurrencyLimit).toBe(3);
+      expect(task.executionMode).toBe("parallel-limited");
+      expect(task.concurrencyLimit).toBe(2);
       expect(task.batchSize).toBe(5);
+    });
+
+    test("should have undefined batchSize by default", () => {
+      const task = new TestIteratorTask<ArrayInput>({}, {});
+
+      expect(task.batchSize).toBeUndefined();
     });
   });
 
@@ -250,61 +281,6 @@ describe("IteratorTask", () => {
 });
 
 // ============================================================================
-// ForEachTask Tests
-// ============================================================================
-
-describe("ForEachTask", () => {
-  describe("basic iteration", () => {
-    test("should return empty result for empty array", async () => {
-      class TestForEachTask extends ForEachTask<ArrayInput> {
-        public static inputSchema(): DataPortSchema {
-          return {
-            type: "object",
-            properties: {
-              items: {
-                type: "array",
-                items: { type: "number" },
-              },
-            },
-            additionalProperties: false,
-          } as const satisfies DataPortSchema;
-        }
-      }
-
-      const task = new TestForEachTask({ items: [] }, {});
-      const result = await task.run();
-
-      expect(result).toEqual({ completed: true, count: 0 });
-    });
-
-    test("should have correct output schema", () => {
-      const task = new ForEachTask({}, {});
-      const schema = task.outputSchema();
-
-      expect(typeof schema).toBe("object");
-      expect(schema).not.toBe(true);
-      expect(schema).not.toBe(false);
-      if (typeof schema === "object") {
-        expect(schema.properties).toHaveProperty("completed");
-        expect(schema.properties).toHaveProperty("count");
-      }
-    });
-  });
-
-  describe("configuration", () => {
-    test("should default shouldCollectResults to false", () => {
-      const task = new ForEachTask({}, {});
-      expect(task.shouldCollectResults).toBe(false);
-    });
-
-    test("should respect shouldCollectResults config", () => {
-      const task = new ForEachTask({}, { shouldCollectResults: true });
-      expect(task.shouldCollectResults).toBe(true);
-    });
-  });
-});
-
-// ============================================================================
 // MapTask Tests
 // ============================================================================
 
@@ -361,101 +337,12 @@ describe("MapTask", () => {
 });
 
 // ============================================================================
-// BatchTask Tests
-// ============================================================================
-
-describe("BatchTask", () => {
-  describe("batch grouping", () => {
-    test("should return empty result for empty array", async () => {
-      class TestBatchTask extends BatchTask<ArrayInput> {
-        public static inputSchema(): DataPortSchema {
-          return {
-            type: "object",
-            properties: {
-              items: {
-                type: "array",
-                items: { type: "number" },
-              },
-            },
-            additionalProperties: false,
-          } as const satisfies DataPortSchema;
-        }
-      }
-
-      const task = new TestBatchTask({ items: [] }, {});
-      const result = await task.run();
-
-      expect(result).toEqual({});
-    });
-
-    test("should group items into batches", () => {
-      class TestBatchTask extends BatchTask<ArrayInput> {
-        public static inputSchema(): DataPortSchema {
-          return {
-            type: "object",
-            properties: {
-              items: {
-                type: "array",
-                items: { type: "number" },
-              },
-            },
-            additionalProperties: false,
-          } as const satisfies DataPortSchema;
-        }
-
-        // Expose protected method for testing
-        public testGroupIntoBatches(items: unknown[]): unknown[][] {
-          return this.groupIntoBatches(items);
-        }
-      }
-
-      const task = new TestBatchTask({ items: [1, 2, 3, 4, 5] }, { batchSize: 2 });
-      const batches = task.testGroupIntoBatches([1, 2, 3, 4, 5]);
-
-      expect(batches).toEqual([[1, 2], [3, 4], [5]]);
-    });
-  });
-
-  describe("configuration", () => {
-    test("should default batchSize to 10", () => {
-      const task = new BatchTask({}, {});
-      expect(task.batchSize).toBe(10);
-    });
-
-    test("should default flattenResults to true", () => {
-      const task = new BatchTask({}, {});
-      expect(task.flattenResults).toBe(true);
-    });
-
-    test("should default batchExecutionMode to sequential", () => {
-      const task = new BatchTask({}, {});
-      expect(task.batchExecutionMode).toBe("sequential");
-    });
-
-    test("should respect custom configuration", () => {
-      const task = new BatchTask(
-        {},
-        {
-          batchSize: 5,
-          flattenResults: false,
-          batchExecutionMode: "parallel",
-        }
-      );
-
-      expect(task.batchSize).toBe(5);
-      expect(task.flattenResults).toBe(false);
-      expect(task.batchExecutionMode).toBe("parallel");
-    });
-  });
-});
-
-// ============================================================================
 // Execution Mode Tests
 // ============================================================================
 
 describe("Execution Modes", () => {
   test("IteratorTask should support all execution modes", () => {
-    const modes = ["parallel", "parallel-limited", "sequential", "batched"] as const;
+    const modes = ["parallel", "parallel-limited"] as const;
 
     for (const mode of modes) {
       const task = new TestIteratorTask({}, { executionMode: mode });
@@ -475,19 +362,6 @@ describe("Execution Modes", () => {
     expect(task.executionMode).toBe("parallel-limited");
     expect(task.concurrencyLimit).toBe(3);
   });
-
-  test("batched mode should use batchSize", () => {
-    const task = new TestIteratorTask(
-      {},
-      {
-        executionMode: "batched",
-        batchSize: 5,
-      }
-    );
-
-    expect(task.executionMode).toBe("batched");
-    expect(task.batchSize).toBe(5);
-  });
 });
 
 // ============================================================================
@@ -500,22 +374,10 @@ describe("Type Safety", () => {
     expect(task).toBeInstanceOf(IteratorTask);
   });
 
-  test("ForEachTask should be an instance of IteratorTask", () => {
-    const task = new ForEachTask({}, {});
-    expect(task).toBeInstanceOf(IteratorTask);
-    expect(task).toBeInstanceOf(ForEachTask);
-  });
-
   test("MapTask should be an instance of IteratorTask", () => {
     const task = new MapTask({}, {});
     expect(task).toBeInstanceOf(IteratorTask);
     expect(task).toBeInstanceOf(MapTask);
-  });
-
-  test("BatchTask should be an instance of IteratorTask", () => {
-    const task = new BatchTask({}, {});
-    expect(task).toBeInstanceOf(IteratorTask);
-    expect(task).toBeInstanceOf(BatchTask);
   });
 });
 
@@ -528,30 +390,8 @@ describe("Schema Handling", () => {
     expect(IteratorTask.hasDynamicSchemas).toBe(true);
   });
 
-  test("ForEachTask should have correct static schemas", () => {
-    const inputSchema = ForEachTask.inputSchema();
-    const outputSchema = ForEachTask.outputSchema();
-
-    expect(typeof inputSchema).toBe("object");
-    expect(typeof outputSchema).toBe("object");
-
-    if (typeof outputSchema === "object") {
-      expect(outputSchema.properties).toHaveProperty("completed");
-      expect(outputSchema.properties).toHaveProperty("count");
-    }
-  });
-
   test("MapTask should have additionalProperties true for input", () => {
     const inputSchema = MapTask.inputSchema();
-
-    expect(typeof inputSchema).toBe("object");
-    if (typeof inputSchema === "object") {
-      expect(inputSchema.additionalProperties).toBe(true);
-    }
-  });
-
-  test("BatchTask should have additionalProperties true for input", () => {
-    const inputSchema = BatchTask.inputSchema();
 
     expect(typeof inputSchema).toBe("object");
     if (typeof inputSchema === "object") {
@@ -663,10 +503,11 @@ describe("ReduceTask", () => {
       expect(task.indexPort).toBe("i");
     });
 
-    test("should force sequential execution mode", () => {
+    test("should force sequential execution mode (parallel-limited with concurrency 1)", () => {
       const task = new ReduceTask({}, { executionMode: "parallel" });
-      // ReduceTask should force sequential regardless of config
-      expect(task.executionMode).toBe("sequential");
+      // ReduceTask should force sequential regardless of config (using parallel-limited with concurrency of 1)
+      expect(task.executionMode).toBe("parallel-limited");
+      expect(task.concurrencyLimit).toBe(1);
     });
   });
 
@@ -696,19 +537,9 @@ describe("ReduceTask", () => {
 // ============================================================================
 
 describe("Workflow Loop Methods", () => {
-  test("Workflow should have forEach method", () => {
-    const workflow = new Workflow();
-    expect(typeof workflow.forEach).toBe("function");
-  });
-
   test("Workflow should have map method", () => {
     const workflow = new Workflow();
     expect(typeof workflow.map).toBe("function");
-  });
-
-  test("Workflow should have batch method", () => {
-    const workflow = new Workflow();
-    expect(typeof workflow.batch).toBe("function");
   });
 
   test("Workflow should have while method", () => {
@@ -721,28 +552,12 @@ describe("Workflow Loop Methods", () => {
     expect(typeof workflow.reduce).toBe("function");
   });
 
-  test("forEach should return a LoopWorkflowBuilder", () => {
-    const workflow = new Workflow();
-    const builder = workflow.forEach();
-
-    expect(builder).toBeDefined();
-    expect(typeof builder.endForEach).toBe("function");
-  });
-
   test("map should return a LoopWorkflowBuilder", () => {
     const workflow = new Workflow();
     const builder = workflow.map();
 
     expect(builder).toBeDefined();
     expect(typeof builder.endMap).toBe("function");
-  });
-
-  test("batch should return a LoopWorkflowBuilder", () => {
-    const workflow = new Workflow();
-    const builder = workflow.batch({ batchSize: 5 });
-
-    expect(builder).toBeDefined();
-    expect(typeof builder.endBatch).toBe("function");
   });
 
   test("while should return a LoopWorkflowBuilder", () => {
@@ -761,22 +576,6 @@ describe("Workflow Loop Methods", () => {
     expect(typeof builder.endReduce).toBe("function");
   });
 
-  test("endForEach should return the parent workflow", () => {
-    const workflow = new Workflow();
-    const returnedWorkflow = workflow.forEach().endForEach();
-
-    expect(returnedWorkflow).toBe(workflow);
-  });
-
-  test("forEach should add a ForEachTask to the graph", () => {
-    const workflow = new Workflow();
-    workflow.forEach().endForEach();
-
-    const tasks = workflow.graph.getTasks();
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0]).toBeInstanceOf(ForEachTask);
-  });
-
   test("map should add a MapTask to the graph", () => {
     const workflow = new Workflow();
     workflow.map().endMap();
@@ -784,15 +583,6 @@ describe("Workflow Loop Methods", () => {
     const tasks = workflow.graph.getTasks();
     expect(tasks).toHaveLength(1);
     expect(tasks[0]).toBeInstanceOf(MapTask);
-  });
-
-  test("batch should add a BatchTask to the graph", () => {
-    const workflow = new Workflow();
-    workflow.batch({ batchSize: 10 }).endBatch();
-
-    const tasks = workflow.graph.getTasks();
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0]).toBeInstanceOf(BatchTask);
   });
 
   test("while should add a WhileTask to the graph", () => {
@@ -1057,47 +847,6 @@ class BulkProcessTask extends Task<BatchInput, BatchOutput> {
   }
 }
 
-describe("Workflow Integration - ForEach Pattern", () => {
-  /**
-   * Example: Process each item in an array for side effects
-   *
-   * workflow
-   *   .forEach({ executionMode: "sequential" })
-   *     .processItem()
-   *   .endForEach()
-   */
-  test("should build workflow with forEach loop and template task", () => {
-    const workflow = new Workflow();
-
-    workflow.forEach({ executionMode: "sequential" }).addTask(ProcessItemTask).endForEach();
-
-    const tasks = workflow.graph.getTasks();
-    expect(tasks).toHaveLength(1);
-
-    const forEachTask = tasks[0] as ForEachTask;
-    expect(forEachTask).toBeInstanceOf(ForEachTask);
-
-    // Verify template graph was set
-    const templateGraph = forEachTask.getTemplateGraph();
-    expect(templateGraph).toBeDefined();
-    expect(templateGraph?.getTasks()).toHaveLength(1);
-    expect(templateGraph?.getTasks()[0]).toBeInstanceOf(ProcessItemTask);
-  });
-
-  test("forEach with shouldCollectResults should configure task correctly", () => {
-    const workflow = new Workflow();
-
-    workflow
-      .forEach({ executionMode: "parallel", shouldCollectResults: true })
-      .addTask(ProcessItemTask)
-      .endForEach();
-
-    const forEachTask = workflow.graph.getTasks()[0] as ForEachTask;
-    expect(forEachTask.shouldCollectResults).toBe(true);
-    expect(forEachTask.executionMode).toBe("parallel");
-  });
-});
-
 describe("Workflow Integration - Map Pattern", () => {
   /**
    * Example: Transform each text into an embedding
@@ -1138,52 +887,6 @@ describe("Workflow Integration - Map Pattern", () => {
     expect(mapTask.flatten).toBe(true);
     expect(mapTask.executionMode).toBe("parallel-limited");
     expect(mapTask.concurrencyLimit).toBe(5);
-  });
-});
-
-describe("Workflow Integration - Batch Pattern", () => {
-  /**
-   * Example: Process items in batches of 10
-   *
-   * workflow
-   *   .batch({ batchSize: 10 })
-   *     .bulkProcess()
-   *   .endBatch()
-   */
-  test("should build workflow with batch loop for chunked processing", () => {
-    const workflow = new Workflow();
-
-    workflow.batch({ batchSize: 10 }).addTask(BulkProcessTask).endBatch();
-
-    const tasks = workflow.graph.getTasks();
-    expect(tasks).toHaveLength(1);
-
-    const batchTask = tasks[0] as BatchTask;
-    expect(batchTask).toBeInstanceOf(BatchTask);
-    expect(batchTask.batchSize).toBe(10);
-
-    // Verify template graph
-    const templateGraph = batchTask.getTemplateGraph();
-    expect(templateGraph).toBeDefined();
-    expect(templateGraph?.getTasks()).toHaveLength(1);
-  });
-
-  test("batch with custom execution mode should configure correctly", () => {
-    const workflow = new Workflow();
-
-    workflow
-      .batch({
-        batchSize: 5,
-        flattenResults: false,
-        batchExecutionMode: "parallel",
-      })
-      .addTask(BulkProcessTask)
-      .endBatch();
-
-    const batchTask = workflow.graph.getTasks()[0] as BatchTask;
-    expect(batchTask.batchSize).toBe(5);
-    expect(batchTask.flattenResults).toBe(false);
-    expect(batchTask.batchExecutionMode).toBe("parallel");
   });
 });
 
@@ -1280,7 +983,7 @@ describe("Workflow Integration - Reduce Pattern", () => {
     const reduceTask = tasks[0] as ReduceTask;
     expect(reduceTask).toBeInstanceOf(ReduceTask);
     expect(reduceTask.initialValue).toEqual({ sum: 0 });
-    expect(reduceTask.executionMode).toBe("sequential"); // Always sequential for reduce
+    expect(reduceTask.executionMode).toBe("parallel-limited"); // Always sequential (via parallel-limited with concurrency 1) for reduce
 
     // Verify template graph
     const templateGraph = reduceTask.getTemplateGraph();
@@ -1317,9 +1020,9 @@ describe("Workflow Integration - Chained Loops", () => {
    *   .map()
    *     .textEmbedding()
    *   .endMap()
-   *   .batch({ batchSize: 10 })
-   *     .bulkProcess()
-   *   .endBatch()
+   *   .reduce({ initialValue: { sum: 0 } })
+   *     .addToSum()
+   *   .endReduce()
    */
   test("should support chaining multiple loop operations", () => {
     const workflow = new Workflow();
@@ -1328,30 +1031,30 @@ describe("Workflow Integration - Chained Loops", () => {
       .map()
       .addTask(TextEmbeddingTask)
       .endMap()
-      .batch({ batchSize: 10 })
-      .addTask(BulkProcessTask)
-      .endBatch();
-
-    const tasks = workflow.graph.getTasks();
-    expect(tasks).toHaveLength(2);
-    expect(tasks[0]).toBeInstanceOf(MapTask);
-    expect(tasks[1]).toBeInstanceOf(BatchTask);
-  });
-
-  test("should chain forEach followed by reduce", () => {
-    const workflow = new Workflow();
-
-    workflow
-      .forEach({ executionMode: "sequential" })
-      .addTask(ProcessItemTask)
-      .endForEach()
       .reduce({ initialValue: { sum: 0 } })
       .addTask(AddToSumTask)
       .endReduce();
 
     const tasks = workflow.graph.getTasks();
     expect(tasks).toHaveLength(2);
-    expect(tasks[0]).toBeInstanceOf(ForEachTask);
+    expect(tasks[0]).toBeInstanceOf(MapTask);
+    expect(tasks[1]).toBeInstanceOf(ReduceTask);
+  });
+
+  test("should chain map followed by reduce", () => {
+    const workflow = new Workflow();
+
+    workflow
+      .map({ executionMode: "parallel-limited", concurrencyLimit: 1 })
+      .addTask(ProcessItemTask)
+      .endMap()
+      .reduce({ initialValue: { sum: 0 } })
+      .addTask(AddToSumTask)
+      .endReduce();
+
+    const tasks = workflow.graph.getTasks();
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]).toBeInstanceOf(MapTask);
     expect(tasks[1]).toBeInstanceOf(ReduceTask);
   });
 });
@@ -1404,9 +1107,9 @@ describe("Workflow Integration - Template Graph Access", () => {
   test("loop builder graph should be accessible", () => {
     const workflow = new Workflow();
 
-    const builder = workflow.forEach();
+    const builder = workflow.map();
     expect(builder.graph).toBeInstanceOf(TaskGraph);
-    builder.endForEach();
+    builder.endMap();
   });
 
   test("template graph should contain added tasks with auto-generated IDs", () => {

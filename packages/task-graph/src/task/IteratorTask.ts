@@ -16,10 +16,8 @@ import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
  * Execution mode for iterator tasks.
  * - `parallel`: Execute all iterations concurrently (unlimited)
  * - `parallel-limited`: Execute with a concurrency limit
- * - `sequential`: Execute one at a time
- * - `batched`: Execute in batches of batchSize
  */
-export type ExecutionMode = "parallel" | "parallel-limited" | "sequential" | "batched";
+export type ExecutionMode = "parallel" | "parallel-limited";
 
 /**
  * Configuration interface for IteratorTask.
@@ -33,14 +31,18 @@ export interface IteratorTaskConfig extends GraphAsTaskConfig {
   readonly executionMode?: ExecutionMode;
 
   /**
-   * Maximum number of concurrent iterations when executionMode is "parallel-limited".
+   * Maximum number of concurrent batches when executionMode is "parallel-limited".
+   * When batchSize is set, this limits concurrent batches.
+   * When batchSize is not set, this limits concurrent items.
    * @default 5
    */
   readonly concurrencyLimit?: number;
 
   /**
-   * Number of items per batch when executionMode is "batched".
-   * @default 10
+   * Number of items per batch. When set, items are grouped into batches.
+   * Items within each batch run fully in parallel.
+   * Use with concurrencyLimit to control how many batches run concurrently.
+   * @default undefined (no batching, items processed individually)
    */
   readonly batchSize?: number;
 
@@ -70,7 +72,7 @@ interface IteratorPortInfo {
  *
  * IteratorTask provides the foundation for loop-type tasks in the task graph.
  * It manages a subgraph of tasks that are executed for each item in a collection,
- * with configurable execution modes (parallel, sequential, batched, etc.).
+ * with configurable execution modes (parallel, parallel-limited).
  *
  * Subclasses should implement:
  * - `getIterableItems(input)`: Extract the items to iterate over from input
@@ -95,7 +97,7 @@ export abstract class IteratorTask<
 
   /**
    * The template subgraph that will be cloned for each iteration.
-   * This is the workflow defined between forEach() and endForEach().
+   * This is the workflow defined between map()/batch()/etc and endMap()/endBatch()/etc.
    */
   protected _templateGraph: TaskGraph | undefined;
 
@@ -143,10 +145,12 @@ export abstract class IteratorTask<
   }
 
   /**
-   * Gets the batch size for batched mode.
+   * Gets the batch size for batched execution.
+   * When set, items are grouped into batches that run fully in parallel.
+   * Returns undefined if batching is not enabled.
    */
-  public get batchSize(): number {
-    return this.config.batchSize ?? 10;
+  public get batchSize(): number | undefined {
+    return this.config.batchSize;
   }
 
   // ========================================================================
