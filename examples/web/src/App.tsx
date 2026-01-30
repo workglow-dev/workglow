@@ -38,20 +38,17 @@ const resetGraph = () => {
   const workflow = window["workflow"];
   workflow
     .reset()
-    .downloadModel({
-      model: ["onnx:Xenova/LaMini-Flan-T5-783M:q8", "onnx:Xenova/m2m100_418M:q8"],
-    })
+    .downloadModel({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" })
     .textRewriter({
       text: "The quick brown fox jumps over the lazy dog.",
-      prompt: ["Rewrite the following text in reverse:", "Rewrite this to sound like a pirate:"],
+      prompt: "Rewrite the following text in reverse:",
     })
-    .rename("model", "model", -2)
+    .downloadModel({ model: "onnx:Xenova/m2m100_418M:q8" })
     .textTranslation({
       source_lang: "en",
       target_lang: "es",
     })
     .rename("*", "console")
-    .rename("*", "console", -2)
     .debugLog({ log_level: "info" });
   taskGraphRepo.saveTaskGraph("default", workflow.graph);
 };
