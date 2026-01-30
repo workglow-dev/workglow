@@ -4,17 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  DownloadModelTask,
-  TextEmbeddingTask,
-  TextRewriterTask,
-  TextTranslationTask,
-} from "@workglow/ai";
+import { registerAiTasks } from "@workglow/ai";
 import { installDevToolsFormatters, isDarkMode } from "@workglow/debug";
-import { Task, TaskGraph, Workflow } from "@workglow/task-graph";
-import { DebugLogTask, DelayTask, FetchUrlTask, JsonTask, LambdaTask } from "@workglow/tasks";
+import { registerBaseTasks, Workflow } from "@workglow/task-graph";
+import { registerCommonTasks } from "@workglow/tasks";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+
 import "./main.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -24,24 +20,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 
 installDevToolsFormatters();
-
-[
-  Workflow,
-  DownloadModelTask,
-  TextRewriterTask,
-  TextEmbeddingTask,
-  TextTranslationTask,
-  TextRewriterTask,
-  DebugLogTask,
-  Task,
-  TaskGraph,
-  JsonTask,
-  DelayTask,
-  FetchUrlTask,
-  LambdaTask,
-].forEach((item) => {
-  window[item.name] = item;
-});
+const tasks = [...registerBaseTasks()];
+[Workflow, ...registerBaseTasks(), ...registerCommonTasks(), ...registerAiTasks()].forEach(
+  (item) => {
+    window[item.name] = item;
+  }
+);
 
 const dark = isDarkMode();
 const grey = dark ? "#aaa" : "#333";
@@ -60,10 +44,9 @@ console.log(
 console.log(
   `  %cworkflow = new Workflow();
   workflow.%creset%c();
-  workflow.%cDownloadModel%c({ %cmodel%c: [%c'onnx:Xenova/LaMini-Flan-T5-783M:q8']%c });
-  workflow.%cTextRewriter%c({ %ctext%c: %c'The quick brown fox jumps over the lazy dog.'%c, %cprompt%c: [%c'Rewrite the following text in reverse:'%c, %c'Rewrite this to sound like a pirate:'%c] });
+  workflow.%ctextRewriter%c({%cmodel%c: %c'onnx:Xenova/LaMini-Flan-T5-783M:q8'%c, %ctext%c: %c'The quick brown fox jumps over the lazy dog.'%c, %cprompt%c: %c'Rewrite the following text in reverse:'%c });
   workflow.%crename%c(%c'*'%c, %c'console'%c);
-  workflow.%cDebugLog%c({ %clevel%c: %c'info'%c });
+  workflow.%cdebugLog%c({ %clevel%c: %c'info'%c });
   
   console.log(JSON.stringify(workflow.toDependencyJSON(),null,2));
   `,

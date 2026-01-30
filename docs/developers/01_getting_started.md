@@ -57,7 +57,7 @@ workflow
   .downloadModel({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" })
   .textRewriter({
     text: "The quick brown fox jumps over the lazy dog.",
-    prompt: ["Rewrite the following text in reverse:", "Rewrite this to sound like a pirate:"],
+    prompt: "Rewrite the following text in reverse:",
   })
   .rename("text", "console")
   .debugLog();
@@ -88,7 +88,7 @@ graph.addTask(
   new TextRewriterTask(
     {
       text: "The quick brown fox jumps over the lazy dog.",
-      prompt: ["Rewrite the following text in reverse:", "Rewrite this to sound like a pirate:"],
+      prompt: "Rewrite the following text in reverse:",
       // model will be provided by the dataflow below
     },
     { id: "2" }
@@ -184,7 +184,7 @@ graph.addTask(
   new TextRewriterTask(
     {
       text: "The quick brown fox jumps over the lazy dog.",
-      prompt: ["Rewrite the following text in reverse:", "Rewrite this to sound like a pirate:"],
+      prompt: "Rewrite the following text in reverse:",
     },
     { id: "2" }
   )
@@ -290,18 +290,12 @@ There is a JSONTask that can be used to build a graph. This is useful for saving
 ```json
 [
   {
-    "id": "1",
-    "type": "DownloadModelTask",
-    "input": {
-      "model": ["onnx:Xenova/LaMini-Flan-T5-783M:q8", "onnx:Xenova/m2m100_418M:q8"]
-    }
-  },
-  {
     "id": "2",
     "type": "TextRewriterTask",
     "input": {
+      "model": "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       "text": "The quick brown fox jumps over the lazy dog.",
-      "prompt": ["Rewrite the following text in reverse:", "Rewrite this to sound like a pirate:"]
+      "prompt": "Rewrite the following text in reverse:"
     },
     "dependencies": {
       "model": {
@@ -379,7 +373,7 @@ graph.addTask(
   new TextRewriterCompoundTask({
     model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
     text: "The quick brown fox jumps over the lazy dog.",
-    prompt: ["Rewrite the following text in reverse:", "Rewrite this to sound like a pirate:"],
+    prompt: "Rewrite the following text in reverse:",
   })
 );
 ```
@@ -397,7 +391,7 @@ graph.addTask(
     {
       model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       text: "The quick brown fox jumps over the lazy dog.",
-      prompt: ["Rewrite the following text in reverse:", "Rewrite this to sound like a pirate:"],
+      prompt: "Rewrite the following text in reverse:",
     },
     { id: "1" }
   )
