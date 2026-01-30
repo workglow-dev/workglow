@@ -1,5 +1,23 @@
 # @workglow/debug
 
+## 0.0.88
+
+### Patch Changes
+
+- Revert adding loop tasks, push other fixes
+- Updated dependencies
+  - @workglow/task-graph@0.0.88
+  - @workglow/util@0.0.88
+
+## 0.0.87
+
+### Patch Changes
+
+- bad version with loop not ready for prime time
+- Updated dependencies
+  - @workglow/task-graph@0.0.87
+  - @workglow/util@0.0.87
+
 ## 0.0.86
 
 ### Patch Changes

@@ -1,5 +1,33 @@
 # @workglow/cli
 
+## 0.0.88
+
+### Patch Changes
+
+- Revert adding loop tasks, push other fixes
+- Updated dependencies
+  - @workglow/ai-provider@0.0.88
+  - @workglow/task-graph@0.0.88
+  - @workglow/storage@0.0.88
+  - @workglow/tasks@0.0.88
+  - @workglow/test@0.0.88
+  - @workglow/util@0.0.88
+  - @workglow/ai@0.0.88
+
+## 0.0.87
+
+### Patch Changes
+
+- bad version with loop not ready for prime time
+- Updated dependencies
+  - @workglow/ai@0.0.87
+  - @workglow/ai-provider@0.0.87
+  - @workglow/storage@0.0.87
+  - @workglow/task-graph@0.0.87
+  - @workglow/tasks@0.0.87
+  - @workglow/test@0.0.87
+  - @workglow/util@0.0.87
+
 ## 0.0.86
 
 ### Patch Changes
