@@ -43,8 +43,8 @@
     "@workglow/util": "workspace:*",
     "@workglow/sqlite": "workspace:*",
     "@electric-sql/pglite": "^0.3.11",
-    "pg": "^8.16.3",
-    "@supabase/supabase-js": "^2.93.2"
+    "pg": "^8.18.0",
+    "@supabase/supabase-js": "=2.94.0"
   },
   "peerDependenciesMeta": {
     "@workglow/ai": {
@@ -86,10 +86,10 @@
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
-    "@supabase/supabase-js": "^2.93.2",
-    "@types/pg": "^8.15.5",
+    "@supabase/supabase-js": "=2.94.0",
+    "@types/pg": "^8.16.0",
     "fake-indexeddb": "^6.2.4",
-    "pg": "^8.16.3",
+    "pg": "^8.18.0",
     "vitest": "^4.0.15"
   },
   "publishConfig": {

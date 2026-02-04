@@ -21,7 +21,7 @@
   },
   "peerDependencies": {
     "@sqlite.org/sqlite-wasm": "^3.51.1-build2",
-    "better-sqlite3": "^12.5.0"
+    "better-sqlite3": "^12.6.2"
   },
   "peerDependenciesMeta": {
     "@sqlite.org/sqlite-wasm": {
