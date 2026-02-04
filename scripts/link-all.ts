@@ -19,7 +19,9 @@ async function processPackages(dir: string, operation: "link" | "unlink"): Promi
         console.log(`${operation === "link" ? "Linking" : "Unlinking"} package: ${packagePath}`);
 
         try {
-          await $`bun ${operation}`.cwd(packagePath).quiet();
+          const result = await $`bun ${operation}`.cwd(packagePath).quiet();
+          console.log(result.text());
+          console.log(`✅ Successfully ${operation}ed ${packagePath}`);
         } catch (error) {
           console.error(
             `Failed to ${operation} ${packagePath}:`,
