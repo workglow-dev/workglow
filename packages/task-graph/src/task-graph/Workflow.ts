@@ -1062,8 +1062,21 @@ export class Workflow<
    * Only applicable in loop builder mode.
    */
   public finalizeTemplate(): void {
-    if (this._iteratorTask && this.graph.getTasks().length > 0) {
-      this._iteratorTask.setTemplateGraph(this.graph);
+    if (!this._iteratorTask || this.graph.getTasks().length === 0) {
+      return;
+    }
+
+    if (this._iteratorTask instanceof IteratorTask) {
+      this._iteratorTask.subGraph = this.graph;
+      return;
+    }
+
+    const maybeTemplateTask = this._iteratorTask as unknown as {
+      setTemplateGraph?: (graph: TaskGraph) => void;
+    };
+
+    if (typeof maybeTemplateTask.setTemplateGraph === "function") {
+      maybeTemplateTask.setTemplateGraph(this.graph);
     }
   }
 

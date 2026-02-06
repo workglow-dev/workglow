@@ -4,16 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { IExecuteContext, TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import {
+  createGraphFromGraphJSON,
+  createTaskFromGraphJSON,
+  Dataflow,
+  GraphAsTask,
+  Task,
+  TaskGraph,
+  TaskRegistry,
+} from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
 import { describe, expect, test } from "vitest";
-import { Dataflow } from "../task-graph/Dataflow";
-import { TaskGraph } from "../task-graph/TaskGraph";
-import { GraphAsTask } from "./GraphAsTask";
-import type { IExecuteContext } from "./ITask";
-import { Task } from "./Task";
-import type { TaskGraphItemJson, TaskGraphJson } from "./TaskJSON";
-import { createGraphFromGraphJSON, createTaskFromGraphJSON } from "./TaskJSON";
-import { TaskRegistry } from "./TaskRegistry";
 
 // Test task classes
 class TestTask extends Task<{ value: number }, { result: number }> {

@@ -168,7 +168,7 @@ export class ModelRepository {
    * Enumerates all models in the repository
    * @returns Promise resolving to an array of model instances
    */
-  async enumerateAllModels() {
+  async enumerateAllModels(): Promise<ModelRecord[] | undefined> {
     const models = await this.modelTabularRepository.getAll();
     if (!models || models.length === 0) return undefined;
     return models;
@@ -179,7 +179,7 @@ export class ModelRepository {
    * @param modelId - The model_id of the model to find
    * @returns Promise resolving to the found model or undefined if not found
    */
-  async findByName(model_id: string) {
+  async findByName(model_id: string): Promise<ModelRecord | undefined> {
     if (typeof model_id != "string") return undefined;
     const model = await this.modelTabularRepository.get({ model_id });
     return model ?? undefined;

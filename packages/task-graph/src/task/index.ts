@@ -8,6 +8,7 @@ export * from "./ConditionalTask";
 export * from "./GraphAsTask";
 export * from "./GraphAsTaskRunner";
 export * from "./InputResolver";
+export * from "./iterationSchema";
 export * from "./ITask";
 export * from "./IteratorTask";
 export * from "./IteratorTaskRunner";

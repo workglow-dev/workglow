@@ -251,9 +251,8 @@ describe("IteratorTask", () => {
     });
   });
 
-  describe("template graph management", () => {
-    test("should set and get template graph", () => {
-      // Need a subclass with an array input schema for setTemplateGraph to work
+  describe("subgraph management", () => {
+    test("should set and get subgraph", () => {
       class TestIteratorWithArray extends IteratorTask<ArrayInput> {
         public static inputSchema(): DataPortSchema {
           return {
@@ -270,12 +269,12 @@ describe("IteratorTask", () => {
       }
 
       const task = new TestIteratorWithArray({ items: [1, 2, 3] }, {});
-      const templateGraph = new TaskGraph();
-      templateGraph.addTask(new DoubleTask({ value: 0 }, { id: "double" }));
+      const subGraph = new TaskGraph();
+      subGraph.addTask(new DoubleTask({ value: 0 }, { id: "double" }));
 
-      task.setTemplateGraph(templateGraph);
+      task.subGraph = subGraph;
 
-      expect(task.getTemplateGraph()).toBe(templateGraph);
+      expect(task.subGraph).toBe(subGraph);
     });
   });
 });
@@ -479,28 +478,9 @@ describe("ReduceTask", () => {
       expect(task.initialValue).toEqual({});
     });
 
-    test("should default port names correctly", () => {
-      const task = new ReduceTask({}, {});
-      expect(task.accumulatorPort).toBe("accumulator");
-      expect(task.currentItemPort).toBe("currentItem");
-      expect(task.indexPort).toBe("index");
-    });
-
-    test("should respect custom configuration", () => {
-      const task = new ReduceTask(
-        {},
-        {
-          initialValue: { sum: 0 },
-          accumulatorPort: "acc",
-          currentItemPort: "item",
-          indexPort: "i",
-        }
-      );
-
+    test("should respect custom initialValue", () => {
+      const task = new ReduceTask({}, { initialValue: { sum: 0 } });
       expect(task.initialValue).toEqual({ sum: 0 });
-      expect(task.accumulatorPort).toBe("acc");
-      expect(task.currentItemPort).toBe("item");
-      expect(task.indexPort).toBe("i");
     });
 
     test("should force sequential execution mode (parallel-limited with concurrency 1)", () => {
@@ -520,13 +500,11 @@ describe("ReduceTask", () => {
   });
 
   describe("schema handling", () => {
-    test("ReduceTask input schema should have accumulator ports", () => {
+    test("ReduceTask input schema should allow dynamic ports", () => {
       const inputSchema = ReduceTask.inputSchema();
       expect(typeof inputSchema).toBe("object");
       if (typeof inputSchema === "object") {
-        expect(inputSchema.properties).toHaveProperty("accumulator");
-        expect(inputSchema.properties).toHaveProperty("currentItem");
-        expect(inputSchema.properties).toHaveProperty("index");
+        expect(inputSchema.additionalProperties).toBe(true);
       }
     });
   });
@@ -869,7 +847,7 @@ describe("Workflow Integration - Map Pattern", () => {
     expect(mapTask.preserveOrder).toBe(true);
 
     // Verify template graph
-    const templateGraph = mapTask.getTemplateGraph();
+    const templateGraph = mapTask.subGraph;
     expect(templateGraph).toBeDefined();
     expect(templateGraph?.getTasks()).toHaveLength(1);
     expect(templateGraph?.getTasks()[0]).toBeInstanceOf(TextEmbeddingTask);
@@ -986,29 +964,23 @@ describe("Workflow Integration - Reduce Pattern", () => {
     expect(reduceTask.executionMode).toBe("parallel-limited"); // Always sequential (via parallel-limited with concurrency 1) for reduce
 
     // Verify template graph
-    const templateGraph = reduceTask.getTemplateGraph();
+    const templateGraph = reduceTask.subGraph;
     expect(templateGraph).toBeDefined();
     expect(templateGraph?.getTasks()).toHaveLength(1);
   });
 
-  test("reduce with custom port names should configure correctly", () => {
+  test("reduce with custom initial value should configure correctly", () => {
     const workflow = new Workflow();
 
     workflow
       .reduce({
         initialValue: { count: 0, total: 0 },
-        accumulatorPort: "acc",
-        currentItemPort: "item",
-        indexPort: "idx",
       })
       .addTask(AddToSumTask)
       .endReduce();
 
     const reduceTask = workflow.graph.getTasks()[0] as ReduceTask;
     expect(reduceTask.initialValue).toEqual({ count: 0, total: 0 });
-    expect(reduceTask.accumulatorPort).toBe("acc");
-    expect(reduceTask.currentItemPort).toBe("item");
-    expect(reduceTask.indexPort).toBe("idx");
   });
 });
 
@@ -1075,7 +1047,7 @@ describe("Workflow Integration - Multiple Tasks in Loop", () => {
     workflow.map().addTask(ProcessItemTask).addTask(DoubleTask).endMap();
 
     const mapTask = workflow.graph.getTasks()[0] as MapTask;
-    const templateGraph = mapTask.getTemplateGraph();
+    const templateGraph = mapTask.subGraph;
 
     expect(templateGraph).toBeDefined();
     expect(templateGraph?.getTasks()).toHaveLength(2);
@@ -1118,7 +1090,7 @@ describe("Workflow Integration - Template Graph Access", () => {
     workflow.map().addTask(ProcessItemTask).addTask(DoubleTask).endMap();
 
     const mapTask = workflow.graph.getTasks()[0] as MapTask;
-    const templateTasks = mapTask.getTemplateGraph()?.getTasks() ?? [];
+    const templateTasks = mapTask.subGraph?.getTasks() ?? [];
 
     // Tasks should have auto-generated UUID IDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1186,12 +1158,200 @@ describe("Workflow Integration - Template Graph Access", () => {
     workflow.map().addTask(TaskA).addTask(TaskB).endMap();
 
     const mapTask = workflow.graph.getTasks()[0] as MapTask;
-    const templateGraph = mapTask.getTemplateGraph();
+    const templateGraph = mapTask.subGraph;
     const dataflows = templateGraph?.getDataflows() ?? [];
 
     // Should have a dataflow connecting the two tasks via matching 'result' port
     expect(dataflows.length).toBeGreaterThan(0);
     expect(dataflows[0].sourceTaskPortId).toBe("result");
     expect(dataflows[0].targetTaskPortId).toBe("result");
+  });
+});
+
+// ============================================================================
+// Execution Regression Tests
+// ============================================================================
+
+describe("Iterator Execution Regressions", () => {
+  test("workflow map run should execute without pre-run scalar failure", async () => {
+    const workflow = new Workflow();
+
+    workflow.map().addTask(ProcessItemTask).endMap();
+
+    const result = await workflow.run({ item: [1, 2, 3] });
+    expect(result.processed).toEqual([2, 4, 6]);
+  });
+
+  test("direct MapTask.run should execute a reusable subgraph across iterations", async () => {
+    const mapTask = new MapTask({}, {});
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new ProcessItemTask({ item: 0 }, { id: "process" }));
+
+    mapTask.subGraph = subGraph;
+
+    const result = await mapTask.run({ item: [4, 5, 6] } as TaskInput);
+    expect(result.processed).toEqual([8, 10, 12]);
+  });
+
+  test("map preserveOrder=true should return outputs aligned to input index", async () => {
+    class DelayedEchoTask extends Task<{ item: number }, { item: number }> {
+      public static type = "DelayedEchoTask";
+
+      public static inputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: {
+            item: { type: "number" },
+          },
+          required: ["item"],
+          additionalProperties: false,
+        } as const satisfies DataPortSchema;
+      }
+
+      public static outputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: {
+            item: { type: "number" },
+          },
+          required: ["item"],
+          additionalProperties: false,
+        } as const satisfies DataPortSchema;
+      }
+
+      async execute(input: { item: number }): Promise<{ item: number }> {
+        await new Promise((resolve) => setTimeout(resolve, (4 - input.item) * 5));
+        return { item: input.item };
+      }
+    }
+
+    const workflow = new Workflow();
+    workflow
+      .map({ preserveOrder: true, executionMode: "parallel-limited", concurrencyLimit: 3 })
+      .addTask(DelayedEchoTask)
+      .endMap();
+
+    const result = await workflow.run({ item: [1, 2, 3] });
+    expect(result.item).toEqual([1, 2, 3]);
+  });
+
+  test("map preserveOrder=false should still return complete results", async () => {
+    const workflow = new Workflow();
+    workflow
+      .map({ preserveOrder: false, executionMode: "parallel-limited", concurrencyLimit: 3 })
+      .addTask(ProcessItemTask)
+      .endMap();
+
+    const result = await workflow.run({ item: [1, 2, 3] });
+    expect((result.processed as number[]).slice().sort((a, b) => a - b)).toEqual([2, 4, 6]);
+  });
+
+  test("map should honor batchSize and concurrency settings without data loss", async () => {
+    const workflow = new Workflow();
+    workflow
+      .map({ executionMode: "parallel-limited", concurrencyLimit: 2, batchSize: 2 })
+      .addTask(ProcessItemTask)
+      .endMap();
+
+    const result = await workflow.run({ item: [1, 2, 3, 4, 5] });
+    expect(result.processed).toEqual([2, 4, 6, 8, 10]);
+  });
+
+  test("reduce should process multiple iterated ports with zip semantics", async () => {
+    class ZipReduceTask extends Task<
+      { accumulator: { sum: number }; left: number; right: number },
+      { sum: number }
+    > {
+      public static type = "ZipReduceTask";
+
+      public static inputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: {
+            accumulator: {
+              type: "object",
+              properties: {
+                sum: { type: "number" },
+              },
+            },
+            left: { type: "number" },
+            right: { type: "number" },
+          },
+          required: ["accumulator", "left", "right"],
+          additionalProperties: true,
+        } as const satisfies DataPortSchema;
+      }
+
+      public static outputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: {
+            sum: { type: "number" },
+          },
+          required: ["sum"],
+          additionalProperties: false,
+        } as const satisfies DataPortSchema;
+      }
+
+      async execute(input: { accumulator: { sum: number }; left: number; right: number }) {
+        return {
+          sum: input.accumulator.sum + input.left + input.right,
+        };
+      }
+    }
+
+    const workflow = new Workflow();
+    workflow.reduce({ initialValue: { sum: 0 } }).addTask(ZipReduceTask).endReduce();
+
+    const result = await workflow.run({ left: [1, 2, 3], right: [10, 20, 30] });
+    expect(result.sum).toBe(66);
+  });
+
+  test("iteration analysis should respect annotation/schema/runtime precedence", () => {
+    class PrecedenceIterator extends IteratorTask<TaskInput, TaskOutput> {
+      public static type = "PrecedenceIterator";
+
+      public static inputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: {
+            forceArray: {
+              oneOf: [{ type: "number" }, { type: "array", items: { type: "number" } }],
+              "x-ui-iteration": true,
+            },
+            forceScalar: {
+              type: "array",
+              items: { type: "number" },
+              "x-ui-iteration": false,
+            },
+            inferredArray: {
+              type: "array",
+              items: { type: "number" },
+            },
+            runtimeFlexible: {
+              oneOf: [{ type: "number" }, { type: "array", items: { type: "number" } }],
+            },
+          },
+          additionalProperties: false,
+        } as const satisfies DataPortSchema;
+      }
+    }
+
+    const task = new PrecedenceIterator({}, {});
+    const analysis = task.analyzeIterationInput({
+      forceArray: [1, 2],
+      forceScalar: [100, 200],
+      inferredArray: [3, 4],
+      runtimeFlexible: [5, 6],
+    } as TaskInput);
+
+    expect(analysis.arrayPorts.sort()).toEqual(["forceArray", "inferredArray", "runtimeFlexible"]);
+    expect(analysis.scalarPorts).toContain("forceScalar");
+
+    const first = analysis.getIterationInput(0);
+    expect(first.forceArray).toBe(1);
+    expect(first.inferredArray).toBe(3);
+    expect(first.runtimeFlexible).toBe(5);
+    expect(first.forceScalar).toEqual([100, 200]);
   });
 });

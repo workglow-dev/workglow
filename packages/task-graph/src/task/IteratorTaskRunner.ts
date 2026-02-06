@@ -4,60 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Job, JobConstructorParam, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
-import { InMemoryQueueStorage, IQueueStorage } from "@workglow/storage";
-import { uuid4 } from "@workglow/util";
-import { GraphResultArray } from "../task-graph/TaskGraphRunner";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
-import type { ExecutionMode, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
-import { getTaskQueueRegistry, RegisteredQueue } from "./TaskQueueRegistry";
+import type { IterationAnalysisResult, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
 import type { TaskInput, TaskOutput } from "./TaskTypes";
 
 /**
- * Job class for iterator task items.
- * Wraps individual iteration execution.
- */
-class IteratorItemJob<Input extends TaskInput, Output extends TaskOutput> extends Job<
-  Input,
-  Output
-> {
-  /**
-   * The task to execute for this iteration.
-   */
-  private iteratorTask: IteratorTask<Input, Output>;
-
-  /**
-   * The index of this iteration.
-   */
-  private iterationIndex: number;
-
-  constructor(
-    params: JobConstructorParam<Input, Output> & {
-      iteratorTask: IteratorTask<Input, Output>;
-      iterationIndex: number;
-    }
-  ) {
-    super(params);
-    this.iteratorTask = params.iteratorTask;
-    this.iterationIndex = params.iterationIndex;
-  }
-
-  async execute(
-    input: Input,
-    context: { signal: AbortSignal; updateProgress: (progress: number) => void }
-  ): Promise<Output> {
-    // This would execute the subgraph for a single item
-    // For now, return the input as output (placeholder)
-    return input as unknown as Output;
-  }
-}
-
-/**
- * Custom runner for IteratorTask that handles execution mode and queue integration.
- *
- * This runner manages:
- * - Dynamic queue creation based on execution mode
- * - Concurrency limiting for parallel-limited mode
+ * Runner for IteratorTask that executes a single subgraph repeatedly with
+ * per-iteration inputs. The task defines iteration analysis/collection hooks,
+ * while this runner owns scheduling and execution orchestration.
  */
 export class IteratorTaskRunner<
   Input extends TaskInput = TaskInput,
@@ -67,263 +21,183 @@ export class IteratorTaskRunner<
   declare task: IteratorTask<Input, Output, Config>;
 
   /**
-   * The queue used for this iterator's executions.
+   * Subgraph runs are serialized against one shared subgraph instance.
    */
-  protected iteratorQueue?: RegisteredQueue<Input, Output>;
+  private subGraphRunChain: Promise<void> = Promise.resolve();
 
   /**
-   * Generated queue name for this iterator instance.
+   * For iterator tasks, reactive runs use full execution for correctness.
    */
-  protected iteratorQueueName?: string;
+  public override async runReactive(overrides: Partial<Input> = {}): Promise<Output> {
+    return this.run(overrides);
+  }
 
-  // ========================================================================
-  // Queue Management
-  // ========================================================================
+  protected override async executeTask(input: Input): Promise<Output | undefined> {
+    const analysis = this.task.analyzeIterationInput(input);
 
-  /**
-   * Gets or creates the queue for this iterator based on execution mode.
-   */
-  protected async getOrCreateIteratorQueue(): Promise<RegisteredQueue<Input, Output> | undefined> {
-    const executionMode = this.task.executionMode;
-
-    // Parallel mode doesn't need a queue - just run everything
-    if (executionMode === "parallel") {
-      return undefined;
+    if (analysis.iterationCount === 0) {
+      const emptyResult = this.task.getEmptyResult();
+      return this.executeTaskReactive(input, emptyResult as Output);
     }
 
-    // Check if we already have a queue
-    if (this.iteratorQueue) {
-      return this.iteratorQueue;
-    }
+    const result = this.task.isReduceTask()
+      ? await this.executeReduceIterations(analysis)
+      : await this.executeCollectIterations(analysis);
 
-    // Generate queue name
-    const queueName =
-      this.task.config.queueName ?? `iterator-${this.task.config.id}-${uuid4().slice(0, 8)}`;
-    this.iteratorQueueName = queueName;
-
-    // Check registry first
-    const existingQueue = getTaskQueueRegistry().getQueue<Input, Output>(queueName);
-    if (existingQueue) {
-      this.iteratorQueue = existingQueue;
-      return existingQueue;
-    }
-
-    // Create new queue with appropriate concurrency
-    const concurrency = this.getConcurrencyForMode(executionMode);
-    this.iteratorQueue = await this.createIteratorQueue(queueName, concurrency);
-
-    return this.iteratorQueue;
+    return this.executeTaskReactive(input, result as Output);
   }
 
   /**
-   * Gets the concurrency level for the given execution mode.
+   * Iterator tasks should only run the task's reactive hook here.
    */
-  protected getConcurrencyForMode(mode: ExecutionMode): number {
-    switch (mode) {
-      case "parallel-limited":
-        return this.task.concurrencyLimit;
-      case "parallel":
-      default:
-        return Infinity;
-    }
+  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
+    const reactiveResult = await this.task.executeReactive(input, output, { own: this.own });
+    return Object.assign({}, output, reactiveResult ?? {}) as Output;
   }
 
-  /**
-   * Creates a new queue for iterator execution.
-   */
-  protected async createIteratorQueue(
-    queueName: string,
+  protected async executeCollectIterations(analysis: IterationAnalysisResult): Promise<Output> {
+    const iterationCount = analysis.iterationCount;
+    const preserveOrder = this.task.preserveIterationOrder();
+
+    const batchSize =
+      this.task.batchSize !== undefined && this.task.batchSize > 0
+        ? this.task.batchSize
+        : iterationCount;
+
+    const requestedConcurrency =
+      this.task.executionMode === "parallel-limited" ? this.task.concurrencyLimit : iterationCount;
+    const concurrency = Math.max(1, Math.min(requestedConcurrency, iterationCount));
+
+    const orderedResults: Array<TaskOutput | undefined> = preserveOrder
+      ? new Array(iterationCount)
+      : [];
+    const completionOrderResults: TaskOutput[] = [];
+
+    for (let batchStart = 0; batchStart < iterationCount; batchStart += batchSize) {
+      if (this.abortController?.signal.aborted) {
+        break;
+      }
+
+      const batchEnd = Math.min(batchStart + batchSize, iterationCount);
+      const batchIndices = Array.from({ length: batchEnd - batchStart }, (_, i) => batchStart + i);
+
+      const batchResults = await this.executeBatch(
+        batchIndices,
+        analysis,
+        iterationCount,
+        concurrency
+      );
+
+      for (const { index, result } of batchResults) {
+        if (result === undefined) continue;
+
+        if (preserveOrder) {
+          orderedResults[index] = result;
+        } else {
+          completionOrderResults.push(result);
+        }
+      }
+
+      const progress = Math.round((batchEnd / iterationCount) * 100);
+      await this.handleProgress(progress, `Completed ${batchEnd}/${iterationCount} iterations`);
+    }
+
+    const collected = preserveOrder
+      ? orderedResults.filter((result): result is TaskOutput => result !== undefined)
+      : completionOrderResults;
+
+    return this.task.collectResults(collected);
+  }
+
+  protected async executeReduceIterations(analysis: IterationAnalysisResult): Promise<Output> {
+    const iterationCount = analysis.iterationCount;
+    let accumulator = this.task.getInitialAccumulator();
+
+    for (let index = 0; index < iterationCount; index++) {
+      if (this.abortController?.signal.aborted) {
+        break;
+      }
+
+      const iterationInput = this.task.buildIterationRunInput(analysis, index, iterationCount, {
+        accumulator,
+      });
+
+      const iterationResult = await this.executeSubgraphIteration(iterationInput);
+      accumulator = this.task.mergeIterationIntoAccumulator(accumulator, iterationResult, index);
+
+      const progress = Math.round(((index + 1) / iterationCount) * 100);
+      await this.handleProgress(progress, `Completed ${index + 1}/${iterationCount} iterations`);
+    }
+
+    return accumulator;
+  }
+
+  protected async executeBatch(
+    indices: number[],
+    analysis: IterationAnalysisResult,
+    iterationCount: number,
     concurrency: number
-  ): Promise<RegisteredQueue<Input, Output>> {
-    const storage = new InMemoryQueueStorage<Input, Output>(queueName);
-    await storage.setupDatabase();
+  ): Promise<Array<{ index: number; result: TaskOutput | undefined }>> {
+    const results: Array<{ index: number; result: TaskOutput | undefined }> = [];
+    let cursor = 0;
 
-    // Create a simple job class for iteration items
-    const JobClass = class extends Job<Input, Output> {
-      async execute(input: Input): Promise<Output> {
-        return input as unknown as Output;
+    const workerCount = Math.max(1, Math.min(concurrency, indices.length));
+
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (true) {
+        if (this.abortController?.signal.aborted) {
+          return;
+        }
+
+        const position = cursor;
+        cursor += 1;
+
+        if (position >= indices.length) {
+          return;
+        }
+
+        const index = indices[position];
+        const iterationInput = this.task.buildIterationRunInput(analysis, index, iterationCount);
+        const result = await this.executeSubgraphIteration(iterationInput);
+        results.push({ index, result });
       }
-    };
-
-    const server = new JobQueueServer<Input, Output>(JobClass, {
-      storage: storage as IQueueStorage<Input, Output>,
-      queueName,
-      workerCount: Math.min(concurrency, 10), // Cap worker count
     });
 
-    const client = new JobQueueClient<Input, Output>({
-      storage: storage as IQueueStorage<Input, Output>,
-      queueName,
+    await Promise.all(workers);
+    return results;
+  }
+
+  protected async executeSubgraphIteration(
+    input: Record<string, unknown>
+  ): Promise<TaskOutput | undefined> {
+    let releaseTurn: (() => void) | undefined;
+    const waitForPreviousRun = this.subGraphRunChain;
+    this.subGraphRunChain = new Promise<void>((resolve) => {
+      releaseTurn = resolve;
     });
 
-    client.attach(server);
+    await waitForPreviousRun;
 
-    const queue: RegisteredQueue<Input, Output> = {
-      server,
-      client,
-      storage: storage as IQueueStorage<Input, Output>,
-    };
-
-    // Register the queue
     try {
-      getTaskQueueRegistry().registerQueue(queue);
-    } catch (err) {
-      // Queue might already exist from concurrent creation
-      const existing = getTaskQueueRegistry().getQueue<Input, Output>(queueName);
-      if (existing) {
-        return existing;
-      }
-      throw err;
-    }
-
-    // Start the server
-    await server.start();
-
-    return queue;
-  }
-
-  // ========================================================================
-  // Execution Overrides
-  // ========================================================================
-
-  /**
-   * Execute the iterator's children based on execution mode and batch configuration.
-   *
-   * Execution modes:
-   * - parallel: All items run concurrently (unless batchSize is set)
-   * - parallel-limited: Items/batches run with concurrency limit
-   *
-   * When batchSize is set:
-   * - Items are grouped into batches
-   * - Items within each batch run fully in parallel
-   * - Batches are processed according to execution mode
-   */
-  protected async executeTaskChildren(input: Input): Promise<GraphResultArray<Output>> {
-    const executionMode = this.task.executionMode;
-    const batchSize = this.task.batchSize;
-
-    // If batching is enabled, use batched execution
-    if (batchSize !== undefined && batchSize > 0) {
-      return this.executeBatched(input, batchSize);
-    }
-
-    // No batching - use standard execution modes
-    switch (executionMode) {
-      case "parallel-limited":
-        return this.executeParallelLimited(input);
-      case "parallel":
-      default:
-        // Use default parallel execution from parent
-        return super.executeTaskChildren(input);
-    }
-  }
-
-  /**
-   * Execute iterations with a concurrency limit (no batching).
-   */
-  protected async executeParallelLimited(input: Input): Promise<GraphResultArray<Output>> {
-    const tasks = this.task.subGraph.getTasks();
-    const results: GraphResultArray<Output> = [];
-    const limit = this.task.concurrencyLimit;
-
-    // Process items with concurrency limit
-    for (let i = 0; i < tasks.length; i += limit) {
       if (this.abortController?.signal.aborted) {
-        break;
+        return undefined;
       }
 
-      const chunk = tasks.slice(i, i + limit);
-      const chunkPromises = chunk.map(async (task) => {
-        const taskResult = await task.run(input);
-        return {
-          id: task.config.id,
-          type: task.type,
-          data: taskResult as Output,
-        };
+      const results = await this.task.subGraph.run<TaskOutput>(input as TaskInput, {
+        parentSignal: this.abortController?.signal,
+        outputCache: this.outputCache,
       });
 
-      const chunkResults = await Promise.all(chunkPromises);
-      results.push(...chunkResults);
-    }
-
-    return results;
-  }
-
-  /**
-   * Execute iterations in batches.
-   * Items within each batch run fully in parallel.
-   * Batches are processed according to execution mode:
-   * - parallel: All batches run concurrently
-   * - parallel-limited: Batches run with concurrency limit
-   */
-  protected async executeBatched(
-    input: Input,
-    batchSize: number
-  ): Promise<GraphResultArray<Output>> {
-    const tasks = this.task.subGraph.getTasks();
-    const results: GraphResultArray<Output> = [];
-
-    // Group tasks into batches
-    const batches: (typeof tasks)[] = [];
-    for (let i = 0; i < tasks.length; i += batchSize) {
-      batches.push(tasks.slice(i, i + batchSize));
-    }
-
-    // Determine batch concurrency based on execution mode
-    const executionMode = this.task.executionMode;
-    const batchConcurrency =
-      executionMode === "parallel-limited" ? this.task.concurrencyLimit : batches.length;
-
-    // Process batches with concurrency limit
-    for (let i = 0; i < batches.length; i += batchConcurrency) {
-      if (this.abortController?.signal.aborted) {
-        break;
+      if (results.length === 0) {
+        return undefined;
       }
 
-      const batchGroup = batches.slice(i, i + batchConcurrency);
-
-      // Execute each batch in the group concurrently
-      // Items within each batch also run fully in parallel
-      const groupPromises = batchGroup.map(async (batch) => {
-        const batchPromises = batch.map(async (task) => {
-          const taskResult = await task.run(input);
-          return {
-            id: task.config.id,
-            type: task.type,
-            data: taskResult as Output,
-          };
-        });
-        return Promise.all(batchPromises);
-      });
-
-      const groupResults = await Promise.all(groupPromises);
-      for (const batchResults of groupResults) {
-        results.push(...batchResults);
-      }
-
-      // Emit progress for batch group completion
-      const completedItems = Math.min((i + batchConcurrency) * batchSize, tasks.length);
-      const progress = Math.round((completedItems / tasks.length) * 100);
-      this.task.emit("progress", progress, `Completed ${completedItems}/${tasks.length} items`);
-    }
-
-    return results;
-  }
-
-  // ========================================================================
-  // Cleanup
-  // ========================================================================
-
-  /**
-   * Clean up the iterator queue when done.
-   */
-  protected async cleanup(): Promise<void> {
-    if (this.iteratorQueue && this.iteratorQueueName) {
-      try {
-        this.iteratorQueue.server.stop();
-      } catch (err) {
-        // Ignore cleanup errors
-      }
+      return this.task.subGraph.mergeExecuteOutputsToRunOutput(
+        results,
+        this.task.compoundMerge
+      ) as TaskOutput;
+    } finally {
+      releaseTurn?.();
     }
   }
 }

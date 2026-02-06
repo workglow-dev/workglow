@@ -16,7 +16,7 @@ import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 export interface MapTaskConfig extends IteratorTaskConfig {
   /**
    * Whether to preserve the order of results matching the input order.
-   * When false, results may be in completion order (faster for parallel).
+   * When false, results may be in completion order.
    * @default true
    */
   readonly preserveOrder?: boolean;
@@ -30,42 +30,7 @@ export interface MapTaskConfig extends IteratorTaskConfig {
 }
 
 /**
- * MapTask transforms an array by running a workflow for each element and collecting results.
- *
- * This task is the functional-style map operation: it takes an array input,
- * applies a transformation workflow to each element, and returns an array
- * of transformed results.
- *
- * ## Features
- *
- * - Transforms each array element through inner workflow
- * - Collects and returns array of results
- * - Maintains result order by default
- * - Configurable execution modes (parallel, parallel-limited)
- * - Optional flattening of nested arrays
- *
- * ## Usage
- *
- * ```typescript
- * // Transform texts to embeddings
- * workflow
- *   .input({ texts: ["hello", "world"] })
- *   .map()
- *     .textEmbedding()
- *   .endMap()
- *   // Result: { vectors: [Float32Array, Float32Array] }
- *
- * // With explicit port
- * workflow
- *   .map({ iteratorPort: "documents" })
- *     .enrich()
- *     .chunk()
- *   .endMap()
- * ```
- *
- * @template Input - The input type containing the array to transform
- * @template Output - The output type (array of transformed results)
- * @template Config - The configuration type
+ * MapTask transforms one or more array inputs by running a workflow for each index.
  */
 export class MapTask<
   Input extends TaskInput = TaskInput,
@@ -75,7 +40,7 @@ export class MapTask<
   public static type: TaskTypeName = "MapTask";
   public static category: string = "Flow Control";
   public static title: string = "Map";
-  public static description: string = "Transforms an array by running a workflow for each element";
+  public static description: string = "Transforms array inputs by running a workflow per item";
 
   /**
    * MapTask always uses PROPERTY_ARRAY merge strategy to collect results.
@@ -84,7 +49,6 @@ export class MapTask<
 
   /**
    * Static input schema for MapTask.
-   * Accepts any object with at least one array property.
    */
   public static inputSchema(): DataPortSchema {
     return {
@@ -96,7 +60,6 @@ export class MapTask<
 
   /**
    * Static output schema for MapTask.
-   * Dynamic based on inner workflow outputs.
    */
   public static outputSchema(): DataPortSchema {
     return {
@@ -120,11 +83,14 @@ export class MapTask<
     return this.config.flatten ?? false;
   }
 
+  public override preserveIterationOrder(): boolean {
+    return this.preserveOrder;
+  }
+
   /**
    * Returns the empty result for MapTask.
-   * Returns empty arrays for each output property.
    */
-  protected override getEmptyResult(): Output {
+  public override getEmptyResult(): Output {
     const schema = this.outputSchema();
     if (typeof schema === "boolean") {
       return {} as Output;
@@ -143,7 +109,7 @@ export class MapTask<
    * Wraps inner workflow output properties in arrays.
    */
   public override outputSchema(): DataPortSchema {
-    if (!this.hasChildren() && !this._templateGraph) {
+    if (!this.hasChildren()) {
       return (this.constructor as typeof MapTask).outputSchema();
     }
 
@@ -153,18 +119,16 @@ export class MapTask<
   /**
    * Collects and optionally flattens results from all iterations.
    */
-  protected override collectResults(results: TaskOutput[]): Output {
+  public override collectResults(results: TaskOutput[]): Output {
     const collected = super.collectResults(results);
 
     if (!this.flatten || typeof collected !== "object" || collected === null) {
       return collected;
     }
 
-    // Flatten array properties
     const flattened: Record<string, unknown[]> = {};
     for (const [key, value] of Object.entries(collected)) {
       if (Array.isArray(value)) {
-        // Flatten nested arrays
         flattened[key] = value.flat();
       } else {
         flattened[key] = value as unknown[];
@@ -182,33 +146,19 @@ export class MapTask<
 declare module "../task-graph/Workflow" {
   interface Workflow {
     /**
-     * Starts a map loop that transforms each element in an array.
+     * Starts a map loop that transforms each element in array input ports.
      * Use .endMap() to close the loop and return to the parent workflow.
-     *
-     * @param config - Configuration for the map loop
-     * @returns A Workflow in loop builder mode for defining the transformation
-     *
-     * @example
-     * ```typescript
-     * workflow
-     *   .map()
-     *     .textEmbedding()
-     *   .endMap()
-     *   // Result: { vectors: [...] }
-     * ```
      */
     map: CreateLoopWorkflow<TaskInput, TaskOutput, MapTaskConfig>;
 
     /**
      * Ends the map loop and returns to the parent workflow.
-     * Only callable on workflows in loop builder mode.
-     *
-     * @returns The parent workflow
      */
     endMap(): Workflow;
   }
 }
 
-Workflow.prototype.map = CreateLoopWorkflow(MapTask);
-
-Workflow.prototype.endMap = CreateEndLoopWorkflow("endMap");
+queueMicrotask(() => {
+  Workflow.prototype.map = CreateLoopWorkflow(MapTask);
+  Workflow.prototype.endMap = CreateEndLoopWorkflow("endMap");
+});

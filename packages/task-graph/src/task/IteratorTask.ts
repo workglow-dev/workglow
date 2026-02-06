@@ -7,17 +7,61 @@
 import type { DataPortSchema } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
-import type { IExecuteContext } from "./ITask";
 import { IteratorTaskRunner } from "./IteratorTaskRunner";
 import { TaskConfigurationError } from "./TaskError";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
 /**
+ * Standard iteration context schema for IteratorTask subclasses (Map, Reduce).
+ * Properties are marked with "x-ui-iteration": true so the builder
+ * knows to hide them from parent-level display.
+ */
+export const ITERATOR_CONTEXT_SCHEMA: DataPortSchema = {
+  type: "object",
+  properties: {
+    _iterationIndex: {
+      type: "integer",
+      minimum: 0,
+      title: "Iteration Index",
+      description: "Current iteration index (0-based)",
+      "x-ui-iteration": true,
+      "x-ui-hidden": true,
+    },
+    _iterationCount: {
+      type: "integer",
+      minimum: 0,
+      title: "Iteration Count",
+      description: "Total number of iterations",
+      "x-ui-iteration": true,
+      "x-ui-hidden": true,
+    },
+  },
+};
+
+/**
  * Execution mode for iterator tasks.
- * - `parallel`: Execute all iterations concurrently (unlimited)
+ * - `parallel`: Execute all iterations concurrently (logical mode)
  * - `parallel-limited`: Execute with a concurrency limit
  */
 export type ExecutionMode = "parallel" | "parallel-limited";
+
+/**
+ * Input mode for a property in the iteration input schema.
+ * - "array": Property must be an array (will be iterated)
+ * - "scalar": Property must be a scalar (constant for all iterations)
+ * - "flexible": Property accepts both array and scalar (T | T[])
+ */
+export type IterationInputMode = "array" | "scalar" | "flexible";
+
+/**
+ * Configuration for a single property in the iteration input schema.
+ */
+export interface IterationPropertyConfig {
+  /** The base schema for the property (without array wrapping) */
+  readonly baseSchema: DataPortSchema;
+  /** The input mode for this property */
+  readonly mode: IterationInputMode;
+}
 
 /**
  * Configuration interface for IteratorTask.
@@ -31,32 +75,27 @@ export interface IteratorTaskConfig extends GraphAsTaskConfig {
   readonly executionMode?: ExecutionMode;
 
   /**
-   * Maximum number of concurrent batches when executionMode is "parallel-limited".
-   * When batchSize is set, this limits concurrent batches.
-   * When batchSize is not set, this limits concurrent items.
+   * Maximum number of concurrent iteration workers when executionMode is "parallel-limited".
    * @default 5
    */
   readonly concurrencyLimit?: number;
 
   /**
-   * Number of items per batch. When set, items are grouped into batches.
-   * Items within each batch run fully in parallel.
-   * Use with concurrencyLimit to control how many batches run concurrently.
-   * @default undefined (no batching, items processed individually)
+   * Number of items per batch. When set, iteration indices are grouped into batches.
+   * @default undefined
    */
   readonly batchSize?: number;
 
   /**
-   * Optional custom queue name for job queue integration.
-   * If not provided, a unique queue name will be generated.
-   */
-  readonly queueName?: string;
-
-  /**
-   * The name of the input port containing the array to iterate.
-   * If not provided, auto-detection will find the first array-typed port.
+   * Optional explicit iterator port.
+   * @deprecated Prefer `x-ui-iteration` annotations and/or `iterationInputConfig`.
    */
   readonly iteratorPort?: string;
+
+  /**
+   * User-defined iteration input schema configuration.
+   */
+  readonly iterationInputConfig?: Record<string, IterationPropertyConfig>;
 }
 
 /**
@@ -68,19 +107,142 @@ interface IteratorPortInfo {
 }
 
 /**
+ * Result of analyzing input for iteration.
+ */
+export interface IterationAnalysisResult {
+  /** The number of iterations to perform */
+  readonly iterationCount: number;
+  /** Names of properties that are arrays (to be iterated) */
+  readonly arrayPorts: string[];
+  /** Names of properties that are scalars (passed as constants) */
+  readonly scalarPorts: string[];
+  /** Gets the input for a specific iteration index */
+  getIterationInput(index: number): Record<string, unknown>;
+}
+
+function isArrayVariant(schema: unknown): boolean {
+  if (!schema || typeof schema !== "object") return false;
+  const record = schema as Record<string, unknown>;
+  return record.type === "array" || record.items !== undefined;
+}
+
+function getExplicitIterationFlag(schema: DataPortSchema | undefined): boolean | undefined {
+  if (!schema || typeof schema !== "object") return undefined;
+  const record = schema as Record<string, unknown>;
+  const flag = record["x-ui-iteration"];
+  if (flag === true) return true;
+  if (flag === false) return false;
+  return undefined;
+}
+
+function inferIterationFromSchema(schema: DataPortSchema | undefined): boolean | undefined {
+  if (!schema || typeof schema !== "object") return undefined;
+
+  const record = schema as Record<string, unknown>;
+
+  if (record.type === "array" || record.items !== undefined) {
+    return true;
+  }
+
+  const variants = (record.oneOf ?? record.anyOf) as unknown[] | undefined;
+  if (!Array.isArray(variants) || variants.length === 0) {
+    // Schema does not clearly indicate array/non-array - defer to runtime
+    if (record.type !== undefined) {
+      return false;
+    }
+    return undefined;
+  }
+
+  let hasArrayVariant = false;
+  let hasNonArrayVariant = false;
+
+  for (const variant of variants) {
+    if (isArrayVariant(variant)) {
+      hasArrayVariant = true;
+    } else {
+      hasNonArrayVariant = true;
+    }
+  }
+
+  if (hasArrayVariant && hasNonArrayVariant) return undefined;
+  if (hasArrayVariant) return true;
+  return false;
+}
+
+/**
+ * Creates a union type schema (T | T[]) for flexible iteration input.
+ */
+export function createFlexibleSchema(baseSchema: DataPortSchema): DataPortSchema {
+  if (typeof baseSchema === "boolean") return baseSchema;
+  return {
+    oneOf: [baseSchema, { type: "array", items: baseSchema }],
+  } as unknown as DataPortSchema;
+}
+
+/**
+ * Creates an array schema from a base schema.
+ */
+export function createArraySchema(baseSchema: DataPortSchema): DataPortSchema {
+  if (typeof baseSchema === "boolean") return baseSchema;
+  return {
+    type: "array",
+    items: baseSchema,
+  } as DataPortSchema;
+}
+
+/**
+ * Extracts the base (scalar) schema from a potentially wrapped schema.
+ */
+export function extractBaseSchema(schema: DataPortSchema): DataPortSchema {
+  if (typeof schema === "boolean") return schema;
+
+  const schemaType = (schema as Record<string, unknown>).type;
+  if (schemaType === "array" && (schema as Record<string, unknown>).items) {
+    return (schema as Record<string, unknown>).items as DataPortSchema;
+  }
+
+  const variants = (schema.oneOf ?? schema.anyOf) as DataPortSchema[] | undefined;
+  if (Array.isArray(variants)) {
+    for (const variant of variants) {
+      if (typeof variant === "object") {
+        const variantType = (variant as Record<string, unknown>).type;
+        if (variantType !== "array") {
+          return variant;
+        }
+      }
+    }
+    for (const variant of variants) {
+      if (typeof variant === "object") {
+        const variantType = (variant as Record<string, unknown>).type;
+        if (variantType === "array" && (variant as Record<string, unknown>).items) {
+          return (variant as Record<string, unknown>).items as DataPortSchema;
+        }
+      }
+    }
+  }
+
+  return schema;
+}
+
+/**
+ * Determines if a schema accepts arrays (is array type or has array in union).
+ */
+export function schemaAcceptsArray(schema: DataPortSchema): boolean {
+  if (typeof schema === "boolean") return false;
+
+  const schemaType = (schema as Record<string, unknown>).type;
+  if (schemaType === "array") return true;
+
+  const variants = (schema.oneOf ?? schema.anyOf) as DataPortSchema[] | undefined;
+  if (Array.isArray(variants)) {
+    return variants.some((variant) => isArrayVariant(variant));
+  }
+
+  return false;
+}
+
+/**
  * Base class for iterator tasks that process collections of items.
- *
- * IteratorTask provides the foundation for loop-type tasks in the task graph.
- * It manages a subgraph of tasks that are executed for each item in a collection,
- * with configurable execution modes (parallel, parallel-limited).
- *
- * Subclasses should implement:
- * - `getIterableItems(input)`: Extract the items to iterate over from input
- * - Optionally override `collectResults()`: Define how to collect/merge results
- *
- * @template Input - The input type for the iterator task
- * @template Output - The output type for the iterator task
- * @template Config - The configuration type (must extend IteratorTaskConfig)
  */
 export abstract class IteratorTask<
   Input extends TaskInput = TaskInput,
@@ -96,15 +258,18 @@ export abstract class IteratorTask<
   public static hasDynamicSchemas: boolean = true;
 
   /**
-   * The template subgraph that will be cloned for each iteration.
-   * This is the workflow defined between map()/batch()/etc and endMap()/endBatch()/etc.
+   * Returns the schema for iteration-context inputs that will be
+   * injected into the subgraph at runtime.
    */
-  protected _templateGraph: TaskGraph | undefined;
+  public static getIterationContextSchema(): DataPortSchema {
+    return ITERATOR_CONTEXT_SCHEMA;
+  }
 
-  /**
-   * Cached iterator port info from schema analysis.
-   */
+  /** Cached iterator port info from schema analysis. */
   protected _iteratorPortInfo: IteratorPortInfo | undefined;
+
+  /** Cached computed iteration input schema. */
+  protected _iterationInputSchema: DataPortSchema | undefined;
 
   constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
     super(input, config as Config);
@@ -116,9 +281,6 @@ export abstract class IteratorTask<
 
   declare _runner: IteratorTaskRunner<Input, Output, Config>;
 
-  /**
-   * Gets the custom iterator task runner.
-   */
   override get runner(): IteratorTaskRunner<Input, Output, Config> {
     if (!this._runner) {
       this._runner = new IteratorTaskRunner<Input, Output, Config>(this);
@@ -127,117 +289,370 @@ export abstract class IteratorTask<
   }
 
   // ========================================================================
-  // Execution Mode Configuration
+  // Graph hooks
+  // ========================================================================
+
+  override set subGraph(subGraph: TaskGraph) {
+    super.subGraph = subGraph;
+    this.invalidateIterationInputSchema();
+    this.events.emit("regenerate");
+  }
+
+  override get subGraph(): TaskGraph {
+    return super.subGraph;
+  }
+
+  public override regenerateGraph(): void {
+    this.invalidateIterationInputSchema();
+    super.regenerateGraph();
+  }
+
+  // ========================================================================
+  // Runner hooks
   // ========================================================================
 
   /**
-   * Gets the execution mode for this iterator.
+   * Whether results should be ordered by iteration index.
+   * MapTask overrides this to use its `preserveOrder` config.
    */
+  public preserveIterationOrder(): boolean {
+    return true;
+  }
+
+  /**
+   * Whether this iterator runs in reduce mode.
+   */
+  public isReduceTask(): boolean {
+    return false;
+  }
+
+  /**
+   * Initial accumulator for reduce mode.
+   */
+  public getInitialAccumulator(): Output {
+    return {} as Output;
+  }
+
+  /**
+   * Builds the per-iteration subgraph input.
+   */
+  public buildIterationRunInput(
+    analysis: IterationAnalysisResult,
+    index: number,
+    iterationCount: number,
+    extraInput: Record<string, unknown> = {}
+  ): Record<string, unknown> {
+    return {
+      ...analysis.getIterationInput(index),
+      ...extraInput,
+      _iterationIndex: index,
+      _iterationCount: iterationCount,
+    };
+  }
+
+  /**
+   * Updates the accumulator with one iteration result in reduce mode.
+   */
+  public mergeIterationIntoAccumulator(
+    accumulator: Output,
+    iterationResult: TaskOutput | undefined,
+    _index: number
+  ): Output {
+    return (iterationResult ?? accumulator) as Output;
+  }
+
+  /**
+   * Returns the result when there are no items to iterate.
+   */
+  public getEmptyResult(): Output {
+    return {} as Output;
+  }
+
+  /**
+   * Collects and merges results from all iterations.
+   */
+  public collectResults(results: TaskOutput[]): Output {
+    if (results.length === 0) {
+      return {} as Output;
+    }
+
+    const merged: Record<string, unknown[]> = {};
+
+    for (const result of results) {
+      if (!result || typeof result !== "object") continue;
+
+      for (const [key, value] of Object.entries(result as Record<string, unknown>)) {
+        if (!merged[key]) {
+          merged[key] = [];
+        }
+        merged[key].push(value);
+      }
+    }
+
+    return merged as Output;
+  }
+
+  // ========================================================================
+  // Execution Mode Configuration
+  // ========================================================================
+
   public get executionMode(): ExecutionMode {
     return this.config.executionMode ?? "parallel";
   }
 
-  /**
-   * Gets the concurrency limit for parallel-limited mode.
-   */
   public get concurrencyLimit(): number {
     return this.config.concurrencyLimit ?? 5;
   }
 
-  /**
-   * Gets the batch size for batched execution.
-   * When set, items are grouped into batches that run fully in parallel.
-   * Returns undefined if batching is not enabled.
-   */
   public get batchSize(): number | undefined {
     return this.config.batchSize;
   }
 
   // ========================================================================
-  // Iterator Port Detection
+  // Iteration Input Schema Management
   // ========================================================================
 
+  public get iterationInputConfig(): Record<string, IterationPropertyConfig> | undefined {
+    return this.config.iterationInputConfig;
+  }
+
+  protected buildDefaultIterationInputSchema(): DataPortSchema {
+    const innerSchema = this.getInnerInputSchema();
+    if (!innerSchema || typeof innerSchema === "boolean") {
+      return { type: "object", properties: {}, additionalProperties: true };
+    }
+
+    const properties: Record<string, DataPortSchema> = {};
+    const innerProps = innerSchema.properties || {};
+
+    for (const [key, propSchema] of Object.entries(innerProps)) {
+      if (typeof propSchema === "boolean") continue;
+
+      if ((propSchema as Record<string, unknown>)["x-ui-iteration"]) {
+        continue;
+      }
+
+      const baseSchema = propSchema as DataPortSchema;
+      properties[key] = createFlexibleSchema(baseSchema);
+    }
+
+    return {
+      type: "object",
+      properties,
+      additionalProperties: innerSchema.additionalProperties ?? true,
+    } as DataPortSchema;
+  }
+
+  protected buildConfiguredIterationInputSchema(): DataPortSchema {
+    const innerSchema = this.getInnerInputSchema();
+    if (!innerSchema || typeof innerSchema === "boolean") {
+      return { type: "object", properties: {}, additionalProperties: true };
+    }
+
+    const config = this.iterationInputConfig || {};
+    const properties: Record<string, DataPortSchema> = {};
+    const innerProps = innerSchema.properties || {};
+
+    for (const [key, propSchema] of Object.entries(innerProps)) {
+      if (typeof propSchema === "boolean") continue;
+
+      if ((propSchema as Record<string, unknown>)["x-ui-iteration"]) {
+        continue;
+      }
+
+      const baseSchema = propSchema as DataPortSchema;
+      const propConfig = config[key];
+
+      if (!propConfig) {
+        properties[key] = createFlexibleSchema(baseSchema);
+        continue;
+      }
+
+      switch (propConfig.mode) {
+        case "array":
+          properties[key] = createArraySchema(propConfig.baseSchema);
+          break;
+        case "scalar":
+          properties[key] = propConfig.baseSchema;
+          break;
+        case "flexible":
+        default:
+          properties[key] = createFlexibleSchema(propConfig.baseSchema);
+          break;
+      }
+    }
+
+    return {
+      type: "object",
+      properties,
+      additionalProperties: innerSchema.additionalProperties ?? true,
+    } as DataPortSchema;
+  }
+
   /**
-   * Auto-detects the iterator port from the input schema.
-   * Finds the first property with type "array" or that has an "items" property.
-   *
-   * @returns The port info or undefined if no array port found
+   * Derives the schema accepted by each iteration of the inner workflow.
+   * This uses root task inputs and does not require an InputTask node.
    */
+  protected getInnerInputSchema(): DataPortSchema | undefined {
+    if (!this.hasChildren()) return undefined;
+
+    const tasks = this.subGraph.getTasks();
+    if (tasks.length === 0) return undefined;
+
+    const startingNodes = tasks.filter((task) => this.subGraph.getSourceDataflows(task.config.id).length === 0);
+    const sources = startingNodes.length > 0 ? startingNodes : tasks;
+
+    const properties: Record<string, DataPortSchema> = {};
+    const required: string[] = [];
+    let additionalProperties = false;
+
+    for (const task of sources) {
+      const inputSchema = task.inputSchema();
+      if (typeof inputSchema === "boolean") {
+        if (inputSchema === true) {
+          additionalProperties = true;
+        }
+        continue;
+      }
+
+      additionalProperties = additionalProperties || inputSchema.additionalProperties === true;
+
+      for (const [key, prop] of Object.entries(inputSchema.properties || {})) {
+        if (typeof prop === "boolean") continue;
+        if (!properties[key]) {
+          properties[key] = prop as DataPortSchema;
+        }
+      }
+
+      for (const key of inputSchema.required || []) {
+        if (!required.includes(key)) {
+          required.push(key);
+        }
+      }
+    }
+
+    return {
+      type: "object",
+      properties,
+      ...(required.length > 0 ? { required } : {}),
+      additionalProperties,
+    } as DataPortSchema;
+  }
+
+  public getIterationInputSchema(): DataPortSchema {
+    if (this._iterationInputSchema) {
+      return this._iterationInputSchema;
+    }
+
+    this._iterationInputSchema = this.iterationInputConfig
+      ? this.buildConfiguredIterationInputSchema()
+      : this.buildDefaultIterationInputSchema();
+
+    return this._iterationInputSchema;
+  }
+
+  public setIterationInputSchema(schema: DataPortSchema): void {
+    this._iterationInputSchema = schema;
+    this._inputSchemaNode = undefined;
+    this.events.emit("regenerate");
+  }
+
+  public setPropertyInputMode(
+    propertyName: string,
+    mode: IterationInputMode,
+    baseSchema?: DataPortSchema
+  ): void {
+    const currentSchema = this.getIterationInputSchema();
+    if (typeof currentSchema === "boolean") return;
+
+    const currentProps = (currentSchema.properties || {}) as Record<string, DataPortSchema>;
+    const existingProp = currentProps[propertyName];
+    const base: DataPortSchema =
+      baseSchema ??
+      (existingProp ? extractBaseSchema(existingProp) : ({ type: "string" } as DataPortSchema));
+
+    let newPropSchema: DataPortSchema;
+    switch (mode) {
+      case "array":
+        newPropSchema = createArraySchema(base);
+        break;
+      case "scalar":
+        newPropSchema = base;
+        break;
+      case "flexible":
+      default:
+        newPropSchema = createFlexibleSchema(base);
+        break;
+    }
+
+    this._iterationInputSchema = {
+      ...currentSchema,
+      properties: {
+        ...currentProps,
+        [propertyName]: newPropSchema,
+      },
+    } as DataPortSchema;
+
+    this._inputSchemaNode = undefined;
+    this.events.emit("regenerate");
+  }
+
+  public invalidateIterationInputSchema(): void {
+    this._iterationInputSchema = undefined;
+    this._iteratorPortInfo = undefined;
+    this._inputSchemaNode = undefined;
+  }
+
+  // ========================================================================
+  // Legacy iterator-port helpers
+  // ========================================================================
+
   protected detectIteratorPort(): IteratorPortInfo | undefined {
     if (this._iteratorPortInfo) {
       return this._iteratorPortInfo;
     }
 
-    // If explicitly configured, use that
-    if (this.config.iteratorPort) {
-      const schema = this.inputSchema();
-      if (typeof schema === "boolean") return undefined;
+    const schema = this.inputSchema();
+    if (typeof schema === "boolean") return undefined;
 
-      const portSchema = schema.properties?.[this.config.iteratorPort];
+    const properties = schema.properties || {};
+
+    if (this.config.iteratorPort) {
+      const portSchema = properties[this.config.iteratorPort];
       if (portSchema && typeof portSchema === "object") {
-        const itemSchema = (portSchema as any).items ?? { type: "object" };
+        const itemSchema = (portSchema as Record<string, unknown>).items as DataPortSchema;
         this._iteratorPortInfo = {
           portName: this.config.iteratorPort,
-          itemSchema,
+          itemSchema: itemSchema ?? { type: "object", additionalProperties: true },
         };
         return this._iteratorPortInfo;
       }
     }
 
-    // Auto-detect: find first array-typed port
-    const schema = this.inputSchema();
-    if (typeof schema === "boolean") return undefined;
-
-    const properties = schema.properties || {};
     for (const [portName, portSchema] of Object.entries(properties)) {
       if (typeof portSchema !== "object" || portSchema === null) continue;
-
       const ps = portSchema as Record<string, unknown>;
-
-      // Check if it's an array type
       if (ps.type === "array" || ps.items !== undefined) {
-        const itemSchema = (ps.items as DataPortSchema) ?? {
-          type: "object",
-          properties: {},
-          additionalProperties: true,
+        this._iteratorPortInfo = {
+          portName,
+          itemSchema:
+            (ps.items as DataPortSchema) ?? {
+              type: "object",
+              properties: {},
+              additionalProperties: true,
+            },
         };
-        this._iteratorPortInfo = { portName, itemSchema };
         return this._iteratorPortInfo;
-      }
-
-      // Check oneOf/anyOf for array types
-      const variants = (ps.oneOf ?? ps.anyOf) as unknown[] | undefined;
-      if (Array.isArray(variants)) {
-        for (const variant of variants) {
-          if (typeof variant === "object" && variant !== null) {
-            const v = variant as Record<string, unknown>;
-            if (v.type === "array" || v.items !== undefined) {
-              const itemSchema = (v.items as DataPortSchema) ?? {
-                type: "object",
-                properties: {},
-                additionalProperties: true,
-              };
-              this._iteratorPortInfo = { portName, itemSchema };
-              return this._iteratorPortInfo;
-            }
-          }
-        }
       }
     }
 
     return undefined;
   }
 
-  /**
-   * Gets the name of the port containing the iterable collection.
-   */
   public getIteratorPortName(): string | undefined {
     return this.detectIteratorPort()?.portName;
   }
 
-  /**
-   * Gets the schema for individual items in the collection.
-   */
   public getItemSchema(): DataPortSchema {
     return (
       this.detectIteratorPort()?.itemSchema ?? {
@@ -249,270 +664,149 @@ export abstract class IteratorTask<
   }
 
   // ========================================================================
-  // Iterable Items Extraction
+  // Iteration analysis
   // ========================================================================
 
   /**
-   * Extracts the items to iterate over from the input.
-   * Subclasses can override this to provide custom extraction logic.
-   *
-   * @param input - The task input
-   * @returns Array of items to iterate over
+   * Analyzes input to determine which ports are iterated vs scalar.
+   * Precedence:
+   * 1) explicit x-ui-iteration annotation (or legacy iteratorPort)
+   * 2) schema inference where deterministic
+   * 3) runtime value fallback (Array.isArray)
    */
-  protected getIterableItems(input: Input): unknown[] {
-    const portName = this.getIteratorPortName();
-    if (!portName) {
-      throw new TaskConfigurationError(
-        `${this.type}: No array port found in input schema. ` +
-          `Specify 'iteratorPort' in config or ensure input has an array-typed property.`
-      );
-    }
+  public analyzeIterationInput(input: Input): IterationAnalysisResult {
+    const inputData = input as Record<string, unknown>;
+    const schema = this.hasChildren() ? this.getIterationInputSchema() : this.inputSchema();
+    const schemaProps: Record<string, DataPortSchema> =
+      typeof schema === "object" && schema.properties
+        ? (schema.properties as Record<string, DataPortSchema>)
+        : {};
 
-    const items = input[portName];
-    if (items === undefined || items === null) {
-      return [];
-    }
+    const keys = new Set([...Object.keys(schemaProps), ...Object.keys(inputData)]);
 
-    if (Array.isArray(items)) {
-      return items;
-    }
+    const arrayPorts: string[] = [];
+    const scalarPorts: string[] = [];
+    const iteratedValues: Record<string, unknown[]> = {};
+    const arrayLengths: number[] = [];
 
-    // Single item - wrap in array
-    return [items];
-  }
+    for (const key of keys) {
+      if (key.startsWith("_iteration")) continue;
 
-  // ========================================================================
-  // Template Graph Management
-  // ========================================================================
+      const value = inputData[key];
+      const portSchema = schemaProps[key];
 
-  /**
-   * Sets the template graph that defines the workflow to run for each iteration.
-   * This is called by the Workflow builder when setting up the loop.
-   *
-   * Note: This does NOT call regenerateGraph() automatically because during
-   * workflow construction, input data may not be available. The graph is
-   * regenerated at execution time when actual input data is provided.
-   */
-  public setTemplateGraph(graph: TaskGraph): void {
-    this._templateGraph = graph;
-    // Don't regenerate here - wait for execution when input data is available
-    this.events.emit("regenerate");
-  }
+      let shouldIterate: boolean;
 
-  /**
-   * Gets the template graph.
-   */
-  public getTemplateGraph(): TaskGraph | undefined {
-    return this._templateGraph;
-  }
-
-  // ========================================================================
-  // Graph Regeneration
-  // ========================================================================
-
-  /**
-   * Regenerates the subgraph based on the template and current input.
-   * This creates cloned task instances for each item in the iteration.
-   */
-  public regenerateGraph(): void {
-    // Clear the existing subgraph
-    this.subGraph = new TaskGraph();
-
-    // If no template or no items, emit and return
-    if (!this._templateGraph || !this._templateGraph.getTasks().length) {
-      super.regenerateGraph();
-      return;
-    }
-
-    const items = this.getIterableItems(this.runInputData as Input);
-    if (items.length === 0) {
-      super.regenerateGraph();
-      return;
-    }
-
-    // For each item, clone the template graph tasks
-    this.createIterationTasks(items);
-
-    super.regenerateGraph();
-  }
-
-  /**
-   * Creates task instances for each iteration item.
-   * Subclasses can override this for custom iteration behavior.
-   *
-   * @param items - The items to iterate over
-   */
-  protected createIterationTasks(items: unknown[]): void {
-    const portName = this.getIteratorPortName();
-    if (!portName) return;
-
-    // Get all non-iterator input values to pass to each iteration
-    const baseInput: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(this.runInputData)) {
-      if (key !== portName) {
-        baseInput[key] = value;
-      }
-    }
-
-    // Create tasks for each item
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const iterationInput = {
-        ...baseInput,
-        [portName]: item,
-        _iterationIndex: i,
-        _iterationItem: item,
-      };
-
-      // Clone template tasks for this iteration
-      this.cloneTemplateForIteration(iterationInput, i);
-    }
-  }
-
-  /**
-   * Clones the template graph tasks for a single iteration.
-   *
-   * @param iterationInput - The input for this iteration
-   * @param index - The iteration index
-   */
-  protected cloneTemplateForIteration(
-    iterationInput: Record<string, unknown>,
-    index: number
-  ): void {
-    if (!this._templateGraph) return;
-
-    const templateTasks = this._templateGraph.getTasks();
-    const templateDataflows = this._templateGraph.getDataflows();
-
-    // Map from template task ID to cloned task ID
-    const idMap = new Map<unknown, unknown>();
-
-    // Clone each task
-    for (const templateTask of templateTasks) {
-      const TaskClass = templateTask.constructor as any;
-      const clonedTask = new TaskClass(
-        { ...templateTask.defaults, ...iterationInput },
-        {
-          ...templateTask.config,
-          id: `${templateTask.config.id}_iter${index}`,
-          name: `${templateTask.config.name || templateTask.type} [${index}]`,
+      if (this.config.iteratorPort && key === this.config.iteratorPort) {
+        shouldIterate = true;
+      } else {
+        const explicitFlag = getExplicitIterationFlag(portSchema);
+        if (explicitFlag !== undefined) {
+          shouldIterate = explicitFlag;
+        } else {
+          const schemaInference = inferIterationFromSchema(portSchema);
+          shouldIterate = schemaInference ?? Array.isArray(value);
         }
-      );
-
-      this.subGraph.addTask(clonedTask);
-      idMap.set(templateTask.config.id, clonedTask.config.id);
-    }
-
-    // Clone dataflows with updated IDs
-    for (const templateDataflow of templateDataflows) {
-      const sourceId = idMap.get(templateDataflow.sourceTaskId);
-      const targetId = idMap.get(templateDataflow.targetTaskId);
-
-      if (sourceId !== undefined && targetId !== undefined) {
-        const { Dataflow } = require("../task-graph/Dataflow");
-        const clonedDataflow = new Dataflow(
-          sourceId,
-          templateDataflow.sourceTaskPortId,
-          targetId,
-          templateDataflow.targetTaskPortId
-        );
-        this.subGraph.addDataflow(clonedDataflow);
       }
+
+      if (!shouldIterate) {
+        scalarPorts.push(key);
+        continue;
+      }
+
+      // Legacy explicit iteratorPort support: wrap scalar in a single-item array.
+      if (!Array.isArray(value)) {
+        if (this.config.iteratorPort && key === this.config.iteratorPort) {
+          const wrapped = value === undefined || value === null ? [] : [value];
+          iteratedValues[key] = wrapped;
+          arrayPorts.push(key);
+          arrayLengths.push(wrapped.length);
+          continue;
+        }
+
+        throw new TaskConfigurationError(
+          `${this.type}: Input '${key}' is configured for iteration but value is not an array.`
+        );
+      }
+
+      iteratedValues[key] = value;
+      arrayPorts.push(key);
+      arrayLengths.push(value.length);
     }
-  }
 
-  // ========================================================================
-  // Execution
-  // ========================================================================
-
-  /**
-   * Execute the iterator task.
-   * Sets up the iteration and delegates to the parent GraphAsTask execution.
-   */
-  public async execute(input: Input, context: IExecuteContext): Promise<Output | undefined> {
-    // Ensure we have items to iterate
-    const items = this.getIterableItems(input);
-    if (items.length === 0) {
-      return this.getEmptyResult();
+    if (arrayPorts.length === 0) {
+      throw new TaskConfigurationError(
+        `${this.type}: At least one array input is required for iteration. ` +
+          `Mark a port with x-ui-iteration=true, provide array-typed schema, or pass array values at runtime.`
+      );
     }
 
-    // Regenerate graph with current input
-    this.runInputData = { ...this.defaults, ...input };
-    this.regenerateGraph();
+    const uniqueLengths = new Set(arrayLengths);
+    if (uniqueLengths.size > 1) {
+      const lengthInfo = arrayPorts.map((port, index) => `${port}=${arrayLengths[index]}`).join(", ");
+      throw new TaskConfigurationError(
+        `${this.type}: All iterated array inputs must have the same length (zip semantics). ` +
+          `Found different lengths: ${lengthInfo}`
+      );
+    }
 
-    // Let the parent handle subgraph execution
-    return super.execute(input, context);
-  }
+    const iterationCount = arrayLengths[0] ?? 0;
 
-  /**
-   * Returns the result when there are no items to iterate.
-   * Subclasses should override this to return appropriate empty results.
-   */
-  protected getEmptyResult(): Output {
-    return {} as Output;
-  }
+    const getIterationInput = (index: number): Record<string, unknown> => {
+      const iterInput: Record<string, unknown> = {};
 
-  // ========================================================================
-  // Result Collection
-  // ========================================================================
+      for (const key of arrayPorts) {
+        iterInput[key] = iteratedValues[key][index];
+      }
 
-  /**
-   * Collects and merges results from all iterations.
-   * Subclasses can override this for custom result handling.
-   *
-   * @param results - Array of results from each iteration
-   * @returns Merged output
-   */
-  protected collectResults(results: TaskOutput[]): Output {
-    // Default: use the GraphAsTask's PROPERTY_ARRAY merge strategy
-    // which collects values into arrays per property
-    return results as unknown as Output;
+      for (const key of scalarPorts) {
+        if (key in inputData) {
+          iterInput[key] = inputData[key];
+        }
+      }
+
+      return iterInput;
+    };
+
+    return {
+      iterationCount,
+      arrayPorts,
+      scalarPorts,
+      getIterationInput,
+    };
   }
 
   // ========================================================================
   // Schema Methods
   // ========================================================================
 
-  /**
-   * Input schema for the iterator.
-   * Returns the static schema since the iterator accepts the full array.
-   */
+  public getIterationContextSchema(): DataPortSchema {
+    return (this.constructor as typeof IteratorTask).getIterationContextSchema();
+  }
+
   public inputSchema(): DataPortSchema {
-    // If we have a template graph, derive from its starting nodes
-    if (this.hasChildren() || this._templateGraph) {
-      return super.inputSchema();
+    if (this.hasChildren()) {
+      return this.getIterationInputSchema();
     }
     return (this.constructor as typeof IteratorTask).inputSchema();
   }
 
-  /**
-   * Output schema for the iterator.
-   * Subclasses should override to define their specific output structure.
-   */
   public outputSchema(): DataPortSchema {
-    // Default: wrap inner output properties in arrays
-    if (!this.hasChildren() && !this._templateGraph) {
+    if (!this.hasChildren()) {
       return (this.constructor as typeof IteratorTask).outputSchema();
     }
 
     return this.getWrappedOutputSchema();
   }
 
-  /**
-   * Gets the output schema with properties wrapped in arrays.
-   * Used by MapTask and similar tasks that collect results.
-   */
   protected getWrappedOutputSchema(): DataPortSchema {
-    const templateGraph = this._templateGraph ?? this.subGraph;
-    if (!templateGraph) {
+    if (!this.hasChildren()) {
       return { type: "object", properties: {}, additionalProperties: false };
     }
 
-    // Get ending nodes in the template
-    const tasks = templateGraph.getTasks();
-    const endingNodes = tasks.filter(
-      (task) => templateGraph.getTargetDataflows(task.config.id).length === 0
-    );
+    const endingNodes = this.subGraph
+      .getTasks()
+      .filter((task) => this.subGraph.getTargetDataflows(task.config.id).length === 0);
 
     if (endingNodes.length === 0) {
       return { type: "object", properties: {}, additionalProperties: false };
@@ -524,9 +818,7 @@ export abstract class IteratorTask<
       const taskOutputSchema = task.outputSchema();
       if (typeof taskOutputSchema === "boolean") continue;
 
-      const taskProperties = taskOutputSchema.properties || {};
-      for (const [key, schema] of Object.entries(taskProperties)) {
-        // Wrap in array
+      for (const [key, schema] of Object.entries(taskOutputSchema.properties || {})) {
         properties[key] = {
           type: "array",
           items: schema,

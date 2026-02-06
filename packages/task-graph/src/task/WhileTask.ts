@@ -6,15 +6,30 @@
 
 import type { DataPortSchema } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import {
-  CreateEndLoopWorkflow,
-  CreateLoopWorkflow,
-  Workflow,
-} from "../task-graph/Workflow";
+import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
 import { TaskConfigurationError } from "./TaskError";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+
+/**
+ * WhileTask context schema - only has index since count is unknown ahead of time.
+ * Properties are marked with "x-ui-iteration": true so the builder
+ * knows to hide them from parent-level display.
+ */
+export const WHILE_CONTEXT_SCHEMA: DataPortSchema = {
+  type: "object",
+  properties: {
+    _iterationIndex: {
+      type: "integer",
+      minimum: 0,
+      title: "Iteration",
+      description: "Current iteration number (0-based)",
+      "x-ui-iteration": true,
+      "x-ui-hidden": true,
+    },
+  },
+};
 
 /**
  * Condition function type for WhileTask.
@@ -29,8 +44,7 @@ export type WhileConditionFn<Output> = (output: Output, iteration: number) => bo
 /**
  * Configuration for WhileTask.
  */
-export interface WhileTaskConfig<Output extends TaskOutput = TaskOutput>
-  extends GraphAsTaskConfig {
+export interface WhileTaskConfig<Output extends TaskOutput = TaskOutput> extends GraphAsTaskConfig {
   /**
    * Condition function that determines whether to continue looping.
    * Called after each iteration with the current output and iteration count.
@@ -107,6 +121,17 @@ export class WhileTask<
 
   /** This task has dynamic schemas based on the inner workflow */
   public static hasDynamicSchemas: boolean = true;
+
+  /**
+   * Returns the schema for iteration-context inputs that will be
+   * injected into the subgraph InputTask at runtime.
+   *
+   * WhileTask only provides _iterationIndex since the total count
+   * is unknown ahead of time.
+   */
+  public static getIterationContextSchema(): DataPortSchema {
+    return WHILE_CONTEXT_SCHEMA;
+  }
 
   /**
    * The template subgraph that will be executed each iteration.
@@ -201,8 +226,14 @@ export class WhileTask<
       // Clone template for this iteration
       this.subGraph = this.cloneTemplateGraph(this._currentIteration);
 
+      // Inject iteration context into input
+      const iterationInput = {
+        ...currentInput,
+        _iterationIndex: this._currentIteration,
+      } as Input;
+
       // Run the subgraph
-      const results = await this.subGraph.run<Output>(currentInput, {
+      const results = await this.subGraph.run<Output>(iterationInput, {
         parentSignal: context.signal,
       });
 
@@ -225,10 +256,7 @@ export class WhileTask<
       this._currentIteration++;
 
       // Update progress
-      const progress = Math.min(
-        (this._currentIteration / this.maxIterations) * 100,
-        99
-      );
+      const progress = Math.min((this._currentIteration / this.maxIterations) * 100, 99);
       await context.updateProgress(progress, `Iteration ${this._currentIteration}`);
     }
 
@@ -290,6 +318,44 @@ export class WhileTask<
   // ========================================================================
   // Schema Methods
   // ========================================================================
+
+  /**
+   * Instance method to get the iteration context schema.
+   * Can be overridden by subclasses to customize iteration context.
+   */
+  public getIterationContextSchema(): DataPortSchema {
+    return (this.constructor as typeof WhileTask).getIterationContextSchema();
+  }
+
+  /**
+   * When chainIterations is true, the output schema from the previous
+   * iteration becomes part of the input schema for the next iteration.
+   * These chained properties should be marked with "x-ui-iteration": true.
+   *
+   * @returns Schema with chained output properties marked for iteration, or undefined if not chaining
+   */
+  public getChainedOutputSchema(): DataPortSchema | undefined {
+    if (!this.chainIterations) return undefined;
+
+    const outputSchema = this.outputSchema();
+    if (typeof outputSchema === "boolean") return undefined;
+
+    // Clone and mark all properties with x-ui-iteration
+    const properties: Record<string, DataPortSchema> = {};
+    if (outputSchema.properties && typeof outputSchema.properties === "object") {
+      for (const [key, schema] of Object.entries(outputSchema.properties)) {
+        // Skip the _iterations meta field
+        if (key === "_iterations") continue;
+        if (typeof schema === "object" && schema !== null) {
+          properties[key] = { ...schema, "x-ui-iteration": true } as DataPortSchema;
+        }
+      }
+    }
+
+    if (Object.keys(properties).length === 0) return undefined;
+
+    return { type: "object", properties } as DataPortSchema;
+  }
 
   /**
    * Static input schema for WhileTask.
