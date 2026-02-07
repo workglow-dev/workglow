@@ -4,118 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IExecuteContext, TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import type { TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
 import {
   createGraphFromGraphJSON,
   createTaskFromGraphJSON,
   Dataflow,
   GraphAsTask,
-  Task,
   TaskGraph,
   TaskRegistry,
 } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
 import { describe, expect, test } from "vitest";
 
-// Test task classes
-class TestTask extends Task<{ value: number }, { result: number }> {
-  static readonly type = "TestTask";
-  static readonly category = "Test";
-  static readonly title = "Test Task";
-  static readonly description = "A simple test task";
-  declare runInputData: { value: number };
-  declare runOutputData: { result: number };
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        value: { type: "number" },
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        result: { type: "number" },
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(input: { value: number }, context: IExecuteContext): Promise<{ result: number }> {
-    return { result: input.value * 2 };
-  }
-}
-
-class TestTaskWithDefaults extends Task<
-  { value: number; multiplier?: number },
-  { result: number }
-> {
-  static readonly type = "TestTaskWithDefaults";
-  static readonly category = "Test";
-  declare runInputData: { value: number; multiplier?: number };
-  declare runOutputData: { result: number };
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        value: { type: "number" },
-        multiplier: { type: "number" },
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        result: { type: "number" },
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(
-    input: { value: number; multiplier?: number },
-    context: IExecuteContext
-  ): Promise<{ result: number }> {
-    const multiplier = input.multiplier ?? 1;
-    return { result: input.value * multiplier };
-  }
-}
-
-class TestGraphAsTask extends GraphAsTask<{ input: string }, { output: string }> {
-  static readonly type = "TestGraphAsTask";
-  static readonly category = "Test";
-  declare runInputData: { input: string };
-  declare runOutputData: { output: string };
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        input: { type: "string" },
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        output: { type: "string" },
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-}
+import { TestGraphAsTask, TestTask, TestTaskWithDefaults } from "./TestTasks";
 
 // Register test tasks
 TaskRegistry.registerTask(TestTask);
