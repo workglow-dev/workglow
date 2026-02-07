@@ -1301,7 +1301,10 @@ describe("Iterator Execution Regressions", () => {
     }
 
     const workflow = new Workflow();
-    workflow.reduce({ initialValue: { sum: 0 } }).addTask(ZipReduceTask).endReduce();
+    workflow
+      .reduce({ initialValue: { sum: 0 } })
+      .addTask(ZipReduceTask)
+      .endReduce();
 
     const result = await workflow.run({ left: [1, 2, 3], right: [10, 20, 30] });
     expect(result.sum).toBe(66);

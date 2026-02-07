@@ -499,7 +499,9 @@ export abstract class IteratorTask<
     const tasks = this.subGraph.getTasks();
     if (tasks.length === 0) return undefined;
 
-    const startingNodes = tasks.filter((task) => this.subGraph.getSourceDataflows(task.config.id).length === 0);
+    const startingNodes = tasks.filter(
+      (task) => this.subGraph.getSourceDataflows(task.config.id).length === 0
+    );
     const sources = startingNodes.length > 0 ? startingNodes : tasks;
 
     const properties: Record<string, DataPortSchema> = {};
@@ -635,12 +637,11 @@ export abstract class IteratorTask<
       if (ps.type === "array" || ps.items !== undefined) {
         this._iteratorPortInfo = {
           portName,
-          itemSchema:
-            (ps.items as DataPortSchema) ?? {
-              type: "object",
-              properties: {},
-              additionalProperties: true,
-            },
+          itemSchema: (ps.items as DataPortSchema) ?? {
+            type: "object",
+            properties: {},
+            additionalProperties: true,
+          },
         };
         return this._iteratorPortInfo;
       }
@@ -743,7 +744,9 @@ export abstract class IteratorTask<
 
     const uniqueLengths = new Set(arrayLengths);
     if (uniqueLengths.size > 1) {
-      const lengthInfo = arrayPorts.map((port, index) => `${port}=${arrayLengths[index]}`).join(", ");
+      const lengthInfo = arrayPorts
+        .map((port, index) => `${port}=${arrayLengths[index]}`)
+        .join(", ");
       throw new TaskConfigurationError(
         `${this.type}: All iterated array inputs must have the same length (zip semantics). ` +
           `Found different lengths: ${lengthInfo}`
