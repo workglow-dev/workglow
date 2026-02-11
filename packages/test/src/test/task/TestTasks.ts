@@ -12,13 +12,17 @@
 
 import {
   CreateWorkflow,
+  GraphAsTask,
   IExecuteContext,
+  IteratorTask,
   Task,
   TaskAbortedError,
   TaskConfig,
   TaskError,
   TaskFailedError,
+  TaskGraph,
   TaskInput,
+  TaskOutput,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, sleep } from "@workglow/util";
@@ -1011,52 +1015,6 @@ export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: nu
     return { sum: Array.from(input.data).reduce((a, b) => a + b, 0) };
   }
 }
-
-/**
- * Module augmentation to register test task types in the workflow system
- */
-declare module "@workglow/task-graph" {
-  interface Workflow {
-    testSimple(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
-    testOutput(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
-    testInput(input?: Partial<{ customInput: string }>, config?: Partial<TaskConfig>): this;
-    failing(input?: Partial<{}>, config?: Partial<TaskConfig>): this;
-    longRunning(input?: Partial<{}>, config?: Partial<TaskConfig>): this;
-    string(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
-    numberToString(input?: Partial<{ input: number }>, config?: Partial<TaskConfig>): this;
-    number(input?: Partial<{ input: number }>, config?: Partial<TaskConfig>): this;
-    testAdd(input?: Partial<TestAddTaskInput>, config?: Partial<TaskConfig>): this;
-    vectorOutput(input?: Partial<{ text: string }>, config?: Partial<TaskConfig>): this;
-    vectorsInput(input?: Partial<{ vectors: Float32Array }>, config?: Partial<TaskConfig>): this;
-    vectorOneOfOutput(input?: Partial<{ text: string }>, config?: Partial<TaskConfig>): this;
-    vectorAnyOfInput(input?: Partial<{ data: Float32Array }>, config?: Partial<TaskConfig>): this;
-    textOutput(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
-    vectorOutputOnly(input?: Partial<{ size: number }>, config?: Partial<TaskConfig>): this;
-    textVectorInput(
-      input?: Partial<{ text: string; vector: Float32Array }>,
-      config?: Partial<TaskConfig>
-    ): this;
-    passthroughVector(
-      input?: Partial<{ vector: Float32Array }>,
-      config?: Partial<TaskConfig>
-    ): this;
-  }
-}
-
-// Register test tasks with the workflow system
-Workflow.prototype.testSimple = CreateWorkflow(TestSimpleTask);
-Workflow.prototype.testOutput = CreateWorkflow(TestOutputTask);
-Workflow.prototype.testInput = CreateWorkflow(TestInputTask);
-Workflow.prototype.failing = CreateWorkflow(FailingTask);
-Workflow.prototype.longRunning = CreateWorkflow(LongRunningTask);
-Workflow.prototype.string = CreateWorkflow(StringTask);
-Workflow.prototype.numberToString = CreateWorkflow(NumberToStringTask);
-Workflow.prototype.number = CreateWorkflow(NumberTask);
-Workflow.prototype.testAdd = CreateWorkflow(TestAddTask);
-Workflow.prototype.vectorOutput = CreateWorkflow(VectorOutputTask);
-Workflow.prototype.vectorsInput = CreateWorkflow(VectorsInputTask);
-Workflow.prototype.vectorOneOfOutput = CreateWorkflow(VectorOneOfOutputTask);
-Workflow.prototype.vectorAnyOfInput = CreateWorkflow(VectorAnyOfInputTask);
 /**
  * Task that outputs only text - for testing multi-source matching
  */
@@ -1225,7 +1183,1319 @@ export class PassthroughVectorTask extends Task<
     return { vector: input.vector };
   }
 }
+
+// ============================================================================
+// Consolidated test tasks from ConditionalTask, IteratorTask, etc.
+// ============================================================================
+
+/**
+ * Simple task that processes a value input (from ConditionalTask tests)
+ */
+export class ProcessValueTask extends Task<{ value: number }, { result: string }> {
+  static type = "ProcessValueTask";
+  static category = "Test";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number" },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "string" },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }): Promise<{ result: string }> {
+    return { result: `processed-${input.value}` };
+  }
+}
+
+/**
+ * Task that tracks if it was executed (from ConditionalTask tests)
+ */
+export class TrackingTask extends Task<{ input: any }, { executed: boolean; input: any }> {
+  static type = "TrackingTask";
+  static category = "Test";
+
+  executed = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        input: {},
+      },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        executed: { type: "boolean" },
+        input: {},
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { input: any }): Promise<{ executed: boolean; input: any }> {
+    this.executed = true;
+    return { executed: true, input: input.input };
+  }
+}
+
+/**
+ * Task that doubles a number, output as "doubled" (from ConditionalTask tests)
+ */
+export class DoubleToDoubledTask extends Task<{ value: number }, { doubled: number }> {
+  static type = "DoubleToDoubledTask";
+  static category = "Test";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number" },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        doubled: { type: "number" },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }): Promise<{ doubled: number }> {
+    return { doubled: input.value * 2 };
+  }
+}
+
+/**
+ * Task that halves a number (from ConditionalTask tests)
+ */
+export class HalveTask extends Task<{ value: number }, { halved: number }> {
+  static type = "HalveTask";
+  static category = "Test";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number" },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        halved: { type: "number" },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }): Promise<{ halved: number }> {
+    return { halved: input.value / 2 };
+  }
+}
+
+/**
+ * Task that doubles a number, output as "result" (from IteratorTask tests)
+ */
+export class DoubleToResultTask extends Task<{ value: number }, { result: number }> {
+  static type = "DoubleToResultTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number", default: 0 },
+      },
+      required: ["value"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "number" },
+      },
+      required: ["result"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }): Promise<{ result: number }> {
+    return { result: input.value * 2 };
+  }
+}
+
+/**
+ * Task that squares a number (from IteratorTask tests)
+ */
+export class SquareTask extends Task<{ value: number }, { squared: number }> {
+  static type = "SquareTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number", default: 0 },
+      },
+      required: ["value"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        squared: { type: "number" },
+      },
+      required: ["squared"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }): Promise<{ squared: number }> {
+    return { squared: input.value * input.value };
+  }
+}
+
+/**
+ * Processes a single item by doubling it (from IteratorTask workflow tests)
+ */
+export class ProcessItemTask extends Task<{ item: number }, { processed: number }> {
+  static type = "ProcessItemTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        item: { type: "number" },
+      },
+      required: ["item"],
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        processed: { type: "number" },
+      },
+      required: ["processed"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { item: number }): Promise<{ processed: number }> {
+    return { processed: input.item * 2 };
+  }
+}
+
+/**
+ * Creates a mock embedding from text (from IteratorTask workflow tests)
+ */
+export class TextEmbeddingTask extends Task<{ text: string }, { vector: readonly number[] }> {
+  static type = "TextEmbeddingTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        text: { type: "string" },
+      },
+      required: ["text"],
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        vector: {
+          type: "array",
+          items: { type: "number" },
+        },
+      },
+      required: ["vector"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { text: string }): Promise<{ vector: readonly number[] }> {
+    const vector = input.text.split("").map((c) => c.charCodeAt(0) / 255);
+    return { vector };
+  }
+}
+
+/**
+ * Refines a value and calculates quality score (from IteratorTask workflow tests)
+ */
+export class RefineTask extends Task<
+  { value: number; quality?: number },
+  { quality: number; value: number }
+> {
+  static type = "RefineTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number" },
+        quality: { type: "number" },
+      },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        quality: { type: "number" },
+        value: { type: "number" },
+      },
+      required: ["quality", "value"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: {
+    value: number;
+    quality?: number;
+  }): Promise<{ quality: number; value: number }> {
+    const currentQuality = (input as any).quality ?? 0;
+    const newQuality = Math.min(1.0, currentQuality + 0.2);
+    return {
+      quality: newQuality,
+      value: input.value + 1,
+    };
+  }
+}
+
+/**
+ * Adds current item to accumulator sum (from IteratorTask workflow tests)
+ */
+export class AddToSumTask extends Task<
+  { accumulator: { sum: number }; currentItem: number; index: number },
+  { sum: number }
+> {
+  static type = "AddToSumTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        accumulator: {
+          type: "object",
+          properties: {
+            sum: { type: "number" },
+          },
+        },
+        currentItem: { type: "number" },
+        index: { type: "number" },
+      },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        sum: { type: "number" },
+      },
+      required: ["sum"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: {
+    accumulator: { sum: number };
+    currentItem: number;
+  }): Promise<{ sum: number }> {
+    return { sum: input.accumulator.sum + input.currentItem };
+  }
+}
+
+/**
+ * Processes a batch of items (from IteratorTask workflow tests)
+ */
+export class BulkProcessTask extends Task<
+  { items: readonly number[] },
+  { results: readonly number[] }
+> {
+  static type = "BulkProcessTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: { type: "number" },
+        },
+      },
+      required: ["items"],
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        results: {
+          type: "array",
+          items: { type: "number" },
+        },
+      },
+      required: ["results"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { items: readonly number[] }): Promise<{
+    results: readonly number[];
+  }> {
+    return { results: input.items.map((x) => x * 10) };
+  }
+}
+
+/**
+ * Concrete implementation of IteratorTask for testing
+ */
+export class TestIteratorTask<
+  Input extends TaskInput = TaskInput,
+  Output extends TaskOutput = TaskOutput,
+> extends IteratorTask<Input, Output> {
+  static type = "TestIteratorTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: { type: "number" },
+        },
+      },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+}
+
+/**
+ * Test task with defaults for TaskJSON tests
+ */
+export class TestTaskWithDefaults extends Task<
+  { value: number; multiplier?: number },
+  { result: number }
+> {
+  static readonly type = "TestTaskWithDefaults";
+  static readonly category = "Test";
+  declare runInputData: { value: number; multiplier?: number };
+  declare runOutputData: { result: number };
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number" },
+        multiplier: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number; multiplier?: number }): Promise<{ result: number }> {
+    const multiplier = input.multiplier ?? 1;
+    return { result: input.value * multiplier };
+  }
+}
+
+/**
+ * Test GraphAsTask for TaskJSON tests
+ */
+export class TestGraphAsTask extends GraphAsTask<{ input: string }, { output: string }> {
+  static readonly type = "TestGraphAsTask";
+  static readonly category = "Test";
+  declare runInputData: { input: string };
+  declare runOutputData: { output: string };
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        input: { type: "string" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        output: { type: "string" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+}
+
+/**
+ * Test task for smartClone - exposes private smartClone for testing
+ */
+export class TestSmartCloneTask extends Task<{ data: any }, { result: any }> {
+  static readonly type = "TestSmartCloneTask";
+  static readonly category = "Test";
+  static readonly title = "Test Smart Clone Task";
+  static readonly description = "A task for testing smartClone";
+  declare runInputData: { data: any };
+  declare runOutputData: { result: any };
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        data: {},
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: {},
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { data: any }): Promise<{ result: any }> {
+    return { result: input.data };
+  }
+
+  /** Expose smartClone for testing */
+  public testSmartClone(obj: any): any {
+    return (this as any).smartClone(obj);
+  }
+}
+
+/**
+ * InputTask-like task that passes through its input (from GraphAsTask tests)
+ */
+export class GraphAsTask_InputTask extends Task<Record<string, unknown>, Record<string, unknown>> {
+  static type = "GraphAsTask_InputTask";
+  static category = "Test";
+  static hasDynamicSchemas = true;
+  static cacheable = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+
+  async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+}
+
+/**
+ * ComputeTask that adds two numbers (from GraphAsTask tests)
+ */
+export class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { result: number }> {
+  static type = "GraphAsTask_ComputeTask";
+  static category = "Test";
+  static cacheable = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        a: { type: "number" },
+        b: { type: "number" },
+      },
+      required: ["a", "b"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { a: number; b: number }): Promise<{ result: number }> {
+    return { result: input.a + input.b };
+  }
+
+  async executeReactive(input: { a: number; b: number }): Promise<{ result: number }> {
+    return { result: input.a + input.b };
+  }
+}
+
+/**
+ * Custom GraphAsTask with explicit schemas for testing reactive execution (from GraphAsTask tests)
+ */
+export class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { result: number }> {
+  static type = "TestGraphAsTask_AB";
+  static category = "Test";
+  static hasDynamicSchemas = true;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        a: { type: "number" },
+        b: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public inputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_AB).inputSchema();
+  }
+
+  public outputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_AB).outputSchema();
+  }
+}
+
+/**
+ * GraphAsTask with value passthrough for testing (from GraphAsTask tests)
+ */
+export class TestGraphAsTask_Value extends GraphAsTask<{ value: string }, { value: string }> {
+  static type = "TestGraphAsTask_Value";
+  static category = "Test";
+  static hasDynamicSchemas = true;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "string" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "string" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public inputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_Value).inputSchema();
+  }
+
+  public outputSchema(): DataPortSchema {
+    return (this.constructor as typeof TestGraphAsTask_Value).outputSchema();
+  }
+}
+
+/**
+ * Test tasks with specific input/output schemas for GraphAsTask tests.
+ */
+export class GraphAsTask_TaskA extends Task {
+  static type = "GraphAsTask_TaskA";
+  static category = "Test";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        inputA1: {
+          type: "string",
+          description: "First input to A",
+        },
+        inputA2: {
+          type: "number",
+          description: "Second input to A",
+          default: 42,
+        },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        outputA: {
+          type: "string",
+          description: "Output from A",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: any): Promise<any> {
+    return {
+      outputA: `${input.inputA1}-${input.inputA2}`,
+    };
+  }
+}
+
+export class GraphAsTask_TaskB extends Task {
+  static type = "GraphAsTask_TaskB";
+  static category = "Test";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        inputB: {
+          type: "string",
+          description: "Input to B",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        outputB: {
+          type: "string",
+          description: "Output from B",
+        },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: any): Promise<any> {
+    return {
+      outputB: `processed-${input.inputB}`,
+    };
+  }
+}
+
+export class GraphAsTask_TaskC extends Task {
+  static type = "GraphAsTask_TaskC";
+  static category = "Test";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        inputC1: {
+          type: "string",
+          description: "First input to C",
+        },
+        inputC2: {
+          type: "string",
+          description: "Second input to C",
+          default: "defaultC2",
+        },
+      },
+      required: ["inputC1"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        outputC1: {
+          type: "string",
+          description: "First output from C",
+        },
+        outputC2: {
+          type: "number",
+          description: "Second output from C",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: any): Promise<any> {
+    return {
+      outputC1: `${input.inputC1}+${input.inputC2}`,
+      outputC2: input.inputC1.length + input.inputC2.length,
+    };
+  }
+}
+
+/**
+ * OutputTask that passes through its input (from GraphAsTask tests)
+ */
+export class GraphAsTask_OutputTask extends Task<Record<string, unknown>, Record<string, unknown>> {
+  static type = "GraphAsTask_OutputTask";
+  static category = "Test";
+  static cacheable = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const as DataPortSchema;
+  }
+
+  async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+
+  async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return input;
+  }
+}
+
+/**
+ * Format semantic test tasks (from TaskGraphFormatSemantic tests)
+ * Used for testing model/prompt format compatibility
+ */
+export class ModelProviderTask extends Task<{ config: string }, { model: string }> {
+  static readonly type = "ModelProviderTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        config: {
+          type: "string",
+          description: "Configuration string",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        model: {
+          type: "string",
+          format: "model",
+          description: "Generic model identifier",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { model: "generic-model" };
+  }
+}
+
+export class EmbeddingModelProviderTask extends Task<{ config: string }, { model: string }> {
+  static readonly type = "EmbeddingModelProviderTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        config: {
+          type: "string",
+          description: "Configuration string",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        model: {
+          type: "string",
+          format: "model:EmbeddingTask",
+          description: "Embedding model identifier",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { model: "embedding-model" };
+  }
+}
+
+export class GenericModelConsumerTask extends Task<{ model: string }, { result: string }> {
+  static readonly type = "GenericModelConsumerTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        model: {
+          type: "string",
+          format: "model",
+          description: "Generic model identifier",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: {
+          type: "string",
+          description: "Processing result",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { result: `processed with ${(input as any).model}` };
+  }
+}
+
+export class EmbeddingConsumerTask extends Task<{ model: string }, { embeddings: number[] }> {
+  static readonly type = "EmbeddingConsumerTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        model: {
+          oneOf: [
+            {
+              format: "model:EmbeddingTask",
+              type: "string",
+            },
+            {
+              type: "array",
+              items: {
+                format: "model:EmbeddingTask",
+                type: "string",
+              },
+            },
+          ],
+          title: "Model",
+          description: "The embedding model to use",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        embeddings: {
+          type: "array",
+          items: { type: "number" },
+          description: "Generated embeddings",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { embeddings: [1, 2, 3] };
+  }
+}
+
+export class PromptProviderTask extends Task<{ text: string }, { prompt: string }> {
+  static readonly type = "PromptProviderTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "Input text",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        prompt: {
+          type: "string",
+          format: "prompt",
+          description: "Generated prompt",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { prompt: "generated prompt" };
+  }
+}
+
+export class TextGenerationModelProviderTask extends Task<{ config: string }, { model: string }> {
+  static readonly type = "TextGenerationModelProviderTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        config: {
+          type: "string",
+          description: "Configuration string",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        model: {
+          type: "string",
+          format: "model:TextGenerationTask",
+          description: "Text generation model identifier",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { model: "text-generation-model" };
+  }
+}
+
+export class PlainStringProviderTask extends Task<{ input: string }, { output: string }> {
+  static readonly type = "PlainStringProviderTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        input: {
+          type: "string",
+          description: "Input string",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        output: {
+          type: "string",
+          description: "Output string",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { output: "plain string" };
+  }
+}
+
+export class PlainStringConsumerTask extends Task<{ input: string }, { result: string }> {
+  static readonly type = "PlainStringConsumerTask";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        input: {
+          type: "string",
+          description: "Input string",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: {
+          type: "string",
+          description: "Processing result",
+        },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: TaskInput): Promise<any> {
+    return { result: "processed" };
+  }
+}
+
+/**
+ * Pipeline tasks - value -> value for pipe() chaining (from Pipeline tests)
+ */
+export type PipelineNumberIO = { value: number };
+
+/**
+ * Doubles the value (value -> value for pipeline chaining)
+ */
+export class PipelineDoubleTask extends Task<PipelineNumberIO, PipelineNumberIO> {
+  static type = "PipelineDoubleTask";
+  static category = "Math";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number" } },
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number" } },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
+    return { value: input.value * 2 };
+  }
+}
+
+/**
+ * Adds 5 to the value (value -> value for pipeline chaining)
+ */
+export class AddFiveTask extends Task<PipelineNumberIO, PipelineNumberIO> {
+  static type = "AddFiveTask";
+  static category = "Math";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number" } },
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number" } },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
+    return { value: input.value + 5 };
+  }
+}
+
+/**
+ * Squares the value (value -> value for pipeline chaining)
+ */
+export class PipelineSquareTask extends Task<PipelineNumberIO, PipelineNumberIO> {
+  static type = "PipelineSquareTask";
+  static category = "Math";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number" } },
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number" } },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
+    return { value: input.value * input.value };
+  }
+}
+
+/**
+ * A test task that creates other tasks during execution (from OwnTask tests)
+ */
+export class TaskCreatorTask extends Task {
+  static type = "TaskCreatorTask";
+  static category = "Test";
+
+  async execute(input: TaskInput, context: any): Promise<TaskOutput> {
+    const simpleTask = new Task();
+    context.own(simpleTask);
+
+    const taskGraph = new TaskGraph();
+    taskGraph.addTask(new Task());
+    context.own(taskGraph);
+
+    const workflow = new Workflow();
+    workflow.graph.addTask(new Task());
+    context.own(workflow);
+
+    return {};
+  }
+}
+
+/**
+ * Module augmentation to register test task types in the workflow system
+ */
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    testSimple(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    testOutput(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    testInput(input?: Partial<{ customInput: string }>, config?: Partial<TaskConfig>): this;
+    failing(input?: Partial<{}>, config?: Partial<TaskConfig>): this;
+    longRunning(input?: Partial<{}>, config?: Partial<TaskConfig>): this;
+    string(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    numberToString(input?: Partial<{ input: number }>, config?: Partial<TaskConfig>): this;
+    number(input?: Partial<{ input: number }>, config?: Partial<TaskConfig>): this;
+    testAdd(input?: Partial<TestAddTaskInput>, config?: Partial<TaskConfig>): this;
+    vectorOutput(input?: Partial<{ text: string }>, config?: Partial<TaskConfig>): this;
+    vectorsInput(input?: Partial<{ vectors: Float32Array }>, config?: Partial<TaskConfig>): this;
+    vectorOneOfOutput(input?: Partial<{ text: string }>, config?: Partial<TaskConfig>): this;
+    vectorAnyOfInput(input?: Partial<{ data: Float32Array }>, config?: Partial<TaskConfig>): this;
+    textOutput(input?: Partial<{ input: string }>, config?: Partial<TaskConfig>): this;
+    vectorOutputOnly(input?: Partial<{ size: number }>, config?: Partial<TaskConfig>): this;
+    textVectorInput(
+      input?: Partial<{ text: string; vector: Float32Array }>,
+      config?: Partial<TaskConfig>
+    ): this;
+    passthroughVector(
+      input?: Partial<{ vector: Float32Array }>,
+      config?: Partial<TaskConfig>
+    ): this;
+    refine(
+      input?: Partial<{ value: number; quality?: number }>,
+      config?: Partial<TaskConfig>
+    ): this;
+    addToSum(
+      input?: Partial<{ accumulator: { sum: number }; currentItem: number }>,
+      config?: Partial<TaskConfig>
+    ): this;
+    bulkProcess(input?: Partial<{ items: readonly number[] }>, config?: Partial<TaskConfig>): this;
+    testIterator(input?: Partial<{ items: number[] }>, config?: Partial<TaskConfig>): this;
+    processItem(input?: Partial<{ item: number }>, config?: Partial<TaskConfig>): this;
+  }
+}
+
+// Register test tasks with the workflow system
+Workflow.prototype.testSimple = CreateWorkflow(TestSimpleTask);
+Workflow.prototype.testOutput = CreateWorkflow(TestOutputTask);
+Workflow.prototype.testInput = CreateWorkflow(TestInputTask);
+Workflow.prototype.failing = CreateWorkflow(FailingTask);
+Workflow.prototype.longRunning = CreateWorkflow(LongRunningTask);
+Workflow.prototype.string = CreateWorkflow(StringTask);
+Workflow.prototype.numberToString = CreateWorkflow(NumberToStringTask);
+Workflow.prototype.number = CreateWorkflow(NumberTask);
+Workflow.prototype.testAdd = CreateWorkflow(TestAddTask);
+Workflow.prototype.vectorOutput = CreateWorkflow(VectorOutputTask);
+Workflow.prototype.vectorsInput = CreateWorkflow(VectorsInputTask);
+Workflow.prototype.vectorOneOfOutput = CreateWorkflow(VectorOneOfOutputTask);
+Workflow.prototype.vectorAnyOfInput = CreateWorkflow(VectorAnyOfInputTask);
 Workflow.prototype.textOutput = CreateWorkflow(TextOutputTask);
 Workflow.prototype.vectorOutputOnly = CreateWorkflow(VectorOutputOnlyTask);
 Workflow.prototype.textVectorInput = CreateWorkflow(TextVectorInputTask);
 Workflow.prototype.passthroughVector = CreateWorkflow(PassthroughVectorTask);
+Workflow.prototype.refine = CreateWorkflow(RefineTask);
+Workflow.prototype.addToSum = CreateWorkflow(AddToSumTask);
+Workflow.prototype.bulkProcess = CreateWorkflow(BulkProcessTask);
+Workflow.prototype.testIterator = CreateWorkflow(TestIteratorTask);
+Workflow.prototype.processItem = CreateWorkflow(ProcessItemTask);

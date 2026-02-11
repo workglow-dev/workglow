@@ -62,9 +62,9 @@ export class JavaScriptTask extends Task<JavaScriptTaskInput, JavaScriptTaskOutp
         const myInterpreter = new Interpreter(`${inputVariablesString} ${input.javascript_code}`);
         myInterpreter.run();
         output.output = myInterpreter.value;
-        console.log("output", output.output);
+        // console.log("output", output.output);
       } catch (e) {
-        console.error("error", e);
+        // console.error("error", e);
       }
     }
     return output;

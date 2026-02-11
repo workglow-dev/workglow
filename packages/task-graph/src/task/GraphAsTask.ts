@@ -38,9 +38,9 @@ export class GraphAsTask<
   // ========================================================================
 
   public static type: TaskTypeName = "GraphAsTask";
-  public static title: string = "Graph as Task";
-  public static description: string = "A task that contains a subgraph of tasks";
-  public static category: string = "Hidden";
+  public static title: string = "Group";
+  public static description: string = "A group of tasks that are executed together";
+  public static category: string = "Flow Control";
   public static compoundMerge: CompoundMergeStrategy = PROPERTY_ARRAY;
 
   /** This task has dynamic schemas that change based on the subgraph structure */

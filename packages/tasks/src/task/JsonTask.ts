@@ -6,12 +6,14 @@
 
 import {
   createGraphFromDependencyJSON,
+  createGraphFromGraphJSON,
   CreateWorkflow,
   Dataflow,
   GraphAsTask,
   JsonTaskItem,
   TaskConfig,
   TaskConfigurationError,
+  type TaskGraphJson,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
@@ -72,14 +74,29 @@ export class JsonTask<
    */
   public regenerateGraph() {
     if (!this.runInputData.json) return;
-    let data = JSON.parse(this.runInputData.json) as JsonTaskItem[] | JsonTaskItem;
-    if (!Array.isArray(data)) data = [data];
-    const jsonItems: JsonTaskItem[] = data as JsonTaskItem[];
+    const data = JSON.parse(this.runInputData.json) as
+      | TaskGraphJson
+      | JsonTaskItem[]
+      | JsonTaskItem;
 
-    // Create task nodes
+    // Graph format: { tasks, dataflows } (e.g. from builder export)
+    if (
+      data &&
+      typeof data === "object" &&
+      "tasks" in data &&
+      Array.isArray((data as TaskGraphJson).tasks) &&
+      "dataflows" in data &&
+      Array.isArray((data as TaskGraphJson).dataflows)
+    ) {
+      this.subGraph = createGraphFromGraphJSON(data as TaskGraphJson);
+      super.regenerateGraph();
+      return;
+    }
+
+    // Dependency format: array of JsonTaskItem (or single item)
+    let jsonItems: JsonTaskItem[] = Array.isArray(data) ? data : [data as JsonTaskItem];
     this.subGraph = createGraphFromDependencyJSON(jsonItems);
 
-    // Establish data flow connections
     for (const item of jsonItems) {
       if (!item.dependencies) continue;
       for (const [input, dependency] of Object.entries(item.dependencies)) {

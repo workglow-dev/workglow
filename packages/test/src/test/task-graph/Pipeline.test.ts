@@ -4,69 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { pipe, Task, Workflow } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util";
+import { pipe, Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
+
 import { InMemoryTaskOutputRepository } from "../../binding/InMemoryTaskOutputRepository";
-
-// Define input and output types for our tasks
-type NumberInput = { value: number };
-type NumberOutput = { value: number };
-
-abstract class MathTask extends Task<NumberInput, NumberOutput> {
-  public static category = "Math";
-  public static inputSchema() {
-    return {
-      type: "object",
-      properties: {
-        value: {
-          type: "number",
-        },
-      },
-    } as DataPortSchema;
-  }
-
-  public static outputSchema() {
-    return {
-      type: "object",
-      properties: {
-        value: {
-          type: "number",
-        },
-      },
-    } as DataPortSchema;
-  }
-}
-
-// Create a task that doubles a number
-class DoubleTask extends MathTask {
-  public static type = "DoubleTask";
-  public async execute(input: NumberInput): Promise<NumberOutput> {
-    return {
-      value: input.value * 2,
-    };
-  }
-}
-
-// Create a task that adds 5 to a number
-class AddFiveTask extends MathTask {
-  public static type = "AddFiveTask";
-  public async execute(input: NumberInput): Promise<NumberOutput> {
-    return {
-      value: input.value + 5,
-    };
-  }
-}
-
-// Create a task that squares a number
-class SquareTask extends MathTask {
-  public static type = "SquareTask";
-  public async execute(input: NumberInput): Promise<NumberOutput> {
-    return {
-      value: input.value * input.value,
-    };
-  }
-}
+import {
+  AddFiveTask,
+  PipelineDoubleTask as DoubleTask,
+  PipelineSquareTask as SquareTask,
+} from "../task/TestTasks";
 
 /**
  * Example workflow test that demonstrates the use of pipe()
@@ -103,7 +49,7 @@ describe("Pipeline", () => {
     const squareTask = new SquareTask();
     // Create the workflow using pipe()
     const cache = new InMemoryTaskOutputRepository();
-    const workflow = new Workflow<NumberInput, NumberOutput>(cache);
+    const workflow = new Workflow<{ value: number }, { value: number }>(cache);
     workflow.pipe(doubleTask, addFiveTask, squareTask);
 
     // Run the workflow with input

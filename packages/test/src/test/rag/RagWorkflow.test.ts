@@ -20,7 +20,7 @@
  *    → [Array Processing] → TextEmbedding (multiple) → ChunkToVector → VectorStoreUpsert
  *
  *    Note: The array processing step (embedding multiple chunks) would use:
- *    - A "ForEach" or "Map" control node in the visual editor
+ *    - A "Map" control node in the visual editor
  *    - Or an ArrayTask wrapper that replicates TextEmbedding nodes
  *    - Or a batch TextEmbedding node that accepts arrays
  *
@@ -43,7 +43,7 @@ import {
   setGlobalModelRepository,
   textQuestionAnswer,
   TextQuestionAnswerTaskOutput,
-  VectorStoreUpsertTaskOutput
+  VectorStoreUpsertTaskOutput,
 } from "@workglow/ai";
 import { register_HFT_InlineJobFns } from "@workglow/ai-provider";
 import {
