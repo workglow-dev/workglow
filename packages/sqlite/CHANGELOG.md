@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.90
+
+### Patch Changes
+
+- Introduce Loop tasks: Map, Reduce, and While
+
 ## 0.0.89
 
 ### Patch Changes

@@ -1,7 +1,7 @@
 {
   "name": "@workglow/sqlite",
   "type": "module",
-  "version": "0.0.89",
+  "version": "0.0.90",
   "description": "SQLite database providing cross-platform database support for browser, Node.js, and Bun environments.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
@@ -20,7 +20,7 @@
     "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
   },
   "peerDependencies": {
-    "@sqlite.org/sqlite-wasm": "^3.51.1-build2",
+    "@sqlite.org/sqlite-wasm": "^3.51.2-build6",
     "better-sqlite3": "^12.6.2"
   },
   "peerDependenciesMeta": {
