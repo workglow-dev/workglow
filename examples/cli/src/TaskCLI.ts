@@ -4,14 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DownloadModelTask, getGlobalModelRepository, type ModelConfig } from "@workglow/ai";
+import {
+  DownloadModelTask,
+  getGlobalModelRepository,
+  registerAiTasks,
+  type ModelConfig,
+} from "@workglow/ai";
 import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
-import { JsonTaskItem, TaskGraph, Workflow } from "@workglow/task-graph";
-import { DelayTask, JsonTask } from "@workglow/tasks";
+import { JsonTaskItem, registerBaseTasks, TaskGraph, Workflow } from "@workglow/task-graph";
+import { DelayTask, JsonTask, registerCommonTasks } from "@workglow/tasks";
 import type { Command } from "commander";
 import { readFile, writeFile } from "fs/promises";
 import { runTasks } from "./TaskGraphToUI";
-
 /**
  * Read image input from file or stdin
  */
@@ -539,8 +543,18 @@ export function AddBaseCommands(program: Command) {
   program
     .command("json")
     .description("run based on json input")
-    .argument("[json]", "json text to rewrite and vectorize")
-    .action(async (json) => {
+    .argument("[json]", "json text")
+    .option("--file <path>", "read JSON from file")
+    .action(async (jsonArg, options) => {
+      registerBaseTasks();
+      registerCommonTasks();
+      registerAiTasks();
+      let json = jsonArg;
+      if (!json && options.file) {
+        json = (await readFile(options.file, "utf-8")).trim();
+      } else if (!json && !process.stdin.isTTY) {
+        json = await readTextInput();
+      }
       if (!json) {
         const exampleJson: JsonTaskItem[] = [
           {

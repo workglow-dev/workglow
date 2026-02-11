@@ -5,6 +5,7 @@
  */
 
 import type { DataPortSchema } from "@workglow/util";
+import { evaluateCondition, getNestedValue, type UIConditionConfig } from "./ConditionUtils";
 import type { IExecuteContext } from "./ITask";
 import { Task } from "./Task";
 import type { TaskConfig, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
@@ -202,11 +203,11 @@ export class ConditionalTask<
   static type: TaskTypeName = "ConditionalTask";
 
   /** Category for UI organization and filtering */
-  static category = "Hidden";
+  static category = "Flow Control";
 
   /** Human-readable title for display in UIs */
-  static title = "Conditional Task";
-  static description = "Evaluates conditions to determine which dataflows are active";
+  static title = "Condition";
+  static description = "Route data based on conditions";
 
   /** This task has dynamic schemas that change based on branch configuration */
   static hasDynamicSchemas: boolean = true;
@@ -230,6 +231,78 @@ export class ConditionalTask<
    * @param context - Execution context with signal and progress callback
    * @returns Output with active branch data and metadata
    */
+  /**
+   * Builds runtime branch configs from serialized UI condition config.
+   */
+  private buildBranchesFromConditionConfig(
+    conditionConfig: UIConditionConfig
+  ): BranchConfig<Input>[] {
+    if (!conditionConfig?.branches || conditionConfig.branches.length === 0) {
+      return [
+        {
+          id: "default",
+          condition: () => true,
+          outputPort: "1",
+        },
+      ];
+    }
+
+    return conditionConfig.branches.map((branch, index) => ({
+      id: branch.id,
+      outputPort: String(index + 1),
+      condition: (inputData: Input): boolean => {
+        const fieldValue = getNestedValue(inputData as Record<string, unknown>, branch.field);
+        return evaluateCondition(fieldValue, branch.operator, branch.value);
+      },
+    }));
+  }
+
+  /**
+   * Resolves the effective branches to evaluate.
+   * Uses config.branches if they have condition functions,
+   * otherwise falls back to conditionConfig from input or extras.
+   */
+  private resolveBranches(input: Input): {
+    branches: BranchConfig<Input>[];
+    isExclusive: boolean;
+    defaultBranch: string | undefined;
+    fromConditionConfig: boolean;
+  } {
+    const configBranches = this.config.branches ?? [];
+
+    // If config branches have condition functions, use them directly
+    if (configBranches.length > 0 && typeof configBranches[0].condition === "function") {
+      return {
+        branches: configBranches,
+        isExclusive: this.config.exclusive ?? true,
+        defaultBranch: this.config.defaultBranch,
+        fromConditionConfig: false,
+      };
+    }
+
+    // Try to find serialized conditionConfig from input or extras
+    const conditionConfig =
+      ((input as Record<string, unknown>).conditionConfig as UIConditionConfig | undefined) ??
+      (this.config.extras?.conditionConfig as UIConditionConfig | undefined);
+
+    if (conditionConfig) {
+      return {
+        branches: this.buildBranchesFromConditionConfig(conditionConfig),
+        isExclusive: conditionConfig.exclusive ?? true,
+        defaultBranch: conditionConfig.defaultBranch,
+        fromConditionConfig: true,
+      };
+    }
+
+    // Fallback: use config branches even if they lack conditions
+    return {
+      branches: configBranches,
+      isExclusive: this.config.exclusive ?? true,
+      defaultBranch: this.config.defaultBranch,
+      fromConditionConfig: false,
+    };
+  }
+
   public async execute(input: Input, context: IExecuteContext): Promise<Output | undefined> {
     if (context.signal?.aborted) {
       return undefined;
@@ -238,8 +311,8 @@ export class ConditionalTask<
     // Clear previous branch activation state
     this.activeBranches.clear();
 
-    const branches = this.config.branches ?? [];
-    const isExclusive = this.config.exclusive ?? true;
+    const { branches, isExclusive, defaultBranch, fromConditionConfig } =
+      this.resolveBranches(input);
 
     // Evaluate each branch condition
     for (const branch of branches) {
@@ -259,15 +332,68 @@ export class ConditionalTask<
     }
 
     // If no branch matched and there's a default, use it
-    if (this.activeBranches.size === 0 && this.config.defaultBranch) {
-      const defaultBranchExists = branches.some((b) => b.id === this.config.defaultBranch);
+    if (this.activeBranches.size === 0 && defaultBranch) {
+      const defaultBranchExists = branches.some((b) => b.id === defaultBranch);
       if (defaultBranchExists) {
-        this.activeBranches.add(this.config.defaultBranch);
+        this.activeBranches.add(defaultBranch);
       }
+    }
+
+    // Build output: if from conditionConfig, use the UI-style output building
+    if (fromConditionConfig) {
+      return this.buildConditionConfigOutput(input, branches, isExclusive);
     }
 
     // Build output: pass through input to active branch ports
     return this.buildOutput(input);
+  }
+
+  /**
+   * Builds output in the UI-style format where inputs are passed through
+   * with numbered suffixes based on matched branches.
+   */
+  protected buildConditionConfigOutput(
+    input: Input,
+    branches: BranchConfig<Input>[],
+    isExclusive: boolean
+  ): Output {
+    const output: Record<string, unknown> = {};
+
+    // Remove conditionConfig from pass-through data
+    const { conditionConfig, ...passThrough } = input as Record<string, unknown>;
+    const inputKeys = Object.keys(passThrough);
+
+    // Find matched branch number
+    let matchedBranchNumber: number | null = null;
+    for (let i = 0; i < branches.length; i++) {
+      if (this.activeBranches.has(branches[i].id)) {
+        if (matchedBranchNumber === null) {
+          matchedBranchNumber = i + 1;
+        }
+      }
+    }
+
+    if (isExclusive) {
+      if (matchedBranchNumber !== null) {
+        for (const key of inputKeys) {
+          output[`${key}_${matchedBranchNumber}`] = passThrough[key];
+        }
+      } else {
+        for (const key of inputKeys) {
+          output[`${key}_else`] = passThrough[key];
+        }
+      }
+    } else {
+      for (let i = 0; i < branches.length; i++) {
+        if (this.activeBranches.has(branches[i].id)) {
+          for (const key of inputKeys) {
+            output[`${key}_${i + 1}`] = passThrough[key];
+          }
+        }
+      }
+    }
+
+    return output as Output;
   }
 
   /**

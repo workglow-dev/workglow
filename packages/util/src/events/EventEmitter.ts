@@ -125,7 +125,7 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
   waitOn<Event extends keyof EventListenerTypes>(
     event: Event
   ): Promise<EmittedReturnType<EventListenerTypes, Event>> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       // Create an anonymous function that captures all arguments and passes them to resolve
       const listener = ((...args: any[]) => {
         // Always resolve with the array of arguments (which may be empty)
@@ -148,7 +148,7 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
   ) {
     const listeners: EventListeners<EventListenerTypes, Event> | undefined = this.listeners[event];
     if (listeners) {
-      listeners.forEach(({ listener, once }) => {
+      listeners.forEach(({ listener }) => {
         listener(...args);
       });
       // Remove once listeners we just called

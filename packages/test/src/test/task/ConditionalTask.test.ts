@@ -4,138 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ConditionalTask, Dataflow, Task, TaskGraph, TaskStatus } from "@workglow/task-graph";
+import { ConditionalTask, Dataflow, TaskGraph, TaskStatus } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
-// ============================================================================
-// Test Helper Tasks
-// ============================================================================
-
-/**
- * Simple task that processes a value input
- */
-class ProcessValueTask extends Task<{ value: number }, { result: string }> {
-  static type = "ProcessValueTask";
-  static category = "Test";
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        value: { type: "number" },
-      },
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        result: { type: "string" },
-      },
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(input: { value: number }): Promise<{ result: string }> {
-    return { result: `processed-${input.value}` };
-  }
-}
-
-/**
- * Task that tracks if it was executed
- */
-class TrackingTask extends Task<{ input: any }, { executed: boolean; input: any }> {
-  static type = "TrackingTask";
-  static category = "Test";
-
-  executed = false;
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        input: {},
-      },
-      additionalProperties: true,
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        executed: { type: "boolean" },
-        input: {},
-      },
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(input: { input: any }): Promise<{ executed: boolean; input: any }> {
-    this.executed = true;
-    return { executed: true, input: input.input };
-  }
-}
-
-/**
- * Task that doubles a number
- */
-class DoubleTask extends Task<{ value: number }, { doubled: number }> {
-  static type = "DoubleTask";
-  static category = "Test";
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        value: { type: "number" },
-      },
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        doubled: { type: "number" },
-      },
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(input: { value: number }): Promise<{ doubled: number }> {
-    return { doubled: input.value * 2 };
-  }
-}
-
-/**
- * Task that halves a number
- */
-class HalveTask extends Task<{ value: number }, { halved: number }> {
-  static type = "HalveTask";
-  static category = "Test";
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        value: { type: "number" },
-      },
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        halved: { type: "number" },
-      },
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(input: { value: number }): Promise<{ halved: number }> {
-    return { halved: input.value / 2 };
-  }
-}
+import {
+  DoubleToDoubledTask as DoubleTask,
+  HalveTask,
+  ProcessValueTask,
+  TrackingTask,
+} from "./TestTasks";
 
 // ============================================================================
 // Basic Tests

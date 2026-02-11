@@ -144,7 +144,9 @@ export const TaskUI: FC<{
       setError((prevErr) => (prevErr ? `${prevErr}\nAborted` : "Aborted"));
     };
     onRegenerate();
-    setDependantChildren(graph.getTargetTasks(task.config.id));
+    const targets = graph.getTargetTasks(task.config.id);
+    const unique = [...new Map(targets.map((t) => [t.config.id, t])).values()];
+    setDependantChildren(unique);
 
     task.on("start", onStart);
     task.on("progress", onProgress);

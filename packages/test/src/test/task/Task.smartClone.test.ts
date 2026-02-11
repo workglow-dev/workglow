@@ -4,49 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IExecuteContext } from "@workglow/task-graph";
-import { Task } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
 import { beforeEach, describe, expect, test } from "vitest";
 
-// Test task class to access private smartClone method
-class TestSmartCloneTask extends Task<{ data: any }, { result: any }> {
-  static readonly type = "TestSmartCloneTask";
-  static readonly category = "Test";
-  static readonly title = "Test Smart Clone Task";
-  static readonly description = "A task for testing smartClone";
-  declare runInputData: { data: any };
-  declare runOutputData: { result: any };
-
-  static inputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        data: {},
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  static outputSchema(): DataPortSchema {
-    return {
-      type: "object",
-      properties: {
-        result: {},
-      },
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
-  }
-
-  async execute(input: { data: any }, context: IExecuteContext): Promise<{ result: any }> {
-    return { result: input.data };
-  }
-
-  // Expose smartClone for testing
-  public testSmartClone(obj: any): any {
-    return (this as any).smartClone(obj);
-  }
-}
+import { TestSmartCloneTask } from "./TestTasks";
 
 describe("Task.smartClone circular reference detection", () => {
   let task: TestSmartCloneTask;

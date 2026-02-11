@@ -20,6 +20,8 @@ export type DataPortSchemaObject<EXTENSION extends JSONSchemaExtension = JsonSch
     readonly properties: Record<string, DataPortSchemaNonBoolean<EXTENSION>>;
   };
 
+export type PropertySchema = NonNullable<DataPortSchemaObject["properties"]>[string];
+
 export type DataPortSchema<EXTENSION extends JSONSchemaExtension = JsonSchemaCustomProps> =
   | boolean
   | DataPortSchemaObject<EXTENSION>;

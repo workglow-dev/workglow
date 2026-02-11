@@ -1,0 +1,603 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type { DataPortSchema } from "@workglow/util";
+import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
+import { evaluateCondition, getNestedValue } from "./ConditionUtils";
+import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
+import type { IExecuteContext } from "./ITask";
+import { TaskConfigurationError } from "./TaskError";
+import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+import { WhileTaskRunner } from "./WhileTaskRunner";
+
+/**
+ * WhileTask context schema - only has index since count is unknown ahead of time.
+ * Properties are marked with "x-ui-iteration": true so the builder
+ * knows to hide them from parent-level display.
+ */
+export const WHILE_CONTEXT_SCHEMA: DataPortSchema = {
+  type: "object",
+  properties: {
+    _iterationIndex: {
+      type: "integer",
+      minimum: 0,
+      title: "Iteration Number",
+      description: "Current iteration number (0-based)",
+      "x-ui-iteration": true,
+    },
+  },
+};
+
+/**
+ * Condition function type for WhileTask.
+ * Receives the current output and iteration count, returns whether to continue looping.
+ *
+ * @param output - The output from the last iteration
+ * @param iteration - The current iteration number (0-based)
+ * @returns true to continue looping, false to stop
+ */
+export type WhileConditionFn<Output> = (output: Output, iteration: number) => boolean;
+
+/**
+ * Configuration for WhileTask.
+ */
+export interface WhileTaskConfig<Output extends TaskOutput = TaskOutput> extends GraphAsTaskConfig {
+  /**
+   * Condition function that determines whether to continue looping.
+   * Called after each iteration with the current output and iteration count.
+   * Returns true to continue, false to stop.
+   */
+  readonly condition?: WhileConditionFn<Output>;
+
+  /**
+   * Maximum number of iterations to prevent infinite loops.
+   * @default 100
+   */
+  readonly maxIterations?: number;
+
+  /**
+   * Whether to pass the output of each iteration as input to the next.
+   * When true, output from iteration N becomes input to iteration N+1.
+   * @default true
+   */
+  readonly chainIterations?: boolean;
+}
+
+/**
+ * WhileTask loops until a condition function returns false.
+ *
+ * This task is useful for:
+ * - Iterative refinement processes
+ * - Polling until a condition is met
+ * - Convergence algorithms
+ * - Retry logic with conditions
+ *
+ * ## Features
+ *
+ * - Loops until condition returns false
+ * - Configurable maximum iterations (safety limit)
+ * - Passes output from each iteration to the next
+ * - Access to iteration count in condition function
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * // Refine until quality threshold
+ * workflow
+ *   .while({
+ *     condition: (output, iteration) => output.quality < 0.9 && iteration < 10,
+ *     maxIterations: 20
+ *   })
+ *     .refineResult()
+ *     .evaluateQuality()
+ *   .endWhile()
+ *
+ * // Retry until success
+ * workflow
+ *   .while({
+ *     condition: (output) => !output.success,
+ *     maxIterations: 5
+ *   })
+ *     .attemptOperation()
+ *   .endWhile()
+ * ```
+ *
+ * @template Input - The input type for the while task
+ * @template Output - The output type for the while task
+ * @template Config - The configuration type
+ */
+export class WhileTask<
+  Input extends TaskInput = TaskInput,
+  Output extends TaskOutput = TaskOutput,
+  Config extends WhileTaskConfig<Output> = WhileTaskConfig<Output>,
+> extends GraphAsTask<Input, Output, Config> {
+  public static type: TaskTypeName = "WhileTask";
+  public static category: string = "Flow Control";
+  public static title: string = "While Loop";
+  public static description: string = "Loops until a condition function returns false";
+
+  /** This task has dynamic schemas based on the inner workflow */
+  public static hasDynamicSchemas: boolean = true;
+
+  /**
+   * Returns the schema for iteration-context inputs that will be
+   * injected into the subgraph InputTask at runtime.
+   *
+   * WhileTask only provides _iterationIndex since the total count
+   * is unknown ahead of time.
+   */
+  public static getIterationContextSchema(): DataPortSchema {
+    return WHILE_CONTEXT_SCHEMA;
+  }
+
+  /**
+   * Current iteration count during execution.
+   */
+  protected _currentIteration: number = 0;
+
+  constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
+    super(input, config as Config);
+  }
+
+  // ========================================================================
+  // TaskRunner Override
+  // ========================================================================
+
+  declare _runner: WhileTaskRunner<Input, Output, Config>;
+
+  override get runner(): WhileTaskRunner<Input, Output, Config> {
+    if (!this._runner) {
+      this._runner = new WhileTaskRunner<Input, Output, Config>(this);
+    }
+    return this._runner;
+  }
+
+  // ========================================================================
+  // Configuration Accessors
+  // ========================================================================
+
+  /**
+   * Gets the condition function.
+   */
+  public get condition(): WhileConditionFn<Output> | undefined {
+    return this.config.condition;
+  }
+
+  /**
+   * Gets the maximum iterations limit.
+   * Falls back to extras.whileConfig.maxIterations for JSON-deserialized tasks.
+   */
+  public get maxIterations(): number {
+    if (this.config.maxIterations !== undefined) return this.config.maxIterations;
+    const wc = this.config.extras?.whileConfig as { maxIterations?: number } | undefined;
+    return wc?.maxIterations ?? 100;
+  }
+
+  /**
+   * Whether to chain iteration outputs to inputs.
+   * Falls back to extras.whileConfig.chainIterations for JSON-deserialized tasks.
+   */
+  public get chainIterations(): boolean {
+    if (this.config.chainIterations !== undefined) return this.config.chainIterations;
+    const wc = this.config.extras?.whileConfig as { chainIterations?: boolean } | undefined;
+    return wc?.chainIterations ?? true;
+  }
+
+  /**
+   * Gets the current iteration count.
+   */
+  public get currentIteration(): number {
+    return this._currentIteration;
+  }
+
+  // ========================================================================
+  // Execution
+  // ========================================================================
+
+  /**
+   * Execute the while loop.
+   */
+  /**
+   * Builds a condition function from the serialized whileConfig in extras
+   * when no condition function is directly provided in config.
+   */
+  private buildConditionFromExtras(): WhileConditionFn<Output> | undefined {
+    const wc = this.config.extras?.whileConfig as
+      | { conditionField?: string; conditionOperator?: string; conditionValue?: string }
+      | undefined;
+
+    if (!wc?.conditionOperator) {
+      return undefined;
+    }
+
+    const { conditionField, conditionOperator, conditionValue } = wc;
+
+    return (output: Output) => {
+      const fieldValue = conditionField
+        ? getNestedValue(output as Record<string, unknown>, conditionField)
+        : output;
+      return evaluateCondition(fieldValue, conditionOperator as any, conditionValue ?? "");
+    };
+  }
+
+  /**
+   * Analyzes the iterationInputConfig from whileConfig to decompose
+   * array inputs into per-iteration scalar values.
+   *
+   * Returns null if no iterationInputConfig is present (normal while behavior).
+   */
+  private analyzeArrayInputs(input: Input): {
+    arrayPorts: string[];
+    scalarPorts: string[];
+    iteratedValues: Record<string, unknown[]>;
+    iterationCount: number;
+  } | null {
+    const wc = this.config.extras?.whileConfig as
+      | { iterationInputConfig?: Record<string, { mode: string; baseSchema?: unknown }> }
+      | undefined;
+
+    if (!wc?.iterationInputConfig) {
+      return null;
+    }
+
+    const inputData = input as Record<string, unknown>;
+    const config = wc.iterationInputConfig;
+
+    const arrayPorts: string[] = [];
+    const scalarPorts: string[] = [];
+    const iteratedValues: Record<string, unknown[]> = {};
+    const arrayLengths: number[] = [];
+
+    for (const [key, propConfig] of Object.entries(config)) {
+      const value = inputData[key];
+
+      if (propConfig.mode === "array") {
+        if (!Array.isArray(value)) {
+          // Skip non-array values for array-mode ports
+          scalarPorts.push(key);
+          continue;
+        }
+        iteratedValues[key] = value;
+        arrayPorts.push(key);
+        arrayLengths.push(value.length);
+      } else {
+        scalarPorts.push(key);
+      }
+    }
+
+    // Also include any input keys not in the config as scalars
+    for (const key of Object.keys(inputData)) {
+      if (!config[key] && !key.startsWith("_iteration")) {
+        scalarPorts.push(key);
+      }
+    }
+
+    if (arrayPorts.length === 0) {
+      return null;
+    }
+
+    // All array ports must have the same length (zip semantics)
+    const uniqueLengths = new Set(arrayLengths);
+    if (uniqueLengths.size > 1) {
+      const lengthInfo = arrayPorts
+        .map((port, index) => `${port}=${arrayLengths[index]}`)
+        .join(", ");
+      throw new TaskConfigurationError(
+        `${this.type}: All iterated array inputs must have the same length. ` +
+          `Found different lengths: ${lengthInfo}`
+      );
+    }
+
+    return {
+      arrayPorts,
+      scalarPorts,
+      iteratedValues,
+      iterationCount: arrayLengths[0] ?? 0,
+    };
+  }
+
+  /**
+   * Builds per-iteration input by picking the i-th element from each array port
+   * and passing scalar ports through unchanged.
+   */
+  private buildIterationInput(
+    input: Input,
+    analysis: {
+      arrayPorts: string[];
+      scalarPorts: string[];
+      iteratedValues: Record<string, unknown[]>;
+    },
+    index: number
+  ): Input {
+    const inputData = input as Record<string, unknown>;
+    const iterInput: Record<string, unknown> = {};
+
+    for (const key of analysis.arrayPorts) {
+      iterInput[key] = analysis.iteratedValues[key][index];
+    }
+
+    for (const key of analysis.scalarPorts) {
+      if (key in inputData) {
+        iterInput[key] = inputData[key];
+      }
+    }
+
+    return iterInput as Input;
+  }
+
+  public async execute(input: Input, context: IExecuteContext): Promise<Output | undefined> {
+    if (!this.hasChildren()) {
+      throw new TaskConfigurationError(`${this.type}: No subgraph set for while loop`);
+    }
+
+    // Use provided condition or auto-build from serialized whileConfig
+    const condition = this.condition ?? this.buildConditionFromExtras();
+
+    if (!condition) {
+      throw new TaskConfigurationError(`${this.type}: No condition function provided`);
+    }
+
+    // Check for array decomposition via iterationInputConfig
+    const arrayAnalysis = this.analyzeArrayInputs(input);
+
+    this._currentIteration = 0;
+    let currentInput: Input = { ...input };
+    let currentOutput: Output = {} as Output;
+
+    // Determine effective max iterations (respect array length if decomposing)
+    const effectiveMax = arrayAnalysis
+      ? Math.min(this.maxIterations, arrayAnalysis.iterationCount)
+      : this.maxIterations;
+
+    // Execute iterations until condition returns false or max iterations reached
+    while (this._currentIteration < effectiveMax) {
+      if (context.signal?.aborted) {
+        break;
+      }
+
+      // Build the input for this iteration
+      let iterationInput: Input;
+      if (arrayAnalysis) {
+        // Decompose array inputs into per-iteration scalars
+        iterationInput = {
+          ...this.buildIterationInput(currentInput, arrayAnalysis, this._currentIteration),
+          _iterationIndex: this._currentIteration,
+        } as Input;
+      } else {
+        iterationInput = {
+          ...currentInput,
+          _iterationIndex: this._currentIteration,
+        } as Input;
+      }
+
+      // Run the subgraph (it resets itself on each run)
+      const results = await this.subGraph.run<Output>(iterationInput, {
+        parentSignal: context.signal,
+      });
+
+      // Merge results
+      currentOutput = this.subGraph.mergeExecuteOutputsToRunOutput(
+        results,
+        this.compoundMerge
+      ) as Output;
+
+      // Check condition
+      if (!condition(currentOutput, this._currentIteration)) {
+        break;
+      }
+
+      // Chain output to input for next iteration if enabled
+      if (this.chainIterations) {
+        currentInput = { ...currentInput, ...currentOutput } as Input;
+      }
+
+      this._currentIteration++;
+
+      // Update progress
+      const progress = Math.min((this._currentIteration / effectiveMax) * 100, 99);
+      await context.updateProgress(progress, `Iteration ${this._currentIteration}`);
+    }
+
+    return currentOutput;
+  }
+
+  // ========================================================================
+  // Schema Methods
+  // ========================================================================
+
+  /**
+   * Instance method to get the iteration context schema.
+   * Can be overridden by subclasses to customize iteration context.
+   */
+  public getIterationContextSchema(): DataPortSchema {
+    return (this.constructor as typeof WhileTask).getIterationContextSchema();
+  }
+
+  /**
+   * When chainIterations is true, the output schema from the previous
+   * iteration becomes part of the input schema for the next iteration.
+   * These chained properties should be marked with "x-ui-iteration": true.
+   *
+   * @returns Schema with chained output properties marked for iteration, or undefined if not chaining
+   */
+  public getChainedOutputSchema(): DataPortSchema | undefined {
+    if (!this.chainIterations) return undefined;
+
+    const outputSchema = this.outputSchema();
+    if (typeof outputSchema === "boolean") return undefined;
+
+    // Clone and mark all properties with x-ui-iteration
+    const properties: Record<string, DataPortSchema> = {};
+    if (outputSchema.properties && typeof outputSchema.properties === "object") {
+      for (const [key, schema] of Object.entries(outputSchema.properties)) {
+        // Skip the _iterations meta field
+        if (key === "_iterations") continue;
+        if (typeof schema === "object" && schema !== null) {
+          properties[key] = { ...schema, "x-ui-iteration": true } as DataPortSchema;
+        }
+      }
+    }
+
+    if (Object.keys(properties).length === 0) return undefined;
+
+    return { type: "object", properties } as DataPortSchema;
+  }
+
+  /**
+   * Instance input schema override.
+   * When iterationInputConfig is present, wraps array-mode ports in array schemas
+   * so that the dataflow compatibility check accepts array values.
+   */
+  public override inputSchema(): DataPortSchema {
+    if (!this.hasChildren()) {
+      return (this.constructor as typeof WhileTask).inputSchema();
+    }
+
+    // Get the base schema from the subgraph (GraphAsTask behavior)
+    const baseSchema = super.inputSchema();
+    if (typeof baseSchema === "boolean") return baseSchema;
+
+    const wc = this.config.extras?.whileConfig as
+      | { iterationInputConfig?: Record<string, { mode: string; baseSchema?: DataPortSchema }> }
+      | undefined;
+
+    if (!wc?.iterationInputConfig) {
+      return baseSchema;
+    }
+
+    // Wrap array-mode ports in anyOf (scalar | array) schemas.
+    // Using anyOf instead of plain type:"array" to avoid addInput's array-merge behavior
+    // which would prepend an undefined element when runInputData starts empty.
+    const properties = { ...(baseSchema.properties || {}) } as Record<string, DataPortSchema>;
+    for (const [key, propConfig] of Object.entries(wc.iterationInputConfig)) {
+      if (propConfig.mode === "array" && properties[key]) {
+        const scalarSchema = properties[key] as DataPortSchema;
+        properties[key] = {
+          anyOf: [scalarSchema, { type: "array", items: scalarSchema }],
+        } as unknown as DataPortSchema;
+      }
+    }
+
+    return {
+      ...baseSchema,
+      properties,
+    } as DataPortSchema;
+  }
+
+  /**
+   * Static input schema for WhileTask.
+   */
+  public static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  /**
+   * Static output schema for WhileTask.
+   */
+  public static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        _iterations: {
+          type: "number",
+          title: "Iterations",
+          description: "Number of iterations executed",
+        },
+      },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  /**
+   * Instance output schema - returns final iteration output schema.
+   */
+  public override outputSchema(): DataPortSchema {
+    if (!this.hasChildren()) {
+      return (this.constructor as typeof WhileTask).outputSchema();
+    }
+
+    // Get ending nodes from subgraph
+    const tasks = this.subGraph.getTasks();
+    const endingNodes = tasks.filter(
+      (task) => this.subGraph.getTargetDataflows(task.config.id).length === 0
+    );
+
+    if (endingNodes.length === 0) {
+      return (this.constructor as typeof WhileTask).outputSchema();
+    }
+
+    const properties: Record<string, unknown> = {
+      _iterations: {
+        type: "number",
+        title: "Iterations",
+        description: "Number of iterations executed",
+      },
+    };
+
+    // Merge output schemas from ending nodes
+    for (const task of endingNodes) {
+      const taskOutputSchema = task.outputSchema();
+      if (typeof taskOutputSchema === "boolean") continue;
+
+      const taskProperties = taskOutputSchema.properties || {};
+      for (const [key, schema] of Object.entries(taskProperties)) {
+        if (!properties[key]) {
+          properties[key] = schema;
+        }
+      }
+    }
+
+    return {
+      type: "object",
+      properties,
+      additionalProperties: false,
+    } as DataPortSchema;
+  }
+}
+
+// ============================================================================
+// Workflow Prototype Extensions
+// ============================================================================
+
+declare module "../task-graph/Workflow" {
+  interface Workflow {
+    /**
+     * Starts a while loop that continues until a condition is false.
+     * Use .endWhile() to close the loop and return to the parent workflow.
+     *
+     * @param config - Configuration for the while loop (must include condition)
+     * @returns A Workflow in loop builder mode for defining the loop body
+     *
+     * @example
+     * ```typescript
+     * workflow
+     *   .while({
+     *     condition: (output, iteration) => output.quality < 0.9,
+     *     maxIterations: 10
+     *   })
+     *     .refineResult()
+     *   .endWhile()
+     * ```
+     */
+    while: CreateLoopWorkflow<TaskInput, TaskOutput, WhileTaskConfig<any>>;
+
+    /**
+     * Ends the while loop and returns to the parent workflow.
+     * Only callable on workflows in loop builder mode.
+     *
+     * @returns The parent workflow
+     */
+    endWhile(): Workflow;
+  }
+}
+
+Workflow.prototype.while = CreateLoopWorkflow(WhileTask);
+
+Workflow.prototype.endWhile = CreateEndLoopWorkflow("endWhile");

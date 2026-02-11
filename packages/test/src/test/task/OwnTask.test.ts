@@ -1,29 +1,7 @@
-import { Task, TaskGraph, TaskInput, TaskOutput, Workflow } from "@workglow/task-graph";
+import { Task } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
-// A test task that creates other tasks during execution
-class TaskCreatorTask extends Task {
-  static type = "TaskCreatorTask";
-  static category = "Test";
-
-  async execute(input: TaskInput, context: any): Promise<TaskOutput> {
-    // Create a simple task
-    const simpleTask = new Task();
-    context.own(simpleTask);
-
-    // Create a task graph
-    const taskGraph = new TaskGraph();
-    taskGraph.addTask(new Task());
-    context.own(taskGraph);
-
-    // Create a workflow
-    const workflow = new Workflow();
-    workflow.graph.addTask(new Task());
-    context.own(workflow);
-
-    return {};
-  }
-}
+import { TaskCreatorTask } from "./TestTasks";
 
 describe("Task own functionality", () => {
   describe("TaskCreatorTask", () => {
