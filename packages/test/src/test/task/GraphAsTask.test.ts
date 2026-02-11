@@ -5,9 +5,9 @@
  */
 
 import { Dataflow, GraphAsTask, TaskGraph } from "@workglow/task-graph";
+import { DataPortSchema } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
-import { DataPortSchema } from "@workglow/util";
 import {
   GraphAsTask_ComputeTask,
   GraphAsTask_InputTask,

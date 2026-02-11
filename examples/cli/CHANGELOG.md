@@ -1,5 +1,19 @@
 # @workglow/cli
 
+## 0.0.90
+
+### Patch Changes
+
+- Introduce Loop tasks: Map, Reduce, and While
+- Updated dependencies
+  - @workglow/task-graph@0.0.90
+  - @workglow/tasks@0.0.90
+  - @workglow/test@0.0.90
+  - @workglow/util@0.0.90
+  - @workglow/ai@0.0.90
+  - @workglow/ai-provider@0.0.90
+  - @workglow/storage@0.0.90
+
 ## 0.0.89
 
 ### Patch Changes

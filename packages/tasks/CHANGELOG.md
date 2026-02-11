@@ -1,5 +1,16 @@
 # @workglow/tasks
 
+## 0.0.90
+
+### Patch Changes
+
+- Introduce Loop tasks: Map, Reduce, and While
+- Updated dependencies
+  - @workglow/task-graph@0.0.90
+  - @workglow/util@0.0.90
+  - @workglow/job-queue@0.0.90
+  - @workglow/storage@0.0.90
+
 ## 0.0.89
 
 ### Patch Changes

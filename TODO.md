@@ -12,7 +12,7 @@ TODO.md
   - [x] Move Model repository to datasets package.
 - [x] Chunks and nodes are not always the same.
   - [x] And we may need to save the chunk's node path. Or paths? or document range? Standard metadata?
-- [ ] Instead of passing doc_id around, pass a document key that is of type unknonwn (string or object)
+- [ ] Instead of passing doc_id around, pass a document key that is of type unknown (string or object)
 
 - [ ] Get a better model for question answering.
 - [ ] Get a better model for named entity recognition, the current one recognized everything as a token, not helpful.

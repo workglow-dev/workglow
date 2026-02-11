@@ -1,7 +1,7 @@
 {
   "name": "@workglow/storage",
   "type": "module",
-  "version": "0.0.89",
+  "version": "0.0.90",
   "description": "Storage abstraction layer for Workglow, supporting IndexedDB, PostgreSQL, and Supabase with unified interfaces.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
@@ -23,7 +23,7 @@
     "@workglow/sqlite": "workspace:*",
     "@workglow/util": "workspace:*",
     "pg": "^8.18.0",
-    "@supabase/supabase-js": "=2.94.0"
+    "@supabase/supabase-js": "=2.95.3"
   },
   "peerDependenciesMeta": {
     "@workglow/sqlite": {
@@ -38,7 +38,7 @@
     "@workglow/util": "workspace:*",
     "pg": "^8.18.0",
     "@types/pg": "^8.16.0",
-    "@supabase/supabase-js": "=2.94.0",
+    "@supabase/supabase-js": "=2.95.3",
     "fake-indexeddb": "^6.2.4"
   },
   "exports": {
