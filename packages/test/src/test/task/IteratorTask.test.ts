@@ -1167,7 +1167,6 @@ describe("Complex Nested Loops - Workflow", () => {
       expect(result).toBeDefined();
       // While runs 0 iterations (condition false), so RefineTask never runs - we need to check what the while returns when it runs 0 times.
       expect(result).toHaveProperty("value");
-      console.warn("result", result);
     });
 
     test("chained map -> while -> map (outer map, inner while with inner map) via structure only", () => {
