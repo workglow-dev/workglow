@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { VectorDotProductTask } from "./VectorDotProductTask";
 import { VectorMultiplyTask } from "./VectorMultiplyTask";
 import { VectorNormalizeTask } from "./VectorNormalizeTask";
