@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  hasVectorOutput,
   PROPERTY_ARRAY,
   Task,
   TaskConfig,
@@ -13,6 +14,7 @@ import {
   Workflow,
   WorkflowError,
 } from "@workglow/task-graph";
+import { ScalarAddTask, VectorSubtractTask, VectorSumTask } from "@workglow/tasks";
 import { sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -685,6 +687,183 @@ describe("Workflow", () => {
       expect(workflow.error).toContain("Could not find matches for required inputs");
       expect(workflow.error).toContain("vector"); // Missing vector type
       expect(workflow.graph.getTasks()).toHaveLength(2);
+    });
+  });
+
+  describe("adaptive methods", () => {
+    it("should dispatch add() to scalar variant when previous task outputs number", () => {
+      workflow = workflow.scalarAdd({ a: 1, b: 2 }).add({ a: 3, b: 4 });
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(2);
+      expect(workflow.graph.getTasks()[0]).toBeInstanceOf(ScalarAddTask);
+      expect(workflow.graph.getTasks()[1]).toBeInstanceOf(ScalarAddTask);
+    });
+
+    it("should dispatch add() to vector variant when previous task outputs TypedArray", () => {
+      workflow = workflow
+        .vectorOutputOnly({ size: 2 })
+        .add({ vectors: [new Float32Array([1, 2]), new Float32Array([3, 4])] });
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(2);
+      expect(workflow.graph.getTasks()[1]).toBeInstanceOf(VectorSumTask);
+    });
+
+    it("should default to scalar variant when add() is first task in chain", () => {
+      workflow = workflow.add({ a: 1, b: 2 });
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(1);
+      expect(workflow.graph.getTasks()[0]).toBeInstanceOf(ScalarAddTask);
+    });
+
+    it("should chain scalar then adaptive subtract (scalar path)", () => {
+      workflow = workflow.scalarAdd({ a: 1, b: 2 }).subtract({ a: 10, b: 1 });
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(2);
+      expect(workflow.graph.getTasks()[1]).not.toBeInstanceOf(VectorSubtractTask);
+      expect(workflow.graph.getTasks()[1].type).toBe("ScalarSubtractTask");
+    });
+
+    it("should chain vector then adaptive subtract (vector path)", () => {
+      workflow = workflow
+        .vectorOutputOnly({ size: 2 })
+        .subtract({ vectors: [new Float32Array([5, 5]), new Float32Array([1, 2])] });
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(2);
+      expect(workflow.graph.getTasks()[1]).toBeInstanceOf(VectorSubtractTask);
+    });
+
+    it("should run scalar add chain and return correct result", async () => {
+      workflow = workflow.scalarAdd({ a: 1, b: 2 }).add({ a: 3, b: 4 });
+
+      const result = await workflow.run();
+
+      // PROPERTY_ARRAY merges: first task result 3, second task result 7
+      expect(result).toEqual({ result: [3, 7] });
+      const resultArr = (result as { result?: number[] }).result!;
+      expect(resultArr[resultArr.length - 1]).toBe(7);
+    });
+
+    it("should run sum() as first task and return sum of values", async () => {
+      workflow = workflow.sum({ values: [1, 2, 3, 4] });
+
+      const result = await workflow.run();
+
+      // Single task: merge returns output as-is, so result.result is the number
+      expect((result as { result: number }).result).toBe(10);
+    });
+
+    it("should run multiply() as first task and return product", async () => {
+      workflow = workflow.multiply({ a: 3, b: 7 });
+
+      const result = await workflow.run();
+
+      expect((result as { result: number }).result).toBe(21);
+    });
+
+    it("should run divide() as first task and return quotient", async () => {
+      workflow = workflow.divide({ a: 20, b: 4 });
+
+      const result = await workflow.run();
+
+      expect((result as { result: number }).result).toBe(5);
+    });
+
+    it("should run subtract() as first task and return difference", async () => {
+      workflow = workflow.subtract({ a: 10, b: 3 });
+
+      const result = await workflow.run();
+
+      expect((result as { result: number }).result).toBe(7);
+    });
+
+    it("should run chained add then multiply and return correct result", async () => {
+      workflow = workflow.add({ a: 1, b: 2 }).multiply({ a: 3, b: 1 }); // 3 then 3*1=3
+
+      const result = await workflow.run();
+
+      const resultArr = (result as { result?: number[] }).result!;
+      expect(resultArr).toEqual([3, 3]);
+      expect(resultArr[resultArr.length - 1]).toBe(3);
+    });
+
+    it("should run chained sum then subtract and return correct result", async () => {
+      workflow = workflow.sum({ values: [5, 5] }).subtract({ a: 20, b: 5 }); // 10 then 20-5=15
+
+      const result = await workflow.run();
+
+      const resultArr = (result as { result?: number[] }).result!;
+      expect(resultArr).toEqual([10, 15]);
+    });
+
+    it("should run vector sum() and return component-wise sum", async () => {
+      // First task outputs vector so sum() picks vector variant (VectorSumTask)
+      workflow = workflow
+        .vectorOutputOnly({ size: 3 }) // [1,1,1]
+        .sum({
+          vectors: [new Float32Array([1, 2, 3]), new Float32Array([4, 5, 6])],
+        });
+
+      const result = await workflow.run();
+
+      // Linear chain: single leaf output. Parent vector [1,1,1] is auto-connected, so we sum
+      // [1,1,1] + [1,2,3] + [4,5,6] = [6, 8, 10]
+      const vec = (result as { result: Float32Array }).result;
+      expect(Array.from(vec)).toEqual([6, 8, 10]);
+    });
+
+    it("should run vector chain: vectorOutputOnly then sum() and return result", async () => {
+      // VectorOutputOnlyTask(size: 2) outputs vector [1, 1]. sum() picks vector variant and
+      // receives that single vector (auto-connected to "vectors"); sum of one vector is that vector.
+      workflow = workflow.vectorOutputOnly({ size: 2 }).sum();
+
+      const result = await workflow.run();
+
+      // Linear chain: single leaf output
+      const vec = (result as { result: Float32Array }).result;
+      expect(Array.from(vec)).toEqual([1, 1]);
+    });
+
+    it("should choose vector variant when sum(vectors: [...]) is called with no previous task", () => {
+      workflow = workflow.sum({ vectors: [new Float32Array([1, 2, 3])] });
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(1);
+      expect(workflow.graph.getTasks()[0]).toBeInstanceOf(VectorSumTask);
+    });
+
+    it("should run sum(vectors: [...]) as first task and return the vector", async () => {
+      workflow = workflow.sum({ vectors: [new Float32Array([1, 2, 3])] });
+
+      const result = await workflow.run();
+
+      const vec = (result as { result: Float32Array }).result;
+      expect(Array.from(vec)).toEqual([1, 2, 3]);
+    });
+
+    it("should detect TypedArray output in hasVectorOutput for plain format", () => {
+      workflow = workflow.vectorOutputOnly({ size: 2 });
+      const lastTask = workflow.graph.getTasks()[workflow.graph.getTasks().length - 1]!;
+
+      expect(hasVectorOutput(lastTask)).toBe(true);
+    });
+
+    it("should detect TypedArray inside oneOf in hasVectorOutput", () => {
+      workflow = workflow.vectorOneOfOutput({ text: "test" });
+      const lastTask = workflow.graph.getTasks()[workflow.graph.getTasks().length - 1]!;
+
+      expect(hasVectorOutput(lastTask)).toBe(true);
+    });
+
+    it("should return false from hasVectorOutput for scalar output", () => {
+      workflow = workflow.scalarAdd({ a: 1, b: 2 });
+      const lastTask = workflow.graph.getTasks()[workflow.graph.getTasks().length - 1]!;
+
+      expect(hasVectorOutput(lastTask)).toBe(false);
     });
   });
 

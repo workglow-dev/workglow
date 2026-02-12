@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Load adaptive first so Workflow.prototype.add/subtract/multiply/divide/sum are registered
+import "./task/adaptive";
+
 export * from "./task/ArrayTask";
 export * from "./task/DebugLogTask";
 export * from "./task/DelayTask";
@@ -15,6 +18,7 @@ export * from "./task/LambdaTask";
 export * from "./task/MergeTask";
 export * from "./task/OutputTask";
 export * from "./task/SplitTask";
+export * from "./task/adaptive";
 export * from "./task/scalar/ScalarAbsTask";
 export * from "./task/scalar/ScalarAddTask";
 export * from "./task/scalar/ScalarCeilTask";

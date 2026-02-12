@@ -84,6 +84,122 @@ export function CreateEndLoopWorkflow(methodName: string): EndLoopWorkflow {
   };
 }
 
+const TYPED_ARRAY_FORMAT_PREFIX = "TypedArray";
+
+/**
+ * Returns true if the given JSON schema (or any nested schema) has a format
+ * string starting with "TypedArray" (e.g. "TypedArray" or "TypedArray:Float32Array").
+ * Walks oneOf/anyOf wrappers and array items.
+ */
+function schemaHasTypedArrayFormat(schema: JsonSchema): boolean {
+  if (typeof schema === "boolean") return false;
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return false;
+
+  const s = schema as Record<string, unknown>;
+  if (typeof s.format === "string" && s.format.startsWith(TYPED_ARRAY_FORMAT_PREFIX)) {
+    return true;
+  }
+
+  const checkUnion = (schemas: unknown): boolean => {
+    if (!Array.isArray(schemas)) return false;
+    return schemas.some((sub) => schemaHasTypedArrayFormat(sub as JsonSchema));
+  };
+  if (checkUnion(s.oneOf) || checkUnion(s.anyOf)) return true;
+
+  const items = s.items;
+  if (items && typeof items === "object" && !Array.isArray(items)) {
+    if (schemaHasTypedArrayFormat(items as JsonSchema)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Returns true if the task's output schema has any port with TypedArray format.
+ * Used by adaptive workflow methods to choose scalar vs vector task variant.
+ */
+export function hasVectorOutput(task: ITask): boolean {
+  const outputSchema = task.outputSchema();
+  if (typeof outputSchema === "boolean" || !outputSchema?.properties) return false;
+  return Object.values(outputSchema.properties).some((prop) =>
+    schemaHasTypedArrayFormat(prop as JsonSchema)
+  );
+}
+
+/**
+ * Returns true if the input object looks like vector task input: has a "vectors"
+ * property that is an array with at least one TypedArray element. Used by
+ * adaptive workflow methods so that e.g. sum({ vectors: [new Float32Array(...)] })
+ * chooses the vector variant even with no previous task.
+ */
+export function hasVectorLikeInput(input: unknown): boolean {
+  if (!input || typeof input !== "object") return false;
+  const v = (input as Record<string, unknown>).vectors;
+  return (
+    Array.isArray(v) &&
+    v.length > 0 &&
+    typeof v[0] === "object" &&
+    v[0] !== null &&
+    ArrayBuffer.isView(v[0])
+  );
+}
+
+/**
+ * Type for adaptive workflow methods that dispatch to scalar or vector variant
+ * based on the previous task's output schema.
+ */
+export type CreateAdaptiveWorkflow<
+  IS extends DataPorts,
+  OS extends DataPorts,
+  IV extends DataPorts,
+  OV extends DataPorts,
+  CS extends TaskConfig = TaskConfig,
+  CV extends TaskConfig = TaskConfig,
+> = (
+  this: Workflow,
+  input?: Partial<IS> & Partial<IV>,
+  config?: Partial<CS> & Partial<CV>
+) => Workflow;
+
+/**
+ * Factory that creates an adaptive workflow method: when called, inspects the
+ * output schema of the last task in the chain and delegates to the vector
+ * variant if it has TypedArray output, otherwise to the scalar variant.
+ * If there is no previous task, defaults to the scalar variant.
+ *
+ * @param scalarClass - Task class for scalar path (e.g. ScalarAddTask)
+ * @param vectorClass - Task class for vector path (e.g. VectorSumTask)
+ * @returns A method suitable for Workflow.prototype
+ */
+export function CreateAdaptiveWorkflow<
+  IS extends DataPorts,
+  OS extends DataPorts,
+  IV extends DataPorts,
+  OV extends DataPorts,
+  CS extends TaskConfig = TaskConfig,
+  CV extends TaskConfig = TaskConfig,
+>(
+  scalarClass: ITaskConstructor<IS, OS, CS>,
+  vectorClass: ITaskConstructor<IV, OV, CV>
+): CreateAdaptiveWorkflow<IS, OS, IV, OV, CS, CV> {
+  const scalarHelper = Workflow.createWorkflow<IS, OS, CS>(scalarClass);
+  const vectorHelper = Workflow.createWorkflow<IV, OV, CV>(vectorClass);
+
+  return function (
+    this: Workflow<any, any>,
+    input: (Partial<IS> & Partial<IV>) | undefined = {},
+    config: (Partial<CS> & Partial<CV>) | undefined = {}
+  ): Workflow {
+    const parent = getLastTask(this);
+    const useVector =
+      (parent !== undefined && hasVectorOutput(parent)) || hasVectorLikeInput(input);
+    if (useVector) {
+      return vectorHelper.call(this, input, config) as Workflow;
+    }
+    return scalarHelper.call(this, input, config) as Workflow;
+  };
+}
+
 // Event types
 export type WorkflowEventListeners = {
   changed: (id: unknown) => void;
