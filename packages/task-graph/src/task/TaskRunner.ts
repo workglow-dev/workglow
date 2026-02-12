@@ -5,6 +5,8 @@
  */
 
 import { globalServiceRegistry, ServiceRegistry } from "@workglow/util";
+import type { CheckpointSaver } from "../checkpoint/CheckpointSaver";
+import type { ThreadId } from "../checkpoint/CheckpointTypes";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
@@ -48,6 +50,16 @@ export class TaskRunner<
    * The service registry for the task
    */
   protected registry: ServiceRegistry = globalServiceRegistry;
+
+  /**
+   * Checkpoint saver propagated from graph runner
+   */
+  protected checkpointSaver?: CheckpointSaver;
+
+  /**
+   * Thread ID for checkpoint isolation
+   */
+  protected threadId?: ThreadId;
 
   /**
    * Constructor for TaskRunner
@@ -189,6 +201,8 @@ export class TaskRunner<
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
       registry: this.registry,
+      checkpointSaver: this.checkpointSaver,
+      threadId: this.threadId,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
   }
@@ -238,6 +252,13 @@ export class TaskRunner<
 
     if (config.registry) {
       this.registry = config.registry;
+    }
+
+    if (config.checkpointSaver) {
+      this.checkpointSaver = config.checkpointSaver;
+    }
+    if (config.threadId) {
+      this.threadId = config.threadId;
     }
 
     this.task.emit("start");

@@ -5,6 +5,8 @@
  */
 
 import { DirectedAcyclicGraph, EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
+import type { CheckpointSaver } from "../checkpoint/CheckpointSaver";
+import type { CheckpointGranularity, CheckpointId, ThreadId } from "../checkpoint/CheckpointTypes";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
@@ -39,6 +41,14 @@ export interface TaskGraphRunConfig {
   parentSignal?: AbortSignal;
   /** Optional service registry to use for this task graph (creates child from global if not provided) */
   registry?: ServiceRegistry;
+  /** Optional checkpoint saver for persisting execution state */
+  checkpointSaver?: CheckpointSaver;
+  /** Thread ID for checkpoint isolation; auto-generated if not provided */
+  threadId?: ThreadId;
+  /** Resume execution from a specific checkpoint */
+  resumeFromCheckpoint?: CheckpointId;
+  /** Controls when checkpoints are captured. Default: "every-task" */
+  checkpointGranularity?: CheckpointGranularity;
 }
 
 class TaskGraphDAG extends DirectedAcyclicGraph<
@@ -103,6 +113,10 @@ export class TaskGraph implements ITaskGraph {
     return this.runner.runGraph<ExecuteOutput>(input, {
       outputCache: config?.outputCache || this.outputCache,
       parentSignal: config?.parentSignal || undefined,
+      checkpointSaver: config?.checkpointSaver,
+      threadId: config?.threadId,
+      resumeFromCheckpoint: config?.resumeFromCheckpoint,
+      checkpointGranularity: config?.checkpointGranularity,
     });
   }
 

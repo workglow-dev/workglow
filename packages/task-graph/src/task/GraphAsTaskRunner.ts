@@ -29,6 +29,8 @@ export class GraphAsTaskRunner<
     const results = await this.task.subGraph!.run<Output>(input, {
       parentSignal: this.abortController?.signal,
       outputCache: this.outputCache,
+      checkpointSaver: this.checkpointSaver,
+      threadId: this.threadId,
     });
     unsubscribe();
     return results;

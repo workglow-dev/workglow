@@ -376,6 +376,8 @@ export class WhileTask<
       // Run the subgraph (it resets itself on each run)
       const results = await this.subGraph.run<Output>(iterationInput, {
         parentSignal: context.signal,
+        checkpointSaver: context.checkpointSaver,
+        threadId: context.threadId,
       });
 
       // Merge results
@@ -383,6 +385,14 @@ export class WhileTask<
         results,
         this.compoundMerge
       ) as Output;
+
+      // Capture iteration checkpoint if checkpoint saver is available
+      if (context.checkpointSaver && context.threadId) {
+        await this.subGraph.runner.captureCheckpoint(this.config.id, {
+          iterationIndex: this._currentIteration,
+          iterationParentTaskId: this.config.id,
+        });
+      }
 
       // Check condition
       if (!condition(currentOutput, this._currentIteration)) {

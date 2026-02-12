@@ -33,6 +33,8 @@ export class WhileTaskRunner<
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
       registry: this.registry,
+      checkpointSaver: this.checkpointSaver,
+      threadId: this.threadId,
     });
 
     return result;

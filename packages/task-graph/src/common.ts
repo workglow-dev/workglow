@@ -22,3 +22,5 @@ export * from "./storage/TaskGraphRepository";
 export * from "./storage/TaskGraphTabularRepository";
 export * from "./storage/TaskOutputRepository";
 export * from "./storage/TaskOutputTabularRepository";
+
+export * from "./checkpoint";

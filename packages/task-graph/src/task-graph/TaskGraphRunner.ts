@@ -11,6 +11,15 @@ import {
   ServiceRegistry,
   uuid4,
 } from "@workglow/util";
+import type { CheckpointSaver } from "../checkpoint/CheckpointSaver";
+import type {
+  CheckpointData,
+  CheckpointGranularity,
+  CheckpointId,
+  DataflowCheckpointState,
+  TaskCheckpointState,
+  ThreadId,
+} from "../checkpoint/CheckpointTypes";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import { ITask } from "../task/ITask";
@@ -86,6 +95,14 @@ export class TaskGraphRunner {
   protected failedTaskErrors: Map<unknown, TaskError> = new Map();
 
   /**
+   * Checkpoint state
+   */
+  protected checkpointSaver?: CheckpointSaver;
+  protected threadId?: ThreadId;
+  protected checkpointGranularity: CheckpointGranularity = "every-task";
+  protected lastCheckpointId?: CheckpointId;
+
+  /**
    * Constructor for TaskGraphRunner
    * @param graph The task graph to run
    * @param outputCache The task output repository to use for caching task outputs
@@ -151,6 +168,16 @@ export class TaskGraphRunner {
             // before the scheduler checks which tasks are ready
             this.pushStatusFromNodeToEdges(this.graph, task);
             this.pushErrorFromNodeToEdges(this.graph, task);
+
+            // Capture checkpoint after task completion
+            if (
+              this.checkpointSaver &&
+              this.checkpointGranularity === "every-task" &&
+              (task.status === TaskStatus.COMPLETED || task.status === TaskStatus.FAILED)
+            ) {
+              await this.captureCheckpoint(task.config.id);
+            }
+
             this.processScheduler.onTaskCompleted(task.config.id);
           }
         };
@@ -177,6 +204,11 @@ export class TaskGraphRunner {
     if (this.abortController?.signal.aborted) {
       await this.handleAbort();
       throw new TaskAbortedError();
+    }
+
+    // Capture a final checkpoint for top-level-only granularity
+    if (this.checkpointSaver && this.checkpointGranularity === "top-level-only") {
+      await this.captureCheckpoint();
     }
 
     await this.handleComplete();
@@ -495,6 +527,8 @@ export class TaskGraphRunner {
       updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
         await this.handleProgress(task, progress, message, ...args),
       registry: this.registry,
+      checkpointSaver: this.checkpointSaver,
+      threadId: this.threadId,
     });
 
     await this.pushOutputFromNodeToEdges(task, results);
@@ -593,6 +627,26 @@ export class TaskGraphRunner {
       );
     }
 
+    // Configure checkpoint state
+    this.checkpointSaver = config?.checkpointSaver;
+    this.threadId = config?.threadId ?? uuid4();
+    this.checkpointGranularity = config?.checkpointGranularity ?? "every-task";
+    this.lastCheckpointId = undefined;
+
+    // Check if we should resume from a checkpoint
+    if (config?.resumeFromCheckpoint && this.checkpointSaver) {
+      const checkpointData = await this.checkpointSaver.getCheckpoint(config.resumeFromCheckpoint);
+      if (checkpointData) {
+        this.processScheduler.reset();
+        this.inProgressTasks.clear();
+        this.inProgressFunctions.clear();
+        this.failedTaskErrors.clear();
+        await this.restoreFromCheckpoint(checkpointData);
+        this.graph.emit("start");
+        return;
+      }
+    }
+
     this.resetGraph(this.graph, uuid4());
     this.processScheduler.reset();
     this.inProgressTasks.clear();
@@ -670,6 +724,117 @@ export class TaskGraphRunner {
     );
     this.running = false;
     this.graph.emit("disabled");
+  }
+
+  // ========================================================================
+  // Checkpoint Methods
+  // ========================================================================
+
+  /**
+   * Captures a checkpoint of the current graph state.
+   * @param triggerTaskId The ID of the task that triggered this checkpoint
+   * @param metadata Additional metadata for iteration checkpoints
+   */
+  public async captureCheckpoint(
+    triggerTaskId?: unknown,
+    metadata?: { iterationIndex?: number; iterationParentTaskId?: unknown }
+  ): Promise<CheckpointData | undefined> {
+    if (!this.checkpointSaver || !this.threadId) return undefined;
+
+    const tasks = this.graph.getTasks();
+    const dataflows = this.graph.getDataflows();
+
+    const taskStates: TaskCheckpointState[] = tasks.map((task) => ({
+      taskId: task.config.id,
+      taskType: (task.constructor as any).type || task.type,
+      status: task.status,
+      inputData: { ...task.runInputData },
+      outputData: { ...task.runOutputData },
+      progress: task.progress,
+      error: task.error?.message,
+      startedAt: task.startedAt?.toISOString(),
+      completedAt: task.completedAt?.toISOString(),
+    }));
+
+    const dataflowStates: DataflowCheckpointState[] = dataflows.map((df) => ({
+      id: df.id,
+      sourceTaskId: df.sourceTaskId,
+      targetTaskId: df.targetTaskId,
+      status: df.status,
+      portData: df.value !== undefined ? { _value: df.value } : undefined,
+    }));
+
+    const checkpointId = uuid4();
+    const checkpointData: CheckpointData = {
+      checkpointId,
+      threadId: this.threadId,
+      parentCheckpointId: this.lastCheckpointId,
+      graphJson: this.graph.toJSON(),
+      taskStates,
+      dataflowStates,
+      metadata: {
+        createdAt: new Date().toISOString(),
+        triggerTaskId,
+        ...metadata,
+      },
+    };
+
+    await this.checkpointSaver.saveCheckpoint(checkpointData);
+    this.lastCheckpointId = checkpointId;
+
+    this.graph.emit("checkpoint", checkpointData);
+
+    return checkpointData;
+  }
+
+  /**
+   * Restores graph state from a checkpoint.
+   * Completed/disabled tasks are restored with their outputs,
+   * and the scheduler is notified so they are skipped on the next run.
+   */
+  protected async restoreFromCheckpoint(checkpointData: CheckpointData): Promise<void> {
+    const runnerId = uuid4();
+    this.lastCheckpointId = checkpointData.checkpointId;
+
+    // Reset graph first to a clean state
+    this.resetGraph(this.graph, runnerId);
+
+    // Restore task states
+    for (const taskState of checkpointData.taskStates) {
+      const task = this.graph.getTask(taskState.taskId);
+      if (!task) continue;
+
+      if (taskState.status === TaskStatus.COMPLETED || taskState.status === TaskStatus.DISABLED) {
+        task.status = taskState.status;
+        task.progress = taskState.progress;
+        task.runOutputData = taskState.outputData ?? {};
+        task.runInputData = taskState.inputData ?? {};
+
+        if (taskState.startedAt) {
+          task.startedAt = new Date(taskState.startedAt);
+        }
+        if (taskState.completedAt) {
+          task.completedAt = new Date(taskState.completedAt);
+        }
+
+        task.emit("status", task.status);
+        this.processScheduler.onTaskCompleted(task.config.id);
+      }
+      // Leave PENDING/FAILED tasks in PENDING state so they get re-run
+    }
+
+    // Restore dataflow states
+    for (const dfState of checkpointData.dataflowStates) {
+      const df = this.graph.getDataflow(dfState.id as any);
+      if (!df) continue;
+
+      if (dfState.status === TaskStatus.COMPLETED || dfState.status === TaskStatus.DISABLED) {
+        df.setStatus(dfState.status);
+        if (dfState.portData?._value !== undefined) {
+          df.value = dfState.portData._value;
+        }
+      }
+    }
   }
 
   /**

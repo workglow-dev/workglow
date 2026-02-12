@@ -118,7 +118,7 @@ export class IteratorTaskRunner<
         accumulator,
       });
 
-      const iterationResult = await this.executeSubgraphIteration(iterationInput);
+      const iterationResult = await this.executeSubgraphIteration(iterationInput, index);
       accumulator = this.task.mergeIterationIntoAccumulator(accumulator, iterationResult, index);
 
       const progress = Math.round(((index + 1) / iterationCount) * 100);
@@ -154,7 +154,7 @@ export class IteratorTaskRunner<
 
         const index = indices[position];
         const iterationInput = this.task.buildIterationRunInput(analysis, index, iterationCount);
-        const result = await this.executeSubgraphIteration(iterationInput);
+        const result = await this.executeSubgraphIteration(iterationInput, index);
         results.push({ index, result });
       }
     });
@@ -164,7 +164,8 @@ export class IteratorTaskRunner<
   }
 
   protected async executeSubgraphIteration(
-    input: Record<string, unknown>
+    input: Record<string, unknown>,
+    iterationIndex?: number
   ): Promise<TaskOutput | undefined> {
     let releaseTurn: (() => void) | undefined;
     const waitForPreviousRun = this.subGraphRunChain;
@@ -182,16 +183,28 @@ export class IteratorTaskRunner<
       const results = await this.task.subGraph.run<TaskOutput>(input as TaskInput, {
         parentSignal: this.abortController?.signal,
         outputCache: this.outputCache,
+        checkpointSaver: this.checkpointSaver,
+        threadId: this.threadId,
       });
 
       if (results.length === 0) {
         return undefined;
       }
 
-      return this.task.subGraph.mergeExecuteOutputsToRunOutput(
+      const merged = this.task.subGraph.mergeExecuteOutputsToRunOutput(
         results,
         this.task.compoundMerge
       ) as TaskOutput;
+
+      // Capture iteration checkpoint if checkpoint saver is available
+      if (this.checkpointSaver && this.threadId && iterationIndex !== undefined) {
+        await this.task.subGraph.runner.captureCheckpoint(this.task.config.id, {
+          iterationIndex,
+          iterationParentTaskId: this.task.config.id,
+        });
+      }
+
+      return merged;
     } finally {
       releaseTurn?.();
     }
