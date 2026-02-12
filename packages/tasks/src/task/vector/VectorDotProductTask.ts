@@ -74,9 +74,7 @@ export class VectorDotProductTask<
     if (a.length !== b.length) {
       throw new Error("Vectors must have the same length");
     }
-    const products = Array.from({ length: a.length }, (_, i) =>
-      Number(a[i]) * Number(b[i]),
-    );
+    const products = Array.from({ length: a.length }, (_, i) => Number(a[i]) * Number(b[i]));
     return { result: sumPrecise(products) } as Output;
   }
 }

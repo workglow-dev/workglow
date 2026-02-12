@@ -55,8 +55,7 @@ export class VectorDistanceTask<
   static readonly type = "VectorDistanceTask";
   static readonly category = "Vector";
   public static title = "Distance";
-  public static description =
-    "Returns the Euclidean distance between the first two vectors";
+  public static description = "Returns the Euclidean distance between the first two vectors";
 
   static inputSchema() {
     return inputSchema;

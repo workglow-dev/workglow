@@ -77,7 +77,7 @@ export class VectorSumTask<
       }
     }
     const values = Array.from({ length: len }, (_, i) =>
-      sumPrecise(vectors.map((v) => Number(v[i]))),
+      sumPrecise(vectors.map((v) => Number(v[i])))
     );
     return { result: createTypedArrayFrom(vectors, values) } as Output;
   }

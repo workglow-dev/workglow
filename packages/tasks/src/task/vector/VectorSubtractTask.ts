@@ -43,14 +43,8 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type VectorSubtractTaskInput = FromSchema<
-  typeof inputSchema,
-  TypedArraySchemaOptions
->;
-export type VectorSubtractTaskOutput = FromSchema<
-  typeof outputSchema,
-  TypedArraySchemaOptions
->;
+export type VectorSubtractTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
+export type VectorSubtractTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
 
 export class VectorSubtractTask<
   Input extends VectorSubtractTaskInput = VectorSubtractTaskInput,

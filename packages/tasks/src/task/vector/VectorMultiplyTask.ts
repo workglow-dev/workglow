@@ -77,7 +77,7 @@ export class VectorMultiplyTask<
       }
     }
     const values = Array.from({ length: len }, (_, i) =>
-      vectors.reduce((acc, v) => acc * Number(v[i]), 1),
+      vectors.reduce((acc, v) => acc * Number(v[i]), 1)
     );
     return { result: createTypedArrayFrom(vectors, values) } as Output;
   }
