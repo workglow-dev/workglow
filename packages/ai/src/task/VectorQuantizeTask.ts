@@ -103,8 +103,8 @@ export class VectorQuantizeTask extends Task<
   JobQueueTaskConfig
 > {
   public static type = "VectorQuantizeTask";
-  public static category = "Vector Processing";
-  public static title = "Quantize Vector";
+  public static category = "Vector";
+  public static title = "Quantize";
   public static description = "Quantize vectors to reduce storage and improve performance";
   public static cacheable = true;
 

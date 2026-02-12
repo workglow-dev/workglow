@@ -1,0 +1,68 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import { DataPortSchema, FromSchema } from "@workglow/util";
+
+const inputSchema = {
+  type: "object",
+  properties: {
+    value: {
+      type: "number",
+      title: "Value",
+      description: "Input number",
+    },
+  },
+  required: ["value"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+const outputSchema = {
+  type: "object",
+  properties: {
+    result: {
+      type: "number",
+      title: "Result",
+      description: "Ceiling value",
+    },
+  },
+  required: ["result"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type ScalarCeilTaskInput = FromSchema<typeof inputSchema>;
+export type ScalarCeilTaskOutput = FromSchema<typeof outputSchema>;
+
+export class ScalarCeilTask<
+  Input extends ScalarCeilTaskInput = ScalarCeilTaskInput,
+  Output extends ScalarCeilTaskOutput = ScalarCeilTaskOutput,
+  Config extends TaskConfig = TaskConfig,
+> extends Task<Input, Output, Config> {
+  static readonly type = "ScalarCeilTask";
+  static readonly category = "Math";
+  public static title = "Ceil";
+  public static description = "Returns the smallest integer greater than or equal to a number";
+
+  static inputSchema() {
+    return inputSchema;
+  }
+
+  static outputSchema() {
+    return outputSchema;
+  }
+
+  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+    return { result: Math.ceil(input.value) } as Output;
+  }
+}
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    scalarCeil: CreateWorkflow<ScalarCeilTaskInput, ScalarCeilTaskOutput, TaskConfig>;
+  }
+}
+
+Workflow.prototype.scalarCeil = CreateWorkflow(ScalarCeilTask);

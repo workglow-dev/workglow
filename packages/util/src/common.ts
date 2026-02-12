@@ -18,6 +18,7 @@ export * from "./utilities/objectOfArraysAsArrayOfObjects";
 export * from "./utilities/TypeUtilities";
 export * from "./vector/Tensor";
 export * from "./vector/TypedArray";
+export * from "./vector/TypedArrayUtils";
 export * from "./vector/VectorSimilarityUtils";
 export * from "./vector/VectorUtils";
 export * from "./worker/WorkerManager";

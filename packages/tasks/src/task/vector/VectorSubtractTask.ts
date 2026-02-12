@@ -1,0 +1,102 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  createTypedArrayFrom,
+  DataPortSchema,
+  FromSchema,
+  TypedArray,
+  TypedArraySchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+
+const inputSchema = {
+  type: "object",
+  properties: {
+    vectors: {
+      type: "array",
+      items: TypedArraySchema({
+        title: "Vector",
+        description: "Vector (first is minuend, rest are subtrahends)",
+      }),
+      title: "Vectors",
+      description: "Array of vectors: vectors[0] - vectors[1] - vectors[2] - ...",
+    },
+  },
+  required: ["vectors"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+const outputSchema = {
+  type: "object",
+  properties: {
+    result: TypedArraySchema({
+      title: "Result",
+      description: "Difference of vectors",
+    }),
+  },
+  required: ["result"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type VectorSubtractTaskInput = FromSchema<
+  typeof inputSchema,
+  TypedArraySchemaOptions
+>;
+export type VectorSubtractTaskOutput = FromSchema<
+  typeof outputSchema,
+  TypedArraySchemaOptions
+>;
+
+export class VectorSubtractTask<
+  Input extends VectorSubtractTaskInput = VectorSubtractTaskInput,
+  Output extends VectorSubtractTaskOutput = VectorSubtractTaskOutput,
+  Config extends TaskConfig = TaskConfig,
+> extends Task<Input, Output, Config> {
+  static readonly type = "VectorSubtractTask";
+  static readonly category = "Vector";
+  public static title = "Subtract";
+  public static description =
+    "Returns component-wise difference: vectors[0] - vectors[1] - vectors[2] - ...";
+
+  static inputSchema() {
+    return inputSchema;
+  }
+
+  static outputSchema() {
+    return outputSchema;
+  }
+
+  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+    const { vectors } = input as { vectors: TypedArray[] };
+    if (vectors.length < 2) {
+      throw new Error("At least two vectors are required");
+    }
+    const len = vectors[0].length;
+    for (let i = 1; i < vectors.length; i++) {
+      if (vectors[i].length !== len) {
+        throw new Error("All vectors must have the same length");
+      }
+    }
+    const values = Array.from({ length: len }, (_, i) => {
+      let acc = Number(vectors[0][i]);
+      for (let j = 1; j < vectors.length; j++) {
+        acc -= Number(vectors[j][i]);
+      }
+      return acc;
+    });
+    return { result: createTypedArrayFrom(vectors, values) } as Output;
+  }
+}
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    vectorSubtract: CreateWorkflow<VectorSubtractTaskInput, VectorSubtractTaskOutput, TaskConfig>;
+  }
+}
+
+Workflow.prototype.vectorSubtract = CreateWorkflow(VectorSubtractTask);

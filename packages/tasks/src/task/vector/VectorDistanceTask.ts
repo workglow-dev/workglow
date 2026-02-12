@@ -1,0 +1,92 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  DataPortSchema,
+  FromSchema,
+  TypedArray,
+  TypedArraySchema,
+  TypedArraySchemaOptions,
+} from "@workglow/util";
+import { sumPrecise } from "../scalar/sumPrecise";
+
+const inputSchema = {
+  type: "object",
+  properties: {
+    vectors: {
+      type: "array",
+      items: TypedArraySchema({
+        title: "Vector",
+        description: "Vector for distance computation",
+      }),
+      title: "Vectors",
+      description: "Array of two vectors to compute Euclidean distance",
+    },
+  },
+  required: ["vectors"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+const outputSchema = {
+  type: "object",
+  properties: {
+    result: {
+      type: "number",
+      title: "Result",
+      description: "Euclidean distance between vectors",
+    },
+  },
+  required: ["result"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type VectorDistanceTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
+export type VectorDistanceTaskOutput = FromSchema<typeof outputSchema>;
+
+export class VectorDistanceTask<
+  Input extends VectorDistanceTaskInput = VectorDistanceTaskInput,
+  Output extends VectorDistanceTaskOutput = VectorDistanceTaskOutput,
+  Config extends TaskConfig = TaskConfig,
+> extends Task<Input, Output, Config> {
+  static readonly type = "VectorDistanceTask";
+  static readonly category = "Vector";
+  public static title = "Distance";
+  public static description =
+    "Returns the Euclidean distance between the first two vectors";
+
+  static inputSchema() {
+    return inputSchema;
+  }
+
+  static outputSchema() {
+    return outputSchema;
+  }
+
+  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+    const { vectors } = input as { vectors: TypedArray[] };
+    if (vectors.length < 2) {
+      throw new Error("Exactly two vectors are required for distance");
+    }
+    const [a, b] = vectors;
+    if (a.length !== b.length) {
+      throw new Error("Vectors must have the same length");
+    }
+    const diffs = Array.from({ length: a.length }, (_, i) => {
+      const d = Number(a[i]) - Number(b[i]);
+      return d * d;
+    });
+    return { result: Math.sqrt(sumPrecise(diffs)) } as Output;
+  }
+}
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    vectorDistance: CreateWorkflow<VectorDistanceTaskInput, VectorDistanceTaskOutput, TaskConfig>;
+  }
+}
+
+Workflow.prototype.vectorDistance = CreateWorkflow(VectorDistanceTask);
