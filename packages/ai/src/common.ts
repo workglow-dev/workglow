@@ -7,6 +7,7 @@
 export * from "./job/AiJob";
 
 export * from "./model/InMemoryModelRepository";
+export * from "./model/ModelInstanceFactory";
 export * from "./model/ModelRegistry";
 export * from "./model/ModelRepository";
 export * from "./model/ModelSchema";

@@ -4,6 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type {
+  EmbeddingModelV3CallOptions,
+  ImageModelV3CallOptions,
+  LanguageModelV3CallOptions,
+} from "@ai-sdk/provider";
 import {
   createServiceToken,
   globalServiceRegistry,
@@ -30,6 +35,8 @@ import {
   HFT_TextTranslation,
   HFT_Unload,
 } from "../common/HFT_JobRunFns";
+import type { HfTransformersOnnxModelConfig } from "../common/HFT_ModelSchema";
+import { HFT_EmbeddingModel, HFT_ImageModel, HFT_LanguageModel } from "../model/HFT_V3Models";
 
 export const HFT_WORKER_JOBRUN = createServiceToken("worker.ai-provider.hft");
 
@@ -55,8 +62,43 @@ export const HFT_WORKER_JOBRUN_REGISTER = globalServiceRegistry.register(
     workerServer.registerFunction("ImageEmbeddingTask", HFT_ImageEmbedding);
     workerServer.registerFunction("ImageClassificationTask", HFT_ImageClassification);
     workerServer.registerFunction("ObjectDetectionTask", HFT_ObjectDetection);
+    workerServer.registerFunction(
+      "LanguageModelV3.doGenerate",
+      async (
+        modelConfig: HfTransformersOnnxModelConfig,
+        options: LanguageModelV3CallOptions,
+        _postProgress: unknown,
+        signal: AbortSignal
+      ) => {
+        const model = new HFT_LanguageModel(modelConfig);
+        return await model.doGenerate({ ...options, abortSignal: signal });
+      }
+    );
+    workerServer.registerFunction(
+      "EmbeddingModelV3.doEmbed",
+      async (
+        modelConfig: HfTransformersOnnxModelConfig,
+        options: EmbeddingModelV3CallOptions,
+        _postProgress: unknown,
+        signal: AbortSignal
+      ) => {
+        const model = new HFT_EmbeddingModel(modelConfig);
+        return await model.doEmbed({ ...options, abortSignal: signal });
+      }
+    );
+    workerServer.registerFunction(
+      "ImageModelV3.doGenerate",
+      async (
+        modelConfig: HfTransformersOnnxModelConfig,
+        options: ImageModelV3CallOptions,
+        _postProgress: unknown,
+        signal: AbortSignal
+      ) => {
+        const model = new HFT_ImageModel(modelConfig);
+        return await model.doGenerate({ ...options, abortSignal: signal });
+      }
+    );
     parentPort.postMessage({ type: "ready" });
-    console.log("HFT_WORKER_JOBRUN registered");
     return workerServer;
   },
   true

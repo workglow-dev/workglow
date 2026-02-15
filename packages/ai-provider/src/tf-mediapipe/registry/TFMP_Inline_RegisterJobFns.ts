@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiJob, AiJobInput, getAiProviderRegistry } from "@workglow/ai";
+import { AiJob, AiJobInput, getAiProviderRegistry, getModelInstanceFactory } from "@workglow/ai";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
@@ -25,6 +25,8 @@ import {
   TFMP_TextLanguageDetection,
   TFMP_Unload,
 } from "../common/TFMP_JobRunFns";
+import type { TFMPModelConfig } from "../common/TFMP_ModelSchema";
+import { TFMP_EmbeddingModel, TFMP_LanguageModel } from "../model/TFMP_V3Models";
 
 /**
  * Registers the TensorFlow MediaPipe inline job functions for same-thread execution.
@@ -106,6 +108,16 @@ export async function register_TFMP_InlineJobFns(
     TENSORFLOW_MEDIAPIPE,
     "PoseLandmarkerTask",
     TFMP_PoseLandmarker as any
+  );
+
+  const modelFactory = getModelInstanceFactory();
+  modelFactory.registerLanguageModel(
+    TENSORFLOW_MEDIAPIPE,
+    (config) => new TFMP_LanguageModel(config as TFMPModelConfig)
+  );
+  modelFactory.registerEmbeddingModel(
+    TENSORFLOW_MEDIAPIPE,
+    (config) => new TFMP_EmbeddingModel(config as TFMPModelConfig)
   );
 
   // If no client provided, create a default in-memory queue

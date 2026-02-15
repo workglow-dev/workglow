@@ -4,7 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiJob, AiJobInput, getAiProviderRegistry } from "@workglow/ai";
+import {
+  AiJob,
+  AiJobInput,
+  getAiProviderRegistry,
+  getModelInstanceFactory,
+  WorkerEmbeddingModelProxy,
+  WorkerImageModelProxy,
+  WorkerLanguageModelProxy,
+} from "@workglow/ai";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
@@ -50,6 +58,20 @@ export async function register_HFT_ClientJobFns(
   for (const name of names) {
     ProviderRegistry.registerAsWorkerRunFn(HF_TRANSFORMERS_ONNX, name);
   }
+
+  const modelFactory = getModelInstanceFactory();
+  modelFactory.registerLanguageModel(
+    HF_TRANSFORMERS_ONNX,
+    (config) => new WorkerLanguageModelProxy(HF_TRANSFORMERS_ONNX, config)
+  );
+  modelFactory.registerEmbeddingModel(
+    HF_TRANSFORMERS_ONNX,
+    (config) => new WorkerEmbeddingModelProxy(HF_TRANSFORMERS_ONNX, config)
+  );
+  modelFactory.registerImageModel(
+    HF_TRANSFORMERS_ONNX,
+    (config) => new WorkerImageModelProxy(HF_TRANSFORMERS_ONNX, config)
+  );
   // If no client provided, create a default in-memory queue
   if (!client) {
     const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(

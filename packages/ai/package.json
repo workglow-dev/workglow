@@ -65,5 +65,8 @@
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.8"
   }
 }

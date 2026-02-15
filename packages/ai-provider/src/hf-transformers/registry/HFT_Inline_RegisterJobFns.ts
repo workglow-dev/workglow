@@ -5,7 +5,13 @@
  */
 
 import { env } from "@sroussey/transformers";
-import { AiJob, AiJobInput, AiProviderRunFn, getAiProviderRegistry } from "@workglow/ai";
+import {
+  AiJob,
+  AiJobInput,
+  AiProviderRunFn,
+  getAiProviderRegistry,
+  getModelInstanceFactory,
+} from "@workglow/ai";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
@@ -30,6 +36,8 @@ import {
   HFT_TextTranslation,
   HFT_Unload,
 } from "../common/HFT_JobRunFns";
+import type { HfTransformersOnnxModelConfig } from "../common/HFT_ModelSchema";
+import { HFT_EmbeddingModel, HFT_ImageModel, HFT_LanguageModel } from "../model/HFT_V3Models";
 
 /**
  * Registers the HuggingFace Transformers inline job functions for same-thread execution.
@@ -66,6 +74,20 @@ export async function register_HFT_InlineJobFns(
   for (const [jobName, fn] of Object.entries(fns)) {
     ProviderRegistry.registerRunFn<any, any>(HF_TRANSFORMERS_ONNX, jobName, fn);
   }
+
+  const modelFactory = getModelInstanceFactory();
+  modelFactory.registerLanguageModel(
+    HF_TRANSFORMERS_ONNX,
+    (config) => new HFT_LanguageModel(config as HfTransformersOnnxModelConfig)
+  );
+  modelFactory.registerEmbeddingModel(
+    HF_TRANSFORMERS_ONNX,
+    (config) => new HFT_EmbeddingModel(config as HfTransformersOnnxModelConfig)
+  );
+  modelFactory.registerImageModel(
+    HF_TRANSFORMERS_ONNX,
+    (config) => new HFT_ImageModel(config as HfTransformersOnnxModelConfig)
+  );
 
   // If no client provided, create a default in-memory queue
   if (!client) {

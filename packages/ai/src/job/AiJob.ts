@@ -14,6 +14,7 @@ import {
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import type { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
+import { executeTaskViaV3Model } from "../task/adapters";
 
 /**
  * Input data for the AiJob
@@ -53,6 +54,22 @@ export class AiJob<
       });
 
       const runFn = async () => {
+        const v3Result = await executeTaskViaV3Model(
+          input.taskType,
+          input.taskInput as unknown as Record<string, unknown>,
+          context.signal
+        );
+        if (v3Result.status === "handled") {
+          return v3Result.output as Output;
+        }
+
+        if (v3Result.status === "unsupported-task") {
+          throw new PermanentJobError(
+            `Task type ${input.taskType} is not supported by V3 adapters for provider ${input.aiProvider}`
+          );
+        }
+
+        // status === "not-registered": fall through to legacy path
         const fn = getAiProviderRegistry().getDirectRunFn<Input["taskInput"], Output>(
           input.aiProvider,
           input.taskType

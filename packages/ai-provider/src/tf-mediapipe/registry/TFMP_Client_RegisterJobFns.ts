@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiJob, AiJobInput, getAiProviderRegistry } from "@workglow/ai";
+import {
+  AiJob,
+  AiJobInput,
+  getAiProviderRegistry,
+  getModelInstanceFactory,
+  WorkerEmbeddingModelProxy,
+  WorkerLanguageModelProxy,
+} from "@workglow/ai";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
@@ -40,6 +47,16 @@ export async function register_TFMP_ClientJobFns(
   for (const name of names) {
     aiProviderRegistry.registerAsWorkerRunFn(TENSORFLOW_MEDIAPIPE, name);
   }
+
+  const modelFactory = getModelInstanceFactory();
+  modelFactory.registerLanguageModel(
+    TENSORFLOW_MEDIAPIPE,
+    (config) => new WorkerLanguageModelProxy(TENSORFLOW_MEDIAPIPE, config)
+  );
+  modelFactory.registerEmbeddingModel(
+    TENSORFLOW_MEDIAPIPE,
+    (config) => new WorkerEmbeddingModelProxy(TENSORFLOW_MEDIAPIPE, config)
+  );
 
   // If no client provided, create a default in-memory queue
   if (!client) {
