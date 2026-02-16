@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn } from "@workglow/ai";
+import { AiProvider, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai";
 import { GOOGLE_GEMINI } from "./common/Gemini_Constants";
 import type { GeminiModelConfig } from "./common/Gemini_ModelSchema";
 
@@ -41,7 +41,10 @@ export class GoogleGeminiProvider extends AiProvider<GeminiModelConfig> {
     "TextSummaryTask",
   ] as const;
 
-  constructor(tasks?: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>>) {
-    super(tasks);
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, GeminiModelConfig>>
+  ) {
+    super(tasks, streamTasks);
   }
 }

@@ -7,6 +7,7 @@
 import { GoogleGenerativeAI, type TaskType } from "@google/generative-ai";
 import type {
   AiProviderRunFn,
+  AiProviderStreamFn,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -16,6 +17,7 @@ import type {
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
 } from "@workglow/ai";
+import type { StreamEvent } from "@workglow/task-graph";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 
 function getApiKey(model: GeminiModelConfig | undefined): string {
@@ -143,9 +145,102 @@ export const Gemini_TextSummary: AiProviderRunFn<
   return { text };
 };
 
+// ========================================================================
+// Streaming implementations (append mode)
+// ========================================================================
+
+export const Gemini_TextGeneration_Stream: AiProviderStreamFn<
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
+  GeminiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+  const genModel = genAI.getGenerativeModel({
+    model: getModelName(model),
+    generationConfig: {
+      maxOutputTokens: input.maxTokens,
+      temperature: input.temperature,
+      topP: input.topP,
+    },
+  });
+
+  const result = await genModel.generateContentStream({
+    contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+  });
+
+  for await (const chunk of result.stream) {
+    const text = chunk.text();
+    if (text) {
+      yield { type: "text-delta", textDelta: text };
+    }
+  }
+  yield { type: "finish", data: {} as TextGenerationTaskOutput };
+};
+
+export const Gemini_TextRewriter_Stream: AiProviderStreamFn<
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
+  GeminiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+  const genModel = genAI.getGenerativeModel({
+    model: getModelName(model),
+    systemInstruction: input.prompt,
+  });
+
+  const result = await genModel.generateContentStream({
+    contents: [{ role: "user", parts: [{ text: input.text }] }],
+  });
+
+  for await (const chunk of result.stream) {
+    const text = chunk.text();
+    if (text) {
+      yield { type: "text-delta", textDelta: text };
+    }
+  }
+  yield { type: "finish", data: {} as TextRewriterTaskOutput };
+};
+
+export const Gemini_TextSummary_Stream: AiProviderStreamFn<
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
+  GeminiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+  const genModel = genAI.getGenerativeModel({
+    model: getModelName(model),
+    systemInstruction: "Summarize the following text concisely.",
+  });
+
+  const result = await genModel.generateContentStream({
+    contents: [{ role: "user", parts: [{ text: input.text }] }],
+  });
+
+  for await (const chunk of result.stream) {
+    const text = chunk.text();
+    if (text) {
+      yield { type: "text-delta", textDelta: text };
+    }
+  }
+  yield { type: "finish", data: {} as TextSummaryTaskOutput };
+};
+
+// ========================================================================
+// Task registries
+// ========================================================================
+
 export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>> = {
   TextGenerationTask: Gemini_TextGeneration,
   TextEmbeddingTask: Gemini_TextEmbedding,
   TextRewriterTask: Gemini_TextRewriter,
   TextSummaryTask: Gemini_TextSummary,
+};
+
+export const GEMINI_STREAM_TASKS: Record<
+  string,
+  AiProviderStreamFn<any, any, GeminiModelConfig>
+> = {
+  TextGenerationTask: Gemini_TextGeneration_Stream,
+  TextRewriterTask: Gemini_TextRewriter_Stream,
+  TextSummaryTask: Gemini_TextSummary_Stream,
 };

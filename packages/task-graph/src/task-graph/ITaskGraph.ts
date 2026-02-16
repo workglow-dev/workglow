@@ -5,6 +5,7 @@
  */
 
 import { ITask } from "../task/ITask";
+import type { StreamEvent } from "../task/StreamTypes";
 import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { Dataflow, DataflowIdType } from "./Dataflow";
@@ -60,4 +61,9 @@ export interface ITaskGraph {
   subscribeToDataflowStatus(
     callback: (dataflowId: DataflowIdType, status: TaskStatus) => void
   ): () => void;
+  subscribeToTaskStreaming(callbacks: {
+    onStreamStart?: (taskId: TaskIdType) => void;
+    onStreamChunk?: (taskId: TaskIdType, event: StreamEvent) => void;
+    onStreamEnd?: (taskId: TaskIdType, output: Record<string, any>) => void;
+  }): () => void;
 }

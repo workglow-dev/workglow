@@ -6,8 +6,8 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
+import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const modelSchema = TypeModel("model:TextRewriterTask");
 
@@ -49,11 +49,16 @@ export type TextRewriterTaskOutput = FromSchema<typeof TextRewriterOutputSchema>
 /**
  * This is a special case of text generation that takes a prompt and text to rewrite
  */
-export class TextRewriterTask extends AiTask<TextRewriterTaskInput, TextRewriterTaskOutput> {
+export class TextRewriterTask extends StreamingAiTask<
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput
+> {
   public static type = "TextRewriterTask";
   public static category = "AI Text Model";
   public static title = "Text Rewriter";
   public static description = "Rewrites text according to a given prompt using language models";
+  public static streamable = true;
+  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextRewriterInputSchema as DataPortSchema;
   }

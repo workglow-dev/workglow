@@ -7,6 +7,7 @@
 import { DirectedAcyclicGraph, EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
+import type { StreamEvent } from "../task/StreamTypes";
 import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction } from "./Conversions";
@@ -499,6 +500,41 @@ export class TaskGraph implements ITaskGraph {
     unsubscribes.push(graphUnsub);
 
     // Return unsubscribe function
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }
+
+  /**
+   * Subscribes to streaming events on the task graph.
+   * Listens for task_stream_start, task_stream_chunk, and task_stream_end
+   * events emitted by the TaskGraphRunner during streaming task execution.
+   *
+   * @param callbacks - Object with optional callbacks for each streaming event
+   * @returns a function to unsubscribe from all streaming events
+   */
+  public subscribeToTaskStreaming(callbacks: {
+    onStreamStart?: (taskId: TaskIdType) => void;
+    onStreamChunk?: (taskId: TaskIdType, event: StreamEvent) => void;
+    onStreamEnd?: (taskId: TaskIdType, output: Record<string, any>) => void;
+  }): () => void {
+    const unsubscribes: (() => void)[] = [];
+
+    if (callbacks.onStreamStart) {
+      const unsub = this.subscribe("task_stream_start", callbacks.onStreamStart);
+      unsubscribes.push(unsub);
+    }
+
+    if (callbacks.onStreamChunk) {
+      const unsub = this.subscribe("task_stream_chunk", callbacks.onStreamChunk);
+      unsubscribes.push(unsub);
+    }
+
+    if (callbacks.onStreamEnd) {
+      const unsub = this.subscribe("task_stream_end", callbacks.onStreamEnd);
+      unsubscribes.push(unsub);
+    }
+
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };

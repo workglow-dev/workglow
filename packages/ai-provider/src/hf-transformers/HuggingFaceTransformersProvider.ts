@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRegisterOptions, type AiProviderRunFn } from "@workglow/ai";
+import {
+  AiProvider,
+  type AiProviderRegisterOptions,
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+} from "@workglow/ai";
 import { HF_TRANSFORMERS_ONNX } from "./common/HFT_Constants";
 import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
 
@@ -58,8 +63,11 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
     "ObjectDetectionTask",
   ] as const;
 
-  constructor(tasks?: Record<string, AiProviderRunFn<any, any, HfTransformersOnnxModelConfig>>) {
-    super(tasks);
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, HfTransformersOnnxModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, HfTransformersOnnxModelConfig>>
+  ) {
+    super(tasks, streamTasks);
   }
 
   protected override async onInitialize(options: AiProviderRegisterOptions): Promise<void> {

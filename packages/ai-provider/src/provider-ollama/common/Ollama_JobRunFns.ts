@@ -4,20 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Ollama } from "ollama/browser";
-import type { AiProviderRunFn } from "@workglow/ai";
 import type {
-  TextGenerationTaskInput,
-  TextGenerationTaskOutput,
+  AiProviderRunFn,
+  AiProviderStreamFn,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
   TextRewriterTaskInput,
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
 } from "@workglow/ai";
-import type { OllamaModelConfig } from "./Ollama_ModelSchema";
+import type { StreamEvent } from "@workglow/task-graph";
+import { Ollama } from "ollama/browser";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
+import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 
 function getClient(model: OllamaModelConfig | undefined): Ollama {
   const host = model?.provider_config?.base_url || OLLAMA_DEFAULT_BASE_URL;
@@ -125,9 +127,108 @@ export const Ollama_TextSummary: AiProviderRunFn<
   return { text: response.message.content };
 };
 
+// ========================================================================
+// Streaming implementations (append mode)
+// ========================================================================
+
+export const Ollama_TextGeneration_Stream: AiProviderStreamFn<
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
+  OllamaModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+  const client = getClient(model);
+  const modelName = getModelName(model);
+
+  const stream = await client.chat({
+    model: modelName,
+    messages: [{ role: "user", content: input.prompt }],
+    options: {
+      temperature: input.temperature,
+      top_p: input.topP,
+      num_predict: input.maxTokens,
+      frequency_penalty: input.frequencyPenalty,
+      presence_penalty: input.presencePenalty,
+    },
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.message.content;
+    if (delta) {
+      yield { type: "text-delta", textDelta: delta };
+    }
+  }
+  yield { type: "finish", data: {} as TextGenerationTaskOutput };
+};
+
+export const Ollama_TextRewriter_Stream: AiProviderStreamFn<
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
+  OllamaModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
+  const client = getClient(model);
+  const modelName = getModelName(model);
+
+  const stream = await client.chat({
+    model: modelName,
+    messages: [
+      { role: "system", content: input.prompt },
+      { role: "user", content: input.text },
+    ],
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.message.content;
+    if (delta) {
+      yield { type: "text-delta", textDelta: delta };
+    }
+  }
+  yield { type: "finish", data: {} as TextRewriterTaskOutput };
+};
+
+export const Ollama_TextSummary_Stream: AiProviderStreamFn<
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
+  OllamaModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
+  const client = getClient(model);
+  const modelName = getModelName(model);
+
+  const stream = await client.chat({
+    model: modelName,
+    messages: [
+      { role: "system", content: "Summarize the following text concisely." },
+      { role: "user", content: input.text },
+    ],
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.message.content;
+    if (delta) {
+      yield { type: "text-delta", textDelta: delta };
+    }
+  }
+  yield { type: "finish", data: {} as TextSummaryTaskOutput };
+};
+
+// ========================================================================
+// Task registries
+// ========================================================================
+
 export const OLLAMA_TASKS: Record<string, AiProviderRunFn<any, any, OllamaModelConfig>> = {
   TextGenerationTask: Ollama_TextGeneration,
   TextEmbeddingTask: Ollama_TextEmbedding,
   TextRewriterTask: Ollama_TextRewriter,
   TextSummaryTask: Ollama_TextSummary,
+};
+
+export const OLLAMA_STREAM_TASKS: Record<
+  string,
+  AiProviderStreamFn<any, any, OllamaModelConfig>
+> = {
+  TextGenerationTask: Ollama_TextGeneration_Stream,
+  TextRewriterTask: Ollama_TextRewriter_Stream,
+  TextSummaryTask: Ollama_TextSummary_Stream,
 };

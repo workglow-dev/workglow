@@ -8,7 +8,11 @@ import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { globalServiceRegistry, WORKER_MANAGER, type WorkerServer } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
 import { createDefaultQueue } from "../queue/createDefaultQueue";
-import { type AiProviderRunFn, getAiProviderRegistry } from "./AiProviderRegistry";
+import {
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+  getAiProviderRegistry,
+} from "./AiProviderRegistry";
 
 /**
  * Execution mode for an AI provider.
@@ -83,8 +87,19 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
    */
   protected readonly tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>;
 
-  constructor(tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>) {
+  /**
+   * Map of task type names to their streaming run functions.
+   * Injected via constructor alongside `tasks`. Only needed for tasks that
+   * support streaming output (e.g., text generation, summarization).
+   */
+  protected readonly streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>;
+
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>
+  ) {
     this.tasks = tasks;
+    this.streamTasks = streamTasks;
   }
 
   /** Get all task type names this provider supports */
@@ -101,6 +116,17 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
     taskType: string
   ): AiProviderRunFn<I, O, TModelConfig> | undefined {
     return this.tasks?.[taskType] as AiProviderRunFn<I, O, TModelConfig> | undefined;
+  }
+
+  /**
+   * Get the streaming function for a specific task type.
+   * @param taskType - The task type name (e.g., "TextGenerationTask")
+   * @returns The stream function, or undefined if streaming is not supported for this task type
+   */
+  getStreamFn<I extends TaskInput = TaskInput, O extends TaskOutput = TaskOutput>(
+    taskType: string
+  ): AiProviderStreamFn<I, O, TModelConfig> | undefined {
+    return this.streamTasks?.[taskType] as AiProviderStreamFn<I, O, TModelConfig> | undefined;
   }
 
   /**
@@ -127,6 +153,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
       workerManager.registerWorker(this.name, options.worker);
       for (const taskType of this.taskTypes) {
         registry.registerAsWorkerRunFn(this.name, taskType);
+        registry.registerAsWorkerStreamFn(this.name, taskType);
       }
     } else {
       if (!this.tasks) {
@@ -137,6 +164,11 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
       }
       for (const [taskType, fn] of Object.entries(this.tasks)) {
         registry.registerRunFn(this.name, taskType, fn as AiProviderRunFn);
+      }
+      if (this.streamTasks) {
+        for (const [taskType, fn] of Object.entries(this.streamTasks)) {
+          registry.registerStreamFn(this.name, taskType, fn as AiProviderStreamFn);
+        }
       }
     }
 
@@ -163,6 +195,11 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
     }
     for (const [taskType, fn] of Object.entries(this.tasks)) {
       workerServer.registerFunction(taskType, fn);
+    }
+    if (this.streamTasks) {
+      for (const [taskType, fn] of Object.entries(this.streamTasks)) {
+        workerServer.registerStreamFunction(taskType, fn);
+      }
     }
   }
 

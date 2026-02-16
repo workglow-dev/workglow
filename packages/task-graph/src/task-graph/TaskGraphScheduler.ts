@@ -25,6 +25,13 @@ export interface ITaskGraphScheduler {
   onTaskCompleted(taskId: unknown): void;
 
   /**
+   * Notifies the scheduler that a task has begun streaming output.
+   * Streaming tasks may unblock downstream streamable tasks early.
+   * @param taskId The ID of the streaming task
+   */
+  onTaskStreaming(taskId: unknown): void;
+
+  /**
    * Resets the scheduler state
    */
   reset(): void;
@@ -54,6 +61,10 @@ export class TopologicalScheduler implements ITaskGraphScheduler {
     // Topological scheduler doesn't need to track individual task completion
   }
 
+  onTaskStreaming(taskId: unknown): void {
+    // Topological scheduler doesn't support streaming-aware scheduling
+  }
+
   reset(): void {
     this.sortedNodes = this.dag.topologicallySortedNodes();
     this.currentIndex = 0;
@@ -66,11 +77,13 @@ export class TopologicalScheduler implements ITaskGraphScheduler {
  */
 export class DependencyBasedScheduler implements ITaskGraphScheduler {
   private completedTasks: Set<unknown>;
+  private streamingTasks: Set<unknown>;
   private pendingTasks: Set<ITask>;
   private nextResolver: ((task: ITask | null) => void) | null = null;
 
   constructor(private dag: TaskGraph) {
     this.completedTasks = new Set();
+    this.streamingTasks = new Set();
     this.pendingTasks = new Set();
     this.reset();
   }
@@ -86,9 +99,7 @@ export class DependencyBasedScheduler implements ITaskGraphScheduler {
     // If task has incoming dataflows, check if all are DISABLED
     // (In that case, task will be disabled by propagateDisabledStatus, not ready to run)
     if (sourceDataflows.length > 0) {
-      const allIncomingDisabled = sourceDataflows.every(
-        (df) => df.status === TaskStatus.DISABLED
-      );
+      const allIncomingDisabled = sourceDataflows.every((df) => df.status === TaskStatus.DISABLED);
       if (allIncomingDisabled) {
         return false;
       }
@@ -100,6 +111,19 @@ export class DependencyBasedScheduler implements ITaskGraphScheduler {
       .filter((df) => df.status !== TaskStatus.DISABLED)
       .map((dataflow) => dataflow.sourceTaskId);
 
+    // Check if this task is streamable -- streamable tasks can start
+    // when all dependencies are either COMPLETED or STREAMING.
+    // Also check instance streamMode so that a config override to "none"
+    // disables streaming-aware scheduling.
+    const isStreamable = task.streamable && task.streamMode !== "none";
+
+    if (isStreamable) {
+      return dependencies.every(
+        (dep) => this.completedTasks.has(dep) || this.streamingTasks.has(dep)
+      );
+    }
+
+    // Non-streaming tasks still require all dependencies to be fully completed
     return dependencies.every((dep) => this.completedTasks.has(dep));
   }
 
@@ -169,8 +193,32 @@ export class DependencyBasedScheduler implements ITaskGraphScheduler {
     }
   }
 
+  onTaskStreaming(taskId: unknown): void {
+    this.streamingTasks.add(taskId);
+
+    // Remove any disabled tasks from pending
+    for (const task of Array.from(this.pendingTasks)) {
+      if (task.status === TaskStatus.DISABLED) {
+        this.pendingTasks.delete(task);
+      }
+    }
+
+    // Check if any pending streamable tasks are now ready
+    // (they can start when deps are STREAMING, not just COMPLETED)
+    if (this.nextResolver) {
+      const readyTask = Array.from(this.pendingTasks).find((task) => this.isTaskReady(task));
+      if (readyTask) {
+        this.pendingTasks.delete(readyTask);
+        const resolver = this.nextResolver;
+        this.nextResolver = null;
+        resolver(readyTask);
+      }
+    }
+  }
+
   reset(): void {
     this.completedTasks.clear();
+    this.streamingTasks.clear();
     this.pendingTasks = new Set(this.dag.topologicallySortedNodes());
     this.nextResolver = null;
   }

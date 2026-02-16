@@ -8,10 +8,11 @@ import { EventEmitter, JsonSchema, uuid4, type EventParameters } from "@workglow
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
+import type { StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
-import { DataPorts, TaskConfig } from "../task/TaskTypes";
+import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
 import { getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS } from "./Dataflow";
 import { IWorkflow } from "./IWorkflow";
@@ -208,6 +209,12 @@ export type WorkflowEventListeners = {
   start: () => void;
   complete: () => void;
   abort: (error: string) => void;
+  /** Fired when a task in the workflow starts streaming */
+  stream_start: (taskId: TaskIdType) => void;
+  /** Fired for each stream chunk produced by a task in the workflow */
+  stream_chunk: (taskId: TaskIdType, event: StreamEvent) => void;
+  /** Fired when a task in the workflow finishes streaming */
+  stream_end: (taskId: TaskIdType, output: Record<string, any>) => void;
 };
 
 export type WorkflowEvents = keyof WorkflowEventListeners;
@@ -451,6 +458,13 @@ export class Workflow<
     this.events.emit("start");
     this._abortController = new AbortController();
 
+    // Subscribe to graph-level streaming events and forward to workflow events
+    const unsubStreaming = this.graph.subscribeToTaskStreaming({
+      onStreamStart: (taskId) => this.events.emit("stream_start", taskId),
+      onStreamChunk: (taskId, event) => this.events.emit("stream_chunk", taskId, event),
+      onStreamEnd: (taskId, output) => this.events.emit("stream_end", taskId, output),
+    });
+
     try {
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
@@ -466,6 +480,7 @@ export class Workflow<
       this.events.emit("error", String(error));
       throw error;
     } finally {
+      unsubStreaming();
       this._abortController = undefined;
     }
   }

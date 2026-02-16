@@ -160,6 +160,118 @@ export class WorkerManager {
       worker.postMessage(message, transferables);
     });
   }
+
+  /**
+   * Call a streaming function on a worker and return an AsyncGenerator that
+   * yields each stream chunk sent by the worker. The worker sends `stream_chunk`
+   * messages for each yielded event and a `complete` message when the generator
+   * finishes. An `error` message from the worker causes the iterator to throw.
+   *
+   * @param workerName - Registered worker name
+   * @param functionName - Name of the stream function registered on the worker
+   * @param args - Arguments to pass to the stream function
+   * @param options - Optional abort signal
+   * @returns AsyncGenerator yielding stream events from the worker
+   */
+  async *callWorkerStreamFunction<T>(
+    workerName: string,
+    functionName: string,
+    args: any[],
+    options?: { signal?: AbortSignal }
+  ): AsyncGenerator<T> {
+    const worker = this.workers.get(workerName);
+    if (!worker) throw new Error(`Worker ${workerName} not found.`);
+    await this.readyWorkers.get(workerName);
+
+    const requestId = crypto.randomUUID();
+
+    // Push-queue pattern: messages push items, async generator pulls them
+    type QueueItem =
+      | { kind: "event"; data: T }
+      | { kind: "done" }
+      | { kind: "error"; error: Error };
+
+    const queue: QueueItem[] = [];
+    let waiting: ((value: void) => void) | null = null;
+
+    const notify = () => {
+      if (waiting) {
+        const resolve = waiting;
+        waiting = null;
+        resolve();
+      }
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      const { id, type, data } = event.data;
+      if (id !== requestId) return;
+
+      if (type === "stream_chunk") {
+        queue.push({ kind: "event", data });
+        notify();
+      } else if (type === "complete") {
+        queue.push({ kind: "done" });
+        notify();
+      } else if (type === "error") {
+        queue.push({ kind: "error", error: new Error(data) });
+        notify();
+      }
+    };
+
+    const handleAbort = () => {
+      worker.postMessage({ id: requestId, type: "abort" });
+    };
+
+    const cleanup = () => {
+      worker.removeEventListener("message", handleMessage);
+      options?.signal?.removeEventListener("abort", handleAbort);
+    };
+
+    worker.addEventListener("message", handleMessage);
+
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        cleanup();
+        throw new Error("Operation aborted");
+      }
+      options.signal.addEventListener("abort", handleAbort, { once: true });
+    }
+
+    // Send call message with stream flag
+    const message = { id: requestId, type: "call", functionName, args, stream: true };
+    const transferables = extractTransferables(message);
+    worker.postMessage(message, transferables);
+
+    let completedNormally = false;
+    try {
+      while (true) {
+        while (queue.length > 0) {
+          const item = queue.shift()!;
+          if (item.kind === "event") {
+            yield item.data;
+          } else if (item.kind === "done") {
+            completedNormally = true;
+            return;
+          } else if (item.kind === "error") {
+            completedNormally = true;
+            throw item.error;
+          }
+        }
+
+        // Wait for the next message to arrive
+        await new Promise<void>((resolve) => {
+          waiting = resolve;
+        });
+      }
+    } finally {
+      // If the consumer stopped iterating early (break/return), notify
+      // the worker to abort so it doesn't continue generating tokens.
+      if (!completedNormally) {
+        worker.postMessage({ id: requestId, type: "abort" });
+      }
+      cleanup();
+    }
+  }
 }
 
 export const WORKER_MANAGER = createServiceToken<WorkerManager>("worker.manager");

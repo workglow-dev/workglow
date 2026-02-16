@@ -6,8 +6,8 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
+import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const contextSchema = {
   type: "string",
@@ -55,7 +55,7 @@ export type TextQuestionAnswerTaskOutput = FromSchema<typeof TextQuestionAnswerO
 /**
  * This is a special case of text generation that takes a context and a question
  */
-export class TextQuestionAnswerTask extends AiTask<
+export class TextQuestionAnswerTask extends StreamingAiTask<
   TextQuestionAnswerTaskInput,
   TextQuestionAnswerTaskOutput,
   JobQueueTaskConfig
@@ -64,6 +64,8 @@ export class TextQuestionAnswerTask extends AiTask<
   public static category = "AI Text Model";
   public static title = "Text Question Answer";
   public static description = "Answers questions based on provided context using language models";
+  public static streamable = true;
+  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextQuestionAnswerInputSchema as DataPortSchema;
   }

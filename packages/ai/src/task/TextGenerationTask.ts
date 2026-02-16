@@ -6,8 +6,8 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
+import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const generatedTextSchema = {
   type: "string",
@@ -83,7 +83,7 @@ export const TextGenerationOutputSchema = {
 export type TextGenerationTaskInput = FromSchema<typeof TextGenerationInputSchema>;
 export type TextGenerationTaskOutput = FromSchema<typeof TextGenerationOutputSchema>;
 
-export class TextGenerationTask extends AiTask<
+export class TextGenerationTask extends StreamingAiTask<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   JobQueueTaskConfig
@@ -93,6 +93,8 @@ export class TextGenerationTask extends AiTask<
   public static title = "Text Generation";
   public static description =
     "Generates text from a prompt using language models with configurable parameters";
+  public static streamable = true;
+  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextGenerationInputSchema as DataPortSchema;
   }

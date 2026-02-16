@@ -5,12 +5,12 @@
  */
 
 import { globalServiceRegistry, parentPort, WORKER_SERVER } from "@workglow/util";
-import { OLLAMA_TASKS } from "./common/Ollama_JobRunFns";
+import { OLLAMA_STREAM_TASKS, OLLAMA_TASKS } from "./common/Ollama_JobRunFns";
 import { OllamaProvider } from "./OllamaProvider";
 
 export function OLLAMA_WORKER_JOBRUN_REGISTER() {
   const workerServer = globalServiceRegistry.get(WORKER_SERVER);
-  new OllamaProvider(OLLAMA_TASKS).registerOnWorkerServer(workerServer);
+  new OllamaProvider(OLLAMA_TASKS, OLLAMA_STREAM_TASKS).registerOnWorkerServer(workerServer);
   parentPort.postMessage({ type: "ready" });
   console.log("OLLAMA_WORKER_JOBRUN registered");
 }

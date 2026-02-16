@@ -6,12 +6,14 @@
 
 import { StripJSONSchema } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
+import type { StreamMode } from "./StreamTypes";
 import type { Task } from "./Task";
 
 /**
  * Enum representing the possible states of a task
  *
  *  PENDING -> PROCESSING -> COMPLETED
+ *  PENDING -> PROCESSING -> STREAMING -> COMPLETED
  *  PENDING -> PROCESSING -> ABORTING -> FAILED
  *  PENDING -> PROCESSING -> FAILED
  *  PENDING -> DISABLED
@@ -20,6 +22,7 @@ export type TaskStatus =
   | "PENDING"
   | "DISABLED"
   | "PROCESSING"
+  | "STREAMING"
   | "COMPLETED"
   | "ABORTING"
   | "FAILED";
@@ -31,6 +34,8 @@ export const TaskStatus = {
   DISABLED: "DISABLED",
   /** Task is currently running */
   PROCESSING: "PROCESSING",
+  /** Task has begun producing streaming output chunks */
+  STREAMING: "STREAMING",
   /** Task has completed successfully */
   COMPLETED: "COMPLETED",
   /** Task is in the process of being aborted */
@@ -61,7 +66,6 @@ export type CompoundTaskOutput =
       [key: string]: unknown | unknown[] | undefined;
     };
 
-
 /** Type for task type names */
 export type TaskTypeName = string;
 
@@ -79,7 +83,6 @@ export interface IConfig {
   /** Optional display name for the task */
   name?: string;
 
-
   /** Optional ID of the runner to use for this task */
   runnerId?: string;
 
@@ -88,6 +91,9 @@ export interface IConfig {
 
   /** Optional cacheable flag to use for this task, overriding the default static property */
   cacheable?: boolean;
+
+  /** Optional stream mode override: 'none', 'append', or 'replace'. Overrides the static streamMode. */
+  streamMode?: StreamMode;
 
   /** Optional user data to use for this task, not used by the task framework except it will be exported as part of the task JSON*/
   extras?: DataPorts;

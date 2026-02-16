@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn } from "@workglow/ai";
+import { AiProvider, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai";
 import { OLLAMA } from "./common/Ollama_Constants";
 import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
 
@@ -44,7 +44,10 @@ export class OllamaProvider extends AiProvider<OllamaModelConfig> {
     "TextSummaryTask",
   ] as const;
 
-  constructor(tasks?: Record<string, AiProviderRunFn<any, any, OllamaModelConfig>>) {
-    super(tasks);
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, OllamaModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, OllamaModelConfig>>
+  ) {
+    super(tasks, streamTasks);
   }
 }
