@@ -7,6 +7,7 @@
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { globalServiceRegistry, WORKER_MANAGER, type WorkerServer } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
+import { createDefaultQueue } from "../queue/createDefaultQueue";
 import { type AiProviderRunFn, getAiProviderRegistry } from "./AiProviderRegistry";
 
 /**
@@ -183,31 +184,6 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
    * Uses InMemoryQueueStorage with a ConcurrencyLimiter.
    */
   protected async createQueue(concurrency: number): Promise<void> {
-    // Lazy imports to avoid circular dependencies -- these packages
-    // are always available at runtime in any environment that uses AiProvider.
-    const { InMemoryQueueStorage } = await import("@workglow/storage");
-    const { ConcurrencyLimiter, JobQueueClient, JobQueueServer } =
-      await import("@workglow/job-queue");
-    const { getTaskQueueRegistry } = await import("@workglow/task-graph");
-    const { AiJob } = await import("../job/AiJob");
-
-    const storage = new InMemoryQueueStorage(this.name);
-    await storage.setupDatabase();
-
-    const server = new JobQueueServer(AiJob as any, {
-      storage,
-      queueName: this.name,
-      limiter: new ConcurrencyLimiter(concurrency, 100),
-    });
-
-    const client = new JobQueueClient({
-      storage,
-      queueName: this.name,
-    });
-
-    client.attach(server);
-
-    getTaskQueueRegistry().registerQueue({ server, client, storage });
-    await server.start();
+    await createDefaultQueue(this.name, concurrency);
   }
 }
