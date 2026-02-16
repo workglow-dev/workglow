@@ -39,7 +39,11 @@
     "@mediapipe/tasks-text": "catalog:",
     "@mediapipe/tasks-vision": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
-    "@mediapipe/tasks-genai": "catalog:"
+    "@mediapipe/tasks-genai": "catalog:",
+    "openai": "^6.22.0",
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@google/generative-ai": "^0.24.1",
+    "ollama": "^0.6.3"
   },
   "peerDependenciesMeta": {
     "@workglow/ai": {
@@ -56,18 +60,34 @@
     },
     "@workglow/util": {
       "optional": false
+    },
+    "openai": {
+      "optional": true
+    },
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "@google/generative-ai": {
+      "optional": true
+    },
+    "ollama": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@google/generative-ai": "^0.24.1",
+    "@mediapipe/tasks-audio": "catalog:",
+    "@mediapipe/tasks-genai": "catalog:",
+    "@mediapipe/tasks-text": "catalog:",
+    "@mediapipe/tasks-vision": "catalog:",
+    "@sroussey/transformers": "catalog:",
     "@workglow/ai": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*",
-    "@sroussey/transformers": "catalog:",
-    "@mediapipe/tasks-text": "catalog:",
-    "@mediapipe/tasks-vision": "catalog:",
-    "@mediapipe/tasks-audio": "catalog:",
-    "@mediapipe/tasks-genai": "catalog:"
+    "ollama": "^0.6.3",
+    "openai": "^6.22.0"
   }
 }
