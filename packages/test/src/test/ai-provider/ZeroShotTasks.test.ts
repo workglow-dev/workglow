@@ -6,19 +6,20 @@
 
 import {
   AiJob,
-  type AiJobInput,
   getGlobalModelRepository,
   imageClassification,
   InMemoryModelRepository,
   objectDetection,
   setGlobalModelRepository,
   textClassification,
+  type AiJobInput,
 } from "@workglow/ai";
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
+  HFT_TASKS,
+  HuggingFaceTransformersProvider,
   type HfTransformersOnnxModelRecord,
-  register_HFT_InlineJobFns,
 } from "@workglow/ai-provider";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
@@ -60,7 +61,10 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await register_HFT_InlineJobFns(client);
+      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       queueRegistry.registerQueue({ server, client, storage });
 
       const model: HfTransformersOnnxModelRecord = {
@@ -119,7 +123,10 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await register_HFT_InlineJobFns(client);
+      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       queueRegistry.registerQueue({ server, client, storage });
 
       const model: HfTransformersOnnxModelRecord = {
@@ -173,7 +180,10 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await register_HFT_InlineJobFns(client);
+      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       queueRegistry.registerQueue({ server, client, storage });
 
       const model: HfTransformersOnnxModelRecord = {
@@ -237,7 +247,10 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await register_HFT_InlineJobFns(client);
+      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       queueRegistry.registerQueue({ server, client, storage });
 
       const model: HfTransformersOnnxModelRecord = {

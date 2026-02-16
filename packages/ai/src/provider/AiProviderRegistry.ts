@@ -7,6 +7,7 @@
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
+import type { AiProvider } from "./AiProvider";
 
 /**
  * Type for the run function for the AiJob
@@ -29,6 +30,31 @@ export type AiProviderRunFn<
  */
 export class AiProviderRegistry {
   runFnRegistry: Map<string, Map<string, AiProviderRunFn<any, any>>> = new Map();
+  private providers: Map<string, AiProvider<any>> = new Map();
+
+  /**
+   * Registers an AiProvider instance for lifecycle management and introspection.
+   * @param provider - The provider instance to register
+   */
+  registerProvider(provider: AiProvider<any>): void {
+    this.providers.set(provider.name, provider);
+  }
+
+  /**
+   * Retrieves a registered AiProvider instance by name.
+   * @param name - The provider name (e.g., "HF_TRANSFORMERS_ONNX")
+   * @returns The provider instance, or undefined if not found
+   */
+  getProvider(name: string): AiProvider<any> | undefined {
+    return this.providers.get(name);
+  }
+
+  /**
+   * Returns all registered AiProvider instances.
+   */
+  getProviders(): Map<string, AiProvider<any>> {
+    return new Map(this.providers);
+  }
 
   /**
    * Registers a task execution function for a specific task type and model provider

@@ -13,8 +13,9 @@ import {
 } from "@workglow/ai";
 import {
   HF_TRANSFORMERS_ONNX,
+  HFT_TASKS,
   HfTransformersOnnxModelRecord,
-  register_HFT_InlineJobFns,
+  HuggingFaceTransformersProvider,
 } from "@workglow/ai-provider";
 import {
   ConcurrencyLimiter,
@@ -71,7 +72,10 @@ describe("HFTransformersBinding", () => {
 
       client.attach(server);
 
-      await register_HFT_InlineJobFns(client);
+      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       queueRegistry.registerQueue({ server, client, storage });
 
       const model: HfTransformersOnnxModelRecord = {
@@ -135,7 +139,10 @@ describe("HFTransformersBinding", () => {
 
       client.attach(server);
 
-      await register_HFT_InlineJobFns(client);
+      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       queueRegistry.registerQueue({ server, client, storage });
 
       setGlobalModelRepository(new InMemoryModelRepository());

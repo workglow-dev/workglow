@@ -12,8 +12,9 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
-  register_TFMP_InlineJobFns,
   TENSORFLOW_MEDIAPIPE,
+  TensorFlowMediaPipeProvider,
+  TFMP_TASKS,
   TFMPModelRecord,
 } from "@workglow/ai-provider";
 import {
@@ -70,7 +71,10 @@ describe("TfMediaPipeBinding", () => {
 
       client.attach(server);
 
-      await register_TFMP_InlineJobFns(client);
+      await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       queueRegistry.registerQueue({ server, client, storage });
       setGlobalModelRepository(new InMemoryModelRepository());
 
@@ -154,7 +158,10 @@ describe("TfMediaPipeBinding", () => {
 
       client.attach(server);
 
-      await register_TFMP_InlineJobFns(client);
+      await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({
+        mode: "inline",
+        queue: { autoCreate: false },
+      });
       getTaskQueueRegistry().registerQueue({ server, client, storage });
       const registeredQueue = getTaskQueueRegistry().getQueue(TENSORFLOW_MEDIAPIPE);
       expect(registeredQueue).toBeDefined();

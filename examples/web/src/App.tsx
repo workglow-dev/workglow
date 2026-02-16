@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { register_HFT_ClientJobFns, register_TFMP_ClientJobFns } from "@workglow/ai-provider";
+import {
+  HuggingFaceTransformersProvider,
+  TensorFlowMediaPipeProvider,
+} from "@workglow/ai-provider";
 import { getTaskQueueRegistry, JsonTaskItem, TaskGraph, Workflow } from "@workglow/task-graph";
 import { JsonTask } from "@workglow/tasks";
 import {
@@ -22,12 +25,14 @@ import { GraphStoreStatus } from "./status/GraphStoreStatus";
 import { OutputRepositoryStatus } from "./status/OutputRepositoryStatus";
 import { QueuesStatus } from "./status/QueueStatus";
 
-await register_TFMP_ClientJobFns(
-  new Worker(new URL("./worker_tfmp.ts", import.meta.url), { type: "module" })
-);
-await register_HFT_ClientJobFns(
-  new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" })
-);
+await new TensorFlowMediaPipeProvider().register({
+  mode: "worker",
+  worker: new Worker(new URL("./worker_tfmp.ts", import.meta.url), { type: "module" }),
+});
+await new HuggingFaceTransformersProvider().register({
+  mode: "worker",
+  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+});
 
 const queueRegistry = getTaskQueueRegistry();
 queueRegistry.clearQueues();

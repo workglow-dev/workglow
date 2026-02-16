@@ -50,7 +50,7 @@ import {
   setGlobalModelRepository,
   TextEmbeddingTaskOutput,
 } from "@workglow/ai";
-import { register_HFT_InlineJobFns } from "@workglow/ai-provider";
+import { HFT_TASKS, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 import {
   DocumentChunk,
   DocumentChunkDataset,
@@ -101,7 +101,7 @@ describe("End-to-End RAG Pipeline", () => {
     // Setup task queue and model repository
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
-    await register_HFT_InlineJobFns();
+    await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
     await registerHuggingfaceLocalModels();
 
     // Setup vector storage with 1024 dimensions for Qwen3 model

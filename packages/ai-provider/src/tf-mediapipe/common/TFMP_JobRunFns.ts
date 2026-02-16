@@ -875,3 +875,25 @@ export const TFMP_PoseLandmarker: AiProviderRunFn<
     poses,
   };
 };
+
+/**
+ * All TensorFlow MediaPipe task run functions, keyed by task type name.
+ * Pass this to `new TensorFlowMediaPipeProvider(TFMP_TASKS)` when the
+ * actual run function implementations are needed (inline mode, worker server).
+ */
+export const TFMP_TASKS = {
+  DownloadModelTask: TFMP_Download,
+  UnloadModelTask: TFMP_Unload,
+  TextEmbeddingTask: TFMP_TextEmbedding,
+  TextLanguageDetectionTask: TFMP_TextLanguageDetection,
+  TextClassificationTask: TFMP_TextClassification,
+  ImageSegmentationTask: TFMP_ImageSegmentation,
+  ImageEmbeddingTask: TFMP_ImageEmbedding,
+  ImageClassificationTask: TFMP_ImageClassification,
+  ObjectDetectionTask: TFMP_ObjectDetection,
+  GestureRecognizerTask: TFMP_GestureRecognizer,
+  HandLandmarkerTask: TFMP_HandLandmarker,
+  FaceDetectorTask: TFMP_FaceDetector,
+  FaceLandmarkerTask: TFMP_FaceLandmarker,
+  PoseLandmarkerTask: TFMP_PoseLandmarker,
+} as const;

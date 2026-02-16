@@ -13,9 +13,11 @@ import {
 } from "@workglow/ai";
 import {
   HF_TRANSFORMERS_ONNX,
+  HFT_TASKS,
   HfTransformersOnnxModelRecord,
-  register_HFT_InlineJobFns,
-  register_TFMP_InlineJobFns,
+  HuggingFaceTransformersProvider,
+  TensorFlowMediaPipeProvider,
+  TFMP_TASKS,
 } from "@workglow/ai-provider";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -24,8 +26,8 @@ describe("TextEmbeddingTask with real models", () => {
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
-    await register_HFT_InlineJobFns();
-    await register_TFMP_InlineJobFns();
+    await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+    await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
   });
 
   afterAll(async () => {

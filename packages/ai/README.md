@@ -37,7 +37,7 @@ import {
 import { Workflow, getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import { HF_TRANSFORMERS_ONNX, register_HFT_InlineJobFns } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 
 // 1. Set up a model repository
 const modelRepo = new InMemoryModelRepository();
@@ -55,10 +55,10 @@ await modelRepo.addModel({
     model_path: "Xenova/LaMini-Flan-T5-783M"
 });
 
-// 3. Register provider functions (inline, same thread)
-await register_HFT_InlineJobFns();
+// 3. Register provider (inline mode, creates queue automatically)
+await new HuggingFaceTransformersProvider().register({ mode: "inline" });
 
-// 4. Set up job queue for the provider (optional, an in-memory queue will be setup automatically)
+// 4. Or manually set up job queue (when queue.autoCreate: false)
 const queueName = HF_TRANSFORMERS_ONNX;
 const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(queueName);
 
@@ -320,10 +320,10 @@ AI providers handle the actual execution of AI tasks. You need to register provi
 ### Basic Provider Registration
 
 ```typescript
-import { register_HFT_InlineJobFns } from "@workglow/ai-provider";
+import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 
 // Registers run functions for all supported AI tasks on the current thread
-await register_HFT_InlineJobFns();
+await new HuggingFaceTransformersProvider().register({ mode: "inline" });
 ```
 
 ### Worker-Based Provider Registration
@@ -331,9 +331,13 @@ await register_HFT_InlineJobFns();
 For compute-intensive tasks that should run in workers:
 
 ```typescript
-// See `@workglow/ai-provider` exports for worker/client registration helpers
-// - register_HFT_WorkerJobFns (in worker)
-// - register_HFT_ClientJobFns (in main thread)
+import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+
+await new HuggingFaceTransformersProvider().register({
+  mode: "worker",
+  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+});
+// Worker file must call HFT_WORKER_JOBRUN_REGISTER() from @workglow/ai-provider
 ```
 
 ### Job Queue Setup
@@ -428,7 +432,7 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 | `RerankerTask`                | Reranks search results for relevance          |
 | `HierarchyJoinTask`           | Enriches results with parent context          |
 | `ContextBuilderTask`          | Builds context for LLM prompts                |
-| `ChunkRetrievalTask`   | Orchestrates end-to-end retrieval             |
+| `ChunkRetrievalTask`          | Orchestrates end-to-end retrieval             |
 
 ### Complete RAG Workflow Example
 
@@ -593,7 +597,7 @@ This resolution is handled by the input resolver system, which inspects schema `
 | --------------------------------- | ---------------------------------------- | -------------------------- |
 | `model`                           | Any AI model configuration               | ModelRepository            |
 | `model:TaskName`                  | Model compatible with specific task type | ModelRepository            |
-| `repository:tabular`              | Tabular data repository                  | TabularStorageRegistry  |
+| `repository:tabular`              | Tabular data repository                  | TabularStorageRegistry     |
 | `repository:document-node-vector` | Vector storage repository                | VectorRepositoryRegistry   |
 | `repository:document`             | Document repository                      | DocumentRepositoryRegistry |
 

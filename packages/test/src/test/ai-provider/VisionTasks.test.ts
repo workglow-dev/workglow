@@ -17,10 +17,12 @@ import {
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
-  type HfTransformersOnnxModelRecord,
-  register_HFT_InlineJobFns,
-  register_TFMP_InlineJobFns,
+  HFT_TASKS,
+  HuggingFaceTransformersProvider,
   TENSORFLOW_MEDIAPIPE,
+  TensorFlowMediaPipeProvider,
+  TFMP_TASKS,
+  type HfTransformersOnnxModelRecord,
   type TFMPModelRecord,
 } from "@workglow/ai-provider";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
@@ -34,7 +36,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
   beforeEach(async () => {
     setTaskQueueRegistry(null);
     clearPipelineCache();
-    await register_HFT_InlineJobFns();
+    await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
     setGlobalModelRepository(new InMemoryModelRepository());
   });
   afterEach(async () => {
@@ -230,7 +232,7 @@ describe("Vision Tasks - MediaPipe", () => {
 
   beforeEach(async () => {
     setTaskQueueRegistry(null);
-    await register_TFMP_InlineJobFns();
+    await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
     setGlobalModelRepository(new InMemoryModelRepository());
   });
   afterEach(async () => {
