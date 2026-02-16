@@ -1136,3 +1136,29 @@ function createTextStreamer(
     ...(signal ? { abort_signal: signal } : {}),
   });
 }
+
+/**
+ * All HuggingFace Transformers task run functions, keyed by task type name.
+ * Pass this to `new HuggingFaceTransformersProvider(HFT_TASKS)` when the
+ * actual run function implementations are needed (inline mode, worker server).
+ */
+export const HFT_TASKS = {
+  DownloadModelTask: HFT_Download,
+  UnloadModelTask: HFT_Unload,
+  TextEmbeddingTask: HFT_TextEmbedding,
+  TextGenerationTask: HFT_TextGeneration,
+  TextQuestionAnswerTask: HFT_TextQuestionAnswer,
+  TextLanguageDetectionTask: HFT_TextLanguageDetection,
+  TextClassificationTask: HFT_TextClassification,
+  TextFillMaskTask: HFT_TextFillMask,
+  TextNamedEntityRecognitionTask: HFT_TextNamedEntityRecognition,
+  TextRewriterTask: HFT_TextRewriter,
+  TextSummaryTask: HFT_TextSummary,
+  TextTranslationTask: HFT_TextTranslation,
+  ImageSegmentationTask: HFT_ImageSegmentation,
+  ImageToTextTask: HFT_ImageToText,
+  BackgroundRemovalTask: HFT_BackgroundRemoval,
+  ImageEmbeddingTask: HFT_ImageEmbedding,
+  ImageClassificationTask: HFT_ImageClassification,
+  ObjectDetectionTask: HFT_ObjectDetection,
+} as const;

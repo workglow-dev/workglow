@@ -138,10 +138,10 @@ import {
 import { DebugLogTask } from "@workglow/tasks";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import { HF_TRANSFORMERS_ONNX, register_HFT_InlineJobFns } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 
 // Provider run functions on this thread
-await register_HFT_InlineJobFns();
+await new HuggingFaceTransformersProvider().register({ mode: "inline" });
 
 // Set up a model repo and models
 const modelRepo = new InMemoryModelRepository();
@@ -218,17 +218,17 @@ You can use as much or as little "magic" as you want. The config helpers are the
 
 Tasks are agnostic to the provider. Text embedding can be done with several providers, such as Hugging Face Transformers (ONNX) or MediaPipe locally, or OpenAI etc via API calls.
 
-- **`register_HFT_InlineJobFns()`** - Registers the Hugging Face Transformers local provider. Now you can use an ONNX model name for `TextEmbedding`, etc.
-- **`register_TFMP_InlineJobFns()`** - Registers the MediaPipe TF.js local provider. Now you can use one of the MediaPipe models.
+- **`new HuggingFaceTransformersProvider().register({ mode: "inline" })`** - Registers the Hugging Face Transformers local provider. Now you can use an ONNX model name for `TextEmbedding`, etc.
+- **`new TensorFlowMediaPipeProvider().register({ mode: "inline" })`** - Registers the MediaPipe TF.js local provider. Now you can use one of the MediaPipe models.
 
 ### Registering Provider plus related Job Queue
 
-LLM providers have long running functions. These are handled by a Job Queue. There are some pre-built ones:
+LLM providers have long running functions. These are handled by a Job Queue. The `provider.register()` call creates the queue automatically. For convenience:
 
 #### In memory:
 
-- **`register_HFT_InMemoryQueue`** sets up the Hugging Face Transformers provider (above), and a job queue with `JobQueueServer` and `JobQueueClient` with a `ConcurrencyLimiter` so the ONNX queue only runs one task/job at a time.
-- **`register_TFMP_InMemoryQueue`** does the same for MediaPipe.
+- **`register_HFT_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new HuggingFaceTransformersProvider().register({ mode: "inline" })`.
+- **`register_TFMP_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new TensorFlowMediaPipeProvider().register({ mode: "inline" })`.
 
 #### Using SQLite:
 

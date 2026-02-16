@@ -5,9 +5,11 @@
  */
 
 import { env } from "@sroussey/transformers";
-import { HFT_WORKER_JOBRUN, HFT_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider";
-import { globalServiceRegistry } from "@workglow/util";
+import { HFT_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider";
 
-env.backends.onnx.wasm.proxy = true;
-globalServiceRegistry.get(HFT_WORKER_JOBRUN);
-console.log("worker_htf loaded", HFT_WORKER_JOBRUN_REGISTER);
+const onnx = env?.backends?.onnx;
+if (onnx) {
+  onnx.wasm!.proxy = true;
+}
+
+HFT_WORKER_JOBRUN_REGISTER();

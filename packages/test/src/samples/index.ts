@@ -4,60 +4,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiJob, AiJobInput } from "@workglow/ai";
-import { TENSORFLOW_MEDIAPIPE } from "@workglow/ai-provider";
-import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
-import { InMemoryQueueStorage } from "@workglow/storage";
-import { getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
+import {
+  HFT_TASKS,
+  HuggingFaceTransformersProvider,
+  TFMP_TASKS,
+  TensorFlowMediaPipeProvider,
+} from "@workglow/ai-provider";
 export * from "./MediaPipeModelSamples";
 export * from "./ONNXModelSamples";
 
+/**
+ * Registers HuggingFace Transformers provider with inline execution and in-memory queue.
+ * Equivalent to: `new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" })`
+ */
 export async function register_HFT_InMemoryQueue(): Promise<void> {
-  const queueName = "HF_TRANSFORMERS_ONNX";
-  const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(queueName);
-  await storage.setupDatabase();
-
-  const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(
-    AiJob<AiJobInput<TaskInput>, TaskOutput>,
-    {
-      storage,
-      queueName,
-      limiter: new ConcurrencyLimiter(1, 10),
-    }
-  );
-
-  const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
-    storage,
-    queueName,
-  });
-
-  client.attach(server);
-
-  getTaskQueueRegistry().registerQueue({ server, client, storage });
-  await server.start();
+  await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
 }
 
+/**
+ * Registers TensorFlow MediaPipe provider with inline execution and in-memory queue.
+ * Equivalent to: `new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" })`
+ */
 export async function register_TFMP_InMemoryQueue(): Promise<void> {
-  const queueName = TENSORFLOW_MEDIAPIPE;
-  const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(queueName);
-  await storage.setupDatabase();
-
-  const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(
-    AiJob<AiJobInput<TaskInput>, TaskOutput>,
-    {
-      storage,
-      queueName,
-      limiter: new ConcurrencyLimiter(1, 10),
-    }
-  );
-
-  const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
-    storage,
-    queueName,
-  });
-
-  client.attach(server);
-
-  getTaskQueueRegistry().registerQueue({ server, client, storage });
-  await server.start();
+  await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
 }

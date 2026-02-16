@@ -11,6 +11,7 @@ export * from "./model/ModelRegistry";
 export * from "./model/ModelRepository";
 export * from "./model/ModelSchema";
 
+export * from "./provider/AiProvider";
 export * from "./provider/AiProviderRegistry";
 
 export * from "./task";
