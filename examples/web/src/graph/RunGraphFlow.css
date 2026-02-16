@@ -332,6 +332,36 @@
   overflow-y: auto;
 }
 
+/* Streaming progress bar */
+.progress-bar.streaming {
+  background: #3b82f6;
+  width: 100%;
+  animation: streaming-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes streaming-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.react-flow__node .wrapper.gradient.streaming:before {
+  content: "";
+  background: conic-gradient(
+    from -160deg at 50% 50%,
+    #3b82f6 0deg,
+    #60a5fa 120deg,
+    #3b82f6 240deg,
+    rgba(59, 130, 246, 0) 360deg
+  );
+  animation: spinner 3s linear infinite;
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+
 /* Transitions */
 .fade-in {
   animation: fade-in 0.3s ease-in-out;

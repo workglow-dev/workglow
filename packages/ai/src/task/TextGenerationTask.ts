@@ -13,6 +13,7 @@ const generatedTextSchema = {
   type: "string",
   title: "Text",
   description: "The generated text",
+  "x-stream": "append",
 } as const;
 
 const modelSchema = TypeModel("model:TextGenerationTask");
@@ -93,8 +94,6 @@ export class TextGenerationTask extends StreamingAiTask<
   public static title = "Text Generation";
   public static description =
     "Generates text from a prompt using language models with configurable parameters";
-  public static streamable = true;
-  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextGenerationInputSchema as DataPortSchema;
   }

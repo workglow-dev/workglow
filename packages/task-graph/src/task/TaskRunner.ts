@@ -10,7 +10,7 @@ import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
-import type { StreamEvent, StreamMode } from "./StreamTypes";
+import { isTaskStreamable, getOutputStreamMode, type StreamEvent, type StreamMode } from "./StreamTypes";
 import { Task } from "./Task";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
 import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
@@ -97,10 +97,7 @@ export class TaskRunner<
       const inputs: Input = this.task.runInputData as Input;
       let outputs: Output | undefined;
 
-      const isStreamable =
-        this.task.streamable &&
-        this.task.streamMode !== "none" &&
-        typeof this.task.executeStream === "function";
+      const isStreamable = isTaskStreamable(this.task);
 
       if (this.task.cacheable) {
         outputs = (await this.outputCache?.getOutput(this.task.type, inputs)) as Output;
@@ -227,7 +224,7 @@ export class TaskRunner<
    * In replace mode, the final output comes from the finish event data.
    */
   protected async executeStreamingTask(input: Input): Promise<Output | undefined> {
-    const streamMode: StreamMode = this.task.streamMode || "append";
+    const streamMode: StreamMode = getOutputStreamMode(this.task.outputSchema());
 
     let accumulated = "";
     let chunkCount = 0;

@@ -9,7 +9,6 @@ import {
   Task,
   TaskStatus,
   type StreamEvent,
-  type StreamMode,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -30,8 +29,6 @@ let appendStreamCallCount = 0;
 
 class CacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
   public static type = "CacheAppendStreamTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = true;
 
   public static inputSchema(): DataPortSchema {
@@ -49,7 +46,7 @@ class CacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       required: ["text"],
       additionalProperties: false,
@@ -74,8 +71,6 @@ let replaceStreamCallCount = 0;
 
 class CacheReplaceStreamTask extends Task<CacheTestInput, CacheTestOutput> {
   public static type = "CacheReplaceStreamTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "replace";
   public static cacheable = true;
 
   public static inputSchema(): DataPortSchema {
@@ -93,7 +88,7 @@ class CacheReplaceStreamTask extends Task<CacheTestInput, CacheTestOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "replace" },
       },
       required: ["text"],
       additionalProperties: false,
@@ -116,8 +111,6 @@ class CacheReplaceStreamTask extends Task<CacheTestInput, CacheTestOutput> {
  */
 class NoCacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
   public static type = "NoCacheAppendStreamTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -135,7 +128,7 @@ class NoCacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       required: ["text"],
       additionalProperties: false,

@@ -189,6 +189,10 @@ export const RunGraphFlow: React.FC<{
           unsubscribes.push(unsub);
         });
 
+        // Streaming status: update node when a task starts streaming
+        const streamStartUnsub = task.subscribe("stream_start", () => updateNode(setNodes, task));
+        unsubscribes.push(streamStartUnsub);
+
         // Progress events (just node update)
         const progressUnsub = task.subscribe("progress", () => updateNode(setNodes, task));
         unsubscribes.push(progressUnsub);
@@ -201,8 +205,9 @@ export const RunGraphFlow: React.FC<{
       });
 
       const dataflows = graph.getDataflows();
+      const dataflowEvents = [...statusEvents, "streaming"] as const;
       dataflows.forEach((dataflow) => {
-        statusEvents.forEach((eventName) => {
+        dataflowEvents.forEach((eventName) => {
           const unsub = dataflow.subscribe(eventName, () => updateEdgeStatus(dataflow));
           unsubscribes.push(unsub);
         });

@@ -4,15 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it } from "vitest";
 import type {
+  StreamError,
   StreamEvent,
   StreamFinish,
   StreamMode,
   StreamSnapshot,
   StreamTextDelta,
-  StreamError,
 } from "@workglow/task-graph";
+import {
+  edgeNeedsAccumulation,
+  getOutputStreamMode,
+  getPortStreamMode,
+  isTaskStreamable,
+} from "@workglow/task-graph";
+import type { DataPortSchema } from "@workglow/util";
+import { describe, expect, it } from "vitest";
 
 describe("StreamTypes", () => {
   describe("StreamMode", () => {
@@ -178,6 +185,171 @@ describe("StreamTypes", () => {
       expect(deltas).toBe(2);
       expect(snapshots).toBe(1);
       expect(finishes).toBe(1);
+    });
+  });
+
+  // ===========================================================================
+  // Port-level helper functions
+  // ===========================================================================
+
+  describe("getPortStreamMode", () => {
+    it("should return 'none' when x-stream is absent", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string" } },
+      };
+      expect(getPortStreamMode(schema, "text")).toBe("none");
+    });
+
+    it("should return 'append' when x-stream is 'append'", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "append" } },
+      };
+      expect(getPortStreamMode(schema, "text")).toBe("append");
+    });
+
+    it("should return 'replace' when x-stream is 'replace'", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "replace" } },
+      };
+      expect(getPortStreamMode(schema, "text")).toBe("replace");
+    });
+
+    it("should return 'none' for a missing port", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "append" } },
+      };
+      expect(getPortStreamMode(schema, "missing")).toBe("none");
+    });
+
+    it("should return 'none' for a boolean schema", () => {
+      expect(getPortStreamMode(true as any, "text")).toBe("none");
+      expect(getPortStreamMode(false as any, "text")).toBe("none");
+    });
+
+    it("should return 'none' when properties is empty", () => {
+      const schema: DataPortSchema = { type: "object", properties: {} };
+      expect(getPortStreamMode(schema, "text")).toBe("none");
+    });
+  });
+
+  describe("getOutputStreamMode", () => {
+    it("should return 'none' when no port has x-stream", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string" } },
+      };
+      expect(getOutputStreamMode(schema)).toBe("none");
+    });
+
+    it("should return 'append' when a port has x-stream append", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "append" } },
+      };
+      expect(getOutputStreamMode(schema)).toBe("append");
+    });
+
+    it("should return 'replace' when a port has x-stream replace", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "replace" } },
+      };
+      expect(getOutputStreamMode(schema)).toBe("replace");
+    });
+
+    it("should prioritize 'append' over 'replace' when both exist", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          text: { type: "string", "x-stream": "replace" },
+          summary: { type: "string", "x-stream": "append" },
+        },
+      };
+      expect(getOutputStreamMode(schema)).toBe("append");
+    });
+
+    it("should return 'none' for boolean schema", () => {
+      expect(getOutputStreamMode(true as any)).toBe("none");
+    });
+  });
+
+  describe("isTaskStreamable", () => {
+    it("should return true when output has x-stream and executeStream exists", () => {
+      const task = {
+        outputSchema: () =>
+          ({
+            type: "object",
+            properties: { text: { type: "string", "x-stream": "append" } },
+          }) as DataPortSchema,
+        executeStream: async function* () {},
+      };
+      expect(isTaskStreamable(task)).toBe(true);
+    });
+
+    it("should return false when output has x-stream but no executeStream", () => {
+      const task = {
+        outputSchema: () =>
+          ({
+            type: "object",
+            properties: { text: { type: "string", "x-stream": "append" } },
+          }) as DataPortSchema,
+      };
+      expect(isTaskStreamable(task)).toBe(false);
+    });
+
+    it("should return false when executeStream exists but no x-stream on output", () => {
+      const task = {
+        outputSchema: () =>
+          ({
+            type: "object",
+            properties: { text: { type: "string" } },
+          }) as DataPortSchema,
+        executeStream: async function* () {},
+      };
+      expect(isTaskStreamable(task)).toBe(false);
+    });
+  });
+
+  describe("edgeNeedsAccumulation", () => {
+    const appendSchema: DataPortSchema = {
+      type: "object",
+      properties: { text: { type: "string", "x-stream": "append" } },
+    };
+    const replaceSchema: DataPortSchema = {
+      type: "object",
+      properties: { text: { type: "string", "x-stream": "replace" } },
+    };
+    const noneSchema: DataPortSchema = {
+      type: "object",
+      properties: { text: { type: "string" } },
+    };
+
+    it("should return false when source has no x-stream", () => {
+      expect(edgeNeedsAccumulation(noneSchema, "text", noneSchema, "text")).toBe(false);
+    });
+
+    it("should return false when source and target match (append-append)", () => {
+      expect(edgeNeedsAccumulation(appendSchema, "text", appendSchema, "text")).toBe(false);
+    });
+
+    it("should return false when source and target match (replace-replace)", () => {
+      expect(edgeNeedsAccumulation(replaceSchema, "text", replaceSchema, "text")).toBe(false);
+    });
+
+    it("should return true when source is append but target has no x-stream", () => {
+      expect(edgeNeedsAccumulation(appendSchema, "text", noneSchema, "text")).toBe(true);
+    });
+
+    it("should return true when source is replace but target has no x-stream", () => {
+      expect(edgeNeedsAccumulation(replaceSchema, "text", noneSchema, "text")).toBe(true);
+    });
+
+    it("should return true when source is append but target is replace", () => {
+      expect(edgeNeedsAccumulation(appendSchema, "text", replaceSchema, "text")).toBe(true);
     });
   });
 });

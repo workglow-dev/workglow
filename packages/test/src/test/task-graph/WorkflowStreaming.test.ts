@@ -10,7 +10,6 @@ import {
   Task,
   Workflow,
   type StreamEvent,
-  type StreamMode,
   type TaskIdType,
 } from "@workglow/task-graph";
 import { DataPortSchema, sleep } from "@workglow/util";
@@ -25,8 +24,6 @@ type TextOutput = { text: string };
 
 class WFStreamSource extends Task<TextInput, TextOutput> {
   public static type = "WFStreamSource";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -40,7 +37,7 @@ class WFStreamSource extends Task<TextInput, TextOutput> {
   public static outputSchema(): DataPortSchema {
     return {
       type: "object",
-      properties: { text: { type: "string" } },
+      properties: { text: { type: "string", "x-stream": "append" } },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
@@ -62,7 +59,6 @@ class WFStreamSource extends Task<TextInput, TextOutput> {
 
 class WFNonStreamSink extends Task<{ text: string }, TextOutput> {
   public static type = "WFNonStreamSink";
-  public static streamable = false;
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -182,8 +178,6 @@ describe("Workflow Streaming Events", () => {
 
     class FailingStreamTask extends Task<TextInput, TextOutput> {
       public static type = "FailingStreamTask";
-      public static streamable = true;
-      public static streamMode: StreamMode = "append";
       public static cacheable = false;
 
       public static inputSchema(): DataPortSchema {
@@ -197,7 +191,7 @@ describe("Workflow Streaming Events", () => {
       public static outputSchema(): DataPortSchema {
         return {
           type: "object",
-          properties: { text: { type: "string" } },
+          properties: { text: { type: "string", "x-stream": "append" } },
           additionalProperties: false,
         } as const satisfies DataPortSchema;
       }

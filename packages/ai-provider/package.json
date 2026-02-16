@@ -40,10 +40,10 @@
     "@mediapipe/tasks-vision": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
     "@mediapipe/tasks-genai": "catalog:",
-    "openai": "^6.22.0",
-    "@anthropic-ai/sdk": "^0.74.0",
-    "@google/generative-ai": "^0.24.1",
-    "ollama": "^0.6.3"
+    "openai": "catalog:",
+    "@anthropic-ai/sdk": "catalog:",
+    "@google/generative-ai": "catalog:",
+    "ollama": "catalog:"
   },
   "peerDependenciesMeta": {
     "@workglow/ai": {
@@ -75,8 +75,8 @@
     }
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.74.0",
-    "@google/generative-ai": "^0.24.1",
+    "@anthropic-ai/sdk": "catalog:",
+    "@google/generative-ai": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
     "@mediapipe/tasks-genai": "catalog:",
     "@mediapipe/tasks-text": "catalog:",
@@ -87,7 +87,7 @@
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*",
-    "ollama": "^0.6.3",
-    "openai": "^6.22.0"
+    "ollama": "catalog:",
+    "openai": "catalog:"
   }
 }

@@ -14,7 +14,7 @@ import {
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import { ITask } from "../task/ITask";
-import type { StreamEvent } from "../task/StreamTypes";
+import { getOutputStreamMode, isTaskStreamable, type StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { TaskAbortedError, TaskConfigurationError, TaskError } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
@@ -490,7 +490,7 @@ export class TaskGraphRunner {
    * @returns The output of the task
    */
   protected async runTask<T>(task: ITask, input: TaskInput): Promise<GraphSingleTaskResult<T>> {
-    const isStreamable = task.streamable === true && task.streamMode !== "none";
+    const isStreamable = isTaskStreamable(task);
 
     // Await any active streams on input dataflow edges so their values
     // are materialized before we read them. This applies to ALL downstream
@@ -554,7 +554,7 @@ export class TaskGraphRunner {
     task: ITask,
     input: TaskInput
   ): Promise<GraphSingleTaskResult<T>> {
-    const streamMode = task.streamMode || "none";
+    const streamMode = getOutputStreamMode(task.outputSchema());
 
     let streamingNotified = false;
 

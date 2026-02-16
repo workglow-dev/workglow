@@ -37,6 +37,7 @@ export const TextRewriterOutputSchema = {
       type: "string",
       title: "Text",
       description: "The rewritten text",
+      "x-stream": "append",
     },
   },
   required: ["text"],
@@ -57,8 +58,6 @@ export class TextRewriterTask extends StreamingAiTask<
   public static category = "AI Text Model";
   public static title = "Text Rewriter";
   public static description = "Rewrites text according to a given prompt using language models";
-  public static streamable = true;
-  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextRewriterInputSchema as DataPortSchema;
   }

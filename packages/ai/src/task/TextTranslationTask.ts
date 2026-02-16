@@ -15,6 +15,7 @@ const translationTextSchema = {
   type: "string",
   title: "Text",
   description: "The translated text",
+  "x-stream": "replace",
 } as const;
 
 export const TextTranslationInputSchema = {
@@ -72,8 +73,6 @@ export class TextTranslationTask extends StreamingAiTask<
   public static category = "AI Text Model";
   public static title = "Text Translation";
   public static description = "Translates text from one language to another using language models";
-  public static streamable = true;
-  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextTranslationInputSchema as DataPortSchema;
   }

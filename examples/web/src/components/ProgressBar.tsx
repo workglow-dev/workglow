@@ -13,20 +13,29 @@ export const ProgressBar: React.FC<{
   progress: number;
   status: TaskStatus;
   showText: boolean;
-}> = ({ progress, status, showText }) => (
-  <>
-    <div className="w-full bg-[rgba(28,35,50,0.6)] rounded-full overflow-hidden h-2 my-2">
-      <div
-        className={`h-full rounded-full transition-[width] duration-300 ease-in-out ${
-          status === TaskStatus.PROCESSING
-            ? "bg-gradient-to-r from-[#2a8af6] via-[#a853ba] to-[#2a8af6] bg-[length:200%_100%] animate-progress"
-            : getStatusColorBg(status)
-        }`}
-        style={{
-          width: `${Math.round(progress)}%`,
-        }}
-      />
-    </div>
-    {showText && <div className="text-xs text-gray-500">Progress: {Math.round(progress)}%</div>}
-  </>
-);
+}> = ({ progress, status, showText }) => {
+  const isStreaming = status === TaskStatus.STREAMING;
+
+  return (
+    <>
+      <div className="w-full bg-[rgba(28,35,50,0.6)] rounded-full overflow-hidden h-2 my-2">
+        <div
+          className={`h-full rounded-full transition-[width] duration-300 ease-in-out ${
+            isStreaming
+              ? "bg-blue-500 animate-streaming-pulse"
+              : status === TaskStatus.PROCESSING
+                ? "bg-gradient-to-r from-[#2a8af6] via-[#a853ba] to-[#2a8af6] bg-[length:200%_100%] animate-progress"
+                : getStatusColorBg(status)
+          }`}
+          style={{
+            width: isStreaming ? "100%" : `${Math.round(progress)}%`,
+          }}
+        />
+      </div>
+      {showText && !isStreaming && (
+        <div className="text-xs text-gray-500">Progress: {Math.round(progress)}%</div>
+      )}
+      {showText && isStreaming && <div className="text-xs text-blue-400">Streaming...</div>}
+    </>
+  );
+};

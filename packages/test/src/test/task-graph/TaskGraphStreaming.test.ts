@@ -12,7 +12,6 @@ import {
   TaskGraphRunner,
   TaskStatus,
   type StreamEvent,
-  type StreamMode,
 } from "@workglow/task-graph";
 import { DataPortSchema, sleep } from "@workglow/util";
 import { describe, expect, it } from "vitest";
@@ -29,8 +28,6 @@ type TextOutput = { text: string };
  */
 class StreamSourceTask extends Task<TextInput, TextOutput> {
   public static type = "StreamSourceTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -47,7 +44,7 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
@@ -77,15 +74,13 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
  */
 class StreamConsumerTask extends Task<TextInput, TextOutput> {
   public static type = "StreamConsumerTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
-        text: { type: "string", default: "" },
+        text: { type: "string", default: "", "x-stream": "append" },
       },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
@@ -95,7 +90,7 @@ class StreamConsumerTask extends Task<TextInput, TextOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
@@ -122,8 +117,6 @@ class StreamConsumerTask extends Task<TextInput, TextOutput> {
  */
 class NonStreamConsumerTask extends Task<TextInput, TextOutput> {
   public static type = "NonStreamConsumerTask";
-  public static streamable = false;
-  public static streamMode: StreamMode = "none";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -158,8 +151,6 @@ class NonStreamConsumerTask extends Task<TextInput, TextOutput> {
  */
 class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
   public static type = "AppendEmptyFinishSource";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -176,7 +167,7 @@ class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
@@ -202,8 +193,6 @@ class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
  */
 class ReplaceSourceTask extends Task<TextInput, TextOutput> {
   public static type = "ReplaceSourceTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "replace";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -220,7 +209,7 @@ class ReplaceSourceTask extends Task<TextInput, TextOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "replace" },
       },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
@@ -620,16 +609,11 @@ describe("TaskGraph Streaming", () => {
     });
   });
 
-  describe("Config-driven streamMode override in graph", () => {
-    it("should use config streamMode override in streaming graph execution", async () => {
+  describe("Port-level streaming in graph", () => {
+    it("should use x-stream annotation to determine streaming in graph execution", async () => {
       graph = new TaskGraph();
 
-      // StreamSourceTask has static streamMode = "append"
-      // Override it to "append" explicitly via config (same mode, ensuring config path works)
-      const source = new StreamSourceTask(
-        { prompt: "test" },
-        { id: "source", streamMode: "append" }
-      );
+      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
       const consumer = new NonStreamConsumerTask({} as any, { id: "consumer" });
 
       graph.addTasks([source, consumer]);
@@ -638,39 +622,17 @@ describe("TaskGraph Streaming", () => {
       runner = new TaskGraphRunner(graph);
       const results = await runner.runGraph({ prompt: "test" });
 
-      // The non-streaming consumer should receive the accumulated value
       expect(results.length).toBeGreaterThan(0);
       const consumerResult = results.find((r) => r.id === "consumer");
       expect(consumerResult).toBeDefined();
       expect((consumerResult!.data as any).text).toContain("final:");
     });
 
-    it("should respect config streamMode when instance differs from static", async () => {
-      // Verify that instance getter returns the config override
-      const source = new StreamSourceTask(
-        { prompt: "test" },
-        { id: "source", streamMode: "replace" }
-      );
-      expect(source.streamMode).toBe("replace");
-
-      // Static should be unchanged
-      expect(StreamSourceTask.streamMode).toBe("append");
-    });
-
-    it("should allow different instances of the same class to have different streamModes", async () => {
-      const source1 = new StreamSourceTask(
-        { prompt: "test" },
-        { id: "source1", streamMode: "append" }
-      );
-      const source2 = new StreamSourceTask(
-        { prompt: "test" },
-        { id: "source2", streamMode: "replace" }
-      );
-      const source3 = new StreamSourceTask({ prompt: "test" }, { id: "source3" });
-
-      expect(source1.streamMode).toBe("append");
-      expect(source2.streamMode).toBe("replace");
-      expect(source3.streamMode).toBe("append"); // falls back to static
+    it("should detect output stream mode from schema", () => {
+      const { getOutputStreamMode } = require("@workglow/task-graph");
+      expect(getOutputStreamMode(StreamSourceTask.outputSchema())).toBe("append");
+      expect(getOutputStreamMode(ReplaceSourceTask.outputSchema())).toBe("replace");
+      expect(getOutputStreamMode(NonStreamConsumerTask.outputSchema())).toBe("none");
     });
   });
 });

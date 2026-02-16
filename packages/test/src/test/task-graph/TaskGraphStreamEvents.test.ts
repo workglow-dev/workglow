@@ -11,7 +11,6 @@ import {
   TaskGraph,
   TaskGraphRunner,
   type StreamEvent,
-  type StreamMode,
   type TaskIdType,
 } from "@workglow/task-graph";
 import { DataPortSchema, sleep } from "@workglow/util";
@@ -26,8 +25,6 @@ type TextOutput = { text: string };
 
 class StreamSourceTask extends Task<TextInput, TextOutput> {
   public static type = "StreamSourceTask_Events";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -41,7 +38,7 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
   public static outputSchema(): DataPortSchema {
     return {
       type: "object",
-      properties: { text: { type: "string" } },
+      properties: { text: { type: "string", "x-stream": "append" } },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
@@ -63,7 +60,6 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
 
 class NonStreamTask extends Task<{ text: string }, TextOutput> {
   public static type = "NonStreamTask_Events";
-  public static streamable = false;
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {

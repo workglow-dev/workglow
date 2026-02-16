@@ -16,7 +16,6 @@ import {
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import type { IExecuteContext, IExecuteReactiveContext, ITask } from "./ITask";
-import type { StreamMode } from "./StreamTypes";
 import { TaskAbortedError, TaskError, TaskInvalidInputError } from "./TaskError";
 import {
   type TaskEventListener,
@@ -79,20 +78,6 @@ export class Task<
    * and emit 'schemaChange' events when their schemas change.
    */
   public static hasDynamicSchemas: boolean = false;
-
-  /**
-   * Whether this task supports streaming output.
-   * Subclasses that implement `executeStream()` should set this to true.
-   */
-  public static streamable: boolean = false;
-
-  /**
-   * Stream mode for this task:
-   * - 'none': no streaming (default)
-   * - 'append': each chunk is a delta (e.g., new token)
-   * - 'replace': each chunk is a revised full snapshot of the output
-   */
-  public static streamMode: StreamMode = "none";
 
   /**
    * Input schema for this task
@@ -246,14 +231,6 @@ export class Task<
       // if cacheable is set in config, always use that
       this.config?.cacheable ?? (this.constructor as typeof Task).cacheable
     );
-  }
-
-  public get streamable(): boolean {
-    return (this.constructor as typeof Task).streamable;
-  }
-
-  public get streamMode(): StreamMode {
-    return this.config?.streamMode ?? (this.constructor as typeof Task).streamMode;
   }
 
   // ========================================================================

@@ -32,6 +32,7 @@ export const TextSummaryOutputSchema = {
       type: "string",
       title: "Text",
       description: "The summarized text",
+      "x-stream": "append",
     },
   },
   required: ["text"],
@@ -51,8 +52,6 @@ export class TextSummaryTask extends StreamingAiTask<TextSummaryTaskInput, TextS
   public static title = "Text Summary";
   public static description =
     "Summarizes text into a shorter form while preserving key information";
-  public static streamable = true;
-  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextSummaryInputSchema as DataPortSchema;
   }

@@ -6,7 +6,6 @@
 
 import { StripJSONSchema } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
-import type { StreamMode } from "./StreamTypes";
 import type { Task } from "./Task";
 
 /**
@@ -91,9 +90,6 @@ export interface IConfig {
 
   /** Optional cacheable flag to use for this task, overriding the default static property */
   cacheable?: boolean;
-
-  /** Optional stream mode override: 'none', 'append', or 'replace'. Overrides the static streamMode. */
-  streamMode?: StreamMode;
 
   /** Optional user data to use for this task, not used by the task framework except it will be exported as part of the task JSON*/
   extras?: DataPorts;

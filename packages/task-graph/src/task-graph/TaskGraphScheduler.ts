@@ -5,6 +5,7 @@
  */
 
 import { ITask } from "../task/ITask";
+import { getPortStreamMode } from "../task/StreamTypes";
 import { TaskStatus } from "../task/TaskTypes";
 import { TaskGraph } from "./TaskGraph";
 
@@ -105,26 +106,33 @@ export class DependencyBasedScheduler implements ITaskGraphScheduler {
       }
     }
 
-    // A task is ready if all its non-disabled dependencies are completed
-    // DISABLED dataflows are considered "satisfied" (their branch was not taken)
-    const dependencies = sourceDataflows
-      .filter((df) => df.status !== TaskStatus.DISABLED)
-      .map((dataflow) => dataflow.sourceTaskId);
+    // A task is ready if all its non-disabled dependencies are completed.
+    // DISABLED dataflows are considered "satisfied" (their branch was not taken).
+    //
+    // Per-edge streaming: when the source output port AND the target input port
+    // both declare matching `x-stream`, the dependency can be satisfied by
+    // STREAMING status (not just COMPLETED). Edges where the target port does
+    // NOT accept streams still require full completion.
+    const activeDataflows = sourceDataflows.filter((df) => df.status !== TaskStatus.DISABLED);
 
-    // Check if this task is streamable -- streamable tasks can start
-    // when all dependencies are either COMPLETED or STREAMING.
-    // Also check instance streamMode so that a config override to "none"
-    // disables streaming-aware scheduling.
-    const isStreamable = task.streamable && task.streamMode !== "none";
+    return activeDataflows.every((df) => {
+      const depId = df.sourceTaskId;
+      if (this.completedTasks.has(depId)) return true;
 
-    if (isStreamable) {
-      return dependencies.every(
-        (dep) => this.completedTasks.has(dep) || this.streamingTasks.has(dep)
-      );
-    }
+      // Check if this specific edge supports stream pass-through
+      if (this.streamingTasks.has(depId)) {
+        const sourceTask = this.dag.getTask(depId);
+        if (sourceTask) {
+          const sourceMode = getPortStreamMode(sourceTask.outputSchema(), df.sourceTaskPortId);
+          const targetMode = getPortStreamMode(task.inputSchema(), df.targetTaskPortId);
+          if (sourceMode !== "none" && sourceMode === targetMode) {
+            return true;
+          }
+        }
+      }
 
-    // Non-streaming tasks still require all dependencies to be fully completed
-    return dependencies.every((dep) => this.completedTasks.has(dep));
+      return false;
+    });
   }
 
   private async waitForNextTask(): Promise<ITask | null> {

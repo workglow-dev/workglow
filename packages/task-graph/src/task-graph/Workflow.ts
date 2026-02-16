@@ -8,7 +8,7 @@ import { EventEmitter, JsonSchema, uuid4, type EventParameters } from "@workglow
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
-import type { StreamEvent } from "../task/StreamTypes";
+import { getPortStreamMode, type StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
@@ -1085,20 +1085,37 @@ export class Workflow<
         return;
       }
 
-      for (const [fromOutputPortId, fromPortOutputSchema] of Object.entries(
-        fromSchema.properties || {}
-      )) {
-        for (const [toInputPortId, toPortInputSchema] of Object.entries(
-          toSchema.properties || {}
+      // Iterate target-first to collect candidates per target port,
+      // then apply x-stream tiebreaker when multiple source ports match.
+      for (const [toInputPortId, toPortInputSchema] of Object.entries(toSchema.properties || {})) {
+        if (matches.has(toInputPortId)) continue;
+
+        const candidates: string[] = [];
+        for (const [fromOutputPortId, fromPortOutputSchema] of Object.entries(
+          fromSchema.properties || {}
         )) {
           if (
-            !matches.has(toInputPortId) &&
             comparator([fromOutputPortId, fromPortOutputSchema], [toInputPortId, toPortInputSchema])
           ) {
-            matches.set(toInputPortId, fromOutputPortId);
-            graph.addDataflow(new Dataflow(fromTaskId, fromOutputPortId, toTaskId, toInputPortId));
+            candidates.push(fromOutputPortId);
           }
         }
+
+        if (candidates.length === 0) continue;
+
+        // Tiebreaker: when multiple source ports match, prefer the one
+        // whose x-stream setting matches the target port's x-stream.
+        let winner = candidates[0];
+        if (candidates.length > 1) {
+          const targetStreamMode = getPortStreamMode(toSchema, toInputPortId);
+          const streamMatch = candidates.find(
+            (portId) => getPortStreamMode(fromSchema, portId) === targetStreamMode
+          );
+          if (streamMatch) winner = streamMatch;
+        }
+
+        matches.set(toInputPortId, winner);
+        graph.addDataflow(new Dataflow(fromTaskId, winner, toTaskId, toInputPortId));
       }
     };
 

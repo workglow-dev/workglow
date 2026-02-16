@@ -8,8 +8,9 @@ import {
   IExecuteContext,
   Task,
   TaskStatus,
+  isTaskStreamable,
+  getOutputStreamMode,
   type StreamEvent,
-  type StreamMode,
 } from "@workglow/task-graph";
 import { DataPortSchema, sleep } from "@workglow/util";
 import { describe, expect, it } from "vitest";
@@ -28,8 +29,6 @@ type StreamTestOutput = { text: string };
  */
 class TestStreamingAppendTask extends Task<StreamTestInput, StreamTestOutput> {
   public static type = "TestStreamingAppendTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = true;
 
   public static inputSchema(): DataPortSchema {
@@ -47,7 +46,7 @@ class TestStreamingAppendTask extends Task<StreamTestInput, StreamTestOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       required: ["text"],
       additionalProperties: false,
@@ -71,8 +70,6 @@ class TestStreamingAppendTask extends Task<StreamTestInput, StreamTestOutput> {
  */
 class TestStreamingReplaceTask extends Task<StreamTestInput, StreamTestOutput> {
   public static type = "TestStreamingReplaceTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "replace";
   public static cacheable = true;
 
   public static inputSchema(): DataPortSchema {
@@ -90,7 +87,7 @@ class TestStreamingReplaceTask extends Task<StreamTestInput, StreamTestOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "replace" },
       },
       required: ["text"],
       additionalProperties: false,
@@ -113,8 +110,6 @@ class TestStreamingReplaceTask extends Task<StreamTestInput, StreamTestOutput> {
  */
 class TestStreamingErrorTask extends Task<StreamTestInput, StreamTestOutput> {
   public static type = "TestStreamingErrorTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -132,7 +127,7 @@ class TestStreamingErrorTask extends Task<StreamTestInput, StreamTestOutput> {
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       required: ["text"],
       additionalProperties: false,
@@ -154,8 +149,6 @@ class TestStreamingErrorTask extends Task<StreamTestInput, StreamTestOutput> {
  */
 class TestStreamingAbortableTask extends Task<StreamTestInput, StreamTestOutput> {
   public static type = "TestStreamingAbortableTask";
-  public static streamable = true;
-  public static streamMode: StreamMode = "append";
   public static cacheable = false;
 
   public static inputSchema(): DataPortSchema {
@@ -173,7 +166,7 @@ class TestStreamingAbortableTask extends Task<StreamTestInput, StreamTestOutput>
     return {
       type: "object",
       properties: {
-        text: { type: "string" },
+        text: { type: "string", "x-stream": "append" },
       },
       required: ["text"],
       additionalProperties: false,
@@ -442,78 +435,28 @@ describe("TaskRunner Streaming", () => {
     });
   });
 
-  describe("Config-driven streamMode override", () => {
-    it("should return static streamMode when no config override is set", () => {
+  describe("Port-level streaming detection", () => {
+    it("should detect streaming via x-stream on output schema", async () => {
       const task = new TestStreamingAppendTask({ prompt: "test" });
-      expect(task.streamMode).toBe("append");
+      // isTaskStreamable checks output schema for x-stream and executeStream presence
+      expect(isTaskStreamable(task)).toBe(true);
+      expect(getOutputStreamMode(task.outputSchema())).toBe("append");
     });
 
-    it("should return static streamMode for replace-mode task when no config override", () => {
+    it("should detect replace mode via x-stream on output schema", () => {
       const task = new TestStreamingReplaceTask({ prompt: "test" });
-      expect(task.streamMode).toBe("replace");
-    });
-
-    it("should override static streamMode with config.streamMode", () => {
-      const task = new TestStreamingAppendTask({ prompt: "test" }, { streamMode: "replace" });
-      expect(task.streamMode).toBe("replace");
-    });
-
-    it("should override 'append' to 'none' via config", () => {
-      const task = new TestStreamingAppendTask({ prompt: "test" }, { streamMode: "none" });
-      expect(task.streamMode).toBe("none");
-    });
-
-    it("should override 'replace' to 'append' via config", () => {
-      const task = new TestStreamingReplaceTask({ prompt: "test" }, { streamMode: "append" });
-      expect(task.streamMode).toBe("append");
-    });
-
-    it("should not affect the static streamMode on the class", () => {
-      const overridden = new TestStreamingAppendTask({ prompt: "test" }, { streamMode: "replace" });
-      const defaultTask = new TestStreamingAppendTask({ prompt: "test" });
-
-      expect(overridden.streamMode).toBe("replace");
-      expect(defaultTask.streamMode).toBe("append");
-      expect(TestStreamingAppendTask.streamMode).toBe("append");
-    });
-
-    it("should use config streamMode 'replace' in actual streaming execution", async () => {
-      // TestStreamingReplaceTask has static streamMode = 'replace'.
-      // Create it with NO config override and verify replace behavior.
-      const task = new TestStreamingReplaceTask({ prompt: "test" });
-
-      const snapshots: any[] = [];
-      task.on("stream_chunk", (event) => {
-        if (event.type === "snapshot") {
-          snapshots.push(event.data);
-        }
-      });
-
-      const result = await task.run({ prompt: "test" });
-
-      expect(snapshots.length).toBe(3);
-      expect(result.text).toBe("Bonjour le monde");
+      expect(getOutputStreamMode(task.outputSchema())).toBe("replace");
     });
 
     it("should use config streamMode when running append task with cache", async () => {
       const cache = new InMemoryTaskOutputRepository();
       await cache.setupDatabase();
 
-      // Use append task as normal (with config streamMode left as default)
       const task = new TestStreamingAppendTask({ prompt: "config-test" }, { outputCache: cache });
 
       const result = await task.run({ prompt: "config-test" });
 
-      // With cache enabled, runner accumulates text-delta chunks
       expect(result.text).toBe("Hello world");
-    });
-
-    it("should expose streamable as an instance getter", () => {
-      const streamingTask = new TestStreamingAppendTask({ prompt: "test" });
-      const nonStreamingTask = new TestStreamingErrorTask({ prompt: "test" });
-
-      expect(streamingTask.streamable).toBe(true);
-      expect(nonStreamingTask.streamable).toBe(true);
     });
   });
 });

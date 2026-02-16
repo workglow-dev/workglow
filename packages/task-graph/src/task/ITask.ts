@@ -10,7 +10,7 @@ import { ITaskGraph } from "../task-graph/ITaskGraph";
 import { IWorkflow } from "../task-graph/IWorkflow";
 import type { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
-import type { StreamEvent, StreamMode } from "./StreamTypes";
+import type { StreamEvent } from "./StreamTypes";
 import { TaskError } from "./TaskError";
 import type {
   TaskEventListener,
@@ -62,11 +62,6 @@ export interface ITaskStaticProperties {
   readonly hasDynamicSchemas: boolean;
   readonly inputSchema: () => DataPortSchema;
   readonly outputSchema: () => DataPortSchema;
-
-  /** Whether this task supports streaming output. Default false. */
-  readonly streamable: boolean;
-  /** Stream mode: 'none' (default), 'append' (deltas), or 'replace' (snapshots). */
-  readonly streamMode: StreamMode;
 }
 
 /**
@@ -128,8 +123,6 @@ export interface ITaskIO<Input extends TaskInput> {
   addInput(overrides: Record<string, any> | undefined): boolean;
   validateInput(input: Record<string, any>): Promise<boolean>;
   get cacheable(): boolean;
-  get streamable(): boolean;
-  get streamMode(): StreamMode;
   narrowInput(input: Record<string, any>, registry: ServiceRegistry): Promise<Record<string, any>>;
 }
 

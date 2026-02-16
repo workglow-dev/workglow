@@ -25,6 +25,7 @@ const textSchema = {
   type: "string",
   title: "Text",
   description: "The generated text",
+  "x-stream": "append",
 } as const;
 
 const modelSchema = TypeModel("model:TextQuestionAnswerTask");
@@ -64,8 +65,6 @@ export class TextQuestionAnswerTask extends StreamingAiTask<
   public static category = "AI Text Model";
   public static title = "Text Question Answer";
   public static description = "Answers questions based on provided context using language models";
-  public static streamable = true;
-  public static streamMode = "append" as const;
   public static inputSchema(): DataPortSchema {
     return TextQuestionAnswerInputSchema as DataPortSchema;
   }

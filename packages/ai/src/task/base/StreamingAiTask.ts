@@ -13,7 +13,6 @@ import {
   JobQueueTaskConfig,
   type IExecuteContext,
   type StreamEvent,
-  type StreamMode,
   type TaskOutput,
 } from "@workglow/task-graph";
 
@@ -37,8 +36,6 @@ export class StreamingAiTask<
   Config extends JobQueueTaskConfig = JobQueueTaskConfig,
 > extends AiTask<Input, Output, Config> {
   public static type: string = "StreamingAiTask";
-  public static streamable: boolean = true;
-  public static streamMode: StreamMode = "append";
 
   /**
    * Streaming execution: creates an AiJob and yields StreamEvents from it.
