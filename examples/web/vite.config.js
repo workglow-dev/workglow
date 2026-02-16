@@ -10,6 +10,9 @@ export default defineConfig({
   esbuild: {
     target: "esnext",
   },
+  worker: {
+    format: "es",
+  },
   build: {
     target: "esnext",
     rollupOptions: {
