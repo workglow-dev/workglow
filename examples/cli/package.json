@@ -1,7 +1,7 @@
 {
   "name": "@workglow/cli",
   "type": "module",
-  "version": "0.0.94",
+  "version": "0.0.95",
   "description": "Command-line interface example for Workglow, demonstrating how to build and run AI task pipelines from the terminal.",
   "scripts": {
     "dev": "concurrently -c 'auto' -n 'cli:' 'bun:dev-*'",

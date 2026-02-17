@@ -1,5 +1,18 @@
 # @workglow/cli
 
+## 0.0.95
+
+### Patch Changes
+
+- fix max tokens and update cli
+- Updated dependencies
+  - @workglow/ai@0.0.95
+  - @workglow/ai-provider@0.0.95
+  - @workglow/storage@0.0.95
+  - @workglow/task-graph@0.0.95
+  - @workglow/tasks@0.0.95
+  - @workglow/util@0.0.95
+
 ## 0.0.94
 
 ### Patch Changes

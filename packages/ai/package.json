@@ -1,7 +1,7 @@
 {
   "name": "@workglow/ai",
   "type": "module",
-  "version": "0.0.94",
+  "version": "0.0.95",
   "description": "Core AI functionality for Workglow, including task execution, model management, and AI pipeline orchestration.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

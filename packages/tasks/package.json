@@ -1,7 +1,7 @@
 {
   "name": "@workglow/tasks",
   "type": "module",
-  "version": "0.0.94",
+  "version": "0.0.95",
   "description": "Pre-built task implementations for Workglow, including common AI operations and utility functions.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

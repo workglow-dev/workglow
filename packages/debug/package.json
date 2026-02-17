@@ -1,7 +1,7 @@
 {
   "name": "@workglow/debug",
   "type": "module",
-  "version": "0.0.94",
+  "version": "0.0.95",
   "description": "Debug utilities for Workglow, including Chrome DevTools custom formatters for task graphs and workflows.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
