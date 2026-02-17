@@ -23,7 +23,7 @@
     "@workglow/sqlite": "workspace:*",
     "@workglow/util": "workspace:*",
     "pg": "^8.18.0",
-    "@supabase/supabase-js": "=2.95.3"
+    "@supabase/supabase-js": "=2.96.0"
   },
   "peerDependenciesMeta": {
     "@workglow/sqlite": {
@@ -38,7 +38,7 @@
     "@workglow/util": "workspace:*",
     "pg": "^8.18.0",
     "@types/pg": "^8.16.0",
-    "@supabase/supabase-js": "=2.95.3",
+    "@supabase/supabase-js": "=2.96.0",
     "fake-indexeddb": "^6.2.4"
   },
   "exports": {
