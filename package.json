@@ -20,7 +20,7 @@
     "watch": "turbo run watch --concurrency 15",
     "watch-types": "turbo run watch-types --concurrency 15",
     "dev": "turbo run dev",
-    "watch:packages": "concurrently --kill-others -c 'auto' -n sqlite,util,storage,job-queue,task-graph,tasks,ai,provider,test 'cd packages/sqlite && bun run watch' 'cd packages/util && bun run watch' 'cd packages/storage && bun run watch' 'cd packages/job-queue && bun run watch' 'cd packages/task-graph && bun run watch' 'cd packages/tasks && bun run watch' 'cd packages/ai && bun run watch' 'cd packages/ai-provider && bun run watch' 'cd packages/test && bun run watch'",
+    "watch:packages": "concurrently --kill-others -c 'auto' -n sqlite,util,storage,job-queue,task-graph,tasks,ai,provider,test,workflow 'cd packages/sqlite && bun run watch' 'cd packages/util && bun run watch' 'cd packages/storage && bun run watch' 'cd packages/job-queue && bun run watch' 'cd packages/task-graph && bun run watch' 'cd packages/tasks && bun run watch' 'cd packages/ai && bun run watch' 'cd packages/ai-provider && bun run watch' 'cd packages/test && bun run watch' 'cd packages/workflow && bun run watch'",
     "docs": "typedoc",
     "format": "eslint --fix && prettier \"{packages,examples}/*/src/**/*.{js,ts,tsx,json}\" --check --write",
     "build:release": "turbo run build-package",

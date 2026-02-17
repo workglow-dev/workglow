@@ -6,6 +6,7 @@
 
 import {
   Dataflow,
+  getOutputStreamMode,
   IExecuteContext,
   Task,
   TaskGraph,
@@ -629,7 +630,6 @@ describe("TaskGraph Streaming", () => {
     });
 
     it("should detect output stream mode from schema", () => {
-      const { getOutputStreamMode } = require("@workglow/task-graph");
       expect(getOutputStreamMode(StreamSourceTask.outputSchema())).toBe("append");
       expect(getOutputStreamMode(ReplaceSourceTask.outputSchema())).toBe("replace");
       expect(getOutputStreamMode(NonStreamConsumerTask.outputSchema())).toBe("none");
