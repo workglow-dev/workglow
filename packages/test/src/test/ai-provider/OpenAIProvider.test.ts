@@ -274,4 +274,84 @@ describe("OpenAI Provider - Token Parameter Selection", () => {
     expect(requestBody).toHaveProperty("frequency_penalty", 0.5);
     expect(requestBody).toHaveProperty("presence_penalty", 0.3);
   });
+
+  test("should use max_completion_tokens for GPT-4o models", async () => {
+    const model: OpenAIModelConfig = {
+      provider: "OPENAI",
+      provider_config: {
+        model: "gpt-4o",
+      },
+    };
+
+    const input: TextGenerationTaskInput = {
+      model,
+      prompt: "Hello, world!",
+      maxTokens: 150,
+    };
+
+    const mockResponse = {
+      choices: [{ message: { content: "Generated text" } }],
+    };
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResponse,
+    });
+
+    const onProgress = mock();
+    const signal = new AbortController().signal;
+
+    await OpenAI_TextGeneration(input, model, onProgress, signal);
+
+    // Verify that fetch was called
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    
+    // Get the actual request body that was sent
+    const callArgs = fetchMock.mock.calls[0];
+    const requestBody = JSON.parse(callArgs[1].body);
+    
+    // For GPT-4o, should use max_completion_tokens
+    expect(requestBody).toHaveProperty("max_completion_tokens", 150);
+    expect(requestBody).not.toHaveProperty("max_tokens");
+  });
+
+  test("should use max_completion_tokens for unknown/future models (default behavior)", async () => {
+    const model: OpenAIModelConfig = {
+      provider: "OPENAI",
+      provider_config: {
+        model: "gpt-5-future-model", // Hypothetical future model
+      },
+    };
+
+    const input: TextGenerationTaskInput = {
+      model,
+      prompt: "Hello, world!",
+      maxTokens: 250,
+    };
+
+    const mockResponse = {
+      choices: [{ message: { content: "Generated text" } }],
+    };
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResponse,
+    });
+
+    const onProgress = mock();
+    const signal = new AbortController().signal;
+
+    await OpenAI_TextGeneration(input, model, onProgress, signal);
+
+    // Verify that fetch was called
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    
+    // Get the actual request body that was sent
+    const callArgs = fetchMock.mock.calls[0];
+    const requestBody = JSON.parse(callArgs[1].body);
+    
+    // For unknown models, default to max_completion_tokens (future-proof)
+    expect(requestBody).toHaveProperty("max_completion_tokens", 250);
+    expect(requestBody).not.toHaveProperty("max_tokens");
+  });
 });

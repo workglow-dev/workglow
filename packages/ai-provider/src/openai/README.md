@@ -5,8 +5,9 @@ The OpenAI provider enables text generation using OpenAI's GPT models through th
 ## Features
 
 - **Automatic Token Parameter Selection**: The provider automatically uses the correct token parameter based on the model:
-  - `max_tokens` for older models (GPT-3.5, GPT-4, GPT-4 Turbo, etc.)
-  - `max_completion_tokens` for newer models (o1-preview, o1-mini, and future o1 models)
+  - `max_completion_tokens` for newer models (o1-series, GPT-4o, and future models)
+  - `max_tokens` for legacy models (GPT-3.5, GPT-4, GPT-4 Turbo)
+  - Unknown models default to `max_completion_tokens` for future compatibility
 - **Flexible Configuration**: Supports temperature, top-p, frequency penalty, and presence penalty
 - **Error Handling**: Clear error messages for API issues and missing credentials
 
@@ -65,16 +66,19 @@ console.log(result.text);
 
 The provider works with all OpenAI Chat Completion models, including:
 
-### Standard Models (use `max_tokens`)
+### Legacy Models (use `max_tokens`)
 - GPT-3.5 Turbo
 - GPT-4
 - GPT-4 Turbo
-- GPT-4 Vision
 
-### O1 Series Models (use `max_completion_tokens`)
+### Newer Models (use `max_completion_tokens`)
+- GPT-4o (and variants)
 - o1-preview
 - o1-mini
 - Future o1 models
+
+### Default Behavior
+For any unknown or future models, the provider defaults to using `max_completion_tokens` as this is OpenAI's preferred parameter going forward.
 
 ## Supported Tasks
 
@@ -86,22 +90,36 @@ The provider works with all OpenAI Chat Completion models, including:
 The provider automatically detects which token parameter to use based on the model name:
 
 ```typescript
-// For GPT-4: uses max_tokens
+// For legacy models (GPT-3.5, GPT-4, GPT-4-turbo): uses max_tokens
 {
   model: "gpt-4",
   messages: [...],
   max_tokens: 100
 }
 
-// For o1-preview: uses max_completion_tokens
+// For newer models (GPT-4o): uses max_completion_tokens
+{
+  model: "gpt-4o",
+  messages: [...],
+  max_completion_tokens: 100
+}
+
+// For o1-series: uses max_completion_tokens
 {
   model: "o1-preview", 
   messages: [...],
   max_completion_tokens: 100
 }
+
+// For unknown/future models: defaults to max_completion_tokens
+{
+  model: "gpt-5-future",
+  messages: [...],
+  max_completion_tokens: 100
+}
 ```
 
-This ensures compatibility with both legacy and newer OpenAI models without manual configuration.
+This ensures compatibility with both legacy and newer OpenAI models, and provides future-proof defaults for upcoming model releases.
 
 ## Error Handling
 

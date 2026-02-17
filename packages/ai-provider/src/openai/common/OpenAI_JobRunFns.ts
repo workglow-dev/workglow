@@ -14,20 +14,57 @@ import type {
 import type { OpenAIModelConfig } from "./OpenAI_ModelSchema";
 
 /**
- * Models that require max_completion_tokens instead of max_tokens
- * This includes all o1-series models (o1-preview, o1-mini, and future o1 models)
- * Note: We use "o1" as a prefix match, so it covers all o1-series models
+ * Models that require or prefer max_completion_tokens instead of max_tokens.
+ * 
+ * According to OpenAI API documentation (as of late 2024):
+ * - o1-series models (o1-preview, o1-mini) REQUIRE max_completion_tokens (will error with max_tokens)
+ * - GPT-4o and newer models ACCEPT both parameters but prefer max_completion_tokens
+ * - GPT-4, GPT-3.5-turbo primarily use max_tokens (but may accept both)
+ * 
+ * Strategy: Use max_completion_tokens for models that are known to require it or newer models
+ * that prefer it, and max_tokens for older/legacy models.
  */
-const MODELS_REQUIRING_MAX_COMPLETION_TOKENS = [
-  "o1", // Matches o1-preview, o1-mini, and any future o1-* models
-  // Add other model prefixes here as needed
+const MODELS_USING_MAX_COMPLETION_TOKENS = [
+  "o1-preview",
+  "o1-mini", 
+  "o1",
+  // GPT-4o and newer variants
+  "gpt-4o",
+  "chatgpt-4o-latest",
 ];
 
 /**
- * Determines whether to use max_completion_tokens based on the model name
+ * Models that should use the legacy max_tokens parameter.
+ * These are older models that may not support max_completion_tokens.
+ */
+const MODELS_USING_MAX_TOKENS = [
+  "gpt-3.5-turbo",
+  "gpt-4",
+  "gpt-4-turbo",
+];
+
+/**
+ * Determines whether to use max_completion_tokens based on the model name.
+ * Returns true for models that require or prefer max_completion_tokens.
  */
 function shouldUseMaxCompletionTokens(model: string): boolean {
-  return MODELS_REQUIRING_MAX_COMPLETION_TOKENS.some((prefix) => model.startsWith(prefix));
+  // Check if it's explicitly in the max_tokens list (legacy models)
+  for (const legacyModel of MODELS_USING_MAX_TOKENS) {
+    if (model === legacyModel || model.startsWith(`${legacyModel}-`)) {
+      return false;
+    }
+  }
+  
+  // Check if it's explicitly in the max_completion_tokens list
+  for (const newModel of MODELS_USING_MAX_COMPLETION_TOKENS) {
+    if (model === newModel || model.startsWith(`${newModel}-`)) {
+      return true;
+    }
+  }
+  
+  // Default: for unknown/future models, use max_completion_tokens as it's the newer standard
+  // This makes the implementation future-proof for new model releases
+  return true;
 }
 
 /**
