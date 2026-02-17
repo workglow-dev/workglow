@@ -15,13 +15,12 @@ import type { OpenAIModelConfig } from "./OpenAI_ModelSchema";
 
 /**
  * Models that require max_completion_tokens instead of max_tokens
- * This includes newer models like o1-preview, o1-mini, and potentially future models
+ * This includes all o1-series models (o1-preview, o1-mini, and future o1 models)
+ * Note: We use "o1" as a prefix match, so it covers all o1-series models
  */
 const MODELS_REQUIRING_MAX_COMPLETION_TOKENS = [
-  "o1-preview",
-  "o1-mini",
-  "o1",
-  // Add future models here as needed
+  "o1", // Matches o1-preview, o1-mini, and any future o1-* models
+  // Add other model prefixes here as needed
 ];
 
 /**
@@ -72,6 +71,20 @@ export const OpenAI_DownloadModel: AiProviderRunFn<
 };
 
 /**
+ * OpenAI Chat Completions API request body
+ */
+interface OpenAIChatCompletionRequest {
+  model: string;
+  messages: Array<{ role: string; content: string }>;
+  max_tokens?: number;
+  max_completion_tokens?: number;
+  temperature?: number;
+  top_p?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+}
+
+/**
  * Text generation using OpenAI's Chat Completions API
  */
 export const OpenAI_TextGeneration: AiProviderRunFn<
@@ -89,7 +102,7 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
   const useMaxCompletionTokens = shouldUseMaxCompletionTokens(modelName);
   
   // Build request body with appropriate token parameter
-  const requestBody: any = {
+  const requestBody: OpenAIChatCompletionRequest = {
     model: modelName,
     messages: [
       {
@@ -134,7 +147,11 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
     });
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({ 
+        error: "Unable to parse error response",
+        status: response.status,
+        statusText: response.statusText 
+      }));
       throw new Error(
         `OpenAI API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`
       );
