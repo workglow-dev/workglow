@@ -70,7 +70,7 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
     {
       model: modelName,
       messages: [{ role: "user", content: input.prompt }],
-      max_tokens: input.maxTokens,
+      max_completion_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
       frequency_penalty: input.frequencyPenalty,
@@ -176,7 +176,7 @@ export const OpenAI_TextGeneration_Stream: AiProviderStreamFn<
     {
       model: modelName,
       messages: [{ role: "user", content: input.prompt }],
-      max_tokens: input.maxTokens,
+      max_completion_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
       frequency_penalty: input.frequencyPenalty,

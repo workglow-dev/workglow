@@ -144,7 +144,7 @@ describe("OpenAiProvider", () => {
       );
 
       const [params] = mockCreate.mock.calls[0];
-      expect(params.max_tokens).toBe(100);
+      expect(params.max_completion_tokens).toBe(100);
       expect(params.temperature).toBe(0.5);
       expect(params.top_p).toBe(0.9);
       expect(params.frequency_penalty).toBe(0.1);

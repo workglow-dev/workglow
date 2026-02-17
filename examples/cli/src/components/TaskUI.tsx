@@ -9,7 +9,7 @@ import { ITask, ITaskGraph, TaskStatus, type StreamEvent } from "@workglow/task-
 import { ArrayTask } from "@workglow/tasks";
 import { Box, Text } from "ink";
 import type { FC } from "react";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { createBar, Spinner, symbols } from "./Elements";
 
 const StatusIcon = memo(
