@@ -20,11 +20,11 @@ import type { StreamEvent } from "@workglow/task-graph";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 
-let _sdk: typeof import("ollama") | undefined;
+let _sdk: typeof import("ollama/browser") | undefined;
 async function loadOllamaSDK() {
   if (!_sdk) {
     try {
-      _sdk = await import("ollama");
+      _sdk = await import("ollama/browser");
     } catch {
       throw new Error("ollama is required for Ollama tasks. Install it with: bun add ollama");
     }
