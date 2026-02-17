@@ -26,7 +26,7 @@ import type { OpenAIModelConfig } from "./OpenAI_ModelSchema";
  */
 const MODELS_USING_MAX_COMPLETION_TOKENS = [
   "o1-preview",
-  "o1-mini", 
+  "o1-mini",
   "o1",
   // GPT-4o and newer variants
   "gpt-4o",
