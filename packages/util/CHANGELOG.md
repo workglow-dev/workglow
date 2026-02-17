@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.94
+
+### Patch Changes
+
+- update to streaming port across grouped type tasks
+
 ## 0.0.93
 
 ### Patch Changes

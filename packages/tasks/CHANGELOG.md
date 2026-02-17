@@ -1,5 +1,16 @@
 # @workglow/tasks
 
+## 0.0.94
+
+### Patch Changes
+
+- update to streaming port across grouped type tasks
+- Updated dependencies
+  - @workglow/task-graph@0.0.94
+  - @workglow/job-queue@0.0.94
+  - @workglow/storage@0.0.94
+  - @workglow/util@0.0.94
+
 ## 0.0.93
 
 ### Patch Changes
