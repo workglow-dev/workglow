@@ -5,6 +5,7 @@
  */
 
 import { EventParameters } from "@workglow/util";
+import type { CheckpointData } from "../checkpoint/CheckpointTypes";
 import { TaskIdType } from "../task/TaskTypes";
 import { DataflowIdType } from "./Dataflow";
 
@@ -19,6 +20,7 @@ export type TaskGraphStatusListeners = {
   error: (error: Error) => void;
   abort: () => void;
   disabled: () => void;
+  checkpoint: (data: CheckpointData) => void;
 };
 export type TaskGraphStatusEvents = keyof TaskGraphStatusListeners;
 export type TaskGraphStatusListener<Event extends TaskGraphStatusEvents> =

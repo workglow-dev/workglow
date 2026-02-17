@@ -5,6 +5,8 @@
  */
 
 import type { DataPortSchema, EventEmitter, ServiceRegistry } from "@workglow/util";
+import type { CheckpointSaver } from "../checkpoint/CheckpointSaver";
+import type { ThreadId } from "../checkpoint/CheckpointTypes";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ITaskGraph } from "../task-graph/ITaskGraph";
 import { IWorkflow } from "../task-graph/IWorkflow";
@@ -29,6 +31,10 @@ export interface IExecuteContext {
   updateProgress: (progress: number, message?: string, ...args: any[]) => Promise<void>;
   own: <T extends ITask | ITaskGraph | IWorkflow>(i: T) => T;
   registry: ServiceRegistry;
+  /** Optional checkpoint saver for iteration-level checkpoints */
+  checkpointSaver?: CheckpointSaver;
+  /** Thread ID for checkpoint isolation */
+  threadId?: ThreadId;
 }
 
 export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
@@ -45,6 +51,10 @@ export interface IRunConfig {
     ...args: any[]
   ) => Promise<void>;
   registry?: ServiceRegistry;
+  /** Optional checkpoint saver for persisting execution state */
+  checkpointSaver?: CheckpointSaver;
+  /** Thread ID for checkpoint isolation */
+  threadId?: ThreadId;
 }
 
 /**
