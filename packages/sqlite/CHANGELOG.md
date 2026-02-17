@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.96
+
+### Patch Changes
+
+- fix missing include dep
+
 ## 0.0.95
 
 ### Patch Changes

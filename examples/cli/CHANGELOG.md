@@ -1,5 +1,18 @@
 # @workglow/cli
 
+## 0.0.96
+
+### Patch Changes
+
+- fix missing include dep
+- Updated dependencies
+  - @workglow/ai@0.0.96
+  - @workglow/ai-provider@0.0.96
+  - @workglow/storage@0.0.96
+  - @workglow/task-graph@0.0.96
+  - @workglow/tasks@0.0.96
+  - @workglow/util@0.0.96
+
 ## 0.0.95
 
 ### Patch Changes

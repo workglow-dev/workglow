@@ -1,5 +1,14 @@
 # @workglow/storage
 
+## 0.0.96
+
+### Patch Changes
+
+- fix missing include dep
+- Updated dependencies
+  - @workglow/sqlite@0.0.96
+  - @workglow/util@0.0.96
+
 ## 0.0.95
 
 ### Patch Changes

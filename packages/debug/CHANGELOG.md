@@ -1,5 +1,14 @@
 # @workglow/debug
 
+## 0.0.96
+
+### Patch Changes
+
+- fix missing include dep
+- Updated dependencies
+  - @workglow/task-graph@0.0.96
+  - @workglow/util@0.0.96
+
 ## 0.0.95
 
 ### Patch Changes
