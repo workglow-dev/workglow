@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.91
+
+### Patch Changes
+
+- Add ai providers like openai; add streaming
+
 ## 0.0.90
 
 ### Patch Changes

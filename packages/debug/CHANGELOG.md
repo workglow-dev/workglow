@@ -1,5 +1,14 @@
 # @workglow/debug
 
+## 0.0.91
+
+### Patch Changes
+
+- Add ai providers like openai; add streaming
+- Updated dependencies
+  - @workglow/task-graph@0.0.91
+  - @workglow/util@0.0.91
+
 ## 0.0.90
 
 ### Patch Changes

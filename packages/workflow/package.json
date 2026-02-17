@@ -1,7 +1,7 @@
 {
   "name": "workglow",
   "type": "module",
-  "version": "0.0.90",
+  "version": "0.0.91",
   "description": "Workglow meta-package: re-exports all @workglow/* packages for convenient single-import usage.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
@@ -50,7 +50,8 @@
     },
     "./tf-mediapipe": {
       "browser": "./dist/tf-mediapipe.js",
-      "types": "./dist/tf-mediapipe.d.ts"
+      "types": "./dist/tf-mediapipe.d.ts",
+      "bun": "./dist/tf-mediapipe.js"
     }
   },
   "files": [
