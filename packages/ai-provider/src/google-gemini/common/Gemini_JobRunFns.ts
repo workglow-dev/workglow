@@ -183,9 +183,10 @@ export const Gemini_TextGeneration_Stream: AiProviderStreamFn<
     },
   });
 
-  const result = await genModel.generateContentStream({
-    contents: [{ role: "user", parts: [{ text: input.prompt }] }],
-  });
+  const result = await genModel.generateContentStream(
+    { contents: [{ role: "user", parts: [{ text: input.prompt }] }] },
+    { signal }
+  );
 
   for await (const chunk of result.stream) {
     const text = chunk.text();
@@ -208,9 +209,10 @@ export const Gemini_TextRewriter_Stream: AiProviderStreamFn<
     systemInstruction: input.prompt,
   });
 
-  const result = await genModel.generateContentStream({
-    contents: [{ role: "user", parts: [{ text: input.text }] }],
-  });
+  const result = await genModel.generateContentStream(
+    { contents: [{ role: "user", parts: [{ text: input.text }] }] },
+    { signal }
+  );
 
   for await (const chunk of result.stream) {
     const text = chunk.text();
@@ -233,9 +235,10 @@ export const Gemini_TextSummary_Stream: AiProviderStreamFn<
     systemInstruction: "Summarize the following text concisely.",
   });
 
-  const result = await genModel.generateContentStream({
-    contents: [{ role: "user", parts: [{ text: input.text }] }],
-  });
+  const result = await genModel.generateContentStream(
+    { contents: [{ role: "user", parts: [{ text: input.text }] }] },
+    { signal }
+  );
 
   for await (const chunk of result.stream) {
     const text = chunk.text();

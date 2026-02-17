@@ -164,13 +164,19 @@ export const Ollama_TextGeneration_Stream: AiProviderStreamFn<
     stream: true,
   });
 
-  for await (const chunk of stream) {
-    const delta = chunk.message.content;
-    if (delta) {
-      yield { type: "text-delta", textDelta: delta };
+  const onAbort = () => stream.abort();
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    for await (const chunk of stream) {
+      const delta = chunk.message.content;
+      if (delta) {
+        yield { type: "text-delta", textDelta: delta };
+      }
     }
+    yield { type: "finish", data: {} as TextGenerationTaskOutput };
+  } finally {
+    signal.removeEventListener("abort", onAbort);
   }
-  yield { type: "finish", data: {} as TextGenerationTaskOutput };
 };
 
 export const Ollama_TextRewriter_Stream: AiProviderStreamFn<
@@ -190,13 +196,19 @@ export const Ollama_TextRewriter_Stream: AiProviderStreamFn<
     stream: true,
   });
 
-  for await (const chunk of stream) {
-    const delta = chunk.message.content;
-    if (delta) {
-      yield { type: "text-delta", textDelta: delta };
+  const onAbort = () => stream.abort();
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    for await (const chunk of stream) {
+      const delta = chunk.message.content;
+      if (delta) {
+        yield { type: "text-delta", textDelta: delta };
+      }
     }
+    yield { type: "finish", data: {} as TextRewriterTaskOutput };
+  } finally {
+    signal.removeEventListener("abort", onAbort);
   }
-  yield { type: "finish", data: {} as TextRewriterTaskOutput };
 };
 
 export const Ollama_TextSummary_Stream: AiProviderStreamFn<
@@ -216,13 +228,19 @@ export const Ollama_TextSummary_Stream: AiProviderStreamFn<
     stream: true,
   });
 
-  for await (const chunk of stream) {
-    const delta = chunk.message.content;
-    if (delta) {
-      yield { type: "text-delta", textDelta: delta };
+  const onAbort = () => stream.abort();
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    for await (const chunk of stream) {
+      const delta = chunk.message.content;
+      if (delta) {
+        yield { type: "text-delta", textDelta: delta };
+      }
     }
+    yield { type: "finish", data: {} as TextSummaryTaskOutput };
+  } finally {
+    signal.removeEventListener("abort", onAbort);
   }
-  yield { type: "finish", data: {} as TextSummaryTaskOutput };
 };
 
 // ========================================================================
