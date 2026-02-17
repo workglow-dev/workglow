@@ -145,8 +145,24 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   async register(options: AiProviderRegisterOptions = { mode: "inline" }): Promise<void> {
     await this.onInitialize(options);
 
+    // Validate before any registration so we don't leave the registry in a partial state
+    if (options.mode === "worker") {
+      if (!options.worker) {
+        throw new Error(
+          `AiProvider "${this.name}": worker is required when mode is "worker". ` +
+            `Pass a Web Worker instance, e.g. register({ mode: "worker", worker: new Worker(...) }).`
+        );
+      }
+    } else {
+      if (!this.tasks) {
+        throw new Error(
+          `AiProvider "${this.name}": tasks must be provided via the constructor for inline mode. ` +
+            `Pass the tasks record when constructing the provider, e.g. new MyProvider(MY_TASKS).`
+        );
+      }
+    }
+
     const registry = getAiProviderRegistry();
-    registry.registerProvider(this);
 
     if (options.mode === "worker" && options.worker) {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
@@ -156,13 +172,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
         registry.registerAsWorkerStreamFn(this.name, taskType);
       }
     } else {
-      if (!this.tasks) {
-        throw new Error(
-          `AiProvider "${this.name}": tasks must be provided via the constructor for inline mode. ` +
-            `Pass the tasks record when constructing the provider, e.g. new MyProvider(MY_TASKS).`
-        );
-      }
-      for (const [taskType, fn] of Object.entries(this.tasks)) {
+      for (const [taskType, fn] of Object.entries(this.tasks!)) {
         registry.registerRunFn(this.name, taskType, fn as AiProviderRunFn);
       }
       if (this.streamTasks) {
@@ -171,6 +181,8 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
         }
       }
     }
+
+    registry.registerProvider(this);
 
     if (options.queue?.autoCreate !== false) {
       await this.createQueue(options.queue?.concurrency ?? 1);

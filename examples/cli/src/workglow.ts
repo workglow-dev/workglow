@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
-import { HFT_TASKS, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry } from "@workglow/task-graph";
 import { registerHuggingfaceLocalModels } from "@workglow/test";
 import { program } from "commander";

@@ -27,11 +27,11 @@ import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
  * });
  *
  * // Inline mode -- caller provides the tasks:
- * import { OPENAI_TASKS } from "@workglow/ai-provider";
+ * import { OPENAI_TASKS } from "@workglow/ai-provider/openai";
  * await new OpenAiProvider(OPENAI_TASKS).register({ mode: "inline" });
  *
  * // Worker side -- caller provides the tasks:
- * import { OPENAI_TASKS } from "@workglow/ai-provider";
+ * import { OPENAI_TASKS } from "@workglow/ai-provider/openai";
  * new OpenAiProvider(OPENAI_TASKS).registerOnWorkerServer(workerServer);
  * ```
  */

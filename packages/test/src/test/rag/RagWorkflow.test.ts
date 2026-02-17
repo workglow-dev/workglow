@@ -45,7 +45,8 @@ import {
   TextQuestionAnswerTaskOutput,
   VectorStoreUpsertTaskOutput,
 } from "@workglow/ai";
-import { HFT_TASKS, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import {
   DocumentChunk,
   DocumentChunkDataset,

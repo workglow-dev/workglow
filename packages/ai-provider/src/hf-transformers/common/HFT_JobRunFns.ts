@@ -4,36 +4,34 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  type BackgroundRemovalPipeline,
+import type {
+  BackgroundRemovalPipeline,
   DocumentQuestionAnsweringSingle,
-  type FeatureExtractionPipeline,
+  FeatureExtractionPipeline,
   FillMaskPipeline,
   FillMaskSingle,
-  type ImageClassificationPipeline,
-  type ImageFeatureExtractionPipeline,
-  type ImageSegmentationPipeline,
-  type ImageToTextPipeline,
-  type ObjectDetectionPipeline,
-  pipeline,
+  ImageClassificationPipeline,
+  ImageFeatureExtractionPipeline,
+  ImageSegmentationPipeline,
+  ImageToTextPipeline,
+  ObjectDetectionPipeline,
   // @ts-ignore temporary "fix"
-  type PretrainedModelOptions,
+  PretrainedModelOptions,
   QuestionAnsweringPipeline,
   RawImage,
   SummarizationPipeline,
   SummarizationSingle,
   TextClassificationOutput,
   TextClassificationPipeline,
-  type TextGenerationPipeline,
+  TextGenerationPipeline,
   TextGenerationSingle,
-  TextStreamer,
   TokenClassificationPipeline,
   TokenClassificationSingle,
   TranslationPipeline,
   TranslationSingle,
-  type ZeroShotClassificationPipeline,
-  type ZeroShotImageClassificationPipeline,
-  type ZeroShotObjectDetectionPipeline,
+  ZeroShotClassificationPipeline,
+  ZeroShotImageClassificationPipeline,
+  ZeroShotObjectDetectionPipeline,
 } from "@sroussey/transformers";
 import type {
   AiProviderRunFn,
@@ -76,6 +74,20 @@ import type {
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+
+let _transformersSdk: typeof import("@sroussey/transformers") | undefined;
+async function loadTransformersSDK() {
+  if (!_transformersSdk) {
+    try {
+      _transformersSdk = await import("@sroussey/transformers");
+    } catch {
+      throw new Error(
+        "@sroussey/transformers is required for HuggingFace Transformers tasks. Install it with: bun add @sroussey/transformers"
+      );
+    }
+  }
+  return _transformersSdk;
+}
 
 import { TypedArray } from "@workglow/util";
 import { CallbackStatus } from "./HFT_CallbackStatus";
@@ -415,6 +427,7 @@ const getPipeline = async (
   });
 
   // Race between pipeline creation and abort
+  const { pipeline } = await loadTransformersSDK();
   const pipelinePromise = pipeline(pipelineType, model.provider_config.model_path, pipelineOptions);
 
   try {
@@ -1125,6 +1138,7 @@ function createTextStreamer(
   updateProgress: (progress: number, message?: string, details?: any) => void,
   signal?: AbortSignal
 ) {
+  const { TextStreamer } = _transformersSdk!;
   let count = 0;
   return new TextStreamer(tokenizer, {
     skip_prompt: true,
@@ -1216,6 +1230,7 @@ function createStreamingTextStreamer(
   queue: StreamEventQueue<StreamEvent<any>>,
   signal?: AbortSignal
 ) {
+  const { TextStreamer } = _transformersSdk!;
   return new TextStreamer(tokenizer, {
     skip_prompt: true,
     decode_kwargs: { skip_special_tokens: true },

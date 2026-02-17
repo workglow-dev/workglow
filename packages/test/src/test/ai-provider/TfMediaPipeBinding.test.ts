@@ -14,9 +14,9 @@ import {
 import {
   TENSORFLOW_MEDIAPIPE,
   TensorFlowMediaPipeProvider,
-  TFMP_TASKS,
-  TFMPModelRecord,
+  type TFMPModelRecord,
 } from "@workglow/ai-provider";
+import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import {
   ConcurrencyLimiter,
   JobQueueClient,

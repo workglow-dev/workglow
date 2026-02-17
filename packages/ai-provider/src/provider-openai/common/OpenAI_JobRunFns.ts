@@ -17,10 +17,22 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import OpenAI from "openai";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 
-function getClient(model: OpenAiModelConfig | undefined): OpenAI {
+let _sdk: typeof import("openai") | undefined;
+async function loadOpenAISDK() {
+  if (!_sdk) {
+    try {
+      _sdk = await import("openai");
+    } catch {
+      throw new Error("openai is required for OpenAI tasks. Install it with: bun add openai");
+    }
+  }
+  return _sdk.default;
+}
+
+async function getClient(model: OpenAiModelConfig | undefined) {
+  const OpenAI = await loadOpenAISDK();
   const apiKey =
     model?.provider_config?.api_key ||
     (typeof process !== "undefined" ? process.env?.OPENAI_API_KEY : undefined);
@@ -51,7 +63,7 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text generation");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat.completions.create(
@@ -77,7 +89,7 @@ export const OpenAI_TextEmbedding: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text embedding");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.embeddings.create(
@@ -106,7 +118,7 @@ export const OpenAI_TextRewriter: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text rewriting");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat.completions.create(
@@ -130,7 +142,7 @@ export const OpenAI_TextSummary: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text summarization");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat.completions.create(
@@ -157,7 +169,7 @@ export const OpenAI_TextGeneration_Stream: AiProviderStreamFn<
   TextGenerationTaskOutput,
   OpenAiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = await client.chat.completions.create(
@@ -188,7 +200,7 @@ export const OpenAI_TextRewriter_Stream: AiProviderStreamFn<
   TextRewriterTaskOutput,
   OpenAiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = await client.chat.completions.create(
@@ -217,7 +229,7 @@ export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
   TextSummaryTaskOutput,
   OpenAiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = await client.chat.completions.create(

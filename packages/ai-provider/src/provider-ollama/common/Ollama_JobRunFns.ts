@@ -17,11 +17,23 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { Ollama } from "ollama/browser";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 
-function getClient(model: OllamaModelConfig | undefined): Ollama {
+let _sdk: typeof import("ollama/browser") | undefined;
+async function loadOllamaSDK() {
+  if (!_sdk) {
+    try {
+      _sdk = await import("ollama/browser");
+    } catch {
+      throw new Error("ollama is required for Ollama tasks. Install it with: bun add ollama");
+    }
+  }
+  return _sdk.Ollama;
+}
+
+async function getClient(model: OllamaModelConfig | undefined) {
+  const Ollama = await loadOllamaSDK();
   const host = model?.provider_config?.base_url || OLLAMA_DEFAULT_BASE_URL;
   return new Ollama({ host });
 }
@@ -40,7 +52,7 @@ export const Ollama_TextGeneration: AiProviderRunFn<
   OllamaModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Ollama text generation");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat({
@@ -65,7 +77,7 @@ export const Ollama_TextEmbedding: AiProviderRunFn<
   OllamaModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Ollama text embedding");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const texts = Array.isArray(input.text) ? input.text : [input.text];
@@ -91,7 +103,7 @@ export const Ollama_TextRewriter: AiProviderRunFn<
   OllamaModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Ollama text rewriting");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat({
@@ -112,7 +124,7 @@ export const Ollama_TextSummary: AiProviderRunFn<
   OllamaModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Ollama text summarization");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat({
@@ -136,7 +148,7 @@ export const Ollama_TextGeneration_Stream: AiProviderStreamFn<
   TextGenerationTaskOutput,
   OllamaModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = await client.chat({
@@ -166,7 +178,7 @@ export const Ollama_TextRewriter_Stream: AiProviderStreamFn<
   TextRewriterTaskOutput,
   OllamaModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = await client.chat({
@@ -192,7 +204,7 @@ export const Ollama_TextSummary_Stream: AiProviderStreamFn<
   TextSummaryTaskOutput,
   OllamaModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = await client.chat({

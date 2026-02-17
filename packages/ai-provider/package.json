@@ -5,21 +5,51 @@
   "description": "AI provider integrations for Workglow, supporting OpenAI, Hugging Face Transformers, MediaPipe, and GGML models.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-code": "bun build --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts",
+    "watch-code": "bun build --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts ./src/tf-mediapipe/index.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "bun run build-clean && bun run build-code && bun run build-types",
     "build-clean": "rm -fr dist/*",
-    "build-code": "bun build --sourcemap=external --packages=external --outdir ./dist ./src/index.ts",
+    "build-code": "bun build --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts ./src/tf-mediapipe/index.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test",
-    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/index.js';pkg.exports['.'].types='./dist/types.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/index.js';pkg.exports['.'].types='./dist/types.d.ts';['anthropic','google-gemini','hf-transformers','ollama','openai','tf-mediapipe'].forEach(p=>{const dir=p==='ollama'?'provider-ollama':p==='openai'?'provider-openai':p;const k='./'+p;if(!pkg.exports[k])pkg.exports[k]={};pkg.exports[k].bun='./dist/'+dir+'/index.js';pkg.exports[k].types='./dist/'+dir+'/index.d.ts'});require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
   },
   "exports": {
     ".": {
       "bun": "./dist/index.js",
       "types": "./dist/types.d.ts",
       "import": "./dist/index.js"
+    },
+    "./anthropic": {
+      "bun": "./dist/anthropic/index.js",
+      "types": "./dist/anthropic/index.d.ts",
+      "import": "./dist/anthropic/index.js"
+    },
+    "./google-gemini": {
+      "bun": "./dist/google-gemini/index.js",
+      "types": "./dist/google-gemini/index.d.ts",
+      "import": "./dist/google-gemini/index.js"
+    },
+    "./hf-transformers": {
+      "bun": "./dist/hf-transformers/index.js",
+      "types": "./dist/hf-transformers/index.d.ts",
+      "import": "./dist/hf-transformers/index.js"
+    },
+    "./ollama": {
+      "bun": "./dist/provider-ollama/index.js",
+      "types": "./dist/provider-ollama/index.d.ts",
+      "import": "./dist/provider-ollama/index.js"
+    },
+    "./openai": {
+      "bun": "./dist/provider-openai/index.js",
+      "types": "./dist/provider-openai/index.d.ts",
+      "import": "./dist/provider-openai/index.js"
+    },
+    "./tf-mediapipe": {
+      "bun": "./dist/tf-mediapipe/index.js",
+      "types": "./dist/tf-mediapipe/index.d.ts",
+      "import": "./dist/tf-mediapipe/index.js"
     }
   },
   "files": [
@@ -71,6 +101,21 @@
       "optional": true
     },
     "ollama": {
+      "optional": true
+    },
+    "@sroussey/transformers": {
+      "optional": true
+    },
+    "@mediapipe/tasks-text": {
+      "optional": true
+    },
+    "@mediapipe/tasks-vision": {
+      "optional": true
+    },
+    "@mediapipe/tasks-audio": {
+      "optional": true
+    },
+    "@mediapipe/tasks-genai": {
       "optional": true
     }
   },

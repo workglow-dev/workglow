@@ -31,11 +31,11 @@ import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
  * });
  *
  * // Inline mode -- caller provides the tasks:
- * import { HFT_TASKS } from "@workglow/ai-provider";
+ * import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
  * await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
  *
  * // Worker side -- caller provides the tasks:
- * import { HFT_TASKS } from "@workglow/ai-provider";
+ * import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
  * new HuggingFaceTransformersProvider(HFT_TASKS).registerOnWorkerServer(workerServer);
  * ```
  */

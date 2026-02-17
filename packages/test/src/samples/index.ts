@@ -5,11 +5,11 @@
  */
 
 import {
-  HFT_TASKS,
   HuggingFaceTransformersProvider,
-  TFMP_TASKS,
   TensorFlowMediaPipeProvider,
 } from "@workglow/ai-provider";
+import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 export * from "./MediaPipeModelSamples";
 export * from "./ONNXModelSamples";
 

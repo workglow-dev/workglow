@@ -5,15 +5,14 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
+import { GOOGLE_GEMINI, GoogleGeminiProvider } from "@workglow/ai-provider";
 import {
   GEMINI_TASKS,
   Gemini_TextEmbedding,
   Gemini_TextGeneration,
   Gemini_TextRewriter,
   Gemini_TextSummary,
-  GOOGLE_GEMINI,
-  GoogleGeminiProvider,
-} from "@workglow/ai-provider";
+} from "@workglow/ai-provider/google-gemini";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,

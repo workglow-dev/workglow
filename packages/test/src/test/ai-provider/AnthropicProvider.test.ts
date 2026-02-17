@@ -5,14 +5,13 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
+import { ANTHROPIC, AnthropicProvider } from "@workglow/ai-provider";
 import {
-  ANTHROPIC,
   ANTHROPIC_TASKS,
   Anthropic_TextGeneration,
   Anthropic_TextRewriter,
   Anthropic_TextSummary,
-  AnthropicProvider,
-} from "@workglow/ai-provider";
+} from "@workglow/ai-provider/anthropic";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,

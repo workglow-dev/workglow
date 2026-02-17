@@ -13,12 +13,12 @@ import {
 } from "@workglow/ai";
 import {
   HF_TRANSFORMERS_ONNX,
-  HFT_TASKS,
-  HfTransformersOnnxModelRecord,
+  type HfTransformersOnnxModelRecord,
   HuggingFaceTransformersProvider,
   TensorFlowMediaPipeProvider,
-  TFMP_TASKS,
 } from "@workglow/ai-provider";
+import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 

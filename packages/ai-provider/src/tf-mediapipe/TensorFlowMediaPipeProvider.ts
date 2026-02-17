@@ -26,11 +26,11 @@ import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
  * });
  *
  * // Inline mode -- caller provides the tasks:
- * import { TFMP_TASKS } from "@workglow/ai-provider";
+ * import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
  * await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
  *
  * // Worker side -- caller provides the tasks:
- * import { TFMP_TASKS } from "@workglow/ai-provider";
+ * import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
  * new TensorFlowMediaPipeProvider(TFMP_TASKS).registerOnWorkerServer(workerServer);
  * ```
  */

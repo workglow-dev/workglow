@@ -27,7 +27,7 @@ import type { GeminiModelConfig } from "./common/Gemini_ModelSchema";
  * });
  *
  * // Inline mode -- caller provides the tasks:
- * import { GEMINI_TASKS } from "@workglow/ai-provider";
+ * import { GEMINI_TASKS } from "@workglow/ai-provider/google-gemini";
  * await new GoogleGeminiProvider(GEMINI_TASKS).register({ mode: "inline" });
  * ```
  */

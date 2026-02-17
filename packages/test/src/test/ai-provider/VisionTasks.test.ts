@@ -15,16 +15,15 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
-  clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
-  HFT_TASKS,
   HuggingFaceTransformersProvider,
   TENSORFLOW_MEDIAPIPE,
   TensorFlowMediaPipeProvider,
-  TFMP_TASKS,
   type HfTransformersOnnxModelRecord,
   type TFMPModelRecord,
 } from "@workglow/ai-provider";
+import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

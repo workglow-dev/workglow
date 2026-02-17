@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import Anthropic from "@anthropic-ai/sdk";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -18,7 +17,22 @@ import type {
 import type { StreamEvent } from "@workglow/task-graph";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 
-function getClient(model: AnthropicModelConfig | undefined): Anthropic {
+let _sdk: typeof import("@anthropic-ai/sdk") | undefined;
+async function loadAnthropicSDK() {
+  if (!_sdk) {
+    try {
+      _sdk = await import("@anthropic-ai/sdk");
+    } catch {
+      throw new Error(
+        "@anthropic-ai/sdk is required for Anthropic tasks. Install it with: bun add @anthropic-ai/sdk"
+      );
+    }
+  }
+  return _sdk.default;
+}
+
+async function getClient(model: AnthropicModelConfig | undefined) {
+  const Anthropic = await loadAnthropicSDK();
   const apiKey =
     model?.provider_config?.api_key ||
     (typeof process !== "undefined" ? process.env?.ANTHROPIC_API_KEY : undefined);
@@ -55,7 +69,7 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Anthropic text generation");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.messages.create(
@@ -81,7 +95,7 @@ export const Anthropic_TextRewriter: AiProviderRunFn<
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Anthropic text rewriting");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.messages.create(
@@ -106,7 +120,7 @@ export const Anthropic_TextSummary: AiProviderRunFn<
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Anthropic text summarization");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.messages.create(
@@ -134,7 +148,7 @@ export const Anthropic_TextGeneration_Stream: AiProviderStreamFn<
   TextGenerationTaskOutput,
   AnthropicModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = client.messages.stream(
@@ -161,7 +175,7 @@ export const Anthropic_TextRewriter_Stream: AiProviderStreamFn<
   TextRewriterTaskOutput,
   AnthropicModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = client.messages.stream(
@@ -187,7 +201,7 @@ export const Anthropic_TextSummary_Stream: AiProviderStreamFn<
   TextSummaryTaskOutput,
   AnthropicModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const stream = client.messages.stream(

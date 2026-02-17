@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GoogleGenerativeAI, type TaskType } from "@google/generative-ai";
+import type { TaskType } from "@google/generative-ai";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -19,6 +19,20 @@ import type {
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
+
+let _sdk: typeof import("@google/generative-ai") | undefined;
+async function loadGeminiSDK() {
+  if (!_sdk) {
+    try {
+      _sdk = await import("@google/generative-ai");
+    } catch {
+      throw new Error(
+        "@google/generative-ai is required for Gemini tasks. Install it with: bun add @google/generative-ai"
+      );
+    }
+  }
+  return _sdk.GoogleGenerativeAI;
+}
 
 function getApiKey(model: GeminiModelConfig | undefined): string {
   const apiKey =
@@ -48,6 +62,7 @@ export const Gemini_TextGeneration: AiProviderRunFn<
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Gemini text generation");
+  const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
@@ -73,6 +88,7 @@ export const Gemini_TextEmbedding: AiProviderRunFn<
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Gemini text embedding");
+  const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const embeddingModel = genAI.getGenerativeModel({
     model: getModelName(model),
@@ -109,6 +125,7 @@ export const Gemini_TextRewriter: AiProviderRunFn<
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Gemini text rewriting");
+  const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
@@ -130,6 +147,7 @@ export const Gemini_TextSummary: AiProviderRunFn<
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Gemini text summarization");
+  const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
@@ -154,6 +172,7 @@ export const Gemini_TextGeneration_Stream: AiProviderStreamFn<
   TextGenerationTaskOutput,
   GeminiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+  const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
@@ -182,6 +201,7 @@ export const Gemini_TextRewriter_Stream: AiProviderStreamFn<
   TextRewriterTaskOutput,
   GeminiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
+  const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
@@ -206,6 +226,7 @@ export const Gemini_TextSummary_Stream: AiProviderStreamFn<
   TextSummaryTaskOutput,
   GeminiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
+  const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),

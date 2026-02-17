@@ -30,7 +30,7 @@ import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
  * });
  *
  * // Inline mode -- caller provides the tasks:
- * import { OLLAMA_TASKS } from "@workglow/ai-provider";
+ * import { OLLAMA_TASKS } from "@workglow/ai-provider/ollama";
  * await new OllamaProvider(OLLAMA_TASKS).register({ mode: "inline" });
  * ```
  */
