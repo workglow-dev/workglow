@@ -6,4 +6,3 @@
 
 export * from "./binding/InMemoryTaskGraphRepository";
 export * from "./binding/InMemoryTaskOutputRepository";
-export * from "./samples";

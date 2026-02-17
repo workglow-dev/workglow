@@ -62,7 +62,7 @@ import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/
 import { readdirSync } from "fs";
 import { join } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { registerHuggingfaceLocalModels } from "../../samples";
+import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 export { FileLoaderTask } from "@workglow/tasks";
 
 describe("RAG Workflow End-to-End", () => {

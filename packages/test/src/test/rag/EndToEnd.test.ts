@@ -67,8 +67,9 @@ import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { join } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { registerHuggingfaceLocalModels } from "../../samples";
 export { FileLoaderTask } from "@workglow/tasks";
+
+import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 
 describe("End-to-End RAG Pipeline", () => {
   // Configuration - Models
