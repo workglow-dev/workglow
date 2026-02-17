@@ -1,5 +1,17 @@
 # @workglow/ai
 
+## 0.0.93
+
+### Patch Changes
+
+- fix export and test
+- Updated dependencies
+  - @workglow/task-graph@0.0.93
+  - @workglow/job-queue@0.0.93
+  - @workglow/dataset@0.0.93
+  - @workglow/storage@0.0.93
+  - @workglow/util@0.0.93
+
 ## 0.0.92
 
 ### Patch Changes

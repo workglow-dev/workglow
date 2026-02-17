@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.93
+
+### Patch Changes
+
+- fix export and test
+
 ## 0.0.92
 
 ### Patch Changes
