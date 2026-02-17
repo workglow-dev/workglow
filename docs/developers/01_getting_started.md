@@ -1,27 +1,31 @@
-- [Using Workflow \& a config helper](#using-workflow--a-config-helper)
-- [Using Task and TaskGraph directly (\& a config helper)](#using-task-and-taskgraph-directly--a-config-helper)
-- [Using Task and TaskGraph directly (no config helper)](#using-task-and-taskgraph-directly-no-config-helper)
-- [Preset Configs](#preset-configs)
-  - [Registering Providers](#registering-providers)
-  - [Registering Provider plus related Job Queue](#registering-provider-plus-related-job-queue)
-    - [In memory:](#in-memory)
-    - [Using SQLite:](#using-sqlite)
-- [Workflow](#workflow)
-- [JSON Configuration](#json-configuration)
-- [Tasks](#tasks)
-- [TaskGraph](#taskgraph)
-- [Dataflows](#dataflows)
-- [Source](#source)
-  - [`docs/`](#docs)
-  - [`packages/storage`](#packagesstorage)
-  - [`packages/job-queue`](#packagesjob-queue)
-  - [`packages/task-graph`](#packagestask-graph)
-  - [`packages/ai`](#packagesai)
-  - [`packages/ai-provider`](#packagesai-provider)
-  - [`packages/util`](#packagesutil)
-  - [`examples/cli`](#examplescli)
-  - [`examples/web`](#examplesweb)
-  - [`examples/ngraph`](#examplesngraph)
+- [Developer Getting Started](#developer-getting-started)
+- [Get Shit Done](#get-shit-done)
+  - [Using Workflow \& a config helper](#using-workflow--a-config-helper)
+  - [Using Task and TaskGraph directly (\& a config helper)](#using-task-and-taskgraph-directly--a-config-helper)
+  - [Using Task and TaskGraph directly (no config helper)](#using-task-and-taskgraph-directly-no-config-helper)
+  - [Preset Configs](#preset-configs)
+    - [Registering Providers](#registering-providers)
+    - [Registering Provider plus related Job Queue](#registering-provider-plus-related-job-queue)
+      - [In memory:](#in-memory)
+      - [Using SQLite:](#using-sqlite)
+  - [Workflow](#workflow)
+  - [JSON Configuration](#json-configuration)
+- [Going Deeper](#going-deeper)
+  - [Tasks](#tasks)
+  - [TaskGraph](#taskgraph)
+  - [Dataflows](#dataflows)
+- [Appendix](#appendix)
+  - [Source](#source)
+    - [`docs/`](#docs)
+    - [`packages/storage`](#packagesstorage)
+    - [`packages/job-queue`](#packagesjob-queue)
+    - [`packages/task-graph`](#packagestask-graph)
+    - [`packages/ai`](#packagesai)
+    - [`packages/ai-provider`](#packagesai-provider)
+    - [`packages/util`](#packagesutil)
+    - [`examples/cli`](#examplescli)
+    - [`examples/web`](#examplesweb)
+    - [`builder`](#builder)
 
 # Developer Getting Started
 
@@ -455,8 +459,7 @@ An example project that uses the library in a web setting, running locally in br
 
 Don't forget to open the console for some goodies.
 
-### `examples/ngraph`
+### `builder`
 
-A graph editor tool that uses ngraph. It is not yet ready for prime time.
-
-![ngraph example](img/ngraph.png)
+[Local Drag and Drop Editor](https://workglow.dev)
+![Node Editor](img/builder.png)
