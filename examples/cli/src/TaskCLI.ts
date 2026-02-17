@@ -296,6 +296,7 @@ export function AddBaseCommands(program: Command) {
     .option("--model-path <path>", "model path or URI")
     .option("--model-dtype <dtype>", "model dtype (default: auto)")
     .option("--model-pipeline <pipeline>", "override inferred pipeline type")
+    .option("--stream", "enable streaming output")
     .action(async (text, options) => {
       let model: string | ModelConfig;
 
@@ -337,6 +338,7 @@ export function AddBaseCommands(program: Command) {
     .option("--model-path <path>", "model path or URI")
     .option("--model-dtype <dtype>", "model dtype (default: auto)")
     .option("--model-pipeline <pipeline>", "override inferred pipeline type")
+    .option("--stream", "enable streaming output")
     .action(async (text, options) => {
       let model: string | ModelConfig;
 
@@ -511,6 +513,7 @@ export function AddBaseCommands(program: Command) {
     .option("--model-path <path>", "model path or URI")
     .option("--model-dtype <dtype>", "model dtype (default: auto)")
     .option("--model-pipeline <pipeline>", "override inferred pipeline type")
+    .option("--stream", "enable streaming output")
     .action(async (question, context, options) => {
       let model: string | ModelConfig;
 

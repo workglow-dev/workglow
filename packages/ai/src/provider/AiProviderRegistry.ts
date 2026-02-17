@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TaskInput, TaskOutput } from "@workglow/task-graph";
+import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
 import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
 import type { AiProvider } from "./AiProvider";
@@ -24,12 +24,28 @@ export type AiProviderRunFn<
 ) => Promise<Output>;
 
 /**
+ * Type for the streaming run function for the AiJob.
+ * Returns an AsyncIterable of StreamEvents instead of a Promise.
+ * No `update_progress` callback -- for streaming providers, the stream itself IS the progress signal.
+ */
+export type AiProviderStreamFn<
+  Input extends TaskInput = TaskInput,
+  Output extends TaskOutput = TaskOutput,
+  Model extends ModelConfig = ModelConfig,
+> = (
+  input: Input,
+  model: Model | undefined,
+  signal: AbortSignal
+) => AsyncIterable<StreamEvent<Output>>;
+
+/**
  * Registry that manages provider-specific task execution functions and job queues.
  * Handles the registration, retrieval, and execution of task processing functions
  * for different model providers and task types.
  */
 export class AiProviderRegistry {
   runFnRegistry: Map<string, Map<string, AiProviderRunFn<any, any>>> = new Map();
+  streamFnRegistry: Map<string, Map<string, AiProviderStreamFn<any, any>>> = new Map();
   private providers: Map<string, AiProvider<any>> = new Map();
 
   /**
@@ -96,6 +112,61 @@ export class AiProviderRegistry {
       return result;
     };
     this.registerRunFn<Input, Output>(modelProvider, taskType, workerFn);
+  }
+
+  /**
+   * Registers a streaming execution function for a specific task type and model provider.
+   * @param modelProvider - The provider of the model (e.g., 'openai', 'anthropic', etc.)
+   * @param taskType - The type of task (e.g., 'TextGenerationTask')
+   * @param streamFn - The async generator function that yields StreamEvents
+   */
+  registerStreamFn<Input extends TaskInput = TaskInput, Output extends TaskOutput = TaskOutput>(
+    modelProvider: string,
+    taskType: string,
+    streamFn: AiProviderStreamFn<Input, Output>
+  ) {
+    if (!this.streamFnRegistry.has(taskType)) {
+      this.streamFnRegistry.set(taskType, new Map());
+    }
+    this.streamFnRegistry.get(taskType)!.set(modelProvider, streamFn);
+  }
+
+  /**
+   * Registers a worker-proxied streaming function for a specific task type and model provider.
+   * Creates a proxy that delegates streaming to a Web Worker via WorkerManager.
+   * The proxy calls `callWorkerStreamFunction()` which sends a `stream: true` call message
+   * and yields `stream_chunk` messages from the worker as an AsyncIterable.
+   */
+  registerAsWorkerStreamFn<
+    Input extends TaskInput = TaskInput,
+    Output extends TaskOutput = TaskOutput,
+  >(modelProvider: string, taskType: string) {
+    const streamFn: AiProviderStreamFn<Input, Output> = async function* (
+      input: Input,
+      model: ModelConfig | undefined,
+      signal: AbortSignal
+    ) {
+      const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
+      yield* workerManager.callWorkerStreamFunction<StreamEvent<Output>>(
+        modelProvider,
+        taskType,
+        [input, model],
+        { signal }
+      );
+    };
+    this.registerStreamFn<Input, Output>(modelProvider, taskType, streamFn);
+  }
+
+  /**
+   * Retrieves the streaming execution function for a task type and model provider.
+   * Returns undefined if no streaming function is registered (fallback to non-streaming).
+   */
+  getStreamFn<Input extends TaskInput = TaskInput, Output extends TaskOutput = TaskOutput>(
+    modelProvider: string,
+    taskType: string
+  ): AiProviderStreamFn<Input, Output> | undefined {
+    const taskTypeMap = this.streamFnRegistry.get(taskType);
+    return taskTypeMap?.get(modelProvider) as AiProviderStreamFn<Input, Output> | undefined;
   }
 
   /**

@@ -15,12 +15,11 @@ import {
   type AiJobInput,
 } from "@workglow/ai";
 import {
-  clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
-  HFT_TASKS,
   HuggingFaceTransformersProvider,
   type HfTransformersOnnxModelRecord,
 } from "@workglow/ai-provider";
+import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import {

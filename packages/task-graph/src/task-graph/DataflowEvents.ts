@@ -16,6 +16,9 @@ export type DataflowEventListeners = {
   /** Fired when a source task starts execution */
   start: () => void;
 
+  /** Fired when a source task begins streaming output */
+  streaming: () => void;
+
   /** Fired when a source task completes successfully */
   complete: () => void;
 

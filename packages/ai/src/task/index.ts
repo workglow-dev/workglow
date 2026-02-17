@@ -97,6 +97,7 @@ export const registerAiTasks = () => {
 export * from "./BackgroundRemovalTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";
+export * from "./base/StreamingAiTask";
 export * from "./ChunkRetrievalTask";
 export * from "./ChunkToVectorTask";
 export * from "./ChunkVectorHybridSearchTask";

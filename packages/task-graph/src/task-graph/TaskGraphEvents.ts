@@ -5,6 +5,7 @@
  */
 
 import { EventParameters } from "@workglow/util";
+import type { StreamEvent } from "../task/StreamTypes";
 import { TaskIdType } from "../task/TaskTypes";
 import { DataflowIdType } from "./Dataflow";
 
@@ -19,6 +20,12 @@ export type TaskGraphStatusListeners = {
   error: (error: Error) => void;
   abort: () => void;
   disabled: () => void;
+  /** Fired when a task in the graph starts streaming */
+  task_stream_start: (taskId: TaskIdType) => void;
+  /** Fired for each stream chunk produced by a task in the graph */
+  task_stream_chunk: (taskId: TaskIdType, event: StreamEvent) => void;
+  /** Fired when a task in the graph finishes streaming */
+  task_stream_end: (taskId: TaskIdType, output: Record<string, any>) => void;
 };
 export type TaskGraphStatusEvents = keyof TaskGraphStatusListeners;
 export type TaskGraphStatusListener<Event extends TaskGraphStatusEvents> =

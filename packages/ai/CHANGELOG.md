@@ -1,5 +1,53 @@
 # @workglow/ai
 
+## 0.0.94
+
+### Patch Changes
+
+- update to streaming port across grouped type tasks
+- Updated dependencies
+  - @workglow/task-graph@0.0.94
+  - @workglow/job-queue@0.0.94
+  - @workglow/dataset@0.0.94
+  - @workglow/storage@0.0.94
+  - @workglow/util@0.0.94
+
+## 0.0.93
+
+### Patch Changes
+
+- fix export and test
+- Updated dependencies
+  - @workglow/task-graph@0.0.93
+  - @workglow/job-queue@0.0.93
+  - @workglow/dataset@0.0.93
+  - @workglow/storage@0.0.93
+  - @workglow/util@0.0.93
+
+## 0.0.92
+
+### Patch Changes
+
+- Fix exports
+- Updated dependencies
+  - @workglow/task-graph@0.0.92
+  - @workglow/job-queue@0.0.92
+  - @workglow/dataset@0.0.92
+  - @workglow/storage@0.0.92
+  - @workglow/util@0.0.92
+
+## 0.0.91
+
+### Patch Changes
+
+- Add ai providers like openai; add streaming
+- Updated dependencies
+  - @workglow/task-graph@0.0.91
+  - @workglow/util@0.0.91
+  - @workglow/dataset@0.0.91
+  - @workglow/job-queue@0.0.91
+  - @workglow/storage@0.0.91
+
 ## 0.0.90
 
 ### Patch Changes

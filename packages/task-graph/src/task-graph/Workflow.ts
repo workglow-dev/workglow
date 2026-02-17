@@ -8,10 +8,11 @@ import { EventEmitter, JsonSchema, uuid4, type EventParameters } from "@workglow
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
+import { getPortStreamMode, type StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
-import { DataPorts, TaskConfig } from "../task/TaskTypes";
+import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
 import { getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS } from "./Dataflow";
 import { IWorkflow } from "./IWorkflow";
@@ -208,6 +209,12 @@ export type WorkflowEventListeners = {
   start: () => void;
   complete: () => void;
   abort: (error: string) => void;
+  /** Fired when a task in the workflow starts streaming */
+  stream_start: (taskId: TaskIdType) => void;
+  /** Fired for each stream chunk produced by a task in the workflow */
+  stream_chunk: (taskId: TaskIdType, event: StreamEvent) => void;
+  /** Fired when a task in the workflow finishes streaming */
+  stream_end: (taskId: TaskIdType, output: Record<string, any>) => void;
 };
 
 export type WorkflowEvents = keyof WorkflowEventListeners;
@@ -451,6 +458,13 @@ export class Workflow<
     this.events.emit("start");
     this._abortController = new AbortController();
 
+    // Subscribe to graph-level streaming events and forward to workflow events
+    const unsubStreaming = this.graph.subscribeToTaskStreaming({
+      onStreamStart: (taskId) => this.events.emit("stream_start", taskId),
+      onStreamChunk: (taskId, event) => this.events.emit("stream_chunk", taskId, event),
+      onStreamEnd: (taskId, output) => this.events.emit("stream_end", taskId, output),
+    });
+
     try {
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
@@ -466,6 +480,7 @@ export class Workflow<
       this.events.emit("error", String(error));
       throw error;
     } finally {
+      unsubStreaming();
       this._abortController = undefined;
     }
   }
@@ -1070,20 +1085,37 @@ export class Workflow<
         return;
       }
 
-      for (const [fromOutputPortId, fromPortOutputSchema] of Object.entries(
-        fromSchema.properties || {}
-      )) {
-        for (const [toInputPortId, toPortInputSchema] of Object.entries(
-          toSchema.properties || {}
+      // Iterate target-first to collect candidates per target port,
+      // then apply x-stream tiebreaker when multiple source ports match.
+      for (const [toInputPortId, toPortInputSchema] of Object.entries(toSchema.properties || {})) {
+        if (matches.has(toInputPortId)) continue;
+
+        const candidates: string[] = [];
+        for (const [fromOutputPortId, fromPortOutputSchema] of Object.entries(
+          fromSchema.properties || {}
         )) {
           if (
-            !matches.has(toInputPortId) &&
             comparator([fromOutputPortId, fromPortOutputSchema], [toInputPortId, toPortInputSchema])
           ) {
-            matches.set(toInputPortId, fromOutputPortId);
-            graph.addDataflow(new Dataflow(fromTaskId, fromOutputPortId, toTaskId, toInputPortId));
+            candidates.push(fromOutputPortId);
           }
         }
+
+        if (candidates.length === 0) continue;
+
+        // Tiebreaker: when multiple source ports match, prefer the one
+        // whose x-stream setting matches the target port's x-stream.
+        let winner = candidates[0];
+        if (candidates.length > 1) {
+          const targetStreamMode = getPortStreamMode(toSchema, toInputPortId);
+          const streamMatch = candidates.find(
+            (portId) => getPortStreamMode(fromSchema, portId) === targetStreamMode
+          );
+          if (streamMatch) winner = streamMatch;
+        }
+
+        matches.set(toInputPortId, winner);
+        graph.addDataflow(new Dataflow(fromTaskId, winner, toTaskId, toInputPortId));
       }
     };
 

@@ -37,7 +37,7 @@ import {
 import { Workflow, getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import { HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS, HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 
 // 1. Set up a model repository
 const modelRepo = new InMemoryModelRepository();
@@ -55,8 +55,8 @@ await modelRepo.addModel({
     model_path: "Xenova/LaMini-Flan-T5-783M"
 });
 
-// 3. Register provider (inline mode, creates queue automatically)
-await new HuggingFaceTransformersProvider().register({ mode: "inline" });
+// 3. Register provider (inline mode requires HFT_TASKS via constructor, creates queue automatically)
+await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
 
 // 4. Or manually set up job queue (when queue.autoCreate: false)
 const queueName = HF_TRANSFORMERS_ONNX;
@@ -320,10 +320,10 @@ AI providers handle the actual execution of AI tasks. You need to register provi
 ### Basic Provider Registration
 
 ```typescript
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 
-// Registers run functions for all supported AI tasks on the current thread
-await new HuggingFaceTransformersProvider().register({ mode: "inline" });
+// Registers run functions for all supported AI tasks on the current thread (inline mode requires HFT_TASKS)
+await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
 ```
 
 ### Worker-Based Provider Registration

@@ -93,6 +93,7 @@ export class WorkerServer {
   }
 
   private functions: Record<string, (...args: any[]) => Promise<any>> = {};
+  private streamFunctions: Record<string, (...args: any[]) => AsyncIterable<any>> = {};
 
   // Keep track of each request's AbortController
   private requestControllers = new Map<string, AbortController>();
@@ -117,17 +118,40 @@ export class WorkerServer {
     postMessage({ id, type: "error", data: errorMessage });
   };
 
+  private postStreamChunk = (id: string, event: any) => {
+    if (this.completedRequests.has(id)) {
+      return;
+    }
+    postMessage({ id, type: "stream_chunk", data: event });
+  };
+
   registerFunction(name: string, fn: (...args: any[]) => Promise<any>) {
     this.functions[name] = fn;
   }
 
+  /**
+   * Register an async generator function for streaming execution.
+   * When called via the worker protocol with `stream: true`, the server
+   * iterates the generator and sends each yielded value as a `stream_chunk`
+   * message, followed by a `complete` message when the generator finishes.
+   *
+   * @param name - The function name (e.g., task type identifier)
+   * @param fn - Async generator function: (input, model, signal) => AsyncIterable
+   */
+  registerStreamFunction(name: string, fn: (...args: any[]) => AsyncIterable<any>) {
+    this.streamFunctions[name] = fn;
+  }
+
   // Handle messages from the main thread
   async handleMessage(event: { type: string; data: any }) {
-    const { id, type, functionName, args } = event.data;
+    const { id, type, functionName, args, stream } = event.data;
     if (type === "abort") {
       return await this.handleAbort(id);
     }
     if (type === "call") {
+      if (stream) {
+        return await this.handleStreamCall(id, functionName, args);
+      }
       return await this.handleCall(id, functionName, args);
     }
   }
@@ -170,6 +194,60 @@ export class WorkerServer {
       setTimeout(() => {
         this.completedRequests.delete(id);
       }, 1000);
+    }
+  }
+
+  /**
+   * Handle a streaming call. If a stream function is registered for the given name,
+   * iterate it and send each yielded event as a `stream_chunk` message. If only a
+   * regular function is registered, run it and wrap the result as a single `finish`
+   * stream event (graceful fallback for providers that don't implement streaming).
+   */
+  async handleStreamCall(id: string, functionName: string, [input, model]: [any, any]) {
+    if (functionName in this.streamFunctions) {
+      try {
+        const abortController = new AbortController();
+        this.requestControllers.set(id, abortController);
+
+        const fn = this.streamFunctions[functionName];
+        const iterable = fn(input, model, abortController.signal);
+
+        for await (const event of iterable) {
+          if (this.completedRequests.has(id)) break;
+          this.postStreamChunk(id, event);
+        }
+
+        this.postResult(id, undefined);
+      } catch (error: any) {
+        this.postError(id, error.message);
+      } finally {
+        this.requestControllers.delete(id);
+        setTimeout(() => {
+          this.completedRequests.delete(id);
+        }, 1000);
+      }
+    } else if (functionName in this.functions) {
+      // Fallback: run regular function and wrap result as a finish stream event
+      try {
+        const abortController = new AbortController();
+        this.requestControllers.set(id, abortController);
+
+        const fn = this.functions[functionName];
+        const noopProgress = () => {};
+        const result = await fn(input, model, noopProgress, abortController.signal);
+
+        this.postStreamChunk(id, { type: "finish", data: result });
+        this.postResult(id, undefined);
+      } catch (error: any) {
+        this.postError(id, error.message);
+      } finally {
+        this.requestControllers.delete(id);
+        setTimeout(() => {
+          this.completedRequests.delete(id);
+        }, 1000);
+      }
+    } else {
+      this.postError(id, `Function ${functionName} not found`);
     }
   }
 }

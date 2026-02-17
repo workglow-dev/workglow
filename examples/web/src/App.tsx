@@ -10,17 +10,13 @@ import {
 } from "@workglow/ai-provider";
 import { getTaskQueueRegistry, JsonTaskItem, TaskGraph, Workflow } from "@workglow/task-graph";
 import { JsonTask } from "@workglow/tasks";
-import {
-  IndexedDbTaskGraphRepository,
-  IndexedDbTaskOutputRepository,
-  registerHuggingfaceLocalModels,
-  registerMediaPipeTfJsLocalModels,
-} from "@workglow/test";
+import { IndexedDbTaskGraphRepository, IndexedDbTaskOutputRepository } from "@workglow/test";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useState } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./Resize";
 import { JsonEditor } from "./editor/JsonEditor";
 import { RunGraphFlow } from "./graph/RunGraphFlow";
+import { registerHuggingfaceLocalModels, registerMediaPipeTfJsLocalModels } from "./modelSamples";
 import { GraphStoreStatus } from "./status/GraphStoreStatus";
 import { OutputRepositoryStatus } from "./status/OutputRepositoryStatus";
 import { QueuesStatus } from "./status/QueueStatus";

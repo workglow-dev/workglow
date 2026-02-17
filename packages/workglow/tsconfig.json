@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src/*.ts"],
+  "files": ["./src/types.ts"],
+  "exclude": ["dist", "node_modules"],
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "baseUrl": "./src",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
+  }
+}

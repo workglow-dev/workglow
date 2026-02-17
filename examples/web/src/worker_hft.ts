@@ -5,7 +5,7 @@
  */
 
 import { env } from "@sroussey/transformers";
-import { HFT_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider";
+import { HFT_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider/hf-transformers";
 
 const onnx = env?.backends?.onnx;
 if (onnx) {

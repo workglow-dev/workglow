@@ -1,0 +1,140 @@
+{
+  "name": "workglow",
+  "type": "module",
+  "version": "0.0.94",
+  "description": "Workglow meta-package: re-exports all @workglow/* packages for convenient single-import usage.",
+  "scripts": {
+    "watch": "concurrently -c 'auto' 'bun:watch-*'",
+    "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts",
+    "watch-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts",
+    "watch-bun": "bun build --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts",
+    "watch-types": "tsc --watch --preserveWatchOutput",
+    "build-package": "bun run build-clean && concurrently -c 'auto' -n 'browser,node,bun,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-types'",
+    "build-clean": "rm -fr dist/*",
+    "build-browser": "bun build --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts",
+    "build-node": "bun build --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts",
+    "build-bun": "bun build --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts",
+    "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test": "bun test",
+    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';['anthropic','google-gemini','hf-transformers','ollama','openai'].forEach(p=>{const k='./'+p;if(!pkg.exports[k])pkg.exports[k]={};pkg.exports[k].browser='./dist/'+p+'.browser.js';pkg.exports[k].bun='./dist/'+p+'.bun.js';pkg.exports[k].types='./dist/'+p+'.d.ts'});const t=pkg.exports['./tf-mediapipe'];if(!t)pkg.exports['./tf-mediapipe']={};pkg.exports['./tf-mediapipe'].browser='./dist/tf-mediapipe.js';pkg.exports['./tf-mediapipe'].types='./dist/tf-mediapipe.d.ts';delete pkg.exports['./tf-mediapipe'].bun;require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+  },
+  "exports": {
+    ".": {
+      "react-native": "./dist/browser.js",
+      "browser": "./dist/browser.js",
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./anthropic": {
+      "browser": "./dist/anthropic.browser.js",
+      "bun": "./dist/anthropic.bun.js",
+      "types": "./dist/anthropic.d.ts",
+      "import": "./dist/anthropic.js"
+    },
+    "./google-gemini": {
+      "browser": "./dist/google-gemini.browser.js",
+      "bun": "./dist/google-gemini.bun.js",
+      "types": "./dist/google-gemini.d.ts",
+      "import": "./dist/google-gemini.js"
+    },
+    "./hf-transformers": {
+      "browser": "./dist/hf-transformers.browser.js",
+      "bun": "./dist/hf-transformers.bun.js",
+      "types": "./dist/hf-transformers.d.ts",
+      "import": "./dist/hf-transformers.js"
+    },
+    "./ollama": {
+      "browser": "./dist/ollama.browser.js",
+      "bun": "./dist/ollama.bun.js",
+      "types": "./dist/ollama.d.ts",
+      "import": "./dist/ollama.js"
+    },
+    "./openai": {
+      "browser": "./dist/openai.browser.js",
+      "bun": "./dist/openai.bun.js",
+      "types": "./dist/openai.d.ts",
+      "import": "./dist/openai.js"
+    },
+    "./tf-mediapipe": {
+      "browser": "./dist/tf-mediapipe.js",
+      "types": "./dist/tf-mediapipe.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src/**/*.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@workglow/ai": "workspace:*",
+    "@workglow/ai-provider": "workspace:*",
+    "@workglow/dataset": "workspace:*",
+    "@workglow/debug": "workspace:*",
+    "@workglow/job-queue": "workspace:*",
+    "@workglow/sqlite": "workspace:*",
+    "@workglow/storage": "workspace:*",
+    "@workglow/task-graph": "workspace:*",
+    "@workglow/tasks": "workspace:*",
+    "@workglow/util": "workspace:*"
+  },
+  "peerDependencies": {
+    "@sroussey/transformers": "catalog:",
+    "@mediapipe/tasks-text": "catalog:",
+    "@mediapipe/tasks-vision": "catalog:",
+    "@mediapipe/tasks-audio": "catalog:",
+    "@mediapipe/tasks-genai": "catalog:",
+    "openai": "catalog:",
+    "@anthropic-ai/sdk": "catalog:",
+    "@google/generative-ai": "catalog:",
+    "ollama": "catalog:",
+    "@sqlite.org/sqlite-wasm": "^3.51.2-build6",
+    "better-sqlite3": "^12.6.2",
+    "pg": "^8.18.0",
+    "@supabase/supabase-js": "=2.95.3"
+  },
+  "peerDependenciesMeta": {
+    "@sroussey/transformers": {
+      "optional": true
+    },
+    "@mediapipe/tasks-text": {
+      "optional": true
+    },
+    "@mediapipe/tasks-vision": {
+      "optional": true
+    },
+    "@mediapipe/tasks-audio": {
+      "optional": true
+    },
+    "@mediapipe/tasks-genai": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    },
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "@google/generative-ai": {
+      "optional": true
+    },
+    "ollama": {
+      "optional": true
+    },
+    "@sqlite.org/sqlite-wasm": {
+      "optional": true
+    },
+    "better-sqlite3": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "@supabase/supabase-js": {
+      "optional": true
+    }
+  }
+}

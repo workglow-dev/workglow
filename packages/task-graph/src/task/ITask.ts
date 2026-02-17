@@ -10,6 +10,7 @@ import { ITaskGraph } from "../task-graph/ITaskGraph";
 import { IWorkflow } from "../task-graph/IWorkflow";
 import type { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
+import type { StreamEvent } from "./StreamTypes";
 import { TaskError } from "./TaskError";
 import type {
   TaskEventListener,
@@ -29,6 +30,13 @@ export interface IExecuteContext {
   updateProgress: (progress: number, message?: string, ...args: any[]) => Promise<void>;
   own: <T extends ITask | ITaskGraph | IWorkflow>(i: T) => T;
   registry: ServiceRegistry;
+  /**
+   * Input streams for pass-through streaming tasks. Keyed by input port name.
+   * Provided when the graph runner detects that a task has streaming input edges
+   * and the task implements executeStream(). The task's executeStream() can read
+   * from these streams and re-yield events for immediate downstream delivery.
+   */
+  inputStreams?: Map<string, ReadableStream<StreamEvent>>;
 }
 
 export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
@@ -77,6 +85,13 @@ export interface ITaskExecution<
     output: Output,
     context: IExecuteReactiveContext
   ): Promise<Output | undefined>;
+
+  /**
+   * Optional streaming execution method.
+   * When implemented, returns an async iterable of StreamEvents instead of a single output.
+   * Only available on tasks where the static `streamable` property is true.
+   */
+  executeStream?(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>>;
 }
 
 /**

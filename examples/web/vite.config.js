@@ -10,18 +10,15 @@ export default defineConfig({
   esbuild: {
     target: "esnext",
   },
+  worker: {
+    format: "es",
+  },
   build: {
     target: "esnext",
     rollupOptions: {
       output: {
         manualChunks: {
           "huggingface-transformers": ["@sroussey/transformers"],
-          "tf-mediapipe": [
-            "@mediapipe/tasks-text",
-            "@mediapipe/tasks-vision",
-            "@mediapipe/tasks-audio",
-            "@mediapipe/tasks-genai",
-          ],
           workglow: [
             "@workglow/ai",
             "@workglow/ai-provider",

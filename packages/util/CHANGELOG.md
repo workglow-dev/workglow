@@ -1,5 +1,29 @@
 # @workglow/util
 
+## 0.0.94
+
+### Patch Changes
+
+- update to streaming port across grouped type tasks
+
+## 0.0.93
+
+### Patch Changes
+
+- fix export and test
+
+## 0.0.92
+
+### Patch Changes
+
+- Fix exports
+
+## 0.0.91
+
+### Patch Changes
+
+- Add ai providers like openai; add streaming
+
 ## 0.0.90
 
 ### Patch Changes

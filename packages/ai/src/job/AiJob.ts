@@ -11,7 +11,7 @@ import {
   JobStatus,
   PermanentJobError,
 } from "@workglow/job-queue";
-import { TaskInput, TaskOutput } from "@workglow/task-graph";
+import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
 import type { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 
@@ -77,5 +77,32 @@ export class AiJob<
         abortHandler();
       }
     }
+  }
+
+  /**
+   * Streaming execution: yields StreamEvents from the provider's stream function.
+   * Falls back to non-streaming execute() if no stream function is registered.
+   */
+  async *executeStream(
+    input: Input,
+    context: IJobExecuteContext
+  ): AsyncIterable<StreamEvent<Output>> {
+    if (context.signal.aborted || this.status === JobStatus.ABORTING) {
+      throw new AbortSignalJobError("Abort signal aborted before streaming execution of job");
+    }
+
+    const streamFn = getAiProviderRegistry().getStreamFn<Input["taskInput"], Output>(
+      input.aiProvider,
+      input.taskType
+    );
+
+    if (!streamFn) {
+      const result = await this.execute(input, context);
+      yield { type: "finish", data: result } as StreamEvent<Output>;
+      return;
+    }
+
+    const model = input.taskInput.model;
+    yield* streamFn(input.taskInput, model, context.signal);
   }
 }

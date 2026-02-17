@@ -4,39 +4,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  type BackgroundRemovalPipeline,
+import type {
+  BackgroundRemovalPipeline,
   DocumentQuestionAnsweringSingle,
-  type FeatureExtractionPipeline,
+  FeatureExtractionPipeline,
   FillMaskPipeline,
   FillMaskSingle,
-  type ImageClassificationPipeline,
-  type ImageFeatureExtractionPipeline,
-  type ImageSegmentationPipeline,
-  type ImageToTextPipeline,
-  type ObjectDetectionPipeline,
-  pipeline,
+  ImageClassificationPipeline,
+  ImageFeatureExtractionPipeline,
+  ImageSegmentationPipeline,
+  ImageToTextPipeline,
+  ObjectDetectionPipeline,
   // @ts-ignore temporary "fix"
-  type PretrainedModelOptions,
+  PretrainedModelOptions,
   QuestionAnsweringPipeline,
   RawImage,
   SummarizationPipeline,
   SummarizationSingle,
   TextClassificationOutput,
   TextClassificationPipeline,
-  type TextGenerationPipeline,
+  TextGenerationPipeline,
   TextGenerationSingle,
-  TextStreamer,
   TokenClassificationPipeline,
   TokenClassificationSingle,
   TranslationPipeline,
   TranslationSingle,
-  type ZeroShotClassificationPipeline,
-  type ZeroShotImageClassificationPipeline,
-  type ZeroShotObjectDetectionPipeline,
+  ZeroShotClassificationPipeline,
+  ZeroShotImageClassificationPipeline,
+  ZeroShotObjectDetectionPipeline,
 } from "@sroussey/transformers";
 import type {
   AiProviderRunFn,
+  AiProviderStreamFn,
   BackgroundRemovalTaskInput,
   BackgroundRemovalTaskOutput,
   DownloadModelTaskRunInput,
@@ -74,6 +73,21 @@ import type {
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
+import type { StreamEvent } from "@workglow/task-graph";
+
+let _transformersSdk: typeof import("@sroussey/transformers") | undefined;
+async function loadTransformersSDK() {
+  if (!_transformersSdk) {
+    try {
+      _transformersSdk = await import("@sroussey/transformers");
+    } catch {
+      throw new Error(
+        "@sroussey/transformers is required for HuggingFace Transformers tasks. Install it with: bun add @sroussey/transformers"
+      );
+    }
+  }
+  return _transformersSdk;
+}
 
 import { TypedArray } from "@workglow/util";
 import { CallbackStatus } from "./HFT_CallbackStatus";
@@ -413,6 +427,7 @@ const getPipeline = async (
   });
 
   // Race between pipeline creation and abort
+  const { pipeline } = await loadTransformersSDK();
   const pipelinePromise = pipeline(pipelineType, model.provider_config.model_path, pipelineOptions);
 
   try {
@@ -1123,6 +1138,7 @@ function createTextStreamer(
   updateProgress: (progress: number, message?: string, details?: any) => void,
   signal?: AbortSignal
 ) {
+  const { TextStreamer } = _transformersSdk!;
   let count = 0;
   return new TextStreamer(tokenizer, {
     skip_prompt: true,
@@ -1136,6 +1152,256 @@ function createTextStreamer(
     ...(signal ? { abort_signal: signal } : {}),
   });
 }
+
+// ========================================================================
+// Streaming support: converts TextStreamer callback to AsyncIterable
+// ========================================================================
+
+type StreamEventQueue<T> = {
+  push: (event: T) => void;
+  done: () => void;
+  error: (err: Error) => void;
+  iterable: AsyncIterable<T>;
+};
+
+function createStreamEventQueue<T>(): StreamEventQueue<T> {
+  const buffer: T[] = [];
+  let resolve: ((value: IteratorResult<T>) => void) | null = null;
+  let finished = false;
+  let err: Error | null = null;
+
+  const push = (event: T) => {
+    if (resolve) {
+      const r = resolve;
+      resolve = null;
+      r({ value: event, done: false });
+    } else {
+      buffer.push(event);
+    }
+  };
+
+  const done = () => {
+    finished = true;
+    if (resolve) {
+      const r = resolve;
+      resolve = null;
+      r({ value: undefined as any, done: true });
+    }
+  };
+
+  const error = (e: Error) => {
+    err = e;
+    if (resolve) {
+      const r = resolve;
+      resolve = null;
+      r({ value: undefined as any, done: true });
+    }
+  };
+
+  const iterable: AsyncIterable<T> = {
+    [Symbol.asyncIterator]() {
+      return {
+        next(): Promise<IteratorResult<T>> {
+          if (err) return Promise.reject(err);
+          if (buffer.length > 0) {
+            return Promise.resolve({ value: buffer.shift()!, done: false });
+          }
+          if (finished) {
+            return Promise.resolve({ value: undefined as any, done: true });
+          }
+          return new Promise<IteratorResult<T>>((r) => {
+            resolve = r;
+          });
+        },
+      };
+    },
+  };
+
+  return { push, done, error, iterable };
+}
+
+/**
+ * Creates a TextStreamer that pushes StreamEvents into an async queue.
+ * The pipeline runs to completion and updates the queue; the caller
+ * consumes the queue as an AsyncIterable<StreamEvent>.
+ */
+function createStreamingTextStreamer(
+  tokenizer: any,
+  queue: StreamEventQueue<StreamEvent<any>>,
+  signal?: AbortSignal
+) {
+  const { TextStreamer } = _transformersSdk!;
+  return new TextStreamer(tokenizer, {
+    skip_prompt: true,
+    decode_kwargs: { skip_special_tokens: true },
+    callback_function: (text: string) => {
+      queue.push({ type: "text-delta", port: "text", textDelta: text });
+    },
+    ...(signal ? { abort_signal: signal } : {}),
+  });
+}
+
+// ========================================================================
+// Streaming implementations (append mode)
+// ========================================================================
+
+export const HFT_TextGeneration_Stream: AiProviderStreamFn<
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+  const noopProgress = () => {};
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {
+    abort_signal: signal,
+  });
+
+  const queue = createStreamEventQueue<StreamEvent<TextGenerationTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, signal);
+
+  const pipelinePromise = generateText(input.prompt, {
+    streamer,
+    ...(signal ? { abort_signal: signal } : {}),
+  }).then(
+    () => queue.done(),
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+  yield { type: "finish", data: {} as TextGenerationTaskOutput };
+};
+
+export const HFT_TextRewriter_Stream: AiProviderStreamFn<
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
+  const noopProgress = () => {};
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {
+    abort_signal: signal,
+  });
+
+  const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
+
+  const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
+
+  const pipelinePromise = generateText(promptedText, {
+    streamer,
+    ...(signal ? { abort_signal: signal } : {}),
+  }).then(
+    () => queue.done(),
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+  yield { type: "finish", data: {} as TextRewriterTaskOutput };
+};
+
+export const HFT_TextSummary_Stream: AiProviderStreamFn<
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
+  const noopProgress = () => {};
+  const generateSummary: SummarizationPipeline = await getPipeline(model!, noopProgress, {
+    abort_signal: signal,
+  });
+
+  const queue = createStreamEventQueue<StreamEvent<TextSummaryTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue);
+
+  const pipelinePromise = generateSummary(input.text, {
+    streamer,
+    ...(signal ? { abort_signal: signal } : {}),
+  } as any).then(
+    () => queue.done(),
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+  yield { type: "finish", data: {} as TextSummaryTaskOutput };
+};
+
+export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
+  TextQuestionAnswerTaskInput,
+  TextQuestionAnswerTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (
+  input,
+  model,
+  signal
+): AsyncIterable<StreamEvent<TextQuestionAnswerTaskOutput>> {
+  const noopProgress = () => {};
+  const generateAnswer: QuestionAnsweringPipeline = await getPipeline(model!, noopProgress, {
+    abort_signal: signal,
+  });
+
+  const queue = createStreamEventQueue<StreamEvent<TextQuestionAnswerTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateAnswer.tokenizer, queue);
+
+  let pipelineResult:
+    | DocumentQuestionAnsweringSingle
+    | DocumentQuestionAnsweringSingle[]
+    | undefined;
+  const pipelinePromise = generateAnswer(input.question, input.context, {
+    streamer,
+    ...(signal ? { abort_signal: signal } : {}),
+  } as any).then(
+    (result) => {
+      pipelineResult = result;
+      queue.done();
+    },
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+
+  let answerText = "";
+  if (pipelineResult !== undefined) {
+    if (Array.isArray(pipelineResult)) {
+      answerText = (pipelineResult[0] as DocumentQuestionAnsweringSingle)?.answer ?? "";
+    } else {
+      answerText = (pipelineResult as DocumentQuestionAnsweringSingle)?.answer ?? "";
+    }
+  }
+  yield { type: "finish", data: { text: answerText } as TextQuestionAnswerTaskOutput };
+};
+
+export const HFT_TextTranslation_Stream: AiProviderStreamFn<
+  TextTranslationTaskInput,
+  TextTranslationTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextTranslationTaskOutput>> {
+  const noopProgress = () => {};
+  const translate: TranslationPipeline = await getPipeline(model!, noopProgress, {
+    abort_signal: signal,
+  });
+
+  const queue = createStreamEventQueue<StreamEvent<TextTranslationTaskOutput>>();
+  const streamer = createStreamingTextStreamer(translate.tokenizer, queue);
+
+  const pipelinePromise = translate(input.text, {
+    src_lang: input.source_lang,
+    tgt_lang: input.target_lang,
+    streamer,
+    ...(signal ? { abort_signal: signal } : {}),
+  } as any).then(
+    () => queue.done(),
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+  yield { type: "finish", data: { target_lang: input.target_lang } as TextTranslationTaskOutput };
+};
+
+// ========================================================================
+// Task registries
+// ========================================================================
 
 /**
  * All HuggingFace Transformers task run functions, keyed by task type name.
@@ -1162,3 +1428,18 @@ export const HFT_TASKS = {
   ImageClassificationTask: HFT_ImageClassification,
   ObjectDetectionTask: HFT_ObjectDetection,
 } as const;
+
+/**
+ * Streaming variants of HuggingFace Transformers task run functions.
+ * Pass this as the second argument to `new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS)`.
+ */
+export const HFT_STREAM_TASKS: Record<
+  string,
+  AiProviderStreamFn<any, any, HfTransformersOnnxModelConfig>
+> = {
+  TextGenerationTask: HFT_TextGeneration_Stream,
+  TextRewriterTask: HFT_TextRewriter_Stream,
+  TextSummaryTask: HFT_TextSummary_Stream,
+  TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
+  TextTranslationTask: HFT_TextTranslation_Stream,
+};

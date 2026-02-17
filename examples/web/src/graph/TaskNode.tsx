@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ITask, TaskStatus } from "@workglow/task-graph";
+import { ITask, TaskStatus, type StreamEvent } from "@workglow/task-graph";
 import { ArrayTask } from "@workglow/tasks";
 import { Node, NodeProps } from "@xyflow/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiCloud, FiCloudLightning } from "react-icons/fi";
 import { ProgressBar } from "../components/ProgressBar";
 import { TaskDataButtons } from "../components/TaskDataButtons";
@@ -39,6 +39,9 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
   const [subTasks, setSubTasks] = useState<ITask[]>([]);
   const [isExpanded, setIsExpanded] = useState(data.task instanceof ArrayTask);
   const [isExpandable, setIsExpandable] = useState(false);
+  const [streamingText, setStreamingText] = useState<string>("");
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const streamingTextRef = useRef<string>("");
 
   useEffect(() => {
     const task = data.task;
@@ -67,6 +70,33 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
     unsubscribes.push(
       task.subscribe("progress", () => {
         updateConsolidatedProgress();
+      })
+    );
+
+    unsubscribes.push(
+      task.subscribe("stream_start", () => {
+        setIsStreaming(true);
+        setStreamingText("");
+        streamingTextRef.current = "";
+      })
+    );
+
+    unsubscribes.push(
+      task.subscribe("stream_chunk", (event: StreamEvent) => {
+        if (event.type === "text-delta") {
+          streamingTextRef.current += event.textDelta;
+          setStreamingText(streamingTextRef.current);
+        } else if (event.type === "snapshot") {
+          const text = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
+          streamingTextRef.current = text;
+          setStreamingText(text);
+        }
+      })
+    );
+
+    unsubscribes.push(
+      task.subscribe("stream_end", () => {
+        setIsStreaming(false);
       })
     );
 
@@ -111,6 +141,16 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
         <TaskDataButtons task={data.task} />
         <ProgressBar progress={progress} status={status} showText={true} />
 
+        {(isStreaming || (status === TaskStatus.STREAMING && streamingText)) && (
+          <div className="mt-2 p-2 bg-[rgba(28,35,50,0.6)] rounded text-xs font-mono max-h-24 overflow-y-auto">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-streaming-pulse" />
+              <span className="text-blue-400 text-[10px]">Streaming</span>
+            </div>
+            <pre className="whitespace-pre-wrap text-gray-300 break-words">{streamingText}</pre>
+          </div>
+        )}
+
         {isExpandable && (
           <div className="flex items-center justify-between mt-3 mb-1">
             <div className="text-xs font-semibold">
@@ -142,7 +182,14 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
         )}
       </NodeContainer>
       <div className="cloud gradient">
-        <div>{data.task.status === TaskStatus.PROCESSING ? <FiCloudLightning /> : <FiCloud />}</div>
+        <div>
+          {data.task.status === TaskStatus.PROCESSING ||
+          data.task.status === TaskStatus.STREAMING ? (
+            <FiCloudLightning />
+          ) : (
+            <FiCloud />
+          )}
+        </div>
       </div>
     </>
   );

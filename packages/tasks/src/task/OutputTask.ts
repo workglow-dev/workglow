@@ -4,7 +4,7 @@
  * All Rights Reserved
  */
 
-import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, Workflow, type IExecuteContext, type StreamEvent, type StreamFinish } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
 
 export type OutputTaskInput = Record<string, unknown>;
@@ -58,6 +58,33 @@ export class OutputTask extends Task<OutputTaskInput, OutputTaskOutput, OutputTa
 
   public async executeReactive(input: OutputTaskInput) {
     return input as OutputTaskOutput;
+  }
+
+  /**
+   * Stream pass-through: re-yields all events from upstream input streams
+   * so downstream consumers see them with near-zero latency, then emits
+   * a finish event with the materialized input as data.
+   */
+  async *executeStream(
+    input: OutputTaskInput,
+    context: IExecuteContext
+  ): AsyncIterable<StreamEvent<OutputTaskOutput>> {
+    if (context.inputStreams) {
+      for (const [, stream] of context.inputStreams) {
+        const reader = stream.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value.type === "finish") continue;
+            yield value;
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
+    }
+    yield { type: "finish", data: input } as StreamFinish<OutputTaskOutput>;
   }
 }
 

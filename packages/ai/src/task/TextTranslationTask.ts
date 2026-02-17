@@ -6,8 +6,8 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { AiTask } from "./base/AiTask";
 import { TypeLanguage, TypeModel } from "./base/AiTaskSchemas";
+import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const modelSchema = TypeModel("model:TextTranslationTask");
 
@@ -15,6 +15,7 @@ const translationTextSchema = {
   type: "string",
   title: "Text",
   description: "The translated text",
+  "x-stream": "replace",
 } as const;
 
 export const TextTranslationInputSchema = {
@@ -64,7 +65,7 @@ export type TextTranslationTaskOutput = FromSchema<typeof TextTranslationOutputS
 /**
  * This translates text from one language to another
  */
-export class TextTranslationTask extends AiTask<
+export class TextTranslationTask extends StreamingAiTask<
   TextTranslationTaskInput,
   TextTranslationTaskOutput
 > {
