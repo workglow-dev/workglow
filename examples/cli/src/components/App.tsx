@@ -6,7 +6,7 @@
 
 import { ITaskGraph } from "@workglow/task-graph";
 import React from "react";
-import { Box, Text } from "retuink";
+import { Box, Text } from "ink";
 import TaskGraphUI from "./TaskGraphUI";
 
 type AppProps = {

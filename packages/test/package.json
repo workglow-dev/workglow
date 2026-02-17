@@ -44,7 +44,7 @@
     "@workglow/sqlite": "workspace:*",
     "@electric-sql/pglite": "^0.3.15",
     "pg": "^8.18.0",
-    "@supabase/supabase-js": "=2.95.3"
+    "@supabase/supabase-js": "=2.96.0"
   },
   "peerDependenciesMeta": {
     "@workglow/ai": {
@@ -90,6 +90,7 @@
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
+    "@supabase/supabase-js": "=2.96.0",
     "fake-indexeddb": "^6.2.4",
     "ollama": "catalog:",
     "openai": "catalog:",

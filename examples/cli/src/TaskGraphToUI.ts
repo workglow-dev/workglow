@@ -7,7 +7,7 @@
 import { ITaskGraph, IWorkflow, Task, TaskGraph, Taskish, Workflow } from "@workglow/task-graph";
 import { sleep } from "@workglow/util";
 import React from "react";
-import { render } from "retuink";
+import { render } from "ink";
 import App from "./components/App";
 
 export async function runTasks(taskish: Taskish): Promise<any> {
@@ -48,9 +48,7 @@ export async function runGraph(graph: ITaskGraph): Promise<any> {
 
 const runTaskGraphToInk = async (graph: ITaskGraph): Promise<any> => {
   // preserveScreen();
-  const { unmount } = render(React.createElement(App, { graph }), {
-    throttle: 50,
-  });
+  const { unmount } = render(React.createElement(App, { graph }));
   let results: any;
   try {
     await sleep(150);

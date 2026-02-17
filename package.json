@@ -32,7 +32,7 @@
     "publish": "bun ./scripts/publish-workspaces.ts"
   },
   "dependencies": {
-    "caniuse-lite": "^1.0.30001769"
+    "caniuse-lite": "^1.0.30001770"
   },
   "catalog": {
     "@sroussey/transformers": "3.8.2",

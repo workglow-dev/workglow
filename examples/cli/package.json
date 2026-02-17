@@ -42,14 +42,13 @@
     "@mediapipe/tasks-audio": "catalog:",
     "@mediapipe/tasks-genai": "catalog:",
     "@sroussey/transformers": "catalog:",
-    "@types/react": "=18.3.12",
+    "@types/react": "^19.2.14",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
+    "ink": "^6.7.0",
     "is-unicode-supported": "^2.1.0",
-    "react": "=18.3.1",
-    "react-reconciler": "=0.31.0",
-    "react-devtools-core": "=4.28.4",
-    "retuink": "=1.1.5"
+    "react": "^19.2.4",
+    "react-reconciler": "^0.33.0"
   },
   "publishConfig": {
     "access": "public"

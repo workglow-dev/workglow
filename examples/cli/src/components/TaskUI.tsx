@@ -8,8 +8,8 @@ import { DownloadModelTask } from "@workglow/ai";
 import { ITask, ITaskGraph, TaskStatus, type StreamEvent } from "@workglow/task-graph";
 import { ArrayTask } from "@workglow/tasks";
 import type { FC } from "react";
-import { memo, useEffect, useRef, useState } from "react";
-import { Box, Text } from "retuink";
+import { memo, useEffect, useState } from "react";
+import { Box, Text } from "ink";
 import { createBar, Spinner, symbols } from "./Elements";
 
 const StatusIcon = memo(

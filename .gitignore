@@ -8,7 +8,6 @@ dist
 storybook-static/
 packages/cli-web/
 packages/cli-sec/
-packages/ngraph/
 .cache/
 .turbo
 .env.*

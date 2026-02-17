@@ -25,7 +25,7 @@
     - [`packages/util`](#packagesutil)
     - [`examples/cli`](#examplescli)
     - [`examples/web`](#examplesweb)
-    - [`examples/ngraph`](#examplesngraph)
+    - [`builder`](#builder)
 
 # Developer Getting Started
 
@@ -459,8 +459,7 @@ An example project that uses the library in a web setting, running locally in br
 
 Don't forget to open the console for some goodies.
 
-### `examples/ngraph`
+### `builder`
 
-A graph editor tool that uses ngraph. It is not yet ready for prime time.
-
-![ngraph example](img/ngraph.png)
+[Local Drag and Drop Editor](https://workglow.dev)
+![Node Editor](img/builder.png)

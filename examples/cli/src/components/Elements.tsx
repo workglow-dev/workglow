@@ -5,7 +5,7 @@
  */
 
 import { memo, useEffect, useState } from "react";
-import { Text } from "retuink";
+import { Text } from "ink";
 
 /**
  * createBar

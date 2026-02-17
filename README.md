@@ -38,4 +38,4 @@ Packages:
 ### Node Editor
 
 [Local Drag and Drop Editor](https://workglow.dev)
-![Node Editor](docs/developers/img/ngraph.png)
+![Node Editor](docs/developers/img/builder.png)
