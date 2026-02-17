@@ -191,7 +191,7 @@ export const Gemini_TextGeneration_Stream: AiProviderStreamFn<
   for await (const chunk of result.stream) {
     const text = chunk.text();
     if (text) {
-      yield { type: "text-delta", textDelta: text };
+      yield { type: "text-delta", port: "text", textDelta: text };
     }
   }
   yield { type: "finish", data: {} as TextGenerationTaskOutput };
@@ -217,7 +217,7 @@ export const Gemini_TextRewriter_Stream: AiProviderStreamFn<
   for await (const chunk of result.stream) {
     const text = chunk.text();
     if (text) {
-      yield { type: "text-delta", textDelta: text };
+      yield { type: "text-delta", port: "text", textDelta: text };
     }
   }
   yield { type: "finish", data: {} as TextRewriterTaskOutput };
@@ -243,7 +243,7 @@ export const Gemini_TextSummary_Stream: AiProviderStreamFn<
   for await (const chunk of result.stream) {
     const text = chunk.text();
     if (text) {
-      yield { type: "text-delta", textDelta: text };
+      yield { type: "text-delta", port: "text", textDelta: text };
     }
   }
   yield { type: "finish", data: {} as TextSummaryTaskOutput };

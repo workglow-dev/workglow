@@ -164,7 +164,7 @@ export const Anthropic_TextGeneration_Stream: AiProviderStreamFn<
 
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      yield { type: "text-delta", textDelta: event.delta.text };
+      yield { type: "text-delta", port: "text", textDelta: event.delta.text };
     }
   }
   yield { type: "finish", data: {} as TextGenerationTaskOutput };
@@ -190,7 +190,7 @@ export const Anthropic_TextRewriter_Stream: AiProviderStreamFn<
 
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      yield { type: "text-delta", textDelta: event.delta.text };
+      yield { type: "text-delta", port: "text", textDelta: event.delta.text };
     }
   }
   yield { type: "finish", data: {} as TextRewriterTaskOutput };
@@ -216,7 +216,7 @@ export const Anthropic_TextSummary_Stream: AiProviderStreamFn<
 
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      yield { type: "text-delta", textDelta: event.delta.text };
+      yield { type: "text-delta", port: "text", textDelta: event.delta.text };
     }
   }
   yield { type: "finish", data: {} as TextSummaryTaskOutput };

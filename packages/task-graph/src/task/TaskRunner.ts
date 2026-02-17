@@ -10,7 +10,7 @@ import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
-import { isTaskStreamable, getOutputStreamMode, type StreamEvent, type StreamMode } from "./StreamTypes";
+import { isTaskStreamable, getOutputStreamMode, getStreamingPorts, type StreamEvent, type StreamMode } from "./StreamTypes";
 import { Task } from "./Task";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
 import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
@@ -49,6 +49,13 @@ export class TaskRunner<
    * The service registry for the task
    */
   protected registry: ServiceRegistry = globalServiceRegistry;
+
+  /**
+   * Input streams for pass-through streaming tasks.
+   * Set by the graph runner before executing a streaming task that has
+   * upstream streaming edges. Keyed by input port name.
+   */
+  public inputStreams?: Map<string, ReadableStream<StreamEvent>>;
 
   /**
    * Constructor for TaskRunner
@@ -219,14 +226,22 @@ export class TaskRunner<
 
   /**
    * Executes a streaming task by consuming its executeStream() async iterable.
-   * In append mode, text-delta chunks are always accumulated into the final
-   * output's `text` field, regardless of output cache configuration.
-   * In replace mode, the final output comes from the finish event data.
+   * In append mode, text-delta chunks are accumulated per-port into a Map keyed
+   * by the port name from each event. In replace mode, the final output comes
+   * from the finish event data.
    */
   protected async executeStreamingTask(input: Input): Promise<Output | undefined> {
     const streamMode: StreamMode = getOutputStreamMode(this.task.outputSchema());
+    if (streamMode === "append") {
+      const ports = getStreamingPorts(this.task.outputSchema());
+      if (ports.length === 0) {
+        throw new TaskError(
+          `Task ${this.task.type} declares append streaming but no output port has x-stream: "append"`
+        );
+      }
+    }
 
-    let accumulated = "";
+    const accumulated = new Map<string, string>();
     let chunkCount = 0;
     let finalOutput: Output | undefined;
 
@@ -237,6 +252,7 @@ export class TaskRunner<
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
       registry: this.registry,
+      inputStreams: this.inputStreams,
     });
 
     for await (const event of stream) {
@@ -257,25 +273,29 @@ export class TaskRunner<
 
       switch (event.type) {
         case "text-delta": {
-          accumulated += event.textDelta;
-          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.02 * chunkCount))));
+          accumulated.set(event.port, (accumulated.get(event.port) ?? "") + event.textDelta);
+          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
+          await this.handleProgress(progress);
+          break;
+        }
+        case "object-delta": {
+          // Reserved for future object streaming -- no accumulation yet
+          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
           await this.handleProgress(progress);
           break;
         }
         case "snapshot": {
-          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.02 * chunkCount))));
+          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
           await this.handleProgress(progress);
           break;
         }
         case "finish": {
           if (streamMode === "append") {
-            // Use accumulated text from deltas, or fall back to event.data.text when
-            // the provider did not stream (e.g. only yielded a single finish event).
-            const text =
-              accumulated.length > 0
-                ? accumulated
-                : (event.data as Record<string, unknown>)?.text ?? "";
-            finalOutput = { ...(event.data || {}), text } as unknown as Output;
+            const merged: Record<string, unknown> = { ...(event.data || {}) };
+            for (const [port, text] of accumulated) {
+              merged[port] = text.length > 0 ? text : ((event.data as Record<string, unknown>)?.[port] ?? "");
+            }
+            finalOutput = merged as unknown as Output;
           } else if (streamMode === "replace") {
             finalOutput = event.data as Output;
           }

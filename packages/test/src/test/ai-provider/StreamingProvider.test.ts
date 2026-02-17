@@ -79,7 +79,7 @@ describe("Streaming Provider", () => {
   describe("registerStreamFn", () => {
     it("should register a stream function for a task type and model provider", () => {
       const mockStreamFn: AiProviderStreamFn = async function* () {
-        yield { type: "text-delta", textDelta: "hello" };
+        yield { type: "text-delta", port: "text", textDelta: "hello" };
         yield { type: "finish", data: { text: "hello" } };
       };
 
@@ -123,9 +123,9 @@ describe("Streaming Provider", () => {
   describe("AiJob.executeStream", () => {
     it("should yield events from registered stream function", async () => {
       const mockStreamFn: AiProviderStreamFn = async function* (input, model, signal) {
-        yield { type: "text-delta", textDelta: "Hello" };
-        yield { type: "text-delta", textDelta: " " };
-        yield { type: "text-delta", textDelta: "world" };
+        yield { type: "text-delta", port: "text", textDelta: "Hello" };
+        yield { type: "text-delta", port: "text", textDelta: " " };
+        yield { type: "text-delta", port: "text", textDelta: "world" };
         yield { type: "finish", data: { text: "Hello world" } };
       };
 
@@ -163,9 +163,9 @@ describe("Streaming Provider", () => {
       }
 
       expect(events.length).toBe(4);
-      expect(events[0]).toEqual({ type: "text-delta", textDelta: "Hello" });
-      expect(events[1]).toEqual({ type: "text-delta", textDelta: " " });
-      expect(events[2]).toEqual({ type: "text-delta", textDelta: "world" });
+      expect(events[0]).toEqual({ type: "text-delta", port: "text", textDelta: "Hello" });
+      expect(events[1]).toEqual({ type: "text-delta", port: "text", textDelta: " " });
+      expect(events[2]).toEqual({ type: "text-delta", port: "text", textDelta: "world" });
       expect(events[3]).toEqual({ type: "finish", data: { text: "Hello world" } });
     });
 
@@ -215,11 +215,11 @@ describe("Streaming Provider", () => {
 
     it("should respect abort signal during streaming", async () => {
       const mockStreamFn: AiProviderStreamFn = async function* (input, model, signal) {
-        yield { type: "text-delta", textDelta: "Hello" };
+        yield { type: "text-delta", port: "text", textDelta: "Hello" };
         // Simulate slow streaming
         await new Promise((resolve) => setTimeout(resolve, 200));
         if (signal.aborted) return;
-        yield { type: "text-delta", textDelta: " world" };
+        yield { type: "text-delta", port: "text", textDelta: " world" };
         yield { type: "finish", data: { text: "Hello world" } };
       };
 
@@ -261,7 +261,7 @@ describe("Streaming Provider", () => {
 
       // Should have at least the first chunk, but possibly not all
       expect(events.length).toBeGreaterThanOrEqual(1);
-      expect(events[0]).toEqual({ type: "text-delta", textDelta: "Hello" });
+      expect(events[0]).toEqual({ type: "text-delta", port: "text", textDelta: "Hello" });
     });
   });
 });

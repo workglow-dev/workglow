@@ -58,7 +58,7 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     const words = ["one", " ", "two", " ", "three"];
     for (const word of words) {
       if (context.signal.aborted) return;
-      yield { type: "text-delta", textDelta: word };
+      yield { type: "text-delta", port: "text", textDelta: word };
       await sleep(10);
     }
     yield { type: "finish", data: { text: "one two three" } };
@@ -107,6 +107,7 @@ class StreamConsumerTask extends Task<TextInput, TextOutput> {
   ): AsyncIterable<StreamEvent<TextOutput>> {
     yield {
       type: "text-delta",
+      port: "text",
       textDelta: `processed: ${input.text || ""}`,
     };
     yield { type: "finish", data: { text: `processed: ${input.text || ""}` } };
@@ -178,8 +179,8 @@ class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
     _input: TextInput,
     context: IExecuteContext
   ): AsyncIterable<StreamEvent<TextOutput>> {
-    yield { type: "text-delta", textDelta: "edge " };
-    yield { type: "text-delta", textDelta: "accumulated" };
+    yield { type: "text-delta", port: "text", textDelta: "edge " };
+    yield { type: "text-delta", port: "text", textDelta: "accumulated" };
     // Empty finish – exactly what real providers emit in append mode
     yield { type: "finish", data: {} as TextOutput };
   }
@@ -501,8 +502,8 @@ describe("TaskGraph Streaming", () => {
 
       const stream = new ReadableStream<StreamEvent>({
         start(controller) {
-          controller.enqueue({ type: "text-delta", textDelta: "hello" });
-          controller.enqueue({ type: "text-delta", textDelta: " world" });
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: "hello" });
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: " world" });
           controller.enqueue({ type: "finish", data: {} });
           controller.close();
         },
@@ -540,7 +541,7 @@ describe("TaskGraph Streaming", () => {
 
       const stream = new ReadableStream<StreamEvent>({
         start(controller) {
-          controller.enqueue({ type: "text-delta", textDelta: "partial" });
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: "partial" });
           controller.enqueue({ type: "finish", data: { text: "full result" } });
           controller.close();
         },
@@ -553,13 +554,13 @@ describe("TaskGraph Streaming", () => {
       expect(dataflow.value).toBe("full result");
     });
 
-    it("should handle DATAFLOW_ALL_PORTS for append mode", async () => {
+    it("should handle DATAFLOW_ALL_PORTS for append mode using output schema", async () => {
       const dataflow = new Dataflow("a", "*", "b", "*");
 
       const stream = new ReadableStream<StreamEvent>({
         start(controller) {
-          controller.enqueue({ type: "text-delta", textDelta: "abc" });
-          controller.enqueue({ type: "text-delta", textDelta: "def" });
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: "abc" });
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: "def" });
           controller.enqueue({ type: "finish", data: {} });
           controller.close();
         },
@@ -568,8 +569,60 @@ describe("TaskGraph Streaming", () => {
       dataflow.setStream(stream);
       await dataflow.awaitStreamValue();
 
-      // For ALL_PORTS, the accumulated text is wrapped in { text }
       expect(dataflow.value).toEqual({ text: "abcdef" });
+    });
+
+    it("should handle DATAFLOW_ALL_PORTS with non-text append port from schema", async () => {
+      const dataflow = new Dataflow("a", "*", "b", "*");
+
+      const stream = new ReadableStream<StreamEvent>({
+        start(controller) {
+          controller.enqueue({ type: "text-delta", port: "code", textDelta: "fn main() {" });
+          controller.enqueue({ type: "text-delta", port: "code", textDelta: "}" });
+          controller.enqueue({ type: "finish", data: {} });
+          controller.close();
+        },
+      });
+
+      dataflow.setStream(stream);
+      await dataflow.awaitStreamValue();
+
+      expect(dataflow.value).toEqual({ code: "fn main() {}" });
+    });
+
+    it("should handle DATAFLOW_ALL_PORTS with text-deltas using port from events (no schema needed)", async () => {
+      const dataflow = new Dataflow("a", "*", "b", "*");
+
+      const stream = new ReadableStream<StreamEvent>({
+        start(controller) {
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: "abc" });
+          controller.enqueue({ type: "finish", data: {} });
+          controller.close();
+        },
+      });
+
+      dataflow.setStream(stream);
+      await dataflow.awaitStreamValue();
+
+      // Port comes from events; no output schema needed
+      expect(dataflow.value).toEqual({ text: "abc" });
+    });
+
+    it("should throw and set FAILED status on stream error events", async () => {
+      const dataflow = new Dataflow("a", "text", "b", "text");
+
+      const stream = new ReadableStream<StreamEvent>({
+        start(controller) {
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: "partial" });
+          controller.enqueue({ type: "error", error: new Error("upstream failure") });
+          controller.close();
+        },
+      });
+
+      dataflow.setStream(stream);
+      await expect(dataflow.awaitStreamValue()).rejects.toThrow("upstream failure");
+      expect(dataflow.status).toBe(TaskStatus.FAILED);
+      expect(dataflow.error).toBeInstanceOf(Error);
     });
 
     it("should be a no-op when no stream is present", async () => {

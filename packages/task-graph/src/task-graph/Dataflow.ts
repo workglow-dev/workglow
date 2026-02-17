@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { areSemanticallyCompatible, EventEmitter } from "@workglow/util";
-import type { StreamEvent } from "../task/StreamTypes";
+import { areSemanticallyCompatible, type DataPortSchema, EventEmitter } from "@workglow/util";
+import { type StreamEvent } from "../task/StreamTypes";
 import { TaskError } from "../task/TaskError";
 import { DataflowJson } from "../task/TaskJSON";
 import { TaskIdType, TaskOutput, TaskStatus } from "../task/TaskTypes";
@@ -78,12 +78,13 @@ export class Dataflow {
    * Consumes the active stream to completion and materializes the value.
    *
    * This is edge-level accumulation for non-streaming downstream tasks that
-   * depend on a streaming upstream task (Plan section 5e). The method reads
-   * all stream events and determines the final value:
+   * depend on a streaming upstream task. The method reads all stream events
+   * and determines the final value:
    *
-   * - **append mode** (text-delta events): concatenates all textDelta strings.
-   *   The accumulated text is stored directly as `this.value` (for specific-port
-   *   dataflows) or wrapped in `{ text }` (for DATAFLOW_ALL_PORTS).
+   * - **append mode** (text-delta events): accumulates per-port using the
+   *   `port` field on each delta event. For specific-port edges, only deltas
+   *   matching the edge's source port are accumulated. For DATAFLOW_ALL_PORTS
+   *   edges, all ports are accumulated into a `{ [port]: text }` object.
    * - **replace mode** (snapshot events): uses the data from the last snapshot.
    * - **finish with data**: uses the finish payload (covers cache-on append and
    *   replace modes where the provider already accumulated).
@@ -95,10 +96,11 @@ export class Dataflow {
     if (!this.stream) return;
 
     const reader = this.stream.getReader();
-    let accumulatedText = "";
+    const accumulatedPorts = new Map<string, string>();
     let lastSnapshotData: any = undefined;
     let finishData: any = undefined;
     let hasTextDelta = false;
+    let streamError: Error | undefined;
 
     try {
       while (true) {
@@ -106,9 +108,17 @@ export class Dataflow {
         if (done) break;
 
         switch (event.type) {
-          case "text-delta":
+          case "text-delta": {
+            // For specific-port edges, only accumulate matching deltas
+            if (this.sourceTaskPortId !== DATAFLOW_ALL_PORTS && event.port !== this.sourceTaskPortId) {
+              break;
+            }
             hasTextDelta = true;
-            accumulatedText += event.textDelta;
+            accumulatedPorts.set(event.port, (accumulatedPorts.get(event.port) ?? "") + event.textDelta);
+            break;
+          }
+          case "object-delta":
+            // Reserved for future object streaming
             break;
           case "snapshot":
             lastSnapshotData = event.data;
@@ -117,13 +127,19 @@ export class Dataflow {
             finishData = event.data;
             break;
           case "error":
-            // Swallow – let the value be whatever we accumulated so far
+            streamError = event.error;
             break;
         }
       }
     } finally {
       reader.releaseLock();
       this.stream = undefined;
+    }
+
+    if (streamError) {
+      this.error = streamError as TaskError;
+      this.setStatus(TaskStatus.FAILED);
+      throw streamError;
     }
 
     // Determine the materialized value.
@@ -137,9 +153,15 @@ export class Dataflow {
     } else if (hasTextDelta) {
       // Append mode (cache off): reconstruct from accumulated text-deltas
       if (this.sourceTaskPortId === DATAFLOW_ALL_PORTS) {
-        this.value = { text: accumulatedText };
+        const obj: Record<string, string> = {};
+        for (const [port, text] of accumulatedPorts) {
+          obj[port] = text;
+        }
+        this.value = obj;
       } else {
-        this.value = accumulatedText;
+        // Single-port edge: use the accumulated text for that port
+        const text = accumulatedPorts.values().next().value ?? "";
+        this.value = text;
       }
     }
   }

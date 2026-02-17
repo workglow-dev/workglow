@@ -30,6 +30,13 @@ export interface IExecuteContext {
   updateProgress: (progress: number, message?: string, ...args: any[]) => Promise<void>;
   own: <T extends ITask | ITaskGraph | IWorkflow>(i: T) => T;
   registry: ServiceRegistry;
+  /**
+   * Input streams for pass-through streaming tasks. Keyed by input port name.
+   * Provided when the graph runner detects that a task has streaming input edges
+   * and the task implements executeStream(). The task's executeStream() can read
+   * from these streams and re-yield events for immediate downstream delivery.
+   */
+  inputStreams?: Map<string, ReadableStream<StreamEvent>>;
 }
 
 export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;

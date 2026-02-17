@@ -7,7 +7,9 @@
 import type { DataPortSchema } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
+import type { IExecuteContext } from "./ITask";
 import { IteratorTaskRunner } from "./IteratorTaskRunner";
+import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { TaskConfigurationError } from "./TaskError";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
@@ -272,6 +274,19 @@ export abstract class IteratorTask<
       this._runner = new IteratorTaskRunner<Input, Output, Config>(this);
     }
     return this._runner;
+  }
+
+  /**
+   * IteratorTask does not support streaming pass-through because its output
+   * is an aggregation of multiple iterations (arrays for MapTask, accumulated
+   * value for ReduceTask). The inherited GraphAsTask.executeStream is
+   * overridden to just emit a finish event (no streaming).
+   */
+  async *executeStream(
+    input: Input,
+    _context: IExecuteContext
+  ): AsyncIterable<StreamEvent<Output>> {
+    yield { type: "finish", data: input as unknown as Output } as StreamFinish<Output>;
   }
 
   // ========================================================================

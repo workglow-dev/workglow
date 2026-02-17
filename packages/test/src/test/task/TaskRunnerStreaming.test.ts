@@ -8,8 +8,8 @@ import {
   IExecuteContext,
   Task,
   TaskStatus,
-  isTaskStreamable,
   getOutputStreamMode,
+  isTaskStreamable,
   type StreamEvent,
 } from "@workglow/task-graph";
 import { DataPortSchema, sleep } from "@workglow/util";
@@ -57,9 +57,9 @@ class TestStreamingAppendTask extends Task<StreamTestInput, StreamTestOutput> {
     _input: StreamTestInput,
     context: IExecuteContext
   ): AsyncIterable<StreamEvent<StreamTestOutput>> {
-    yield { type: "text-delta", textDelta: "Hello" };
-    yield { type: "text-delta", textDelta: " " };
-    yield { type: "text-delta", textDelta: "world" };
+    yield { type: "text-delta", port: "text", textDelta: "Hello" };
+    yield { type: "text-delta", port: "text", textDelta: " " };
+    yield { type: "text-delta", port: "text", textDelta: "world" };
     yield { type: "finish", data: {} as StreamTestOutput };
   }
 }
@@ -138,8 +138,8 @@ class TestStreamingErrorTask extends Task<StreamTestInput, StreamTestOutput> {
     _input: StreamTestInput,
     context: IExecuteContext
   ): AsyncIterable<StreamEvent<StreamTestOutput>> {
-    yield { type: "text-delta", textDelta: "Hello" };
-    yield { type: "text-delta", textDelta: " " };
+    yield { type: "text-delta", port: "text", textDelta: "Hello" };
+    yield { type: "text-delta", port: "text", textDelta: " " };
     yield { type: "error", error: new Error("Stream error after 2 chunks") };
   }
 }
@@ -177,14 +177,57 @@ class TestStreamingAbortableTask extends Task<StreamTestInput, StreamTestOutput>
     _input: StreamTestInput,
     context: IExecuteContext
   ): AsyncIterable<StreamEvent<StreamTestOutput>> {
-    yield { type: "text-delta", textDelta: "Hello" };
+    yield { type: "text-delta", port: "text", textDelta: "Hello" };
     // Wait a bit so the test can abort mid-stream
     await sleep(100);
     if (context.signal.aborted) {
       return;
     }
-    yield { type: "text-delta", textDelta: " world" };
+    yield { type: "text-delta", port: "text", textDelta: " world" };
     yield { type: "finish", data: {} as StreamTestOutput };
+  }
+}
+
+/**
+ * A test task that streams in append mode using a non-text port name ("code").
+ */
+type CodeTestInput = { prompt: string };
+type CodeTestOutput = { code: string };
+
+class TestStreamingCodeAppendTask extends Task<CodeTestInput, CodeTestOutput> {
+  public static type = "TestStreamingCodeAppendTask";
+  public static cacheable = false;
+
+  public static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        prompt: { type: "string" },
+      },
+      required: ["prompt"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        code: { type: "string", "x-stream": "append" },
+      },
+      required: ["code"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async *executeStream(
+    _input: CodeTestInput,
+    context: IExecuteContext
+  ): AsyncIterable<StreamEvent<CodeTestOutput>> {
+    yield { type: "text-delta", port: "code", textDelta: "fn main() {" };
+    yield { type: "text-delta", port: "code", textDelta: ' println!("hi")' };
+    yield { type: "text-delta", port: "code", textDelta: " }" };
+    yield { type: "finish", data: {} as CodeTestOutput };
   }
 }
 
@@ -212,9 +255,9 @@ describe("TaskRunner Streaming", () => {
       expect(events).toContain("stream_start");
       expect(events).toContain("stream_end");
       expect(events.filter((e) => e === "stream_chunk").length).toBe(4); // 3 deltas + 1 finish
-      expect(chunks[0]).toEqual({ type: "text-delta", textDelta: "Hello" });
-      expect(chunks[1]).toEqual({ type: "text-delta", textDelta: " " });
-      expect(chunks[2]).toEqual({ type: "text-delta", textDelta: "world" });
+      expect(chunks[0]).toEqual({ type: "text-delta", port: "text", textDelta: "Hello" });
+      expect(chunks[1]).toEqual({ type: "text-delta", port: "text", textDelta: " " });
+      expect(chunks[2]).toEqual({ type: "text-delta", port: "text", textDelta: "world" });
       expect(chunks[3].type).toBe("finish");
     });
 
@@ -432,6 +475,30 @@ describe("TaskRunner Streaming", () => {
       // Should have received at least the first chunk
       expect(chunks.length).toBeGreaterThanOrEqual(1);
       expect(task.status).toBe(TaskStatus.ABORTING);
+    });
+  });
+
+  describe("Non-text append port", () => {
+    it("should accumulate text-deltas into the correct port name (code)", async () => {
+      const task = new TestStreamingCodeAppendTask({ prompt: "test" });
+
+      const result = await task.run({ prompt: "test" });
+
+      expect((result as any).code).toBe('fn main() { println!("hi") }');
+      expect(task.runOutputData).toHaveProperty("code");
+      expect((task.runOutputData as any).code).toBe('fn main() { println!("hi") }');
+    });
+
+    it("should emit stream events for non-text port", async () => {
+      const task = new TestStreamingCodeAppendTask({ prompt: "test" });
+
+      const chunks: StreamEvent[] = [];
+      task.on("stream_chunk", (event) => chunks.push(event));
+
+      await task.run({ prompt: "test" });
+
+      expect(chunks.filter((c) => c.type === "text-delta").length).toBe(3);
+      expect(chunks.find((c) => c.type === "finish")).toBeDefined();
     });
   });
 

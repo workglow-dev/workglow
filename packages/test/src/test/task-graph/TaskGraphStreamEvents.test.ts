@@ -47,9 +47,9 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     _input: TextInput,
     context: IExecuteContext
   ): AsyncIterable<StreamEvent<TextOutput>> {
-    yield { type: "text-delta", textDelta: "hello" };
+    yield { type: "text-delta", port: "text", textDelta: "hello" };
     await sleep(5);
-    yield { type: "text-delta", textDelta: " world" };
+    yield { type: "text-delta", port: "text", textDelta: " world" };
     yield { type: "finish", data: { text: "hello world" } };
   }
 

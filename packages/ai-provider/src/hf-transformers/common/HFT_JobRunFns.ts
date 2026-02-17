@@ -1235,7 +1235,7 @@ function createStreamingTextStreamer(
     skip_prompt: true,
     decode_kwargs: { skip_special_tokens: true },
     callback_function: (text: string) => {
-      queue.push({ type: "text-delta", textDelta: text });
+      queue.push({ type: "text-delta", port: "text", textDelta: text });
     },
     ...(signal ? { abort_signal: signal } : {}),
   });

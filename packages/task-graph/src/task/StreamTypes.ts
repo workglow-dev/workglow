@@ -19,10 +19,23 @@ export type StreamMode = "none" | "append" | "replace";
 
 /**
  * Append mode: delta chunk (consumer accumulates).
+ * `port` identifies which output port this delta belongs to.
  */
 export type StreamTextDelta = {
   type: "text-delta";
+  port: string;
   textDelta: string;
+};
+
+/**
+ * Object delta for future structured/object streaming.
+ * `port` identifies which output port this delta belongs to.
+ * The exact shape of `objectDelta` is TBD (JSON Merge Patch, partial, etc.).
+ */
+export type StreamObjectDelta = {
+  type: "object-delta";
+  port: string;
+  objectDelta: unknown;
 };
 
 /**
@@ -35,8 +48,9 @@ export type StreamSnapshot<Output = Record<string, any>> = {
 
 /**
  * Signals that the stream has finished. In append mode, the runner
- * always accumulates text-delta chunks into the `text` field; `data`
- * may carry additional non-text fields (merged into the final output).
+ * accumulates text-delta chunks into the append port (determined by
+ * the output schema's `x-stream: "append"` annotation); `data` may
+ * carry additional fields (merged into the final output).
  * In replace mode, `data` contains the final output.
  */
 export type StreamFinish<Output = Record<string, any>> = {
@@ -59,6 +73,7 @@ export type StreamError = {
  */
 export type StreamEvent<Output = Record<string, any>> =
   | StreamTextDelta
+  | StreamObjectDelta
   | StreamSnapshot<Output>
   | StreamFinish<Output>
   | StreamError;
@@ -85,24 +100,49 @@ export function getPortStreamMode(schema: DataPortSchema | JsonSchema, portId: s
 }
 
 /**
+ * Returns all ports that declare an `x-stream` annotation, along with their mode.
+ *
+ * @param schema - The task's output (or input) DataPortSchema
+ * @returns Array of `{ port, mode }` for every annotated port
+ */
+export function getStreamingPorts(
+  schema: DataPortSchema
+): Array<{ port: string; mode: StreamMode }> {
+  if (typeof schema === "boolean") return [];
+  const props = schema.properties;
+  if (!props) return [];
+
+  const result: Array<{ port: string; mode: StreamMode }> = [];
+  for (const [name, prop] of Object.entries(props)) {
+    if (!prop || typeof prop === "boolean") continue;
+    const xStream = (prop as any)["x-stream"];
+    if (xStream === "append" || xStream === "replace") {
+      result.push({ port: name, mode: xStream });
+    }
+  }
+  return result;
+}
+
+/**
  * Returns the dominant output stream mode for a task by inspecting its output schema.
- * If any output port has `x-stream`, returns that mode. If multiple ports have
- * different modes, `append` takes priority (it is the most common).
+ * All streaming ports must use the same mode -- mixing `append` and `replace` on
+ * a single task is not supported and will throw.
  * Returns `"none"` if no output port declares streaming.
  */
 export function getOutputStreamMode(outputSchema: DataPortSchema): StreamMode {
-  if (typeof outputSchema === "boolean") return "none";
-  const props = outputSchema.properties;
-  if (!props) return "none";
+  const ports = getStreamingPorts(outputSchema);
+  if (ports.length === 0) return "none";
 
-  let found: StreamMode = "none";
-  for (const prop of Object.values(props)) {
-    if (!prop || typeof prop === "boolean") continue;
-    const xStream = (prop as any)["x-stream"];
-    if (xStream === "append") return "append";
-    if (xStream === "replace") found = "replace";
+  const mode = ports[0].mode;
+  for (let i = 1; i < ports.length; i++) {
+    if (ports[i].mode !== mode) {
+      throw new Error(
+        `Mixed stream modes on a single task are not supported: ` +
+          `port "${ports[0].port}" is "${mode}" but port "${ports[i].port}" is "${ports[i].mode}"`
+      );
+    }
   }
-  return found;
+  return mode;
 }
 
 /**
@@ -118,6 +158,25 @@ export function isTaskStreamable(task: {
 }): boolean {
   if (typeof task.executeStream !== "function") return false;
   return getOutputStreamMode(task.outputSchema()) !== "none";
+}
+
+/**
+ * Returns the port ID (property name) of the first output port that declares
+ * `x-stream: "append"`, or `undefined` if no such port exists.
+ *
+ * @param schema - The task's output DataPortSchema
+ * @returns The port name with append streaming, or undefined
+ */
+export function getAppendPortId(schema: DataPortSchema): string | undefined {
+  if (typeof schema === "boolean") return undefined;
+  const props = schema.properties;
+  if (!props) return undefined;
+
+  for (const [name, prop] of Object.entries(props)) {
+    if (!prop || typeof prop === "boolean") continue;
+    if ((prop as any)["x-stream"] === "append") return name;
+  }
+  return undefined;
 }
 
 /**

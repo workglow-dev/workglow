@@ -189,7 +189,7 @@ export const OpenAI_TextGeneration_Stream: AiProviderStreamFn<
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      yield { type: "text-delta", textDelta: delta };
+      yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
   yield { type: "finish", data: {} as TextGenerationTaskOutput };
@@ -218,7 +218,7 @@ export const OpenAI_TextRewriter_Stream: AiProviderStreamFn<
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      yield { type: "text-delta", textDelta: delta };
+      yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
   yield { type: "finish", data: {} as TextRewriterTaskOutput };
@@ -247,7 +247,7 @@ export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      yield { type: "text-delta", textDelta: delta };
+      yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
   yield { type: "finish", data: {} as TextSummaryTaskOutput };

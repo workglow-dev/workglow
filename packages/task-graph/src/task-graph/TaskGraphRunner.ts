@@ -492,6 +492,25 @@ export class TaskGraphRunner {
   protected async runTask<T>(task: ITask, input: TaskInput): Promise<GraphSingleTaskResult<T>> {
     const isStreamable = isTaskStreamable(task);
 
+    // For pass-through streaming tasks: if the task is streamable and has
+    // streaming input edges, tee each stream so one copy is forwarded to
+    // the task's executeStream() (via inputStreams) while the other stays
+    // on the edge for materialization by awaitStreamInputs.
+    if (isStreamable) {
+      const dataflows = this.graph.getSourceDataflows(task.config.id);
+      const streamingEdges = dataflows.filter((df) => df.stream !== undefined);
+      if (streamingEdges.length > 0) {
+        const inputStreams = new Map<string, ReadableStream<StreamEvent>>();
+        for (const df of streamingEdges) {
+          const stream = df.stream!;
+          const [forwardCopy, materializeCopy] = stream.tee();
+          inputStreams.set(df.targetTaskPortId, forwardCopy);
+          df.setStream(materializeCopy);
+        }
+        task.runner.inputStreams = inputStreams;
+      }
+    }
+
     // Await any active streams on input dataflow edges so their values
     // are materialized before we read them. This applies to ALL downstream
     // tasks (both streaming and non-streaming) because copyInputFromEdgesToNode
@@ -608,18 +627,26 @@ export class TaskGraphRunner {
   }
 
   /**
-   * Pushes stream events from a streaming task to its outgoing dataflow edges.
-   * Creates a ReadableStream backed by task stream events and sets it on target dataflows.
-   * For fan-out (multiple downstream consumers), uses tee() for independent streams.
+   * Returns true if an event carries a port-specific delta (text-delta or object-delta).
    */
-  protected pushStreamToEdges(task: ITask, streamMode: string): void {
-    const targetDataflows = this.graph.getTargetDataflows(task.config.id);
-    if (targetDataflows.length === 0) return;
+  private static isPortDelta(event: StreamEvent): event is StreamEvent & { port: string } {
+    return event.type === "text-delta" || event.type === "object-delta";
+  }
 
-    const stream = new ReadableStream<StreamEvent>({
+  /**
+   * Creates a ReadableStream from task streaming events, optionally filtered
+   * to a single port. When `portId` is undefined (DATAFLOW_ALL_PORTS), all
+   * events pass through. When set, only delta events matching the port plus
+   * control events (finish, error, snapshot) are enqueued.
+   */
+  private createStreamFromTaskEvents(task: ITask, portId?: string): ReadableStream<StreamEvent> {
+    return new ReadableStream<StreamEvent>({
       start: (controller) => {
         const onChunk = (event: StreamEvent) => {
           try {
+            if (portId !== undefined && TaskGraphRunner.isPortDelta(event) && event.port !== portId) {
+              return;
+            }
             controller.enqueue(event);
           } catch {
             // Stream may be closed
@@ -638,18 +665,46 @@ export class TaskGraphRunner {
         task.on("stream_end", onEnd);
       },
     });
+  }
 
-    if (targetDataflows.length === 1) {
-      targetDataflows[0].setStream(stream);
-    } else {
-      let currentStream = stream;
-      for (let i = 0; i < targetDataflows.length; i++) {
-        if (i === targetDataflows.length - 1) {
-          targetDataflows[i].setStream(currentStream);
-        } else {
-          const [s1, s2] = currentStream.tee();
-          targetDataflows[i].setStream(s1);
-          currentStream = s2;
+  /**
+   * Pushes stream events from a streaming task to its outgoing dataflow edges.
+   * Creates per-port filtered ReadableStreams for specific-port edges and
+   * unfiltered streams for DATAFLOW_ALL_PORTS edges. Within each port group,
+   * uses tee() for fan-out to multiple consumers.
+   */
+  protected pushStreamToEdges(task: ITask, streamMode: string): void {
+    const targetDataflows = this.graph.getTargetDataflows(task.config.id);
+    if (targetDataflows.length === 0) return;
+
+    // Group edges by their source port
+    const groups = new Map<string, typeof targetDataflows>();
+    for (const df of targetDataflows) {
+      const key = df.sourceTaskPortId;
+      let group = groups.get(key);
+      if (!group) {
+        group = [];
+        groups.set(key, group);
+      }
+      group.push(df);
+    }
+
+    for (const [portKey, edges] of groups) {
+      const filterPort = portKey === DATAFLOW_ALL_PORTS ? undefined : portKey;
+      const stream = this.createStreamFromTaskEvents(task, filterPort);
+
+      if (edges.length === 1) {
+        edges[0].setStream(stream);
+      } else {
+        let currentStream = stream;
+        for (let i = 0; i < edges.length; i++) {
+          if (i === edges.length - 1) {
+            edges[i].setStream(currentStream);
+          } else {
+            const [s1, s2] = currentStream.tee();
+            edges[i].setStream(s1);
+            currentStream = s2;
+          }
         }
       }
     }

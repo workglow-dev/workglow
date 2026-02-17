@@ -9,13 +9,16 @@ import type {
   StreamEvent,
   StreamFinish,
   StreamMode,
+  StreamObjectDelta,
   StreamSnapshot,
   StreamTextDelta,
 } from "@workglow/task-graph";
 import {
   edgeNeedsAccumulation,
+  getAppendPortId,
   getOutputStreamMode,
   getPortStreamMode,
+  getStreamingPorts,
   isTaskStreamable,
 } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
@@ -43,15 +46,18 @@ describe("StreamTypes", () => {
     it("should create a valid text-delta event", () => {
       const delta: StreamTextDelta = {
         type: "text-delta",
+        port: "text",
         textDelta: "Hello",
       };
       expect(delta.type).toBe("text-delta");
+      expect(delta.port).toBe("text");
       expect(delta.textDelta).toBe("Hello");
     });
 
     it("should handle empty text-delta", () => {
       const delta: StreamTextDelta = {
         type: "text-delta",
+        port: "text",
         textDelta: "",
       };
       expect(delta.type).toBe("text-delta");
@@ -114,7 +120,7 @@ describe("StreamTypes", () => {
 
   describe("StreamEvent discriminated union", () => {
     it("should discriminate text-delta events", () => {
-      const event: StreamEvent = { type: "text-delta", textDelta: "hi" };
+      const event: StreamEvent = { type: "text-delta", port: "text", textDelta: "hi" };
       expect(event.type).toBe("text-delta");
       if (event.type === "text-delta") {
         expect(event.textDelta).toBe("hi");
@@ -156,8 +162,8 @@ describe("StreamTypes", () => {
 
     it("should work correctly in a switch statement", () => {
       const events: StreamEvent<{ text: string }>[] = [
-        { type: "text-delta", textDelta: "a" },
-        { type: "text-delta", textDelta: "b" },
+        { type: "text-delta", port: "text", textDelta: "a" },
+        { type: "text-delta", port: "text", textDelta: "b" },
         { type: "snapshot", data: { text: "ab" } },
         { type: "finish", data: { text: "ab" } },
       ];
@@ -261,11 +267,22 @@ describe("StreamTypes", () => {
       expect(getOutputStreamMode(schema)).toBe("replace");
     });
 
-    it("should prioritize 'append' over 'replace' when both exist", () => {
+    it("should throw when mixing 'append' and 'replace' on a single task", () => {
       const schema: DataPortSchema = {
         type: "object",
         properties: {
           text: { type: "string", "x-stream": "replace" },
+          summary: { type: "string", "x-stream": "append" },
+        },
+      };
+      expect(() => getOutputStreamMode(schema)).toThrow("Mixed stream modes");
+    });
+
+    it("should return 'append' when multiple ports all use append", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          text: { type: "string", "x-stream": "append" },
           summary: { type: "string", "x-stream": "append" },
         },
       };
@@ -311,6 +328,118 @@ describe("StreamTypes", () => {
         executeStream: async function* () {},
       };
       expect(isTaskStreamable(task)).toBe(false);
+    });
+  });
+
+  describe("getAppendPortId", () => {
+    it("should return the port name with x-stream append", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "append" } },
+      };
+      expect(getAppendPortId(schema)).toBe("text");
+    });
+
+    it("should return undefined when no port has x-stream append", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string" } },
+      };
+      expect(getAppendPortId(schema)).toBeUndefined();
+    });
+
+    it("should return undefined for replace-mode ports", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "replace" } },
+      };
+      expect(getAppendPortId(schema)).toBeUndefined();
+    });
+
+    it("should return the first append port when multiple exist", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          code: { type: "string", "x-stream": "append" },
+          summary: { type: "string", "x-stream": "append" },
+        },
+      };
+      expect(getAppendPortId(schema)).toBe("code");
+    });
+
+    it("should return undefined for boolean schema", () => {
+      expect(getAppendPortId(true as any)).toBeUndefined();
+      expect(getAppendPortId(false as any)).toBeUndefined();
+    });
+
+    it("should return non-text port name", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          code: { type: "string", "x-stream": "append" },
+        },
+      };
+      expect(getAppendPortId(schema)).toBe("code");
+    });
+  });
+
+  describe("StreamObjectDelta", () => {
+    it("should create a valid object-delta event", () => {
+      const delta: StreamObjectDelta = {
+        type: "object-delta",
+        port: "data",
+        objectDelta: { key: "value" },
+      };
+      expect(delta.type).toBe("object-delta");
+      expect(delta.port).toBe("data");
+      expect(delta.objectDelta).toEqual({ key: "value" });
+    });
+  });
+
+  describe("getStreamingPorts", () => {
+    it("should return empty array for schema without x-stream", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string" } },
+      };
+      expect(getStreamingPorts(schema)).toEqual([]);
+    });
+
+    it("should return single append port", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "append" } },
+      };
+      expect(getStreamingPorts(schema)).toEqual([{ port: "text", mode: "append" }]);
+    });
+
+    it("should return multiple streaming ports", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          code: { type: "string", "x-stream": "append" },
+          summary: { type: "string", "x-stream": "append" },
+        },
+      };
+      expect(getStreamingPorts(schema)).toEqual([
+        { port: "code", mode: "append" },
+        { port: "summary", mode: "append" },
+      ]);
+    });
+
+    it("should return empty array for boolean schema", () => {
+      expect(getStreamingPorts(true as any)).toEqual([]);
+    });
+
+    it("should skip non-streaming ports", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          text: { type: "string", "x-stream": "append" },
+          count: { type: "number" },
+        },
+      };
+      expect(getStreamingPorts(schema)).toEqual([{ port: "text", mode: "append" }]);
     });
   });
 

@@ -11,6 +11,7 @@
 
 import {
   JobQueueTaskConfig,
+  getStreamingPorts,
   type IExecuteContext,
   type StreamEvent,
   type TaskOutput,
@@ -29,6 +30,10 @@ import { AiSingleTaskInput, AiTask } from "./AiTask";
  *
  * The standard execute() method is preserved as a fallback that internally
  * consumes the stream to completion (so non-streaming callers get the same result).
+ *
+ * Port annotation: providers yield raw events without a `port` field.
+ * This class wraps text-delta events with the correct port from the task's
+ * output schema before they reach the TaskRunner.
  */
 export class StreamingAiTask<
   Input extends AiSingleTaskInput = AiSingleTaskInput,
@@ -39,7 +44,8 @@ export class StreamingAiTask<
 
   /**
    * Streaming execution: creates an AiJob and yields StreamEvents from it.
-   * This is the primary execution path for streaming tasks.
+   * Wraps port-less text-delta events from providers with the port determined
+   * by the task's output schema `x-stream` annotations.
    */
   async *executeStream(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>> {
     const jobInput = await this.getJobInput(input);
@@ -51,9 +57,19 @@ export class StreamingAiTask<
       input: jobInput,
     });
 
-    yield* job.executeStream(jobInput, {
+    // Resolve the append port(s) from the output schema for wrapping
+    const ports = getStreamingPorts(this.outputSchema());
+    const defaultPort = ports.length > 0 ? ports[0].port : "text";
+
+    for await (const event of job.executeStream(jobInput, {
       signal: context.signal,
       updateProgress: context.updateProgress.bind(this),
-    });
+    })) {
+      if (event.type === "text-delta") {
+        yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
+      } else {
+        yield event;
+      }
+    }
   }
 }
