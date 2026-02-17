@@ -5,10 +5,10 @@
  */
 
 import { DownloadModelTask } from "@workglow/ai";
-import { ITask, ITaskGraph, TaskStatus } from "@workglow/task-graph";
+import { ITask, ITaskGraph, TaskStatus, type StreamEvent } from "@workglow/task-graph";
 import { ArrayTask } from "@workglow/tasks";
 import type { FC } from "react";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Box, Text } from "retuink";
 import { createBar, Spinner, symbols } from "./Elements";
 
@@ -20,6 +20,10 @@ const StatusIcon = memo(
     let sym = null;
     if (status === TaskStatus.PROCESSING) {
       sym = <Spinner color="yellow" />;
+    }
+
+    if (status === TaskStatus.STREAMING) {
+      sym = <Spinner color="cyan" />;
     }
 
     if (status === TaskStatus.ABORTING) {
@@ -70,6 +74,9 @@ export const TaskUI: FC<{
   const [arrayProgress, setArrayProgress] = useState<{ completed: number; total: number } | null>(
     null
   );
+  const [streamingText, setStreamingText] = useState<string>("");
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const streamingTextRef = useRef<string>("");
 
   useEffect(() => {
     const onStart = () => {
@@ -143,6 +150,29 @@ export const TaskUI: FC<{
       setStatus(TaskStatus.ABORTING);
       setError((prevErr) => (prevErr ? `${prevErr}\nAborted` : "Aborted"));
     };
+
+    const onStreamStart = () => {
+      setStatus(TaskStatus.STREAMING);
+      setIsStreaming(true);
+      setStreamingText("");
+      streamingTextRef.current = "";
+    };
+
+    const onStreamChunk = (event: StreamEvent) => {
+      if (event.type === "text-delta") {
+        streamingTextRef.current += event.textDelta;
+        setStreamingText(streamingTextRef.current);
+      } else if (event.type === "snapshot") {
+        const text = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
+        streamingTextRef.current = text;
+        setStreamingText(text);
+      }
+    };
+
+    const onStreamEnd = () => {
+      setIsStreaming(false);
+    };
+
     onRegenerate();
     const targets = graph.getTargetTasks(task.config.id);
     const unique = [...new Map(targets.map((t) => [t.config.id, t])).values()];
@@ -154,6 +184,9 @@ export const TaskUI: FC<{
     task.on("error", onError);
     task.on("regenerate", onRegenerate);
     task.on("abort", onAbort);
+    task.on("stream_start", onStreamStart);
+    task.on("stream_chunk", onStreamChunk);
+    task.on("stream_end", onStreamEnd);
 
     return () => {
       task.off("start", onStart);
@@ -162,6 +195,9 @@ export const TaskUI: FC<{
       task.off("error", onError);
       task.off("regenerate", onRegenerate);
       task.off("abort", onAbort);
+      task.off("stream_start", onStreamStart);
+      task.off("stream_chunk", onStreamChunk);
+      task.off("stream_end", onStreamEnd);
     };
   }, [task, graph]);
 
@@ -178,6 +214,12 @@ export const TaskUI: FC<{
         {status == TaskStatus.PROCESSING && progress == 0 && (
           <Box marginLeft={2}>
             <Text color="gray" wrap="truncate-middle">{`${symbols.arrowLeft} ${input}`}</Text>
+          </Box>
+        )}
+
+        {status === TaskStatus.STREAMING && (
+          <Box marginLeft={2} flexShrink={1}>
+            <Text color="cyan">[streaming]</Text>
           </Box>
         )}
 
@@ -216,6 +258,11 @@ export const TaskUI: FC<{
             <Text color="gray">{`${symbols.arrowDashedRight} ${createBar(progress / 100, 10)} ${progressGenerationText ?? ""}`}</Text>
           </Box>
         )}
+      {(status === TaskStatus.STREAMING || isStreaming) && streamingText && (
+        <Box marginLeft={2}>
+          <Text color="cyan" wrap="truncate">{`${symbols.arrowDashedRight} ${streamingText}`}</Text>
+        </Box>
+      )}
       {arrayProgress && (
         <Box marginLeft={2}>
           <Text color="gray">{`${symbols.arrowDashedRight} Processing array tasks: ${arrayProgress.completed}/${arrayProgress.total} completed ${createBar(arrayProgress.completed / arrayProgress.total, 10)}`}</Text>

@@ -5,15 +5,14 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
+import { OPENAI, OpenAiProvider } from "@workglow/ai-provider";
 import {
-  OPENAI,
   OPENAI_TASKS,
   OpenAI_TextEmbedding,
   OpenAI_TextGeneration,
   OpenAI_TextRewriter,
   OpenAI_TextSummary,
-  OpenAiProvider,
-} from "@workglow/ai-provider";
+} from "@workglow/ai-provider/openai";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,

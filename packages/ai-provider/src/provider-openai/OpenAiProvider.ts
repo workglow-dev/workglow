@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn } from "@workglow/ai";
+import { AiProvider, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai";
 import { OPENAI } from "./common/OpenAI_Constants";
 import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
 
@@ -27,11 +27,11 @@ import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
  * });
  *
  * // Inline mode -- caller provides the tasks:
- * import { OPENAI_TASKS } from "@workglow/ai-provider";
+ * import { OPENAI_TASKS } from "@workglow/ai-provider/openai";
  * await new OpenAiProvider(OPENAI_TASKS).register({ mode: "inline" });
  *
  * // Worker side -- caller provides the tasks:
- * import { OPENAI_TASKS } from "@workglow/ai-provider";
+ * import { OPENAI_TASKS } from "@workglow/ai-provider/openai";
  * new OpenAiProvider(OPENAI_TASKS).registerOnWorkerServer(workerServer);
  * ```
  */
@@ -45,7 +45,10 @@ export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
     "TextSummaryTask",
   ] as const;
 
-  constructor(tasks?: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>>) {
-    super(tasks);
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, OpenAiModelConfig>>
+  ) {
+    super(tasks, streamTasks);
   }
 }

@@ -4,23 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  FilesetResolver,
-  LanguageDetector,
-  TextClassifier,
-  TextEmbedder,
-} from "@mediapipe/tasks-text";
-import {
-  FaceDetector,
-  FaceLandmarker,
-  GestureRecognizer,
-  HandLandmarker,
-  ImageClassifier,
-  ImageEmbedder,
-  ImageSegmenter,
-  ObjectDetector,
-  PoseLandmarker,
-} from "@mediapipe/tasks-vision";
 import type {
   AiProviderRunFn,
   DownloadModelTaskRunInput,
@@ -54,6 +37,34 @@ import type {
 } from "@workglow/ai";
 import { PermanentJobError } from "@workglow/job-queue";
 import { TFMPModelConfig } from "./TFMP_ModelSchema";
+
+let _textSdk: typeof import("@mediapipe/tasks-text") | undefined;
+async function loadMediaPipeTextSDK() {
+  if (!_textSdk) {
+    try {
+      _textSdk = await import("@mediapipe/tasks-text");
+    } catch {
+      throw new Error(
+        "@mediapipe/tasks-text is required for MediaPipe text tasks. Install it with: bun add @mediapipe/tasks-text"
+      );
+    }
+  }
+  return _textSdk;
+}
+
+let _visionSdk: typeof import("@mediapipe/tasks-vision") | undefined;
+async function loadMediaPipeVisionSDK() {
+  if (!_visionSdk) {
+    try {
+      _visionSdk = await import("@mediapipe/tasks-vision");
+    } catch {
+      throw new Error(
+        "@mediapipe/tasks-vision is required for MediaPipe vision tasks. Install it with: bun add @mediapipe/tasks-vision"
+      );
+    }
+  }
+  return _visionSdk;
+}
 
 interface TFMPWasmFileset {
   /** The path to the Wasm loader script. */
@@ -98,6 +109,7 @@ const getWasmTask = async (
 
   onProgress(0.1, "Loading WASM task");
 
+  const { FilesetResolver } = await loadMediaPipeTextSDK();
   let wasmFileset: TFMPWasmFileset;
 
   switch (task_engine) {
@@ -129,33 +141,14 @@ const getWasmTask = async (
   return wasmFileset;
 };
 
-type TaskType =
-  | typeof TextEmbedder
-  | typeof TextClassifier
-  | typeof LanguageDetector
-  | typeof ImageClassifier
-  | typeof ImageEmbedder
-  | typeof ImageSegmenter
-  | typeof ObjectDetector
-  | typeof GestureRecognizer
-  | typeof HandLandmarker
-  | typeof FaceDetector
-  | typeof FaceLandmarker
-  | typeof PoseLandmarker;
+type TaskConstructor = {
+  createFromOptions(wasmFileset: TFMPWasmFileset, options: Record<string, unknown>): Promise<any>;
+};
 
-type TaskInstance =
-  | TextEmbedder
-  | TextClassifier
-  | LanguageDetector
-  | ImageClassifier
-  | ImageEmbedder
-  | ImageSegmenter
-  | ObjectDetector
-  | GestureRecognizer
-  | HandLandmarker
-  | FaceDetector
-  | FaceLandmarker
-  | PoseLandmarker;
+type TaskInstance = {
+  close(): void;
+  [key: string]: any;
+};
 
 interface CachedModelTask {
   readonly task: TaskInstance;
@@ -164,32 +157,6 @@ interface CachedModelTask {
 }
 
 const modelTaskCache = new Map<string, CachedModelTask[]>();
-
-type InferTaskInstance<T> = T extends typeof TextEmbedder
-  ? TextEmbedder
-  : T extends typeof TextClassifier
-    ? TextClassifier
-    : T extends typeof LanguageDetector
-      ? LanguageDetector
-      : T extends typeof ImageClassifier
-        ? ImageClassifier
-        : T extends typeof ImageEmbedder
-          ? ImageEmbedder
-          : T extends typeof ImageSegmenter
-            ? ImageSegmenter
-            : T extends typeof ObjectDetector
-              ? ObjectDetector
-              : T extends typeof GestureRecognizer
-                ? GestureRecognizer
-                : T extends typeof HandLandmarker
-                  ? HandLandmarker
-                  : T extends typeof FaceDetector
-                    ? FaceDetector
-                    : T extends typeof FaceLandmarker
-                      ? FaceLandmarker
-                      : T extends typeof PoseLandmarker
-                        ? PoseLandmarker
-                        : never;
 
 /**
  * Checks if two option objects are deeply equal.
@@ -212,13 +179,13 @@ const optionsMatch = (opts1: Record<string, unknown>, opts2: Record<string, unkn
   });
 };
 
-const getModelTask = async <T extends TaskType>(
+const getModelTask = async (
   model: TFMPModelConfig,
   options: Record<string, unknown>,
   onProgress: (progress: number, message?: string, details?: any) => void,
   signal: AbortSignal,
-  TaskType: T
-): Promise<InferTaskInstance<T>> => {
+  TaskType: TaskConstructor
+): Promise<any> => {
   const model_path = model.provider_config.model_path;
   const task_engine = model.provider_config.task_engine;
 
@@ -227,7 +194,7 @@ const getModelTask = async <T extends TaskType>(
   if (cachedTasks) {
     const matchedTask = cachedTasks.find((cached) => optionsMatch(cached.options, options));
     if (matchedTask) {
-      return matchedTask.task as InferTaskInstance<T>;
+      return matchedTask.task;
     }
   }
 
@@ -237,7 +204,7 @@ const getModelTask = async <T extends TaskType>(
   onProgress(0.2, "Creating model task");
 
   // Create new model instance
-  const task = await TaskType.createFromOptions(wasmFileset, {
+  const task = await (TaskType as any).createFromOptions(wasmFileset, {
     baseOptions: {
       modelAssetPath: model_path,
     },
@@ -254,7 +221,7 @@ const getModelTask = async <T extends TaskType>(
   // Increment WASM reference count for this cached task
   wasm_reference_counts.set(task_engine, (wasm_reference_counts.get(task_engine) || 0) + 1);
 
-  return task as any;
+  return task;
 };
 
 /**
@@ -269,43 +236,67 @@ export const TFMP_Download: AiProviderRunFn<
   let task: TaskInstance;
   switch (model?.provider_config.pipeline) {
     // Text pipelines
-    case "text-embedder":
+    case "text-embedder": {
+      const { TextEmbedder } = await loadMediaPipeTextSDK();
       task = await getModelTask(model, {}, onProgress, signal, TextEmbedder);
       break;
-    case "text-classifier":
+    }
+    case "text-classifier": {
+      const { TextClassifier } = await loadMediaPipeTextSDK();
       task = await getModelTask(model, {}, onProgress, signal, TextClassifier);
       break;
-    case "text-language-detector":
+    }
+    case "text-language-detector": {
+      const { LanguageDetector } = await loadMediaPipeTextSDK();
       task = await getModelTask(model, {}, onProgress, signal, LanguageDetector);
       break;
+    }
     // Vision pipelines
-    case "vision-image-classifier":
+    case "vision-image-classifier": {
+      const { ImageClassifier } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, ImageClassifier);
       break;
-    case "vision-image-embedder":
+    }
+    case "vision-image-embedder": {
+      const { ImageEmbedder } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, ImageEmbedder);
       break;
-    case "vision-image-segmenter":
+    }
+    case "vision-image-segmenter": {
+      const { ImageSegmenter } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, ImageSegmenter);
       break;
-    case "vision-object-detector":
+    }
+    case "vision-object-detector": {
+      const { ObjectDetector } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, ObjectDetector);
       break;
-    case "vision-face-detector":
+    }
+    case "vision-face-detector": {
+      const { FaceDetector } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, FaceDetector);
       break;
-    case "vision-face-landmarker":
+    }
+    case "vision-face-landmarker": {
+      const { FaceLandmarker } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, FaceLandmarker);
       break;
-    case "vision-gesture-recognizer":
+    }
+    case "vision-gesture-recognizer": {
+      const { GestureRecognizer } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, GestureRecognizer);
       break;
-    case "vision-hand-landmarker":
+    }
+    case "vision-hand-landmarker": {
+      const { HandLandmarker } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, HandLandmarker);
       break;
-    case "vision-pose-landmarker":
+    }
+    case "vision-pose-landmarker": {
+      const { PoseLandmarker } = await loadMediaPipeVisionSDK();
       task = await getModelTask(model, {}, onProgress, signal, PoseLandmarker);
       break;
+    }
     default:
       throw new PermanentJobError(
         `Invalid pipeline: ${model?.provider_config.pipeline}. Supported pipelines: text-embedder, text-classifier, text-language-detector, vision-image-classifier, vision-image-embedder, vision-image-segmenter, vision-object-detector, vision-face-detector, vision-face-landmarker, vision-gesture-recognizer, vision-hand-landmarker, vision-pose-landmarker`
@@ -331,6 +322,7 @@ export const TFMP_TextEmbedding: AiProviderRunFn<
   TextEmbeddingTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { TextEmbedder } = await loadMediaPipeTextSDK();
   const textEmbedder = await getModelTask(model!, {}, onProgress, signal, TextEmbedder);
 
   // Handle array of texts
@@ -373,6 +365,7 @@ export const TFMP_TextClassification: AiProviderRunFn<
   TextClassificationTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { TextClassifier } = await loadMediaPipeTextSDK();
   const TextClassification = await getModelTask(
     model!,
     {
@@ -391,7 +384,7 @@ export const TFMP_TextClassification: AiProviderRunFn<
     throw new PermanentJobError("Failed to classify text: Empty result");
   }
 
-  const categories = result.classifications[0].categories.map((category) => ({
+  const categories = result.classifications[0].categories.map((category: any) => ({
     label: category.categoryName,
     score: category.score,
   }));
@@ -412,6 +405,7 @@ export const TFMP_TextLanguageDetection: AiProviderRunFn<
 > = async (input, model, onProgress, signal) => {
   const maxLanguages = input.maxLanguages === 0 ? -1 : input.maxLanguages;
 
+  const { LanguageDetector } = await loadMediaPipeTextSDK();
   const textLanguageDetector = await getModelTask(
     model!,
     {
@@ -430,7 +424,7 @@ export const TFMP_TextLanguageDetection: AiProviderRunFn<
     throw new PermanentJobError("Failed to detect language: Empty result");
   }
 
-  const languages = result.languages.map((language) => ({
+  const languages = result.languages.map((language: any) => ({
     language: language.languageCode,
     score: language.probability,
   }));
@@ -494,6 +488,7 @@ export const TFMP_ImageSegmentation: AiProviderRunFn<
   ImageSegmentationTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { ImageSegmenter } = await loadMediaPipeVisionSDK();
   const imageSegmenter = await getModelTask(model!, {}, onProgress, signal, ImageSegmenter);
   const result = imageSegmenter.segment(input.image as any);
 
@@ -527,6 +522,7 @@ export const TFMP_ImageEmbedding: AiProviderRunFn<
   ImageEmbeddingTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { ImageEmbedder } = await loadMediaPipeVisionSDK();
   const imageEmbedder = await getModelTask(model!, {}, onProgress, signal, ImageEmbedder);
   const result = imageEmbedder.embed(input.image as any);
 
@@ -549,6 +545,7 @@ export const TFMP_ImageClassification: AiProviderRunFn<
   ImageClassificationTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { ImageClassifier } = await loadMediaPipeVisionSDK();
   const imageClassifier = await getModelTask(
     model!,
     {
@@ -582,6 +579,7 @@ export const TFMP_ObjectDetection: AiProviderRunFn<
   ObjectDetectionTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { ObjectDetector } = await loadMediaPipeVisionSDK();
   const objectDetector = await getModelTask(
     model!,
     {
@@ -621,6 +619,7 @@ export const TFMP_GestureRecognizer: AiProviderRunFn<
   GestureRecognizerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { GestureRecognizer } = await loadMediaPipeVisionSDK();
   const gestureRecognizer = await getModelTask(
     model!,
     {
@@ -673,6 +672,7 @@ export const TFMP_HandLandmarker: AiProviderRunFn<
   HandLandmarkerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { HandLandmarker } = await loadMediaPipeVisionSDK();
   const handLandmarker = await getModelTask(
     model!,
     {
@@ -721,6 +721,7 @@ export const TFMP_FaceDetector: AiProviderRunFn<
   FaceDetectorTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { FaceDetector } = await loadMediaPipeVisionSDK();
   const faceDetector = await getModelTask(
     model!,
     {
@@ -766,6 +767,7 @@ export const TFMP_FaceLandmarker: AiProviderRunFn<
   FaceLandmarkerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { FaceLandmarker } = await loadMediaPipeVisionSDK();
   const faceLandmarker = await getModelTask(
     model!,
     {
@@ -822,6 +824,7 @@ export const TFMP_PoseLandmarker: AiProviderRunFn<
   PoseLandmarkerTaskOutput,
   TFMPModelConfig
 > = async (input, model, onProgress, signal) => {
+  const { PoseLandmarker } = await loadMediaPipeVisionSDK();
   const poseLandmarker = await getModelTask(
     model!,
     {

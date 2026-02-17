@@ -8,7 +8,11 @@ import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { globalServiceRegistry, WORKER_MANAGER, type WorkerServer } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
 import { createDefaultQueue } from "../queue/createDefaultQueue";
-import { type AiProviderRunFn, getAiProviderRegistry } from "./AiProviderRegistry";
+import {
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+  getAiProviderRegistry,
+} from "./AiProviderRegistry";
 
 /**
  * Execution mode for an AI provider.
@@ -83,8 +87,19 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
    */
   protected readonly tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>;
 
-  constructor(tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>) {
+  /**
+   * Map of task type names to their streaming run functions.
+   * Injected via constructor alongside `tasks`. Only needed for tasks that
+   * support streaming output (e.g., text generation, summarization).
+   */
+  protected readonly streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>;
+
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>
+  ) {
     this.tasks = tasks;
+    this.streamTasks = streamTasks;
   }
 
   /** Get all task type names this provider supports */
@@ -104,6 +119,17 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   }
 
   /**
+   * Get the streaming function for a specific task type.
+   * @param taskType - The task type name (e.g., "TextGenerationTask")
+   * @returns The stream function, or undefined if streaming is not supported for this task type
+   */
+  getStreamFn<I extends TaskInput = TaskInput, O extends TaskOutput = TaskOutput>(
+    taskType: string
+  ): AiProviderStreamFn<I, O, TModelConfig> | undefined {
+    return this.streamTasks?.[taskType] as AiProviderStreamFn<I, O, TModelConfig> | undefined;
+  }
+
+  /**
    * Register this provider on the main thread.
    *
    * In "inline" mode, registers direct run functions with the AiProviderRegistry.
@@ -119,14 +145,13 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   async register(options: AiProviderRegisterOptions = { mode: "inline" }): Promise<void> {
     await this.onInitialize(options);
 
-    const registry = getAiProviderRegistry();
-    registry.registerProvider(this);
-
-    if (options.mode === "worker" && options.worker) {
-      const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
-      workerManager.registerWorker(this.name, options.worker);
-      for (const taskType of this.taskTypes) {
-        registry.registerAsWorkerRunFn(this.name, taskType);
+    // Validate before any registration so we don't leave the registry in a partial state
+    if (options.mode === "worker") {
+      if (!options.worker) {
+        throw new Error(
+          `AiProvider "${this.name}": worker is required when mode is "worker". ` +
+            `Pass a Web Worker instance, e.g. register({ mode: "worker", worker: new Worker(...) }).`
+        );
       }
     } else {
       if (!this.tasks) {
@@ -135,10 +160,29 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
             `Pass the tasks record when constructing the provider, e.g. new MyProvider(MY_TASKS).`
         );
       }
-      for (const [taskType, fn] of Object.entries(this.tasks)) {
+    }
+
+    const registry = getAiProviderRegistry();
+
+    if (options.mode === "worker" && options.worker) {
+      const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
+      workerManager.registerWorker(this.name, options.worker);
+      for (const taskType of this.taskTypes) {
+        registry.registerAsWorkerRunFn(this.name, taskType);
+        registry.registerAsWorkerStreamFn(this.name, taskType);
+      }
+    } else {
+      for (const [taskType, fn] of Object.entries(this.tasks!)) {
         registry.registerRunFn(this.name, taskType, fn as AiProviderRunFn);
       }
+      if (this.streamTasks) {
+        for (const [taskType, fn] of Object.entries(this.streamTasks)) {
+          registry.registerStreamFn(this.name, taskType, fn as AiProviderStreamFn);
+        }
+      }
     }
+
+    registry.registerProvider(this);
 
     if (options.queue?.autoCreate !== false) {
       await this.createQueue(options.queue?.concurrency ?? 1);
@@ -163,6 +207,11 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
     }
     for (const [taskType, fn] of Object.entries(this.tasks)) {
       workerServer.registerFunction(taskType, fn);
+    }
+    if (this.streamTasks) {
+      for (const [taskType, fn] of Object.entries(this.streamTasks)) {
+        workerServer.registerStreamFunction(taskType, fn);
+      }
     }
   }
 

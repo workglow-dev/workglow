@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 
-import { HFT_TASKS, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry } from "@workglow/task-graph";
-import { registerHuggingfaceLocalModels } from "@workglow/test";
 import { program } from "commander";
+import { registerHuggingfaceLocalModels } from "./ONNXModelSamples";
 import { AddBaseCommands } from "./TaskCLI";
 
 program.version("1.0.0").description("A CLI to run tasks.");

@@ -13,10 +13,10 @@ import {
 } from "@workglow/ai";
 import {
   HF_TRANSFORMERS_ONNX,
-  HFT_TASKS,
-  HfTransformersOnnxModelRecord,
+  type HfTransformersOnnxModelRecord,
   HuggingFaceTransformersProvider,
 } from "@workglow/ai-provider";
+import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import {
   ConcurrencyLimiter,
   JobQueueClient,

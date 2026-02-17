@@ -5,6 +5,7 @@
  */
 
 import { EventParameters, type DataPortSchema } from "@workglow/util";
+import type { StreamEvent } from "./StreamTypes";
 import { TaskAbortedError, TaskError } from "./TaskError";
 import { TaskStatus } from "./TaskTypes";
 
@@ -45,6 +46,15 @@ export type TaskEventListeners = {
 
   /** Fired when a task's input or output schema changes (for tasks with dynamic schemas) */
   schemaChange: (inputSchema?: DataPortSchema, outputSchema?: DataPortSchema) => void;
+
+  /** Fired when a streaming task begins producing chunks */
+  stream_start: () => void;
+
+  /** Fired for each stream chunk produced by a streaming task */
+  stream_chunk: (event: StreamEvent) => void;
+
+  /** Fired when a streaming task finishes (carries final output) */
+  stream_end: (output: Record<string, any>) => void;
 };
 /** Union type of all possible task event names */
 

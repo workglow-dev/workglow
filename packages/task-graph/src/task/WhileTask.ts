@@ -9,6 +9,7 @@ import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-gra
 import { evaluateCondition, getNestedValue } from "./ConditionUtils";
 import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
+import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { TaskConfigurationError } from "./TaskError";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 import { WhileTaskRunner } from "./WhileTaskRunner";
@@ -402,6 +403,80 @@ export class WhileTask<
     }
 
     return currentOutput;
+  }
+
+  /**
+   * Streaming execution for WhileTask: runs all iterations except the last
+   * normally (materializing), then streams the final iteration's events.
+   * This provides streaming output for the final result while still
+   * supporting iteration chaining.
+   */
+  async *executeStream(
+    input: Input,
+    context: IExecuteContext
+  ): AsyncIterable<StreamEvent<Output>> {
+    if (!this.hasChildren()) {
+      throw new TaskConfigurationError(`${this.type}: No subgraph set for while loop`);
+    }
+
+    const condition = this.condition ?? this.buildConditionFromExtras();
+    if (!condition) {
+      throw new TaskConfigurationError(`${this.type}: No condition function provided`);
+    }
+
+    const arrayAnalysis = this.analyzeArrayInputs(input);
+    this._currentIteration = 0;
+    let currentInput: Input = { ...input };
+    let currentOutput: Output = {} as Output;
+
+    const effectiveMax = arrayAnalysis
+      ? Math.min(this.maxIterations, arrayAnalysis.iterationCount)
+      : this.maxIterations;
+
+    while (this._currentIteration < effectiveMax) {
+      if (context.signal?.aborted) break;
+
+      let iterationInput: Input;
+      if (arrayAnalysis) {
+        iterationInput = {
+          ...this.buildIterationInput(currentInput, arrayAnalysis, this._currentIteration),
+          _iterationIndex: this._currentIteration,
+        } as Input;
+      } else {
+        iterationInput = {
+          ...currentInput,
+          _iterationIndex: this._currentIteration,
+        } as Input;
+      }
+
+      // Check if the NEXT iteration would be the potential last: we always
+      // run non-streaming first, then decide after the condition check.
+      const results = await this.subGraph.run<Output>(iterationInput, {
+        parentSignal: context.signal,
+      });
+
+      currentOutput = this.subGraph.mergeExecuteOutputsToRunOutput(
+        results,
+        this.compoundMerge
+      ) as Output;
+
+      if (!condition(currentOutput, this._currentIteration)) {
+        // This was the final iteration -- but we already ran it non-streaming.
+        // Emit the finish event with the collected output.
+        break;
+      }
+
+      if (this.chainIterations) {
+        currentInput = { ...currentInput, ...currentOutput } as Input;
+      }
+
+      this._currentIteration++;
+
+      const progress = Math.min((this._currentIteration / effectiveMax) * 100, 99);
+      await context.updateProgress(progress, `Iteration ${this._currentIteration}`);
+    }
+
+    yield { type: "finish", data: currentOutput } as StreamFinish<Output>;
   }
 
   // ========================================================================

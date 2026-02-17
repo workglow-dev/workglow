@@ -10,6 +10,7 @@ import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
+import { isTaskStreamable, getOutputStreamMode, getStreamingPorts, type StreamEvent, type StreamMode } from "./StreamTypes";
 import { Task } from "./Task";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
 import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
@@ -48,6 +49,13 @@ export class TaskRunner<
    * The service registry for the task
    */
   protected registry: ServiceRegistry = globalServiceRegistry;
+
+  /**
+   * Input streams for pass-through streaming tasks.
+   * Set by the graph runner before executing a streaming task that has
+   * upstream streaming edges. Keyed by input port name.
+   */
+  public inputStreams?: Map<string, ReadableStream<StreamEvent>>;
 
   /**
    * Constructor for TaskRunner
@@ -95,14 +103,29 @@ export class TaskRunner<
 
       const inputs: Input = this.task.runInputData as Input;
       let outputs: Output | undefined;
+
+      const isStreamable = isTaskStreamable(this.task);
+
       if (this.task.cacheable) {
         outputs = (await this.outputCache?.getOutput(this.task.type, inputs)) as Output;
         if (outputs) {
-          this.task.runOutputData = await this.executeTaskReactive(inputs, outputs);
+          if (isStreamable) {
+            this.task.runOutputData = outputs;
+            this.task.emit("stream_start");
+            this.task.emit("stream_chunk", { type: "finish", data: outputs } as StreamEvent);
+            this.task.emit("stream_end", outputs);
+            this.task.runOutputData = await this.executeTaskReactive(inputs, outputs);
+          } else {
+            this.task.runOutputData = await this.executeTaskReactive(inputs, outputs);
+          }
         }
       }
       if (!outputs) {
-        outputs = await this.executeTask(inputs);
+        if (isStreamable) {
+          outputs = await this.executeStreamingTask(inputs);
+        } else {
+          outputs = await this.executeTask(inputs);
+        }
         if (this.task.cacheable && outputs !== undefined) {
           await this.outputCache?.saveOutput(this.task.type, inputs, outputs);
         }
@@ -199,6 +222,107 @@ export class TaskRunner<
   protected async executeTaskReactive(input: Input, output: Output): Promise<Output> {
     const reactiveResult = await this.task.executeReactive(input, output, { own: this.own });
     return Object.assign({}, output, reactiveResult ?? {}) as Output;
+  }
+
+  /**
+   * Executes a streaming task by consuming its executeStream() async iterable.
+   * In append mode, text-delta chunks are accumulated per-port into a Map keyed
+   * by the port name from each event. In replace mode, the final output comes
+   * from the finish event data.
+   */
+  protected async executeStreamingTask(input: Input): Promise<Output | undefined> {
+    const streamMode: StreamMode = getOutputStreamMode(this.task.outputSchema());
+    if (streamMode === "append") {
+      const ports = getStreamingPorts(this.task.outputSchema());
+      if (ports.length === 0) {
+        throw new TaskError(
+          `Task ${this.task.type} declares append streaming but no output port has x-stream: "append"`
+        );
+      }
+    }
+
+    const accumulated = new Map<string, string>();
+    let chunkCount = 0;
+    let finalOutput: Output | undefined;
+
+    this.task.emit("stream_start");
+
+    const stream = this.task.executeStream!(input, {
+      signal: this.abortController!.signal,
+      updateProgress: this.handleProgress.bind(this),
+      own: this.own,
+      registry: this.registry,
+      inputStreams: this.inputStreams,
+    });
+
+    for await (const event of stream) {
+      chunkCount++;
+
+      if (chunkCount === 1) {
+        this.task.status = TaskStatus.STREAMING;
+        this.task.emit("status", this.task.status);
+      }
+
+      // For snapshot events, update runOutputData BEFORE emitting stream_chunk
+      // so listeners see the latest snapshot when they handle the event
+      if (event.type === "snapshot") {
+        this.task.runOutputData = event.data as Output;
+      }
+
+      this.task.emit("stream_chunk", event as StreamEvent);
+
+      switch (event.type) {
+        case "text-delta": {
+          accumulated.set(event.port, (accumulated.get(event.port) ?? "") + event.textDelta);
+          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
+          await this.handleProgress(progress);
+          break;
+        }
+        case "object-delta": {
+          // Reserved for future object streaming -- no accumulation yet
+          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
+          await this.handleProgress(progress);
+          break;
+        }
+        case "snapshot": {
+          const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
+          await this.handleProgress(progress);
+          break;
+        }
+        case "finish": {
+          if (streamMode === "append") {
+            const merged: Record<string, unknown> = { ...(event.data || {}) };
+            for (const [port, text] of accumulated) {
+              merged[port] = text.length > 0 ? text : ((event.data as Record<string, unknown>)?.[port] ?? "");
+            }
+            finalOutput = merged as unknown as Output;
+          } else if (streamMode === "replace") {
+            finalOutput = event.data as Output;
+          }
+          break;
+        }
+        case "error": {
+          throw event.error;
+        }
+      }
+    }
+
+    // Check if the task was aborted during streaming
+    if (this.abortController?.signal.aborted) {
+      throw new TaskAbortedError("Task aborted during streaming");
+    }
+
+    if (finalOutput !== undefined) {
+      this.task.runOutputData = finalOutput;
+    }
+
+    this.task.emit("stream_end", this.task.runOutputData as Output);
+
+    const reactiveResult = await this.executeTaskReactive(
+      input,
+      (this.task.runOutputData as Output) || ({} as Output)
+    );
+    return reactiveResult;
   }
 
   // ========================================================================

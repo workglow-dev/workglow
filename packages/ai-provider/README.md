@@ -42,13 +42,15 @@ npm install @mediapipe/tasks-text @mediapipe/tasks-vision @mediapipe/tasks-audio
 
 ```typescript
 import {
+  HFT_TASKS,
   HuggingFaceTransformersProvider,
+  TFMP_TASKS,
   TensorFlowMediaPipeProvider,
 } from "@workglow/ai-provider";
 
-// Register AI providers
-await new HuggingFaceTransformersProvider().register({ mode: "inline" });
-await new TensorFlowMediaPipeProvider().register({ mode: "inline" });
+// Register AI providers (inline mode requires task maps via constructor)
+await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
 ```
 
 ### 2. Using AI Tasks in Workflows
@@ -242,13 +244,13 @@ import {
   TensorFlowMediaPipeProvider,
 } from "@workglow/ai-provider";
 
-// Register HuggingFace Transformers with worker
+// Register HuggingFace Transformers with worker (no task map needed on main thread)
 await new HuggingFaceTransformersProvider().register({
   mode: "worker",
   worker: new Worker(new URL("./hft-worker.ts", import.meta.url), { type: "module" }),
 });
 
-// Register MediaPipe with worker
+// Register MediaPipe with worker (no task map needed on main thread)
 await new TensorFlowMediaPipeProvider().register({
   mode: "worker",
   worker: new Worker(new URL("./tfmp-worker.ts", import.meta.url), { type: "module" }),
@@ -294,16 +296,16 @@ await downloadTask.execute();
 ### Custom Job Queue Configuration
 
 ```typescript
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 
 // Register with custom queue concurrency (provider creates queue with concurrency: 2)
-await new HuggingFaceTransformersProvider().register({
+await new HuggingFaceTransformersProvider(HFT_TASKS).register({
   mode: "inline",
   queue: { concurrency: 2 },
 });
 
 // Or skip auto-creation and use your own queue:
-await new HuggingFaceTransformersProvider().register({
+await new HuggingFaceTransformersProvider(HFT_TASKS).register({
   mode: "inline",
   queue: { autoCreate: false },
 });
@@ -350,13 +352,13 @@ await task.execute();
 ## Complete Working Example
 
 ```typescript
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 import { TextGenerationTask, TextEmbeddingTask } from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
 
 async function main() {
-  // 1. Register the AI provider
-  await new HuggingFaceTransformersProvider().register({ mode: "inline" });
+  // 1. Register the AI provider (inline mode requires HFT_TASKS via constructor)
+  await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
 
   // 2. Create and run workflow
   const workflow = new Workflow();

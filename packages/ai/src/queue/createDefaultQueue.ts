@@ -5,9 +5,10 @@
  */
 
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
-import { getTaskQueueRegistry } from "@workglow/task-graph";
 import { InMemoryQueueStorage } from "@workglow/storage";
+import { TaskInput, TaskOutput, getTaskQueueRegistry } from "@workglow/task-graph";
 
+import type { AiJobInput } from "../job/AiJob";
 import { AiJob } from "../job/AiJob";
 
 /**
@@ -20,20 +21,17 @@ import { AiJob } from "../job/AiJob";
  * @param providerName - Unique provider identifier (used as queue name)
  * @param concurrency - Maximum number of concurrent jobs
  */
-export async function createDefaultQueue(
-  providerName: string,
-  concurrency: number
-): Promise<void> {
-  const storage = new InMemoryQueueStorage(providerName);
+export async function createDefaultQueue(providerName: string, concurrency: number): Promise<void> {
+  const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(providerName);
   await storage.setupDatabase();
 
-  const server = new JobQueueServer(AiJob as any, {
+  const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
     storage,
     queueName: providerName,
     limiter: new ConcurrencyLimiter(concurrency, 100),
   });
 
-  const client = new JobQueueClient({
+  const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
     storage,
     queueName: providerName,
   });

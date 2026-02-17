@@ -16,6 +16,8 @@ export const getStatusColorBg = (status: TaskStatus): string => {
       return "bg-red-500";
     case TaskStatus.PROCESSING:
       return "bg-blue-500";
+    case TaskStatus.STREAMING:
+      return "bg-blue-500";
     case TaskStatus.PENDING:
       return "bg-gray-600";
     case TaskStatus.DISABLED:

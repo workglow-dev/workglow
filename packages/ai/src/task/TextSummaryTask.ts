@@ -6,8 +6,8 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
+import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const modelSchema = TypeModel("model:TextSummaryTask");
 
@@ -32,6 +32,7 @@ export const TextSummaryOutputSchema = {
       type: "string",
       title: "Text",
       description: "The summarized text",
+      "x-stream": "append",
     },
   },
   required: ["text"],
@@ -45,7 +46,7 @@ export type TextSummaryTaskOutput = FromSchema<typeof TextSummaryOutputSchema>;
  * This summarizes a piece of text
  */
 
-export class TextSummaryTask extends AiTask<TextSummaryTaskInput, TextSummaryTaskOutput> {
+export class TextSummaryTask extends StreamingAiTask<TextSummaryTaskInput, TextSummaryTaskOutput> {
   public static type = "TextSummaryTask";
   public static category = "AI Text Model";
   public static title = "Text Summary";

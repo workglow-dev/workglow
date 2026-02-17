@@ -12,6 +12,7 @@ import type { Task } from "./Task";
  * Enum representing the possible states of a task
  *
  *  PENDING -> PROCESSING -> COMPLETED
+ *  PENDING -> PROCESSING -> STREAMING -> COMPLETED
  *  PENDING -> PROCESSING -> ABORTING -> FAILED
  *  PENDING -> PROCESSING -> FAILED
  *  PENDING -> DISABLED
@@ -20,6 +21,7 @@ export type TaskStatus =
   | "PENDING"
   | "DISABLED"
   | "PROCESSING"
+  | "STREAMING"
   | "COMPLETED"
   | "ABORTING"
   | "FAILED";
@@ -31,6 +33,8 @@ export const TaskStatus = {
   DISABLED: "DISABLED",
   /** Task is currently running */
   PROCESSING: "PROCESSING",
+  /** Task has begun producing streaming output chunks */
+  STREAMING: "STREAMING",
   /** Task has completed successfully */
   COMPLETED: "COMPLETED",
   /** Task is in the process of being aborted */
@@ -61,7 +65,6 @@ export type CompoundTaskOutput =
       [key: string]: unknown | unknown[] | undefined;
     };
 
-
 /** Type for task type names */
 export type TaskTypeName = string;
 
@@ -78,7 +81,6 @@ export interface IConfig {
 
   /** Optional display name for the task */
   name?: string;
-
 
   /** Optional ID of the runner to use for this task */
   runnerId?: string;

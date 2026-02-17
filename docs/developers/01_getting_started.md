@@ -1,27 +1,31 @@
-- [Using Workflow \& a config helper](#using-workflow--a-config-helper)
-- [Using Task and TaskGraph directly (\& a config helper)](#using-task-and-taskgraph-directly--a-config-helper)
-- [Using Task and TaskGraph directly (no config helper)](#using-task-and-taskgraph-directly-no-config-helper)
-- [Preset Configs](#preset-configs)
-  - [Registering Providers](#registering-providers)
-  - [Registering Provider plus related Job Queue](#registering-provider-plus-related-job-queue)
-    - [In memory:](#in-memory)
-    - [Using SQLite:](#using-sqlite)
-- [Workflow](#workflow)
-- [JSON Configuration](#json-configuration)
-- [Tasks](#tasks)
-- [TaskGraph](#taskgraph)
-- [Dataflows](#dataflows)
-- [Source](#source)
-  - [`docs/`](#docs)
-  - [`packages/storage`](#packagesstorage)
-  - [`packages/job-queue`](#packagesjob-queue)
-  - [`packages/task-graph`](#packagestask-graph)
-  - [`packages/ai`](#packagesai)
-  - [`packages/ai-provider`](#packagesai-provider)
-  - [`packages/util`](#packagesutil)
-  - [`examples/cli`](#examplescli)
-  - [`examples/web`](#examplesweb)
-  - [`examples/ngraph`](#examplesngraph)
+- [Developer Getting Started](#developer-getting-started)
+- [Get Shit Done](#get-shit-done)
+  - [Using Workflow \& a config helper](#using-workflow--a-config-helper)
+  - [Using Task and TaskGraph directly (\& a config helper)](#using-task-and-taskgraph-directly--a-config-helper)
+  - [Using Task and TaskGraph directly (no config helper)](#using-task-and-taskgraph-directly-no-config-helper)
+  - [Preset Configs](#preset-configs)
+    - [Registering Providers](#registering-providers)
+    - [Registering Provider plus related Job Queue](#registering-provider-plus-related-job-queue)
+      - [In memory:](#in-memory)
+      - [Using SQLite:](#using-sqlite)
+  - [Workflow](#workflow)
+  - [JSON Configuration](#json-configuration)
+- [Going Deeper](#going-deeper)
+  - [Tasks](#tasks)
+  - [TaskGraph](#taskgraph)
+  - [Dataflows](#dataflows)
+- [Appendix](#appendix)
+  - [Source](#source)
+    - [`docs/`](#docs)
+    - [`packages/storage`](#packagesstorage)
+    - [`packages/job-queue`](#packagesjob-queue)
+    - [`packages/task-graph`](#packagestask-graph)
+    - [`packages/ai`](#packagesai)
+    - [`packages/ai-provider`](#packagesai-provider)
+    - [`packages/util`](#packagesutil)
+    - [`examples/cli`](#examplescli)
+    - [`examples/web`](#examplesweb)
+    - [`examples/ngraph`](#examplesngraph)
 
 # Developer Getting Started
 
@@ -138,10 +142,10 @@ import {
 import { DebugLogTask } from "@workglow/tasks";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import { HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HFT_TASKS, HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 
 // Provider run functions on this thread
-await new HuggingFaceTransformersProvider().register({ mode: "inline" });
+await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
 
 // Set up a model repo and models
 const modelRepo = new InMemoryModelRepository();
@@ -218,8 +222,8 @@ You can use as much or as little "magic" as you want. The config helpers are the
 
 Tasks are agnostic to the provider. Text embedding can be done with several providers, such as Hugging Face Transformers (ONNX) or MediaPipe locally, or OpenAI etc via API calls.
 
-- **`new HuggingFaceTransformersProvider().register({ mode: "inline" })`** - Registers the Hugging Face Transformers local provider. Now you can use an ONNX model name for `TextEmbedding`, etc.
-- **`new TensorFlowMediaPipeProvider().register({ mode: "inline" })`** - Registers the MediaPipe TF.js local provider. Now you can use one of the MediaPipe models.
+- **`new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" })`** - Registers the Hugging Face Transformers local provider (inline mode requires the task map). Now you can use an ONNX model name for `TextEmbedding`, etc.
+- **`new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" })`** - Registers the MediaPipe TF.js local provider (inline mode requires the task map). Now you can use one of the MediaPipe models.
 
 ### Registering Provider plus related Job Queue
 
@@ -227,8 +231,8 @@ LLM providers have long running functions. These are handled by a Job Queue. The
 
 #### In memory:
 
-- **`register_HFT_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new HuggingFaceTransformersProvider().register({ mode: "inline" })`.
-- **`register_TFMP_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new TensorFlowMediaPipeProvider().register({ mode: "inline" })`.
+- **`register_HFT_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" })`.
+- **`register_TFMP_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" })`.
 
 #### Using SQLite:
 

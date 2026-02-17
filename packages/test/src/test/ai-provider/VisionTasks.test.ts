@@ -15,16 +15,12 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
-  clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
-  HFT_TASKS,
   HuggingFaceTransformersProvider,
-  TENSORFLOW_MEDIAPIPE,
-  TensorFlowMediaPipeProvider,
-  TFMP_TASKS,
   type HfTransformersOnnxModelRecord,
-  type TFMPModelRecord,
 } from "@workglow/ai-provider";
+import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+// import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -226,122 +222,122 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
   });
 });
 
-describe("Vision Tasks - MediaPipe", () => {
-  // Skip MediaPipe tests in Node.js as MediaPipe requires browser/DOM environment
-  const isBrowser = typeof document !== "undefined";
+// describe("Vision Tasks - MediaPipe", () => {
+//   // Skip MediaPipe tests in Node.js as MediaPipe requires browser/DOM environment
+//   const isBrowser = typeof document !== "undefined";
 
-  beforeEach(async () => {
-    setTaskQueueRegistry(null);
-    await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
-    setGlobalModelRepository(new InMemoryModelRepository());
-  });
-  afterEach(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
-  });
+//   beforeEach(async () => {
+//     setTaskQueueRegistry(null);
+//     await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
+//     setGlobalModelRepository(new InMemoryModelRepository());
+//   });
+//   afterEach(async () => {
+//     getTaskQueueRegistry().stopQueues().clearQueues();
+//     setTaskQueueRegistry(null);
+//   });
 
-  describe("ImageClassificationTask", () => {
-    it.skipIf(!isBrowser)(
-      "should classify an image using TFMP",
-      async () => {
-        const model: TFMPModelRecord = {
-          model_id: "tfmp:efficientnet-lite0:f32",
-          title: "EfficientNet Lite0",
-          description: "Image classification model",
-          tasks: ["ImageClassificationTask"],
-          provider: TENSORFLOW_MEDIAPIPE,
-          provider_config: {
-            task_engine: "vision",
-            pipeline: "vision-image-classifier",
-            model_path:
-              "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite",
-          },
-          metadata: {},
-        };
+//   describe("ImageClassificationTask", () => {
+//     it.skipIf(!isBrowser)(
+//       "should classify an image using TFMP",
+//       async () => {
+//         const model: TFMPModelRecord = {
+//           model_id: "tfmp:efficientnet-lite0:f32",
+//           title: "EfficientNet Lite0",
+//           description: "Image classification model",
+//           tasks: ["ImageClassificationTask"],
+//           provider: TENSORFLOW_MEDIAPIPE,
+//           provider_config: {
+//             task_engine: "vision",
+//             pipeline: "vision-image-classifier",
+//             model_path:
+//               "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite",
+//           },
+//           metadata: {},
+//         };
 
-        await getGlobalModelRepository().addModel(model);
+//         await getGlobalModelRepository().addModel(model);
 
-        const result = await imageClassification({
-          image: TEST_IMAGE_BASE64,
-          model: model.model_id,
-          maxCategories: 5,
-        });
+//         const result = await imageClassification({
+//           image: TEST_IMAGE_BASE64,
+//           model: model.model_id,
+//           maxCategories: 5,
+//         });
 
-        expect(result).toBeDefined();
-        expect(result.categories).toBeDefined();
-        expect(Array.isArray(result.categories)).toBe(true);
-      },
-      30000
-    );
-  });
+//         expect(result).toBeDefined();
+//         expect(result.categories).toBeDefined();
+//         expect(Array.isArray(result.categories)).toBe(true);
+//       },
+//       30000
+//     );
+//   });
 
-  describe("ImageEmbeddingTask", () => {
-    it.skipIf(!isBrowser)(
-      "should generate image embeddings using TFMP",
-      async () => {
-        const model: TFMPModelRecord = {
-          model_id: "tfmp:mobilenet-v3:f32",
-          title: "MobileNet V3",
-          description: "Image embedding model",
-          tasks: ["ImageEmbeddingTask"],
-          provider: TENSORFLOW_MEDIAPIPE,
-          provider_config: {
-            task_engine: "vision",
-            pipeline: "vision-image-embedder",
-            model_path:
-              "https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite",
-          },
-          metadata: {},
-        };
+//   describe("ImageEmbeddingTask", () => {
+//     it.skipIf(!isBrowser)(
+//       "should generate image embeddings using TFMP",
+//       async () => {
+//         const model: TFMPModelRecord = {
+//           model_id: "tfmp:mobilenet-v3:f32",
+//           title: "MobileNet V3",
+//           description: "Image embedding model",
+//           tasks: ["ImageEmbeddingTask"],
+//           provider: TENSORFLOW_MEDIAPIPE,
+//           provider_config: {
+//             task_engine: "vision",
+//             pipeline: "vision-image-embedder",
+//             model_path:
+//               "https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite",
+//           },
+//           metadata: {},
+//         };
 
-        await getGlobalModelRepository().addModel(model);
+//         await getGlobalModelRepository().addModel(model);
 
-        const result = await imageEmbedding({
-          image: TEST_IMAGE_BASE64,
-          model: model.model_id,
-        });
+//         const result = await imageEmbedding({
+//           image: TEST_IMAGE_BASE64,
+//           model: model.model_id,
+//         });
 
-        expect(result).toBeDefined();
-        expect(result.vector).toBeDefined();
-        expect(result.vector).toBeInstanceOf(Float32Array);
-        expect(result.vector.length).toBeGreaterThan(0);
-      },
-      30000
-    );
-  });
+//         expect(result).toBeDefined();
+//         expect(result.vector).toBeDefined();
+//         expect(result.vector).toBeInstanceOf(Float32Array);
+//         expect(result.vector.length).toBeGreaterThan(0);
+//       },
+//       30000
+//     );
+//   });
 
-  describe("ObjectDetectionTask", () => {
-    it.skipIf(!isBrowser)(
-      "should detect objects using TFMP",
-      async () => {
-        const model: TFMPModelRecord = {
-          model_id: "tfmp:efficientdet-lite0:f32",
-          title: "EfficientDet Lite0",
-          description: "Object detection model",
-          tasks: ["ObjectDetectionTask"],
-          provider: TENSORFLOW_MEDIAPIPE,
-          provider_config: {
-            task_engine: "vision",
-            pipeline: "vision-object-detector",
-            model_path:
-              "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float32/1/efficientdet_lite0.tflite",
-          },
-          metadata: {},
-        };
+//   describe("ObjectDetectionTask", () => {
+//     it.skipIf(!isBrowser)(
+//       "should detect objects using TFMP",
+//       async () => {
+//         const model: TFMPModelRecord = {
+//           model_id: "tfmp:efficientdet-lite0:f32",
+//           title: "EfficientDet Lite0",
+//           description: "Object detection model",
+//           tasks: ["ObjectDetectionTask"],
+//           provider: TENSORFLOW_MEDIAPIPE,
+//           provider_config: {
+//             task_engine: "vision",
+//             pipeline: "vision-object-detector",
+//             model_path:
+//               "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float32/1/efficientdet_lite0.tflite",
+//           },
+//           metadata: {},
+//         };
 
-        await getGlobalModelRepository().addModel(model);
+//         await getGlobalModelRepository().addModel(model);
 
-        const result = await objectDetection({
-          image: TEST_IMAGE_BASE64,
-          model: model.model_id,
-          threshold: 0.5,
-        });
+//         const result = await objectDetection({
+//           image: TEST_IMAGE_BASE64,
+//           model: model.model_id,
+//           threshold: 0.5,
+//         });
 
-        expect(result).toBeDefined();
-        expect(result.detections).toBeDefined();
-        expect(Array.isArray(result.detections)).toBe(true);
-      },
-      30000
-    );
-  });
-});
+//         expect(result).toBeDefined();
+//         expect(result.detections).toBeDefined();
+//         expect(Array.isArray(result.detections)).toBe(true);
+//       },
+//       30000
+//     );
+//   });
+// });

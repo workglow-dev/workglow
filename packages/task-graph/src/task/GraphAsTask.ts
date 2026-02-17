@@ -10,6 +10,8 @@ import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
+import type { IExecuteContext } from "./ITask";
+import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import {
@@ -299,6 +301,97 @@ export class GraphAsTask<
       this.subGraph!.getDataflows().forEach((dataflow) => {
         dataflow.reset();
       });
+    }
+  }
+
+  // ========================================================================
+  //  Streaming pass-through
+  // ========================================================================
+
+  /**
+   * Stream pass-through for compound tasks: runs the subgraph and forwards
+   * streaming events from ending nodes to the outer graph. Also re-yields
+   * any input streams from upstream for cases where this GraphAsTask is
+   * itself downstream of another streaming task.
+   */
+  async *executeStream(
+    input: Input,
+    context: IExecuteContext
+  ): AsyncIterable<StreamEvent<Output>> {
+    // Forward upstream input streams first (pass-through from outer graph)
+    if (context.inputStreams) {
+      for (const [, stream] of context.inputStreams) {
+        const reader = stream.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value.type === "finish") continue;
+            yield value as StreamEvent<Output>;
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
+    }
+
+    // Run the subgraph and forward streaming events from ending nodes
+    if (this.hasChildren()) {
+      const endingNodeIds = new Set<unknown>();
+      const tasks = this.subGraph.getTasks();
+      for (const task of tasks) {
+        if (this.subGraph.getTargetDataflows(task.config.id).length === 0) {
+          endingNodeIds.add(task.config.id);
+        }
+      }
+
+      const eventQueue: StreamEvent<Output>[] = [];
+      let resolveWaiting: (() => void) | undefined;
+      let subgraphDone = false;
+
+      const unsub = this.subGraph.subscribeToTaskStreaming({
+        onStreamChunk: (taskId, event) => {
+          if (endingNodeIds.has(taskId) && event.type !== "finish") {
+            eventQueue.push(event as StreamEvent<Output>);
+            resolveWaiting?.();
+          }
+        },
+      });
+
+      const runPromise = this.subGraph
+        .run<Output>(input, { parentSignal: context.signal })
+        .then((results) => {
+          subgraphDone = true;
+          resolveWaiting?.();
+          return results;
+        });
+
+      // Yield events as they arrive from ending nodes
+      while (!subgraphDone) {
+        if (eventQueue.length === 0) {
+          await new Promise<void>((resolve) => {
+            resolveWaiting = resolve;
+          });
+        }
+        while (eventQueue.length > 0) {
+          yield eventQueue.shift()!;
+        }
+      }
+      // Drain any remaining events
+      while (eventQueue.length > 0) {
+        yield eventQueue.shift()!;
+      }
+
+      unsub();
+
+      const results = await runPromise;
+      const mergedOutput = this.subGraph.mergeExecuteOutputsToRunOutput(
+        results,
+        this.compoundMerge
+      ) as Output;
+      yield { type: "finish", data: mergedOutput } as StreamFinish<Output>;
+    } else {
+      yield { type: "finish", data: input as unknown as Output } as StreamFinish<Output>;
     }
   }
 

@@ -5,15 +5,14 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
+import { OLLAMA, OllamaProvider } from "@workglow/ai-provider";
 import {
-  OLLAMA,
   OLLAMA_TASKS,
   Ollama_TextEmbedding,
   Ollama_TextGeneration,
   Ollama_TextRewriter,
   Ollama_TextSummary,
-  OllamaProvider,
-} from "@workglow/ai-provider";
+} from "@workglow/ai-provider/ollama";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,

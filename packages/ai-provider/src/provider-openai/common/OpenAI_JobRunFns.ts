@@ -6,6 +6,7 @@
 
 import type {
   AiProviderRunFn,
+  AiProviderStreamFn,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -15,10 +16,23 @@ import type {
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
 } from "@workglow/ai";
-import OpenAI from "openai";
+import type { StreamEvent } from "@workglow/task-graph";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 
-function getClient(model: OpenAiModelConfig | undefined): OpenAI {
+let _sdk: typeof import("openai") | undefined;
+async function loadOpenAISDK() {
+  if (!_sdk) {
+    try {
+      _sdk = await import("openai");
+    } catch {
+      throw new Error("openai is required for OpenAI tasks. Install it with: bun add openai");
+    }
+  }
+  return _sdk.default;
+}
+
+async function getClient(model: OpenAiModelConfig | undefined) {
+  const OpenAI = await loadOpenAISDK();
   const apiKey =
     model?.provider_config?.api_key ||
     (typeof process !== "undefined" ? process.env?.OPENAI_API_KEY : undefined);
@@ -49,7 +63,7 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text generation");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat.completions.create(
@@ -75,7 +89,7 @@ export const OpenAI_TextEmbedding: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text embedding");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.embeddings.create(
@@ -104,7 +118,7 @@ export const OpenAI_TextRewriter: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text rewriting");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat.completions.create(
@@ -128,7 +142,7 @@ export const OpenAI_TextSummary: AiProviderRunFn<
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting OpenAI text summarization");
-  const client = getClient(model);
+  const client = await getClient(model);
   const modelName = getModelName(model);
 
   const response = await client.chat.completions.create(
@@ -146,9 +160,115 @@ export const OpenAI_TextSummary: AiProviderRunFn<
   return { text: response.choices[0]?.message?.content ?? "" };
 };
 
+// ========================================================================
+// Streaming implementations (append mode)
+// ========================================================================
+
+export const OpenAI_TextGeneration_Stream: AiProviderStreamFn<
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
+  OpenAiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const stream = await client.chat.completions.create(
+    {
+      model: modelName,
+      messages: [{ role: "user", content: input.prompt }],
+      max_tokens: input.maxTokens,
+      temperature: input.temperature,
+      top_p: input.topP,
+      frequency_penalty: input.frequencyPenalty,
+      presence_penalty: input.presencePenalty,
+      stream: true,
+    },
+    { signal }
+  );
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content ?? "";
+    if (delta) {
+      yield { type: "text-delta", port: "text", textDelta: delta };
+    }
+  }
+  yield { type: "finish", data: {} as TextGenerationTaskOutput };
+};
+
+export const OpenAI_TextRewriter_Stream: AiProviderStreamFn<
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
+  OpenAiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const stream = await client.chat.completions.create(
+    {
+      model: modelName,
+      messages: [
+        { role: "system", content: input.prompt },
+        { role: "user", content: input.text },
+      ],
+      stream: true,
+    },
+    { signal }
+  );
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content ?? "";
+    if (delta) {
+      yield { type: "text-delta", port: "text", textDelta: delta };
+    }
+  }
+  yield { type: "finish", data: {} as TextRewriterTaskOutput };
+};
+
+export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
+  OpenAiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const stream = await client.chat.completions.create(
+    {
+      model: modelName,
+      messages: [
+        { role: "system", content: "Summarize the following text concisely." },
+        { role: "user", content: input.text },
+      ],
+      stream: true,
+    },
+    { signal }
+  );
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content ?? "";
+    if (delta) {
+      yield { type: "text-delta", port: "text", textDelta: delta };
+    }
+  }
+  yield { type: "finish", data: {} as TextSummaryTaskOutput };
+};
+
+// ========================================================================
+// Task registries
+// ========================================================================
+
 export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>> = {
   TextGenerationTask: OpenAI_TextGeneration,
   TextEmbeddingTask: OpenAI_TextEmbedding,
   TextRewriterTask: OpenAI_TextRewriter,
   TextSummaryTask: OpenAI_TextSummary,
+};
+
+export const OPENAI_STREAM_TASKS: Record<
+  string,
+  AiProviderStreamFn<any, any, OpenAiModelConfig>
+> = {
+  TextGenerationTask: OpenAI_TextGeneration_Stream,
+  TextRewriterTask: OpenAI_TextRewriter_Stream,
+  TextSummaryTask: OpenAI_TextSummary_Stream,
 };
