@@ -7,5 +7,5 @@
 export * from "./common/Ollama_Constants";
 export * from "./common/Ollama_JobRunFns.browser";
 export * from "./common/Ollama_ModelSchema";
-export * from "./Ollama_Worker";
+export * from "./Ollama_Worker.browser";
 export * from "./OllamaProvider";
