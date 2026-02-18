@@ -224,7 +224,8 @@ describe("HuggingFaceTabularStorage", () => {
         "default",
         "train",
         schema,
-        ["id"] as const
+        ["id"] as const,
+        { indexes: [["label"]] }
       );
     });
 
@@ -507,7 +508,7 @@ describe("HuggingFaceTabularStorage", () => {
       await storage.get({ id: "test's value" });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("test%5C's%20value"),
+        expect.stringContaining("where=id%3D%27test%5C%27s"),
         expect.any(Object)
       );
     });
