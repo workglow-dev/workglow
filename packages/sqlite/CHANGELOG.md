@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.97
+
+### Patch Changes
+
+- client mcp support via tasks
+
 ## 0.0.96
 
 ### Patch Changes

@@ -1,5 +1,22 @@
 # workglow
 
+## 0.0.97
+
+### Patch Changes
+
+- client mcp support via tasks
+- Updated dependencies
+  - @workglow/ai@0.0.97
+  - @workglow/ai-provider@0.0.97
+  - @workglow/dataset@0.0.97
+  - @workglow/debug@0.0.97
+  - @workglow/job-queue@0.0.97
+  - @workglow/sqlite@0.0.97
+  - @workglow/storage@0.0.97
+  - @workglow/task-graph@0.0.97
+  - @workglow/tasks@0.0.97
+  - @workglow/util@0.0.97
+
 ## 0.0.96
 
 ### Patch Changes
