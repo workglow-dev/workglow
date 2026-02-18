@@ -557,23 +557,22 @@ export class IndexedDbTabularStorage<
       const store = transaction.objectStore(this.table);
       const request = store.openCursor();
       const entities: Entity[] = [];
-      let currentIndex = 0;
+      let skipped = false;
 
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const cursor = request.result;
         if (cursor) {
-          // Skip records until we reach the offset
-          if (currentIndex < offset) {
-            currentIndex++;
-            cursor.continue();
+          // Skip to offset using advance
+          if (!skipped && offset > 0) {
+            skipped = true;
+            cursor.advance(offset);
             return;
           }
           
           // Collect records up to the limit
           if (entities.length < limit) {
             entities.push(cursor.value);
-            currentIndex++;
             cursor.continue();
           } else {
             // We've collected enough records

@@ -202,7 +202,7 @@ export interface ITabularStorage<
    * @param pageSize - Number of records per page (default: 100)
    * @yields Arrays of entities
    */
-  pages(pageSize: number): AsyncGenerator<Entity[], void, undefined>;
+  pages(pageSize?: number): AsyncGenerator<Entity[], void, undefined>;
 
   // Event handling methods
   on<Event extends TabularEventName>(
