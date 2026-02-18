@@ -236,7 +236,9 @@ export class HuggingFaceTabularStorage<
 
     for (const [k, v] of Object.entries(keyObj)) {
       if (typeof v === "string") {
-        whereConditions.push(`${k}='${v.replace(/'/g, "\\'")}'`);
+        // Escape backslashes first, then single quotes
+        const escaped = v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        whereConditions.push(`${k}='${escaped}'`);
       } else {
         whereConditions.push(`${k}=${v}`);
       }
@@ -310,7 +312,9 @@ export class HuggingFaceTabularStorage<
     for (const [k, v] of Object.entries(key)) {
       if (v !== undefined && v !== null) {
         if (typeof v === "string") {
-          whereConditions.push(`${k}='${v.replace(/'/g, "\\'")}'`);
+          // Escape backslashes first, then single quotes
+          const escaped = v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+          whereConditions.push(`${k}='${escaped}'`);
         } else {
           whereConditions.push(`${k}=${v}`);
         }
@@ -400,7 +404,7 @@ export class HuggingFaceTabularStorage<
     _callback: (change: TabularChangePayload<Entity>) => void,
     _options?: TabularSubscribeOptions
   ): () => void {
-    throw new Error("HuggingFaceTabularStorage does not support subscriptions (datasets are static)");
+    throw new Error("HuggingFaceTabularStorage does not support subscriptions");
   }
 
   /**
