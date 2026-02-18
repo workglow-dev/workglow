@@ -42,6 +42,7 @@
     "@mediapipe/tasks-genai": "^0.10.26",
     "@anthropic-ai/sdk": "^0.74.0",
     "@google/generative-ai": "^0.24.1",
+    "node-llama-cpp": "^3.15.1",
     "ollama": "^0.6.3",
     "openai": "^6.22.0"
   },
