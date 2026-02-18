@@ -242,7 +242,7 @@ describe("HuggingFaceTabularStorage", () => {
         }),
       });
 
-      const result = await storage.get(1 as any);
+      const result = await storage.get({ id: 1 });
 
       expect(result).toEqual({ row_idx: 0, id: 1, text: "test", label: 0 });
       expect(mockFetch).toHaveBeenCalledWith(
@@ -263,7 +263,7 @@ describe("HuggingFaceTabularStorage", () => {
         }),
       });
 
-      const result = await storage.get(999 as any);
+      const result = await storage.get({ id: 999 });
 
       expect(result).toBeUndefined();
     });
@@ -408,7 +408,7 @@ describe("HuggingFaceTabularStorage", () => {
     });
 
     it("should throw error on delete", async () => {
-      await expect(storage.delete(1 as any)).rejects.toThrow(
+      await expect(storage.delete({ id: 1 })).rejects.toThrow(
         "HuggingFaceTabularStorage is readonly"
       );
     });
@@ -457,7 +457,7 @@ describe("HuggingFaceTabularStorage", () => {
         statusText: "Internal Server Error",
       });
 
-      await expect(storage.get(1 as any)).rejects.toThrow("HuggingFace API error");
+      await expect(storage.get({ id: 1 })).rejects.toThrow("HuggingFace API error");
     });
 
     it("should properly escape string values in WHERE clauses", async () => {
@@ -490,7 +490,7 @@ describe("HuggingFaceTabularStorage", () => {
         }),
       });
 
-      await storage.get("test's value" as any);
+      await storage.get({ id: "test's value" });
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("test%5C's%20value"),

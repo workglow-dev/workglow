@@ -120,7 +120,7 @@ export class HuggingFaceTabularStorage<
     super(
       schema,
       primaryKeyNames,
-      options?.indexes ?? [],
+      (options?.indexes ?? []) as readonly (keyof Entity | readonly (keyof Entity)[])[], 
       "never" // HF datasets don't support client-provided keys
     );
     this.dataset = dataset;
@@ -234,7 +234,7 @@ export class HuggingFaceTabularStorage<
     const keyObj = this.separateKeyValueFromCombined({ ...key } as any).key;
     const whereConditions: string[] = [];
 
-    for (const [k, v] of Object.entries(keyObj)) {
+    for (const [k, v] of Object.entries(keyObj as Record<string, any>)) {
       if (typeof v === "string") {
         // Escape backslashes first, then single quotes
         const escaped = v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
