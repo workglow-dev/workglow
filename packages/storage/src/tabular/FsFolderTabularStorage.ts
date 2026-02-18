@@ -266,6 +266,35 @@ export class FsFolderTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    await this.setupDirectory();
+    const files = await readdir(this.folderPath);
+    const jsonFiles = files.filter((file) => file.endsWith(".json"));
+    
+    // Slice the array to get the page
+    const pageFiles = jsonFiles.slice(offset, offset + limit);
+    
+    if (pageFiles.length === 0) {
+      return undefined;
+    }
+
+    const entities: Entity[] = [];
+    for (const file of pageFiles) {
+      const filePath = path.join(this.folderPath, file);
+      const content = await readFile(filePath, "utf8");
+      const entity = JSON.parse(content) as Entity;
+      entities.push(entity);
+    }
+
+    return entities;
+  }
+
+  /**
    * Search is not supported in the filesystem implementation.
    * @throws {Error} Always throws an error indicating search is not supported
    */

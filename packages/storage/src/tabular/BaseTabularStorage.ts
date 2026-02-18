@@ -325,6 +325,58 @@ export abstract class BaseTabularStorage<
   public abstract search(key: Partial<Entity>): Promise<Entity[] | undefined>;
 
   /**
+   * Abstract method to fetch a page of records.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Promise resolving to an array of entities or undefined if no records found
+   */
+  abstract getBulk(offset: number, limit: number): Promise<Entity[] | undefined>;
+
+  /**
+   * Async generator that yields records one at a time.
+   * Uses getBulk internally to fetch pages of data.
+   * @param pageSize - Number of records to fetch per page (default: 100)
+   * @yields Individual entity records
+   */
+  async *records(pageSize: number = 100): AsyncGenerator<Entity, void, undefined> {
+    let offset = 0;
+    while (true) {
+      const page = await this.getBulk(offset, pageSize);
+      if (!page || page.length === 0) {
+        break;
+      }
+      for (const entity of page) {
+        yield entity;
+      }
+      if (page.length < pageSize) {
+        break;
+      }
+      offset += pageSize;
+    }
+  }
+
+  /**
+   * Async generator that yields pages of records.
+   * Uses getBulk internally to fetch pages of data.
+   * @param pageSize - Number of records per page (default: 100)
+   * @yields Arrays of entities
+   */
+  async *pages(pageSize: number = 100): AsyncGenerator<Entity[], void, undefined> {
+    let offset = 0;
+    while (true) {
+      const page = await this.getBulk(offset, pageSize);
+      if (!page || page.length === 0) {
+        break;
+      }
+      yield page;
+      if (page.length < pageSize) {
+        break;
+      }
+      offset += pageSize;
+    }
+  }
+
+  /**
    * Subscribes to changes in the repository (including remote changes).
    * Default implementation throws an error - override in subclasses that support subscriptions.
    *

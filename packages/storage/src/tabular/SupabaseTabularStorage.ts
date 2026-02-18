@@ -629,6 +629,36 @@ export class SupabaseTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    const { data, error } = await this.client
+      .from(this.table)
+      .select('*')
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      return undefined;
+    }
+
+    const entities: Entity[] = [];
+    for (const row of data) {
+      const entity = {} as Entity;
+      for (const [column, value] of Object.entries(row)) {
+        (entity as any)[column] = this.sqlToJsValue(column, value as ValueOptionType);
+      }
+      entities.push(entity);
+    }
+
+    return entities;
+  }
+
+  /**
    * Deletes all entries matching the specified search criteria.
    * Supports multiple columns with optional comparison operators.
    *

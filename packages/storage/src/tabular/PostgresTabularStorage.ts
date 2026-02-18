@@ -837,6 +837,32 @@ export class PostgresTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    const db = this.db;
+    const result = await db.query(`SELECT * FROM "${this.table}" LIMIT $1 OFFSET $2`, [limit, offset]);
+    
+    if (!result.rows || result.rows.length === 0) {
+      return undefined;
+    }
+
+    const entities: Entity[] = [];
+    for (const row of result.rows) {
+      const entity = {} as Entity;
+      for (const [column, value] of Object.entries(row)) {
+        (entity as any)[column] = this.sqlToJsValue(column, value as ValueOptionType);
+      }
+      entities.push(entity);
+    }
+
+    return entities;
+  }
+
+  /**
    * Builds WHERE clause conditions from delete search criteria.
    * @param criteria - The search criteria object
    * @returns Object with whereClause string and params array

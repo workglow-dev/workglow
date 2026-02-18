@@ -236,6 +236,18 @@ export class InMemoryTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    const all = Array.from(this.values.values());
+    const page = all.slice(offset, offset + limit);
+    return page.length > 0 ? page : undefined;
+  }
+
+  /**
    * Deletes all entries matching the specified search criteria.
    * Supports multiple columns with optional comparison operators.
    *

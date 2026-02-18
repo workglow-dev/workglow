@@ -545,6 +545,49 @@ export class IndexedDbTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.table, "readonly");
+      const store = transaction.objectStore(this.table);
+      const request = store.openCursor();
+      const entities: Entity[] = [];
+      let currentIndex = 0;
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          // Skip records until we reach the offset
+          if (currentIndex < offset) {
+            currentIndex++;
+            cursor.continue();
+            return;
+          }
+          
+          // Collect records up to the limit
+          if (entities.length < limit) {
+            entities.push(cursor.value);
+            currentIndex++;
+            cursor.continue();
+          } else {
+            // We've collected enough records
+            resolve(entities.length > 0 ? entities : undefined);
+          }
+        } else {
+          // No more records
+          resolve(entities.length > 0 ? entities : undefined);
+        }
+      };
+    });
+  }
+
+  /**
    * Checks if a record matches all criteria conditions.
    * @param record - The record to check
    * @param criteria - The search criteria
