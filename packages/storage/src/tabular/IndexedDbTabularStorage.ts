@@ -571,17 +571,12 @@ export class IndexedDbTabularStorage<
           }
           
           // Collect records up to the limit
-          if (entities.length < limit) {
-            entities.push(cursor.value);
-            if (entities.length === limit) {
-              resolve(entities);
-            } else {
-              cursor.continue();
-            }
-          } else {
-            // We've collected enough records
-            resolve(entities.length > 0 ? entities : undefined);
+          entities.push(cursor.value);
+          if (entities.length === limit) {
+            resolve(entities);
+            return;
           }
+          cursor.continue();
         } else {
           // No more records
           resolve(entities.length > 0 ? entities : undefined);

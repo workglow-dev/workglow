@@ -640,9 +640,7 @@ export class SupabaseTabularStorage<
 
     // Ensure deterministic ordering for pagination by ordering on primary key column(s)
     for (const pkName of this.primaryKeyNames) {
-      if (pkName != null) {
-        query = query.order(String(pkName));
-      }
+      query = query.order(String(pkName));
     }
 
     const { data, error } = await query.range(offset, offset + limit - 1);
