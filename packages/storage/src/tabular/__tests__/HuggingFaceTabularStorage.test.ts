@@ -202,7 +202,7 @@ describe("HuggingFaceTabularStorage", () => {
       DataPortSchemaObject,
       readonly ["id"],
       { id: number; text: string; label: number },
-      number,
+      { id: number },
       any,
       any
     >;
@@ -370,7 +370,7 @@ describe("HuggingFaceTabularStorage", () => {
       DataPortSchemaObject,
       readonly ["id"],
       { id: number; text: string },
-      number,
+      { id: number },
       any,
       any
     >;
