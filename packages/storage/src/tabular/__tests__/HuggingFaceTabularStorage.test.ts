@@ -443,7 +443,14 @@ describe("HuggingFaceTabularStorage", () => {
         additionalProperties: false,
       };
 
-      const storage = new HuggingFaceTabularStorage(
+      const storage: HuggingFaceTabularStorage<
+        typeof schema,
+        readonly ["id"],
+        { id: number },
+        { id: number },
+        any,
+        any
+      > = new HuggingFaceTabularStorage(
         "test/dataset",
         "default",
         "train",
@@ -471,7 +478,14 @@ describe("HuggingFaceTabularStorage", () => {
         additionalProperties: false,
       };
 
-      const storage = new HuggingFaceTabularStorage(
+      const storage: HuggingFaceTabularStorage<
+        typeof schema,
+        readonly ["id"],
+        { id: string; text: string },
+        { id: string },
+        any,
+        any
+      > = new HuggingFaceTabularStorage(
         "test/dataset",
         "default",
         "train",
