@@ -40,14 +40,16 @@
     "@mediapipe/tasks-vision": "^0.10.32",
     "@mediapipe/tasks-audio": "^0.10.32",
     "@mediapipe/tasks-genai": "^0.10.26",
-    "@anthropic-ai/sdk": "^0.74.0",
+    "@anthropic-ai/sdk": "^0.76.0",
     "@google/generative-ai": "^0.24.1",
     "node-llama-cpp": "^3.15.1",
     "ollama": "^0.6.3",
     "openai": "^6.22.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "pg": "^8.18.0",
-    "@supabase/supabase-js": "^2.97.0"
+    "@supabase/supabase-js": "^2.97.0",
+    "@sqlite.org/sqlite-wasm": "^3.51.2-build6",
+    "better-sqlite3": "^12.6.2"
   },
   "devDependencies": {
     "@sroussey/changesets-cli": "^2.29.7",
@@ -62,7 +64,7 @@
     "eslint-plugin-regexp": "^2.10.0",
     "globals": "^17.3.0",
     "prettier": "^3.8.1",
-    "turbo": "^2.8.9",
+    "turbo": "^2.8.10",
     "typescript": "5.9.3",
     "vitest": "^4.0.18"
   },

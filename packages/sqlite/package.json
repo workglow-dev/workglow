@@ -21,8 +21,8 @@
     "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
   },
   "peerDependencies": {
-    "@sqlite.org/sqlite-wasm": "^3.51.2-build6",
-    "better-sqlite3": "^12.6.2"
+    "@sqlite.org/sqlite-wasm": "catalog:",
+    "better-sqlite3": "catalog:"
   },
   "peerDependenciesMeta": {
     "@sqlite.org/sqlite-wasm": {
