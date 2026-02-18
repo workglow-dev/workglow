@@ -6,17 +6,17 @@
   "description": "AI provider integrations for Workglow, supporting OpenAI, Hugging Face Transformers, MediaPipe, and GGML models.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-code": "bun build --splitting --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
+    "watch-code": "bun build --splitting --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-featherless/index.ts ./src/provider-hf-inference/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
     "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "bun run build-clean && concurrently -c 'auto' -n 'code,browser,types' 'bun run build-code' 'bun run build-browser' 'bun run build-types'",
     "build-clean": "rm -fr dist/*",
-    "build-code": "bun build --splitting --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
+    "build-code": "bun build --splitting --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-featherless/index.ts ./src/provider-hf-inference/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
     "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test",
-    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/index.js';pkg.exports['.'].types='./dist/types.d.ts';['anthropic','google-gemini','hf-transformers','ollama','openai'].forEach(p=>{const dir=p==='ollama'?'provider-ollama':p==='openai'?'provider-openai':p;const k='./'+p;if(!pkg.exports[k])pkg.exports[k]={};pkg.exports[k].bun='./dist/'+dir+'/index.js';pkg.exports[k].types='./dist/'+dir+'/index.d.ts'});const o=pkg.exports['./ollama'];if(o)o.browser='./dist/provider-ollama/index.browser.js';const t=pkg.exports['./tf-mediapipe'];if(!t)pkg.exports['./tf-mediapipe']={};pkg.exports['./tf-mediapipe'].browser='./dist/tf-mediapipe/index.js';pkg.exports['./tf-mediapipe'].types='./dist/tf-mediapipe/index.d.ts';delete pkg.exports['./tf-mediapipe'].bun;require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/index.js';pkg.exports['.'].types='./dist/types.d.ts';['anthropic','featherless','google-gemini','hf-inference','hf-transformers','ollama','openai'].forEach(p=>{const dir=p==='ollama'?'provider-ollama':p==='openai'?'provider-openai':p==='featherless'?'provider-featherless':p==='hf-inference'?'provider-hf-inference':p;const k='./'+p;if(!pkg.exports[k])pkg.exports[k]={};pkg.exports[k].bun='./dist/'+dir+'/index.js';pkg.exports[k].types='./dist/'+dir+'/index.d.ts'});const o=pkg.exports['./ollama'];if(o)o.browser='./dist/provider-ollama/index.browser.js';const t=pkg.exports['./tf-mediapipe'];if(!t)pkg.exports['./tf-mediapipe']={};pkg.exports['./tf-mediapipe'].browser='./dist/tf-mediapipe/index.js';pkg.exports['./tf-mediapipe'].types='./dist/tf-mediapipe/index.d.ts';delete pkg.exports['./tf-mediapipe'].bun;require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
   },
   "exports": {
     ".": {
@@ -55,6 +55,16 @@
       "types": "./dist/provider-openai/index.d.ts",
       "import": "./dist/provider-openai/index.js"
     },
+    "./hf-inference": {
+      "bun": "./dist/provider-hf-inference/index.js",
+      "types": "./dist/provider-hf-inference/index.d.ts",
+      "import": "./dist/provider-hf-inference/index.js"
+    },
+    "./featherless": {
+      "bun": "./dist/provider-featherless/index.js",
+      "types": "./dist/provider-featherless/index.d.ts",
+      "import": "./dist/provider-featherless/index.js"
+    },
     "./tf-mediapipe": {
       "browser": "./dist/tf-mediapipe/index.js",
       "types": "./dist/tf-mediapipe/index.d.ts"
@@ -82,6 +92,7 @@
     "@anthropic-ai/sdk": "catalog:",
     "@google/generative-ai": "catalog:",
     "node-llama-cpp": "catalog:",
+    "@huggingface/inference": "catalog:",
     "ollama": "catalog:"
   },
   "peerDependenciesMeta": {
@@ -129,11 +140,15 @@
     },
     "@mediapipe/tasks-genai": {
       "optional": true
+    },
+    "@huggingface/inference": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",
     "@google/generative-ai": "catalog:",
+    "@huggingface/inference": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
     "@mediapipe/tasks-genai": "catalog:",
     "@mediapipe/tasks-text": "catalog:",
