@@ -18,6 +18,8 @@ export async function makeFingerprint(input: any): Promise<string> {
   return hash;
 }
 
+export type uuid4 = `${string}-${string}-${string}-${string}-${string}`;
+
 export function uuid4() {
-  return crypto.randomUUID();
+  return crypto.randomUUID() as uuid4;
 }

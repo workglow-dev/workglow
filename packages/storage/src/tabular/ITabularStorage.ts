@@ -60,8 +60,6 @@ export interface TabularSubscribeOptions {
   readonly pollingIntervalMs?: number;
 }
 
-// Type definitions for specialized string types
-export type uuid4 = string & { readonly __brand: "uuid4" };
 export type JSONValue =
   | string
   | number

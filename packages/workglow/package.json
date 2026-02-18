@@ -82,6 +82,7 @@
     "@workglow/util": "workspace:*"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
     "@sroussey/transformers": "catalog:",
     "@mediapipe/tasks-text": "catalog:",
     "@mediapipe/tasks-vision": "catalog:",
@@ -91,10 +92,11 @@
     "@anthropic-ai/sdk": "catalog:",
     "@google/generative-ai": "catalog:",
     "ollama": "catalog:",
+    "node-llama-cpp": "catalog:",
     "@sqlite.org/sqlite-wasm": "^3.51.2-build6",
     "better-sqlite3": "^12.6.2",
     "pg": "^8.18.0",
-    "@supabase/supabase-js": "=2.95.3"
+    "@supabase/supabase-js": "catalog:"
   },
   "peerDependenciesMeta": {
     "@sroussey/transformers": {
@@ -122,6 +124,9 @@
       "optional": true
     },
     "ollama": {
+      "optional": true
+    },
+    "node-llama-cpp": {
       "optional": true
     },
     "@sqlite.org/sqlite-wasm": {
