@@ -263,27 +263,49 @@ export class HuggingFaceTabularStorage<
   async getAll(): Promise<Entity[] | undefined> {
     const allEntities: Entity[] = [];
     let offset = 0;
-    const length = 100; // HF max per request
+    const pageSize = 100; // HF max per request
 
     while (true) {
-      const data = await this.fetchApi<HfRowsResponse>("/rows", {
-        offset: offset.toString(),
-        length: length.toString(),
-      });
-
-      for (const row of data.rows) {
-        allEntities.push(this.rowToEntity(row));
+      const page = await this.getBulk(offset, pageSize);
+      
+      if (!page || page.length === 0) {
+        break;
       }
 
-      offset += data.rows.length;
+      allEntities.push(...page);
+      offset += page.length;
 
-      // Check if we've retrieved all rows
-      if (offset >= data.num_rows_total || data.rows.length < length) {
+      // If we got fewer records than requested, we've reached the end
+      if (page.length < pageSize) {
         break;
       }
     }
 
     return allEntities.length > 0 ? allEntities : undefined;
+  }
+
+  /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    const data = await this.fetchApi<HfRowsResponse>("/rows", {
+      offset: offset.toString(),
+      length: Math.min(limit, 100).toString(), // HF max is 100 per request
+    });
+
+    if (data.rows.length === 0) {
+      return undefined;
+    }
+
+    const entities: Entity[] = [];
+    for (const row of data.rows) {
+      entities.push(this.rowToEntity(row));
+    }
+
+    return entities;
   }
 
   /**

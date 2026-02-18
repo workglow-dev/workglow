@@ -308,6 +308,164 @@ describe("HuggingFaceTabularStorage", () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
+    it("should get bulk entities with offset and limit", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: Array.from({ length: 10 }, (_, i) => ({
+            row_idx: i + 50,
+            row: { id: i + 50, text: `text${i + 50}`, label: 0 },
+            truncated_cells: [],
+          })),
+          num_rows_total: 150,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      const result = await storage.getBulk(50, 10);
+
+      expect(result).toHaveLength(10);
+      expect(result![0]).toEqual({ row_idx: 50, id: 50, text: "text50", label: 0 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("offset=50"),
+        expect.any(Object)
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("length=10"),
+        expect.any(Object)
+      );
+    });
+
+    it("should return undefined for getBulk when no entities found", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: [],
+          num_rows_total: 0,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      const result = await storage.getBulk(0, 10);
+
+      expect(result).toBeUndefined();
+    });
+
+    it("should cap getBulk limit at 100 (HF max)", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: Array.from({ length: 100 }, (_, i) => ({
+            row_idx: i,
+            row: { id: i, text: `text${i}`, label: 0 },
+            truncated_cells: [],
+          })),
+          num_rows_total: 150,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      const result = await storage.getBulk(0, 200);
+
+      expect(result).toHaveLength(100);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("length=100"),
+        expect.any(Object)
+      );
+    });
+
+    it("should iterate through records using async generator", async () => {
+      // First page
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: Array.from({ length: 100 }, (_, i) => ({
+            row_idx: i,
+            row: { id: i, text: `text${i}`, label: 0 },
+            truncated_cells: [],
+          })),
+          num_rows_total: 150,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      // Second page
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: Array.from({ length: 50 }, (_, i) => ({
+            row_idx: i + 100,
+            row: { id: i + 100, text: `text${i + 100}`, label: 0 },
+            truncated_cells: [],
+          })),
+          num_rows_total: 150,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      const records: any[] = [];
+      for await (const record of storage.records()) {
+        records.push(record);
+      }
+
+      expect(records).toHaveLength(150);
+      expect(records[0]).toEqual({ row_idx: 0, id: 0, text: "text0", label: 0 });
+      expect(records[149]).toEqual({ row_idx: 149, id: 149, text: "text149", label: 0 });
+    });
+
+    it("should iterate through pages using async generator", async () => {
+      // First page
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: Array.from({ length: 100 }, (_, i) => ({
+            row_idx: i,
+            row: { id: i, text: `text${i}`, label: 0 },
+            truncated_cells: [],
+          })),
+          num_rows_total: 150,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      // Second page
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: Array.from({ length: 50 }, (_, i) => ({
+            row_idx: i + 100,
+            row: { id: i + 100, text: `text${i + 100}`, label: 0 },
+            truncated_cells: [],
+          })),
+          num_rows_total: 150,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      const pages: any[][] = [];
+      for await (const page of storage.pages()) {
+        pages.push(page);
+      }
+
+      expect(pages).toHaveLength(2);
+      expect(pages[0]).toHaveLength(100);
+      expect(pages[1]).toHaveLength(50);
+    });
+
     it("should search entities by partial key", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
