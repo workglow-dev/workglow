@@ -6,12 +6,12 @@
   "description": "AI provider integrations for Workglow, supporting OpenAI, Hugging Face Transformers, MediaPipe, and GGML models.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-code": "bun build --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
+    "watch-code": "bun build --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
     "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "bun run build-clean && concurrently -c 'auto' -n 'code,browser,types' 'bun run build-code' 'bun run build-browser' 'bun run build-types'",
     "build-clean": "rm -fr dist/*",
-    "build-code": "bun build --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
+    "build-code": "bun build --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
     "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -38,6 +38,11 @@
       "bun": "./dist/hf-transformers/index.js",
       "types": "./dist/hf-transformers/index.d.ts",
       "import": "./dist/hf-transformers/index.js"
+    },
+    "./llamacpp": {
+      "bun": "./dist/provider-llamacpp/index.js",
+      "types": "./dist/provider-llamacpp/index.d.ts",
+      "import": "./dist/provider-llamacpp/index.js"
     },
     "./ollama": {
       "browser": "./dist/provider-ollama/index.browser.js",
@@ -76,6 +81,7 @@
     "openai": "catalog:",
     "@anthropic-ai/sdk": "catalog:",
     "@google/generative-ai": "catalog:",
+    "node-llama-cpp": "catalog:",
     "ollama": "catalog:"
   },
   "peerDependenciesMeta": {
@@ -101,6 +107,9 @@
       "optional": true
     },
     "@google/generative-ai": {
+      "optional": true
+    },
+    "node-llama-cpp": {
       "optional": true
     },
     "ollama": {
@@ -135,6 +144,7 @@
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*",
+    "node-llama-cpp": "catalog:",
     "ollama": "catalog:",
     "openai": "catalog:"
   }

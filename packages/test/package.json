@@ -91,6 +91,7 @@
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
     "fake-indexeddb": "^6.2.4",
+    "node-llama-cpp": "catalog:",
     "ollama": "catalog:",
     "openai": "catalog:",
     "pg": "catalog:",
