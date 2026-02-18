@@ -573,7 +573,11 @@ export class IndexedDbTabularStorage<
           // Collect records up to the limit
           if (entities.length < limit) {
             entities.push(cursor.value);
-            cursor.continue();
+            if (entities.length === limit) {
+              resolve(entities);
+            } else {
+              cursor.continue();
+            }
           } else {
             // We've collected enough records
             resolve(entities.length > 0 ? entities : undefined);

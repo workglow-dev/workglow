@@ -635,10 +635,17 @@ export class SupabaseTabularStorage<
    * @returns Array of entities or undefined if no records found
    */
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
-    const { data, error } = await this.client
-      .from(this.table)
-      .select('*')
-      .range(offset, offset + limit - 1);
+    // Build the base query
+    let query = this.client.from(this.table).select("*");
+
+    // Ensure deterministic ordering for pagination by ordering on primary key column(s)
+    for (const pkName of this.primaryKeyNames) {
+      if (pkName != null) {
+        query = query.order(String(pkName));
+      }
+    }
+
+    const { data, error } = await query.range(offset, offset + limit - 1);
 
     if (error) throw error;
     
@@ -646,16 +653,14 @@ export class SupabaseTabularStorage<
       return undefined;
     }
 
-    const entities: Entity[] = [];
+    // Convert all columns from SQL to JS values (consistent with getAll)
     for (const row of data) {
-      const entity = {} as Entity;
-      for (const [column, value] of Object.entries(row)) {
-        (entity as any)[column] = this.sqlToJsValue(column, value as ValueOptionType);
+      for (const key in this.schema.properties) {
+        (row as any)[key] = this.sqlToJsValue(key, (row as any)[key]);
       }
-      entities.push(entity);
     }
 
-    return entities;
+    return data as Entity[];
   }
 
   /**

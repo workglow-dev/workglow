@@ -243,6 +243,18 @@ export class InMemoryTabularStorage<
    */
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
     const all = Array.from(this.values.values());
+
+    // Ensure deterministic ordering by sorting by primary key(s) before pagination
+    all.sort((a, b) => {
+      for (const key of this.primaryKeyNames) {
+        const aVal = (a as any)[key];
+        const bVal = (b as any)[key];
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+      }
+      return 0;
+    });
+
     const page = all.slice(offset, offset + limit);
     return page.length > 0 ? page : undefined;
   }

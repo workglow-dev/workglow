@@ -844,22 +844,24 @@ export class PostgresTabularStorage<
    */
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
     const db = this.db;
-    const result = await db.query(`SELECT * FROM "${this.table}" LIMIT $1 OFFSET $2`, [limit, offset]);
+    const orderByClause = this.primaryKeyColumns().map((col) => `"${String(col)}"`).join(", ");
+    const result = await db.query(
+      `SELECT * FROM "${this.table}" ORDER BY ${orderByClause} LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
     
     if (!result.rows || result.rows.length === 0) {
       return undefined;
     }
 
-    const entities: Entity[] = [];
+    // Convert all columns according to schema (consistent with getAll)
     for (const row of result.rows) {
-      const entity = {} as Entity;
-      for (const [column, value] of Object.entries(row)) {
-        (entity as any)[column] = this.sqlToJsValue(column, value as ValueOptionType);
+      for (const key in this.schema.properties) {
+        (row as any)[key] = this.sqlToJsValue(key, (row as any)[key]);
       }
-      entities.push(entity);
     }
 
-    return entities;
+    return result.rows as Entity[];
   }
 
   /**

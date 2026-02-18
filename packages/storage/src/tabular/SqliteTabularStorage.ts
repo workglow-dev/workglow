@@ -811,7 +811,7 @@ export class SqliteTabularStorage<
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
     const db = this.db;
     const stmt = db.prepare<any, [number, number]>(`
-      SELECT * FROM \`${this.table}\` LIMIT ? OFFSET ?
+      SELECT * FROM \`${this.table}\` ORDER BY rowid LIMIT ? OFFSET ?
     `);
     const rows = stmt.all(limit, offset);
     
@@ -819,16 +819,14 @@ export class SqliteTabularStorage<
       return undefined;
     }
 
-    const entities: Entity[] = [];
-    for (const row of rows) {
-      const entity = {} as Entity;
-      for (const [column, value] of Object.entries(row)) {
-        (entity as any)[column] = this.sqlToJsValue(column, value as ValueOptionType);
+    // Convert all columns according to schema for each row (consistent with getAll)
+    for (const row of rows as any[]) {
+      for (const k in this.schema.properties) {
+        (row as any)[k] = this.sqlToJsValue(k, (row as any)[k] as ValueOptionType);
       }
-      entities.push(entity);
     }
 
-    return entities;
+    return rows as Entity[];
   }
 
   /**

@@ -274,7 +274,7 @@ export class FsFolderTabularStorage<
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
     await this.setupDirectory();
     const files = await readdir(this.folderPath);
-    const jsonFiles = files.filter((file) => file.endsWith(".json"));
+    const jsonFiles = files.filter((file) => file.endsWith(".json")).sort();
     
     // Slice the array to get the page
     const pageFiles = jsonFiles.slice(offset, offset + limit);

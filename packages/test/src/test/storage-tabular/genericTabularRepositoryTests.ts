@@ -1324,7 +1324,7 @@ export function runGenericTabularRepositoryTests(
         expect(collected.length).toBe(10);
       });
 
-      it("should yield records in order", async () => {
+      it("should yield all records with correct properties", async () => {
         // Insert 3 records
         const entities = [
           { name: "key1", type: "type1", option: "value1", success: true },

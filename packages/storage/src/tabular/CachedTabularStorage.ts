@@ -289,8 +289,8 @@ export class CachedTabularStorage<
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
     await this.initializeCache();
 
-    // Delegate to cache for faster access
-    return await this.cache.getBulk(offset, limit);
+    // Delegate to durable storage (source of truth) to avoid inconsistency
+    return await this.durable.getBulk(offset, limit);
   }
 
   /**
