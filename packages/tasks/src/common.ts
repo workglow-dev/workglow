@@ -7,6 +7,14 @@
 // Load adaptive first so Workflow.prototype.add/subtract/multiply/divide/sum are registered
 import "./task/adaptive";
 
+export {
+  createMcpClient,
+  mcpClientFactory,
+  mcpServerConfigSchema,
+  mcpTransportTypes,
+  type McpServerConfig,
+  type McpTransportType,
+} from "@workglow/util";
 export * from "./task/ArrayTask";
 export * from "./task/DebugLogTask";
 export * from "./task/DelayTask";
@@ -19,6 +27,10 @@ export * from "./task/MergeTask";
 export * from "./task/OutputTask";
 export * from "./task/SplitTask";
 export * from "./task/adaptive";
+export * from "./task/mcp/McpListTask";
+export * from "./task/mcp/McpPromptGetTask";
+export * from "./task/mcp/McpResourceReadTask";
+export * from "./task/mcp/McpToolCallTask";
 export * from "./task/scalar/ScalarAbsTask";
 export * from "./task/scalar/ScalarAddTask";
 export * from "./task/scalar/ScalarCeilTask";
@@ -51,6 +63,10 @@ import { LambdaTask } from "./task/LambdaTask";
 import { MergeTask } from "./task/MergeTask";
 import { OutputTask } from "./task/OutputTask";
 import { SplitTask } from "./task/SplitTask";
+import { McpListTask } from "./task/mcp/McpListTask";
+import { McpPromptGetTask } from "./task/mcp/McpPromptGetTask";
+import { McpResourceReadTask } from "./task/mcp/McpResourceReadTask";
+import { McpToolCallTask } from "./task/mcp/McpToolCallTask";
 import { ScalarAbsTask } from "./task/scalar/ScalarAbsTask";
 import { ScalarAddTask } from "./task/scalar/ScalarAddTask";
 import { ScalarCeilTask } from "./task/scalar/ScalarCeilTask";
@@ -107,6 +123,10 @@ export const registerCommonTasks = () => {
     VectorNormalizeTask,
     VectorScaleTask,
     VectorSubtractTask,
+    McpToolCallTask,
+    McpResourceReadTask,
+    McpPromptGetTask,
+    McpListTask,
   ];
   tasks.map(TaskRegistry.registerTask);
   return tasks;
