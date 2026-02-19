@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { HuggingFaceTabularStorage } from "../HuggingFaceTabularStorage";
+import { HuggingFaceTabularStorage } from "@workglow/storage";
 import type { DataPortSchemaObject } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -34,13 +34,9 @@ describe("HuggingFaceTabularStorage", () => {
         additionalProperties: false,
       };
 
-      const storage = new HuggingFaceTabularStorage(
-        "test/dataset",
-        "default",
-        "train",
-        schema,
-        ["id"] as const
-      );
+      const storage = new HuggingFaceTabularStorage("test/dataset", "default", "train", schema, [
+        "id",
+      ] as const);
 
       expect(storage).toBeDefined();
     });
@@ -59,9 +55,7 @@ describe("HuggingFaceTabularStorage", () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          features: [
-            { feature_idx: 0, name: "text", type: { _type: "Value", dtype: "string" } },
-          ],
+          features: [{ feature_idx: 0, name: "text", type: { _type: "Value", dtype: "string" } }],
           rows: [{ row_idx: 0, row: { text: "test" }, truncated_cells: [] }],
         }),
       });
@@ -97,9 +91,7 @@ describe("HuggingFaceTabularStorage", () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          features: [
-            { feature_idx: 0, name: "text", type: { _type: "Value", dtype: "string" } },
-          ],
+          features: [{ feature_idx: 0, name: "text", type: { _type: "Value", dtype: "string" } }],
           rows: [{ row_idx: 0, row: { text: "test" }, truncated_cells: [] }],
         }),
       });
@@ -135,9 +127,7 @@ describe("HuggingFaceTabularStorage", () => {
             { feature_idx: 0, name: "text", type: { _type: "Value", dtype: "string" } },
             { feature_idx: 1, name: "label", type: { _type: "Value", dtype: "int64" } },
           ],
-          rows: [
-            { row_idx: 0, row: { text: "test", label: 1 }, truncated_cells: [] },
-          ],
+          rows: [{ row_idx: 0, row: { text: "test", label: 1 }, truncated_cells: [] }],
         }),
       });
 
@@ -234,9 +224,7 @@ describe("HuggingFaceTabularStorage", () => {
         ok: true,
         json: async () => ({
           features: [],
-          rows: [
-            { row_idx: 0, row: { id: 1, text: "test", label: 0 }, truncated_cells: [] },
-          ],
+          rows: [{ row_idx: 0, row: { id: 1, text: "test", label: 0 }, truncated_cells: [] }],
           num_rows_total: 1,
           num_rows_per_page: 100,
           partial: false,
@@ -523,10 +511,7 @@ describe("HuggingFaceTabularStorage", () => {
       const size = await storage.size();
 
       expect(size).toBe(100);
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/size"),
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/size"), expect.any(Object));
     });
   });
 
@@ -551,13 +536,9 @@ describe("HuggingFaceTabularStorage", () => {
         additionalProperties: false,
       };
 
-      storage = new HuggingFaceTabularStorage(
-        "test/dataset",
-        "default",
-        "train",
-        schema,
-        ["id"] as const
-      );
+      storage = new HuggingFaceTabularStorage("test/dataset", "default", "train", schema, [
+        "id",
+      ] as const);
     });
 
     it("should throw error on put", async () => {
@@ -567,9 +548,9 @@ describe("HuggingFaceTabularStorage", () => {
     });
 
     it("should throw error on putBulk", async () => {
-      await expect(
-        storage.putBulk([{ id: 1, text: "test" }] as any)
-      ).rejects.toThrow("HuggingFaceTabularStorage is readonly");
+      await expect(storage.putBulk([{ id: 1, text: "test" }] as any)).rejects.toThrow(
+        "HuggingFaceTabularStorage is readonly"
+      );
     });
 
     it("should throw error on delete", async () => {
@@ -579,9 +560,7 @@ describe("HuggingFaceTabularStorage", () => {
     });
 
     it("should throw error on deleteAll", async () => {
-      await expect(storage.deleteAll()).rejects.toThrow(
-        "HuggingFaceTabularStorage is readonly"
-      );
+      await expect(storage.deleteAll()).rejects.toThrow("HuggingFaceTabularStorage is readonly");
     });
 
     it("should throw error on deleteSearch", async () => {
@@ -615,13 +594,9 @@ describe("HuggingFaceTabularStorage", () => {
         { id: number },
         any,
         any
-      > = new HuggingFaceTabularStorage(
-        "test/dataset",
-        "default",
-        "train",
-        schema,
-        ["id"] as const
-      );
+      > = new HuggingFaceTabularStorage("test/dataset", "default", "train", schema, [
+        "id",
+      ] as const);
 
       mockFetch.mockResolvedValueOnce({
         ok: false,
@@ -650,13 +625,9 @@ describe("HuggingFaceTabularStorage", () => {
         { id: string },
         any,
         any
-      > = new HuggingFaceTabularStorage(
-        "test/dataset",
-        "default",
-        "train",
-        schema,
-        ["id"] as const
-      );
+      > = new HuggingFaceTabularStorage("test/dataset", "default", "train", schema, [
+        "id",
+      ] as const);
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -689,13 +660,9 @@ describe("HuggingFaceTabularStorage", () => {
         additionalProperties: false,
       };
 
-      const storage = new HuggingFaceTabularStorage(
-        "test/dataset",
-        "default",
-        "train",
-        schema,
-        ["id"] as const
-      );
+      const storage = new HuggingFaceTabularStorage("test/dataset", "default", "train", schema, [
+        "id",
+      ] as const);
 
       expect(() => storage.destroy()).not.toThrow();
     });
