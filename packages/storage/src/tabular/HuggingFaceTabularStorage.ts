@@ -343,6 +343,12 @@ export class HuggingFaceTabularStorage<
       }
     }
 
+    if (whereConditions.length === 0) {
+      throw new Error(
+        "Search criteria must include at least one non-null and non-undefined value to build a valid WHERE clause."
+      );
+    }
+
     const where = whereConditions.join(" AND ");
     const allEntities: Entity[] = [];
     let offset = 0;

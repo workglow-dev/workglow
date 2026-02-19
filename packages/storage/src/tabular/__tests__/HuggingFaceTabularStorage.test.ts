@@ -496,6 +496,12 @@ describe("HuggingFaceTabularStorage", () => {
       );
     });
 
+    it("should throw error when all search values are null or undefined", async () => {
+      await expect(storage.search({ label: null } as any)).rejects.toThrow(
+        "Search criteria must include at least one non-null and non-undefined value"
+      );
+    });
+
     it("should get dataset size", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
