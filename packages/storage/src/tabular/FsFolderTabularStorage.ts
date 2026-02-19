@@ -274,25 +274,35 @@ export class FsFolderTabularStorage<
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
     await this.setupDirectory();
     const files = await readdir(this.folderPath);
-    const jsonFiles = files.filter((file) => file.endsWith(".json")).sort();
+    const jsonFiles = files.filter((file) => file.endsWith(".json"));
     
-    // Slice the array to get the page
-    const pageFiles = jsonFiles.slice(offset, offset + limit);
-    
-    if (pageFiles.length === 0) {
+    if (jsonFiles.length === 0) {
       return undefined;
     }
 
-    // Read files in parallel for better performance
-    const entities = await Promise.all(
-      pageFiles.map(async (file) => {
+    // Read all files in parallel
+    const allEntities = await Promise.all(
+      jsonFiles.map(async (file) => {
         const filePath = path.join(this.folderPath, file);
         const content = await readFile(filePath, "utf8");
         return JSON.parse(content) as Entity;
       })
     );
 
-    return entities;
+    // Sort by primary key to ensure deterministic ordering
+    allEntities.sort((a, b) => {
+      for (const key of this.primaryKeyNames) {
+        const aVal = (a as any)[key];
+        const bVal = (b as any)[key];
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+      }
+      return 0;
+    });
+
+    // Slice the sorted array to get the page
+    const page = allEntities.slice(offset, offset + limit);
+    return page.length > 0 ? page : undefined;
   }
 
   /**
