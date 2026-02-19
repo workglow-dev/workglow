@@ -96,6 +96,9 @@ import { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 
 const pipelines = new Map<string, any>();
 
+/** In-flight pipeline loads by cache key. Ensures only one load per model at a time to avoid corrupt ONNX files (Protobuf parsing failed). */
+const pipelineLoadPromises = new Map<string, Promise<any>>();
+
 /**
  * Clear all cached pipelines
  */
@@ -128,6 +131,32 @@ const getPipeline = async (
     return pipelines.get(cacheKey);
   }
 
+  // Single-flight: only one load per model at a time to avoid concurrent writes to the same
+  // ONNX cache path (which can yield "Protobuf parsing failed" when one process reads while another writes).
+  const inFlight = pipelineLoadPromises.get(cacheKey);
+  if (inFlight) {
+    await inFlight;
+    const cached = pipelines.get(cacheKey);
+    if (cached) return cached;
+    // Load failed for the other caller; fall through to retry (we remove from map in finally).
+  }
+
+  const loadPromise = doGetPipeline(model, onProgress, options, progressScaleMax, cacheKey).finally(
+    () => {
+      pipelineLoadPromises.delete(cacheKey);
+    }
+  );
+  pipelineLoadPromises.set(cacheKey, loadPromise);
+  return loadPromise;
+};
+
+const doGetPipeline = async (
+  model: HfTransformersOnnxModelConfig,
+  onProgress: (progress: number, message?: string, details?: any) => void,
+  options: PretrainedModelOptions,
+  progressScaleMax: number,
+  cacheKey: string
+) => {
   // Track file sizes and progress for weighted calculation
   const fileSizes = new Map<string, number>();
   const fileProgress = new Map<string, number>();
