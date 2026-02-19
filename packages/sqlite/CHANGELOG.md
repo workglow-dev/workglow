@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.99
+
+### Patch Changes
+
+- Update deps like hf inference
+
 ## 0.0.98
 
 ### Patch Changes

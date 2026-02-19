@@ -1,5 +1,14 @@
 # @workglow/debug
 
+## 0.0.99
+
+### Patch Changes
+
+- Update deps like hf inference
+- Updated dependencies
+  - @workglow/task-graph@0.0.99
+  - @workglow/util@0.0.99
+
 ## 0.0.98
 
 ### Patch Changes

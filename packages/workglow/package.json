@@ -1,7 +1,7 @@
 {
   "name": "workglow",
   "type": "module",
-  "version": "0.0.98",
+  "version": "0.0.99",
   "description": "Workglow meta-package: re-exports all @workglow/* packages for convenient single-import usage.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
