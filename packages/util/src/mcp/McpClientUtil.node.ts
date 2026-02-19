@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Node/Bun MCP client util. Supports stdio, sse, and streamable-http.
- * stdio and sse are not available in the browser.
+ * stdio is not available in the browser.
  */
 
 import { Client } from "@modelcontextprotocol/sdk/client";
@@ -96,7 +96,27 @@ export async function createMcpClient(
     );
   }
 
-  await client.connect(transport);
+  try {
+    await client.connect(transport);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const url = config.server_url ?? "";
+    const is405 =
+      message.includes("405") ||
+      message.includes("Method Not Allowed") ||
+      (typeof err === "object" &&
+        err !== null &&
+        "status" in err &&
+        (err as { status: number }).status === 405);
+    if (is405) {
+      throw new Error(
+        `MCP connection failed with 405 Method Not Allowed for ${url}. ` +
+          `This usually means the server does not accept GET requests. `,
+        { cause: err }
+      );
+    }
+    throw err;
+  }
   return { client, transport };
 }
 
