@@ -32,7 +32,7 @@
     "@sroussey/transformers": "catalog:",
     "@uiw/codemirror-theme-vscode": "^4.25.4",
     "@uiw/react-codemirror": "^4.25.4",
-    "@xyflow/react": "^12.10.0",
+    "@xyflow/react": "^12.10.1",
     "clsx": "^2.1.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

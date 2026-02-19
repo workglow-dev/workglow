@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { InferenceProviderOrPolicy } from "@huggingface/inference";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -43,7 +44,7 @@ async function getClient(model: HfInferenceModelConfig | undefined) {
       "Missing Hugging Face API key: set provider_config.api_key or the HF_TOKEN environment variable."
     );
   }
-  return new sdk.HfInference(apiKey);
+  return new sdk.InferenceClient(apiKey);
 }
 
 function getModelName(model: HfInferenceModelConfig | undefined): string {
@@ -54,8 +55,10 @@ function getModelName(model: HfInferenceModelConfig | undefined): string {
   return name;
 }
 
-function getProvider(model: HfInferenceModelConfig | undefined): string | undefined {
-  return model?.provider_config?.provider;
+function getProvider(
+  model: HfInferenceModelConfig | undefined
+): InferenceProviderOrPolicy | undefined {
+  return model?.provider_config?.provider as InferenceProviderOrPolicy | undefined;
 }
 
 export const HFI_TextGeneration: AiProviderRunFn<
@@ -76,7 +79,6 @@ export const HFI_TextGeneration: AiProviderRunFn<
       temperature: input.temperature,
       top_p: input.topP,
       frequency_penalty: input.frequencyPenalty,
-      // @ts-ignore - provider is an optional field specific to HF Inference
       provider,
     },
     { signal }
@@ -110,7 +112,7 @@ export const HFI_TextEmbedding: AiProviderRunFn<
 
     update_progress(100, "Completed HF Inference text embedding");
     return {
-      vector: embeddings.map((embedding) => new Float32Array(embedding as number[])),
+      vector: embeddings.map((embedding) => new Float32Array(embedding as unknown as number[])),
     };
   }
 
@@ -123,7 +125,7 @@ export const HFI_TextEmbedding: AiProviderRunFn<
   );
 
   update_progress(100, "Completed HF Inference text embedding");
-  return { vector: new Float32Array(embedding as number[]) };
+  return { vector: new Float32Array(embedding as unknown as number[]) };
 };
 
 export const HFI_TextRewriter: AiProviderRunFn<
@@ -143,7 +145,6 @@ export const HFI_TextRewriter: AiProviderRunFn<
         { role: "system", content: input.prompt },
         { role: "user", content: input.text },
       ],
-      // @ts-ignore - provider is an optional field specific to HF Inference
       provider,
     },
     { signal }
@@ -170,7 +171,6 @@ export const HFI_TextSummary: AiProviderRunFn<
         { role: "system", content: "Summarize the following text concisely." },
         { role: "user", content: input.text },
       ],
-      // @ts-ignore - provider is an optional field specific to HF Inference
       provider,
     },
     { signal }
@@ -188,11 +188,7 @@ export const HFI_TextGeneration_Stream: AiProviderStreamFn<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   HfInferenceModelConfig
-> = async function* (
-  input,
-  model,
-  signal
-): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
   const client = await getClient(model);
   const modelName = getModelName(model);
   const provider = getProvider(model);
@@ -205,7 +201,6 @@ export const HFI_TextGeneration_Stream: AiProviderStreamFn<
       temperature: input.temperature,
       top_p: input.topP,
       frequency_penalty: input.frequencyPenalty,
-      // @ts-ignore - provider is an optional field specific to HF Inference
       provider,
     },
     { signal }
@@ -236,7 +231,6 @@ export const HFI_TextRewriter_Stream: AiProviderStreamFn<
         { role: "system", content: input.prompt },
         { role: "user", content: input.text },
       ],
-      // @ts-ignore - provider is an optional field specific to HF Inference
       provider,
     },
     { signal }
@@ -267,7 +261,6 @@ export const HFI_TextSummary_Stream: AiProviderStreamFn<
         { role: "system", content: "Summarize the following text concisely." },
         { role: "user", content: input.text },
       ],
-      // @ts-ignore - provider is an optional field specific to HF Inference
       provider,
     },
     { signal }
