@@ -629,6 +629,39 @@ export class SupabaseTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    // Build the base query
+    let query = this.client.from(this.table).select("*");
+
+    // Ensure deterministic ordering for pagination by ordering on primary key column(s)
+    for (const pkName of this.primaryKeyNames) {
+      query = query.order(String(pkName));
+    }
+
+    const { data, error } = await query.range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      return undefined;
+    }
+
+    // Convert all columns from SQL to JS values (consistent with getAll)
+    for (const row of data) {
+      for (const key in this.schema.properties) {
+        (row as any)[key] = this.sqlToJsValue(key, (row as any)[key]);
+      }
+    }
+
+    return data as Entity[];
+  }
+
+  /**
    * Deletes all entries matching the specified search criteria.
    * Supports multiple columns with optional comparison operators.
    *

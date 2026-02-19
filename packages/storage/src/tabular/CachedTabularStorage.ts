@@ -281,6 +281,19 @@ export class CachedTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    await this.initializeCache();
+
+    // Delegate to durable storage (source of truth) to avoid inconsistency
+    return await this.durable.getBulk(offset, limit);
+  }
+
+  /**
    * Deletes all entries matching the specified search criteria.
    * Supports multiple columns with optional comparison operators.
    *

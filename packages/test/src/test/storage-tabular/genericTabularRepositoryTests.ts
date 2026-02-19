@@ -1182,6 +1182,258 @@ export function runGenericTabularRepositoryTests(
       });
     });
   }
+
+  // Iteration methods tests
+  describe("iteration methods", () => {
+    let repository: ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
+
+    beforeEach(async () => {
+      repository = await createCompoundPkRepository();
+      await repository.setupDatabase?.();
+    });
+
+    afterEach(async () => {
+      await repository.deleteAll();
+      repository.destroy();
+    });
+
+    describe("getBulk", () => {
+      it("should return undefined for empty table", async () => {
+        const result = await repository.getBulk(0, 10);
+        expect(result).toBeUndefined();
+      });
+
+      it("should fetch a full page of records", async () => {
+        // Insert 5 records
+        const entities = [
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key3", type: "type3", option: "value3", success: true },
+          { name: "key4", type: "type4", option: "value4", success: false },
+          { name: "key5", type: "type5", option: "value5", success: true },
+        ];
+        await repository.putBulk(entities);
+
+        const result = await repository.getBulk(0, 5);
+        expect(result).toBeDefined();
+        expect(result!.length).toBe(5);
+      });
+
+      it("should fetch a partial page when less records available", async () => {
+        // Insert 3 records
+        const entities = [
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key3", type: "type3", option: "value3", success: true },
+        ];
+        await repository.putBulk(entities);
+
+        const result = await repository.getBulk(0, 10);
+        expect(result).toBeDefined();
+        expect(result!.length).toBe(3);
+      });
+
+      it("should handle offset correctly", async () => {
+        // Insert 5 records out of order to ensure deterministic pagination
+        const entities = [
+          { name: "key3", type: "type3", option: "value3", success: true },
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key5", type: "type5", option: "value5", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key4", type: "type4", option: "value4", success: false },
+        ];
+        await repository.putBulk(entities);
+
+        const result = await repository.getBulk(2, 2);
+        expect(result).toBeDefined();
+        expect(result!.length).toBe(2);
+        // Assuming deterministic ordering by primary key (name, then type),
+        // the sorted order is key1, key2, key3, key4, key5.
+        // With offset=2 and limit=2, we expect key3 and key4.
+        expect(result![0].name).toBe("key3");
+        expect(result![0].type).toBe("type3");
+        expect(result![1].name).toBe("key4");
+        expect(result![1].type).toBe("type4");
+      });
+
+      it("should return undefined when offset is beyond end", async () => {
+        // Insert 3 records
+        const entities = [
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key3", type: "type3", option: "value3", success: true },
+        ];
+        await repository.putBulk(entities);
+
+        const result = await repository.getBulk(10, 5);
+        expect(result).toBeUndefined();
+      });
+
+      it("should handle limit of 1", async () => {
+        // Insert 3 records
+        const entities = [
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key3", type: "type3", option: "value3", success: true },
+        ];
+        await repository.putBulk(entities);
+
+        const result = await repository.getBulk(0, 1);
+        expect(result).toBeDefined();
+        expect(result!.length).toBe(1);
+      });
+    });
+
+    describe("records", () => {
+      it("should yield all records one by one", async () => {
+        // Insert 5 records
+        const entities = [
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key3", type: "type3", option: "value3", success: true },
+          { name: "key4", type: "type4", option: "value4", success: false },
+          { name: "key5", type: "type5", option: "value5", success: true },
+        ];
+        await repository.putBulk(entities);
+
+        const collected: any[] = [];
+        for await (const record of repository.records(2)) {
+          collected.push(record);
+        }
+
+        expect(collected.length).toBe(5);
+      });
+
+      it("should handle empty table", async () => {
+        const collected: any[] = [];
+        for await (const record of repository.records()) {
+          collected.push(record);
+        }
+
+        expect(collected.length).toBe(0);
+      });
+
+      it("should use custom page size", async () => {
+        // Insert 10 records
+        const entities = Array.from({ length: 10 }, (_, i) => ({
+          name: `key${i}`,
+          type: `type${i}`,
+          option: `value${i}`,
+          success: i % 2 === 0,
+        }));
+        await repository.putBulk(entities);
+
+        const collected: any[] = [];
+        for await (const record of repository.records(3)) {
+          collected.push(record);
+        }
+
+        expect(collected.length).toBe(10);
+      });
+
+      it("should yield all records with correct properties", async () => {
+        // Insert 3 records
+        const entities = [
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key3", type: "type3", option: "value3", success: true },
+        ];
+        await repository.putBulk(entities);
+
+        const collected: any[] = [];
+        for await (const record of repository.records()) {
+          collected.push(record);
+        }
+
+        expect(collected.length).toBe(3);
+        // Verify records have expected structure
+        for (const record of collected) {
+          expect(record).toHaveProperty("name");
+          expect(record).toHaveProperty("type");
+          expect(record).toHaveProperty("option");
+          expect(record).toHaveProperty("success");
+        }
+      });
+    });
+
+    describe("pages", () => {
+      it("should yield all pages", async () => {
+        // Insert 10 records
+        const entities = Array.from({ length: 10 }, (_, i) => ({
+          name: `key${i}`,
+          type: `type${i}`,
+          option: `value${i}`,
+          success: i % 2 === 0,
+        }));
+        await repository.putBulk(entities);
+
+        const pages: any[][] = [];
+        for await (const page of repository.pages(3)) {
+          pages.push(page);
+        }
+
+        // With pageSize=3 and 10 records: 3, 3, 3, 1 = 4 pages
+        expect(pages.length).toBe(4);
+        expect(pages[0].length).toBe(3);
+        expect(pages[1].length).toBe(3);
+        expect(pages[2].length).toBe(3);
+        expect(pages[3].length).toBe(1);
+
+        // Verify total records
+        const totalRecords = pages.reduce((sum, page) => sum + page.length, 0);
+        expect(totalRecords).toBe(10);
+      });
+
+      it("should handle empty table", async () => {
+        const pages: any[][] = [];
+        for await (const page of repository.pages(5)) {
+          pages.push(page);
+        }
+
+        expect(pages.length).toBe(0);
+      });
+
+      it("should yield single page when all records fit", async () => {
+        // Insert 3 records
+        const entities = [
+          { name: "key1", type: "type1", option: "value1", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key3", type: "type3", option: "value3", success: true },
+        ];
+        await repository.putBulk(entities);
+
+        const pages: any[][] = [];
+        for await (const page of repository.pages(10)) {
+          pages.push(page);
+        }
+
+        expect(pages.length).toBe(1);
+        expect(pages[0].length).toBe(3);
+      });
+
+      it("should yield exact pages when records divide evenly", async () => {
+        // Insert 9 records
+        const entities = Array.from({ length: 9 }, (_, i) => ({
+          name: `key${i}`,
+          type: `type${i}`,
+          option: `value${i}`,
+          success: i % 2 === 0,
+        }));
+        await repository.putBulk(entities);
+
+        const pages: any[][] = [];
+        for await (const page of repository.pages(3)) {
+          pages.push(page);
+        }
+
+        // With pageSize=3 and 9 records: 3, 3, 3 = 3 pages
+        expect(pages.length).toBe(3);
+        expect(pages[0].length).toBe(3);
+        expect(pages[1].length).toBe(3);
+        expect(pages[2].length).toBe(3);
+      });
+    });
+  });
 }
 
 /**

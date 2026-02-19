@@ -803,6 +803,36 @@ export class SqliteTabularStorage<
   }
 
   /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    const db = this.db;
+    const orderByClause = this.primaryKeyColumns()
+      .map((col) => `\`${String(col)}\``)
+      .join(", ");
+    const stmt = db.prepare<any, [number, number]>(`
+      SELECT * FROM \`${this.table}\` ORDER BY ${orderByClause} LIMIT ? OFFSET ?
+    `);
+    const rows = stmt.all(limit, offset);
+    
+    if (!rows || rows.length === 0) {
+      return undefined;
+    }
+
+    // Convert all columns according to schema for each row (consistent with getAll)
+    for (const row of rows as any[]) {
+      for (const k in this.schema.properties) {
+        (row as any)[k] = this.sqlToJsValue(k, (row as any)[k] as ValueOptionType);
+      }
+    }
+
+    return rows as Entity[];
+  }
+
+  /**
    * Builds WHERE clause conditions from delete search criteria.
    * @param criteria - The search criteria object
    * @returns Object with whereClause string and params array

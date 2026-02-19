@@ -180,6 +180,28 @@ export interface ITabularStorage<
    */
   deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void>;
 
+  /**
+   * Fetches a page of records from the repository.
+   * @param offset - Number of records to skip
+   * @param limit - Maximum number of records to return
+   * @returns Array of entities or undefined if no records found
+   */
+  getBulk(offset: number, limit: number): Promise<Entity[] | undefined>;
+
+  /**
+   * Async generator that yields records one at a time.
+   * @param pageSize - Number of records to fetch per page (default: 100)
+   * @yields Individual entity records
+   */
+  records(pageSize?: number): AsyncGenerator<Entity, void, undefined>;
+
+  /**
+   * Async generator that yields pages of records.
+   * @param pageSize - Number of records per page (default: 100)
+   * @yields Arrays of entities
+   */
+  pages(pageSize?: number): AsyncGenerator<Entity[], void, undefined>;
+
   // Event handling methods
   on<Event extends TabularEventName>(
     name: Event,
