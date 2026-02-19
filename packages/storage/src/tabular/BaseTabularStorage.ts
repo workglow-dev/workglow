@@ -339,6 +339,9 @@ export abstract class BaseTabularStorage<
    * @yields Individual entity records
    */
   async *records(pageSize: number = 100): AsyncGenerator<Entity, void, undefined> {
+    if (pageSize <= 0) {
+      throw new RangeError(`pageSize must be greater than 0, got ${pageSize}`);
+    }
     let offset = 0;
     while (true) {
       const page = await this.getBulk(offset, pageSize);
@@ -362,6 +365,9 @@ export abstract class BaseTabularStorage<
    * @yields Arrays of entities
    */
   async *pages(pageSize: number = 100): AsyncGenerator<Entity[], void, undefined> {
+    if (pageSize <= 0) {
+      throw new RangeError(`pageSize must be greater than 0, got ${pageSize}`);
+    }
     let offset = 0;
     while (true) {
       const page = await this.getBulk(offset, pageSize);

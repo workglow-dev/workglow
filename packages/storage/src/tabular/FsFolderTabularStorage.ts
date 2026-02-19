@@ -283,13 +283,14 @@ export class FsFolderTabularStorage<
       return undefined;
     }
 
-    const entities: Entity[] = [];
-    for (const file of pageFiles) {
-      const filePath = path.join(this.folderPath, file);
-      const content = await readFile(filePath, "utf8");
-      const entity = JSON.parse(content) as Entity;
-      entities.push(entity);
-    }
+    // Read files in parallel for better performance
+    const entities = await Promise.all(
+      pageFiles.map(async (file) => {
+        const filePath = path.join(this.folderPath, file);
+        const content = await readFile(filePath, "utf8");
+        return JSON.parse(content) as Entity;
+      })
+    );
 
     return entities;
   }

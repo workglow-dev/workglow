@@ -1234,19 +1234,26 @@ export function runGenericTabularRepositoryTests(
       });
 
       it("should handle offset correctly", async () => {
-        // Insert 5 records
+        // Insert 5 records out of order to ensure deterministic pagination
         const entities = [
-          { name: "key1", type: "type1", option: "value1", success: true },
-          { name: "key2", type: "type2", option: "value2", success: false },
           { name: "key3", type: "type3", option: "value3", success: true },
-          { name: "key4", type: "type4", option: "value4", success: false },
+          { name: "key1", type: "type1", option: "value1", success: true },
           { name: "key5", type: "type5", option: "value5", success: true },
+          { name: "key2", type: "type2", option: "value2", success: false },
+          { name: "key4", type: "type4", option: "value4", success: false },
         ];
         await repository.putBulk(entities);
 
         const result = await repository.getBulk(2, 2);
         expect(result).toBeDefined();
         expect(result!.length).toBe(2);
+        // Assuming deterministic ordering by primary key (name, then type),
+        // the sorted order is key1, key2, key3, key4, key5.
+        // With offset=2 and limit=2, we expect key3 and key4.
+        expect(result![0].name).toBe("key3");
+        expect(result![0].type).toBe("type3");
+        expect(result![1].name).toBe("key4");
+        expect(result![1].type).toBe("type4");
       });
 
       it("should return undefined when offset is beyond end", async () => {

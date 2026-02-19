@@ -810,8 +810,11 @@ export class SqliteTabularStorage<
    */
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
     const db = this.db;
+    const orderByClause = this.primaryKeyColumns()
+      .map((col) => `\`${String(col)}\``)
+      .join(", ");
     const stmt = db.prepare<any, [number, number]>(`
-      SELECT * FROM \`${this.table}\` ORDER BY rowid LIMIT ? OFFSET ?
+      SELECT * FROM \`${this.table}\` ORDER BY ${orderByClause} LIMIT ? OFFSET ?
     `);
     const rows = stmt.all(limit, offset);
     

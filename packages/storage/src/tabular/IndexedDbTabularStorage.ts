@@ -551,6 +551,13 @@ export class IndexedDbTabularStorage<
    * @returns Array of entities or undefined if no records found
    */
   async getBulk(offset: number, limit: number): Promise<Entity[] | undefined> {
+    if (offset < 0) {
+      throw new RangeError(`offset must be non-negative, got ${offset}`);
+    }
+    if (limit <= 0) {
+      return undefined;
+    }
+
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(this.table, "readonly");
