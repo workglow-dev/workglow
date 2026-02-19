@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.98
+
+### Patch Changes
+
+- Update storage for bulk paged reading, add hf dataset storage, add hf inference
+
 ## 0.0.97
 
 ### Patch Changes

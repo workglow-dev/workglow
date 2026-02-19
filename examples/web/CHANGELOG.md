@@ -1,5 +1,22 @@
 # @workglow/web
 
+## 0.0.98
+
+### Patch Changes
+
+- Update storage for bulk paged reading, add hf dataset storage, add hf inference
+- Updated dependencies
+  - @workglow/ai@0.0.98
+  - @workglow/ai-provider@0.0.98
+  - @workglow/debug@0.0.98
+  - @workglow/job-queue@0.0.98
+  - @workglow/sqlite@0.0.98
+  - @workglow/storage@0.0.98
+  - @workglow/task-graph@0.0.98
+  - @workglow/tasks@0.0.98
+  - @workglow/test@0.0.98
+  - @workglow/util@0.0.98
+
 ## 0.0.97
 
 ### Patch Changes
