@@ -71,7 +71,7 @@ const inputSchema = {
     },
     model: modelSchema,
   },
-  required: ["documentTree"],
+  required: ["doc_id", "documentTree"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -110,9 +110,9 @@ export type HierarchicalChunkerTaskOutput = FromSchema<typeof outputSchema>;
 
 /**
  * Task for hierarchical chunking that respects token budgets and document structure.
- * Pass a `model` in the input to use a real tokenizer for accurate token
- * counting; when omitted, or when the model's provider does not support token counting,
- * the task falls back to the character-based estimate via buildCountTokensFn.
+ * Pass a `model` in the input to use {@link CountTokensTask} for accurate token
+ * counting; when omitted, the task falls back to the character-based estimate
+ * provided by {@link estimateTokens}.
  */
 export class HierarchicalChunkerTask extends Task<
   HierarchicalChunkerTaskInput,
@@ -163,7 +163,15 @@ export class HierarchicalChunkerTask extends Task<
     let countFn: (text: string) => Promise<number> = async (text: string) => estimateTokens(text);
     if (input.model) {
       const countTask = context.own(new CountTokensTask({ model: input.model }));
-      countFn = (text: string) => countTask.run({ text }).then((r) => r.count);
+      countFn = async (text: string): Promise<number> => {
+        try {
+          const result = await countTask.run({ text });
+          return result.count;
+        } catch (_err) {
+          // Fall back to local token estimation if CountTokensTask is unavailable or fails.
+          return estimateTokens(text);
+        }
+      };
     }
 
     const chunks: ChunkNode[] = [];
@@ -230,6 +238,17 @@ export class HierarchicalChunkerTask extends Task<
     const maxTokens = tokenBudget.maxTokensPerChunk - tokenBudget.reservedTokens;
     const overlapTokens = tokenBudget.overlapTokens;
 
+    if (maxTokens <= 0) {
+      throw new Error(
+        `Invalid token budget: reservedTokens (${tokenBudget.reservedTokens}) must be less than maxTokensPerChunk (${tokenBudget.maxTokensPerChunk})`
+      );
+    }
+    if (overlapTokens >= maxTokens) {
+      throw new Error(
+        `Invalid token budget: overlapTokens (${overlapTokens}) must be less than effective maxTokens (${maxTokens})`
+      );
+    }
+
     const count = await countFn(text);
     if (count <= maxTokens) {
       chunks.push({
@@ -265,7 +284,10 @@ export class HierarchicalChunkerTask extends Task<
 
     while (startOffset < text.length) {
       const boundary = await findCharBoundary(startOffset, maxTokens);
-      const endOffset = Math.min(boundary, text.length);
+      // Ensure endOffset always advances past startOffset to prevent an infinite loop.
+      // In the extreme edge case where even one character exceeds maxTokens, we
+      // include that character anyway (the chunk may be slightly oversize).
+      const endOffset = Math.max(Math.min(boundary, text.length), startOffset + 1);
 
       chunks.push({
         chunkId: uuid4(),
@@ -278,6 +300,7 @@ export class HierarchicalChunkerTask extends Task<
       if (endOffset >= text.length) break;
 
       const nextStart = await findCharBoundary(startOffset, maxTokens - overlapTokens);
+      // Ensure we always make forward progress to prevent an infinite loop.
       startOffset = nextStart > startOffset ? nextStart : endOffset;
     }
   }

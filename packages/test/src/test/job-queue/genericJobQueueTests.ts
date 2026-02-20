@@ -292,10 +292,10 @@ export function runGenericJobQueueTests(
       await server.start();
       await sleep(10);
       await server.stop();
-      // Limiter is 4 per 60s, so at most 4 jobs run in 10ms; at least 12 (test for 10 for some wiggle room) must remain pending.
+      // Limiter is 4 per 60s, so at most 4 jobs run in 10ms; at least 12 must remain pending.
       // Do not assert a specific job is pending (claim order can vary by backend).
       const pendingCount = await client.size(JobStatus.PENDING);
-      expect(pendingCount).toBeGreaterThanOrEqual(10);
+      expect(pendingCount).toBeGreaterThanOrEqual(12);
     });
 
     it("should abort a long-running job and trigger the abort event", async () => {

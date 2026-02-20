@@ -8,6 +8,7 @@ import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from
 import { ANTHROPIC, AnthropicProvider } from "@workglow/ai-provider";
 import {
   ANTHROPIC_TASKS,
+  Anthropic_CountTokens,
   Anthropic_TextGeneration,
   Anthropic_TextRewriter,
   Anthropic_TextSummary,
@@ -20,10 +21,11 @@ import {
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockMessagesCreate = vi.fn();
+const mockMessagesCountTokens = vi.fn();
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class MockAnthropic {
-    messages = { create: mockMessagesCreate };
+    messages = { create: mockMessagesCreate, countTokens: mockMessagesCountTokens };
     constructor(_opts: any) {}
   },
 }));
@@ -225,6 +227,26 @@ describe("AnthropicProvider", () => {
           abortSignal
         )
       ).rejects.toThrow("Overloaded");
+    });
+  });
+
+  describe("Anthropic_CountTokens", () => {
+    test("should call messages.countTokens and map input_tokens to count", async () => {
+      mockMessagesCountTokens.mockResolvedValue({ input_tokens: 42 });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_CountTokens(
+        { text: "Hello Claude", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ count: 42 });
+      expect(mockMessagesCountTokens).toHaveBeenCalledOnce();
+      const [params] = mockMessagesCountTokens.mock.calls[0];
+      expect(params.model).toBe("claude-sonnet-4-20250514");
+      expect(params.messages).toEqual([{ role: "user", content: "Hello Claude" }]);
     });
   });
 
