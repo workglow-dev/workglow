@@ -10,6 +10,7 @@
 
 import { Job } from "@workglow/job-queue";
 import {
+  type IExecuteReactiveContext,
   JobQueueTask,
   JobQueueTaskConfig,
   TaskConfigurationError,
@@ -22,6 +23,7 @@ import { AiJob, AiJobInput } from "../../job/AiJob";
 import { MODEL_REPOSITORY } from "../../model/ModelRegistry";
 import type { ModelRepository } from "../../model/ModelRepository";
 import type { ModelConfig } from "../../model/ModelSchema";
+import { getAiProviderRegistry } from "../../provider/AiProviderRegistry";
 
 function schemaFormat(schema: JsonSchema): string | undefined {
   return typeof schema === "object" && schema !== null && "format" in schema
@@ -126,6 +128,32 @@ export class AiTask<
   protected override async getDefaultQueueName(input: Input): Promise<string | undefined> {
     const model = input.model as ModelConfig;
     return model?.provider;
+  }
+
+  /**
+   * Delegates to a provider-registered reactive run function if one exists,
+   * otherwise falls back to the default Task.executeReactive() (returns output unchanged).
+   *
+   * Individual task subclasses that override executeReactive() directly take full
+   * precedence -- this base implementation is only reached when no subclass override exists.
+   */
+  override async executeReactive(
+    input: Input,
+    output: Output,
+    context: IExecuteReactiveContext
+  ): Promise<Output | undefined> {
+    const model = input.model as ModelConfig | undefined;
+    if (model && typeof model === "object" && model.provider) {
+      const taskType = (this.constructor as any).runtype ?? (this.constructor as any).type;
+      const reactiveFn = getAiProviderRegistry().getReactiveRunFn<Input, Output>(
+        model.provider,
+        taskType
+      );
+      if (reactiveFn) {
+        return reactiveFn(input, output, model);
+      }
+    }
+    return super.executeReactive(input, output, context);
   }
 
   /**
