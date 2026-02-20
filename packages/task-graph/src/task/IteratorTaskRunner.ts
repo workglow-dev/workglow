@@ -196,12 +196,23 @@ export class IteratorTaskRunner<
         this.task.compoundMerge
       ) as TaskOutput;
 
-      // Capture iteration checkpoint if checkpoint saver is available
+      // Capture iteration checkpoint if checkpoint saver is available.
+      // This is best-effort: failures here should not break iteration processing.
       if (this.checkpointSaver && this.threadId && iterationIndex !== undefined) {
-        await this.task.subGraph.runner.captureCheckpoint(this.task.config.id, {
-          iterationIndex,
-          iterationParentTaskId: this.task.config.id,
-        });
+        try {
+          await this.task.subGraph.runner.captureCheckpoint(this.task.config.id, {
+            iterationIndex,
+            iterationParentTaskId: this.task.config.id,
+          });
+        } catch (error) {
+          // Checkpointing is best-effort; log the error but do not interrupt iteration execution.
+          // eslint-disable-next-line no-console
+          console.error("Failed to capture iterator-task iteration checkpoint", {
+            taskId: this.task.config.id,
+            iterationIndex,
+            error,
+          });
+        }
       }
 
       return merged;

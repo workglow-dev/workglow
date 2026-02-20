@@ -6,7 +6,7 @@
 
 import { CheckpointData, Dataflow, InMemoryCheckpointSaver, TaskGraph } from "@workglow/task-graph";
 import { beforeEach, describe, expect, it } from "vitest";
-import { FailingTask, NumberTask, TestSimpleTask } from "./TestTasks";
+import { FailingTask, NumberTask, TestSimpleTask, TrackingTask } from "./TestTasks";
 
 describe("Checkpoint", () => {
   let saver: InMemoryCheckpointSaver;
@@ -306,10 +306,11 @@ describe("Checkpoint", () => {
       const history = await saver.getCheckpointHistory("resume-thread");
       expect(history.length).toBeGreaterThanOrEqual(1);
 
-      // Now create a new graph with the same structure and resume
+      // Now create a new graph with the same structure and resume.
+      // Use TrackingTask to verify that task-1 is actually skipped (not re-executed).
       const graph2 = new TaskGraph();
-      const task1b = new TestSimpleTask({ input: "first" }, { id: "task-1" });
-      const task2b = new TestSimpleTask({ input: "second" }, { id: "task-2" });
+      const task1b = new TrackingTask({ input: "first" }, { id: "task-1" });
+      const task2b = new TrackingTask({ input: "second" }, { id: "task-2" });
 
       graph2.addTask(task1b);
       graph2.addTask(task2b);
@@ -326,7 +327,10 @@ describe("Checkpoint", () => {
         }
       );
 
-      // Should complete successfully
+      // All tasks were already COMPLETED in the checkpoint, so both should be skipped
+      expect(task1b.executed).toBe(false);
+      expect(task2b.executed).toBe(false);
+      // Should complete successfully with no new leaf results (all skipped)
       expect(results.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -361,6 +365,29 @@ describe("Checkpoint", () => {
         cp.taskStates.some((ts) => ts.taskId === "task-1" && ts.status === "COMPLETED")
       );
       expect(resumeCheckpoint).toBeDefined();
+
+      // Now resume from this checkpoint with a non-failing version of task-2
+      const resumeGraph = new TaskGraph();
+      const task1Resume = new TrackingTask({ input: 42 }, { id: "task-1" });
+      const task2Resume = new TrackingTask({}, { id: "task-2" });
+
+      resumeGraph.addTask(task1Resume);
+      resumeGraph.addTask(task2Resume);
+      resumeGraph.addDataflow(new Dataflow("task-1", "output", "task-2", "in"));
+
+      await resumeGraph.run(
+        {},
+        {
+          checkpointSaver: saver,
+          threadId: "fail-thread-resumed",
+          resumeFromCheckpoint: resumeCheckpoint!.checkpointId,
+        }
+      );
+
+      // task-1 was COMPLETED in the checkpoint, so it should be skipped (not re-executed)
+      expect(task1Resume.executed).toBe(false);
+      // task-2 was not completed in the checkpoint, so it should have been re-run
+      expect(task2Resume.executed).toBe(true);
     });
   });
 

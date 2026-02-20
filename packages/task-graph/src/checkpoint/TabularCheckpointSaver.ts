@@ -155,7 +155,10 @@ export class TabularCheckpointSaver extends CheckpointSaver {
     return {
       checkpointId: row.checkpoint_id as string,
       threadId: row.thread_id as string,
-      parentCheckpointId: (row.parent_checkpoint_id as string) || undefined,
+      parentCheckpointId:
+        (row.parent_checkpoint_id as string) === ""
+          ? undefined
+          : (row.parent_checkpoint_id as string),
       graphJson,
       taskStates,
       dataflowStates,
