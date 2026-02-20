@@ -13,6 +13,7 @@ import {
   OpenAI_TextGeneration,
   OpenAI_TextRewriter,
   OpenAI_TextSummary,
+  _setTiktokenForTesting,
 } from "@workglow/ai-provider/openai";
 import {
   getTaskQueueRegistry,
@@ -33,13 +34,6 @@ vi.mock("openai", () => ({
 }));
 
 const mockTiktokenEncode = vi.fn();
-vi.mock("tiktoken", () => ({
-  encoding_for_model: vi.fn((model: string) => {
-    if (model === "unknown-model") throw new Error("Unknown model");
-    return { encode: mockTiktokenEncode };
-  }),
-  get_encoding: vi.fn((_name: string) => ({ encode: mockTiktokenEncode })),
-}));
 
 const makeModel = (modelName: string, apiKey = "test-key") => ({
   model_id: "test-uuid",
@@ -61,6 +55,13 @@ describe("OpenAiProvider", () => {
     setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
+    _setTiktokenForTesting({
+      encoding_for_model: vi.fn((model: string) => {
+        if (model === "unknown-model") throw new Error("Unknown model");
+        return { encode: mockTiktokenEncode };
+      }),
+      get_encoding: vi.fn((_name: string) => ({ encode: mockTiktokenEncode })),
+    } as any);
     vi.clearAllMocks();
   });
 
@@ -69,6 +70,7 @@ describe("OpenAiProvider", () => {
   });
 
   afterAll(() => {
+    _setTiktokenForTesting(undefined);
     setTaskQueueRegistry(null);
   });
 
