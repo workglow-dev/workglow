@@ -433,10 +433,15 @@ describe("TaskGraph Streaming", () => {
     });
   });
 
-  describe("Edge-level stream accumulation", () => {
-    it("should accumulate text-deltas for non-streaming downstream (append, empty finish)", async () => {
+  describe("Source-task streaming accumulation (graph-level)", () => {
+    it("should materialise text-deltas for non-streaming downstream via source-task accumulation", async () => {
       graph = new TaskGraph();
 
+      // AppendEmptyFinishSource emits text-deltas + empty finish {}.
+      // The graph runner detects a non-streaming downstream and sets
+      // shouldAccumulate=true, so the source task emits an enriched finish
+      // event with the accumulated text.  The dataflow reads the finish event
+      // and materialises the value without re-accumulating text-deltas itself.
       const source = new AppendEmptyFinishSource({ prompt: "test" }, { id: "source" });
       const consumer = new NonStreamConsumerTask({} as any, { id: "consumer" });
 
@@ -449,13 +454,12 @@ describe("TaskGraph Streaming", () => {
       expect(source.status).toBe(TaskStatus.COMPLETED);
       expect(consumer.status).toBe(TaskStatus.COMPLETED);
 
-      // The non-streaming consumer should have received the ACCUMULATED text
-      // from the stream, not the empty finish data.
+      // Consumer should have received the accumulated text via the enriched finish event
       expect(results.length).toBe(1);
       expect((results[0].data as any).text).toBe("final: edge accumulated");
     });
 
-    it("should accumulate for fan-out where one downstream is non-streaming", async () => {
+    it("should accumulate once and share via tee for fan-out (one streaming, one non-streaming)", async () => {
       graph = new TaskGraph();
 
       const source = new AppendEmptyFinishSource({ prompt: "test" }, { id: "source" });
@@ -473,13 +477,13 @@ describe("TaskGraph Streaming", () => {
       expect(streamConsumer.status).toBe(TaskStatus.COMPLETED);
       expect(nonStreamConsumer.status).toBe(TaskStatus.COMPLETED);
 
-      // The non-streaming consumer should have the accumulated value
+      // The non-streaming consumer gets the accumulated value via the enriched finish
       const nonStreamResult = results.find((r) => r.id === "non-stream-c");
       expect(nonStreamResult).toBeDefined();
       expect((nonStreamResult!.data as any).text).toBe("final: edge accumulated");
     });
 
-    it("should accumulate replace-mode snapshots for non-streaming downstream", async () => {
+    it("should materialise replace-mode snapshots for non-streaming downstream", async () => {
       graph = new TaskGraph();
 
       const source = new ReplaceSourceTask({ prompt: "test" }, { id: "source" });
@@ -491,20 +495,23 @@ describe("TaskGraph Streaming", () => {
       runner = new TaskGraphRunner(graph);
       const results = await runner.runGraph({ prompt: "test" });
 
-      // Replace mode: the last snapshot should be materialized
+      // Replace mode: the final snapshot is used
       expect((results[0].data as any).text).toBe("final: Hello world!");
     });
   });
 
   describe("Dataflow.awaitStreamValue", () => {
-    it("should accumulate text-delta events into value", async () => {
+    it("should materialise value from enriched finish event (source task accumulates, not the edge)", async () => {
+      // The source task emits an enriched finish event carrying the full accumulated text.
+      // The dataflow just reads the finish event -- it does NOT re-accumulate text-deltas.
       const dataflow = new Dataflow("a", "text", "b", "text");
 
       const stream = new ReadableStream<StreamEvent>({
         start(controller) {
           controller.enqueue({ type: "text-delta", port: "text", textDelta: "hello" });
           controller.enqueue({ type: "text-delta", port: "text", textDelta: " world" });
-          controller.enqueue({ type: "finish", data: {} });
+          // Enriched finish -- source task already accumulated the text-deltas
+          controller.enqueue({ type: "finish", data: { text: "hello world" } });
           controller.close();
         },
       });
@@ -512,12 +519,12 @@ describe("TaskGraph Streaming", () => {
       dataflow.setStream(stream);
       await dataflow.awaitStreamValue();
 
-      // For specific-port dataflow, value is the accumulated string
+      // Finish data is used; text-deltas are ignored by the edge
       expect(dataflow.value).toBe("hello world");
       expect(dataflow.getStream()).toBeUndefined();
     });
 
-    it("should use last snapshot for replace-mode events", async () => {
+    it("should use last snapshot for replace-mode events (snapshot takes priority over finish)", async () => {
       const dataflow = new Dataflow("a", "text", "b", "text");
 
       const stream = new ReadableStream<StreamEvent>({
@@ -536,11 +543,12 @@ describe("TaskGraph Streaming", () => {
       expect(dataflow.value).toBe("complete");
     });
 
-    it("should prefer non-empty finish data over text-delta accumulation", async () => {
+    it("should use finish event data when no snapshot is present", async () => {
       const dataflow = new Dataflow("a", "text", "b", "text");
 
       const stream = new ReadableStream<StreamEvent>({
         start(controller) {
+          // text-deltas ignored; source task provides enriched finish
           controller.enqueue({ type: "text-delta", port: "text", textDelta: "partial" });
           controller.enqueue({ type: "finish", data: { text: "full result" } });
           controller.close();
@@ -550,18 +558,21 @@ describe("TaskGraph Streaming", () => {
       dataflow.setStream(stream);
       await dataflow.awaitStreamValue();
 
-      // Finish data takes priority over text-delta accumulation
+      // Finish data is used directly
       expect(dataflow.value).toBe("full result");
     });
 
-    it("should handle DATAFLOW_ALL_PORTS for append mode using output schema", async () => {
+    it("should use enriched finish for DATAFLOW_ALL_PORTS edges", async () => {
+      // Source task with shouldAccumulate=true emits enriched finish.
+      // The all-ports edge just reads the finish payload.
       const dataflow = new Dataflow("a", "*", "b", "*");
 
       const stream = new ReadableStream<StreamEvent>({
         start(controller) {
           controller.enqueue({ type: "text-delta", port: "text", textDelta: "abc" });
           controller.enqueue({ type: "text-delta", port: "text", textDelta: "def" });
-          controller.enqueue({ type: "finish", data: {} });
+          // Enriched finish from source task
+          controller.enqueue({ type: "finish", data: { text: "abcdef" } });
           controller.close();
         },
       });
@@ -569,17 +580,20 @@ describe("TaskGraph Streaming", () => {
       dataflow.setStream(stream);
       await dataflow.awaitStreamValue();
 
+      // all-ports: setPortData stores the whole finish payload as value
       expect(dataflow.value).toEqual({ text: "abcdef" });
     });
 
-    it("should handle DATAFLOW_ALL_PORTS with non-text append port from schema", async () => {
-      const dataflow = new Dataflow("a", "*", "b", "*");
+    it("should ignore text-delta events and leave value undefined when finish carries no data", async () => {
+      // When shouldAccumulate=false on source, raw empty finish is emitted.
+      // Edge sees no finish data and no snapshot, so value stays undefined.
+      // (In practice this only happens when the downstream edge doesn't need data.)
+      const dataflow = new Dataflow("a", "text", "b", "text");
 
       const stream = new ReadableStream<StreamEvent>({
         start(controller) {
-          controller.enqueue({ type: "text-delta", port: "code", textDelta: "fn main() {" });
-          controller.enqueue({ type: "text-delta", port: "code", textDelta: "}" });
-          controller.enqueue({ type: "finish", data: {} });
+          controller.enqueue({ type: "text-delta", port: "text", textDelta: "ignored" });
+          controller.enqueue({ type: "finish", data: {} as any });
           controller.close();
         },
       });
@@ -587,25 +601,9 @@ describe("TaskGraph Streaming", () => {
       dataflow.setStream(stream);
       await dataflow.awaitStreamValue();
 
-      expect(dataflow.value).toEqual({ code: "fn main() {}" });
-    });
-
-    it("should handle DATAFLOW_ALL_PORTS with text-deltas using port from events (no schema needed)", async () => {
-      const dataflow = new Dataflow("a", "*", "b", "*");
-
-      const stream = new ReadableStream<StreamEvent>({
-        start(controller) {
-          controller.enqueue({ type: "text-delta", port: "text", textDelta: "abc" });
-          controller.enqueue({ type: "finish", data: {} });
-          controller.close();
-        },
-      });
-
-      dataflow.setStream(stream);
-      await dataflow.awaitStreamValue();
-
-      // Port comes from events; no output schema needed
-      expect(dataflow.value).toEqual({ text: "abc" });
+      // No snapshot, finish data is empty object → setPortData({}) → value = undefined for specific port
+      expect(dataflow.value).toBeUndefined();
+      expect(dataflow.getStream()).toBeUndefined();
     });
 
     it("should throw and set FAILED status on stream error events", async () => {

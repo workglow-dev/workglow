@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { areSemanticallyCompatible, type DataPortSchema, EventEmitter } from "@workglow/util";
+import { areSemanticallyCompatible, EventEmitter } from "@workglow/util";
 import { type StreamEvent } from "../task/StreamTypes";
 import { TaskError } from "../task/TaskError";
 import { DataflowJson } from "../task/TaskJSON";
@@ -77,17 +77,18 @@ export class Dataflow {
   /**
    * Consumes the active stream to completion and materializes the value.
    *
-   * This is edge-level accumulation for non-streaming downstream tasks that
-   * depend on a streaming upstream task. The method reads all stream events
-   * and determines the final value:
+   * Accumulation of text-delta chunks is the responsibility of the **source
+   * task** (via TaskRunner.executeStreamingTask when shouldAccumulate=true).
+   * When accumulation is needed the source task emits an enriched finish event
+   * that carries the fully-assembled port data. All downstream edges share that
+   * enriched event through tee'd ReadableStreams, so no edge needs to
+   * re-accumulate independently.
    *
-   * - **append mode** (text-delta events): accumulates per-port using the
-   *   `port` field on each delta event. For specific-port edges, only deltas
-   *   matching the edge's source port are accumulated. For DATAFLOW_ALL_PORTS
-   *   edges, all ports are accumulated into a `{ [port]: text }` object.
-   * - **replace mode** (snapshot events): uses the data from the last snapshot.
-   * - **finish with data**: uses the finish payload (covers cache-on append and
-   *   replace modes where the provider already accumulated).
+   * This method therefore only reads snapshot and finish events:
+   * - **snapshot**: used for replace-mode tasks that emit incremental snapshots.
+   * - **finish**: the primary materialization path; carries complete data when
+   *   the source task accumulated, or provider-level data otherwise.
+   * - text-delta / object-delta: ignored here (handled by source task).
    *
    * After consumption the stream reference is cleared. Calling this method on
    * a dataflow that has no stream is a no-op.
@@ -96,10 +97,8 @@ export class Dataflow {
     if (!this.stream) return;
 
     const reader = this.stream.getReader();
-    const accumulatedPorts = new Map<string, string>();
     let lastSnapshotData: any = undefined;
     let finishData: any = undefined;
-    let hasTextDelta = false;
     let streamError: Error | undefined;
 
     try {
@@ -108,18 +107,6 @@ export class Dataflow {
         if (done) break;
 
         switch (event.type) {
-          case "text-delta": {
-            // For specific-port edges, only accumulate matching deltas
-            if (this.sourceTaskPortId !== DATAFLOW_ALL_PORTS && event.port !== this.sourceTaskPortId) {
-              break;
-            }
-            hasTextDelta = true;
-            accumulatedPorts.set(event.port, (accumulatedPorts.get(event.port) ?? "") + event.textDelta);
-            break;
-          }
-          case "object-delta":
-            // Reserved for future object streaming
-            break;
           case "snapshot":
             lastSnapshotData = event.data;
             break;
@@ -129,6 +116,7 @@ export class Dataflow {
           case "error":
             streamError = event.error;
             break;
+          // text-delta, object-delta: source task handles accumulation
         }
       }
     } finally {
@@ -142,27 +130,13 @@ export class Dataflow {
       throw streamError;
     }
 
-    // Determine the materialized value.
-    // Priority: snapshot > non-empty finish > accumulated text-deltas.
+    // Priority: snapshot > finish.
+    // The source task enriches the finish event with accumulated text when
+    // shouldAccumulate=true, so finishData carries complete port data.
     if (lastSnapshotData !== undefined) {
-      // Replace mode: last snapshot is a complete output object
       this.setPortData(lastSnapshotData);
-    } else if (finishData && Object.keys(finishData).length > 0) {
-      // Finish event carried data (e.g. append with cache-on, or replace)
+    } else if (finishData !== undefined) {
       this.setPortData(finishData);
-    } else if (hasTextDelta) {
-      // Append mode (cache off): reconstruct from accumulated text-deltas
-      if (this.sourceTaskPortId === DATAFLOW_ALL_PORTS) {
-        const obj: Record<string, string> = {};
-        for (const [port, text] of accumulatedPorts) {
-          obj[port] = text;
-        }
-        this.value = obj;
-      } else {
-        // Single-port edge: use the accumulated text for that port
-        const text = accumulatedPorts.values().next().value ?? "";
-        this.value = text;
-      }
     }
   }
 

@@ -46,6 +46,17 @@ export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
  */
 export interface IRunConfig {
   outputCache?: TaskOutputRepository | boolean;
+  /**
+   * Whether the streaming task runner should accumulate text-delta chunks and
+   * emit an enriched finish event that merges the accumulated text into the
+   * output. When true, the finish event carries complete port data so that
+   * downstream dataflows can materialize values without re-accumulating.
+   *
+   * Defaults to `true` for standalone task execution (backward-compatible).
+   * The graph runner sets this to `false` when no downstream edge needs
+   * materialized data (cache off, all downstream tasks are also streaming).
+   */
+  shouldAccumulate?: boolean;
   updateProgress?: (
     task: ITask,
     progress: number,

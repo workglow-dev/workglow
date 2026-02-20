@@ -14,7 +14,13 @@ import {
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import { ITask } from "../task/ITask";
-import { getOutputStreamMode, isTaskStreamable, type StreamEvent } from "../task/StreamTypes";
+import {
+  edgeNeedsAccumulation,
+  getOutputStreamMode,
+  getStreamingPorts,
+  isTaskStreamable,
+  type StreamEvent,
+} from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { TaskAbortedError, TaskConfigurationError, TaskError } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
@@ -484,6 +490,48 @@ export class TaskGraphRunner {
   }
 
   /**
+   * Determines whether a streaming task needs to accumulate its text-delta
+   * chunks into an enriched finish event. Accumulation is needed when:
+   *
+   * 1. Output caching is active (the cached value must be fully materialised).
+   * 2. Any outgoing dataflow edge connects a streaming output port to an input
+   *    port that is not streaming with the same mode (i.e. the downstream task
+   *    cannot consume a raw stream and needs a completed value).
+   *
+   * When accumulation is required the source task runs with shouldAccumulate=true,
+   * emitting an enriched finish event that carries all accumulated port text.
+   * All downstream dataflow edges share that event via tee'd streams so no
+   * edge needs to re-accumulate independently.
+   */
+  protected taskNeedsAccumulation(task: ITask): boolean {
+    if (this.outputCache) return true;
+
+    const outEdges = this.graph.getTargetDataflows(task.config.id);
+    if (outEdges.length === 0) return false;
+
+    const outSchema = task.outputSchema();
+
+    for (const df of outEdges) {
+      if (df.sourceTaskPortId === DATAFLOW_ALL_PORTS) {
+        // Conservative: if any streaming output port exists, accumulate.
+        // This covers the case where all-ports edges fan into non-streaming tasks.
+        if (getStreamingPorts(outSchema).length > 0) return true;
+        continue;
+      }
+
+      const targetTask = this.graph.getTask(df.targetTaskId);
+      if (!targetTask) continue;
+      const inSchema = targetTask.inputSchema();
+
+      if (edgeNeedsAccumulation(outSchema, df.sourceTaskPortId, inSchema, df.targetTaskPortId)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Runs a task
    * @param task The task to run
    * @param input The input for the task
@@ -527,7 +575,9 @@ export class TaskGraphRunner {
     }
 
     const results = await task.runner.run(input, {
-      outputCache: this.outputCache,
+      // Pass `false` when no cache so TaskRunner.handleStart explicitly clears
+      // its own cached reference (undefined would leave the old value intact).
+      outputCache: this.outputCache ?? false,
       updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
         await this.handleProgress(task, progress, message, ...args),
       registry: this.registry,
@@ -567,13 +617,15 @@ export class TaskGraphRunner {
    * Listens for stream events to:
    * - Notify the scheduler when streaming begins (unblocking downstream streamable tasks)
    * - Push stream data to outgoing dataflow edges
-   * - Accumulate output at edge level for non-streaming downstream tasks
+   * - Have the source task accumulate and emit enriched finish events for
+   *   non-streaming downstream tasks (when taskNeedsAccumulation() is true)
    */
   protected async runStreamingTask<T>(
     task: ITask,
     input: TaskInput
   ): Promise<GraphSingleTaskResult<T>> {
     const streamMode = getOutputStreamMode(task.outputSchema());
+    const shouldAccumulate = this.taskNeedsAccumulation(task);
 
     let streamingNotified = false;
 
@@ -605,7 +657,8 @@ export class TaskGraphRunner {
 
     try {
       const results = await task.runner.run(input, {
-        outputCache: this.outputCache,
+        outputCache: this.outputCache ?? false,
+        shouldAccumulate,
         updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
           await this.handleProgress(task, progress, message, ...args),
         registry: this.registry,
@@ -644,7 +697,11 @@ export class TaskGraphRunner {
       start: (controller) => {
         const onChunk = (event: StreamEvent) => {
           try {
-            if (portId !== undefined && TaskGraphRunner.isPortDelta(event) && event.port !== portId) {
+            if (
+              portId !== undefined &&
+              TaskGraphRunner.isPortDelta(event) &&
+              event.port !== portId
+            ) {
               return;
             }
             controller.enqueue(event);

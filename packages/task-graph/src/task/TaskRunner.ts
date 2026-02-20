@@ -10,7 +10,13 @@ import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
-import { isTaskStreamable, getOutputStreamMode, getStreamingPorts, type StreamEvent, type StreamMode } from "./StreamTypes";
+import {
+  getOutputStreamMode,
+  getStreamingPorts,
+  isTaskStreamable,
+  type StreamEvent,
+  type StreamMode,
+} from "./StreamTypes";
 import { Task } from "./Task";
 import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
 import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
@@ -56,6 +62,15 @@ export class TaskRunner<
    * upstream streaming edges. Keyed by input port name.
    */
   public inputStreams?: Map<string, ReadableStream<StreamEvent>>;
+
+  /**
+   * Whether the streaming task runner should accumulate text-delta chunks and
+   * emit an enriched finish event. Set from IRunConfig.shouldAccumulate.
+   * Defaults to true so standalone task execution is backward-compatible.
+   * The graph runner sets this to false when no downstream edge needs
+   * materialized data (no cache, all downstream tasks are also streaming).
+   */
+  protected shouldAccumulate: boolean = true;
 
   /**
    * Constructor for TaskRunner
@@ -226,9 +241,18 @@ export class TaskRunner<
 
   /**
    * Executes a streaming task by consuming its executeStream() async iterable.
-   * In append mode, text-delta chunks are accumulated per-port into a Map keyed
-   * by the port name from each event. In replace mode, the final output comes
-   * from the finish event data.
+   *
+   * When `shouldAccumulate` is true (default, set by graph runner when any downstream
+   * edge needs materialized data, or when caching is on):
+   *   - text-delta chunks are accumulated per-port into a Map
+   *   - the raw finish event is NOT emitted; instead an enriched finish event is
+   *     emitted with the accumulated text merged in, so downstream dataflows can
+   *     materialize values without re-accumulating on their own
+   *
+   * When `shouldAccumulate` is false (set by graph runner when all downstream edges
+   * are also streaming and no cache is needed):
+   *   - all events including the raw finish are emitted as-is (pure pass-through)
+   *   - no accumulation Map is maintained
    */
   protected async executeStreamingTask(input: Input): Promise<Output | undefined> {
     const streamMode: StreamMode = getOutputStreamMode(this.task.outputSchema());
@@ -241,7 +265,7 @@ export class TaskRunner<
       }
     }
 
-    const accumulated = new Map<string, string>();
+    const accumulated = this.shouldAccumulate ? new Map<string, string>() : undefined;
     let chunkCount = 0;
     let finalOutput: Output | undefined;
 
@@ -269,35 +293,44 @@ export class TaskRunner<
         this.task.runOutputData = event.data as Output;
       }
 
-      this.task.emit("stream_chunk", event as StreamEvent);
-
       switch (event.type) {
         case "text-delta": {
-          accumulated.set(event.port, (accumulated.get(event.port) ?? "") + event.textDelta);
+          if (accumulated) {
+            accumulated.set(event.port, (accumulated.get(event.port) ?? "") + event.textDelta);
+          }
+          this.task.emit("stream_chunk", event as StreamEvent);
           const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
           await this.handleProgress(progress);
           break;
         }
         case "object-delta": {
           // Reserved for future object streaming -- no accumulation yet
+          this.task.emit("stream_chunk", event as StreamEvent);
           const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
           await this.handleProgress(progress);
           break;
         }
         case "snapshot": {
+          this.task.emit("stream_chunk", event as StreamEvent);
           const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
           await this.handleProgress(progress);
           break;
         }
         case "finish": {
-          if (streamMode === "append") {
+          if (accumulated) {
+            // Emit an enriched finish event: merge accumulated text-deltas into
+            // the finish payload so downstream dataflows get complete port data
+            // without needing to re-accumulate themselves.
             const merged: Record<string, unknown> = { ...(event.data || {}) };
             for (const [port, text] of accumulated) {
-              merged[port] = text.length > 0 ? text : ((event.data as Record<string, unknown>)?.[port] ?? "");
+              if (text.length > 0) merged[port] = text;
             }
             finalOutput = merged as unknown as Output;
-          } else if (streamMode === "replace") {
+            this.task.emit("stream_chunk", { type: "finish", data: merged } as StreamEvent);
+          } else {
+            // No accumulation: emit the raw finish event and use it directly
             finalOutput = event.data as Output;
+            this.task.emit("stream_chunk", event as StreamEvent);
           }
           break;
         }
@@ -355,6 +388,9 @@ export class TaskRunner<
     } else if (cache instanceof TaskOutputRepository) {
       this.outputCache = cache;
     }
+
+    // shouldAccumulate defaults to true (backward-compatible for standalone runs)
+    this.shouldAccumulate = config.shouldAccumulate !== false;
 
     if (config.updateProgress) {
       this.updateProgress = config.updateProgress;
