@@ -82,6 +82,7 @@ async function loadTransformersSDK() {
   if (!_transformersSdk) {
     try {
       _transformersSdk = await import("@sroussey/transformers");
+      _transformersSdk.env.fetch = abortableFetch as typeof fetch;
     } catch {
       throw new Error(
         "@sroussey/transformers is required for HuggingFace Transformers tasks. Install it with: bun add @sroussey/transformers"
@@ -95,6 +96,25 @@ import { TypedArray } from "@workglow/util";
 import { CallbackStatus } from "./HFT_CallbackStatus";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
+
+/** Per-model AbortControllers used by abortableFetch; keyed by model_path. */
+const modelAbortControllers = new Map<string, AbortController>();
+
+function abortableFetch(url: string, options: RequestInit): Promise<Response> {
+  let signal: AbortSignal | undefined;
+  try {
+    const pathname = new URL(url).pathname;
+    for (const [modelPath, controller] of modelAbortControllers) {
+      if (pathname.includes(`/${modelPath}/`)) {
+        signal = controller.signal;
+        break;
+      }
+    }
+  } catch {
+    /* not a parseable URL, proceed without abort */
+  }
+  return fetch(url, { ...options, ...(signal ? { signal } : {}) });
+}
 
 const pipelines = new Map<string, any>();
 
@@ -126,6 +146,7 @@ const getPipeline = async (
   model: HfTransformersOnnxModelConfig,
   onProgress: (progress: number, message?: string, details?: any) => void,
   options: PretrainedModelOptions = {},
+  signal?: AbortSignal,
   progressScaleMax: number = 10
 ) => {
   const cacheKey = getPipelineCacheKey(model);
@@ -133,7 +154,7 @@ const getPipeline = async (
     return pipelines.get(cacheKey);
   }
 
-  // Single-flight: only one load per model at a time to avoid concurrent writes to the same
+  // Output[number]-flight: only one load per model at a time to avoid concurrent writes to the same
   // ONNX cache path (which can yield "Protobuf parsing failed" when one process reads while another writes).
   const inFlight = pipelineLoadPromises.get(cacheKey);
   if (inFlight) {
@@ -143,11 +164,16 @@ const getPipeline = async (
     // Load failed for the other caller; fall through to retry (we remove from map in finally).
   }
 
-  const loadPromise = doGetPipeline(model, onProgress, options, progressScaleMax, cacheKey).finally(
-    () => {
-      pipelineLoadPromises.delete(cacheKey);
-    }
-  );
+  const loadPromise = doGetPipeline(
+    model,
+    onProgress,
+    options,
+    progressScaleMax,
+    cacheKey,
+    signal
+  ).finally(() => {
+    pipelineLoadPromises.delete(cacheKey);
+  });
   pipelineLoadPromises.set(cacheKey, loadPromise);
   return loadPromise;
 };
@@ -157,7 +183,8 @@ const doGetPipeline = async (
   onProgress: (progress: number, message?: string, details?: any) => void,
   options: PretrainedModelOptions,
   progressScaleMax: number,
-  cacheKey: string
+  cacheKey: string,
+  signal?: AbortSignal
 ) => {
   // Track file sizes and progress for weighted calculation
   const fileSizes = new Map<string, number>();
@@ -244,8 +271,20 @@ const doGetPipeline = async (
   let hasSeenSubstantialFile = false;
   const substantialFileThreshold = 1024 * 1024; // 1MB - files larger than this are substantial
 
-  // Get the abort signal from options if provided
-  const abortSignal = options.abort_signal;
+  // Get the abort signal from the signal parameter
+  const abortSignal = signal;
+
+  // Register a per-model AbortController so abortableFetch can cancel in-flight fetches
+  const modelPath = model.provider_config.model_path;
+  const modelController = new AbortController();
+  modelAbortControllers.set(modelPath, modelController);
+  if (abortSignal) {
+    if (abortSignal.aborted) {
+      modelController.abort();
+    } else {
+      abortSignal.addEventListener("abort", () => modelController.abort(), { once: true });
+    }
+  }
 
   // Create a callback status object for progress tracking
   const progressCallback = (status: CallbackStatus) => {
@@ -436,35 +475,16 @@ const doGetPipeline = async (
 
   // Check if already aborted before starting
   if (abortSignal?.aborted) {
+    modelAbortControllers.delete(modelPath);
     throw new Error("Operation aborted before pipeline creation");
   }
 
   const pipelineType = model.provider_config.pipeline;
 
-  // Wrap the pipeline call with abort handling
-  // Create a promise that rejects when aborted
-  const abortPromise = new Promise<never>((_, reject) => {
-    if (abortSignal) {
-      const handleAbort = () => {
-        reject(new Error("Pipeline download aborted"));
-      };
-
-      if (abortSignal.aborted) {
-        handleAbort();
-      } else {
-        abortSignal.addEventListener("abort", handleAbort, { once: true });
-      }
-    }
-  });
-
-  // Race between pipeline creation and abort
   const { pipeline } = await loadTransformersSDK();
-  const pipelinePromise = pipeline(pipelineType, model.provider_config.model_path, pipelineOptions);
 
   try {
-    const result = await (abortSignal
-      ? Promise.race([pipelinePromise, abortPromise])
-      : pipelinePromise);
+    const result = await pipeline(pipelineType, model.provider_config.model_path, pipelineOptions);
 
     // Check if aborted after pipeline creation
     if (abortSignal?.aborted) {
@@ -475,11 +495,12 @@ const doGetPipeline = async (
     return result;
   } catch (error: any) {
     // If aborted, throw a clean abort error rather than internal stream errors
-    if (abortSignal?.aborted) {
+    if (abortSignal?.aborted || modelController.signal.aborted) {
       throw new Error("Pipeline download aborted");
     }
-    // Otherwise, re-throw the original error
     throw error;
+  } finally {
+    modelAbortControllers.delete(modelPath);
   }
 };
 
@@ -494,7 +515,7 @@ export const HFT_Download: AiProviderRunFn<
 > = async (input, model, onProgress, signal) => {
   // Download the model by creating a pipeline
   // Use 100 as progressScaleMax since this is download-only (0-100%)
-  await getPipeline(model!, onProgress, { abort_signal: signal }, 100);
+  await getPipeline(model!, onProgress, {}, signal, 100);
 
   return {
     model: input.model!,
@@ -575,15 +596,17 @@ export const HFT_TextEmbedding: AiProviderRunFn<
   TextEmbeddingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const generateEmbedding: FeatureExtractionPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const generateEmbedding: FeatureExtractionPipeline = await getPipeline(
+    model!,
+    onProgress,
+    {},
+    signal
+  );
 
   // Generate the embedding
   const hfVector = await generateEmbedding(input.text, {
     pooling: model?.provider_config.pooling || "mean",
     normalize: model?.provider_config.normalize,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   const isArrayInput = Array.isArray(input.text);
@@ -618,7 +641,7 @@ export const HFT_TextEmbedding: AiProviderRunFn<
     return { vector: vectors };
   }
 
-  // Single text input - validate dimensions
+  // Output[number] text input - validate dimensions
   if (hfVector.size !== embeddingDim) {
     console.warn(
       `HuggingFace Embedding vector length does not match model dimensions v${hfVector.size} != m${embeddingDim}`,
@@ -650,9 +673,8 @@ export const HFT_TextClassification: AiProviderRunFn<
     const zeroShotClassifier: ZeroShotClassificationPipeline = await getPipeline(
       model!,
       onProgress,
-      {
-        abort_signal: signal,
-      }
+      {},
+      signal
     );
     const result: any = await zeroShotClassifier(input.text, input.candidateLabels as string[], {});
 
@@ -664,12 +686,14 @@ export const HFT_TextClassification: AiProviderRunFn<
     };
   }
 
-  const TextClassification: TextClassificationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const TextClassification: TextClassificationPipeline = await getPipeline(
+    model!,
+    onProgress,
+    {},
+    signal
+  );
   const result = await TextClassification(input.text, {
     top_k: input.maxCategories || undefined,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   if (Array.isArray(result[0])) {
@@ -694,12 +718,14 @@ export const HFT_TextLanguageDetection: AiProviderRunFn<
   TextLanguageDetectionTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const TextClassification: TextClassificationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const TextClassification: TextClassificationPipeline = await getPipeline(
+    model!,
+    onProgress,
+    {},
+    signal
+  );
   const result = await TextClassification(input.text, {
     top_k: input.maxLanguages || undefined,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   if (Array.isArray(result[0])) {
@@ -727,13 +753,11 @@ export const HFT_TextNamedEntityRecognition: AiProviderRunFn<
   const textNamedEntityRecognition: TokenClassificationPipeline = await getPipeline(
     model!,
     onProgress,
-    {
-      abort_signal: signal,
-    }
+    {},
+    signal
   );
   let results = await textNamedEntityRecognition(input.text, {
     ignore_labels: input.blockList as string[] | undefined,
-    ...(signal ? { abort_signal: signal } : {}),
   });
   let entities: TokenClassificationOutput = [];
   if (!Array.isArray(results)) {
@@ -755,9 +779,7 @@ export const HFT_TextFillMask: AiProviderRunFn<
   TextFillMaskTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const unmasker: FillMaskPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const unmasker: FillMaskPipeline = await getPipeline(model!, onProgress, {}, signal);
   let results = await unmasker(input.text);
   let predictions: FillMaskOutput = [];
   if (!Array.isArray(results)) {
@@ -783,15 +805,12 @@ export const HFT_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, signal);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress);
 
   let results = await generateText(input.prompt, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   if (!Array.isArray(results)) {
@@ -816,9 +835,7 @@ export const HFT_TextTranslation: AiProviderRunFn<
   TextTranslationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const translate: TranslationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const translate: TranslationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const streamer = createTextStreamer(translate.tokenizer, onProgress);
 
   const result = await translate(input.text, {
@@ -846,9 +863,7 @@ export const HFT_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const streamer = createTextStreamer(generateText.tokenizer, onProgress);
 
   // This lib doesn't support this kind of rewriting with a separate prompt vs text
@@ -856,7 +871,6 @@ export const HFT_TextRewriter: AiProviderRunFn<
 
   let results = await generateText(promptedText, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   if (!Array.isArray(results)) {
@@ -886,14 +900,11 @@ export const HFT_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const streamer = createTextStreamer(generateSummary.tokenizer, onProgress);
 
   let result = await generateSummary(input.text, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   } as any);
 
   let summaryText = "";
@@ -918,14 +929,16 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   // Get the question answering pipeline
-  const generateAnswer: QuestionAnsweringPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const generateAnswer: QuestionAnsweringPipeline = await getPipeline(
+    model!,
+    onProgress,
+    {},
+    signal
+  );
   const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress);
 
   const result = await generateAnswer(input.question, input.context, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   } as any);
 
   let answerText = "";
@@ -948,14 +961,11 @@ export const HFT_ImageSegmentation: AiProviderRunFn<
   ImageSegmentationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const segmenter: ImageSegmentationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const segmenter: ImageSegmentationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
   const result = await segmenter(input.image as any, {
     threshold: input.threshold,
     mask_threshold: input.maskThreshold,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   const masks = Array.isArray(result) ? result : [result];
@@ -981,13 +991,10 @@ export const HFT_ImageToText: AiProviderRunFn<
   ImageToTextTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const captioner: ImageToTextPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const captioner: ImageToTextPipeline = await getPipeline(model!, onProgress, {}, signal);
 
   const result: any = await captioner(input.image as string, {
     max_new_tokens: input.maxTokens,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   const text = Array.isArray(result) ? result[0]?.generated_text : result?.generated_text;
@@ -1005,13 +1012,9 @@ export const HFT_BackgroundRemoval: AiProviderRunFn<
   BackgroundRemovalTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const remover: BackgroundRemovalPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const remover: BackgroundRemovalPipeline = await getPipeline(model!, onProgress, {}, signal);
 
-  const result = await remover(input.image as string, {
-    ...(signal ? { abort_signal: signal } : {}),
-  });
+  const result = await remover(input.image as string);
 
   const resultImage = Array.isArray(result) ? result[0] : result;
 
@@ -1028,9 +1031,12 @@ export const HFT_ImageEmbedding: AiProviderRunFn<
   ImageEmbeddingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const embedder: ImageFeatureExtractionPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const embedder: ImageFeatureExtractionPipeline = await getPipeline(
+    model!,
+    onProgress,
+    {},
+    signal
+  );
 
   const result: any = await embedder(input.image as string);
 
@@ -1056,9 +1062,8 @@ export const HFT_ImageClassification: AiProviderRunFn<
     const zeroShotClassifier: ZeroShotImageClassificationPipeline = await getPipeline(
       model!,
       onProgress,
-      {
-        abort_signal: signal,
-      }
+      {},
+      signal
     );
     const result: any = await zeroShotClassifier(
       input.image as string,
@@ -1076,12 +1081,9 @@ export const HFT_ImageClassification: AiProviderRunFn<
     };
   }
 
-  const classifier: ImageClassificationPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const classifier: ImageClassificationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const result: any = await classifier(input.image as string, {
     top_k: (input as any).maxCategories,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   const results = Array.isArray(result) ? result : [result];
@@ -1110,9 +1112,8 @@ export const HFT_ObjectDetection: AiProviderRunFn<
     const zeroShotDetector: ZeroShotObjectDetectionPipeline = await getPipeline(
       model!,
       onProgress,
-      {
-        abort_signal: signal,
-      }
+      {},
+      signal
     );
     const result: any = await zeroShotDetector(input.image as string, Array.from(input.labels!), {
       threshold: (input as any).threshold,
@@ -1129,12 +1130,9 @@ export const HFT_ObjectDetection: AiProviderRunFn<
     };
   }
 
-  const detector: ObjectDetectionPipeline = await getPipeline(model!, onProgress, {
-    abort_signal: signal,
-  });
+  const detector: ObjectDetectionPipeline = await getPipeline(model!, onProgress, {}, signal);
   const result: any = await detector(input.image as string, {
     threshold: (input as any).threshold,
-    ...(signal ? { abort_signal: signal } : {}),
   });
 
   const detections = Array.isArray(result) ? result : [result];
@@ -1160,13 +1158,11 @@ function imageToBase64(image: RawImage): string {
  * Create a text streamer for a given tokenizer and update progress function
  * @param tokenizer - The tokenizer to use for the streamer
  * @param updateProgress - The function to call to update the progress
- * @param signal - The signal to use for the streamer for aborting
  * @returns The text streamer
  */
 function createTextStreamer(
   tokenizer: any,
-  updateProgress: (progress: number, message?: string, details?: any) => void,
-  signal?: AbortSignal
+  updateProgress: (progress: number, message?: string, details?: any) => void
 ) {
   const { TextStreamer } = _transformersSdk!;
   let count = 0;
@@ -1179,7 +1175,6 @@ function createTextStreamer(
       const progress = Math.round(Math.min(result, 100));
       updateProgress(progress, "Generating", { text, progress });
     },
-    ...(signal ? { abort_signal: signal } : {}),
   });
 }
 
@@ -1255,11 +1250,7 @@ function createStreamEventQueue<T>(): StreamEventQueue<T> {
  * The pipeline runs to completion and updates the queue; the caller
  * consumes the queue as an AsyncIterable<StreamEvent>.
  */
-function createStreamingTextStreamer(
-  tokenizer: any,
-  queue: StreamEventQueue<StreamEvent<any>>,
-  signal?: AbortSignal
-) {
+function createStreamingTextStreamer(tokenizer: any, queue: StreamEventQueue<StreamEvent<any>>) {
   const { TextStreamer } = _transformersSdk!;
   return new TextStreamer(tokenizer, {
     skip_prompt: true,
@@ -1267,7 +1258,6 @@ function createStreamingTextStreamer(
     callback_function: (text: string) => {
       queue.push({ type: "text-delta", port: "text", textDelta: text });
     },
-    ...(signal ? { abort_signal: signal } : {}),
   });
 }
 
@@ -1281,16 +1271,13 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
   HfTransformersOnnxModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
   const noopProgress = () => {};
-  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {
-    abort_signal: signal,
-  });
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
 
   const queue = createStreamEventQueue<StreamEvent<TextGenerationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, signal);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
 
   const pipelinePromise = generateText(input.prompt, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   }).then(
     () => queue.done(),
     (err: Error) => queue.error(err)
@@ -1307,9 +1294,7 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
   HfTransformersOnnxModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
   const noopProgress = () => {};
-  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {
-    abort_signal: signal,
-  });
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
 
   const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
@@ -1318,7 +1303,6 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
 
   const pipelinePromise = generateText(promptedText, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   }).then(
     () => queue.done(),
     (err: Error) => queue.error(err)
@@ -1335,16 +1319,18 @@ export const HFT_TextSummary_Stream: AiProviderStreamFn<
   HfTransformersOnnxModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
   const noopProgress = () => {};
-  const generateSummary: SummarizationPipeline = await getPipeline(model!, noopProgress, {
-    abort_signal: signal,
-  });
+  const generateSummary: SummarizationPipeline = await getPipeline(
+    model!,
+    noopProgress,
+    {},
+    signal
+  );
 
   const queue = createStreamEventQueue<StreamEvent<TextSummaryTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue);
 
   const pipelinePromise = generateSummary(input.text, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   } as any).then(
     () => queue.done(),
     (err: Error) => queue.error(err)
@@ -1365,9 +1351,12 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
   signal
 ): AsyncIterable<StreamEvent<TextQuestionAnswerTaskOutput>> {
   const noopProgress = () => {};
-  const generateAnswer: QuestionAnsweringPipeline = await getPipeline(model!, noopProgress, {
-    abort_signal: signal,
-  });
+  const generateAnswer: QuestionAnsweringPipeline = await getPipeline(
+    model!,
+    noopProgress,
+    {},
+    signal
+  );
 
   const queue = createStreamEventQueue<StreamEvent<TextQuestionAnswerTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateAnswer.tokenizer, queue);
@@ -1378,7 +1367,6 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
     | undefined;
   const pipelinePromise = generateAnswer(input.question, input.context, {
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   } as any).then(
     (result) => {
       pipelineResult = result;
@@ -1407,9 +1395,7 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
   HfTransformersOnnxModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextTranslationTaskOutput>> {
   const noopProgress = () => {};
-  const translate: TranslationPipeline = await getPipeline(model!, noopProgress, {
-    abort_signal: signal,
-  });
+  const translate: TranslationPipeline = await getPipeline(model!, noopProgress, {}, signal);
 
   const queue = createStreamEventQueue<StreamEvent<TextTranslationTaskOutput>>();
   const streamer = createStreamingTextStreamer(translate.tokenizer, queue);
@@ -1418,7 +1404,6 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
     src_lang: input.source_lang,
     tgt_lang: input.target_lang,
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   } as any).then(
     () => queue.done(),
     (err: Error) => queue.error(err)
@@ -1437,7 +1422,6 @@ export const HFT_CountTokens: AiProviderRunFn<
   const { AutoTokenizer } = _transformersSdk!;
   const tokenizer = await AutoTokenizer.from_pretrained(model!.provider_config.model_path, {
     progress_callback: (progress: any) => onProgress(progress?.progress ?? 0),
-    ...(signal ? { abort_signal: signal } : {}),
   });
   // encode() returns number[] of token IDs for a single input string
   const tokenIds = tokenizer.encode(input.text);
