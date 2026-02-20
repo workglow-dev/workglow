@@ -36,7 +36,7 @@ import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
  *
  * // Inline mode -- caller provides the tasks:
  * import { ANTHROPIC_TASKS } from "@workglow/ai-provider/anthropic";
- * await new AnthropicProvider(ANTHROPIC_TASKS).register({ mode: "inline" });
+ * await new AnthropicProvider(ANTHROPIC_TASKS, ANTHROPIC_STREAM_TASKS, ANTHROPIC_REACTIVE_TASKS).register({ mode: "inline" });
  * ```
  */
 export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {

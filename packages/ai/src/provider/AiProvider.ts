@@ -196,6 +196,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
       for (const taskType of this.taskTypes) {
         registry.registerAsWorkerRunFn(this.name, taskType);
         registry.registerAsWorkerStreamFn(this.name, taskType);
+        registry.registerAsWorkerReactiveRunFn(this.name, taskType);
       }
     } else {
       for (const [taskType, fn] of Object.entries(this.tasks!)) {
@@ -206,10 +207,11 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
           registry.registerStreamFn(this.name, taskType, fn as AiProviderStreamFn);
         }
       }
-      if (this.reactiveTasks) {
-        for (const [taskType, fn] of Object.entries(this.reactiveTasks)) {
-          registry.registerReactiveRunFn(this.name, taskType, fn as AiProviderReactiveRunFn);
-        }
+    }
+
+    if (this.reactiveTasks) {
+      for (const [taskType, fn] of Object.entries(this.reactiveTasks)) {
+        registry.registerReactiveRunFn(this.name, taskType, fn as AiProviderReactiveRunFn);
       }
     }
 
@@ -242,6 +244,11 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
     if (this.streamTasks) {
       for (const [taskType, fn] of Object.entries(this.streamTasks)) {
         workerServer.registerStreamFunction(taskType, fn);
+      }
+    }
+    if (this.reactiveTasks) {
+      for (const [taskType, fn] of Object.entries(this.reactiveTasks)) {
+        workerServer.registerReactiveFunction(taskType, fn);
       }
     }
   }

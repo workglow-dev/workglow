@@ -5,6 +5,7 @@
  */
 
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
   CountTokensTaskInput,
@@ -237,6 +238,14 @@ export const Anthropic_CountTokens: AiProviderRunFn<
   return { count: result.input_tokens };
 };
 
+export const Anthropic_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  AnthropicModelConfig
+> = async (input, _output, _model) => {
+  return { count: Math.ceil(input.text.length / 4) };
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
@@ -255,4 +264,11 @@ export const ANTHROPIC_STREAM_TASKS: Record<
   TextGenerationTask: Anthropic_TextGeneration_Stream,
   TextRewriterTask: Anthropic_TextRewriter_Stream,
   TextSummaryTask: Anthropic_TextSummary_Stream,
+};
+
+export const ANTHROPIC_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, AnthropicModelConfig>
+> = {
+  CountTokensTask: Anthropic_CountTokens_Reactive,
 };

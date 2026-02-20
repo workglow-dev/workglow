@@ -5,6 +5,7 @@
  */
 
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
   CountTokensTaskInput,
@@ -297,6 +298,14 @@ export const OpenAI_CountTokens: AiProviderRunFn<
   }
 };
 
+export const OpenAI_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  OpenAiModelConfig
+> = async (input, _output, model) => {
+  return OpenAI_CountTokens(input, model, () => {}, new AbortController().signal);
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
@@ -316,4 +325,11 @@ export const OPENAI_STREAM_TASKS: Record<
   TextGenerationTask: OpenAI_TextGeneration_Stream,
   TextRewriterTask: OpenAI_TextRewriter_Stream,
   TextSummaryTask: OpenAI_TextSummary_Stream,
+};
+
+export const OPENAI_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, OpenAiModelConfig>
+> = {
+  CountTokensTask: OpenAI_CountTokens_Reactive,
 };

@@ -5,6 +5,7 @@
  */
 
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
   CountTokensTaskInput,
@@ -518,6 +519,14 @@ export const LlamaCpp_CountTokens: AiProviderRunFn<
   return { count: tokens.length };
 };
 
+export const LlamaCpp_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  LlamaCppModelConfig
+> = async (input, _output, model) => {
+  return LlamaCpp_CountTokens(input, model, () => {}, new AbortController().signal);
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
@@ -539,4 +548,11 @@ export const LLAMACPP_STREAM_TASKS: Record<
   TextGenerationTask: LlamaCpp_TextGeneration_Stream,
   TextRewriterTask: LlamaCpp_TextRewriter_Stream,
   TextSummaryTask: LlamaCpp_TextSummary_Stream,
+};
+
+export const LLAMACPP_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, LlamaCppModelConfig>
+> = {
+  CountTokensTask: LlamaCpp_CountTokens_Reactive,
 };

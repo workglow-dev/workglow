@@ -162,6 +162,52 @@ export class WorkerManager {
   }
 
   /**
+   * Call a reactive function on a worker. Returns undefined (rather than throwing)
+   * if the worker has no reactive function registered for the given name, so callers
+   * can treat the result as an optional preview.
+   *
+   * @param workerName - Registered worker name
+   * @param functionName - Name of the reactive function registered on the worker
+   * @param args - Arguments to pass: [input, output, model]
+   * @returns The reactive result, or undefined if not registered / on error
+   */
+  async callWorkerReactiveFunction<T>(
+    workerName: string,
+    functionName: string,
+    args: any[]
+  ): Promise<T | undefined> {
+    const worker = this.workers.get(workerName);
+    if (!worker) return undefined;
+    await this.readyWorkers.get(workerName);
+
+    return new Promise((resolve) => {
+      const requestId = crypto.randomUUID();
+
+      const handleMessage = (event: MessageEvent) => {
+        const { id, type, data } = event.data;
+        if (id !== requestId) return;
+        if (type === "complete") {
+          cleanup();
+          resolve(data as T | undefined);
+        } else if (type === "error") {
+          cleanup();
+          resolve(undefined);
+        }
+      };
+
+      const cleanup = () => {
+        worker.removeEventListener("message", handleMessage);
+      };
+
+      worker.addEventListener("message", handleMessage);
+
+      const message = { id: requestId, type: "call", functionName, args, reactive: true };
+      const transferables = extractTransferables(message);
+      worker.postMessage(message, transferables);
+    });
+  }
+
+  /**
    * Call a streaming function on a worker and return an AsyncGenerator that
    * yields each stream chunk sent by the worker. The worker sends `stream_chunk`
    * messages for each yielded event and a `complete` message when the generator

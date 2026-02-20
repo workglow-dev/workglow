@@ -182,6 +182,30 @@ export class AiProviderRegistry {
   }
 
   /**
+   * Registers a worker-proxied reactive function for a specific task type and model provider.
+   * Creates a proxy that delegates reactive execution to a Web Worker via WorkerManager.
+   * Returns undefined (non-throwing) if the worker has no reactive function for the task type.
+   */
+  registerAsWorkerReactiveRunFn<
+    Input extends TaskInput = TaskInput,
+    Output extends TaskOutput = TaskOutput,
+  >(modelProvider: string, taskType: string) {
+    const reactiveFn: AiProviderReactiveRunFn<Input, Output> = async (
+      input: Input,
+      output: Output,
+      model: ModelConfig | undefined
+    ) => {
+      const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
+      return workerManager.callWorkerReactiveFunction<Output>(modelProvider, taskType, [
+        input,
+        output,
+        model,
+      ]);
+    };
+    this.registerReactiveRunFn<Input, Output>(modelProvider, taskType, reactiveFn);
+  }
+
+  /**
    * Registers a reactive execution function for a specific task type and model provider.
    * Called by AiTask.executeReactive() to provide a fast, lightweight preview without a network call.
    */

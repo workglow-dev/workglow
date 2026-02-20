@@ -34,6 +34,7 @@ import type {
   ZeroShotObjectDetectionPipeline,
 } from "@sroussey/transformers";
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
   BackgroundRemovalTaskInput,
@@ -1445,6 +1446,14 @@ export const HFT_CountTokens: AiProviderRunFn<
   return { count: tokenIds.length };
 };
 
+export const HFT_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, _output, model) => {
+  return HFT_CountTokens(input, model, () => {}, new AbortController().signal);
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
@@ -1489,4 +1498,11 @@ export const HFT_STREAM_TASKS: Record<
   TextSummaryTask: HFT_TextSummary_Stream,
   TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
   TextTranslationTask: HFT_TextTranslation_Stream,
+};
+
+export const HFT_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>
+> = {
+  CountTokensTask: HFT_CountTokens_Reactive,
 };

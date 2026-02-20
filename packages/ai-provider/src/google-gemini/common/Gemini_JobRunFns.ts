@@ -6,6 +6,7 @@
 
 import type { TaskType } from "@google/generative-ai";
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
   CountTokensTaskInput,
@@ -263,6 +264,14 @@ export const Gemini_CountTokens: AiProviderRunFn<
   return { count: result.totalTokens };
 };
 
+export const Gemini_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  GeminiModelConfig
+> = async (input, _output, _model) => {
+  return { count: Math.ceil(input.text.length / 4) };
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
@@ -282,4 +291,11 @@ export const GEMINI_STREAM_TASKS: Record<
   TextGenerationTask: Gemini_TextGeneration_Stream,
   TextRewriterTask: Gemini_TextRewriter_Stream,
   TextSummaryTask: Gemini_TextSummary_Stream,
+};
+
+export const GEMINI_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, GeminiModelConfig>
+> = {
+  CountTokensTask: Gemini_CountTokens_Reactive,
 };
