@@ -378,6 +378,8 @@ export class WhileTask<
         parentSignal: context.signal,
         checkpointSaver: context.checkpointSaver,
         threadId: context.threadId,
+        // Disable subgraph top-level checkpoints; iteration checkpoints are handled separately.
+        checkpointGranularity: "none",
       });
 
       // Merge results
@@ -388,10 +390,20 @@ export class WhileTask<
 
       // Capture iteration checkpoint if checkpoint saver is available
       if (context.checkpointSaver && context.threadId) {
-        await this.subGraph.runner.captureCheckpoint(this.config.id, {
-          iterationIndex: this._currentIteration,
-          iterationParentTaskId: this.config.id,
-        });
+        try {
+          await this.subGraph.runner.captureCheckpoint(this.config.id, {
+            iterationIndex: this._currentIteration,
+            iterationParentTaskId: this.config.id,
+          });
+        } catch (error) {
+          // Checkpointing is best-effort; log the error but do not interrupt the loop.
+          // eslint-disable-next-line no-console
+          console.error("Failed to capture while-task iteration checkpoint", {
+            taskId: this.config.id,
+            iterationIndex: this._currentIteration,
+            error,
+          });
+        }
       }
 
       // Check condition

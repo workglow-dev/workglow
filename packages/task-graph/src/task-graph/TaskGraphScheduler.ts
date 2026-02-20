@@ -145,9 +145,12 @@ export class DependencyBasedScheduler implements ITaskGraphScheduler {
   onTaskCompleted(taskId: unknown): void {
     this.completedTasks.add(taskId);
 
-    // Remove any disabled tasks from pending
+    // Remove the completed task and any disabled tasks from pending.
+    // This handles both normal completion (task was already removed when picked up,
+    // so this is a no-op) and checkpoint-restore completion (task is still pending
+    // and must be removed so it isn't re-scheduled).
     for (const task of Array.from(this.pendingTasks)) {
-      if (task.status === TaskStatus.DISABLED) {
+      if (task.config.id === taskId || task.status === TaskStatus.DISABLED) {
         this.pendingTasks.delete(task);
       }
     }

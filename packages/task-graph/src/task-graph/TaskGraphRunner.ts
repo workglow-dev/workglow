@@ -169,13 +169,23 @@ export class TaskGraphRunner {
             this.pushStatusFromNodeToEdges(this.graph, task);
             this.pushErrorFromNodeToEdges(this.graph, task);
 
-            // Capture checkpoint after task completion
+            // Capture checkpoint after successful task completion
             if (
               this.checkpointSaver &&
               this.checkpointGranularity === "every-task" &&
-              (task.status === TaskStatus.COMPLETED || task.status === TaskStatus.FAILED)
+              task.status === TaskStatus.COMPLETED
             ) {
-              await this.captureCheckpoint(task.config.id);
+              try {
+                await this.captureCheckpoint(task.config.id);
+              } catch (checkpointError) {
+                // Do not interrupt task completion tracking if checkpoint capture fails
+                // eslint-disable-next-line no-console
+                console.error(
+                  "Failed to capture checkpoint for task",
+                  task.config.id,
+                  checkpointError
+                );
+              }
             }
 
             this.processScheduler.onTaskCompleted(task.config.id);
@@ -208,7 +218,14 @@ export class TaskGraphRunner {
 
     // Capture a final checkpoint for top-level-only granularity
     if (this.checkpointSaver && this.checkpointGranularity === "top-level-only") {
-      await this.captureCheckpoint();
+      try {
+        await this.captureCheckpoint();
+      } catch (checkpointError) {
+        // Log checkpoint errors without failing the entire graph execution
+        // so that handleComplete still runs and the graph can finalize cleanly.
+        // eslint-disable-next-line no-console
+        console.error("Failed to capture final checkpoint:", checkpointError);
+      }
     }
 
     await this.handleComplete();
@@ -751,7 +768,7 @@ export class TaskGraphRunner {
       inputData: { ...task.runInputData },
       outputData: { ...task.runOutputData },
       progress: task.progress,
-      error: task.error?.message,
+      error: task.error ? `${task.error.name}: ${task.error.message}` : undefined,
       startedAt: task.startedAt?.toISOString(),
       completedAt: task.completedAt?.toISOString(),
     }));
@@ -761,7 +778,7 @@ export class TaskGraphRunner {
       sourceTaskId: df.sourceTaskId,
       targetTaskId: df.targetTaskId,
       status: df.status,
-      portData: df.value !== undefined ? { _value: df.value } : undefined,
+      portData: df.value !== undefined ? (df.value as TaskOutput) : undefined,
     }));
 
     const checkpointId = uuid4();
@@ -819,19 +836,40 @@ export class TaskGraphRunner {
 
         task.emit("status", task.status);
         this.processScheduler.onTaskCompleted(task.config.id);
+      } else if (taskState.status === TaskStatus.FAILED) {
+        // Ensure FAILED tasks are fully reset for re-execution.
+        // resetGraph() already set them to PENDING, but restore their input data
+        // so the task can be retried with the same data.
+        task.runInputData = taskState.inputData ?? {};
       }
-      // Leave PENDING/FAILED tasks in PENDING state so they get re-run
+      // Leave PENDING tasks in PENDING state so they get re-run
     }
 
     // Restore dataflow states
     for (const dfState of checkpointData.dataflowStates) {
+      if (typeof dfState.id !== "string") {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "TaskGraphRunner.restoreFromCheckpoint: Skipping dataflow with non-string id",
+          { id: dfState.id }
+        );
+        continue;
+      }
+
       const df = this.graph.getDataflow(dfState.id as any);
-      if (!df) continue;
+      if (!df) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "TaskGraphRunner.restoreFromCheckpoint: Dataflow not found for id",
+          { id: dfState.id }
+        );
+        continue;
+      }
 
       if (dfState.status === TaskStatus.COMPLETED || dfState.status === TaskStatus.DISABLED) {
         df.setStatus(dfState.status);
-        if (dfState.portData?._value !== undefined) {
-          df.value = dfState.portData._value;
+        if (dfState.portData !== undefined) {
+          df.value = dfState.portData as any;
         }
       }
     }

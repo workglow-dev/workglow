@@ -14,12 +14,27 @@ import type { CheckpointData, CheckpointId, ThreadId } from "./CheckpointTypes";
 export class InMemoryCheckpointSaver extends CheckpointSaver {
   private checkpoints: Map<CheckpointId, CheckpointData> = new Map();
   private threadIndex: Map<ThreadId, CheckpointId[]> = new Map();
+  private readonly maxCheckpointsPerThread: number;
+
+  constructor(maxCheckpointsPerThread: number = 1000) {
+    super();
+    this.maxCheckpointsPerThread = maxCheckpointsPerThread;
+  }
 
   async saveCheckpoint(data: CheckpointData): Promise<void> {
     this.checkpoints.set(data.checkpointId, data);
 
     const threadCheckpoints = this.threadIndex.get(data.threadId) ?? [];
     threadCheckpoints.push(data.checkpointId);
+
+    if (threadCheckpoints.length > this.maxCheckpointsPerThread) {
+      const excess = threadCheckpoints.length - this.maxCheckpointsPerThread;
+      const removedIds = threadCheckpoints.splice(0, excess);
+      for (const id of removedIds) {
+        this.checkpoints.delete(id);
+      }
+    }
+
     this.threadIndex.set(data.threadId, threadCheckpoints);
   }
 
