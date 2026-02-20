@@ -13,6 +13,8 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
+import { CountTokensTask } from "./CountTokensTask";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 export const ContextFormat = {
   SIMPLE: "simple",
@@ -23,6 +25,11 @@ export const ContextFormat = {
 } as const;
 
 export type ContextFormat = (typeof ContextFormat)[keyof typeof ContextFormat];
+
+const modelSchema = TypeModel("model", {
+  title: "Model",
+  description: "Model to use for token counting (optional, falls back to estimation)",
+});
 
 const inputSchema = {
   type: "object",
@@ -83,6 +90,7 @@ const inputSchema = {
       description: "Separator between chunks",
       default: "\n\n",
     },
+    model: modelSchema,
   },
   required: ["chunks"],
   additionalProperties: false,
@@ -148,7 +156,7 @@ export class ContextBuilderTask extends Task<
   async executeReactive(
     input: ContextBuilderTaskInput,
     _output: ContextBuilderTaskOutput,
-    _context: IExecuteReactiveContext
+    context: IExecuteReactiveContext
   ): Promise<ContextBuilderTaskOutput> {
     const {
       chunks,
@@ -160,6 +168,20 @@ export class ContextBuilderTask extends Task<
       includeMetadata = false,
       separator = "\n\n",
     } = input;
+
+    let countFn: (text: string) => Promise<number> = async (text: string) => estimateTokens(text);
+    if (input.model) {
+      const countTask = context.own(new CountTokensTask({ model: input.model }));
+      countFn = async (text: string): Promise<number> => {
+        try {
+          const result = await countTask.run({ text });
+          return result.count;
+        } catch (_err) {
+          // Fall back to local token estimation if CountTokensTask is unavailable or fails.
+          return estimateTokens(text);
+        }
+      };
+    }
 
     const useTokenBudget = maxTokens > 0;
 
@@ -176,10 +198,10 @@ export class ContextBuilderTask extends Task<
       const candidate = ctx + prefix + formattedChunk;
 
       if (useTokenBudget) {
-        if (estimateTokens(candidate) > maxTokens) {
+        if ((await countFn(candidate)) > maxTokens) {
           if (chunksUsed === 0) {
             let truncated = formattedChunk;
-            while (truncated.length > 10 && estimateTokens(truncated) > maxTokens) {
+            while (truncated.length > 10 && (await countFn(truncated)) > maxTokens) {
               truncated = truncated.substring(0, Math.floor(truncated.length * 0.9));
             }
             if (truncated.length > 10) {
@@ -207,7 +229,7 @@ export class ContextBuilderTask extends Task<
       chunksUsed++;
     }
 
-    const totalTokens = estimateTokens(ctx);
+    const totalTokens = await countFn(ctx);
 
     return {
       context: ctx,

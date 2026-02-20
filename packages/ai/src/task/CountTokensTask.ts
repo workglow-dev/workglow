@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { estimateTokens } from "@workglow/dataset";
-import {
-  CreateWorkflow,
-  IExecuteReactiveContext,
-  JobQueueTaskConfig,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -66,21 +60,6 @@ export class CountTokensTask extends AiTask<CountTokensTaskInput, CountTokensTas
   }
   public static outputSchema(): DataPortSchema {
     return CountTokensOutputSchema as DataPortSchema;
-  }
-
-  /**
-   * Returns the real count already produced by execute(), or falls back to
-   * estimateTokens so the reactive phase never makes a network call.
-   */
-  async executeReactive(
-    input: CountTokensTaskInput,
-    output: CountTokensTaskOutput,
-    _context: IExecuteReactiveContext
-  ): Promise<CountTokensTaskOutput> {
-    if (output?.count !== undefined) {
-      return output;
-    }
-    return { count: estimateTokens(input.text) };
   }
 }
 
