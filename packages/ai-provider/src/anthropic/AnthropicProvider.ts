@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai";
+import {
+  AiProvider,
+  type AiProviderReactiveRunFn,
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+} from "@workglow/ai";
 import { ANTHROPIC } from "./common/Anthropic_Constants";
 import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
 
@@ -46,8 +51,9 @@ export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>>,
-    streamTasks?: Record<string, AiProviderStreamFn<any, any, AnthropicModelConfig>>
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, AnthropicModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, AnthropicModelConfig>>
   ) {
-    super(tasks, streamTasks);
+    super(tasks, streamTasks, reactiveTasks);
   }
 }
