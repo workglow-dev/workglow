@@ -6,13 +6,21 @@
 
 import { HuggingFaceTabularStorage } from "@workglow/storage";
 import type { DataPortSchemaObject } from "@workglow/util";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch as any;
+const originalFetch = global.fetch;
 
 describe("HuggingFaceTabularStorage", () => {
+  beforeAll(() => {
+    global.fetch = mockFetch as any;
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
   beforeEach(() => {
     mockFetch.mockReset();
   });
