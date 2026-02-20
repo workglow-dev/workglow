@@ -6,29 +6,28 @@
 
 import type {
   BackgroundRemovalPipeline,
-  DocumentQuestionAnsweringSingle,
+  DocumentQuestionAnsweringOutput,
   FeatureExtractionPipeline,
+  FillMaskOutput,
   FillMaskPipeline,
-  FillMaskSingle,
   ImageClassificationPipeline,
   ImageFeatureExtractionPipeline,
   ImageSegmentationPipeline,
   ImageToTextPipeline,
   ObjectDetectionPipeline,
-  // @ts-ignore temporary "fix"
   PretrainedModelOptions,
   QuestionAnsweringPipeline,
   RawImage,
+  SummarizationOutput,
   SummarizationPipeline,
-  SummarizationSingle,
   TextClassificationOutput,
   TextClassificationPipeline,
+  TextGenerationOutput,
   TextGenerationPipeline,
-  TextGenerationSingle,
+  TokenClassificationOutput,
   TokenClassificationPipeline,
-  TokenClassificationSingle,
+  TranslationOutput,
   TranslationPipeline,
-  TranslationSingle,
   ZeroShotClassificationPipeline,
   ZeroShotImageClassificationPipeline,
   ZeroShotObjectDetectionPipeline,
@@ -736,11 +735,11 @@ export const HFT_TextNamedEntityRecognition: AiProviderRunFn<
     ignore_labels: input.blockList as string[] | undefined,
     ...(signal ? { abort_signal: signal } : {}),
   });
-  let entities: TokenClassificationSingle[] = [];
+  let entities: TokenClassificationOutput = [];
   if (!Array.isArray(results)) {
     entities = [results];
   } else {
-    entities = results as TokenClassificationSingle[];
+    entities = results as TokenClassificationOutput;
   }
   return {
     entities: entities.map((entity) => ({
@@ -760,11 +759,11 @@ export const HFT_TextFillMask: AiProviderRunFn<
     abort_signal: signal,
   });
   let results = await unmasker(input.text);
-  let predictions: FillMaskSingle[] = [];
+  let predictions: FillMaskOutput = [];
   if (!Array.isArray(results)) {
     predictions = [results];
   } else {
-    predictions = results as FillMaskSingle[];
+    predictions = results as FillMaskOutput;
   }
   return {
     predictions: predictions.map((prediction) => ({
@@ -798,7 +797,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
   if (!Array.isArray(results)) {
     results = [results];
   }
-  let text = (results[0] as TextGenerationSingle)?.generated_text;
+  let text = (results[0] as TextGenerationOutput[number])?.generated_text;
 
   if (Array.isArray(text)) {
     text = text[text.length - 1]?.content;
@@ -826,12 +825,11 @@ export const HFT_TextTranslation: AiProviderRunFn<
     src_lang: input.source_lang,
     tgt_lang: input.target_lang,
     streamer,
-    ...(signal ? { abort_signal: signal } : {}),
   } as any);
 
   const translatedText = Array.isArray(result)
-    ? (result[0] as TranslationSingle)?.translation_text || ""
-    : (result as TranslationSingle)?.translation_text || "";
+    ? (result[0] as TranslationOutput[number])?.translation_text || ""
+    : (result as TranslationOutput[number])?.translation_text || "";
 
   return {
     text: translatedText,
@@ -865,7 +863,7 @@ export const HFT_TextRewriter: AiProviderRunFn<
     results = [results];
   }
 
-  let text = (results[0] as TextGenerationSingle)?.generated_text;
+  let text = (results[0] as TextGenerationOutput[number])?.generated_text;
   if (Array.isArray(text)) {
     text = text[text.length - 1]?.content;
   }
@@ -900,9 +898,9 @@ export const HFT_TextSummary: AiProviderRunFn<
 
   let summaryText = "";
   if (Array.isArray(result)) {
-    summaryText = (result[0] as SummarizationSingle)?.summary_text || "";
+    summaryText = (result[0] as SummarizationOutput[number])?.summary_text || "";
   } else {
-    summaryText = (result as SummarizationSingle)?.summary_text || "";
+    summaryText = (result as SummarizationOutput[number])?.summary_text || "";
   }
 
   return {
@@ -932,9 +930,9 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
 
   let answerText = "";
   if (Array.isArray(result)) {
-    answerText = (result[0] as DocumentQuestionAnsweringSingle)?.answer || "";
+    answerText = (result[0] as DocumentQuestionAnsweringOutput[number])?.answer || "";
   } else {
-    answerText = (result as DocumentQuestionAnsweringSingle)?.answer || "";
+    answerText = (result as DocumentQuestionAnsweringOutput[number])?.answer || "";
   }
 
   return {
@@ -1375,8 +1373,8 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
   const streamer = createStreamingTextStreamer(generateAnswer.tokenizer, queue);
 
   let pipelineResult:
-    | DocumentQuestionAnsweringSingle
-    | DocumentQuestionAnsweringSingle[]
+    | DocumentQuestionAnsweringOutput[number]
+    | DocumentQuestionAnsweringOutput
     | undefined;
   const pipelinePromise = generateAnswer(input.question, input.context, {
     streamer,
@@ -1395,9 +1393,9 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
   let answerText = "";
   if (pipelineResult !== undefined) {
     if (Array.isArray(pipelineResult)) {
-      answerText = (pipelineResult[0] as DocumentQuestionAnsweringSingle)?.answer ?? "";
+      answerText = (pipelineResult[0] as DocumentQuestionAnsweringOutput[number])?.answer ?? "";
     } else {
-      answerText = (pipelineResult as DocumentQuestionAnsweringSingle)?.answer ?? "";
+      answerText = (pipelineResult as DocumentQuestionAnsweringOutput[number])?.answer ?? "";
     }
   }
   yield { type: "finish", data: { text: answerText } as TextQuestionAnswerTaskOutput };
