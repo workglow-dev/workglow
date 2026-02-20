@@ -6,8 +6,11 @@
 
 import type { TaskType } from "@google/generative-ai";
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -249,11 +252,32 @@ export const Gemini_TextSummary_Stream: AiProviderStreamFn<
   yield { type: "finish", data: {} as TextSummaryTaskOutput };
 };
 
+export const Gemini_CountTokens: AiProviderRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  GeminiModelConfig
+> = async (input, model, onProgress, signal) => {
+  const GoogleGenerativeAI = await loadGeminiSDK();
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+  const genModel = genAI.getGenerativeModel({ model: getModelName(model) });
+  const result = await genModel.countTokens(input.text);
+  return { count: result.totalTokens };
+};
+
+export const Gemini_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  GeminiModelConfig
+> = async (input, _output, _model) => {
+  return { count: Math.ceil(input.text.length / 4) };
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
 
 export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>> = {
+  CountTokensTask: Gemini_CountTokens,
   TextGenerationTask: Gemini_TextGeneration,
   TextEmbeddingTask: Gemini_TextEmbedding,
   TextRewriterTask: Gemini_TextRewriter,
@@ -267,4 +291,11 @@ export const GEMINI_STREAM_TASKS: Record<
   TextGenerationTask: Gemini_TextGeneration_Stream,
   TextRewriterTask: Gemini_TextRewriter_Stream,
   TextSummaryTask: Gemini_TextSummary_Stream,
+};
+
+export const GEMINI_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, GeminiModelConfig>
+> = {
+  CountTokensTask: Gemini_CountTokens_Reactive,
 };

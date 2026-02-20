@@ -5,12 +5,20 @@
  */
 
 import { globalServiceRegistry, parentPort, WORKER_SERVER } from "@workglow/util";
-import { GEMINI_STREAM_TASKS, GEMINI_TASKS } from "./common/Gemini_JobRunFns";
+import {
+  GEMINI_REACTIVE_TASKS,
+  GEMINI_STREAM_TASKS,
+  GEMINI_TASKS,
+} from "./common/Gemini_JobRunFns";
 import { GoogleGeminiProvider } from "./GoogleGeminiProvider";
 
 export function GEMINI_WORKER_JOBRUN_REGISTER() {
   const workerServer = globalServiceRegistry.get(WORKER_SERVER);
-  new GoogleGeminiProvider(GEMINI_TASKS, GEMINI_STREAM_TASKS).registerOnWorkerServer(workerServer);
+  new GoogleGeminiProvider(
+    GEMINI_TASKS,
+    GEMINI_STREAM_TASKS,
+    GEMINI_REACTIVE_TASKS
+  ).registerOnWorkerServer(workerServer);
   parentPort.postMessage({ type: "ready" });
   console.log("GEMINI_WORKER_JOBRUN registered");
 }

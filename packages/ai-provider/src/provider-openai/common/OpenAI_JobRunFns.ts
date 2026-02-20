@@ -5,8 +5,11 @@
  */
 
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -254,6 +257,67 @@ export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Token counting via tiktoken (local, no API call)
+// ========================================================================
+
+let _tiktoken: typeof import("tiktoken") | undefined;
+async function loadTiktoken() {
+  if (!_tiktoken) {
+    try {
+      _tiktoken = await import("tiktoken");
+    } catch {
+      throw new Error(
+        "tiktoken is required for OpenAI token counting. Install it with: bun add tiktoken"
+      );
+    }
+  }
+  return _tiktoken;
+}
+
+// Cache encoders by model name to avoid repeated allocation overhead.
+const _encoderCache = new Map<string, ReturnType<typeof import("tiktoken").get_encoding>>();
+
+async function getEncoder(modelName: string) {
+  const tiktoken = await loadTiktoken();
+  if (!_encoderCache.has(modelName)) {
+    try {
+      _encoderCache.set(
+        modelName,
+        tiktoken.encoding_for_model(
+          modelName as Parameters<typeof tiktoken.encoding_for_model>[0]
+        )
+      );
+    } catch {
+      // Fall back to cl100k_base for unknown/newer models.
+      const fallback = "cl100k_base";
+      if (!_encoderCache.has(fallback)) {
+        _encoderCache.set(fallback, tiktoken.get_encoding(fallback));
+      }
+      _encoderCache.set(modelName, _encoderCache.get(fallback)!);
+    }
+  }
+  return _encoderCache.get(modelName)!;
+}
+
+export const OpenAI_CountTokens: AiProviderRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  OpenAiModelConfig
+> = async (input, model) => {
+  const enc = await getEncoder(getModelName(model));
+  const tokens = enc.encode(input.text);
+  return { count: tokens.length };
+};
+
+export const OpenAI_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  OpenAiModelConfig
+> = async (input, _output, model) => {
+  return OpenAI_CountTokens(input, model, () => {}, new AbortController().signal);
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -262,6 +326,7 @@ export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelC
   TextEmbeddingTask: OpenAI_TextEmbedding,
   TextRewriterTask: OpenAI_TextRewriter,
   TextSummaryTask: OpenAI_TextSummary,
+  CountTokensTask: OpenAI_CountTokens,
 };
 
 export const OPENAI_STREAM_TASKS: Record<
@@ -271,4 +336,11 @@ export const OPENAI_STREAM_TASKS: Record<
   TextGenerationTask: OpenAI_TextGeneration_Stream,
   TextRewriterTask: OpenAI_TextRewriter_Stream,
   TextSummaryTask: OpenAI_TextSummary_Stream,
+};
+
+export const OPENAI_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, OpenAiModelConfig>
+> = {
+  CountTokensTask: OpenAI_CountTokens_Reactive,
 };

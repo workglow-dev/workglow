@@ -34,10 +34,13 @@ import type {
   ZeroShotObjectDetectionPipeline,
 } from "@sroussey/transformers";
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
   BackgroundRemovalTaskInput,
   BackgroundRemovalTaskOutput,
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
   DownloadModelTaskRunInput,
   DownloadModelTaskRunOutput,
   ImageClassificationTaskInput,
@@ -1428,6 +1431,29 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
   yield { type: "finish", data: { target_lang: input.target_lang } as TextTranslationTaskOutput };
 };
 
+export const HFT_CountTokens: AiProviderRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, model, onProgress, signal) => {
+  const { AutoTokenizer } = _transformersSdk!;
+  const tokenizer = await AutoTokenizer.from_pretrained(model!.provider_config.model_path, {
+    progress_callback: (progress: any) => onProgress(progress?.progress ?? 0),
+    ...(signal ? { abort_signal: signal } : {}),
+  });
+  // encode() returns number[] of token IDs for a single input string
+  const tokenIds = tokenizer.encode(input.text);
+  return { count: tokenIds.length };
+};
+
+export const HFT_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, _output, model) => {
+  return HFT_CountTokens(input, model, () => {}, new AbortController().signal);
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
@@ -1440,6 +1466,7 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
 export const HFT_TASKS = {
   DownloadModelTask: HFT_Download,
   UnloadModelTask: HFT_Unload,
+  CountTokensTask: HFT_CountTokens,
   TextEmbeddingTask: HFT_TextEmbedding,
   TextGenerationTask: HFT_TextGeneration,
   TextQuestionAnswerTask: HFT_TextQuestionAnswer,
@@ -1471,4 +1498,11 @@ export const HFT_STREAM_TASKS: Record<
   TextSummaryTask: HFT_TextSummary_Stream,
   TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
   TextTranslationTask: HFT_TextTranslation_Stream,
+};
+
+export const HFT_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>
+> = {
+  CountTokensTask: HFT_CountTokens_Reactive,
 };

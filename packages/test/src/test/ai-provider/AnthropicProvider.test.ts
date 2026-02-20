@@ -8,6 +8,7 @@ import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from
 import { ANTHROPIC, AnthropicProvider } from "@workglow/ai-provider";
 import {
   ANTHROPIC_TASKS,
+  Anthropic_CountTokens,
   Anthropic_TextGeneration,
   Anthropic_TextRewriter,
   Anthropic_TextSummary,
@@ -20,10 +21,11 @@ import {
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockMessagesCreate = vi.fn();
+const mockMessagesCountTokens = vi.fn();
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class MockAnthropic {
-    messages = { create: mockMessagesCreate };
+    messages = { create: mockMessagesCreate, countTokens: mockMessagesCountTokens };
     constructor(_opts: any) {}
   },
 }));
@@ -64,6 +66,7 @@ describe("AnthropicProvider", () => {
       const provider = new AnthropicProvider();
       expect(provider.name).toBe(ANTHROPIC);
       expect(provider.supportedTaskTypes).toEqual([
+        "CountTokensTask",
         "TextGenerationTask",
         "TextRewriterTask",
         "TextSummaryTask",
@@ -79,12 +82,12 @@ describe("AnthropicProvider", () => {
       expect(registry.getDirectRunFn(ANTHROPIC, "TextGenerationTask")).toBeDefined();
     });
 
-    test("should register on worker server with 3 functions", () => {
+    test("should register on worker server with 4 functions", () => {
       const mockServer = { registerFunction: vi.fn() };
       const provider = new AnthropicProvider(ANTHROPIC_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(3);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -227,13 +230,34 @@ describe("AnthropicProvider", () => {
     });
   });
 
+  describe("Anthropic_CountTokens", () => {
+    test("should call messages.countTokens and map input_tokens to count", async () => {
+      mockMessagesCountTokens.mockResolvedValue({ input_tokens: 42 });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_CountTokens(
+        { text: "Hello Claude", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ count: 42 });
+      expect(mockMessagesCountTokens).toHaveBeenCalledOnce();
+      const [params] = mockMessagesCountTokens.mock.calls[0];
+      expect(params.model).toBe("claude-sonnet-4-20250514");
+      expect(params.messages).toEqual([{ role: "user", content: "Hello Claude" }]);
+    });
+  });
+
   describe("ANTHROPIC_TASKS", () => {
     test("should export three task run functions (no embedding)", () => {
+      expect(ANTHROPIC_TASKS).toHaveProperty("CountTokensTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextGenerationTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextRewriterTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextSummaryTask");
       expect(ANTHROPIC_TASKS).not.toHaveProperty("TextEmbeddingTask");
-      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(3);
+      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(4);
     });
   });
 });

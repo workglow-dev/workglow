@@ -8,6 +8,7 @@ import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from
 import { GOOGLE_GEMINI, GoogleGeminiProvider } from "@workglow/ai-provider";
 import {
   GEMINI_TASKS,
+  Gemini_CountTokens,
   Gemini_TextEmbedding,
   Gemini_TextGeneration,
   Gemini_TextRewriter,
@@ -23,6 +24,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vit
 const mockGenerateContent = vi.fn();
 const mockEmbedContent = vi.fn();
 const mockBatchEmbedContents = vi.fn();
+const mockCountTokens = vi.fn();
 
 vi.mock("@google/generative-ai", () => ({
   GoogleGenerativeAI: class MockGoogleGenerativeAI {
@@ -32,6 +34,7 @@ vi.mock("@google/generative-ai", () => ({
         generateContent: mockGenerateContent,
         embedContent: mockEmbedContent,
         batchEmbedContents: mockBatchEmbedContents,
+        countTokens: mockCountTokens,
       };
     }
   },
@@ -73,6 +76,7 @@ describe("GoogleGeminiProvider", () => {
       const provider = new GoogleGeminiProvider();
       expect(provider.name).toBe(GOOGLE_GEMINI);
       expect(provider.supportedTaskTypes).toEqual([
+        "CountTokensTask",
         "TextGenerationTask",
         "TextEmbeddingTask",
         "TextRewriterTask",
@@ -94,7 +98,7 @@ describe("GoogleGeminiProvider", () => {
       const provider = new GoogleGeminiProvider(GEMINI_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(4);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -222,13 +226,32 @@ describe("GoogleGeminiProvider", () => {
     });
   });
 
+  describe("Gemini_CountTokens", () => {
+    test("should call countTokens and map totalTokens to count", async () => {
+      mockCountTokens.mockResolvedValue({ totalTokens: 7 });
+
+      const model = makeModel("gemini-2.0-flash");
+      const result = await Gemini_CountTokens(
+        { text: "Hello Gemini", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ count: 7 });
+      expect(mockCountTokens).toHaveBeenCalledOnce();
+      expect(mockCountTokens).toHaveBeenCalledWith("Hello Gemini");
+    });
+  });
+
   describe("GEMINI_TASKS", () => {
     test("should export all task run functions", () => {
+      expect(GEMINI_TASKS).toHaveProperty("CountTokensTask");
       expect(GEMINI_TASKS).toHaveProperty("TextGenerationTask");
       expect(GEMINI_TASKS).toHaveProperty("TextEmbeddingTask");
       expect(GEMINI_TASKS).toHaveProperty("TextRewriterTask");
       expect(GEMINI_TASKS).toHaveProperty("TextSummaryTask");
-      expect(Object.keys(GEMINI_TASKS)).toHaveLength(4);
+      expect(Object.keys(GEMINI_TASKS)).toHaveLength(5);
     });
   });
 });

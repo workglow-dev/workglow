@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai";
+import {
+  AiProvider,
+  type AiProviderReactiveRunFn,
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+} from "@workglow/ai";
 import { LOCAL_LLAMACPP } from "./common/LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
 
@@ -39,6 +44,7 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
   readonly taskTypes = [
     "DownloadModelTask",
     "UnloadModelTask",
+    "CountTokensTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",
@@ -47,8 +53,9 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, LlamaCppModelConfig>>,
-    streamTasks?: Record<string, AiProviderStreamFn<any, any, LlamaCppModelConfig>>
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, LlamaCppModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, LlamaCppModelConfig>>
   ) {
-    super(tasks, streamTasks);
+    super(tasks, streamTasks, reactiveTasks);
   }
 }

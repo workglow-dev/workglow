@@ -94,6 +94,8 @@ export class WorkerServer {
 
   private functions: Record<string, (...args: any[]) => Promise<any>> = {};
   private streamFunctions: Record<string, (...args: any[]) => AsyncIterable<any>> = {};
+  private reactiveFunctions: Record<string, (input: any, output: any, model: any) => Promise<any>> =
+    {};
 
   // Keep track of each request's AbortController
   private requestControllers = new Map<string, AbortController>();
@@ -130,6 +132,21 @@ export class WorkerServer {
   }
 
   /**
+   * Register a reactive function for lightweight preview execution.
+   * Reactive functions receive (input, output, model) and return a fast preview
+   * without progress tracking or abort signals.
+   *
+   * @param name - The function name (e.g., task type identifier)
+   * @param fn - Async function: (input, output, model) => Promise<output | undefined>
+   */
+  registerReactiveFunction(
+    name: string,
+    fn: (input: any, output: any, model: any) => Promise<any>
+  ) {
+    this.reactiveFunctions[name] = fn;
+  }
+
+  /**
    * Register an async generator function for streaming execution.
    * When called via the worker protocol with `stream: true`, the server
    * iterates the generator and sends each yielded value as a `stream_chunk`
@@ -144,13 +161,16 @@ export class WorkerServer {
 
   // Handle messages from the main thread
   async handleMessage(event: { type: string; data: any }) {
-    const { id, type, functionName, args, stream } = event.data;
+    const { id, type, functionName, args, stream, reactive } = event.data;
     if (type === "abort") {
       return await this.handleAbort(id);
     }
     if (type === "call") {
       if (stream) {
         return await this.handleStreamCall(id, functionName, args);
+      }
+      if (reactive) {
+        return await this.handleReactiveCall(id, functionName, args);
       }
       return await this.handleCall(id, functionName, args);
     }
@@ -163,6 +183,28 @@ export class WorkerServer {
       this.requestControllers.delete(id);
       // Send error response back to main thread so the promise rejects
       this.postError(id, "Operation aborted");
+    }
+  }
+
+  /**
+   * Handle a reactive call. Returns undefined (non-error) if the reactive
+   * function is not registered, since not all task types expose a reactive fn.
+   */
+  async handleReactiveCall(
+    id: string,
+    functionName: string,
+    [input, output, model]: [any, any, any]
+  ) {
+    if (!(functionName in this.reactiveFunctions)) {
+      this.postResult(id, undefined);
+      return;
+    }
+    try {
+      const fn = this.reactiveFunctions[functionName];
+      const result = await fn(input, output, model);
+      this.postResult(id, result);
+    } catch (error: any) {
+      this.postError(id, error.message);
     }
   }
 

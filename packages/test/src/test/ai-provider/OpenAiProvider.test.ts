@@ -8,6 +8,7 @@ import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from
 import { OPENAI, OpenAiProvider } from "@workglow/ai-provider";
 import {
   OPENAI_TASKS,
+  OpenAI_CountTokens,
   OpenAI_TextEmbedding,
   OpenAI_TextGeneration,
   OpenAI_TextRewriter,
@@ -29,6 +30,15 @@ vi.mock("openai", () => ({
     embeddings = { create: mockEmbeddingsCreate };
     constructor(_opts: any) {}
   },
+}));
+
+const mockTiktokenEncode = vi.fn();
+vi.mock("tiktoken", () => ({
+  encoding_for_model: vi.fn((model: string) => {
+    if (model === "unknown-model") throw new Error("Unknown model");
+    return { encode: mockTiktokenEncode };
+  }),
+  get_encoding: vi.fn((_name: string) => ({ encode: mockTiktokenEncode })),
 }));
 
 const makeModel = (modelName: string, apiKey = "test-key") => ({
@@ -71,6 +81,7 @@ describe("OpenAiProvider", () => {
         "TextEmbeddingTask",
         "TextRewriterTask",
         "TextSummaryTask",
+        "CountTokensTask",
       ]);
     });
 
@@ -97,7 +108,7 @@ describe("OpenAiProvider", () => {
       const provider = new OpenAiProvider(OPENAI_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(4);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -292,13 +303,45 @@ describe("OpenAiProvider", () => {
     });
   });
 
+  describe("OpenAI_CountTokens", () => {
+    test("should return token count for known model", async () => {
+      mockTiktokenEncode.mockReturnValue([1, 2, 3, 4, 5]);
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_CountTokens(
+        { text: "Hello world", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ count: 5 });
+      expect(mockTiktokenEncode).toHaveBeenCalledWith("Hello world");
+    });
+
+    test("should fall back to cl100k_base for unknown models", async () => {
+      mockTiktokenEncode.mockReturnValue([1, 2]);
+
+      const model = makeModel("unknown-model");
+      const result = await OpenAI_CountTokens(
+        { text: "Hi", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ count: 2 });
+    });
+  });
+
   describe("OPENAI_TASKS", () => {
     test("should export all task run functions", () => {
       expect(OPENAI_TASKS).toHaveProperty("TextGenerationTask");
       expect(OPENAI_TASKS).toHaveProperty("TextEmbeddingTask");
       expect(OPENAI_TASKS).toHaveProperty("TextRewriterTask");
       expect(OPENAI_TASKS).toHaveProperty("TextSummaryTask");
-      expect(Object.keys(OPENAI_TASKS)).toHaveLength(4);
+      expect(OPENAI_TASKS).toHaveProperty("CountTokensTask");
+      expect(Object.keys(OPENAI_TASKS)).toHaveLength(5);
     });
   });
 });

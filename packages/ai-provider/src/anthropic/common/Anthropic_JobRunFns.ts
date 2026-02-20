@@ -5,8 +5,11 @@
  */
 
 import type {
+  AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   TextRewriterTaskInput,
@@ -222,11 +225,33 @@ export const Anthropic_TextSummary_Stream: AiProviderStreamFn<
   yield { type: "finish", data: {} as TextSummaryTaskOutput };
 };
 
+export const Anthropic_CountTokens: AiProviderRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  AnthropicModelConfig
+> = async (input, model, onProgress, signal) => {
+  const client = await getClient(model);
+  const result = await client.messages.countTokens({
+    model: getModelName(model),
+    messages: [{ role: "user", content: input.text }],
+  });
+  return { count: result.input_tokens };
+};
+
+export const Anthropic_CountTokens_Reactive: AiProviderReactiveRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  AnthropicModelConfig
+> = async (input, _output, _model) => {
+  return { count: Math.ceil(input.text.length / 4) };
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
 
 export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>> = {
+  CountTokensTask: Anthropic_CountTokens,
   TextGenerationTask: Anthropic_TextGeneration,
   TextRewriterTask: Anthropic_TextRewriter,
   TextSummaryTask: Anthropic_TextSummary,
@@ -239,4 +264,11 @@ export const ANTHROPIC_STREAM_TASKS: Record<
   TextGenerationTask: Anthropic_TextGeneration_Stream,
   TextRewriterTask: Anthropic_TextRewriter_Stream,
   TextSummaryTask: Anthropic_TextSummary_Stream,
+};
+
+export const ANTHROPIC_REACTIVE_TASKS: Record<
+  string,
+  AiProviderReactiveRunFn<any, any, AnthropicModelConfig>
+> = {
+  CountTokensTask: Anthropic_CountTokens_Reactive,
 };

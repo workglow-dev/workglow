@@ -24,6 +24,17 @@ export type AiProviderRunFn<
 ) => Promise<Output>;
 
 /**
+ * Type for the reactive run function for AiTask.executeReactive().
+ * Receives the current output alongside the input so it can return a fast preview.
+ * No `signal` or `update_progress` -- reactive execution is lightweight and synchronous-ish.
+ */
+export type AiProviderReactiveRunFn<
+  Input extends TaskInput = TaskInput,
+  Output extends TaskOutput = TaskOutput,
+  Model extends ModelConfig = ModelConfig,
+> = (input: Input, output: Output, model: Model | undefined) => Promise<Output | undefined>;
+
+/**
  * Type for the streaming run function for the AiJob.
  * Returns an AsyncIterable of StreamEvents instead of a Promise.
  * No `update_progress` callback -- for streaming providers, the stream itself IS the progress signal.
@@ -46,6 +57,7 @@ export type AiProviderStreamFn<
 export class AiProviderRegistry {
   runFnRegistry: Map<string, Map<string, AiProviderRunFn<any, any>>> = new Map();
   streamFnRegistry: Map<string, Map<string, AiProviderStreamFn<any, any>>> = new Map();
+  reactiveRunFnRegistry: Map<string, Map<string, AiProviderReactiveRunFn<any, any>>> = new Map();
   private providers: Map<string, AiProvider<any>> = new Map();
 
   /**
@@ -167,6 +179,60 @@ export class AiProviderRegistry {
   ): AiProviderStreamFn<Input, Output> | undefined {
     const taskTypeMap = this.streamFnRegistry.get(taskType);
     return taskTypeMap?.get(modelProvider) as AiProviderStreamFn<Input, Output> | undefined;
+  }
+
+  /**
+   * Registers a worker-proxied reactive function for a specific task type and model provider.
+   * Creates a proxy that delegates reactive execution to a Web Worker via WorkerManager.
+   * Returns undefined (non-throwing) if the worker has no reactive function for the task type.
+   */
+  registerAsWorkerReactiveRunFn<
+    Input extends TaskInput = TaskInput,
+    Output extends TaskOutput = TaskOutput,
+  >(modelProvider: string, taskType: string) {
+    const reactiveFn: AiProviderReactiveRunFn<Input, Output> = async (
+      input: Input,
+      output: Output,
+      model: ModelConfig | undefined
+    ) => {
+      const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
+      return workerManager.callWorkerReactiveFunction<Output>(modelProvider, taskType, [
+        input,
+        output,
+        model,
+      ]);
+    };
+    this.registerReactiveRunFn<Input, Output>(modelProvider, taskType, reactiveFn);
+  }
+
+  /**
+   * Registers a reactive execution function for a specific task type and model provider.
+   * Called by AiTask.executeReactive() to provide a fast, lightweight preview without a network call.
+   */
+  registerReactiveRunFn<
+    Input extends TaskInput = TaskInput,
+    Output extends TaskOutput = TaskOutput,
+  >(
+    modelProvider: string,
+    taskType: string,
+    reactiveRunFn: AiProviderReactiveRunFn<Input, Output>
+  ) {
+    if (!this.reactiveRunFnRegistry.has(taskType)) {
+      this.reactiveRunFnRegistry.set(taskType, new Map());
+    }
+    this.reactiveRunFnRegistry.get(taskType)!.set(modelProvider, reactiveRunFn);
+  }
+
+  /**
+   * Retrieves the reactive execution function for a task type and model provider.
+   * Returns undefined if no reactive function is registered (fallback to default behavior).
+   */
+  getReactiveRunFn<Input extends TaskInput = TaskInput, Output extends TaskOutput = TaskOutput>(
+    modelProvider: string,
+    taskType: string
+  ): AiProviderReactiveRunFn<Input, Output> | undefined {
+    const taskTypeMap = this.reactiveRunFnRegistry.get(taskType);
+    return taskTypeMap?.get(modelProvider) as AiProviderReactiveRunFn<Input, Output> | undefined;
   }
 
   /**

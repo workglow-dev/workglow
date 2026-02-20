@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai";
+import {
+  AiProvider,
+  type AiProviderReactiveRunFn,
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+} from "@workglow/ai";
 import { HF_INFERENCE } from "./common/HFI_Constants";
 import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
 
@@ -47,8 +52,9 @@ export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, HfInferenceModelConfig>>,
-    streamTasks?: Record<string, AiProviderStreamFn<any, any, HfInferenceModelConfig>>
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, HfInferenceModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfInferenceModelConfig>>
   ) {
-    super(tasks, streamTasks);
+    super(tasks, streamTasks, reactiveTasks);
   }
 }

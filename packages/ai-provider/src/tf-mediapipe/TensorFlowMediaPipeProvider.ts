@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn } from "@workglow/ai";
+import { AiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai";
 import { TENSORFLOW_MEDIAPIPE } from "./common/TFMP_Constants";
 import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 
@@ -54,7 +54,10 @@ export class TensorFlowMediaPipeProvider extends AiProvider<TFMPModelConfig> {
     "PoseLandmarkerTask",
   ] as const;
 
-  constructor(tasks?: Record<string, AiProviderRunFn<any, any, TFMPModelConfig>>) {
-    super(tasks);
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, TFMPModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, TFMPModelConfig>>
+  ) {
+    super(tasks, undefined, reactiveTasks);
   }
 }

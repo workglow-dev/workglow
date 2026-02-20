@@ -9,6 +9,7 @@ import { globalServiceRegistry, WORKER_MANAGER, type WorkerServer } from "@workg
 import type { ModelConfig } from "../model/ModelSchema";
 import { createDefaultQueue } from "../queue/createDefaultQueue";
 import {
+  type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
   getAiProviderRegistry,
@@ -94,12 +95,24 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
    */
   protected readonly streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>;
 
+  /**
+   * Map of task type names to their reactive run functions.
+   * Injected via constructor alongside `tasks`. Only needed for tasks that
+   * provide lightweight reactive previews via executeReactive().
+   */
+  protected readonly reactiveTasks?: Record<
+    string,
+    AiProviderReactiveRunFn<any, any, TModelConfig>
+  >;
+
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>,
-    streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, TModelConfig>>
   ) {
     this.tasks = tasks;
     this.streamTasks = streamTasks;
+    this.reactiveTasks = reactiveTasks;
   }
 
   /** Get all task type names this provider supports */
@@ -127,6 +140,19 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
     taskType: string
   ): AiProviderStreamFn<I, O, TModelConfig> | undefined {
     return this.streamTasks?.[taskType] as AiProviderStreamFn<I, O, TModelConfig> | undefined;
+  }
+
+  /**
+   * Get the reactive run function for a specific task type.
+   * @param taskType - The task type name (e.g., "CountTokensTask")
+   * @returns The reactive function, or undefined if not supported for this task type
+   */
+  getReactiveRunFn<I extends TaskInput = TaskInput, O extends TaskOutput = TaskOutput>(
+    taskType: string
+  ): AiProviderReactiveRunFn<I, O, TModelConfig> | undefined {
+    return this.reactiveTasks?.[taskType] as
+      | AiProviderReactiveRunFn<I, O, TModelConfig>
+      | undefined;
   }
 
   /**
@@ -170,6 +196,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
       for (const taskType of this.taskTypes) {
         registry.registerAsWorkerRunFn(this.name, taskType);
         registry.registerAsWorkerStreamFn(this.name, taskType);
+        registry.registerAsWorkerReactiveRunFn(this.name, taskType);
       }
     } else {
       for (const [taskType, fn] of Object.entries(this.tasks!)) {
@@ -179,6 +206,12 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
         for (const [taskType, fn] of Object.entries(this.streamTasks)) {
           registry.registerStreamFn(this.name, taskType, fn as AiProviderStreamFn);
         }
+      }
+    }
+
+    if (this.reactiveTasks) {
+      for (const [taskType, fn] of Object.entries(this.reactiveTasks)) {
+        registry.registerReactiveRunFn(this.name, taskType, fn as AiProviderReactiveRunFn);
       }
     }
 
@@ -211,6 +244,11 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
     if (this.streamTasks) {
       for (const [taskType, fn] of Object.entries(this.streamTasks)) {
         workerServer.registerStreamFunction(taskType, fn);
+      }
+    }
+    if (this.reactiveTasks) {
+      for (const [taskType, fn] of Object.entries(this.reactiveTasks)) {
+        workerServer.registerReactiveFunction(taskType, fn);
       }
     }
   }

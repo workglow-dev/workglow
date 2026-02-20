@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai";
+import {
+  AiProvider,
+  type AiProviderReactiveRunFn,
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+} from "@workglow/ai";
 import { ANTHROPIC } from "./common/Anthropic_Constants";
 import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
 
@@ -31,18 +36,24 @@ import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
  *
  * // Inline mode -- caller provides the tasks:
  * import { ANTHROPIC_TASKS } from "@workglow/ai-provider/anthropic";
- * await new AnthropicProvider(ANTHROPIC_TASKS).register({ mode: "inline" });
+ * await new AnthropicProvider(ANTHROPIC_TASKS, ANTHROPIC_STREAM_TASKS, ANTHROPIC_REACTIVE_TASKS).register({ mode: "inline" });
  * ```
  */
 export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {
   readonly name = ANTHROPIC;
 
-  readonly taskTypes = ["TextGenerationTask", "TextRewriterTask", "TextSummaryTask"] as const;
+  readonly taskTypes = [
+    "CountTokensTask",
+    "TextGenerationTask",
+    "TextRewriterTask",
+    "TextSummaryTask",
+  ] as const;
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>>,
-    streamTasks?: Record<string, AiProviderStreamFn<any, any, AnthropicModelConfig>>
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, AnthropicModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, AnthropicModelConfig>>
   ) {
-    super(tasks, streamTasks);
+    super(tasks, streamTasks, reactiveTasks);
   }
 }

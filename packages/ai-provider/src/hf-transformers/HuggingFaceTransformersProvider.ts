@@ -6,6 +6,7 @@
 
 import {
   AiProvider,
+  type AiProviderReactiveRunFn,
   type AiProviderRegisterOptions,
   type AiProviderRunFn,
   type AiProviderStreamFn,
@@ -45,6 +46,7 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
   readonly taskTypes = [
     "DownloadModelTask",
     "UnloadModelTask",
+    "CountTokensTask",
     "TextEmbeddingTask",
     "TextGenerationTask",
     "TextQuestionAnswerTask",
@@ -65,9 +67,10 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, HfTransformersOnnxModelConfig>>,
-    streamTasks?: Record<string, AiProviderStreamFn<any, any, HfTransformersOnnxModelConfig>>
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, HfTransformersOnnxModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>>
   ) {
-    super(tasks, streamTasks);
+    super(tasks, streamTasks, reactiveTasks);
   }
 
   protected override async onInitialize(options: AiProviderRegisterOptions): Promise<void> {

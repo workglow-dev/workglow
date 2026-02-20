@@ -12,6 +12,7 @@ import { ChunkVectorHybridSearchTask } from "./ChunkVectorHybridSearchTask";
 import { ChunkVectorSearchTask } from "./ChunkVectorSearchTask";
 import { ChunkVectorUpsertTask } from "./ChunkVectorUpsertTask";
 import { ContextBuilderTask } from "./ContextBuilderTask";
+import { CountTokensTask } from "./CountTokensTask";
 import { DocumentEnricherTask } from "./DocumentEnricherTask";
 import { DownloadModelTask } from "./DownloadModelTask";
 import { FaceDetectorTask } from "./FaceDetectorTask";
@@ -52,6 +53,7 @@ export const registerAiTasks = () => {
   const tasks = [
     BackgroundRemovalTask,
     ChunkToVectorTask,
+    CountTokensTask,
     ContextBuilderTask,
     DocumentEnricherTask,
     ChunkRetrievalTask,
@@ -104,6 +106,7 @@ export * from "./ChunkVectorHybridSearchTask";
 export * from "./ChunkVectorSearchTask";
 export * from "./ChunkVectorUpsertTask";
 export * from "./ContextBuilderTask";
+export * from "./CountTokensTask";
 export * from "./DocumentEnricherTask";
 export * from "./DownloadModelTask";
 export * from "./FaceDetectorTask";
