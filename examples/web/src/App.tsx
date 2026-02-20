@@ -110,6 +110,23 @@ export const App = () => {
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isAborting, setIsAborting] = useState<boolean>(false);
   const [jsonData, setJsonData] = useState<string>(initialJson);
+  const [cacheEnabled, setCacheEnabled] = useState<boolean>(true);
+
+  const handleCacheToggle = useCallback(
+    (enabled: boolean) => {
+      setCacheEnabled(enabled);
+      const cache = enabled ? taskOutputCache : undefined;
+      // Update the graph property and the workflow's internal cache field.
+      workflow.graph.outputCache = cache;
+      (workflow as any)._outputCache = cache;
+      // Reset the graph runner so the next run constructs a fresh TaskGraphRunner
+      // with the correct outputCache. Without this, the runner's stale reference
+      // persists because TaskGraphRunner.handleStart only updates when the config
+      // value is !== undefined, so passing undefined never clears it.
+      (workflow.graph as any)._runner = undefined;
+    },
+    [workflow]
+  );
 
   // changes coming from workflow in console
   useEffect(() => {
@@ -117,7 +134,9 @@ export const App = () => {
       if (workflow !== window["workflow"] && window["workflow"] instanceof Workflow) {
         workflow = window["workflow"];
         setWorkflow(workflow);
-        workflow.graph.outputCache = taskOutputCache;
+        const cache = cacheEnabled ? taskOutputCache : undefined;
+        workflow.graph.outputCache = cache;
+        (workflow as any)._outputCache = cache;
         setupWorkflow();
       }
     }, 10);
@@ -134,7 +153,7 @@ export const App = () => {
       workflow.off("reset", listen);
       clearInterval(interval);
     };
-  }, [w]);
+  }, [w, cacheEnabled]);
 
   useEffect(() => {
     function start() {
@@ -198,7 +217,11 @@ export const App = () => {
           <ResizablePanel style={{ backgroundColor: "#222", color: "#bbb", padding: "10px" }}>
             <QueuesStatus />
             <hr className="my-2 border-[#777]" />
-            <OutputRepositoryStatus repository={taskOutputCache} />
+            <OutputRepositoryStatus
+              repository={taskOutputCache}
+              enabled={cacheEnabled}
+              onToggle={handleCacheToggle}
+            />
             <hr className="my-2 border-[#777]" />
             <GraphStoreStatus repository={taskGraphRepo} />
           </ResizablePanel>

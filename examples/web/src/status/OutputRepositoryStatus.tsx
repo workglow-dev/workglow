@@ -7,7 +7,15 @@
 import { TaskOutputRepository } from "@workglow/task-graph";
 import { useCallback, useEffect, useState } from "react";
 
-export function OutputRepositoryStatus({ repository }: { repository: TaskOutputRepository }) {
+export function OutputRepositoryStatus({
+  repository,
+  enabled,
+  onToggle,
+}: {
+  repository: TaskOutputRepository;
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+}) {
   const [size, setSize] = useState<number>(0);
   const clear = useCallback(() => {
     repository.clear();
@@ -31,6 +39,24 @@ export function OutputRepositoryStatus({ repository }: { repository: TaskOutputR
 
   return (
     <div>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          cursor: "pointer",
+          userSelect: "none",
+          marginBottom: "4px",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onToggle(e.target.checked)}
+          style={{ cursor: "pointer", accentColor: "#888", width: "14px", height: "14px" }}
+        />
+        <span style={{ color: "#999", fontSize: "0.85em" }}>Enable Output Cache</span>
+      </label>
       <span title={repository.constructor.name}>Output Cache</span>: {size}
       <button onClick={clear} className="float-right">
         Clear
