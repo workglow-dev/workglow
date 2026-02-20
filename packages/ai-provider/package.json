@@ -84,6 +84,7 @@
     "@mediapipe/tasks-audio": "catalog:",
     "@mediapipe/tasks-genai": "catalog:",
     "openai": "catalog:",
+    "tiktoken": "catalog:",
     "@anthropic-ai/sdk": "catalog:",
     "@google/generative-ai": "catalog:",
     "node-llama-cpp": "catalog:",
@@ -107,6 +108,9 @@
       "optional": false
     },
     "openai": {
+      "optional": true
+    },
+    "tiktoken": {
       "optional": true
     },
     "@anthropic-ai/sdk": {
@@ -156,6 +160,7 @@
     "@workglow/util": "workspace:*",
     "node-llama-cpp": "catalog:",
     "ollama": "catalog:",
-    "openai": "catalog:"
+    "openai": "catalog:",
+    "tiktoken": "catalog:"
   }
 }

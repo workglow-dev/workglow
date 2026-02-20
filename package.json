@@ -46,6 +46,7 @@
     "@huggingface/inference": "^4.13.12",
     "ollama": "^0.6.3",
     "openai": "^6.22.0",
+    "tiktoken": "^1.0.22",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "pg": "^8.18.0",
     "@supabase/supabase-js": "^2.97.0",

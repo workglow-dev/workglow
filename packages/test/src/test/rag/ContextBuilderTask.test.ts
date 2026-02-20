@@ -179,14 +179,13 @@ describe("ContextBuilderTask", () => {
   test("should truncate first chunk if maxLength is very small", async () => {
     const result = await contextBuilder({
       chunks: testChunks,
-      maxLength: 50,
+      maxLength: 30,
     });
 
-    expect(result.totalLength).toBeLessThanOrEqual(50);
-    expect(result.context.length).toBeLessThanOrEqual(50);
-    if (result.chunksUsed > 0) {
-      expect(result.context).toContain("...");
-    }
+    expect(result.totalLength).toBeLessThanOrEqual(30);
+    expect(result.context.length).toBeLessThanOrEqual(30);
+    expect(result.chunksUsed).toBe(1);
+    expect(result.context).toContain("...");
   });
 
   test("should use default separator when not specified", async () => {

@@ -35,6 +35,7 @@ export class GoogleGeminiProvider extends AiProvider<GeminiModelConfig> {
   readonly name = GOOGLE_GEMINI;
 
   readonly taskTypes = [
+    "CountTokensTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",

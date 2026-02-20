@@ -21,6 +21,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema, uuid4 } from "@workglow/util";
+import { CountTokensTask } from "./CountTokensTask";
+import { TypeModel } from "./base/AiTaskSchemas";
+
+const modelSchema = TypeModel("model", {
+  title: "Model",
+  description: "Model to use for token counting",
+});
 
 const inputSchema = {
   type: "object",
@@ -62,8 +69,9 @@ const inputSchema = {
       description: "Strategy for chunking",
       default: "hierarchical",
     },
+    model: modelSchema,
   },
-  required: [],
+  required: ["documentTree"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -101,7 +109,10 @@ export type HierarchicalChunkerTaskInput = FromSchema<typeof inputSchema>;
 export type HierarchicalChunkerTaskOutput = FromSchema<typeof outputSchema>;
 
 /**
- * Task for hierarchical chunking that respects token budgets and document structure
+ * Task for hierarchical chunking that respects token budgets and document structure.
+ * Pass a `model` in the input to use a real tokenizer for accurate token
+ * counting; when omitted, or when the model's provider does not support token counting,
+ * the task falls back to the character-based estimate via buildCountTokensFn.
  */
 export class HierarchicalChunkerTask extends Task<
   HierarchicalChunkerTaskInput,
@@ -149,13 +160,18 @@ export class HierarchicalChunkerTask extends Task<
       reservedTokens,
     };
 
+    let countFn: (text: string) => Promise<number> = async (text: string) => estimateTokens(text);
+    if (input.model) {
+      const countTask = context.own(new CountTokensTask({ model: input.model }));
+      countFn = (text: string) => countTask.run({ text }).then((r) => r.count);
+    }
+
     const chunks: ChunkNode[] = [];
 
     if (strategy === "hierarchical") {
-      await this.chunkHierarchically(root, [], doc_id, tokenBudget, chunks);
+      await this.chunkHierarchically(root, [], doc_id, tokenBudget, chunks, countFn);
     } else {
-      // Flat chunking: treat entire document as flat text
-      await this.chunkFlat(root, doc_id, tokenBudget, chunks);
+      await this.chunkFlat(root, doc_id, tokenBudget, chunks, countFn);
     }
     return {
       doc_id,
@@ -173,25 +189,34 @@ export class HierarchicalChunkerTask extends Task<
     nodePath: string[],
     doc_id: string,
     tokenBudget: TokenBudget,
-    chunks: ChunkNode[]
+    chunks: ChunkNode[],
+    countFn: (text: string) => Promise<number>
   ): Promise<void> {
     const currentPath = [...nodePath, node.nodeId];
 
-    // If node has no children, it's a leaf - chunk its text
     if (!hasChildren(node)) {
-      await this.chunkText(node.text, currentPath, doc_id, tokenBudget, chunks, node.nodeId);
+      await this.chunkText(
+        node.text,
+        currentPath,
+        doc_id,
+        tokenBudget,
+        chunks,
+        node.nodeId,
+        countFn
+      );
       return;
     }
 
-    // For nodes with children, recursively chunk children
     const children = getChildren(node);
     for (const child of children) {
-      await this.chunkHierarchically(child, currentPath, doc_id, tokenBudget, chunks);
+      await this.chunkHierarchically(child, currentPath, doc_id, tokenBudget, chunks, countFn);
     }
   }
 
   /**
-   * Chunk a single text string
+   * Chunk a single text string, using countFn for token counting.
+   * countFn always returns a number -- it falls back to estimation internally
+   * when no real tokenizer is available.
    */
   private async chunkText(
     text: string,
@@ -199,16 +224,16 @@ export class HierarchicalChunkerTask extends Task<
     doc_id: string,
     tokenBudget: TokenBudget,
     chunks: ChunkNode[],
-    leafNodeId: string
+    leafNodeId: string,
+    countFn: (text: string) => Promise<number>
   ): Promise<void> {
-    const maxChars = (tokenBudget.maxTokensPerChunk - tokenBudget.reservedTokens) * 4;
-    const overlapChars = tokenBudget.overlapTokens * 4;
+    const maxTokens = tokenBudget.maxTokensPerChunk - tokenBudget.reservedTokens;
+    const overlapTokens = tokenBudget.overlapTokens;
 
-    if (estimateTokens(text) <= tokenBudget.maxTokensPerChunk - tokenBudget.reservedTokens) {
-      // Text fits in one chunk
-      const chunkId = uuid4();
+    const count = await countFn(text);
+    if (count <= maxTokens) {
       chunks.push({
-        chunkId,
+        chunkId: uuid4(),
         doc_id,
         text,
         nodePath,
@@ -217,31 +242,41 @@ export class HierarchicalChunkerTask extends Task<
       return;
     }
 
-    // Split into multiple chunks with overlap
-    let chunkOrdinal = 0;
+    // Binary search for the character boundary that corresponds to targetTokens.
+    // countFn handles the estimation fallback, so we always use it.
+    const findCharBoundary = async (startChar: number, targetTokens: number): Promise<number> => {
+      let lo = startChar;
+      let hi = Math.min(startChar + targetTokens * 6, text.length); // generous upper bound
+      while (lo < hi - 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        const count = await countFn(text.substring(startChar, mid));
+        if (count <= targetTokens) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      return lo;
+    };
+
     let startOffset = 0;
 
     while (startOffset < text.length) {
-      const endOffset = Math.min(startOffset + maxChars, text.length);
-      const chunkText = text.substring(startOffset, endOffset);
-
-      const chunkId = uuid4();
+      const boundary = await findCharBoundary(startOffset, maxTokens);
+      const endOffset = Math.min(boundary, text.length);
 
       chunks.push({
-        chunkId,
+        chunkId: uuid4(),
         doc_id,
-        text: chunkText,
+        text: text.substring(startOffset, endOffset),
         nodePath,
         depth: nodePath.length,
       });
 
-      chunkOrdinal++;
-      startOffset += maxChars - overlapChars;
+      if (endOffset >= text.length) break;
 
-      // Prevent infinite loop
-      if (overlapChars >= maxChars) {
-        startOffset = endOffset;
-      }
+      const nextStart = await findCharBoundary(startOffset, maxTokens - overlapTokens);
+      startOffset = nextStart > startOffset ? nextStart : endOffset;
     }
   }
 
@@ -252,11 +287,11 @@ export class HierarchicalChunkerTask extends Task<
     root: DocumentNode,
     doc_id: string,
     tokenBudget: TokenBudget,
-    chunks: ChunkNode[]
+    chunks: ChunkNode[],
+    countFn: (text: string) => Promise<number>
   ): Promise<void> {
-    // Collect all text from the tree
     const allText = this.collectAllText(root);
-    await this.chunkText(allText, [root.nodeId], doc_id, tokenBudget, chunks, root.nodeId);
+    await this.chunkText(allText, [root.nodeId], doc_id, tokenBudget, chunks, root.nodeId, countFn);
   }
 
   /**

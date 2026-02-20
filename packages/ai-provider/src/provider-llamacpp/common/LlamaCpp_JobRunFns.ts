@@ -7,6 +7,8 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
   DownloadModelTaskRunInput,
   DownloadModelTaskRunOutput,
   TextEmbeddingTaskInput,
@@ -505,6 +507,17 @@ export async function disposeLlamaCppResources(): Promise<void> {
   resolvedPaths.clear();
 }
 
+export const LlamaCpp_CountTokens: AiProviderRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  LlamaCppModelConfig
+> = async (input, model, onProgress, signal) => {
+  const loadedModel = await getOrLoadModel(model!);
+  // model.tokenizer is itself the tokenize function (Tokenizer = tokenize["tokenize"])
+  const tokens = loadedModel.tokenizer(input.text);
+  return { count: tokens.length };
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
@@ -512,6 +525,7 @@ export async function disposeLlamaCppResources(): Promise<void> {
 export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppModelConfig>> = {
   DownloadModelTask: LlamaCpp_Download,
   UnloadModelTask: LlamaCpp_Unload,
+  CountTokensTask: LlamaCpp_CountTokens,
   TextGenerationTask: LlamaCpp_TextGeneration,
   TextEmbeddingTask: LlamaCpp_TextEmbedding,
   TextRewriterTask: LlamaCpp_TextRewriter,

@@ -43,6 +43,7 @@ export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
+    "CountTokensTask",
   ] as const;
 
   constructor(

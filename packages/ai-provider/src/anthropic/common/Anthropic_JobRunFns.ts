@@ -7,6 +7,8 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   TextRewriterTaskInput,
@@ -222,11 +224,25 @@ export const Anthropic_TextSummary_Stream: AiProviderStreamFn<
   yield { type: "finish", data: {} as TextSummaryTaskOutput };
 };
 
+export const Anthropic_CountTokens: AiProviderRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  AnthropicModelConfig
+> = async (input, model, onProgress, signal) => {
+  const client = await getClient(model);
+  const result = await client.messages.countTokens({
+    model: getModelName(model),
+    messages: [{ role: "user", content: input.text }],
+  });
+  return { count: result.input_tokens };
+};
+
 // ========================================================================
 // Task registries
 // ========================================================================
 
 export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>> = {
+  CountTokensTask: Anthropic_CountTokens,
   TextGenerationTask: Anthropic_TextGeneration,
   TextRewriterTask: Anthropic_TextRewriter,
   TextSummaryTask: Anthropic_TextSummary,

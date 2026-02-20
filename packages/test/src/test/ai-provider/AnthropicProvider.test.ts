@@ -64,6 +64,7 @@ describe("AnthropicProvider", () => {
       const provider = new AnthropicProvider();
       expect(provider.name).toBe(ANTHROPIC);
       expect(provider.supportedTaskTypes).toEqual([
+        "CountTokensTask",
         "TextGenerationTask",
         "TextRewriterTask",
         "TextSummaryTask",
@@ -79,12 +80,12 @@ describe("AnthropicProvider", () => {
       expect(registry.getDirectRunFn(ANTHROPIC, "TextGenerationTask")).toBeDefined();
     });
 
-    test("should register on worker server with 3 functions", () => {
+    test("should register on worker server with 4 functions", () => {
       const mockServer = { registerFunction: vi.fn() };
       const provider = new AnthropicProvider(ANTHROPIC_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(3);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -229,11 +230,12 @@ describe("AnthropicProvider", () => {
 
   describe("ANTHROPIC_TASKS", () => {
     test("should export three task run functions (no embedding)", () => {
+      expect(ANTHROPIC_TASKS).toHaveProperty("CountTokensTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextGenerationTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextRewriterTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextSummaryTask");
       expect(ANTHROPIC_TASKS).not.toHaveProperty("TextEmbeddingTask");
-      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(3);
+      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(4);
     });
   });
 });

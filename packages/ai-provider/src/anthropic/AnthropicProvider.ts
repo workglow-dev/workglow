@@ -37,7 +37,12 @@ import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
 export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {
   readonly name = ANTHROPIC;
 
-  readonly taskTypes = ["TextGenerationTask", "TextRewriterTask", "TextSummaryTask"] as const;
+  readonly taskTypes = [
+    "CountTokensTask",
+    "TextGenerationTask",
+    "TextRewriterTask",
+    "TextSummaryTask",
+  ] as const;
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>>,

@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Task, Workflow } from "@workglow/task-graph";
+import { estimateTokens } from "@workglow/dataset";
+import {
+  CreateWorkflow,
+  IExecuteReactiveContext,
+  JobQueueTaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 export const ContextFormat = {
@@ -56,6 +63,14 @@ const inputSchema = {
       minimum: 0,
       default: 0,
     },
+    maxTokens: {
+      type: "number",
+      title: "Max Tokens",
+      description:
+        "Maximum number of tokens in context (0 = unlimited). Takes precedence over maxLength when set.",
+      minimum: 0,
+      default: 0,
+    },
     includeMetadata: {
       type: "boolean",
       title: "Include Metadata",
@@ -91,8 +106,13 @@ const outputSchema = {
       title: "Total Length",
       description: "Total length of context in characters",
     },
+    totalTokens: {
+      type: "number",
+      title: "Total Tokens",
+      description: "Estimated or exact token count of the context",
+    },
   },
-  required: ["context", "chunksUsed", "totalLength"],
+  required: ["context", "chunksUsed", "totalLength", "totalTokens"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -101,7 +121,10 @@ export type ContextBuilderTaskOutput = FromSchema<typeof outputSchema>;
 
 /**
  * Task for formatting retrieved chunks into context for LLM prompts.
- * Supports various formatting styles and length constraints.
+ * Supports various formatting styles and length/token constraints.
+ * Pass a `countTokensModel` in the input to use a real tokenizer for accurate token
+ * budgeting; when omitted, or when the model's provider does not support token counting,
+ * falls back to character-based estimation via buildCountTokensFn.
  */
 export class ContextBuilderTask extends Task<
   ContextBuilderTaskInput,
@@ -124,7 +147,8 @@ export class ContextBuilderTask extends Task<
 
   async executeReactive(
     input: ContextBuilderTaskInput,
-    output: ContextBuilderTaskOutput
+    _output: ContextBuilderTaskOutput,
+    _context: IExecuteReactiveContext
   ): Promise<ContextBuilderTaskOutput> {
     const {
       chunks,
@@ -132,11 +156,14 @@ export class ContextBuilderTask extends Task<
       scores = [],
       format = ContextFormat.SIMPLE,
       maxLength = 0,
+      maxTokens = 0,
       includeMetadata = false,
       separator = "\n\n",
     } = input;
 
-    let context = "";
+    const useTokenBudget = maxTokens > 0;
+
+    let ctx = "";
     let chunksUsed = 0;
 
     for (let i = 0; i < chunks.length; i++) {
@@ -145,18 +172,30 @@ export class ContextBuilderTask extends Task<
       const score = scores[i];
 
       let formattedChunk = this.formatChunk(chunk, meta, score, i, format, includeMetadata);
+      const prefix = chunksUsed > 0 ? separator : "";
+      const candidate = ctx + prefix + formattedChunk;
 
-      // Check length constraint
-      if (maxLength > 0) {
-        const potentialLength = context.length + formattedChunk.length + separator.length;
-        if (potentialLength > maxLength) {
-          // Try to fit partial chunk if it's the first one
+      if (useTokenBudget) {
+        if (estimateTokens(candidate) > maxTokens) {
           if (chunksUsed === 0) {
-            const available = maxLength - context.length;
-            if (available > 100) {
-              // Only include partial if we have reasonable space
+            let truncated = formattedChunk;
+            while (truncated.length > 10 && estimateTokens(truncated) > maxTokens) {
+              truncated = truncated.substring(0, Math.floor(truncated.length * 0.9));
+            }
+            if (truncated.length > 10) {
+              ctx = truncated.substring(0, truncated.length - 3) + "...";
+              chunksUsed++;
+            }
+          }
+          break;
+        }
+      } else if (maxLength > 0) {
+        if (candidate.length > maxLength) {
+          if (chunksUsed === 0) {
+            const available = maxLength - ctx.length;
+            if (available > 10) {
               formattedChunk = formattedChunk.substring(0, available - 3) + "...";
-              context += formattedChunk;
+              ctx += formattedChunk;
               chunksUsed++;
             }
           }
@@ -164,17 +203,17 @@ export class ContextBuilderTask extends Task<
         }
       }
 
-      if (chunksUsed > 0) {
-        context += separator;
-      }
-      context += formattedChunk;
+      ctx = candidate;
       chunksUsed++;
     }
 
+    const totalTokens = estimateTokens(ctx);
+
     return {
-      context,
+      context: ctx,
       chunksUsed,
-      totalLength: context.length,
+      totalLength: ctx.length,
+      totalTokens,
     };
   }
 

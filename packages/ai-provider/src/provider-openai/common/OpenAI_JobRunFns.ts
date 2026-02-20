@@ -7,6 +7,8 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -254,6 +256,48 @@ export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Token counting via tiktoken (local, no API call)
+// ========================================================================
+
+let _tiktoken: typeof import("tiktoken") | undefined;
+async function loadTiktoken() {
+  if (!_tiktoken) {
+    try {
+      _tiktoken = await import("tiktoken");
+    } catch {
+      throw new Error(
+        "tiktoken is required for OpenAI token counting. Install it with: bun add tiktoken"
+      );
+    }
+  }
+  return _tiktoken;
+}
+
+export const OpenAI_CountTokens: AiProviderRunFn<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  OpenAiModelConfig
+> = async (input, model) => {
+  const tiktoken = await loadTiktoken();
+  const modelName = getModelName(model);
+  let enc: ReturnType<typeof tiktoken.encoding_for_model>;
+  try {
+    enc = tiktoken.encoding_for_model(
+      modelName as Parameters<typeof tiktoken.encoding_for_model>[0]
+    );
+  } catch {
+    // Fall back to cl100k_base for unknown/newer models
+    enc = tiktoken.get_encoding("cl100k_base");
+  }
+  try {
+    const tokens = enc.encode(input.text);
+    return { count: tokens.length };
+  } finally {
+    enc.free();
+  }
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -262,6 +306,7 @@ export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelC
   TextEmbeddingTask: OpenAI_TextEmbedding,
   TextRewriterTask: OpenAI_TextRewriter,
   TextSummaryTask: OpenAI_TextSummary,
+  CountTokensTask: OpenAI_CountTokens,
 };
 
 export const OPENAI_STREAM_TASKS: Record<

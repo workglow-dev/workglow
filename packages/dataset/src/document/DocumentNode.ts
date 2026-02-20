@@ -14,7 +14,8 @@ import {
 } from "./DocumentSchema";
 
 /**
- * Approximate token counting (v1)
+ * Approximate token counting (v1) -- ~4 characters per token.
+ * Used as a fallback when no real tokenizer is available.
  */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);

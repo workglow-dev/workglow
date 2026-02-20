@@ -39,6 +39,7 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
   readonly taskTypes = [
     "DownloadModelTask",
     "UnloadModelTask",
+    "CountTokensTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",

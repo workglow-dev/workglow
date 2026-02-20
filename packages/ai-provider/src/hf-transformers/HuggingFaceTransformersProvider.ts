@@ -45,6 +45,7 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
   readonly taskTypes = [
     "DownloadModelTask",
     "UnloadModelTask",
+    "CountTokensTask",
     "TextEmbeddingTask",
     "TextGenerationTask",
     "TextQuestionAnswerTask",
