@@ -244,16 +244,18 @@ export class HierarchicalChunkerTask extends Task<
 
     // Binary search for the character boundary that corresponds to targetTokens.
     // countFn handles the estimation fallback, so we always use it.
+    // Uses ceil-biased midpoint so that when hi = lo + 1, mid = hi is always checked,
+    // preventing the boundary from stalling at startChar on the last character of text.
     const findCharBoundary = async (startChar: number, targetTokens: number): Promise<number> => {
       let lo = startChar;
       let hi = Math.min(startChar + targetTokens * 6, text.length); // generous upper bound
-      while (lo < hi - 1) {
-        const mid = Math.floor((lo + hi) / 2);
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
         const count = await countFn(text.substring(startChar, mid));
         if (count <= targetTokens) {
           lo = mid;
         } else {
-          hi = mid;
+          hi = mid - 1;
         }
       }
       return lo;
