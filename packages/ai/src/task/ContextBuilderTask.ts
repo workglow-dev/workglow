@@ -109,7 +109,7 @@ const outputSchema = {
     totalTokens: {
       type: "number",
       title: "Total Tokens",
-      description: "Estimated or exact token count of the context",
+      description: "Estimated token count of the context",
     },
   },
   required: ["context", "chunksUsed", "totalLength", "totalTokens"],
@@ -122,9 +122,10 @@ export type ContextBuilderTaskOutput = FromSchema<typeof outputSchema>;
 /**
  * Task for formatting retrieved chunks into context for LLM prompts.
  * Supports various formatting styles and length/token constraints.
- * Pass a `countTokensModel` in the input to use a real tokenizer for accurate token
- * budgeting; when omitted, or when the model's provider does not support token counting,
- * falls back to character-based estimation via buildCountTokensFn.
+ *
+ * Token budgeting (for `maxTokens`) uses {@link estimateTokens} to approximate
+ * the token count of the generated context. This is a character-based estimate
+ * rather than an exact tokenizer tied to a specific model.
  */
 export class ContextBuilderTask extends Task<
   ContextBuilderTaskInput,

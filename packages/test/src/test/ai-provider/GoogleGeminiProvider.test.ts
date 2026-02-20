@@ -8,6 +8,7 @@ import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from
 import { GOOGLE_GEMINI, GoogleGeminiProvider } from "@workglow/ai-provider";
 import {
   GEMINI_TASKS,
+  Gemini_CountTokens,
   Gemini_TextEmbedding,
   Gemini_TextGeneration,
   Gemini_TextRewriter,
@@ -23,6 +24,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vit
 const mockGenerateContent = vi.fn();
 const mockEmbedContent = vi.fn();
 const mockBatchEmbedContents = vi.fn();
+const mockCountTokens = vi.fn();
 
 vi.mock("@google/generative-ai", () => ({
   GoogleGenerativeAI: class MockGoogleGenerativeAI {
@@ -32,6 +34,7 @@ vi.mock("@google/generative-ai", () => ({
         generateContent: mockGenerateContent,
         embedContent: mockEmbedContent,
         batchEmbedContents: mockBatchEmbedContents,
+        countTokens: mockCountTokens,
       };
     }
   },
@@ -220,6 +223,24 @@ describe("GoogleGeminiProvider", () => {
           abortSignal
         )
       ).rejects.toThrow("Quota exceeded");
+    });
+  });
+
+  describe("Gemini_CountTokens", () => {
+    test("should call countTokens and map totalTokens to count", async () => {
+      mockCountTokens.mockResolvedValue({ totalTokens: 7 });
+
+      const model = makeModel("gemini-2.0-flash");
+      const result = await Gemini_CountTokens(
+        { text: "Hello Gemini", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ count: 7 });
+      expect(mockCountTokens).toHaveBeenCalledOnce();
+      expect(mockCountTokens).toHaveBeenCalledWith("Hello Gemini");
     });
   });
 

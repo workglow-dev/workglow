@@ -15,7 +15,7 @@ import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
 
-const modelSchema = TypeModel("model");
+const modelSchema = TypeModel("model:CountTokensTask");
 
 export const CountTokensInputSchema = {
   type: "object",

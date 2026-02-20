@@ -273,28 +273,39 @@ async function loadTiktoken() {
   return _tiktoken;
 }
 
+// Cache encoders by model name to avoid repeated allocation overhead.
+const _encoderCache = new Map<string, ReturnType<typeof import("tiktoken").get_encoding>>();
+
+async function getEncoder(modelName: string) {
+  const tiktoken = await loadTiktoken();
+  if (!_encoderCache.has(modelName)) {
+    try {
+      _encoderCache.set(
+        modelName,
+        tiktoken.encoding_for_model(
+          modelName as Parameters<typeof tiktoken.encoding_for_model>[0]
+        )
+      );
+    } catch {
+      // Fall back to cl100k_base for unknown/newer models.
+      const fallback = "cl100k_base";
+      if (!_encoderCache.has(fallback)) {
+        _encoderCache.set(fallback, tiktoken.get_encoding(fallback));
+      }
+      _encoderCache.set(modelName, _encoderCache.get(fallback)!);
+    }
+  }
+  return _encoderCache.get(modelName)!;
+}
+
 export const OpenAI_CountTokens: AiProviderRunFn<
   CountTokensTaskInput,
   CountTokensTaskOutput,
   OpenAiModelConfig
 > = async (input, model) => {
-  const tiktoken = await loadTiktoken();
-  const modelName = getModelName(model);
-  let enc: ReturnType<typeof tiktoken.encoding_for_model>;
-  try {
-    enc = tiktoken.encoding_for_model(
-      modelName as Parameters<typeof tiktoken.encoding_for_model>[0]
-    );
-  } catch {
-    // Fall back to cl100k_base for unknown/newer models
-    enc = tiktoken.get_encoding("cl100k_base");
-  }
-  try {
-    const tokens = enc.encode(input.text);
-    return { count: tokens.length };
-  } finally {
-    enc.free();
-  }
+  const enc = await getEncoder(getModelName(model));
+  const tokens = enc.encode(input.text);
+  return { count: tokens.length };
 };
 
 // ========================================================================
