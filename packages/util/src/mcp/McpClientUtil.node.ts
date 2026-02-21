@@ -23,6 +23,7 @@ export const mcpServerConfigSchema = {
     enum: mcpTransportTypes,
     title: "Transport",
     description: "The transport type to use for connecting to the MCP server",
+    default: "streamable-http",
   },
   server_url: {
     type: "string",
@@ -109,9 +110,12 @@ export async function createMcpClient(
         "status" in err &&
         (err as { status: number }).status === 405);
     if (is405) {
+      // Close client so SDK transport stops scheduling GET reconnects (SSE uses GET).
+      await client.close().catch(() => {});
       throw new Error(
         `MCP connection failed with 405 Method Not Allowed for ${url}. ` +
-          `This usually means the server does not accept GET requests. `,
+          `This server does not accept GET requests (used by SSE transport). ` +
+          `Use "streamable-http" transport instead of "sse" for this server.`,
         { cause: err }
       );
     }
