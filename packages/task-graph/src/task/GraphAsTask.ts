@@ -314,10 +314,7 @@ export class GraphAsTask<
    * any input streams from upstream for cases where this GraphAsTask is
    * itself downstream of another streaming task.
    */
-  async *executeStream(
-    input: Input,
-    context: IExecuteContext
-  ): AsyncIterable<StreamEvent<Output>> {
+  async *executeStream(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>> {
     // Forward upstream input streams first (pass-through from outer graph)
     if (context.inputStreams) {
       for (const [, stream] of context.inputStreams) {
@@ -359,7 +356,7 @@ export class GraphAsTask<
       });
 
       const runPromise = this.subGraph
-        .run<Output>(input, { parentSignal: context.signal })
+        .run<Output>(input, { parentSignal: context.signal, accumulateLeafOutputs: false })
         .then((results) => {
           subgraphDone = true;
           resolveWaiting?.();

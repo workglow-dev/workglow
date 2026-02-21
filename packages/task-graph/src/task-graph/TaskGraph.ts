@@ -40,6 +40,13 @@ export interface TaskGraphRunConfig {
   parentSignal?: AbortSignal;
   /** Optional service registry to use for this task graph (creates child from global if not provided) */
   registry?: ServiceRegistry;
+  /**
+   * When true, streaming leaf tasks (no outgoing edges) accumulate their full
+   * output so the workflow return value is complete. Defaults to true.
+   * Pass false for subgraph runs where the parent handles streaming via
+   * subscriptions and does not rely on the return value for stream data.
+   */
+  accumulateLeafOutputs?: boolean;
 }
 
 class TaskGraphDAG extends DirectedAcyclicGraph<
@@ -104,6 +111,7 @@ export class TaskGraph implements ITaskGraph {
     return this.runner.runGraph<ExecuteOutput>(input, {
       outputCache: config?.outputCache || this.outputCache,
       parentSignal: config?.parentSignal || undefined,
+      accumulateLeafOutputs: config?.accumulateLeafOutputs,
     });
   }
 

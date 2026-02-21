@@ -78,6 +78,11 @@ export class TaskGraphRunner {
    */
   protected outputCache?: TaskOutputRepository;
   /**
+   * Whether leaf tasks (no outgoing edges) should accumulate their streaming
+   * output. True by default so workflow return values are complete.
+   */
+  protected accumulateLeafOutputs: boolean = true;
+  /**
    * Service registry for this graph run
    */
   protected registry: ServiceRegistry = globalServiceRegistry;
@@ -507,7 +512,7 @@ export class TaskGraphRunner {
     if (this.outputCache) return true;
 
     const outEdges = this.graph.getTargetDataflows(task.config.id);
-    if (outEdges.length === 0) return false;
+    if (outEdges.length === 0) return this.accumulateLeafOutputs;
 
     const outSchema = task.outputSchema();
 
@@ -817,6 +822,8 @@ export class TaskGraphRunner {
       // Create a child container that inherits from global but allows overrides
       this.registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
     }
+
+    this.accumulateLeafOutputs = config?.accumulateLeafOutputs !== false;
 
     if (config?.outputCache !== undefined) {
       if (typeof config.outputCache === "boolean") {
