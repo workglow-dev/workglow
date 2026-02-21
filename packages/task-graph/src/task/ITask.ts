@@ -78,6 +78,7 @@ export interface ITaskStaticProperties {
   readonly description?: string;
   readonly cacheable: boolean;
   readonly hasDynamicSchemas: boolean;
+  readonly passthroughInputsToOutputs?: boolean;
   readonly inputSchema: () => DataPortSchema;
   readonly outputSchema: () => DataPortSchema;
 }

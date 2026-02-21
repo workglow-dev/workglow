@@ -56,6 +56,7 @@ export class DebugLogTask<
   public static description =
     "Logs messages to the console with configurable log levels for debugging task graphs";
   static readonly cacheable = false;
+  public static passthroughInputsToOutputs = true;
 
   public static inputSchema() {
     return inputSchema;

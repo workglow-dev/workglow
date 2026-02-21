@@ -45,6 +45,7 @@ export class DelayTask<
   public static title = "Delay";
   public static description = "Delays execution for a specified duration with progress tracking";
   static readonly cacheable = false;
+  public static passthroughInputsToOutputs = true;
 
   static inputSchema() {
     return inputSchema;

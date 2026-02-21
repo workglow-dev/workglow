@@ -80,6 +80,13 @@ export class Task<
   public static hasDynamicSchemas: boolean = false;
 
   /**
+   * When true, dynamically added input ports (via the universal "Add Input" handle in the builder)
+   * are mirrored as output ports of the same name and type. Set this on pass-through tasks that
+   * forward their additional inputs to their outputs unchanged.
+   */
+  public static passthroughInputsToOutputs: boolean = false;
+
+  /**
    * Input schema for this task
    */
   public static inputSchema(): DataPortSchema {
