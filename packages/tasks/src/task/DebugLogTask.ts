@@ -14,10 +14,6 @@ const DEFAULT_LOG_LEVEL: LogLevel = "log";
 const inputSchema = {
   type: "object",
   properties: {
-    console: {
-      title: "Message",
-      description: "The message to log",
-    },
     log_level: {
       type: "string",
       enum: log_levels,
@@ -26,18 +22,13 @@ const inputSchema = {
       default: DEFAULT_LOG_LEVEL,
     },
   },
-  additionalProperties: false,
+  additionalProperties: true,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
-  properties: {
-    console: {
-      title: "Messages",
-      description: "The messages logged by the task",
-    },
-  },
-  additionalProperties: false,
+  properties: {},
+  additionalProperties: true,
 } as const satisfies DataPortSchema;
 
 export type DebugLogTaskInput = FromSchema<typeof inputSchema>;
@@ -75,13 +66,17 @@ export class DebugLogTask<
   }
 
   async executeReactive(input: Input, output: Output) {
-    const { log_level = DEFAULT_LOG_LEVEL, console: messages } = input;
-    if (log_level == "dir") {
-      console.dir(messages, { depth: null });
+    const inputRecord = input as Record<string, unknown>;
+    const log_level: LogLevel = (inputRecord.log_level as LogLevel) ?? DEFAULT_LOG_LEVEL;
+    const loggable = Object.fromEntries(
+      Object.entries(inputRecord).filter(([k]) => k !== "log_level")
+    );
+    if (log_level === "dir") {
+      console.dir(loggable, { depth: null });
     } else {
-      console[log_level](messages);
+      console[log_level](loggable);
     }
-    output.console = input.console;
+    Object.assign(output, loggable);
     return output;
   }
 }

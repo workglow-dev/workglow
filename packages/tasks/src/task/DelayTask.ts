@@ -22,12 +22,8 @@ const inputSchema = {
       title: "Delay (ms)",
       default: 1,
     },
-    pass_through: {
-      title: "Pass Through",
-      description: "Pass through data to the output",
-    },
   },
-  additionalProperties: false,
+  additionalProperties: true,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
@@ -48,6 +44,7 @@ export class DelayTask<
   static readonly category = "Utility";
   public static title = "Delay";
   public static description = "Delays execution for a specified duration with progress tracking";
+  static readonly cacheable = false;
 
   static inputSchema() {
     return inputSchema;
@@ -72,7 +69,8 @@ export class DelayTask<
     } else {
       await sleep(delay);
     }
-    return input.pass_through as Output;
+    const output = Object.fromEntries(Object.entries(input).filter(([k]) => k !== "delay"));
+    return output as Output;
   }
 }
 
