@@ -15,6 +15,7 @@ A package of task types for common operations, workflow management, and data pro
   - [LambdaTask](#lambdatask)
   - [JsonTask](#jsontask)
   - [ArrayTask](#arraytask)
+  - [Browser Automation Tasks](#browser-automation-tasks)
 - [Workflow Integration](#workflow-integration)
 - [Error Handling](#error-handling)
 - [Configuration](#configuration)
@@ -566,6 +567,62 @@ const result = await task.run();
 - Automatic task instance creation per array element
 - Combination generation for multiple array inputs
 - Seamless single-value and array handling
+
+### Browser Automation Tasks
+
+Browser automation tasks are available in Node.js and Bun runtimes (not browser runtime exports). They use Playwright with a serializable context contract:
+
+- Input includes optional `context` and optional `session_id`
+- Output always includes `context`
+- Session metadata is carried in `context.__browser = { session_id, url?, title? }`
+- Raw Playwright objects are never passed through dataflow ports
+
+Install Playwright when using browser tasks:
+
+```bash
+bun add playwright
+# or
+npm i playwright
+```
+
+**Available tasks:**
+
+- `BrowserNavigateTask` / `workflow.browserNavigate(...)`
+- `BrowserExtractTask` / `workflow.browserExtract(...)`
+- `BrowserClickTask` / `workflow.browserClick(...)`
+- `BrowserWaitTask` / `workflow.browserWait(...)`
+- `BrowserEvaluateTask` / `workflow.browserEvaluate(...)`
+- `BrowserTransformTask` / `workflow.browserTransform(...)`
+- `BrowserCloseTask` / `workflow.browserClose(...)`
+
+**Example chain using the required browser nodes:**
+
+```typescript
+import { Workflow } from "@workglow/task-graph";
+import "@workglow/tasks"; // ensures browser workflow helpers are registered in Node/Bun entrypoint
+
+const output = await new Workflow()
+  .browserNavigate({ url: "https://example.com" })
+  .browserExtract({ selector: "h1", kind: "text" })
+  .browserClick({ selector: "a.next" })
+  .browserWait({ mode: "load_state", load_state: "networkidle" })
+  .browserEvaluate({
+    args: { multiplier: 2 },
+    evaluate_code: "return document.title.length * args.multiplier;",
+  })
+  .rename("result", "data")
+  .browserTransform({
+    transform_code: "return { context, data: { titleScore: data } };",
+  })
+  .browserClose()
+  .run();
+
+console.log(output);
+```
+
+`browserClose()` provides explicit teardown, and run-level cleanup automatically closes any leaked sessions on complete, error, abort, or disable.
+
+Security note: `BrowserEvaluateTask` and `BrowserTransformTask` execute trusted JavaScript strings. For safer interpreted transform logic, prefer `JavaScriptTask` where appropriate.
 
 ## Workflow Integration
 

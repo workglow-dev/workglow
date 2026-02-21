@@ -14,6 +14,7 @@ import {
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import { ITask } from "../task/ITask";
+import { RUN_CLEANUP_REGISTRY, RunCleanupRegistry } from "../task/RunCleanup";
 import {
   edgeNeedsAccumulation,
   getOutputStreamMode,
@@ -97,6 +98,7 @@ export class TaskGraphRunner {
   protected inProgressTasks: Map<unknown, Promise<TaskOutput>> = new Map();
   protected inProgressFunctions: Map<unknown, Promise<any>> = new Map();
   protected failedTaskErrors: Map<unknown, TaskError> = new Map();
+  protected runCleanupRegistry?: RunCleanupRegistry;
 
   /**
    * Constructor for TaskGraphRunner
@@ -184,7 +186,7 @@ export class TaskGraphRunner {
 
     if (this.failedTaskErrors.size > 0) {
       const latestError = this.failedTaskErrors.values().next().value!;
-      this.handleError(latestError);
+      await this.handleError(latestError);
       throw latestError;
     }
     if (this.abortController?.signal.aborted) {
@@ -822,6 +824,8 @@ export class TaskGraphRunner {
       // Create a child container that inherits from global but allows overrides
       this.registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
     }
+    this.runCleanupRegistry = new RunCleanupRegistry();
+    this.registry.registerInstance(RUN_CLEANUP_REGISTRY, this.runCleanupRegistry);
 
     this.accumulateLeafOutputs = config?.accumulateLeafOutputs !== false;
 
@@ -881,6 +885,7 @@ export class TaskGraphRunner {
    * Handles the completion of task graph execution
    */
   protected async handleComplete(): Promise<void> {
+    await this.runCleanupRegistry?.runAll();
     this.running = false;
     this.graph.emit("complete");
   }
@@ -900,8 +905,12 @@ export class TaskGraphRunner {
         }
       })
     );
-    this.running = false;
-    this.graph.emit("error", error);
+    try {
+      await this.runCleanupRegistry?.runAll();
+    } finally {
+      this.running = false;
+      this.graph.emit("error", error);
+    }
   }
 
   protected async handleErrorReactive(): Promise<void> {
@@ -917,8 +926,12 @@ export class TaskGraphRunner {
         task.abort();
       }
     });
-    this.running = false;
-    this.graph.emit("abort");
+    try {
+      await this.runCleanupRegistry?.runAll();
+    } finally {
+      this.running = false;
+      this.graph.emit("abort");
+    }
   }
 
   protected async handleAbortReactive(): Promise<void> {
@@ -936,8 +949,12 @@ export class TaskGraphRunner {
         }
       })
     );
-    this.running = false;
-    this.graph.emit("disabled");
+    try {
+      await this.runCleanupRegistry?.runAll();
+    } finally {
+      this.running = false;
+      this.graph.emit("disabled");
+    }
   }
 
   /**

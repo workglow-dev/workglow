@@ -17,6 +17,7 @@ export * from "./JobQueueFactory";
 export * from "./JobQueueTask";
 export * from "./MapTask";
 export * from "./ReduceTask";
+export * from "./RunCleanup";
 export * from "./StreamTypes";
 export * from "./Task";
 export * from "./TaskError";
