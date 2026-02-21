@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.100
+
+### Patch Changes
+
+- add count token task and fix streaming issues
+
 ## 0.0.99
 
 ### Patch Changes

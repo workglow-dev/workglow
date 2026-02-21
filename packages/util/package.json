@@ -1,7 +1,7 @@
 {
   "name": "@workglow/util",
   "type": "module",
-  "version": "0.0.99",
+  "version": "0.0.100",
   "description": "Utility functions and shared types for Workglow, providing common functionality across all packages.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

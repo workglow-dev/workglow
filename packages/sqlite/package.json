@@ -2,7 +2,7 @@
   "name": "@workglow/sqlite",
   "type": "module",
   "sideEffects": false,
-  "version": "0.0.99",
+  "version": "0.0.100",
   "description": "SQLite database providing cross-platform database support for browser, Node.js, and Bun environments.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

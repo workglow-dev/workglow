@@ -1,5 +1,14 @@
 # @workglow/job-queue
 
+## 0.0.100
+
+### Patch Changes
+
+- add count token task and fix streaming issues
+- Updated dependencies
+  - @workglow/storage@0.0.100
+  - @workglow/util@0.0.100
+
 ## 0.0.99
 
 ### Patch Changes

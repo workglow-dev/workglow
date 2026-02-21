@@ -2,7 +2,7 @@
   "name": "@workglow/job-queue",
   "type": "module",
   "sideEffects": false,
-  "version": "0.0.99",
+  "version": "0.0.100",
   "description": "Job queue management for Workglow, handling task scheduling, execution, and distributed processing.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
