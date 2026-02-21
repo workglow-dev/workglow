@@ -39,7 +39,8 @@
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*",
     "@workglow/job-queue": "workspace:*",
-    "@workglow/storage": "workspace:*"
+    "@workglow/storage": "workspace:*",
+    "playwright": "^1.50.0"
   },
   "peerDependenciesMeta": {
     "@workglow/task-graph": {
@@ -53,6 +54,9 @@
     },
     "@workglow/storage": {
       "optional": false
+    },
+    "playwright": {
+      "optional": true
     }
   },
   "devDependencies": {

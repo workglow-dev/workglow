@@ -5,4 +5,5 @@
  */
 
 export * from "./common";
+export * from "./task/browser";
 export * from "./task/FileLoaderTask";

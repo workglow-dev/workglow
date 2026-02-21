@@ -111,6 +111,7 @@ export class TaskGraph implements ITaskGraph {
     return this.runner.runGraph<ExecuteOutput>(input, {
       outputCache: config?.outputCache || this.outputCache,
       parentSignal: config?.parentSignal || undefined,
+      registry: config?.registry,
       accumulateLeafOutputs: config?.accumulateLeafOutputs,
     });
   }
