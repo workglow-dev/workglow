@@ -337,11 +337,18 @@ export class PlaywrightContext implements IBrowserContext {
       this.responseHandler = undefined;
     }
 
+    // Capture local reference before clearing so an in-flight close is unaffected
+    const contextRef = this.context;
+
+    // Always clear references before attempting close
+    this.page = undefined;
+    this.context = undefined;
+
     // Close with a timeout to prevent hanging
     const closePromise = (async () => {
       try {
-        if (this.context) {
-          await this.context.close();
+        if (contextRef) {
+          await contextRef.close();
         }
       } catch {
         // Ignore errors during close
@@ -353,10 +360,6 @@ export class PlaywrightContext implements IBrowserContext {
       closePromise,
       new Promise<void>((resolve) => setTimeout(resolve, 5000)),
     ]);
-
-    // Always clear references
-    this.page = undefined;
-    this.context = undefined;
     this.browser = undefined;
     this.responseHandler = undefined;
     
