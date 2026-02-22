@@ -16,7 +16,7 @@ import {
   type HfTransformersOnnxModelRecord,
   HuggingFaceTransformersProvider,
 } from "@workglow/ai-provider";
-import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -25,6 +25,7 @@ describe("TextEmbeddingTask with real models", () => {
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
+    clearPipelineCache();
     await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
     // await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
   });
@@ -91,7 +92,7 @@ describe("TextEmbeddingTask with real models", () => {
       // Verify the vector has meaningful values (not all zeros)
       const vectorSum = Array.from(vector).reduce((sum, val) => sum + Math.abs(val as number), 0);
       expect(vectorSum).toBeGreaterThan(0);
-    }, 120000); // 2 minute timeout for model download
+    }, { timeout: 120000, retry: 2 }); // 2 minute timeout for model download, retry up to 2 times on transient failures
 
     it("should generate embeddings with bge-base-en-v1.5 model", async () => {
       // Register model
