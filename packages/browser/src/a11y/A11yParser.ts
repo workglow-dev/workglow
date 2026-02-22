@@ -510,11 +510,15 @@ export function parseAccessibilityTree(): SerializedA11yNode {
       }
 
       if (htmlElement.id) {
-        const label = document.querySelector(`label[for="${htmlElement.id}"]`);
-        if (label) {
-          const labelText = label.textContent?.trim();
-          if (labelText) {
-            return labelText;
+        const labels = document.getElementsByTagName("label");
+        for (let i = 0; i < labels.length; i++) {
+          const labelElement = labels[i] as HTMLLabelElement;
+          if (labelElement.htmlFor === htmlElement.id) {
+            const labelText = labelElement.textContent?.trim();
+            if (labelText) {
+              return labelText;
+            }
+            break;
           }
         }
       }
