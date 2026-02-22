@@ -42,10 +42,32 @@ export interface IExecuteContext {
 export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
 
 /**
- * Configuration for running a task
+ * Configuration for running a task (runtime concerns, not serialized with the task).
+ * Passed to task.run() or set on the task instance via the constructor's third argument.
  */
 export interface IRunConfig {
+  /**
+   * Runner ID to use for job-queue-based tasks (e.g. AiTask).
+   * Previously lived in TaskConfig; moved here because it is a runtime concern.
+   * The graph runner sets this on task.runConfig before each run.
+   */
+  runnerId?: string;
+
+  /**
+   * Output cache override for this run.
+   * Previously lived in TaskConfig; moved here because it is a runtime concern.
+   *  - true  → use the globally registered TaskOutputRepository
+   *  - false → disable caching for this run
+   *  - TaskOutputRepository instance → use this specific repository
+   */
   outputCache?: TaskOutputRepository | boolean;
+
+  /**
+   * Runtime override for task cacheability.
+   * When set, takes precedence over config.cacheable and the static `cacheable` property.
+   */
+  cacheable?: boolean;
+
   /**
    * Whether the streaming task runner should accumulate text-delta chunks and
    * emit an enriched finish event that merges the accumulated text into the
@@ -57,12 +79,14 @@ export interface IRunConfig {
    * materialized data (cache off, all downstream tasks are also streaming).
    */
   shouldAccumulate?: boolean;
+
   updateProgress?: (
     task: ITask,
     progress: number,
     message?: string,
     ...args: any[]
   ) => Promise<void>;
+
   registry?: ServiceRegistry;
 }
 
@@ -81,6 +105,7 @@ export interface ITaskStaticProperties {
   readonly passthroughInputsToOutputs?: boolean;
   readonly inputSchema: () => DataPortSchema;
   readonly outputSchema: () => DataPortSchema;
+  readonly configSchema: () => DataPortSchema;
 }
 
 /**
@@ -115,7 +140,7 @@ export interface ITaskLifecycle<
   Output extends TaskOutput,
   Config extends TaskConfig,
 > {
-  run(overrides?: Partial<Input>): Promise<Output>;
+  run(overrides?: Partial<Input>, runConfig?: Partial<IRunConfig>): Promise<Output>;
   runReactive(overrides?: Partial<Input>): Promise<Output>;
   get runner(): TaskRunner<Input, Output, Config>;
   abort(): void;
@@ -129,12 +154,15 @@ export interface ITaskIO<Input extends TaskInput> {
   defaults: Record<string, any>;
   runInputData: Record<string, any>;
   runOutputData: Record<string, any>;
+  runConfig: Partial<IRunConfig>;
 
   inputSchema(): DataPortSchema; // gets local access for static inputSchema property
   outputSchema(): DataPortSchema; // gets local access for static outputSchema property
+  configSchema(): DataPortSchema; // gets local access for static configSchema property
   get type(): string; // gets local access for static type property
   get category(): string; // gets local access for static category property
   get title(): string; // gets local access for static title property
+  get description(): string; // gets local access for static description property
 
   setDefaults(defaults: Record<string, any>): void;
   resetInputData(): void;

@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { StripJSONSchema } from "@workglow/util";
-import { TaskOutputRepository } from "../storage/TaskOutputRepository";
+import { type DataPortSchema, type FromSchema, StripJSONSchema } from "@workglow/util";
 import type { Task } from "./Task";
 
 /**
@@ -68,32 +67,53 @@ export type CompoundTaskOutput =
 /** Type for task type names */
 export type TaskTypeName = string;
 
-/** Type for task configuration */
-export type TaskConfig = Partial<IConfig>;
-
 // ========================================================================
-// Task Configuration Types
+// Task Configuration Schema and Types
 // ========================================================================
 
-export interface IConfig {
-  /** Unique identifier for the task */
-  id: unknown;
+/**
+ * Base JSON Schema for task configuration.
+ * Exported so subclasses can compose their own schema with:
+ *   `...baseConfigSchema["properties"]`
+ *
+ * Fields:
+ *  - id:           unique task identifier (any type)
+ *  - title:        human-readable name for the task instance (overrides static title)
+ *  - description:  human-readable description (overrides static description)
+ *  - cacheable:    design-time cache flag (runtime override goes in IRunConfig)
+ *  - inputSchema:  dynamic input schema override (for tasks like InputTask)
+ *  - outputSchema: dynamic output schema override (for tasks like OutputTask)
+ *  - extras:       arbitrary user data serialized with the task JSON
+ */
+export const baseConfigSchema = {
+  type: "object",
+  properties: {
+    id: {},
+    title: { type: "string" },
+    description: { type: "string" },
+    cacheable: { type: "boolean" },
+    inputSchema: {},
+    outputSchema: {},
+    extras: { type: "object", additionalProperties: true },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
 
-  /** Optional display name for the task */
-  name?: string;
+type _BaseFromSchema = FromSchema<typeof baseConfigSchema>;
 
-  /** Optional ID of the runner to use for this task */
-  runnerId?: string;
-
-  /** Optional output cache to use for this task */
-  outputCache?: TaskOutputRepository | boolean;
-
-  /** Optional cacheable flag to use for this task, overriding the default static property */
-  cacheable?: boolean;
-
-  /** Optional user data to use for this task, not used by the task framework except it will be exported as part of the task JSON*/
-  extras?: DataPorts;
-}
+/**
+ * Base type for task configuration, derived from baseConfigSchema.
+ * Use `baseConfigSchema` when building JSON schemas in subclasses.
+ * Use this type when declaring the Config generic parameter.
+ */
+export type TaskConfig = Omit<_BaseFromSchema, "id" | "inputSchema" | "outputSchema"> & {
+  /** Unique identifier for the task (uuid4 by default) */
+  id?: unknown;
+  /** Dynamic input schema override for the task instance */
+  inputSchema?: DataPortSchema;
+  /** Dynamic output schema override for the task instance */
+  outputSchema?: DataPortSchema;
+};
 
 /** Type for task ID */
 export type TaskIdType = Task<TaskInput, TaskOutput, TaskConfig>["config"]["id"];

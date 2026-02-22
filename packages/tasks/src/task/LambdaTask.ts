@@ -5,6 +5,7 @@
  */
 
 import {
+  baseConfigSchema,
   CreateWorkflow,
   DATAFLOW_ALL_PORTS,
   IExecuteContext,
@@ -18,17 +19,27 @@ import {
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util";
 
-interface LambdaTaskConfig<
+export const lambdaTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...baseConfigSchema["properties"],
+    execute: {},
+    executeReactive: {},
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+type LambdaTaskConfig<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-> extends TaskConfig {
+> = TaskConfig & {
   execute?: (input: Input, context: IExecuteContext) => Promise<Output>;
   executeReactive?: (
     input: Input,
     output: Output,
     context: IExecuteReactiveContext
   ) => Promise<Output>;
-}
+};
 
 const inputSchema = {
   type: "object",
@@ -69,6 +80,9 @@ export class LambdaTask<
   public static description = "A task that wraps a provided function and its input";
   public static category = "Hidden";
   public static cacheable = true;
+  public static configSchema(): DataPortSchema {
+    return lambdaTaskConfigSchema;
+  }
   public static inputSchema() {
     return inputSchema;
   }

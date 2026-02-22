@@ -6,7 +6,7 @@
 
 import type { DataPortSchema } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
+import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
 import { IteratorTaskRunner } from "./IteratorTaskRunner";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
@@ -63,11 +63,22 @@ export interface IterationPropertyConfig {
   readonly mode: IterationInputMode;
 }
 
+export const iteratorTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...graphAsTaskConfigSchema["properties"],
+    concurrencyLimit: { type: "integer", minimum: 1 },
+    batchSize: { type: "integer", minimum: 1 },
+    iterationInputConfig: { type: "object", additionalProperties: true },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
 /**
- * Configuration interface for IteratorTask.
+ * Configuration type for IteratorTask.
  * Extends GraphAsTaskConfig with iterator-specific options.
  */
-export interface IteratorTaskConfig extends GraphAsTaskConfig {
+export type IteratorTaskConfig = GraphAsTaskConfig & {
   /**
    * Maximum number of concurrent iteration workers
    * @default undefined (unlimited)
@@ -84,7 +95,7 @@ export interface IteratorTaskConfig extends GraphAsTaskConfig {
    * User-defined iteration input schema configuration.
    */
   readonly iterationInputConfig?: Record<string, IterationPropertyConfig>;
-}
+};
 
 /**
  * Result of detecting the iterator port from the input schema.
@@ -244,6 +255,10 @@ export abstract class IteratorTask<
 
   /** This task has dynamic schemas based on the inner workflow */
   public static hasDynamicSchemas: boolean = true;
+
+  public static configSchema(): DataPortSchema {
+    return iteratorTaskConfigSchema;
+  }
 
   /**
    * Returns the schema for iteration-context inputs that will be

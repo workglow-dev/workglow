@@ -25,12 +25,12 @@ TaskRegistry.registerTask(TestGraphAsTask);
 describe("TaskJSON", () => {
   describe("Task.toJSON()", () => {
     test("should serialize a simple task to JSON", () => {
-      const task = new DoubleToResultTask({ value: 42 }, { id: "task1", name: "My Task" });
+      const task = new DoubleToResultTask({ value: 42 }, { id: "task1", title: "My Task" });
       const json = task.toJSON();
 
       expect(json.id).toBe("task1");
       expect(json.type).toBe("DoubleToResultTask");
-      expect(json.name).toBe("My Task");
+      expect(json.title).toBe("My Task");
       expect(json.defaults).toEqual({ value: 42 });
       expect(json.extras).toBeUndefined();
     });
@@ -102,7 +102,7 @@ describe("TaskJSON", () => {
       const json: TaskGraphItemJson = {
         id: "task1",
         type: "DoubleToResultTask",
-        name: "My Task",
+        title: "My Task",
         defaults: { value: 42 },
       };
 
@@ -110,7 +110,7 @@ describe("TaskJSON", () => {
 
       expect(task.config.id).toBe("task1");
       expect(task.type).toBe("DoubleToResultTask");
-      expect(task.config.name).toBe("My Task");
+      expect(task.config.title).toBe("My Task");
       expect(task.defaults).toEqual({ value: 42 });
     });
 
@@ -250,8 +250,8 @@ describe("TaskJSON", () => {
   describe("Round-trip serialization", () => {
     test("should round-trip a simple task graph", () => {
       const originalGraph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1", name: "Task 1" });
-      const task2 = new DoubleToResultTask({ value: 20 }, { id: "task2", name: "Task 2" });
+      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1", title: "Task 1" });
+      const task2 = new DoubleToResultTask({ value: 20 }, { id: "task2", title: "Task 2" });
       originalGraph.addTask(task1);
       originalGraph.addTask(task2);
       originalGraph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -265,7 +265,7 @@ describe("TaskJSON", () => {
       expect(restoredTasks).toHaveLength(originalTasks.length);
       expect(restoredTasks[0].config.id).toBe(originalTasks[0].config.id);
       expect(restoredTasks[0].type).toBe(originalTasks[0].type);
-      expect(restoredTasks[0].config.name).toBe(originalTasks[0].config.name);
+      expect(restoredTasks[0].config.title).toBe(originalTasks[0].config.title);
       expect(restoredTasks[0].defaults).toEqual(originalTasks[0].defaults);
 
       const originalDataflows = originalGraph.getDataflows();
@@ -282,7 +282,7 @@ describe("TaskJSON", () => {
         { value: 10, multiplier: 3 },
         {
           id: "task1",
-          name: "Task with Defaults",
+          title: "Task with Defaults",
           extras: { metadata: { key: "value" } },
         }
       );

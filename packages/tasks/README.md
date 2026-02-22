@@ -35,8 +35,8 @@ import { Workflow, fetch, debugLog, delay } from "@workglow/tasks";
 // Simple workflow example (fluent API)
 const workflow = new Workflow()
   .fetch({ url: "https://api.example.com/data", response_type: "json" })
-  .debugLog({ log_level: "info" })
-  .delay({ delay: 1000 });
+  .debugLog(undefined, { log_level: "info" })
+  .delay(undefined, { delay: 1000 });
 
 const results = await workflow.run();
 ```
@@ -50,12 +50,9 @@ const fetchResult = await new FetchUrlTask({
   response_type: "json",
 }).run();
 
-await new DebugLogTask({
-  console: fetchResult.json,
-  log_level: "info",
-}).run();
+await new DebugLogTask({ console: fetchResult.json }, { log_level: "info" }).run();
 
-await new DelayTask({ delay: 1000 }).run();
+await new DelayTask({}, { delay: 1000 }).run();
 ```
 
 ```typescript
@@ -65,10 +62,7 @@ const data = await fetch({
   url: "https://example.com/readme.txt",
   response_type: "text",
 });
-await debugLog({
-  console: data.text,
-  log_level: "info",
-});
+await debugLog({ console: data.text }, { log_level: "info" });
 ```
 
 ## Available Tasks
@@ -138,33 +132,33 @@ Provides console logging functionality with multiple log levels for debugging ta
 
 **Input Schema:**
 
-- `console` (any, optional): The message/data to log
+- Any inputs are accepted and passed through to outputs unchanged.
+
+**Config Schema:**
+
 - `log_level` (string, optional): Log level ("dir", "log", "debug", "info", "warn", "error"). Default: "log"
 
 **Output Schema:**
 
-- `console` (any): The logged message (passed through)
+- All inputs passed through unchanged.
 
 **Examples:**
 
 ```typescript
 // Basic logging
-await new DebugLogTask({
-  console: "Processing user data",
-  log_level: "info",
-}).run();
+await new DebugLogTask({ console: "Processing user data" }, { log_level: "info" }).run();
 
 // Object inspection with dir
-await new DebugLogTask({
-  console: { user: { id: 1, name: "John" }, status: "active" },
-  log_level: "dir",
-}).run();
+await new DebugLogTask(
+  { console: { user: { id: 1, name: "John" }, status: "active" } },
+  { log_level: "dir" }
+).run();
 
 // In workflow with data flow
 const workflow = new Workflow()
   .fetch({ url: "https://api.example.com/data" })
-  .debugLog({ log_level: "dir" }) // Logs the fetched data
-  .delay({ delay: 1000 });
+  .debugLog(undefined, { log_level: "dir" }) // Logs the fetched data
+  .delay(undefined, { delay: 1000 });
 ```
 
 **Features:**
@@ -180,31 +174,34 @@ Introduces timed delays in workflows with progress tracking and cancellation sup
 
 **Input Schema:**
 
+- Any inputs are accepted and passed through to outputs unchanged.
+
+**Config Schema:**
+
 - `delay` (number, optional): Delay duration in milliseconds. Default: 1
-- `pass_through` (any, optional): Data to pass through to the output
 
 **Output Schema:**
 
-- Returns the `pass_through` data unchanged
+- All inputs passed through unchanged.
 
 **Examples:**
 
 ```typescript
 // Simple delay
-await Delay({ delay: 5000 }); // 5 second delay
+await new DelayTask({}, { delay: 5000 }).run(); // 5 second delay
 
 // Delay with data pass-through
-const result = await new DelayTask({
-  delay: 3000,
-  pass_through: { message: "Data preserved through delay" },
-}).run();
+const result = await new DelayTask(
+  { message: "Data preserved through delay" },
+  { delay: 3000 }
+).run();
 console.log(result); // { message: "Data preserved through delay" }
 
 // In workflow
 const workflow = new Workflow()
   .fetch({ url: "https://api.example.com/data" })
-  .delay({ delay: 2000 }) // 2 second delay
-  .debugLog({ log_level: "info" });
+  .delay(undefined, { delay: 2000 }) // 2 second delay
+  .debugLog(undefined, { log_level: "info" });
 ```
 
 **Features:**
@@ -212,7 +209,7 @@ const workflow = new Workflow()
 - Progress tracking for delays over 100ms
 - Cancellation support via AbortSignal
 - Chunked delay execution for responsiveness
-- Data pass-through capability
+- All inputs passed through to outputs
 
 ### JavaScriptTask
 
@@ -413,9 +410,7 @@ const linearWorkflow = await new JsonTask({
     {
       id: "log-data",
       type: "DebugLogTask",
-      input: {
-        log_level: "info",
-      },
+      config: { log_level: "info" },
       dependencies: {
         console: { id: "fetch-data", output: "json" },
       },
@@ -423,7 +418,7 @@ const linearWorkflow = await new JsonTask({
     {
       id: "delay",
       type: "DelayTask",
-      input: { delay: 1000 },
+      config: { delay: 1000 },
     },
   ]),
 }).run();
@@ -470,7 +465,7 @@ const complexWorkflow = await new JsonTask({
     {
       id: "log-result",
       type: "DebugLogTask",
-      input: { log_level: "dir" },
+      config: { log_level: "dir" },
       dependencies: {
         console: { id: "combine-data", output: "output" },
       },
@@ -583,8 +578,8 @@ const workflow = new Workflow()
   .javaScript({
     code: "return input.json.filter(item => item.status === 'active');",
   })
-  .debugLog({ log_level: "info" })
-  .delay({ delay: 500 })
+  .debugLog(undefined, { log_level: "info" })
+  .delay(undefined, { delay: 500 })
   .lambda(
     {},
     {

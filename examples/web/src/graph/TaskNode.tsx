@@ -137,7 +137,7 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
   return (
     <>
       <NodeContainer isConnectable={isConnectable} status={status}>
-        <NodeHeader title={data.task.type} description={data.task.config.name} status={status} />
+        <NodeHeader title={data.task.type} description={data.task.config.title} status={status} />
         <TaskDataButtons task={data.task} />
         <ProgressBar progress={progress} status={status} showText={true} />
 

@@ -379,7 +379,7 @@ export class TaskRunner<
       this.handleAbort();
     });
 
-    const cache = this.task.config.outputCache ?? config.outputCache;
+    const cache = config.outputCache ?? this.task.runConfig?.outputCache;
     if (cache === true) {
       let instance = globalServiceRegistry.get(TASK_OUTPUT_REPOSITORY);
       this.outputCache = instance;

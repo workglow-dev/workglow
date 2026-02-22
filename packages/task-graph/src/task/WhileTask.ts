@@ -7,7 +7,7 @@
 import type { DataPortSchema } from "@workglow/util";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import { evaluateCondition, getNestedValue } from "./ConditionUtils";
-import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
+import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { TaskConfigurationError } from "./TaskError";
@@ -42,10 +42,21 @@ export const WHILE_CONTEXT_SCHEMA: DataPortSchema = {
  */
 export type WhileConditionFn<Output> = (output: Output, iteration: number) => boolean;
 
+export const whileTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...graphAsTaskConfigSchema["properties"],
+    condition: {},
+    maxIterations: { type: "integer", minimum: 1 },
+    chainIterations: { type: "boolean" },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
 /**
  * Configuration for WhileTask.
  */
-export interface WhileTaskConfig<Output extends TaskOutput = TaskOutput> extends GraphAsTaskConfig {
+export type WhileTaskConfig<Output extends TaskOutput = TaskOutput> = GraphAsTaskConfig & {
   /**
    * Condition function that determines whether to continue looping.
    * Called after each iteration with the current output and iteration count.
@@ -65,7 +76,7 @@ export interface WhileTaskConfig<Output extends TaskOutput = TaskOutput> extends
    * @default true
    */
   readonly chainIterations?: boolean;
-}
+};
 
 /**
  * WhileTask loops until a condition function returns false.
@@ -122,6 +133,10 @@ export class WhileTask<
 
   /** This task has dynamic schemas based on the inner workflow */
   public static hasDynamicSchemas: boolean = true;
+
+  public static configSchema(): DataPortSchema {
+    return whileTaskConfigSchema;
+  }
 
   /**
    * Returns the schema for iteration-context inputs that will be

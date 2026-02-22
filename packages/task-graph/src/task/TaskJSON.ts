@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { DataPortSchema } from "@workglow/util";
 import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
@@ -27,8 +28,8 @@ export type JsonTaskItem = {
   /** Type of task to create */
   type: string;
 
-  /** Optional display name for the task */
-  name?: string;
+  /** Optional display title for the task (overrides static title) */
+  title?: string;
 
   /** Default input values for the task */
   defaults?: TaskInput;
@@ -50,20 +51,29 @@ export type JsonTaskItem = {
         }>;
   };
 
+  /** Optional dynamic input schema override for this task instance */
+  inputSchema?: DataPortSchema;
+
+  /** Optional dynamic output schema override for this task instance */
+  outputSchema?: DataPortSchema;
+
   /** Optional user data to use for this task, not used by the task framework except it will be exported as part of the task JSON*/
   extras?: DataPorts;
 
   /** Nested tasks for compound operations */
   subtasks?: JsonTaskItem[];
-}; /**
+};
+
+/**
  * Represents a task graph item, which can be a task or a subgraph
  */
-
 export type TaskGraphItemJson = {
   id: unknown;
   type: string;
-  name?: string;
+  title?: string;
   defaults?: TaskInput;
+  inputSchema?: DataPortSchema;
+  outputSchema?: DataPortSchema;
   extras?: DataPorts;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
@@ -93,7 +103,9 @@ const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
 
   const taskConfig: TaskConfig = {
     id: item.id,
-    name: item.name,
+    ...(item.title ? { title: item.title } : {}),
+    ...(item.inputSchema ? { inputSchema: item.inputSchema } : {}),
+    ...(item.outputSchema ? { outputSchema: item.outputSchema } : {}),
     extras: item.extras,
   };
   const task = new taskClass(item.defaults ?? {}, taskConfig);
