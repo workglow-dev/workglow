@@ -25,14 +25,14 @@ TaskRegistry.registerTask(TestGraphAsTask);
 describe("TaskJSON", () => {
   describe("Task.toJSON()", () => {
     test("should serialize a simple task to JSON", () => {
-      const task = new DoubleToResultTask({ value: 42 }, { id: "task1", name: "My Task" });
+      const task = new DoubleToResultTask({ value: 42 }, { id: "task1", title: "My Task" });
       const json = task.toJSON();
 
       expect(json.id).toBe("task1");
       expect(json.type).toBe("DoubleToResultTask");
-      expect(json.name).toBe("My Task");
+      expect(json.config.title).toBe("My Task");
       expect(json.defaults).toEqual({ value: 42 });
-      expect(json.extras).toBeUndefined();
+      expect(json.config.extras).toBeUndefined();
     });
 
     test("should serialize task with defaults", () => {
@@ -52,7 +52,7 @@ describe("TaskJSON", () => {
       );
       const json = task.toJSON();
 
-      expect(json.extras).toEqual({ metadata: { key: "value" } });
+      expect(json.config.extras).toEqual({ metadata: { key: "value" } });
     });
   });
 
@@ -102,15 +102,15 @@ describe("TaskJSON", () => {
       const json: TaskGraphItemJson = {
         id: "task1",
         type: "DoubleToResultTask",
-        name: "My Task",
         defaults: { value: 42 },
+        config: { title: "My Task" },
       };
 
       const task = createTaskFromGraphJSON(json);
 
       expect(task.config.id).toBe("task1");
       expect(task.type).toBe("DoubleToResultTask");
-      expect(task.config.name).toBe("My Task");
+      expect(task.config.title).toBe("My Task");
       expect(task.defaults).toEqual({ value: 42 });
     });
 
@@ -119,6 +119,7 @@ describe("TaskJSON", () => {
         id: "task2",
         type: "TestTaskWithDefaults",
         defaults: { value: 10, multiplier: 5 },
+        config: {},
       };
 
       const task = createTaskFromGraphJSON(json);
@@ -131,7 +132,7 @@ describe("TaskJSON", () => {
         id: "task3",
         type: "DoubleToResultTask",
         defaults: { value: 100 },
-        extras: { metadata: { key: "value" } },
+        config: { extras: { metadata: { key: "value" } } },
       };
 
       const task = createTaskFromGraphJSON(json);
@@ -144,6 +145,7 @@ describe("TaskJSON", () => {
         id: "task4",
         type: "NonExistentTask",
         defaults: { value: 10 },
+        config: {},
       };
 
       expect(() => createTaskFromGraphJSON(json)).toThrow("Task type NonExistentTask not found");
@@ -176,11 +178,13 @@ describe("TaskJSON", () => {
             id: "task1",
             type: "DoubleToResultTask",
             defaults: { value: 10 },
+            config: {},
           },
           {
             id: "task2",
             type: "DoubleToResultTask",
             defaults: { value: 20 },
+            config: {},
           },
         ],
         dataflows: [
@@ -213,17 +217,20 @@ describe("TaskJSON", () => {
             id: "parent",
             type: "TestGraphAsTask",
             defaults: { input: "test" },
+            config: {},
             subgraph: {
               tasks: [
                 {
                   id: "child1",
                   type: "DoubleToResultTask",
                   defaults: { value: 5 },
+                  config: {},
                 },
                 {
                   id: "child2",
                   type: "DoubleToResultTask",
                   defaults: { value: 10 },
+                  config: {},
                 },
               ],
               dataflows: [],
@@ -250,8 +257,8 @@ describe("TaskJSON", () => {
   describe("Round-trip serialization", () => {
     test("should round-trip a simple task graph", () => {
       const originalGraph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1", name: "Task 1" });
-      const task2 = new DoubleToResultTask({ value: 20 }, { id: "task2", name: "Task 2" });
+      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1", title: "Task 1" });
+      const task2 = new DoubleToResultTask({ value: 20 }, { id: "task2", title: "Task 2" });
       originalGraph.addTask(task1);
       originalGraph.addTask(task2);
       originalGraph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -265,7 +272,7 @@ describe("TaskJSON", () => {
       expect(restoredTasks).toHaveLength(originalTasks.length);
       expect(restoredTasks[0].config.id).toBe(originalTasks[0].config.id);
       expect(restoredTasks[0].type).toBe(originalTasks[0].type);
-      expect(restoredTasks[0].config.name).toBe(originalTasks[0].config.name);
+      expect(restoredTasks[0].config.title).toBe(originalTasks[0].config.title);
       expect(restoredTasks[0].defaults).toEqual(originalTasks[0].defaults);
 
       const originalDataflows = originalGraph.getDataflows();
@@ -282,7 +289,7 @@ describe("TaskJSON", () => {
         { value: 10, multiplier: 3 },
         {
           id: "task1",
-          name: "Task with Defaults",
+          title: "Task with Defaults",
           extras: { metadata: { key: "value" } },
         }
       );

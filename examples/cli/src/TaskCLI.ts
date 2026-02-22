@@ -563,7 +563,7 @@ export function AddBaseCommands(program: Command) {
           {
             id: "1",
             type: "DownloadModelTask",
-            name: "Download Model",
+            title: "Download Model",
             defaults: {
               model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
             },
@@ -571,7 +571,7 @@ export function AddBaseCommands(program: Command) {
           {
             id: "2",
             type: "TextRewriterTask",
-            name: "Rewrite Text",
+            title: "Rewrite Text",
             defaults: {
               text: "The quick brown fox jumps over the lazy dog at the party.",
               prompt: "Rewrite the following text in reverse:",
@@ -586,7 +586,7 @@ export function AddBaseCommands(program: Command) {
         ];
         json = JSON.stringify(exampleJson);
       }
-      const task = new JsonTask({ json }, { name: "JSON Task Example" });
+      const task = new JsonTask({ json }, { title: "JSON Task Example" });
       const graph = task.subGraph;
       if (!graph) {
         program.error("Task has no sub-graph");
@@ -603,7 +603,7 @@ export function AddBaseCommands(program: Command) {
     .description("delay for a given number of seconds")
     .option("--seconds <seconds>", "time to delay")
     .action(async (options) => {
-      const task = new DelayTask({ delay: parseInt(options.seconds) || 2000 });
+      const task = new DelayTask({}, { delay: parseInt(options.seconds) || 2000 });
       try {
         await runTasks(task);
       } catch (error) {

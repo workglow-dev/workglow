@@ -10,19 +10,32 @@ import {
   Task,
   TaskAbortedError,
   TaskConfig,
+  TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema, sleep } from "@workglow/util";
 
-const inputSchema = {
+const delayTaskConfigSchema = {
   type: "object",
   properties: {
+    ...TaskConfigSchema["properties"],
     delay: {
       type: "number",
       title: "Delay (ms)",
       default: 1,
     },
   },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type DelayTaskConfig = TaskConfig & {
+  /** Delay duration in milliseconds */
+  delay: number;
+};
+
+const inputSchema = {
+  type: "object",
+  properties: {},
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
@@ -38,14 +51,17 @@ export type DelayTaskOutput = FromSchema<typeof outputSchema>;
 export class DelayTask<
   Input extends DelayTaskInput = DelayTaskInput,
   Output extends DelayTaskOutput = DelayTaskOutput,
-  Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends Task<Input, Output, DelayTaskConfig> {
   static readonly type = "DelayTask";
   static readonly category = "Utility";
   public static title = "Delay";
   public static description = "Delays execution for a specified duration with progress tracking";
   static readonly cacheable = false;
   public static passthroughInputsToOutputs = true;
+
+  public static configSchema(): DataPortSchema {
+    return delayTaskConfigSchema;
+  }
 
   static inputSchema() {
     return inputSchema;
@@ -56,7 +72,7 @@ export class DelayTask<
   }
 
   async execute(input: Input, executeContext: IExecuteContext): Promise<Output> {
-    const delay = input.delay ?? 0;
+    const delay = this.config.delay ?? 1;
     if (delay > 100) {
       const iterations = Math.min(100, Math.floor(delay / 16)); // 1/60fps is about 16ms
       const chunkSize = delay / iterations;
@@ -70,8 +86,7 @@ export class DelayTask<
     } else {
       await sleep(delay);
     }
-    const output = Object.fromEntries(Object.entries(input).filter(([k]) => k !== "delay"));
-    return output as Output;
+    return input as unknown as Output;
   }
 }
 
@@ -80,16 +95,16 @@ export class DelayTask<
  *
  * Delays the execution of a task for a specified amount of time
  *
- * @param {delay} - The delay in milliseconds
+ * @param config - Task configuration; use `config.delay` for the delay in milliseconds
  */
-export const delay = (input: DelayTaskInput, config: TaskConfig = {}) => {
+export const delay = (input: DelayTaskInput, config: DelayTaskConfig = { delay: 1 }) => {
   const task = new DelayTask({}, config);
   return task.run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    delay: CreateWorkflow<DelayTaskInput, DelayTaskOutput, TaskConfig>;
+    delay: CreateWorkflow<DelayTaskInput, DelayTaskOutput, DelayTaskConfig>;
   }
 }
 

@@ -98,17 +98,19 @@ export function ensureTask<I extends DataPorts, O extends DataPorts>(
     return arg;
   }
   if (arg instanceof TaskGraph) {
-    if (config.isOwned) {
-      return new OwnGraphTask({}, { ...config, subGraph: arg });
+    const { isOwned, ...cleanConfig } = config;
+    if (isOwned) {
+      return new OwnGraphTask({}, { ...cleanConfig, subGraph: arg });
     } else {
-      return new GraphTask({}, { ...config, subGraph: arg });
+      return new GraphTask({}, { ...cleanConfig, subGraph: arg });
     }
   }
   if (arg instanceof Workflow) {
-    if (config.isOwned) {
-      return new OwnWorkflowTask({}, { ...config, subGraph: arg.graph });
+    const { isOwned, ...cleanConfig } = config;
+    if (isOwned) {
+      return new OwnWorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
     } else {
-      return new WorkflowTask({}, { ...config, subGraph: arg.graph });
+      return new WorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
     }
   }
   return convertPipeFunctionToTask(arg as PipeFunction<I, O>, config);

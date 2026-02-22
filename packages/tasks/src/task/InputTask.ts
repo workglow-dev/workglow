@@ -9,9 +9,7 @@ import type { DataPortSchema } from "@workglow/util";
 
 export type InputTaskInput = Record<string, unknown>;
 export type InputTaskOutput = Record<string, unknown>;
-export type InputTaskConfig = TaskConfig & {
-  readonly schema: DataPortSchema;
-};
+export type InputTaskConfig = TaskConfig;
 
 export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskConfig> {
   static type = "InputTask";
@@ -39,15 +37,13 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
 
   public inputSchema(): DataPortSchema {
     return (
-      (this.config?.extras?.inputSchema as DataPortSchema | undefined) ??
-      (this.constructor as typeof InputTask).inputSchema()
+      this.config?.inputSchema ?? (this.constructor as typeof InputTask).inputSchema()
     );
   }
 
   public outputSchema(): DataPortSchema {
     return (
-      (this.config?.extras?.outputSchema as DataPortSchema | undefined) ??
-      (this.constructor as typeof InputTask).outputSchema()
+      this.config?.outputSchema ?? (this.constructor as typeof InputTask).outputSchema()
     );
   }
 

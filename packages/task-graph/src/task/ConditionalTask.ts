@@ -8,7 +8,13 @@ import type { DataPortSchema } from "@workglow/util";
 import { evaluateCondition, getNestedValue, type UIConditionConfig } from "./ConditionUtils";
 import type { IExecuteContext } from "./ITask";
 import { Task } from "./Task";
-import type { TaskConfig, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+import {
+  TaskConfigSchema,
+  type TaskConfig,
+  type TaskInput,
+  type TaskOutput,
+  type TaskTypeName,
+} from "./TaskTypes";
 
 // ============================================================================
 // Types and Interfaces
@@ -85,30 +91,23 @@ export interface BranchConfig<Input> {
  * };
  * ```
  */
-export interface ConditionalTaskConfig extends TaskConfig {
-  /**
-   * Array of branch configurations defining the conditional logic.
-   * Branches are evaluated in order. In exclusive mode, only the first
-   * matching branch activates. In non-exclusive mode, all matching
-   * branches activate.
-   */
+export const conditionalTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...TaskConfigSchema["properties"],
+    branches: { type: "array", items: {} },
+    defaultBranch: { type: "string" },
+    exclusive: { type: "boolean" },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type ConditionalTaskConfig = TaskConfig & {
+  /** Branches may contain ConditionFn functions — not JSON-schema-representable */
   readonly branches: BranchConfig<any>[];
-
-  /**
-   * ID of the branch to activate if no conditions match.
-   * Must correspond to an existing branch ID. If not specified
-   * and no conditions match, no branches will be active.
-   */
   readonly defaultBranch?: string;
-
-  /**
-   * When true (default), only the first matching branch activates (switch/case behavior).
-   * When false, all matching branches activate (multi-path routing).
-   *
-   * @default true
-   */
   readonly exclusive?: boolean;
-}
+};
 
 // ============================================================================
 // ConditionalTask Class
@@ -211,6 +210,10 @@ export class ConditionalTask<
 
   /** This task has dynamic schemas that change based on branch configuration */
   static hasDynamicSchemas: boolean = true;
+
+  public static configSchema(): DataPortSchema {
+    return conditionalTaskConfigSchema;
+  }
 
   /**
    * Set of branch IDs that are currently active after execution.

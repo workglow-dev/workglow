@@ -342,14 +342,14 @@ describe("SingleTask", () => {
       it("should accept and use configuration", () => {
         const config = {
           id: "test-id",
-          name: "Test Task",
+          title: "Test Task",
         };
         const input = { testKey: "testValue" };
 
         const task = new Task(input, config);
 
         expect(task.config.id).toBe("test-id");
-        expect(task.config.name).toBe("Test Task");
+        expect(task.config.title).toBe("Test Task");
         expect(task.defaults).toEqual({ testKey: "testValue" });
       });
 

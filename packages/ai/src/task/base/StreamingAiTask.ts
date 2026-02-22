@@ -53,7 +53,7 @@ export class StreamingAiTask<
 
     const job = new AiJob<AiJobInput<Input>, Output>({
       queueName: queueName ?? this.type,
-      jobRunId: this.config.runnerId,
+      jobRunId: this.runConfig.runnerId,
       input: jobInput,
     });
 

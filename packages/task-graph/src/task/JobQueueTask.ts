@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { DataPortSchema } from "@workglow/util";
 import { Job, JobConstructorParam } from "@workglow/job-queue";
-import { GraphAsTask } from "./GraphAsTask";
+import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
 import { IExecuteContext } from "./ITask";
 import { getJobQueueFactory } from "./JobQueueFactory";
 import { JobTaskFailedError, TaskConfigurationError } from "./TaskError";
@@ -13,11 +14,20 @@ import { TaskEventListeners } from "./TaskEvents";
 import { getTaskQueueRegistry, RegisteredQueue } from "./TaskQueueRegistry";
 import { TaskConfig, TaskInput, TaskOutput } from "./TaskTypes";
 
+export const jobQueueTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...graphAsTaskConfigSchema["properties"],
+    queue: {},
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
 /**
- * Configuration interface for JobQueueTask.
+ * Configuration type for JobQueueTask.
  * Extends the base TaskConfig with job queue specific properties.
  */
-export interface JobQueueTaskConfig extends TaskConfig {
+export type JobQueueTaskConfig = TaskConfig & {
   /**
    * Queue selection for the task
    * - `true` (default): create/use the task's default queue
@@ -25,7 +35,7 @@ export interface JobQueueTaskConfig extends TaskConfig {
    * - `string`: use an explicitly registered queue name
    */
   queue?: boolean | string;
-}
+};
 
 /**
  * Extended event listeners for JobQueueTask.
@@ -50,6 +60,10 @@ export abstract class JobQueueTask<
 > extends GraphAsTask<Input, Output, Config> {
   static readonly type: string = "JobQueueTask";
   static canRunDirectly = true;
+
+  public static configSchema(): DataPortSchema {
+    return jobQueueTaskConfigSchema;
+  }
 
   /** Name of the queue currently processing the task */
   currentQueueName?: string;
