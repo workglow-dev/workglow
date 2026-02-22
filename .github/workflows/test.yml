@@ -25,5 +25,6 @@ jobs:
         with:
           bun-version: latest
       - run: bun i
+      - run: bunx playwright install chromium --with-deps
       - run: bun run rebuild
       - run: bun test
