@@ -70,11 +70,8 @@ export type JsonTaskItem = {
 export type TaskGraphItemJson = {
   id: unknown;
   type: string;
-  title?: string;
   defaults?: TaskInput;
-  inputSchema?: DataPortSchema;
-  outputSchema?: DataPortSchema;
-  extras?: DataPorts;
+  config: Omit<TaskConfig, "id">;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
 };
@@ -101,13 +98,22 @@ const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
   if (!taskClass)
     throw new TaskJSONError(`Task type ${item.type} not found, perhaps not registered?`);
 
-  const taskConfig: TaskConfig = {
-    id: item.id,
-    ...(item.title ? { title: item.title } : {}),
-    ...(item.inputSchema ? { inputSchema: item.inputSchema } : {}),
-    ...(item.outputSchema ? { outputSchema: item.outputSchema } : {}),
-    extras: item.extras,
-  };
+  const taskConfig: TaskConfig =
+    "config" in item
+      ? {
+          id: item.id,
+          ...(item.config.title ? { title: item.config.title } : {}),
+          ...(item.config.inputSchema ? { inputSchema: item.config.inputSchema } : {}),
+          ...(item.config.outputSchema ? { outputSchema: item.config.outputSchema } : {}),
+          extras: item.config.extras,
+        }
+      : {
+          id: item.id,
+          ...(item.title ? { title: item.title } : {}),
+          ...(item.inputSchema ? { inputSchema: item.inputSchema } : {}),
+          ...(item.outputSchema ? { outputSchema: item.outputSchema } : {}),
+          extras: item.extras,
+        };
   const task = new taskClass(item.defaults ?? {}, taskConfig);
   return task;
 };

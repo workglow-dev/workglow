@@ -879,16 +879,18 @@ export class Task<
    */
   public toJSON(): TaskGraphItemJson {
     const extras = this.config.extras;
-    let json: TaskGraphItemJson = this.stripSymbols({
+    const json: TaskGraphItemJson = this.stripSymbols({
       id: this.config.id,
       type: this.type,
-      ...(this.config.title ? { title: this.config.title } : {}),
       defaults: this.defaults,
-      ...(this.config.inputSchema ? { inputSchema: this.config.inputSchema } : {}),
-      ...(this.config.outputSchema ? { outputSchema: this.config.outputSchema } : {}),
-      ...(extras && Object.keys(extras).length ? { extras } : {}),
+      config: {
+        ...(this.config.title ? { title: this.config.title } : {}),
+        ...(this.config.inputSchema ? { inputSchema: this.config.inputSchema } : {}),
+        ...(this.config.outputSchema ? { outputSchema: this.config.outputSchema } : {}),
+        ...(extras && Object.keys(extras).length ? { extras } : {}),
+      },
     });
-    return json as TaskGraphItemJson;
+    return json;
   }
 
   /**

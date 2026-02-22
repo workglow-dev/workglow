@@ -30,9 +30,9 @@ describe("TaskJSON", () => {
 
       expect(json.id).toBe("task1");
       expect(json.type).toBe("DoubleToResultTask");
-      expect(json.title).toBe("My Task");
+      expect(json.config.title).toBe("My Task");
       expect(json.defaults).toEqual({ value: 42 });
-      expect(json.extras).toBeUndefined();
+      expect(json.config.extras).toBeUndefined();
     });
 
     test("should serialize task with defaults", () => {
@@ -52,7 +52,7 @@ describe("TaskJSON", () => {
       );
       const json = task.toJSON();
 
-      expect(json.extras).toEqual({ metadata: { key: "value" } });
+      expect(json.config.extras).toEqual({ metadata: { key: "value" } });
     });
   });
 
@@ -102,8 +102,8 @@ describe("TaskJSON", () => {
       const json: TaskGraphItemJson = {
         id: "task1",
         type: "DoubleToResultTask",
-        title: "My Task",
         defaults: { value: 42 },
+        config: { title: "My Task" },
       };
 
       const task = createTaskFromGraphJSON(json);
@@ -119,6 +119,7 @@ describe("TaskJSON", () => {
         id: "task2",
         type: "TestTaskWithDefaults",
         defaults: { value: 10, multiplier: 5 },
+        config: {},
       };
 
       const task = createTaskFromGraphJSON(json);
@@ -131,7 +132,7 @@ describe("TaskJSON", () => {
         id: "task3",
         type: "DoubleToResultTask",
         defaults: { value: 100 },
-        extras: { metadata: { key: "value" } },
+        config: { extras: { metadata: { key: "value" } } },
       };
 
       const task = createTaskFromGraphJSON(json);
@@ -144,6 +145,7 @@ describe("TaskJSON", () => {
         id: "task4",
         type: "NonExistentTask",
         defaults: { value: 10 },
+        config: {},
       };
 
       expect(() => createTaskFromGraphJSON(json)).toThrow("Task type NonExistentTask not found");
@@ -176,11 +178,13 @@ describe("TaskJSON", () => {
             id: "task1",
             type: "DoubleToResultTask",
             defaults: { value: 10 },
+            config: {},
           },
           {
             id: "task2",
             type: "DoubleToResultTask",
             defaults: { value: 20 },
+            config: {},
           },
         ],
         dataflows: [
@@ -213,17 +217,20 @@ describe("TaskJSON", () => {
             id: "parent",
             type: "TestGraphAsTask",
             defaults: { input: "test" },
+            config: {},
             subgraph: {
               tasks: [
                 {
                   id: "child1",
                   type: "DoubleToResultTask",
                   defaults: { value: 5 },
+                  config: {},
                 },
                 {
                   id: "child2",
                   type: "DoubleToResultTask",
                   defaults: { value: 10 },
+                  config: {},
                 },
               ],
               dataflows: [],
