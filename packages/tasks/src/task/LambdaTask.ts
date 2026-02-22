@@ -5,13 +5,13 @@
  */
 
 import {
-  baseConfigSchema,
   CreateWorkflow,
   DATAFLOW_ALL_PORTS,
   IExecuteContext,
   IExecuteReactiveContext,
   Task,
   TaskConfig,
+  TaskConfigSchema,
   TaskConfigurationError,
   TaskInput,
   TaskOutput,
@@ -22,7 +22,7 @@ import { DataPortSchema } from "@workglow/util";
 export const lambdaTaskConfigSchema = {
   type: "object",
   properties: {
-    ...baseConfigSchema["properties"],
+    ...TaskConfigSchema["properties"],
     execute: {},
     executeReactive: {},
   },

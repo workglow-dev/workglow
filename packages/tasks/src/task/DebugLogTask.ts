@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { baseConfigSchema, CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, TaskConfigSchema, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const log_levels = ["dir", "log", "debug", "info", "warn", "error"] as const;
@@ -14,7 +14,7 @@ const DEFAULT_LOG_LEVEL: LogLevel = "log";
 const debugLogTaskConfigSchema = {
   type: "object",
   properties: {
-    ...baseConfigSchema["properties"],
+    ...TaskConfigSchema["properties"],
     log_level: {
       type: "string",
       enum: log_levels,

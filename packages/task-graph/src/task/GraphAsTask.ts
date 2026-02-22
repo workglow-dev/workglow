@@ -15,7 +15,7 @@ import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import {
-  baseConfigSchema,
+  TaskConfigSchema,
   type TaskConfig,
   type TaskIdType,
   type TaskInput,
@@ -26,7 +26,7 @@ import {
 export const graphAsTaskConfigSchema = {
   type: "object",
   properties: {
-    ...baseConfigSchema["properties"],
+    ...TaskConfigSchema["properties"],
     compoundMerge: { type: "string" },
   },
   additionalProperties: false,

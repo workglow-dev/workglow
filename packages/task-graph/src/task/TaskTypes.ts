@@ -74,7 +74,7 @@ export type TaskTypeName = string;
 /**
  * Base JSON Schema for task configuration.
  * Exported so subclasses can compose their own schema with:
- *   `...baseConfigSchema["properties"]`
+ *   `...TaskConfigSchema["properties"]`
  *
  * Fields:
  *  - id:           unique task identifier (any type)
@@ -85,28 +85,28 @@ export type TaskTypeName = string;
  *  - outputSchema: dynamic output schema override (for tasks like OutputTask)
  *  - extras:       arbitrary user data serialized with the task JSON
  */
-export const baseConfigSchema = {
+export const TaskConfigSchema = {
   type: "object",
   properties: {
     id: {},
     title: { type: "string" },
     description: { type: "string" },
     cacheable: { type: "boolean" },
-    inputSchema: {},
-    outputSchema: {},
+    inputSchema: { type: "object", properties: {}, additionalProperties: true },
+    outputSchema: { type: "object", properties: {}, additionalProperties: true },
     extras: { type: "object", additionalProperties: true },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-type _BaseFromSchema = FromSchema<typeof baseConfigSchema>;
+type BaseFromSchema = FromSchema<typeof TaskConfigSchema>;
 
 /**
- * Base type for task configuration, derived from baseConfigSchema.
- * Use `baseConfigSchema` when building JSON schemas in subclasses.
+ * Base type for task configuration, derived from TaskConfigSchema.
+ * Use `TaskConfigSchema` when building JSON schemas in subclasses.
  * Use this type when declaring the Config generic parameter.
  */
-export type TaskConfig = Omit<_BaseFromSchema, "id" | "inputSchema" | "outputSchema"> & {
+export type TaskConfig = Omit<BaseFromSchema, "id" | "inputSchema" | "outputSchema"> & {
   /** Unique identifier for the task (uuid4 by default) */
   id?: unknown;
   /** Dynamic input schema override for the task instance */

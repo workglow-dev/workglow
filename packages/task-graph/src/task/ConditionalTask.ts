@@ -8,7 +8,13 @@ import type { DataPortSchema } from "@workglow/util";
 import { evaluateCondition, getNestedValue, type UIConditionConfig } from "./ConditionUtils";
 import type { IExecuteContext } from "./ITask";
 import { Task } from "./Task";
-import { baseConfigSchema, type TaskConfig, type TaskInput, type TaskOutput, type TaskTypeName } from "./TaskTypes";
+import {
+  TaskConfigSchema,
+  type TaskConfig,
+  type TaskInput,
+  type TaskOutput,
+  type TaskTypeName,
+} from "./TaskTypes";
 
 // ============================================================================
 // Types and Interfaces
@@ -88,7 +94,7 @@ export interface BranchConfig<Input> {
 export const conditionalTaskConfigSchema = {
   type: "object",
   properties: {
-    ...baseConfigSchema["properties"],
+    ...TaskConfigSchema["properties"],
     branches: { type: "array", items: {} },
     defaultBranch: { type: "string" },
     exclusive: { type: "boolean" },

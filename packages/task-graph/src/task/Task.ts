@@ -16,7 +16,12 @@ import {
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import type { IExecuteContext, IExecuteReactiveContext, IRunConfig, ITask } from "./ITask";
-import { TaskAbortedError, TaskError, TaskInvalidInputError } from "./TaskError";
+import {
+  TaskAbortedError,
+  TaskConfigurationError,
+  TaskError,
+  TaskInvalidInputError,
+} from "./TaskError";
 import {
   type TaskEventListener,
   type TaskEventListeners,
@@ -26,7 +31,7 @@ import {
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
 import {
-  baseConfigSchema,
+  TaskConfigSchema,
   TaskStatus,
   type TaskConfig,
   type TaskIdType,
@@ -116,10 +121,10 @@ export class Task<
 
   /**
    * Config schema for this task. Subclasses that add config properties MUST override this
-   * and spread baseConfigSchema["properties"] into their own properties object.
+   * and spread TaskConfigSchema["properties"] into their own properties object.
    */
   public static configSchema(): DataPortSchema {
-    return baseConfigSchema;
+    return TaskConfigSchema;
   }
 
   // ========================================================================
@@ -455,7 +460,7 @@ export class Task<
 
     // Check for circular references
     if (visited.has(obj)) {
-      throw new Error(
+      throw new TaskConfigurationError(
         "Circular reference detected in input data. " +
           "Cannot clone objects with circular references."
       );
@@ -760,7 +765,9 @@ export class Task<
         const path = (e as any).data?.pointer || "";
         return `${e.message}${path ? ` (${path})` : ""}`;
       });
-      throw new Error(`[${ctor.name}] Configuration Error: ${errorMessages.join(", ")}`);
+      throw new TaskConfigurationError(
+        `[${ctor.name}] Configuration Error: ${errorMessages.join(", ")}`
+      );
     }
 
     return config;

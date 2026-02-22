@@ -5,12 +5,12 @@
  */
 
 import {
-  baseConfigSchema,
   CreateWorkflow,
   IExecuteContext,
   Task,
   TaskAbortedError,
   TaskConfig,
+  TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema, sleep } from "@workglow/util";
@@ -18,7 +18,7 @@ import { DataPortSchema, FromSchema, sleep } from "@workglow/util";
 const delayTaskConfigSchema = {
   type: "object",
   properties: {
-    ...baseConfigSchema["properties"],
+    ...TaskConfigSchema["properties"],
     delay: {
       type: "number",
       title: "Delay (ms)",
@@ -30,7 +30,7 @@ const delayTaskConfigSchema = {
 
 export type DelayTaskConfig = TaskConfig & {
   /** Delay duration in milliseconds */
-  delay?: number;
+  delay: number;
 };
 
 const inputSchema = {
@@ -72,7 +72,7 @@ export class DelayTask<
   }
 
   async execute(input: Input, executeContext: IExecuteContext): Promise<Output> {
-    const delay = this.config.delay ?? 0;
+    const delay = this.config.delay ?? 1;
     if (delay > 100) {
       const iterations = Math.min(100, Math.floor(delay / 16)); // 1/60fps is about 16ms
       const chunkSize = delay / iterations;
@@ -97,7 +97,7 @@ export class DelayTask<
  *
  * @param config - Task configuration; use `config.delay` for the delay in milliseconds
  */
-export const delay = (input: DelayTaskInput, config: DelayTaskConfig = {}) => {
+export const delay = (input: DelayTaskInput, config: DelayTaskConfig = { delay: 1 }) => {
   const task = new DelayTask({}, config);
   return task.run(input);
 };
@@ -107,6 +107,5 @@ declare module "@workglow/task-graph" {
     delay: CreateWorkflow<DelayTaskInput, DelayTaskOutput, DelayTaskConfig>;
   }
 }
-
 
 Workflow.prototype.delay = CreateWorkflow(DelayTask);
