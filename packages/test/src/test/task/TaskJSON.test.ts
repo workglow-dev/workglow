@@ -30,9 +30,9 @@ describe("TaskJSON", () => {
 
       expect(json.id).toBe("task1");
       expect(json.type).toBe("DoubleToResultTask");
-      expect(json.config.title).toBe("My Task");
+      expect(json.config?.title).toBe("My Task");
       expect(json.defaults).toEqual({ value: 42 });
-      expect(json.config.extras).toBeUndefined();
+      expect(json.config?.extras).toBeUndefined();
     });
 
     test("should serialize task with defaults", () => {
@@ -52,7 +52,7 @@ describe("TaskJSON", () => {
       );
       const json = task.toJSON();
 
-      expect(json.config.extras).toEqual({ metadata: { key: "value" } });
+      expect(json.config?.extras).toEqual({ metadata: { key: "value" } });
     });
   });
 
