@@ -157,7 +157,7 @@ export abstract class ArrayTask<
     // Create task instances for each combination
     const tasks = combinations.map((combination) => {
       // Create a new instance of this same class
-      const { id, name, ...rest } = this.config;
+      const { id, title, ...rest } = this.config;
       const task = new (this.constructor as any)(
         { ...this.defaults, ...this.runInputData, ...combination },
         { ...rest, id: `${id}_${uuid4()}` }

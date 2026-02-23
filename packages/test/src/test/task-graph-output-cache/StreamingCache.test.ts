@@ -161,7 +161,7 @@ describe("Streaming Cache Integration", () => {
 
   describe("Append mode with cache", () => {
     it("should execute stream and cache the accumulated result on first run", async () => {
-      const task = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
 
       const result = await task.run({ prompt: "hello" });
 
@@ -180,12 +180,12 @@ describe("Streaming Cache Integration", () => {
 
     it("should serve from cache on second run without executing stream", async () => {
       // First run: populates cache
-      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
       await task1.run({ prompt: "hello" });
       expect(appendStreamCallCount).toBe(1);
 
       // Second run: should hit cache
-      const task2 = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task2 = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
 
       const events: StreamEvent[] = [];
       task2.on("stream_chunk", (event) => events.push(event));
@@ -208,11 +208,11 @@ describe("Streaming Cache Integration", () => {
 
     it("should emit stream_start and stream_end on cache hit", async () => {
       // Populate cache
-      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
       await task1.run({ prompt: "hello" });
 
       // Cache hit
-      const task2 = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task2 = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
 
       const lifecycle: string[] = [];
       task2.on("stream_start", () => lifecycle.push("stream_start"));
@@ -226,11 +226,11 @@ describe("Streaming Cache Integration", () => {
 
     it("should complete instantly on cache hit", async () => {
       // Populate cache
-      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
       await task1.run({ prompt: "hello" });
 
       // Cache hit should complete with COMPLETED status
-      const task2 = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task2 = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
 
       const statuses: TaskStatus[] = [];
       task2.on("status", (s) => statuses.push(s));
@@ -245,7 +245,7 @@ describe("Streaming Cache Integration", () => {
 
   describe("Replace mode with cache", () => {
     it("should cache the final snapshot on first run", async () => {
-      const task = new CacheReplaceStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task = new CacheReplaceStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
 
       const result = await task.run({ prompt: "hello" });
 
@@ -259,11 +259,11 @@ describe("Streaming Cache Integration", () => {
 
     it("should serve from cache on second run", async () => {
       // First run
-      const task1 = new CacheReplaceStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task1 = new CacheReplaceStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
       await task1.run({ prompt: "hello" });
 
       // Second run: cache hit
-      const task2 = new CacheReplaceStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task2 = new CacheReplaceStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
 
       const result = await task2.run({ prompt: "hello" });
 
@@ -291,7 +291,7 @@ describe("Streaming Cache Integration", () => {
 
     it("should not attempt to save to cache when cacheable is false", async () => {
       // Provide a cache instance but set cacheable=false on the task class
-      const task = new NoCacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task = new NoCacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
 
       await task.run({ prompt: "hello" });
 
@@ -303,10 +303,10 @@ describe("Streaming Cache Integration", () => {
 
   describe("Different inputs produce different cache entries", () => {
     it("should cache separately for different inputs", async () => {
-      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, { outputCache: cache });
+      const task1 = new CacheAppendStreamTask({ prompt: "hello" }, {}, { outputCache: cache });
       await task1.run({ prompt: "hello" });
 
-      const task2 = new CacheAppendStreamTask({ prompt: "world" }, { outputCache: cache });
+      const task2 = new CacheAppendStreamTask({ prompt: "world" }, {}, { outputCache: cache });
       await task2.run({ prompt: "world" });
 
       // Both should have been executed

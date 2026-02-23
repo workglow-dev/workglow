@@ -16,7 +16,7 @@ import {
   type HfTransformersOnnxModelRecord,
   HuggingFaceTransformersProvider,
 } from "@workglow/ai-provider";
-import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import {
   ConcurrencyLimiter,
   JobQueueClient,
@@ -71,7 +71,7 @@ describe("HFTransformersBinding", () => {
       });
 
       client.attach(server);
-
+      clearPipelineCache();
       await new HuggingFaceTransformersProvider(HFT_TASKS).register({
         mode: "inline",
         queue: { autoCreate: false },

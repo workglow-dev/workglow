@@ -15,7 +15,7 @@ import {
   type HfTransformersOnnxModelRecord,
   HuggingFaceTransformersProvider,
 } from "@workglow/ai-provider";
-import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry, setTaskQueueRegistry, TaskStatus } from "@workglow/task-graph";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -23,6 +23,7 @@ describe("DownloadModelTask abort behavior", () => {
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
+    clearPipelineCache();
     await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
   });
 

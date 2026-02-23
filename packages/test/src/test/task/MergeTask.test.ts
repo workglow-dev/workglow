@@ -151,12 +151,12 @@ describe("MergeTask", () => {
       { a: 1, b: 2 },
       {
         id: "test-metadata",
-        name: "Test Merge Task",
+        title: "Test Merge Task",
       }
     );
     await task.run();
     expect(task.id()).toBe("test-metadata");
-    expect(task.config.name).toBe("Test Merge Task");
+    expect(task.config.title).toBe("Test Merge Task");
   });
 
   test("handles array inputs (merges arrays as elements)", async () => {

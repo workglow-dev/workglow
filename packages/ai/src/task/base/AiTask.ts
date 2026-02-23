@@ -60,7 +60,7 @@ export class AiTask<
         : typeof input.model === "object" && input.model
           ? input.model.model_id || input.model.title || input.model.provider
           : undefined;
-    config.name ||= `${new.target.type || new.target.name}${
+    config.title ||= `${new.target.type || new.target.name}${
       modelLabel ? " with model " + modelLabel : ""
     }`;
     super(input, config);
@@ -115,7 +115,7 @@ export class AiTask<
     }
     const job = new AiJob<AiJobInput<Input>, Output>({
       queueName: resolvedQueueName,
-      jobRunId: this.config.runnerId, // could be undefined
+      jobRunId: this.runConfig.runnerId, // could be undefined
       input: jobInput,
     });
     return job;

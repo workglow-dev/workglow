@@ -15,6 +15,7 @@ import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import {
+  TaskConfigSchema,
   type TaskConfig,
   type TaskIdType,
   type TaskInput,
@@ -22,10 +23,20 @@ import {
   type TaskTypeName,
 } from "./TaskTypes";
 
-export interface GraphAsTaskConfig extends TaskConfig {
+export const graphAsTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...TaskConfigSchema["properties"],
+    compoundMerge: { type: "string" },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type GraphAsTaskConfig = TaskConfig & {
+  /** subGraph is extracted in the constructor before validation — not in the JSON schema */
   subGraph?: TaskGraph;
   compoundMerge?: CompoundMergeStrategy;
-}
+};
 
 /**
  * A task that contains a subgraph of tasks
@@ -81,13 +92,17 @@ export class GraphAsTask<
   // Static to Instance conversion methods
   // ========================================================================
 
+  public static configSchema(): DataPortSchema {
+    return graphAsTaskConfigSchema;
+  }
+
   public get compoundMerge(): CompoundMergeStrategy {
     return this.config?.compoundMerge || (this.constructor as typeof GraphAsTask).compoundMerge;
   }
 
   public get cacheable(): boolean {
     return (
-      // if cacheable is set in config, always use that
+      this.runConfig?.cacheable ??
       this.config?.cacheable ??
       ((this.constructor as typeof GraphAsTask).cacheable && !this.hasChildren())
     );

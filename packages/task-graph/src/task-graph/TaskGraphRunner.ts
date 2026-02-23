@@ -784,9 +784,7 @@ export class TaskGraphRunner {
     task.runOutputData = {};
     task.error = undefined;
     task.progress = 0;
-    if (task.config) {
-      task.config.runnerId = runId;
-    }
+    task.runConfig = { ...task.runConfig, runnerId: runId };
     this.pushStatusFromNodeToEdges(graph, task);
     this.pushErrorFromNodeToEdges(graph, task);
     task.emit("reset");

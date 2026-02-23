@@ -142,12 +142,12 @@ describe("SplitTask", () => {
       { input: [1, 2] },
       {
         id: "test-metadata",
-        name: "Test Split Task",
+        title: "Test Split Task",
       }
     );
     await task.run();
     expect(task.id()).toBe("test-metadata");
-    expect(task.config.name).toBe("Test Split Task");
+    expect(task.config.title).toBe("Test Split Task");
   });
 
   test("handles array with nested arrays", async () => {

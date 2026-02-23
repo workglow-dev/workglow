@@ -20,13 +20,9 @@ describe("WhileTask with serialized whileConfig", () => {
         .while({
           maxIterations: 20,
           chainIterations: true,
-          extras: {
-            whileConfig: {
-              conditionField: "quality",
-              conditionOperator: "less_than",
-              conditionValue: "0.9",
-            },
-          },
+          conditionField: "quality",
+          conditionOperator: "less_than",
+          conditionValue: "0.9",
         })
         .addTask(RefineTask)
         .endWhile();
@@ -46,13 +42,9 @@ describe("WhileTask with serialized whileConfig", () => {
         .while({
           maxIterations: 20,
           chainIterations: true,
-          extras: {
-            whileConfig: {
-              conditionField: "quality",
-              conditionOperator: "not_equals",
-              conditionValue: "1",
-            },
-          },
+          conditionField: "quality",
+          conditionOperator: "not_equals",
+          conditionValue: "1",
         })
         .addTask(RefineTask)
         .endWhile();
@@ -70,13 +62,9 @@ describe("WhileTask with serialized whileConfig", () => {
         .while({
           maxIterations: 20,
           chainIterations: true,
-          extras: {
-            whileConfig: {
-              conditionField: "quality",
-              conditionOperator: "equals",
-              conditionValue: "0.2",
-            },
-          },
+          conditionField: "quality",
+          conditionOperator: "equals",
+          conditionValue: "0.2",
         })
         .addTask(RefineTask)
         .endWhile();
@@ -96,13 +84,9 @@ describe("WhileTask with serialized whileConfig", () => {
         .while({
           maxIterations: 3,
           chainIterations: true,
-          extras: {
-            whileConfig: {
-              conditionField: "quality",
-              conditionOperator: "less_than",
-              conditionValue: "999", // always true
-            },
-          },
+          conditionField: "quality",
+          conditionOperator: "less_than",
+          conditionValue: "999",
         })
         .addTask(RefineTask)
         .endWhile();
@@ -122,13 +106,9 @@ describe("WhileTask with serialized whileConfig", () => {
         .while({
           maxIterations: 3,
           chainIterations: true,
-          extras: {
-            whileConfig: {
-              conditionField: "quality",
-              conditionOperator: "less_than",
-              conditionValue: "999",
-            },
-          },
+          conditionField: "quality",
+          conditionOperator: "less_than",
+          conditionValue: "999",
         })
         .addTask(RefineTask)
         .endWhile();
@@ -148,13 +128,9 @@ describe("WhileTask with serialized whileConfig", () => {
         .while({
           maxIterations: 3,
           chainIterations: false,
-          extras: {
-            whileConfig: {
-              conditionField: "quality",
-              conditionOperator: "less_than",
-              conditionValue: "999",
-            },
-          },
+          conditionField: "quality",
+          conditionOperator: "less_than",
+          conditionValue: "999",
         })
         .addTask(RefineTask)
         .endWhile();
@@ -177,13 +153,9 @@ describe("WhileTask with serialized whileConfig", () => {
         .while({
           maxIterations: 3,
           chainIterations: true,
-          extras: {
-            whileConfig: {
-              conditionField: "",
-              conditionOperator: "is_not_empty",
-              conditionValue: "",
-            },
-          },
+          conditionField: "",
+          conditionOperator: "is_not_empty",
+          conditionValue: "",
         })
         .addTask(RefineTask)
         .endWhile();
@@ -203,13 +175,6 @@ describe("WhileTask with serialized whileConfig", () => {
           condition: (output: { quality: number }, iteration: number) =>
             output.quality < 0.5 && iteration < 10,
           maxIterations: 20,
-          extras: {
-            whileConfig: {
-              conditionField: "quality",
-              conditionOperator: "less_than",
-              conditionValue: "999", // would loop forever without maxIterations
-            },
-          },
         })
         .addTask(RefineTask)
         .endWhile();

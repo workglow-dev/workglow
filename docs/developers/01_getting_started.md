@@ -326,7 +326,7 @@ There is a JSONTask that can be used to build a graph. This is useful for saving
   {
     "id": "4",
     "type": "DebugLogTask",
-    "input": {
+    "config": {
       "log_level": "info"
     },
     "dependencies": {

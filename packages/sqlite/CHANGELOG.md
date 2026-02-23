@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.101
+
+### Patch Changes
+
+- Promote task config to first class schema, remove old name prop in favor of title
+
 ## 0.0.100
 
 ### Patch Changes

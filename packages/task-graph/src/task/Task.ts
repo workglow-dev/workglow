@@ -15,8 +15,13 @@ import {
 } from "@workglow/util";
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import type { IExecuteContext, IExecuteReactiveContext, ITask } from "./ITask";
-import { TaskAbortedError, TaskError, TaskInvalidInputError } from "./TaskError";
+import type { IExecuteContext, IExecuteReactiveContext, IRunConfig, ITask } from "./ITask";
+import {
+  TaskAbortedError,
+  TaskConfigurationError,
+  TaskError,
+  TaskInvalidInputError,
+} from "./TaskError";
 import {
   type TaskEventListener,
   type TaskEventListeners,
@@ -26,6 +31,7 @@ import {
 import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
 import {
+  TaskConfigSchema,
   TaskStatus,
   type TaskConfig,
   type TaskIdType,
@@ -68,6 +74,11 @@ export class Task<
   public static title: string = "";
 
   /**
+   * The description of this task
+   */
+  public static description: string = "";
+
+  /**
    * Whether this task has side effects
    */
   public static cacheable: boolean = true;
@@ -106,6 +117,14 @@ export class Task<
       properties: {},
       additionalProperties: false,
     } as const satisfies DataPortSchema;
+  }
+
+  /**
+   * Config schema for this task. Subclasses that add config properties MUST override this
+   * and spread TaskConfigSchema["properties"] into their own properties object.
+   */
+  public static configSchema(): DataPortSchema {
+    return TaskConfigSchema;
   }
 
   // ========================================================================
@@ -169,11 +188,12 @@ export class Task<
    * Delegates to the task runner
    *
    * @param overrides Optional input overrides
+   * @param runConfig Optional per-call run configuration (merged with task's runConfig)
    * @throws TaskError if the task fails
    * @returns The task output
    */
-  async run(overrides: Partial<Input> = {}): Promise<Output> {
-    return this.runner.run(overrides);
+  async run(overrides: Partial<Input> = {}, runConfig: Partial<IRunConfig> = {}): Promise<Output> {
+    return this.runner.run(overrides, { ...this.runConfig, ...runConfig });
   }
 
   /**
@@ -221,6 +241,13 @@ export class Task<
     return (this.constructor as typeof Task).outputSchema();
   }
 
+  /**
+   * Gets config schema for this task
+   */
+  public configSchema(): DataPortSchema {
+    return (this.constructor as typeof Task).configSchema();
+  }
+
   public get type(): TaskTypeName {
     return (this.constructor as typeof Task).type;
   }
@@ -230,13 +257,18 @@ export class Task<
   }
 
   public get title(): string {
-    return (this.constructor as typeof Task).title;
+    return this.config?.title ?? (this.constructor as typeof Task).title;
+  }
+
+  public get description(): string {
+    return this.config?.description ?? (this.constructor as typeof Task).description;
   }
 
   public get cacheable(): boolean {
     return (
-      // if cacheable is set in config, always use that
-      this.config?.cacheable ?? (this.constructor as typeof Task).cacheable
+      this.runConfig?.cacheable ??
+      this.config?.cacheable ??
+      (this.constructor as typeof Task).cacheable
     );
   }
 
@@ -272,6 +304,12 @@ export class Task<
    * The configuration of the task
    */
   config: Config;
+
+  /**
+   * Runtime configuration (not serialized with the task).
+   * Set via the constructor's third argument or mutated by the graph runner.
+   */
+  runConfig: Partial<IRunConfig> = {};
 
   /**
    * Current status of the task
@@ -320,7 +358,11 @@ export class Task<
    * @param callerDefaultInputs Default input values provided by the caller
    * @param config Configuration for the task
    */
-  constructor(callerDefaultInputs: Partial<Input> = {}, config: Partial<Config> = {}) {
+  constructor(
+    callerDefaultInputs: Partial<Input> = {},
+    config: Partial<Config> = {},
+    runConfig: Partial<IRunConfig> = {}
+  ) {
     // Initialize input defaults
     const inputDefaults = this.getDefaultInputsFromStaticInputDefinitions();
     const mergedDefaults = Object.assign(inputDefaults, callerDefaultInputs);
@@ -328,15 +370,19 @@ export class Task<
     this.defaults = this.stripSymbols(mergedDefaults) as Record<string, any>;
     this.resetInputData();
 
-    // Setup configuration defaults
-    const name = this.title || new.target.title || new.target.name;
-    this.config = Object.assign(
+    // Setup configuration defaults (title comes from static class property as fallback)
+    const title = (this.constructor as typeof Task).title || undefined;
+    const baseConfig = Object.assign(
       {
         id: uuid4(),
-        name: name,
+        ...(title ? { title } : {}),
       },
       config
     ) as Config;
+    this.config = this.validateAndApplyConfigDefaults(baseConfig);
+
+    // Store runtime configuration
+    this.runConfig = runConfig;
   }
 
   // ========================================================================
@@ -414,7 +460,7 @@ export class Task<
 
     // Check for circular references
     if (visited.has(obj)) {
-      throw new Error(
+      throw new TaskConfigurationError(
         "Circular reference detected in input data. " +
           "Cannot clone objects with circular references."
       );
@@ -678,6 +724,56 @@ export class Task<
   // ========================================================================
 
   /**
+   * The compiled config schema (cached per task type)
+   */
+  private static _configSchemaNode: Map<string, SchemaNode> = new Map();
+
+  /**
+   * Gets the compiled config schema node, or undefined if no configSchema is defined.
+   */
+  private static getConfigSchemaNode(type: TaskTypeName): SchemaNode | undefined {
+    const schema = this.configSchema();
+    if (!schema) return undefined;
+    if (!this._configSchemaNode.has(type)) {
+      try {
+        const schemaNode =
+          typeof schema === "boolean"
+            ? compileSchema(schema ? {} : { not: {} })
+            : compileSchema(schema);
+        this._configSchemaNode.set(type, schemaNode);
+      } catch (error) {
+        console.warn(`Failed to compile config schema for ${this.type}:`, error);
+        return undefined;
+      }
+    }
+    return this._configSchemaNode.get(type);
+  }
+
+  /**
+   * Validates config against configSchema.
+   * Returns config as-is; throws on validation errors.
+   * Returns config as-is if no configSchema is defined.
+   */
+  private validateAndApplyConfigDefaults(config: Config): Config {
+    const ctor = this.constructor as typeof Task;
+    const schemaNode = ctor.getConfigSchemaNode(this.type);
+    if (!schemaNode) return config;
+
+    const result = schemaNode.validate(config);
+    if (!result.valid) {
+      const errorMessages = result.errors.map((e) => {
+        const path = (e as any).data?.pointer || "";
+        return `${e.message}${path ? ` (${path})` : ""}`;
+      });
+      throw new TaskConfigurationError(
+        `[${ctor.name}] Configuration Error: ${errorMessages.join(", ")}`
+      );
+    }
+
+    return config;
+  }
+
+  /**
    * The compiled input schema
    */
   private static _inputSchemaNode: Map<string, SchemaNode> = new Map();
@@ -783,14 +879,18 @@ export class Task<
    */
   public toJSON(): TaskGraphItemJson {
     const extras = this.config.extras;
-    let json: TaskGraphItemJson = this.stripSymbols({
+    const json: TaskGraphItemJson = this.stripSymbols({
       id: this.config.id,
       type: this.type,
-      ...(this.config.name ? { name: this.config.name } : {}),
       defaults: this.defaults,
-      ...(extras && Object.keys(extras).length ? { extras } : {}),
+      config: {
+        ...(this.config.title ? { title: this.config.title } : {}),
+        ...(this.config.inputSchema ? { inputSchema: this.config.inputSchema } : {}),
+        ...(this.config.outputSchema ? { outputSchema: this.config.outputSchema } : {}),
+        ...(extras && Object.keys(extras).length ? { extras } : {}),
+      },
     });
-    return json as TaskGraphItemJson;
+    return json;
   }
 
   /**

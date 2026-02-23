@@ -209,7 +209,7 @@ export const TaskUI: FC<{
         </Box>
 
         <Box flexShrink={0}>
-          <Text>{task.config.name || (task.config.id as string)}</Text>
+          <Text>{task.config.title || (task.config.id as string)}</Text>
         </Box>
         {status == TaskStatus.PROCESSING && progress == 0 && (
           <Box marginLeft={2}>

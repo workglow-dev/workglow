@@ -9,8 +9,11 @@ import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
 import { TaskRegistry } from "../task/TaskRegistry";
+import { ConditionalTaskConfig } from "./ConditionalTask";
 import { GraphAsTask } from "./GraphAsTask";
-import { DataPorts, TaskConfig, TaskInput } from "./TaskTypes";
+import { IteratorTaskConfig } from "./IteratorTask";
+import { TaskConfig, TaskInput } from "./TaskTypes";
+import { WhileTaskConfig } from "./WhileTask";
 
 // ========================================================================
 // JSON Serialization Types
@@ -20,6 +23,11 @@ import { DataPorts, TaskConfig, TaskInput } from "./TaskTypes";
  * This structure defines how tasks should be configured in JSON format.
  */
 
+export type JsonTaskConfig = Omit<
+  TaskConfig & WhileTaskConfig & IteratorTaskConfig & ConditionalTaskConfig,
+  "id"
+>;
+
 export type JsonTaskItem = {
   /** Unique identifier for the task */
   id: unknown;
@@ -27,8 +35,8 @@ export type JsonTaskItem = {
   /** Type of task to create */
   type: string;
 
-  /** Optional display name for the task */
-  name?: string;
+  /** Optional configuration for the task */
+  config?: JsonTaskConfig;
 
   /** Default input values for the task */
   defaults?: TaskInput;
@@ -50,21 +58,18 @@ export type JsonTaskItem = {
         }>;
   };
 
-  /** Optional user data to use for this task, not used by the task framework except it will be exported as part of the task JSON*/
-  extras?: DataPorts;
-
   /** Nested tasks for compound operations */
   subtasks?: JsonTaskItem[];
-}; /**
+};
+
+/**
  * Represents a task graph item, which can be a task or a subgraph
  */
-
 export type TaskGraphItemJson = {
   id: unknown;
   type: string;
-  name?: string;
   defaults?: TaskInput;
-  extras?: DataPorts;
+  config?: JsonTaskConfig;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
 };
@@ -92,9 +97,8 @@ const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
     throw new TaskJSONError(`Task type ${item.type} not found, perhaps not registered?`);
 
   const taskConfig: TaskConfig = {
+    ...item.config,
     id: item.id,
-    name: item.name,
-    extras: item.extras,
   };
   const task = new taskClass(item.defaults ?? {}, taskConfig);
   return task;

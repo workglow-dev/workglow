@@ -7,13 +7,23 @@
 import type { DataPortSchema } from "@workglow/util";
 import { PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
-import { IteratorTask, IteratorTaskConfig } from "./IteratorTask";
+import { IteratorTask, IteratorTaskConfig, iteratorTaskConfigSchema } from "./IteratorTask";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+
+export const mapTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...iteratorTaskConfigSchema["properties"],
+    preserveOrder: { type: "boolean" },
+    flatten: { type: "boolean" },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
 
 /**
  * Configuration for MapTask.
  */
-export interface MapTaskConfig extends IteratorTaskConfig {
+export type MapTaskConfig = IteratorTaskConfig & {
   /**
    * Whether to preserve the order of results matching the input order.
    * When false, results may be in completion order.
@@ -27,7 +37,7 @@ export interface MapTaskConfig extends IteratorTaskConfig {
    * @default false
    */
   readonly flatten?: boolean;
-}
+};
 
 /**
  * MapTask transforms one or more array inputs by running a workflow for each index.
@@ -41,6 +51,10 @@ export class MapTask<
   public static category: string = "Flow Control";
   public static title: string = "Map";
   public static description: string = "Transforms array inputs by running a workflow per item";
+
+  public static configSchema(): DataPortSchema {
+    return mapTaskConfigSchema;
+  }
 
   /**
    * MapTask always uses PROPERTY_ARRAY merge strategy to collect results.

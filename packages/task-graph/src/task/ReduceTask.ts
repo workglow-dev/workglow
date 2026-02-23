@@ -6,18 +6,32 @@
 
 import type { DataPortSchema } from "@workglow/util";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
-import { IterationAnalysisResult, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
+import {
+  IterationAnalysisResult,
+  IteratorTask,
+  IteratorTaskConfig,
+  iteratorTaskConfigSchema,
+} from "./IteratorTask";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+
+export const reduceTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...iteratorTaskConfigSchema["properties"],
+    initialValue: {},
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
 
 /**
  * Configuration for ReduceTask.
  */
-export interface ReduceTaskConfig<Accumulator = unknown> extends IteratorTaskConfig {
+export type ReduceTaskConfig<Accumulator = unknown> = IteratorTaskConfig & {
   /**
    * The initial value for the accumulator.
    */
   readonly initialValue?: Accumulator;
-}
+};
 
 /**
  * ReduceTask processes iterated inputs sequentially with an accumulator.
@@ -32,6 +46,10 @@ export class ReduceTask<
   public static title: string = "Reduce";
   public static description: string =
     "Processes iterated inputs sequentially with an accumulator (fold)";
+
+  public static configSchema(): DataPortSchema {
+    return reduceTaskConfigSchema;
+  }
 
   constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
     // Reduce is always sequential
