@@ -1,5 +1,14 @@
 # @workglow/debug
 
+## 0.0.101
+
+### Patch Changes
+
+- Promote task config to first class schema, remove old name prop in favor of title
+- Updated dependencies
+  - @workglow/task-graph@0.0.101
+  - @workglow/util@0.0.101
+
 ## 0.0.100
 
 ### Patch Changes
