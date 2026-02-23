@@ -30,7 +30,7 @@ const delayTaskConfigSchema = {
 
 export type DelayTaskConfig = TaskConfig & {
   /** Delay duration in milliseconds */
-  delay: number;
+  delay?: number;
 };
 
 const inputSchema = {
