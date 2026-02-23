@@ -98,15 +98,18 @@ export const conditionalTaskConfigSchema = {
     branches: { type: "array", items: {} },
     defaultBranch: { type: "string" },
     exclusive: { type: "boolean" },
+    conditionConfig: { type: "object", additionalProperties: true },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 export type ConditionalTaskConfig = TaskConfig & {
   /** Branches may contain ConditionFn functions — not JSON-schema-representable */
-  readonly branches: BranchConfig<any>[];
+  readonly branches?: BranchConfig<any>[];
   readonly defaultBranch?: string;
   readonly exclusive?: boolean;
+  /** Serializable UI condition configuration used to build branches at runtime. */
+  readonly conditionConfig?: UIConditionConfig;
 };
 
 // ============================================================================
@@ -283,10 +286,10 @@ export class ConditionalTask<
       };
     }
 
-    // Try to find serialized conditionConfig from input or extras
+    // Try to find serialized conditionConfig from input or config
     const conditionConfig =
       ((input as Record<string, unknown>).conditionConfig as UIConditionConfig | undefined) ??
-      (this.config.extras?.conditionConfig as UIConditionConfig | undefined);
+      this.config.conditionConfig;
 
     if (conditionConfig) {
       return {

@@ -9,8 +9,11 @@ import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
 import { TaskRegistry } from "../task/TaskRegistry";
+import { ConditionalTaskConfig } from "./ConditionalTask";
 import { GraphAsTask } from "./GraphAsTask";
+import { IteratorTaskConfig } from "./IteratorTask";
 import { TaskConfig, TaskInput } from "./TaskTypes";
+import { WhileTaskConfig } from "./WhileTask";
 
 // ========================================================================
 // JSON Serialization Types
@@ -20,6 +23,11 @@ import { TaskConfig, TaskInput } from "./TaskTypes";
  * This structure defines how tasks should be configured in JSON format.
  */
 
+export type JsonTaskConfig = Omit<
+  TaskConfig & WhileTaskConfig & IteratorTaskConfig & ConditionalTaskConfig,
+  "id"
+>;
+
 export type JsonTaskItem = {
   /** Unique identifier for the task */
   id: unknown;
@@ -28,7 +36,7 @@ export type JsonTaskItem = {
   type: string;
 
   /** Optional configuration for the task */
-  config?: Omit<TaskConfig, "id"> & Record<string, unknown>;
+  config?: JsonTaskConfig;
 
   /** Default input values for the task */
   defaults?: TaskInput;
@@ -61,7 +69,7 @@ export type TaskGraphItemJson = {
   id: unknown;
   type: string;
   defaults?: TaskInput;
-  config?: Omit<TaskConfig, "id"> & Record<string, unknown>;
+  config?: JsonTaskConfig;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
 };

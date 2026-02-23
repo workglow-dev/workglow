@@ -94,7 +94,10 @@ export const TaskConfigSchema = {
     cacheable: { type: "boolean" },
     inputSchema: { type: "object", properties: {}, additionalProperties: true },
     outputSchema: { type: "object", properties: {}, additionalProperties: true },
-    extras: { type: "object", additionalProperties: true },
+    extras: {
+      type: "object",
+      additionalProperties: true,
+    },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;

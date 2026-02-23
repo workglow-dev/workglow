@@ -343,21 +343,18 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
   });
 
-  describe("conditionConfig from extras", () => {
-    it("should use conditionConfig from extras when input has none", async () => {
-      const conditionConfig: UIConditionConfig = {
-        branches: [
-          { id: "high", field: "value", operator: "greater_than", value: "50" },
-          { id: "low", field: "value", operator: "less_or_equal", value: "50" },
-        ],
-        exclusive: true,
-      };
-
+  describe("conditionConfig from config", () => {
+    it("should use conditionConfig from config when input has none", async () => {
       const task = new ConditionalTask(
         {},
         {
-          branches: [],
-          extras: { conditionConfig },
+          conditionConfig: {
+            branches: [
+              { id: "high", field: "value", operator: "greater_than", value: "50" },
+              { id: "low", field: "value", operator: "less_or_equal", value: "50" },
+            ],
+            exclusive: true,
+          },
         }
       );
 

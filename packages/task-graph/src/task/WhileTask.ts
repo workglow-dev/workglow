@@ -49,6 +49,10 @@ export const whileTaskConfigSchema = {
     condition: {},
     maxIterations: { type: "integer", minimum: 1 },
     chainIterations: { type: "boolean" },
+    conditionField: { type: "string" },
+    conditionOperator: { type: "string" },
+    conditionValue: { type: "string" },
+    iterationInputConfig: { type: "object", additionalProperties: true },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -76,6 +80,18 @@ export type WhileTaskConfig<Output extends TaskOutput = TaskOutput> = GraphAsTas
    * @default true
    */
   readonly chainIterations?: boolean;
+
+  /** Output field to evaluate for the loop condition. */
+  readonly conditionField?: string;
+
+  /** Comparison operator for the loop condition. */
+  readonly conditionOperator?: string;
+
+  /** Value to compare against for the loop condition. */
+  readonly conditionValue?: string;
+
+  /** Per-property iteration input configuration (scalar/array/flexible). */
+  readonly iterationInputConfig?: Record<string, { mode: string; baseSchema?: unknown }>;
 };
 
 /**
@@ -184,22 +200,16 @@ export class WhileTask<
 
   /**
    * Gets the maximum iterations limit.
-   * Falls back to extras.whileConfig.maxIterations for JSON-deserialized tasks.
    */
   public get maxIterations(): number {
-    if (this.config.maxIterations !== undefined) return this.config.maxIterations;
-    const wc = this.config.extras?.whileConfig as { maxIterations?: number } | undefined;
-    return wc?.maxIterations ?? 100;
+    return this.config.maxIterations ?? 100;
   }
 
   /**
    * Whether to chain iteration outputs to inputs.
-   * Falls back to extras.whileConfig.chainIterations for JSON-deserialized tasks.
    */
   public get chainIterations(): boolean {
-    if (this.config.chainIterations !== undefined) return this.config.chainIterations;
-    const wc = this.config.extras?.whileConfig as { chainIterations?: boolean } | undefined;
-    return wc?.chainIterations ?? true;
+    return this.config.chainIterations ?? true;
   }
 
   /**
@@ -217,19 +227,14 @@ export class WhileTask<
    * Execute the while loop.
    */
   /**
-   * Builds a condition function from the serialized whileConfig in extras
-   * when no condition function is directly provided in config.
+   * Builds a condition function from the serialized condition fields in config.
    */
-  private buildConditionFromExtras(): WhileConditionFn<Output> | undefined {
-    const wc = this.config.extras?.whileConfig as
-      | { conditionField?: string; conditionOperator?: string; conditionValue?: string }
-      | undefined;
+  private buildConditionFromConfig(): WhileConditionFn<Output> | undefined {
+    const { conditionOperator, conditionField, conditionValue } = this.config;
 
-    if (!wc?.conditionOperator) {
+    if (!conditionOperator) {
       return undefined;
     }
-
-    const { conditionField, conditionOperator, conditionValue } = wc;
 
     return (output: Output) => {
       const fieldValue = conditionField
@@ -251,16 +256,12 @@ export class WhileTask<
     iteratedValues: Record<string, unknown[]>;
     iterationCount: number;
   } | null {
-    const wc = this.config.extras?.whileConfig as
-      | { iterationInputConfig?: Record<string, { mode: string; baseSchema?: unknown }> }
-      | undefined;
-
-    if (!wc?.iterationInputConfig) {
+    if (!this.config.iterationInputConfig) {
       return null;
     }
 
     const inputData = input as Record<string, unknown>;
-    const config = wc.iterationInputConfig;
+    const config = this.config.iterationInputConfig!;
 
     const arrayPorts: string[] = [];
     const scalarPorts: string[] = [];
@@ -350,7 +351,7 @@ export class WhileTask<
     }
 
     // Use provided condition or auto-build from serialized whileConfig
-    const condition = this.condition ?? this.buildConditionFromExtras();
+    const condition = this.condition ?? this.buildConditionFromConfig();
 
     if (!condition) {
       throw new TaskConfigurationError(`${this.type}: No condition function provided`);
@@ -426,15 +427,12 @@ export class WhileTask<
    * This provides streaming output for the final result while still
    * supporting iteration chaining.
    */
-  async *executeStream(
-    input: Input,
-    context: IExecuteContext
-  ): AsyncIterable<StreamEvent<Output>> {
+  async *executeStream(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>> {
     if (!this.hasChildren()) {
       throw new TaskConfigurationError(`${this.type}: No subgraph set for while loop`);
     }
 
-    const condition = this.condition ?? this.buildConditionFromExtras();
+    const condition = this.condition ?? this.buildConditionFromConfig();
     if (!condition) {
       throw new TaskConfigurationError(`${this.type}: No condition function provided`);
     }
@@ -550,11 +548,7 @@ export class WhileTask<
     const baseSchema = super.inputSchema();
     if (typeof baseSchema === "boolean") return baseSchema;
 
-    const wc = this.config.extras?.whileConfig as
-      | { iterationInputConfig?: Record<string, { mode: string; baseSchema?: DataPortSchema }> }
-      | undefined;
-
-    if (!wc?.iterationInputConfig) {
+    if (!this.config.iterationInputConfig) {
       return baseSchema;
     }
 
@@ -562,7 +556,7 @@ export class WhileTask<
     // Using anyOf instead of plain type:"array" to avoid addInput's array-merge behavior
     // which would prepend an undefined element when runInputData starts empty.
     const properties = { ...(baseSchema.properties || {}) } as Record<string, DataPortSchema>;
-    for (const [key, propConfig] of Object.entries(wc.iterationInputConfig)) {
+    for (const [key, propConfig] of Object.entries(this.config.iterationInputConfig)) {
       if (propConfig.mode === "array" && properties[key]) {
         const scalarSchema = properties[key] as DataPortSchema;
         properties[key] = {
