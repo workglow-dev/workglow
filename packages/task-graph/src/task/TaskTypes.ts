@@ -88,15 +88,28 @@ export type TaskTypeName = string;
 export const TaskConfigSchema = {
   type: "object",
   properties: {
-    id: {},
+    id: {
+      "x-ui-hidden": true,
+    },
     title: { type: "string" },
     description: { type: "string" },
     cacheable: { type: "boolean" },
-    inputSchema: { type: "object", properties: {}, additionalProperties: true },
-    outputSchema: { type: "object", properties: {}, additionalProperties: true },
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+      "x-ui-hidden": true,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+      "x-ui-hidden": true,
+    },
     extras: {
       type: "object",
       additionalProperties: true,
+      "x-ui-hidden": true,
     },
   },
   additionalProperties: false,

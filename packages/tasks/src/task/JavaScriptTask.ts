@@ -4,9 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, TaskConfigSchema, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { Interpreter } from "../util/interpreter";
+
+const configSchema = {
+  type: "object",
+  properties: {
+    ...TaskConfigSchema["properties"],
+    javascript_code: {
+      type: "string",
+      title: "Code",
+      minLength: 1,
+      description: "JavaScript code to execute",
+      format: "code:javascript",
+    },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
 
 const inputSchema = {
   type: "object",
@@ -37,12 +52,24 @@ const outputSchema = {
 
 export type JavaScriptTaskInput = FromSchema<typeof inputSchema>;
 export type JavaScriptTaskOutput = FromSchema<typeof outputSchema>;
+export type JavaScriptTaskConfig = TaskConfig & {
+  javascript_code?: string;
+};
 
-export class JavaScriptTask extends Task<JavaScriptTaskInput, JavaScriptTaskOutput> {
+export class JavaScriptTask extends Task<
+  JavaScriptTaskInput,
+  JavaScriptTaskOutput,
+  JavaScriptTaskConfig
+> {
   public static type = "JavaScriptTask";
   public static category = "Utility";
   public static title = "JavaScript Interpreter";
   public static description = "Executes JavaScript code in a sandboxed interpreter environment";
+  public static customizable = true;
+
+  public static configSchema() {
+    return configSchema;
+  }
 
   public static inputSchema() {
     return inputSchema;
@@ -52,8 +79,29 @@ export class JavaScriptTask extends Task<JavaScriptTaskInput, JavaScriptTaskOutp
     return outputSchema;
   }
 
+  constructor(
+    input: Partial<JavaScriptTaskInput> = {},
+    config: Partial<JavaScriptTaskConfig> = {}
+  ) {
+    super(input, config);
+  }
+
+  public inputSchema() {
+    if (this.config?.javascript_code) {
+      if (this.config.inputSchema) {
+        return this.config.inputSchema;
+      }
+      return {
+        type: "object",
+        properties: {},
+        additionalProperties: true,
+      } as const satisfies DataPortSchema;
+    }
+    return inputSchema;
+  }
+
   async executeReactive(input: JavaScriptTaskInput, output: JavaScriptTaskOutput) {
-    if (input.javascript_code) {
+    if (this.config.javascript_code || input.javascript_code) {
       try {
         const inputVariables = Object.keys(input).filter((key) => key !== "javascript_code");
         const inputVariablesString = inputVariables

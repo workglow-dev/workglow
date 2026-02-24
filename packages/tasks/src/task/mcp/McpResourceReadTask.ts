@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  Task,
+  TaskConfig,
+  TaskConfigSchema,
+  Workflow,
+} from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -13,9 +20,10 @@ import {
   type McpServerConfig,
 } from "@workglow/util";
 
-const inputSchema = {
+const configSchema = {
   type: "object",
   properties: {
+    ...TaskConfigSchema["properties"],
     ...mcpServerConfigSchema,
     resource_uri: {
       type: "string",
@@ -24,6 +32,9 @@ const inputSchema = {
     },
   },
   required: ["transport", "resource_uri"],
+  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
+  then: { required: ["command"] },
+  else: { required: ["server_url"] },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -54,6 +65,12 @@ const contentItemSchema = {
   ],
 } as const;
 
+const inputSchema = {
+  type: "object",
+  properties: {},
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
 const outputSchema = {
   type: "object",
   properties: {
@@ -68,19 +85,21 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
+export type McpResourceReadTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
 export type McpResourceReadTaskInput = FromSchema<typeof inputSchema>;
 export type McpResourceReadTaskOutput = FromSchema<typeof outputSchema>;
 
 export class McpResourceReadTask extends Task<
   McpResourceReadTaskInput,
   McpResourceReadTaskOutput,
-  TaskConfig
+  McpResourceReadTaskConfig
 > {
   public static type = "McpResourceReadTask";
   public static category = "MCP";
   public static title = "MCP Read Resource";
   public static description = "Reads a resource from an MCP server";
   static readonly cacheable = false;
+  public static customizable = true;
 
   public static inputSchema() {
     return inputSchema;
@@ -90,16 +109,20 @@ export class McpResourceReadTask extends Task<
     return outputSchema;
   }
 
+  public static configSchema() {
+    return configSchema;
+  }
+
   async execute(
-    input: McpResourceReadTaskInput,
+    _input: McpResourceReadTaskInput,
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {
     const { client } = await mcpClientFactory.create(
-      input as unknown as McpServerConfig,
+      this.config as unknown as McpServerConfig,
       context.signal
     );
     try {
-      const result = await client.readResource({ uri: input.resource_uri });
+      const result = await client.readResource({ uri: this.config.resource_uri });
       return { contents: result.contents };
     } finally {
       await client.close();
@@ -108,10 +131,9 @@ export class McpResourceReadTask extends Task<
 }
 
 export const mcpResourceRead = async (
-  input: McpResourceReadTaskInput,
-  config: TaskConfig = {}
+  config: McpResourceReadTaskConfig
 ): Promise<McpResourceReadTaskOutput> => {
-  return new McpResourceReadTask({}, config).run(input);
+  return new McpResourceReadTask({}, config).run({});
 };
 
 declare module "@workglow/task-graph" {
@@ -119,7 +141,7 @@ declare module "@workglow/task-graph" {
     mcpResourceRead: CreateWorkflow<
       McpResourceReadTaskInput,
       McpResourceReadTaskOutput,
-      TaskConfig
+      McpResourceReadTaskConfig
     >;
   }
 }

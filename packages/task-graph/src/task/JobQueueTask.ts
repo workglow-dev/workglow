@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util";
 import { Job, JobConstructorParam } from "@workglow/job-queue";
+import type { DataPortSchema } from "@workglow/util";
 import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
 import { IExecuteContext } from "./ITask";
 import { getJobQueueFactory } from "./JobQueueFactory";
@@ -18,7 +18,11 @@ export const jobQueueTaskConfigSchema = {
   type: "object",
   properties: {
     ...graphAsTaskConfigSchema["properties"],
-    queue: {},
+    queue: {
+      oneOf: [{ type: "boolean" }, { type: "string" }],
+      description: "Queue handling: false=run inline, true=use default, string=explicit queue name",
+      "x-ui-hidden": true,
+    },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;

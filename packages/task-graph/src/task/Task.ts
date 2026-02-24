@@ -98,6 +98,12 @@ export class Task<
   public static passthroughInputsToOutputs: boolean = false;
 
   /**
+   * When true, this task can be saved as a custom task with a preset configuration.
+   * Tasks that have meaningful user-facing config options beyond the base fields should set this.
+   */
+  public static customizable: boolean = false;
+
+  /**
    * Input schema for this task
    */
   public static inputSchema(): DataPortSchema {

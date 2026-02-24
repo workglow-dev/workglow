@@ -68,6 +68,7 @@ export class DebugLogTask<
     "Logs messages to the console with configurable log levels for debugging task graphs";
   static readonly cacheable = false;
   public static passthroughInputsToOutputs = true;
+  public static customizable = true;
 
   public static configSchema(): DataPortSchema {
     return debugLogTaskConfigSchema;

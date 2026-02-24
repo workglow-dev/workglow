@@ -58,6 +58,7 @@ export class DelayTask<
   public static description = "Delays execution for a specified duration with progress tracking";
   static readonly cacheable = false;
   public static passthroughInputsToOutputs = true;
+  public static customizable = true;
 
   public static configSchema(): DataPortSchema {
     return delayTaskConfigSchema;

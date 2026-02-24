@@ -26,7 +26,7 @@ export const mcpServerConfigSchema = {
   },
   server_url: {
     type: "string",
-    format: "uri",
+    format: "string:uri",
     title: "Server URL",
     description: "The URL of the MCP server (for sse and streamable-http transports)",
   },

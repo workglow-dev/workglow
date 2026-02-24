@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  Task,
+  TaskConfig,
+  TaskConfigSchema,
+  Workflow,
+} from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -12,24 +19,24 @@ import {
   mcpServerConfigSchema,
   type McpServerConfig,
 } from "@workglow/util";
+import { mcpList } from "./McpListTask";
 
-const inputSchema = {
+const configSchema = {
   type: "object",
   properties: {
+    ...TaskConfigSchema["properties"],
     ...mcpServerConfigSchema,
     tool_name: {
       type: "string",
       title: "Tool Name",
       description: "The name of the tool to call",
-    },
-    tool_arguments: {
-      type: "object",
-      additionalProperties: true,
-      title: "Tool Arguments",
-      description: "Arguments to pass to the tool",
+      format: "string:mcp-toolname",
     },
   },
   required: ["transport", "tool_name"],
+  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
+  then: { required: ["command"] },
+  else: { required: ["server_url"] },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -136,7 +143,7 @@ const toolContentSchema = {
   ],
 } as const;
 
-const outputSchema = {
+const fallbackOutputSchema = {
   type: "object",
   properties: {
     content: {
@@ -155,36 +162,98 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type McpToolCallTaskInput = FromSchema<typeof inputSchema>;
-export type McpToolCallTaskOutput = FromSchema<typeof outputSchema>;
+const fallbackInputSchema = {
+  type: "object",
+  properties: {},
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
 
-export class McpToolCallTask extends Task<McpToolCallTaskInput, McpToolCallTaskOutput, TaskConfig> {
+export type McpToolCallTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
+export type McpToolCallTaskInput = Record<string, unknown>;
+export type McpToolCallTaskOutput = Record<string, unknown>;
+
+export class McpToolCallTask extends Task<
+  McpToolCallTaskInput,
+  McpToolCallTaskOutput,
+  McpToolCallTaskConfig
+> {
   public static type = "McpToolCallTask";
   public static category = "MCP";
   public static title = "MCP Call Tool";
   public static description = "Calls a tool on an MCP server and returns the result";
-  static readonly cacheable = false;
+  public static cacheable = false;
+  public static customizable = true;
+  public static hasDynamicSchemas = true;
 
   public static inputSchema() {
-    return inputSchema;
+    return fallbackInputSchema;
   }
 
   public static outputSchema() {
-    return outputSchema;
+    return fallbackOutputSchema;
+  }
+
+  public static configSchema() {
+    return configSchema;
+  }
+
+  public override inputSchema(): DataPortSchema {
+    return (this.config.inputSchema as DataPortSchema) ?? fallbackInputSchema;
+  }
+
+  public override outputSchema(): DataPortSchema {
+    return (this.config.outputSchema as DataPortSchema) ?? fallbackOutputSchema;
+  }
+
+  private _schemasDiscovering = false;
+
+  async discoverSchemas(signal?: AbortSignal): Promise<void> {
+    if (this.config.inputSchema && this.config.outputSchema) return;
+    if (this._schemasDiscovering) return;
+    if (!this.config.transport || !this.config.tool_name) return;
+
+    this._schemasDiscovering = true;
+    try {
+      const result = await mcpList({
+        transport: this.config.transport,
+        server_url: this.config.server_url,
+        command: this.config.command,
+        args: this.config.args,
+        env: this.config.env,
+        list_type: "tools",
+      });
+
+      const tool = result.tools?.find((t) => t.name === this.config.tool_name);
+      if (tool) {
+        if (!this.config.inputSchema) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this.config as any).inputSchema = tool.inputSchema;
+        }
+        if (!this.config.outputSchema && tool.outputSchema) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this.config as any).outputSchema = tool.outputSchema;
+        }
+        this.emitSchemaChange();
+      }
+    } finally {
+      this._schemasDiscovering = false;
+    }
   }
 
   async execute(
     input: McpToolCallTaskInput,
     context: IExecuteContext
   ): Promise<McpToolCallTaskOutput> {
+    await this.discoverSchemas(context.signal);
+
     const { client } = await mcpClientFactory.create(
-      input as unknown as McpServerConfig,
+      this.config as unknown as McpServerConfig,
       context.signal
     );
     try {
       const result = await client.callTool({
-        name: input.tool_name as string,
-        arguments: input.tool_arguments as Record<string, unknown> | undefined,
+        name: this.config.tool_name,
+        arguments: input as Record<string, unknown>,
       });
       if (!("content" in result) || !Array.isArray(result.content)) {
         throw new Error("Expected tool result with content array");
@@ -201,14 +270,14 @@ export class McpToolCallTask extends Task<McpToolCallTaskInput, McpToolCallTaskO
 
 export const mcpToolCall = async (
   input: McpToolCallTaskInput,
-  config: TaskConfig = {}
+  config: McpToolCallTaskConfig
 ): Promise<McpToolCallTaskOutput> => {
   return new McpToolCallTask({}, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    mcpToolCall: CreateWorkflow<McpToolCallTaskInput, McpToolCallTaskOutput, TaskConfig>;
+    mcpToolCall: CreateWorkflow<McpToolCallTaskInput, McpToolCallTaskOutput, McpToolCallTaskConfig>;
   }
 }
 

@@ -4,31 +4,39 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  Task,
+  TaskConfig,
+  TaskConfigSchema,
+  Workflow,
+} from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
   mcpClientFactory,
   mcpServerConfigSchema,
+  type McpServerConfig,
 } from "@workglow/util";
+import { mcpList } from "./McpListTask";
 
-const inputSchema = {
+const configSchema = {
   type: "object",
   properties: {
+    ...TaskConfigSchema["properties"],
     ...mcpServerConfigSchema,
     prompt_name: {
       type: "string",
       title: "Prompt Name",
       description: "The name of the prompt to get",
-    },
-    prompt_arguments: {
-      type: "object",
-      additionalProperties: { type: "string" },
-      title: "Prompt Arguments",
-      description: "Arguments to pass to the prompt",
+      format: "string:mcp-promptname",
     },
   },
   required: ["transport", "prompt_name"],
+  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
+  then: { required: ["command"] },
+  else: { required: ["server_url"] },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -135,7 +143,7 @@ const contentSchema = {
   ],
 } as const;
 
-const outputSchema = {
+const fallbackOutputSchema = {
   type: "object",
   properties: {
     messages: {
@@ -162,37 +170,107 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type McpPromptGetTaskInput = FromSchema<typeof inputSchema>;
-export type McpPromptGetTaskOutput = FromSchema<typeof outputSchema>;
+const fallbackInputSchema = {
+  type: "object",
+  properties: {},
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type McpPromptGetTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
+export type McpPromptGetTaskInput = Record<string, unknown>;
+export type McpPromptGetTaskOutput = FromSchema<typeof fallbackOutputSchema>;
 
 export class McpPromptGetTask extends Task<
   McpPromptGetTaskInput,
   McpPromptGetTaskOutput,
-  TaskConfig
+  McpPromptGetTaskConfig
 > {
   public static type = "McpPromptGetTask";
   public static category = "MCP";
   public static title = "MCP Get Prompt";
   public static description = "Gets a prompt from an MCP server";
   static readonly cacheable = false;
+  public static customizable = true;
+  public static hasDynamicSchemas = true;
 
   public static inputSchema() {
-    return inputSchema;
+    return fallbackInputSchema;
   }
 
   public static outputSchema() {
-    return outputSchema;
+    return fallbackOutputSchema;
+  }
+
+  public static configSchema() {
+    return configSchema;
+  }
+
+  public override inputSchema(): DataPortSchema {
+    return (this.config.inputSchema as DataPortSchema) ?? fallbackInputSchema;
+  }
+
+  public override outputSchema(): DataPortSchema {
+    return (this.config.outputSchema as DataPortSchema) ?? fallbackOutputSchema;
+  }
+
+  private _schemasDiscovering = false;
+
+  async discoverSchemas(signal?: AbortSignal): Promise<void> {
+    if (this.config.inputSchema) return;
+    if (this._schemasDiscovering) return;
+    if (!this.config.transport || !this.config.prompt_name) return;
+
+    this._schemasDiscovering = true;
+    try {
+      const result = await mcpList({
+        transport: this.config.transport,
+        server_url: this.config.server_url,
+        command: this.config.command,
+        args: this.config.args,
+        env: this.config.env,
+        list_type: "prompts",
+      });
+
+      const prompt = result.prompts?.find((p) => p.name === this.config.prompt_name);
+      if (prompt) {
+        const args = prompt.arguments ?? [];
+        const required = args.filter((a) => a.required).map((a) => a.name);
+        const properties: Record<string, { type: string; description?: string }> = {};
+        for (const arg of args) {
+          properties[arg.name] = {
+            type: "string",
+            ...(arg.description ? { description: arg.description } : {}),
+          };
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.config as any).inputSchema = {
+          type: "object",
+          properties,
+          ...(required.length > 0 ? { required } : {}),
+          additionalProperties: false,
+        };
+
+        this.emitSchemaChange();
+      }
+    } finally {
+      this._schemasDiscovering = false;
+    }
   }
 
   async execute(
     input: McpPromptGetTaskInput,
     context: IExecuteContext
   ): Promise<McpPromptGetTaskOutput> {
-    const { client } = await mcpClientFactory.create(input, context.signal);
+    await this.discoverSchemas(context.signal);
+
+    const { client } = await mcpClientFactory.create(
+      this.config as unknown as McpServerConfig,
+      context.signal
+    );
     try {
       const result = await client.getPrompt({
-        name: input.prompt_name,
-        arguments: input.prompt_arguments,
+        name: this.config.prompt_name,
+        arguments: input as Record<string, string>,
       });
       return {
         messages: result.messages,
@@ -206,15 +284,18 @@ export class McpPromptGetTask extends Task<
 
 export const mcpPromptGet = async (
   input: McpPromptGetTaskInput,
-  config: TaskConfig = {}
+  config: McpPromptGetTaskConfig
 ): Promise<McpPromptGetTaskOutput> => {
-  const result = await new McpPromptGetTask({}, config).run(input);
-  return result;
+  return new McpPromptGetTask({}, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    mcpPromptGet: CreateWorkflow<McpPromptGetTaskInput, McpPromptGetTaskOutput, TaskConfig>;
+    mcpPromptGet: CreateWorkflow<
+      McpPromptGetTaskInput,
+      McpPromptGetTaskOutput,
+      McpPromptGetTaskConfig
+    >;
   }
 }
 

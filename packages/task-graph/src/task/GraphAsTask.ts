@@ -27,7 +27,7 @@ export const graphAsTaskConfigSchema = {
   type: "object",
   properties: {
     ...TaskConfigSchema["properties"],
-    compoundMerge: { type: "string" },
+    compoundMerge: { type: "string", "x-ui-hidden": true },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
