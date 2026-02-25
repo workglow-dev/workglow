@@ -1,5 +1,14 @@
 # @workglow/debug
 
+## 0.0.102
+
+### Patch Changes
+
+- Update types
+- Updated dependencies
+  - @workglow/task-graph@0.0.102
+  - @workglow/util@0.0.102
+
 ## 0.0.101
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @workglow/sqlite
 
+## 0.0.102
+
+### Patch Changes
+
+- Update types
+
 ## 0.0.101
 
 ### Patch Changes

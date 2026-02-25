@@ -34,7 +34,7 @@ export {
 /** Config for buildIterationInputSchema: mode and optional baseSchema (defaults to extracted from inner). */
 export type IterationInputConfig = Record<
   string,
-  { mode: IterationInputMode; baseSchema?: DataPortSchema }
+  { mode: IterationInputMode; baseSchema?: PropertySchema }
 >;
 
 /**
@@ -245,8 +245,8 @@ export function buildIterationInputSchema(
     return { type: "object", properties: {} };
   }
 
-  const properties: Record<string, DataPortSchema> = {};
-  const propsRecord = innerProps as Record<string, DataPortSchema>;
+  const properties: Record<string, PropertySchema> = {};
+  const propsRecord = innerProps as Record<string, PropertySchema>;
 
   for (const [key, propSchema] of Object.entries(propsRecord)) {
     if (typeof propSchema === "boolean") continue;
@@ -268,7 +268,7 @@ export function buildIterationInputSchema(
     const mode = propConfig?.mode ?? "flexible";
     const base = propConfig?.baseSchema ?? baseSchema;
 
-    let wrappedSchema: DataPortSchema;
+    let wrappedSchema: PropertySchema;
     switch (mode) {
       case "array":
         wrappedSchema = createArraySchema(base);
@@ -284,7 +284,7 @@ export function buildIterationInputSchema(
 
     // Apply preserved metadata onto the wrapped schema
     if (Object.keys(metadata).length > 0 && typeof wrappedSchema === "object") {
-      properties[key] = { ...metadata, ...wrappedSchema } as DataPortSchema;
+      properties[key] = { ...metadata, ...wrappedSchema } as PropertySchema;
     } else {
       properties[key] = wrappedSchema;
     }
