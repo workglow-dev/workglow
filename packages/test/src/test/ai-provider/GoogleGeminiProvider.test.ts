@@ -7,8 +7,8 @@
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
 import { GOOGLE_GEMINI, GoogleGeminiProvider } from "@workglow/ai-provider";
 import {
-  GEMINI_TASKS,
   Gemini_CountTokens,
+  GEMINI_TASKS,
   Gemini_TextEmbedding,
   Gemini_TextGeneration,
   Gemini_TextRewriter,
@@ -81,6 +81,7 @@ describe("GoogleGeminiProvider", () => {
         "TextEmbeddingTask",
         "TextRewriterTask",
         "TextSummaryTask",
+        "StructuredGenerationTask",
       ]);
     });
 
@@ -98,7 +99,7 @@ describe("GoogleGeminiProvider", () => {
       const provider = new GoogleGeminiProvider(GEMINI_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
     });
   });
 
@@ -251,7 +252,8 @@ describe("GoogleGeminiProvider", () => {
       expect(GEMINI_TASKS).toHaveProperty("TextEmbeddingTask");
       expect(GEMINI_TASKS).toHaveProperty("TextRewriterTask");
       expect(GEMINI_TASKS).toHaveProperty("TextSummaryTask");
-      expect(Object.keys(GEMINI_TASKS)).toHaveLength(5);
+      expect(GEMINI_TASKS).toHaveProperty("StructuredGenerationTask");
+      expect(Object.keys(GEMINI_TASKS)).toHaveLength(6);
     });
   });
 });

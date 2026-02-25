@@ -7,8 +7,8 @@
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
 import { ANTHROPIC, AnthropicProvider } from "@workglow/ai-provider";
 import {
-  ANTHROPIC_TASKS,
   Anthropic_CountTokens,
+  ANTHROPIC_TASKS,
   Anthropic_TextGeneration,
   Anthropic_TextRewriter,
   Anthropic_TextSummary,
@@ -70,6 +70,7 @@ describe("AnthropicProvider", () => {
         "TextGenerationTask",
         "TextRewriterTask",
         "TextSummaryTask",
+        "StructuredGenerationTask",
       ]);
       expect(provider.supportedTaskTypes).not.toContain("TextEmbeddingTask");
     });
@@ -87,7 +88,7 @@ describe("AnthropicProvider", () => {
       const provider = new AnthropicProvider(ANTHROPIC_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(4);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -256,8 +257,9 @@ describe("AnthropicProvider", () => {
       expect(ANTHROPIC_TASKS).toHaveProperty("TextGenerationTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextRewriterTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextSummaryTask");
+      expect(ANTHROPIC_TASKS).toHaveProperty("StructuredGenerationTask");
       expect(ANTHROPIC_TASKS).not.toHaveProperty("TextEmbeddingTask");
-      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(4);
+      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(5);
     });
   });
 });
