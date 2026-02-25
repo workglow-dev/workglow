@@ -15,6 +15,31 @@ import type {
 import type { JSONValue } from "../../core/json";
 import type { LocatorSpec } from "../../core/locator";
 import { loadPlaywright } from "./loadPlaywright";
+import { TaskConfigurationError } from "@workglow/task-graph";
+
+/**
+ * Playwright launch option keys blocked for security reasons.
+ * These options allow arbitrary code execution or sandbox escape.
+ */
+export const BLOCKED_LAUNCH_OPTION_KEYS: ReadonlySet<string> = new Set([
+  "executablePath", // Points Playwright at an arbitrary host binary (RCE)
+  "args", // CLI flags can disable sandbox, load extensions
+  "env", // Child-process env vars allow LD_PRELOAD / PATH hijacking
+]);
+
+/**
+ * Throws TaskConfigurationError if opts contains any blocked launch option key.
+ * Called before every Playwright launch() / launchPersistentContext() call.
+ */
+export function assertSafeLaunchOptions(opts: Record<string, unknown>): void {
+  for (const key of BLOCKED_LAUNCH_OPTION_KEYS) {
+    if (key in opts) {
+      throw new TaskConfigurationError(
+        `Playwright launchOptions key "${key}" is not permitted: it could allow arbitrary code execution`
+      );
+    }
+  }
+}
 
 type PlaywrightBrowser = import("playwright").Browser;
 type PlaywrightBrowserContext = import("playwright").BrowserContext;
@@ -42,6 +67,9 @@ export class PlaywrightAdapter implements IBrowserBackendAdapter {
 
     if (config.persistence?.kind === "playwrightUserDataDir") {
       // Persistent profile: uses launchPersistentContext, one session per userDataDir
+      if (pwConfig.launchOptions) {
+        assertSafeLaunchOptions(pwConfig.launchOptions as Record<string, unknown>);
+      }
       context = await pw[browserType].launchPersistentContext(config.persistence.userDataDir, {
         headless,
         viewport: config.viewport ?? null,
@@ -55,6 +83,9 @@ export class PlaywrightAdapter implements IBrowserBackendAdapter {
       const poolKey = `${browserType}:${headless}`;
       let browser = this.browserPool.get(poolKey);
       if (!browser || !browser.isConnected()) {
+        if (pwConfig.launchOptions) {
+          assertSafeLaunchOptions(pwConfig.launchOptions as Record<string, unknown>);
+        }
         browser = await pw[browserType].launch({
           headless,
           ...(pwConfig.launchOptions as Record<string, unknown>),

@@ -18,7 +18,11 @@ export * from "./task/browser/BrowserCloseTask";
 export * from "./task/browser/BrowserEvaluateTask";
 
 // Re-export backend adapters
-export { PlaywrightAdapter } from "./backend/playwright/PlaywrightAdapter";
+export {
+  PlaywrightAdapter,
+  assertSafeLaunchOptions,
+  BLOCKED_LAUNCH_OPTION_KEYS,
+} from "./backend/playwright/PlaywrightAdapter";
 export { loadPlaywright } from "./backend/playwright/loadPlaywright";
 
 import { TaskRegistry } from "@workglow/task-graph";
