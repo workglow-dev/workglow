@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken } from "@workglow/util";
+import { createServiceToken, uuid4 } from "@workglow/util";
+import type { PrefixColumn } from "../queue/IQueueStorage";
 import {
   ensureIndexedDbTable,
   ExpectedIndexDefinition,
   MigrationOptions,
 } from "../util/IndexedDbTable";
-import type { PrefixColumn } from "../queue/IQueueStorage";
 import { IRateLimiterStorage, RateLimiterStorageOptions } from "./IRateLimiterStorage";
 
 export const INDEXED_DB_RATE_LIMITER_STORAGE = createServiceToken<IRateLimiterStorage>(
@@ -158,7 +158,7 @@ export class IndexedDbRateLimiterStorage implements IRateLimiterStorage {
     const store = tx.objectStore(this.executionTableName);
 
     const record: ExecutionRecord = {
-      id: crypto.randomUUID(),
+      id: uuid4(),
       queue_name: queueName,
       executed_at: new Date().toISOString(),
     };
