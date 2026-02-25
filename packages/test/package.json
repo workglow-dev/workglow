@@ -42,6 +42,7 @@
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
     "@workglow/sqlite": "workspace:*",
+    "@workglow/browser-automation": "workspace:*",
     "@electric-sql/pglite": "^0.3.15",
     "pg": "catalog:",
     "@supabase/supabase-js": "catalog:"
@@ -73,6 +74,9 @@
     },
     "@workglow/sqlite": {
       "optional": false
+    },
+    "@workglow/browser-automation": {
+      "optional": false
     }
   },
   "devDependencies": {
@@ -91,6 +95,7 @@
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
+    "@workglow/browser-automation": "workspace:*",
     "fake-indexeddb": "^6.2.4",
     "node-llama-cpp": "catalog:",
     "ollama": "catalog:",

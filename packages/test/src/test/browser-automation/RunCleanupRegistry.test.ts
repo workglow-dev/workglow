@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect } from "bun:test";
-import { RunCleanupRegistry } from "../session/RunCleanupRegistry";
+import { describe, it, expect } from "vitest";
+import { RunCleanupRegistry } from "@workglow/browser-automation";
 
 describe("RunCleanupRegistry", () => {
   it("runs all registered handlers", async () => {
@@ -29,8 +29,12 @@ describe("RunCleanupRegistry", () => {
     const registry = new RunCleanupRegistry();
     const calls: string[] = [];
 
-    registry.add("x", () => calls.push("first"));
-    registry.add("x", () => calls.push("second"));
+    registry.add("x", () => {
+      calls.push("first");
+    });
+    registry.add("x", () => {
+      calls.push("second");
+    });
 
     await registry.runAll();
     // The second registration replaces the first
@@ -68,9 +72,15 @@ describe("RunCleanupRegistry", () => {
     const registry = new RunCleanupRegistry();
     const order: string[] = [];
 
-    registry.add("first", async () => order.push("first"));
-    registry.add("second", async () => order.push("second"));
-    registry.add("third", async () => order.push("third"));
+    registry.add("first", async () => {
+      order.push("first");
+    });
+    registry.add("second", async () => {
+      order.push("second");
+    });
+    registry.add("third", async () => {
+      order.push("third");
+    });
 
     await registry.runAll({ mode: "lifo", concurrency: 1 });
     expect(order).toEqual(["third", "second", "first"]);
@@ -81,17 +91,17 @@ describe("RunCleanupRegistry", () => {
     let running = 0;
     let maxConcurrent = 0;
 
-    const makeHandler = (name: string) => async () => {
+    const makeHandler = () => async () => {
       running++;
       maxConcurrent = Math.max(maxConcurrent, running);
       await new Promise((r) => setTimeout(r, 20));
       running--;
     };
 
-    registry.add("a", makeHandler("a"));
-    registry.add("b", makeHandler("b"));
-    registry.add("c", makeHandler("c"));
-    registry.add("d", makeHandler("d"));
+    registry.add("a", makeHandler());
+    registry.add("b", makeHandler());
+    registry.add("c", makeHandler());
+    registry.add("d", makeHandler());
 
     await registry.runAll({ concurrency: 2 });
     expect(maxConcurrent).toBeLessThanOrEqual(2);
@@ -117,8 +127,12 @@ describe("RunCleanupRegistry", () => {
     const registry = new RunCleanupRegistry();
     const calls: string[] = [];
 
-    registry.add("a", () => calls.push("a"));
-    registry.add("b", () => calls.push("b"));
+    registry.add("a", () => {
+      calls.push("a");
+    });
+    registry.add("b", () => {
+      calls.push("b");
+    });
     registry.remove("a");
 
     await registry.runAll();

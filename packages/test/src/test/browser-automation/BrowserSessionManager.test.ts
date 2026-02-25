@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect } from "bun:test";
-import { BrowserSessionManager } from "../session/BrowserSessionManager";
-import { RunCleanupRegistry } from "../session/RunCleanupRegistry";
-import type { BrowserSessionState } from "../core/context";
-import type { IBrowserBackendAdapter, IBrowserRuntimeSession } from "../core/types";
+import { describe, it, expect } from "vitest";
+import { BrowserSessionManager, RunCleanupRegistry } from "@workglow/browser-automation";
+import type {
+  BrowserSessionState,
+  IBrowserBackendAdapter,
+  IBrowserRuntimeSession,
+} from "@workglow/browser-automation";
 
 // ========================================================================
 // Mock adapter and session

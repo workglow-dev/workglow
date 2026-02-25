@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from "vitest";
 import {
   getBrowserEnvelope,
   setBrowserEnvelope,
   clearBrowserEnvelope,
   setBrowserLast,
   resolveOrCreateBrowserEnvelope,
-} from "../core/context";
-import type { BrowserEnvelope, WorkflowContext } from "../core/context";
+} from "@workglow/browser-automation";
+import type { BrowserEnvelope, WorkflowContext } from "@workglow/browser-automation";
 
 describe("context helpers", () => {
   const makeEnvelope = (): BrowserEnvelope => ({
