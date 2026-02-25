@@ -824,7 +824,16 @@ export class Task<
    * Validates an input data object against the task's input schema
    */
   public async validateInput(input: Partial<Input>): Promise<boolean> {
-    const schemaNode = this.getInputSchemaNode(this.type);
+    const ctor = this.constructor as typeof Task;
+    let schemaNode: SchemaNode;
+    if (ctor.hasDynamicSchemas) {
+      // Dynamic-schema tasks use instance inputSchema() (e.g. config.inputSchema), not the static fallback.
+      // The cached getInputSchemaNode uses static inputSchema() which would reject valid instance-specific inputs.
+      const instanceSchema = this.inputSchema();
+      schemaNode = ctor.generateInputSchemaNode(instanceSchema);
+    } else {
+      schemaNode = this.getInputSchemaNode(this.type);
+    }
     const result = schemaNode.validate(input);
 
     if (!result.valid) {

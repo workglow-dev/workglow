@@ -165,7 +165,7 @@ const fallbackOutputSchema = {
 const fallbackInputSchema = {
   type: "object",
   properties: {},
-  additionalProperties: false,
+  additionalProperties: true,
 } as const satisfies DataPortSchema;
 
 export type McpToolCallTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
@@ -198,11 +198,11 @@ export class McpToolCallTask extends Task<
   }
 
   public override inputSchema(): DataPortSchema {
-    return (this.config.inputSchema as DataPortSchema) ?? fallbackInputSchema;
+    return this.config?.inputSchema ?? fallbackInputSchema;
   }
 
   public override outputSchema(): DataPortSchema {
-    return (this.config.outputSchema as DataPortSchema) ?? fallbackOutputSchema;
+    return this.config?.outputSchema ?? fallbackOutputSchema;
   }
 
   private _schemasDiscovering = false;
@@ -258,9 +258,52 @@ export class McpToolCallTask extends Task<
       if (!("content" in result) || !Array.isArray(result.content)) {
         throw new Error("Expected tool result with content array");
       }
+      const content = result.content;
+      const isError = result.isError === true;
+
+      // Prefer structuredContent when present (MCP spec: parsed output matching tool's output schema)
+      const structuredContent =
+        "structuredContent" in result &&
+        result.structuredContent &&
+        typeof result.structuredContent === "object" &&
+        !Array.isArray(result.structuredContent)
+          ? (result.structuredContent as Record<string, unknown>)
+          : undefined;
+
+      // When no structuredContent, try parsing single text item as JSON (many servers return JSON in text)
+      let parsedFromText: Record<string, unknown> | undefined;
+      if (!structuredContent && content.length === 1) {
+        const item = content[0];
+        if (
+          item &&
+          typeof item === "object" &&
+          "type" in item &&
+          item.type === "text" &&
+          "text" in item
+        ) {
+          const text = String(item.text);
+          const trimmed = text.trim();
+          if (
+            (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+            (trimmed.startsWith("[") && trimmed.endsWith("]"))
+          ) {
+            try {
+              const parsed = JSON.parse(text) as unknown;
+              if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+                parsedFromText = parsed as Record<string, unknown>;
+              }
+            } catch {
+              // Not valid JSON, ignore
+            }
+          }
+        }
+      }
+
       return {
-        content: result.content,
-        isError: result.isError === true,
+        content,
+        isError,
+        ...parsedFromText,
+        ...structuredContent,
       };
     } finally {
       await client.close();

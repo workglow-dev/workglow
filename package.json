@@ -8,14 +8,10 @@
     "./examples/*"
   ],
   "scripts": {
-    "build": "turbo run build-package build-example",
-    "build:packages": "turbo run build-package",
-    "build:examples": "turbo run build-example",
-    "build:types": "turbo run build-types",
-    "rebuild": "turbo build-package build-example --force",
-    "rebuild:packages": "turbo run build-package --force",
-    "rebuild:examples": "turbo run build-example --force",
-    "rebuild:types": "turbo run build-types --force",
+    "build": "turbo run build-package build-example --force",
+    "build:packages": "turbo run build-package --force",
+    "build:examples": "turbo run build-example --force",
+    "build:types": "turbo run build-types --force",
     "clean": "rm -rf node_modules packages/*/node_modules packages/*/*tsbuildinfo packages/*/dist packages/*/src/**/*\\.d\\.ts packages/*/src/**/*\\.map examples/*/node_modules examples/*/dist examples/*/src/**/*\\.d\\.ts examples/*/src/**/*\\.map .turbo */*/.turbo",
     "watch": "turbo run watch --concurrency 15",
     "watch-types": "turbo run watch-types --concurrency 15",
