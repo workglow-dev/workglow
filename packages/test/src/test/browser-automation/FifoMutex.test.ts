@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect } from "bun:test";
-import { FifoMutex } from "../session/FifoMutex";
+import { describe, it, expect } from "vitest";
+import { FifoMutex } from "@workglow/browser-automation";
 
 describe("FifoMutex", () => {
   it("executes a single function", async () => {

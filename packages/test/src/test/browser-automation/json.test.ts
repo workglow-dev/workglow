@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect } from "bun:test";
-import { assertJsonValue } from "../core/json";
+import { describe, it, expect } from "vitest";
+import { assertJsonValue } from "@workglow/browser-automation";
 
 describe("assertJsonValue", () => {
   it("accepts null", () => {
