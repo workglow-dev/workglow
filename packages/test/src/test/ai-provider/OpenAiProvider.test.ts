@@ -16,9 +16,9 @@ import {
   _setTiktokenForTesting,
 } from "@workglow/ai-provider/openai";
 import {
+  TaskQueueRegistry,
   getTaskQueueRegistry,
   setTaskQueueRegistry,
-  TaskQueueRegistry,
 } from "@workglow/task-graph";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -84,6 +84,7 @@ describe("OpenAiProvider", () => {
         "TextRewriterTask",
         "TextSummaryTask",
         "CountTokensTask",
+        "StructuredGenerationTask",
       ]);
     });
 
@@ -96,6 +97,7 @@ describe("OpenAiProvider", () => {
       expect(registry.getDirectRunFn(OPENAI, "TextEmbeddingTask")).toBeDefined();
       expect(registry.getDirectRunFn(OPENAI, "TextRewriterTask")).toBeDefined();
       expect(registry.getDirectRunFn(OPENAI, "TextSummaryTask")).toBeDefined();
+      expect(registry.getDirectRunFn(OPENAI, "StructuredGenerationTask")).toBeDefined();
     });
 
     test("should throw in inline mode without tasks", async () => {
@@ -110,7 +112,7 @@ describe("OpenAiProvider", () => {
       const provider = new OpenAiProvider(OPENAI_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
     });
   });
 
@@ -343,7 +345,8 @@ describe("OpenAiProvider", () => {
       expect(OPENAI_TASKS).toHaveProperty("TextRewriterTask");
       expect(OPENAI_TASKS).toHaveProperty("TextSummaryTask");
       expect(OPENAI_TASKS).toHaveProperty("CountTokensTask");
-      expect(Object.keys(OPENAI_TASKS)).toHaveLength(5);
+      expect(OPENAI_TASKS).toHaveProperty("StructuredGenerationTask");
+      expect(Object.keys(OPENAI_TASKS)).toHaveLength(6);
     });
   });
 });

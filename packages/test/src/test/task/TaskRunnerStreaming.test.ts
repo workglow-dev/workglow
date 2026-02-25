@@ -519,7 +519,11 @@ describe("TaskRunner Streaming", () => {
       const cache = new InMemoryTaskOutputRepository();
       await cache.setupDatabase();
 
-      const task = new TestStreamingAppendTask({ prompt: "config-test" }, {}, { outputCache: cache });
+      const task = new TestStreamingAppendTask(
+        { prompt: "config-test" },
+        {},
+        { outputCache: cache }
+      );
 
       const result = await task.run({ prompt: "config-test" });
 

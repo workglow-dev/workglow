@@ -16,9 +16,12 @@ import type {
 import {
   edgeNeedsAccumulation,
   getAppendPortId,
+  getObjectPortId,
   getOutputStreamMode,
   getPortStreamMode,
   getStreamingPorts,
+  getStructuredOutputSchemas,
+  hasStructuredOutput,
   isTaskStreamable,
 } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
@@ -452,6 +455,10 @@ describe("StreamTypes", () => {
       type: "object",
       properties: { text: { type: "string", "x-stream": "replace" } },
     };
+    const objectSchema: DataPortSchema = {
+      type: "object",
+      properties: { object: { type: "object", "x-stream": "object" } },
+    };
     const noneSchema: DataPortSchema = {
       type: "object",
       properties: { text: { type: "string" } },
@@ -469,6 +476,10 @@ describe("StreamTypes", () => {
       expect(edgeNeedsAccumulation(replaceSchema, "text", replaceSchema, "text")).toBe(false);
     });
 
+    it("should return false when source and target match (object-object)", () => {
+      expect(edgeNeedsAccumulation(objectSchema, "object", objectSchema, "object")).toBe(false);
+    });
+
     it("should return true when source is append but target has no x-stream", () => {
       expect(edgeNeedsAccumulation(appendSchema, "text", noneSchema, "text")).toBe(true);
     });
@@ -477,8 +488,141 @@ describe("StreamTypes", () => {
       expect(edgeNeedsAccumulation(replaceSchema, "text", noneSchema, "text")).toBe(true);
     });
 
+    it("should return true when source is object but target has no x-stream", () => {
+      expect(edgeNeedsAccumulation(objectSchema, "object", noneSchema, "text")).toBe(true);
+    });
+
     it("should return true when source is append but target is replace", () => {
       expect(edgeNeedsAccumulation(appendSchema, "text", replaceSchema, "text")).toBe(true);
+    });
+  });
+
+  describe("object stream mode", () => {
+    it("should accept 'object' as a valid StreamMode", () => {
+      const mode: StreamMode = "object";
+      expect(mode).toBe("object");
+    });
+
+    it("getPortStreamMode should return 'object' for x-stream object", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { data: { type: "object", "x-stream": "object" } },
+      };
+      expect(getPortStreamMode(schema, "data")).toBe("object");
+    });
+
+    it("getStreamingPorts should include object ports", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { data: { type: "object", "x-stream": "object" } },
+      };
+      expect(getStreamingPorts(schema)).toEqual([{ port: "data", mode: "object" }]);
+    });
+
+    it("getOutputStreamMode should return 'object' for object ports", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { data: { type: "object", "x-stream": "object" } },
+      };
+      expect(getOutputStreamMode(schema)).toBe("object");
+    });
+
+    it("should throw when mixing object and append modes", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          text: { type: "string", "x-stream": "append" },
+          data: { type: "object", "x-stream": "object" },
+        },
+      };
+      expect(() => getOutputStreamMode(schema)).toThrow("Mixed stream modes");
+    });
+
+    it("isTaskStreamable should return true for object-streaming tasks", () => {
+      const task = {
+        outputSchema: () =>
+          ({
+            type: "object",
+            properties: { data: { type: "object", "x-stream": "object" } },
+          }) as DataPortSchema,
+        executeStream: async function* () {},
+      };
+      expect(isTaskStreamable(task)).toBe(true);
+    });
+  });
+
+  describe("getObjectPortId", () => {
+    it("should return the port name with x-stream object", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { data: { type: "object", "x-stream": "object" } },
+      };
+      expect(getObjectPortId(schema)).toBe("data");
+    });
+
+    it("should return undefined when no port has x-stream object", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "append" } },
+      };
+      expect(getObjectPortId(schema)).toBeUndefined();
+    });
+
+    it("should return undefined for boolean schema", () => {
+      expect(getObjectPortId(true as any)).toBeUndefined();
+    });
+  });
+
+  describe("getStructuredOutputSchemas", () => {
+    it("should return empty map for schema without x-structured-output", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string" } },
+      };
+      expect(getStructuredOutputSchemas(schema).size).toBe(0);
+    });
+
+    it("should return port schema for x-structured-output true", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          data: {
+            type: "object",
+            "x-structured-output": true,
+            properties: { name: { type: "string" } },
+          },
+        },
+      };
+      const result = getStructuredOutputSchemas(schema);
+      expect(result.size).toBe(1);
+      expect(result.has("data")).toBe(true);
+    });
+
+    it("should return empty map for boolean schema", () => {
+      expect(getStructuredOutputSchemas(true as any).size).toBe(0);
+    });
+  });
+
+  describe("hasStructuredOutput", () => {
+    it("should return false for non-structured schemas", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: { text: { type: "string" } },
+      };
+      expect(hasStructuredOutput(schema)).toBe(false);
+    });
+
+    it("should return true for schemas with x-structured-output", () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          data: {
+            type: "object",
+            "x-structured-output": true,
+          },
+        },
+      };
+      expect(hasStructuredOutput(schema)).toBe(true);
     });
   });
 });

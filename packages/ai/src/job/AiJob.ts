@@ -12,6 +12,7 @@ import {
   PermanentJobError,
 } from "@workglow/job-queue";
 import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
+import type { JsonSchema } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 
@@ -22,6 +23,8 @@ export interface AiJobInput<Input extends TaskInput = TaskInput> {
   taskType: string;
   aiProvider: string;
   taskInput: Input & { model: ModelConfig };
+  /** JSON Schema for structured output, when the task declares x-structured-output. */
+  outputSchema?: JsonSchema;
 }
 
 /**
@@ -66,7 +69,13 @@ export class AiJob<
         if (context.signal?.aborted) {
           throw new AbortSignalJobError("Job aborted");
         }
-        return await fn(input.taskInput, model, context.updateProgress, context.signal);
+        return await fn(
+          input.taskInput,
+          model,
+          context.updateProgress,
+          context.signal,
+          input.outputSchema
+        );
       };
       const runFnPromise = runFn();
 
@@ -103,6 +112,6 @@ export class AiJob<
     }
 
     const model = input.taskInput.model;
-    yield* streamFn(input.taskInput, model, context.signal);
+    yield* streamFn(input.taskInput, model, context.signal, input.outputSchema);
   }
 }

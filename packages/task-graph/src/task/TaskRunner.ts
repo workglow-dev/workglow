@@ -264,8 +264,19 @@ export class TaskRunner<
         );
       }
     }
+    if (streamMode === "object") {
+      const ports = getStreamingPorts(this.task.outputSchema());
+      if (ports.length === 0) {
+        throw new TaskError(
+          `Task ${this.task.type} declares object streaming but no output port has x-stream: "object"`
+        );
+      }
+    }
 
     const accumulated = this.shouldAccumulate ? new Map<string, string>() : undefined;
+    const accumulatedObjects = this.shouldAccumulate
+      ? new Map<string, Record<string, unknown>>()
+      : undefined;
     let chunkCount = 0;
     let finalOutput: Output | undefined;
 
@@ -304,7 +315,14 @@ export class TaskRunner<
           break;
         }
         case "object-delta": {
-          // Reserved for future object streaming -- no accumulation yet
+          if (accumulatedObjects) {
+            accumulatedObjects.set(event.port, event.objectDelta);
+          }
+          // Update runOutputData progressively so listeners see growing state
+          this.task.runOutputData = {
+            ...this.task.runOutputData,
+            [event.port]: event.objectDelta,
+          } as Output;
           this.task.emit("stream_chunk", event as StreamEvent);
           const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));
           await this.handleProgress(progress);
@@ -317,13 +335,20 @@ export class TaskRunner<
           break;
         }
         case "finish": {
-          if (accumulated) {
-            // Emit an enriched finish event: merge accumulated text-deltas into
+          if (accumulated || accumulatedObjects) {
+            // Emit an enriched finish event: merge accumulated deltas into
             // the finish payload so downstream dataflows get complete port data
             // without needing to re-accumulate themselves.
             const merged: Record<string, unknown> = { ...(event.data || {}) };
-            for (const [port, text] of accumulated) {
-              if (text.length > 0) merged[port] = text;
+            if (accumulated) {
+              for (const [port, text] of accumulated) {
+                if (text.length > 0) merged[port] = text;
+              }
+            }
+            if (accumulatedObjects) {
+              for (const [port, obj] of accumulatedObjects) {
+                merged[port] = obj;
+              }
             }
             finalOutput = merged as unknown as Output;
             this.task.emit("stream_chunk", { type: "finish", data: merged } as StreamEvent);

@@ -526,7 +526,13 @@ export async function ensureIndexedDbTable(
         `Database ${tableName} does not exist or has version conflict, creating...`,
         0
       );
-      return await createNewDatabase(tableName, primaryKey, expectedIndexes, options, autoIncrement);
+      return await createNewDatabase(
+        tableName,
+        primaryKey,
+        expectedIndexes,
+        options,
+        autoIncrement
+      );
     }
 
     // If database was just created, we need to create the stores
@@ -599,7 +605,13 @@ export async function ensureIndexedDbTable(
       // Object store doesn't exist, create it
       options.onMigrationProgress?.(`Object store ${tableName} does not exist, creating...`, 0);
       db.close();
-      return await createNewDatabase(tableName, primaryKey, expectedIndexes, options, autoIncrement);
+      return await createNewDatabase(
+        tableName,
+        primaryKey,
+        expectedIndexes,
+        options,
+        autoIncrement
+      );
     }
 
     // Compare schemas to determine what migration is needed
@@ -641,7 +653,14 @@ export async function ensureIndexedDbTable(
         `Schema change requires object store recreation for ${tableName}`,
         0
       );
-      db = await performDestructiveMigration(db, tableName, primaryKey, expectedIndexes, options, autoIncrement);
+      db = await performDestructiveMigration(
+        db,
+        tableName,
+        primaryKey,
+        expectedIndexes,
+        options,
+        autoIncrement
+      );
     } else {
       options.onMigrationProgress?.(`Performing incremental migration for ${tableName}`, 0);
       db = await performIncrementalMigration(db, tableName, diff, options);

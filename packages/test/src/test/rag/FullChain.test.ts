@@ -18,12 +18,7 @@ describe("Complete chainable workflow", () => {
   });
 
   it("should chain from parsing to storage without loops", async () => {
-    const storage = new InMemoryVectorStorage(
-      DocumentChunkSchema,
-      DocumentChunkPrimaryKey,
-      [],
-      3
-    );
+    const storage = new InMemoryVectorStorage(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3);
     await storage.setupDatabase();
 
     const markdown = `# Test Document

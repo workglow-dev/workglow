@@ -10,6 +10,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -20,6 +22,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { parsePartialJson } from "@workglow/util";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 
 let _sdk: typeof import("openai") | undefined;
@@ -282,9 +285,7 @@ const _encoderCache = new Map<string, ReturnType<typeof import("tiktoken").get_e
  * Needed because `vi.mock("tiktoken")` cannot intercept the dynamic `import("tiktoken")`
  * that lives inside `loadTiktoken()` when running under vitest.
  */
-export function _setTiktokenForTesting(
-  mod: typeof import("tiktoken") | undefined
-): void {
+export function _setTiktokenForTesting(mod: typeof import("tiktoken") | undefined): void {
   _tiktoken = mod;
   _encoderCache.clear();
 }
@@ -295,9 +296,7 @@ async function getEncoder(modelName: string) {
     try {
       _encoderCache.set(
         modelName,
-        tiktoken.encoding_for_model(
-          modelName as Parameters<typeof tiktoken.encoding_for_model>[0]
-        )
+        tiktoken.encoding_for_model(modelName as Parameters<typeof tiktoken.encoding_for_model>[0])
       );
     } catch {
       // Fall back to cl100k_base for unknown/newer models.
@@ -330,6 +329,99 @@ export const OpenAI_CountTokens_Reactive: AiProviderReactiveRunFn<
 };
 
 // ========================================================================
+// Structured output implementations (object mode)
+// ========================================================================
+
+export const OpenAI_StructuredGeneration: AiProviderRunFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  OpenAiModelConfig
+> = async (input, model, update_progress, signal, outputSchema) => {
+  update_progress(0, "Starting OpenAI structured generation");
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const schema = input.outputSchema ?? outputSchema;
+
+  const response = await client.chat.completions.create(
+    {
+      model: modelName,
+      messages: [{ role: "user", content: input.prompt }],
+      response_format: {
+        type: "json_schema" as any,
+        json_schema: {
+          name: "structured_output",
+          schema: schema,
+          strict: true,
+        },
+      } as any,
+      max_completion_tokens: input.maxTokens,
+      temperature: input.temperature,
+    },
+    { signal }
+  );
+
+  const content = response.choices[0]?.message?.content ?? "{}";
+  update_progress(100, "Completed OpenAI structured generation");
+  return { object: JSON.parse(content) };
+};
+
+export const OpenAI_StructuredGeneration_Stream: AiProviderStreamFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  OpenAiModelConfig
+> = async function* (
+  input,
+  model,
+  signal,
+  outputSchema
+): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const schema = input.outputSchema ?? outputSchema;
+
+  const stream = await client.chat.completions.create(
+    {
+      model: modelName,
+      messages: [{ role: "user", content: input.prompt }],
+      response_format: {
+        type: "json_schema" as any,
+        json_schema: {
+          name: "structured_output",
+          schema: schema,
+          strict: true,
+        },
+      } as any,
+      max_completion_tokens: input.maxTokens,
+      temperature: input.temperature,
+      stream: true,
+    },
+    { signal }
+  );
+
+  let accumulatedJson = "";
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content ?? "";
+    if (delta) {
+      accumulatedJson += delta;
+      const partial = parsePartialJson(accumulatedJson);
+      if (partial !== undefined) {
+        yield { type: "object-delta", port: "object", objectDelta: partial };
+      }
+    }
+  }
+
+  let finalObject: Record<string, unknown>;
+  try {
+    finalObject = JSON.parse(accumulatedJson);
+  } catch {
+    finalObject = parsePartialJson(accumulatedJson) ?? {};
+  }
+  yield { type: "finish", data: { object: finalObject } as StructuredGenerationTaskOutput };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -339,6 +431,7 @@ export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelC
   TextRewriterTask: OpenAI_TextRewriter,
   TextSummaryTask: OpenAI_TextSummary,
   CountTokensTask: OpenAI_CountTokens,
+  StructuredGenerationTask: OpenAI_StructuredGeneration,
 };
 
 export const OPENAI_STREAM_TASKS: Record<
@@ -348,6 +441,7 @@ export const OPENAI_STREAM_TASKS: Record<
   TextGenerationTask: OpenAI_TextGeneration_Stream,
   TextRewriterTask: OpenAI_TextRewriter_Stream,
   TextSummaryTask: OpenAI_TextSummary_Stream,
+  StructuredGenerationTask: OpenAI_StructuredGeneration_Stream,
 };
 
 export const OPENAI_REACTIVE_TASKS: Record<

@@ -4,7 +4,15 @@
  * All Rights Reserved
  */
 
-import { CreateWorkflow, Task, TaskConfig, Workflow, type IExecuteContext, type StreamEvent, type StreamFinish } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  Task,
+  TaskConfig,
+  Workflow,
+  type IExecuteContext,
+  type StreamEvent,
+  type StreamFinish,
+} from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
 
 export type InputTaskInput = Record<string, unknown>;
@@ -36,15 +44,11 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
   }
 
   public inputSchema(): DataPortSchema {
-    return (
-      this.config?.inputSchema ?? (this.constructor as typeof InputTask).inputSchema()
-    );
+    return this.config?.inputSchema ?? (this.constructor as typeof InputTask).inputSchema();
   }
 
   public outputSchema(): DataPortSchema {
-    return (
-      this.config?.outputSchema ?? (this.constructor as typeof InputTask).outputSchema()
-    );
+    return this.config?.outputSchema ?? (this.constructor as typeof InputTask).outputSchema();
   }
 
   public async execute(input: InputTaskInput) {

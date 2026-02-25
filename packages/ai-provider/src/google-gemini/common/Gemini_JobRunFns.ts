@@ -11,6 +11,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -21,6 +23,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { parsePartialJson } from "@workglow/util";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 
 let _sdk: typeof import("@google/generative-ai") | undefined;
@@ -273,6 +276,91 @@ export const Gemini_CountTokens_Reactive: AiProviderReactiveRunFn<
 };
 
 // ========================================================================
+// Structured output implementations (object mode)
+// ========================================================================
+
+export const Gemini_StructuredGeneration: AiProviderRunFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  GeminiModelConfig
+> = async (input, model, update_progress, signal, outputSchema) => {
+  update_progress(0, "Starting Gemini structured generation");
+  const GoogleGenerativeAI = await loadGeminiSDK();
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+
+  const schema = input.outputSchema ?? outputSchema;
+
+  const genModel = genAI.getGenerativeModel({
+    model: getModelName(model),
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: schema as any,
+      maxOutputTokens: input.maxTokens,
+      temperature: input.temperature,
+    },
+  });
+
+  const result = await genModel.generateContent({
+    contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+  });
+
+  const text = result.response.text();
+  update_progress(100, "Completed Gemini structured generation");
+  return { object: JSON.parse(text) };
+};
+
+export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  GeminiModelConfig
+> = async function* (
+  input,
+  model,
+  signal,
+  outputSchema
+): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
+  const GoogleGenerativeAI = await loadGeminiSDK();
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+
+  const schema = input.outputSchema ?? outputSchema;
+
+  const genModel = genAI.getGenerativeModel({
+    model: getModelName(model),
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: schema as any,
+      maxOutputTokens: input.maxTokens,
+      temperature: input.temperature,
+    },
+  });
+
+  const result = await genModel.generateContentStream(
+    { contents: [{ role: "user", parts: [{ text: input.prompt }] }] },
+    { signal }
+  );
+
+  let accumulatedJson = "";
+  for await (const chunk of result.stream) {
+    const text = chunk.text();
+    if (text) {
+      accumulatedJson += text;
+      const partial = parsePartialJson(accumulatedJson);
+      if (partial !== undefined) {
+        yield { type: "object-delta", port: "object", objectDelta: partial };
+      }
+    }
+  }
+
+  let finalObject: Record<string, unknown>;
+  try {
+    finalObject = JSON.parse(accumulatedJson);
+  } catch {
+    finalObject = parsePartialJson(accumulatedJson) ?? {};
+  }
+  yield { type: "finish", data: { object: finalObject } as StructuredGenerationTaskOutput };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -282,6 +370,7 @@ export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelC
   TextEmbeddingTask: Gemini_TextEmbedding,
   TextRewriterTask: Gemini_TextRewriter,
   TextSummaryTask: Gemini_TextSummary,
+  StructuredGenerationTask: Gemini_StructuredGeneration,
 };
 
 export const GEMINI_STREAM_TASKS: Record<
@@ -291,6 +380,7 @@ export const GEMINI_STREAM_TASKS: Record<
   TextGenerationTask: Gemini_TextGeneration_Stream,
   TextRewriterTask: Gemini_TextRewriter_Stream,
   TextSummaryTask: Gemini_TextSummary_Stream,
+  StructuredGenerationTask: Gemini_StructuredGeneration_Stream,
 };
 
 export const GEMINI_REACTIVE_TASKS: Record<

@@ -11,6 +11,7 @@
 import { Job } from "@workglow/job-queue";
 import {
   type IExecuteReactiveContext,
+  hasStructuredOutput,
   JobQueueTask,
   JobQueueTaskConfig,
   TaskConfigurationError,
@@ -91,11 +92,27 @@ export class AiTask<
 
     const runtype = (this.constructor as any).runtype ?? (this.constructor as any).type;
 
-    return {
+    const jobInput: AiJobInput<Input> = {
       taskType: runtype,
       aiProvider: model.provider,
       taskInput: input as Input & { model: ModelConfig },
     };
+
+    // Attach structured output schema if the task declares it.
+    // If the input has an explicit `outputSchema`, prefer that (dynamic case);
+    // otherwise fall back to the task's static outputSchema() if it has
+    // x-structured-output annotations.
+    const inputOutputSchema = (input as any).outputSchema;
+    if (inputOutputSchema && typeof inputOutputSchema === "object") {
+      jobInput.outputSchema = inputOutputSchema;
+    } else {
+      const taskOutputSchema = this.outputSchema();
+      if (hasStructuredOutput(taskOutputSchema)) {
+        jobInput.outputSchema = taskOutputSchema;
+      }
+    }
+
+    return jobInput;
   }
 
   /**
