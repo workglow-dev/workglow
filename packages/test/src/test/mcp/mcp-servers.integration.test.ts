@@ -39,7 +39,6 @@ function transportForUrl(url: string): "sse" | "streamable-http" {
 /** MCP server config: name and URL (transport derived from URL path) */
 const MCP_SERVERS = [
   { name: "Cloudflare Docs", url: "https://docs.mcp.cloudflare.com/sse" },
-  { name: "Astro Docs", url: "https://mcp.docs.astro.build/mcp" },
   { name: "DeepWiki", url: "https://mcp.deepwiki.com/mcp" },
   { name: "Exa Search", url: "https://mcp.exa.ai/mcp" },
   { name: "Hugging Face", url: "https://hf.co/mcp" },
