@@ -82,5 +82,4 @@ export class Document {
     const obj = JSON.parse(json);
     return new Document(obj.root, obj.metadata, obj.chunks, doc_id);
   }
-
 }

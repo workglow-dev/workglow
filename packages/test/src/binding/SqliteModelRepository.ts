@@ -13,8 +13,6 @@ import { SqliteTabularStorage } from "@workglow/storage";
  */
 export class SqliteModelRepository extends ModelRepository {
   constructor(dbOrPath: string, tableModels: string = "aimodel") {
-    super(
-      new SqliteTabularStorage(dbOrPath, tableModels, ModelRecordSchema, ModelPrimaryKeyNames)
-    );
+    super(new SqliteTabularStorage(dbOrPath, tableModels, ModelRecordSchema, ModelPrimaryKeyNames));
   }
 }

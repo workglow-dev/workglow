@@ -21,15 +21,18 @@ export const HfInferenceModelSchema = {
       properties: {
         model_name: {
           type: "string",
-          description: "The Hugging Face model identifier (e.g., 'meta-llama/Llama-3.3-70B-Instruct').",
+          description:
+            "The Hugging Face model identifier (e.g., 'meta-llama/Llama-3.3-70B-Instruct').",
         },
         api_key: {
           type: "string",
-          description: "Hugging Face API key. Falls back to HF_TOKEN environment variable if not set.",
+          description:
+            "Hugging Face API key. Falls back to HF_TOKEN environment variable if not set.",
         },
         provider: {
           type: "string",
-          description: "Optional provider to route to specific HF inference providers (e.g., 'fal-ai', 'fireworks-ai').",
+          description:
+            "Optional provider to route to specific HF inference providers (e.g., 'fal-ai', 'fireworks-ai').",
         },
       },
       required: ["model_name"],

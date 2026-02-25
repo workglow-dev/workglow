@@ -282,9 +282,7 @@ const _encoderCache = new Map<string, ReturnType<typeof import("tiktoken").get_e
  * Needed because `vi.mock("tiktoken")` cannot intercept the dynamic `import("tiktoken")`
  * that lives inside `loadTiktoken()` when running under vitest.
  */
-export function _setTiktokenForTesting(
-  mod: typeof import("tiktoken") | undefined
-): void {
+export function _setTiktokenForTesting(mod: typeof import("tiktoken") | undefined): void {
   _tiktoken = mod;
   _encoderCache.clear();
 }
@@ -295,9 +293,7 @@ async function getEncoder(modelName: string) {
     try {
       _encoderCache.set(
         modelName,
-        tiktoken.encoding_for_model(
-          modelName as Parameters<typeof tiktoken.encoding_for_model>[0]
-        )
+        tiktoken.encoding_for_model(modelName as Parameters<typeof tiktoken.encoding_for_model>[0])
       );
     } catch {
       // Fall back to cl100k_base for unknown/newer models.

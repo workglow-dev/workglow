@@ -120,7 +120,7 @@ export class HuggingFaceTabularStorage<
     super(
       schema,
       primaryKeyNames,
-      (options?.indexes ?? []) as readonly (keyof Entity | readonly (keyof Entity)[])[], 
+      (options?.indexes ?? []) as readonly (keyof Entity | readonly (keyof Entity)[])[],
       "never" // HF datasets don't support client-provided keys
     );
     this.dataset = dataset;
@@ -267,7 +267,7 @@ export class HuggingFaceTabularStorage<
 
     while (true) {
       const page = await this.getBulk(offset, pageSize);
-      
+
       if (!page || page.length === 0) {
         break;
       }
@@ -445,10 +445,7 @@ export class HuggingFaceTabularStorage<
   /**
    * Helper method to fetch from the HuggingFace Dataset Viewer API
    */
-  private async fetchApi<T>(
-    endpoint: string,
-    params: Record<string, string>
-  ): Promise<T> {
+  private async fetchApi<T>(endpoint: string, params: Record<string, string>): Promise<T> {
     const url = new URL(`${this.baseUrl}${endpoint}`);
     url.searchParams.set("dataset", this.dataset);
     url.searchParams.set("config", this.config);
@@ -467,9 +464,7 @@ export class HuggingFaceTabularStorage<
 
     const response = await fetch(url.toString(), { headers });
     if (!response.ok) {
-      throw new Error(
-        `HuggingFace API error: ${response.status} ${response.statusText}`
-      );
+      throw new Error(`HuggingFace API error: ${response.status} ${response.statusText}`);
     }
 
     return await response.json();
