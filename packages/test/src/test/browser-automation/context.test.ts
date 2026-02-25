@@ -11,8 +11,9 @@ import {
   clearBrowserEnvelope,
   setBrowserLast,
   resolveOrCreateBrowserEnvelope,
+  sanitizeBrowserSessionConfig,
 } from "@workglow/browser-automation";
-import type { BrowserEnvelope, WorkflowContext } from "@workglow/browser-automation";
+import type { BrowserEnvelope, BrowserSessionConfig, WorkflowContext } from "@workglow/browser-automation";
 
 describe("context helpers", () => {
   const makeEnvelope = (): BrowserEnvelope => ({
@@ -125,6 +126,125 @@ describe("context helpers", () => {
     it("allows explicit backend override", () => {
       const result = resolveOrCreateBrowserEnvelope({}, { headless: true }, "electron");
       expect(result.session.backend).toBe("electron");
+    });
+  });
+
+  describe("sanitizeBrowserSessionConfig", () => {
+    it("strips remoteCdp.apiKey", () => {
+      const config: BrowserSessionConfig = {
+        remoteCdp: {
+          endpoint: "wss://example.com",
+          provider: "browserless",
+          apiKey: "secret-api-key",
+          region: "us-east-1",
+          zone: "zone-a",
+        },
+      };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.remoteCdp?.apiKey).toBeUndefined();
+      expect("apiKey" in (result.remoteCdp ?? {})).toBe(false);
+    });
+
+    it("preserves non-sensitive remoteCdp fields", () => {
+      const config: BrowserSessionConfig = {
+        remoteCdp: {
+          endpoint: "wss://example.com",
+          provider: "brightdata",
+          apiKey: "secret-api-key",
+          region: "eu-west-1",
+          zone: "zone-b",
+        },
+      };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.remoteCdp?.endpoint).toBe("wss://example.com");
+      expect(result.remoteCdp?.provider).toBe("brightdata");
+      expect(result.remoteCdp?.region).toBe("eu-west-1");
+      expect(result.remoteCdp?.zone).toBe("zone-b");
+    });
+
+    it("strips playwright.storageState when given as a file path", () => {
+      const config: BrowserSessionConfig = {
+        playwright: { browserType: "chromium", storageState: "/path/to/auth.json" },
+      };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.playwright?.storageState).toBeUndefined();
+      expect("storageState" in (result.playwright ?? {})).toBe(false);
+    });
+
+    it("strips playwright.storageState when given as a cookies object", () => {
+      const config: BrowserSessionConfig = {
+        playwright: {
+          browserType: "firefox",
+          storageState: { cookies: [{ name: "s", value: "tok", domain: "x.com", path: "/" }], origins: [] },
+        },
+      };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.playwright?.storageState).toBeUndefined();
+    });
+
+    it("preserves non-sensitive playwright fields", () => {
+      const config: BrowserSessionConfig = {
+        playwright: {
+          browserType: "webkit",
+          launchOptions: { args: ["--no-sandbox"] },
+          contextOptions: { locale: "en-US" },
+          storageState: "/path/to/auth.json",
+        },
+      };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.playwright?.browserType).toBe("webkit");
+      expect(result.playwright?.launchOptions).toEqual({ args: ["--no-sandbox"] });
+      expect(result.playwright?.contextOptions).toEqual({ locale: "en-US" });
+    });
+
+    it("handles config with neither remoteCdp nor playwright", () => {
+      const config: BrowserSessionConfig = {
+        headless: true,
+        viewport: { width: 1280, height: 720 },
+        timeoutMs: 5000,
+      };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.headless).toBe(true);
+      expect(result.viewport).toEqual({ width: 1280, height: 720 });
+      expect(result.timeoutMs).toBe(5000);
+    });
+
+    it("handles remoteCdp without an apiKey set", () => {
+      const config: BrowserSessionConfig = { remoteCdp: { endpoint: "wss://example.com" } };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.remoteCdp?.endpoint).toBe("wss://example.com");
+      expect(result.remoteCdp?.apiKey).toBeUndefined();
+    });
+
+    it("handles playwright without storageState set", () => {
+      const config: BrowserSessionConfig = { playwright: { browserType: "chromium" } };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.playwright?.browserType).toBe("chromium");
+      expect(result.playwright?.storageState).toBeUndefined();
+    });
+
+    it("does not mutate the original config", () => {
+      const config: BrowserSessionConfig = {
+        remoteCdp: { apiKey: "secret" },
+        playwright: { storageState: "path/to/state.json" },
+      };
+      sanitizeBrowserSessionConfig(config);
+      expect(config.remoteCdp?.apiKey).toBe("secret");
+      expect(config.playwright?.storageState).toBe("path/to/state.json");
+    });
+
+    it("strips both remoteCdp.apiKey and playwright.storageState in one pass", () => {
+      const config: BrowserSessionConfig = {
+        headless: false,
+        remoteCdp: { endpoint: "wss://cdp.example.com", apiKey: "my-secret-key" },
+        playwright: { browserType: "chromium", storageState: { cookies: [], origins: [] } },
+      };
+      const result = sanitizeBrowserSessionConfig(config);
+      expect(result.remoteCdp?.apiKey).toBeUndefined();
+      expect(result.playwright?.storageState).toBeUndefined();
+      expect(result.remoteCdp?.endpoint).toBe("wss://cdp.example.com");
+      expect(result.playwright?.browserType).toBe("chromium");
+      expect(result.headless).toBe(false);
     });
   });
 });

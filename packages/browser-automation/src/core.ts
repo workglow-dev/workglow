@@ -27,6 +27,7 @@ export {
   clearBrowserEnvelope,
   setBrowserLast,
   resolveOrCreateBrowserEnvelope,
+  sanitizeBrowserSessionConfig,
 } from "./core/context";
 
 // Locator types
