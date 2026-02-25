@@ -16,6 +16,8 @@ import type { DataPortSchema, FromSchema } from "@workglow/util";
 import { contextProperty, sessionConfigProperty, timeoutMsProperty } from "./schemas";
 import { prepareBrowserSession, setBrowserLast } from "./helpers";
 import type { WorkflowContext } from "../../core/context";
+import { NAVIGATION_POLICY } from "../../core/tokens";
+import { validateNavigationUrl } from "../../core/urlValidator";
 
 const inputSchema = {
   type: "object",
@@ -73,6 +75,9 @@ export class BrowserNavigateTask extends Task<
     input: BrowserNavigateTaskInput,
     ctx: IExecuteContext
   ): Promise<BrowserNavigateTaskOutput> {
+    const policy = ctx.registry.has(NAVIGATION_POLICY) ? ctx.registry.get(NAVIGATION_POLICY) : {};
+    validateNavigationUrl(input.url as string, policy);
+
     const { context, envelope, manager } = await prepareBrowserSession(
       input.context,
       input.session as Record<string, unknown> | undefined,

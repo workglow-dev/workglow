@@ -7,7 +7,7 @@
 import { createServiceToken } from "@workglow/util";
 import type { BrowserSessionManager } from "../session/BrowserSessionManager";
 import type { RunCleanupRegistry } from "../session/RunCleanupRegistry";
-import type { UnsafeExecutionPolicy } from "./types";
+import type { UnsafeExecutionPolicy, NavigationPolicy } from "./types";
 
 /**
  * Service token for the run-scoped browser session manager.
@@ -28,4 +28,14 @@ export const RUN_CLEANUP_REGISTRY = createServiceToken<RunCleanupRegistry>(
  */
 export const UNSAFE_EXEC_POLICY = createServiceToken<UnsafeExecutionPolicy>(
   "browserAutomation.unsafeExecPolicy"
+);
+
+/**
+ * Service token for the navigation policy.
+ * Controls which URLs BrowserNavigateTask is permitted to visit.
+ * If not registered, safe defaults apply: only http/https are allowed and
+ * private/loopback network addresses are blocked.
+ */
+export const NAVIGATION_POLICY = createServiceToken<NavigationPolicy>(
+  "browserAutomation.navigationPolicy"
 );

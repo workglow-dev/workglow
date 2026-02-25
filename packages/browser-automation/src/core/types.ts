@@ -107,3 +107,24 @@ export interface UnsafeExecutionPolicy {
   allowPageEvaluateStrings: boolean;
   allowedScriptIds?: string[];
 }
+
+// ========================================================================
+// Navigation Policy
+// ========================================================================
+
+export interface NavigationPolicy {
+  /**
+   * Allow navigation to private/loopback addresses (RFC 1918, localhost, link-local).
+   * Default: false — private network access is blocked to prevent SSRF.
+   */
+  allowPrivateNetworkAccess?: boolean;
+  /**
+   * If set, only these hostnames are permitted (exact or suffix match).
+   * E.g. "example.com" matches only that host; ".example.com" matches all subdomains.
+   */
+  allowedHosts?: string[];
+  /**
+   * Additional hostnames that are always blocked regardless of allowedHosts.
+   */
+  blockedHosts?: string[];
+}
