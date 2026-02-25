@@ -29,6 +29,7 @@ export interface BrowserSessionManagerOpts {
  */
 export class BrowserSessionManager {
   private sessions = new Map<string, SessionEntry>();
+  private pendingCreations = new Map<string, Promise<void>>();
   private adapters: Partial<Record<BrowserBackendName, IBrowserBackendAdapter>>;
   private idleTtlMs: number;
 
@@ -49,6 +50,10 @@ export class BrowserSessionManager {
   async getOrCreate(session: BrowserSessionState): Promise<void> {
     if (this.sessions.has(session.id)) return;
 
+    if (this.pendingCreations.has(session.id)) {
+      return this.pendingCreations.get(session.id)!;
+    }
+
     const adapter = this.adapters[session.backend];
     if (!adapter) {
       throw new Error(
@@ -57,12 +62,20 @@ export class BrowserSessionManager {
       );
     }
 
-    const runtime = await adapter.createSession(session);
-    this.sessions.set(session.id, {
-      lock: new FifoMutex(),
-      runtime,
-      lastUsedAt: Date.now(),
+    const creation = adapter.createSession(session).then((runtime) => {
+      this.sessions.set(session.id, {
+        lock: new FifoMutex(),
+        runtime,
+        lastUsedAt: Date.now(),
+      });
     });
+
+    this.pendingCreations.set(session.id, creation);
+    try {
+      await creation;
+    } finally {
+      this.pendingCreations.delete(session.id);
+    }
   }
 
   /**
@@ -101,6 +114,9 @@ export class BrowserSessionManager {
    * Close all sessions. Used by the cleanup registry.
    */
   async closeAll(): Promise<void> {
+    if (this.pendingCreations.size > 0) {
+      await Promise.allSettled(Array.from(this.pendingCreations.values()));
+    }
     const ids = Array.from(this.sessions.keys());
     await Promise.allSettled(ids.map((id) => this.closeSession(id)));
   }

@@ -52,6 +52,17 @@ class MockAdapter implements IBrowserBackendAdapter {
   }
 }
 
+class SlowMockAdapter implements IBrowserBackendAdapter {
+  sessions: MockRuntimeSession[] = [];
+
+  async createSession(): Promise<IBrowserRuntimeSession> {
+    await Promise.resolve(); // yield to allow concurrent callers to queue up
+    const session = new MockRuntimeSession();
+    this.sessions.push(session);
+    return session;
+  }
+}
+
 function makeSessionState(id: string = "test-session"): BrowserSessionState {
   return {
     id,
@@ -171,6 +182,60 @@ describe("BrowserSessionManager", () => {
     const manager = new BrowserSessionManager({}, cleanup);
 
     await expect(manager.getOrCreate(makeSessionState())).rejects.toThrow("No backend adapter");
+  });
+
+  it("concurrent getOrCreate for same session ID creates only one session", async () => {
+    const cleanup = new RunCleanupRegistry();
+    const adapter = new SlowMockAdapter();
+    const manager = new BrowserSessionManager({ playwright: adapter }, cleanup);
+    const state = makeSessionState();
+
+    await Promise.all([
+      manager.getOrCreate(state),
+      manager.getOrCreate(state),
+      manager.getOrCreate(state),
+    ]);
+
+    expect(adapter.sessions.length).toBe(1);
+    expect(manager.size).toBe(1);
+  });
+
+  it("closeAll waits for in-flight creations before closing", async () => {
+    const cleanup = new RunCleanupRegistry();
+    const adapter = new SlowMockAdapter();
+    const manager = new BrowserSessionManager({ playwright: adapter }, cleanup);
+    const state = makeSessionState();
+
+    const creation = manager.getOrCreate(state); // start but don't await
+    await Promise.all([creation, manager.closeAll()]);
+
+    expect(adapter.sessions.length).toBe(1);
+    expect(adapter.sessions[0].closed).toBe(true);
+    expect(manager.size).toBe(0);
+  });
+
+  it("concurrent getOrCreate all reject when adapter throws", async () => {
+    const cleanup = new RunCleanupRegistry();
+    let callCount = 0;
+    const failingAdapter: IBrowserBackendAdapter = {
+      async createSession() {
+        callCount++;
+        await Promise.resolve();
+        throw new Error("adapter failure");
+      },
+    };
+    const manager = new BrowserSessionManager({ playwright: failingAdapter }, cleanup);
+    const state = makeSessionState();
+
+    const results = await Promise.allSettled([
+      manager.getOrCreate(state),
+      manager.getOrCreate(state),
+      manager.getOrCreate(state),
+    ]);
+
+    expect(results.every((r) => r.status === "rejected")).toBe(true);
+    expect(callCount).toBe(1); // adapter called only once despite three concurrent callers
+    expect(manager.size).toBe(0);
   });
 
   it("serializes operations on same session via mutex", async () => {
