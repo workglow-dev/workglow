@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema, PropertySchema } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
@@ -58,7 +58,7 @@ export type IterationInputMode = "array" | "scalar" | "flexible";
  */
 export interface IterationPropertyConfig {
   /** The base schema for the property (without array wrapping) */
-  readonly baseSchema: DataPortSchema;
+  readonly baseSchema: PropertySchema;
   /** The input mode for this property */
   readonly mode: IterationInputMode;
 }
@@ -171,42 +171,39 @@ function inferIterationFromSchema(schema: DataPortSchema | undefined): boolean |
 /**
  * Creates a union type schema (T | T[]) for flexible iteration input.
  */
-export function createFlexibleSchema(baseSchema: DataPortSchema): DataPortSchema {
-  if (typeof baseSchema === "boolean") return baseSchema;
+export function createFlexibleSchema(baseSchema: PropertySchema): PropertySchema {
   return {
     anyOf: [baseSchema, { type: "array", items: baseSchema }],
-  } as unknown as DataPortSchema;
+  } as PropertySchema;
 }
 
 /**
  * Creates an array schema from a base schema.
  */
-export function createArraySchema(baseSchema: DataPortSchema): DataPortSchema {
-  if (typeof baseSchema === "boolean") return baseSchema;
+export function createArraySchema(baseSchema: PropertySchema): PropertySchema {
   return {
     type: "array",
     items: baseSchema,
-  } as DataPortSchema;
+  } as PropertySchema;
 }
 
 /**
  * Extracts the base (scalar) schema from a potentially wrapped schema.
  */
-export function extractBaseSchema(schema: DataPortSchema): DataPortSchema {
-  if (typeof schema === "boolean") return schema;
-
+export function extractBaseSchema(schema: PropertySchema): PropertySchema {
   const schemaType = (schema as Record<string, unknown>).type;
   if (schemaType === "array" && (schema as Record<string, unknown>).items) {
-    return (schema as Record<string, unknown>).items as DataPortSchema;
+    return (schema as Record<string, unknown>).items as PropertySchema;
   }
 
-  const variants = (schema.oneOf ?? schema.anyOf) as DataPortSchema[] | undefined;
+  const variants =
+    (schema as Record<string, unknown>).oneOf ?? (schema as Record<string, unknown>).anyOf;
   if (Array.isArray(variants)) {
     for (const variant of variants) {
       if (typeof variant === "object") {
         const variantType = (variant as Record<string, unknown>).type;
         if (variantType !== "array") {
-          return variant;
+          return variant as PropertySchema;
         }
       }
     }
@@ -214,7 +211,7 @@ export function extractBaseSchema(schema: DataPortSchema): DataPortSchema {
       if (typeof variant === "object") {
         const variantType = (variant as Record<string, unknown>).type;
         if (variantType === "array" && (variant as Record<string, unknown>).items) {
-          return (variant as Record<string, unknown>).items as DataPortSchema;
+          return (variant as Record<string, unknown>).items as PropertySchema;
         }
       }
     }
@@ -434,7 +431,7 @@ export abstract class IteratorTask<
       return { type: "object", properties: {}, additionalProperties: true };
     }
 
-    const properties: Record<string, DataPortSchema> = {};
+    const properties: Record<string, PropertySchema> = {};
     const innerProps = innerSchema.properties || {};
 
     for (const [key, propSchema] of Object.entries(innerProps)) {
@@ -444,7 +441,7 @@ export abstract class IteratorTask<
         continue;
       }
 
-      const baseSchema = propSchema as DataPortSchema;
+      const baseSchema = propSchema as PropertySchema;
       properties[key] = createFlexibleSchema(baseSchema);
     }
 
@@ -462,7 +459,7 @@ export abstract class IteratorTask<
     }
 
     const config = this.iterationInputConfig || {};
-    const properties: Record<string, DataPortSchema> = {};
+    const properties: Record<string, PropertySchema> = {};
     const innerProps = innerSchema.properties || {};
 
     for (const [key, propSchema] of Object.entries(innerProps)) {
@@ -472,7 +469,7 @@ export abstract class IteratorTask<
         continue;
       }
 
-      const baseSchema = propSchema as DataPortSchema;
+      const baseSchema = propSchema as PropertySchema;
       const propConfig = config[key];
 
       if (!propConfig) {
@@ -574,18 +571,17 @@ export abstract class IteratorTask<
   public setPropertyInputMode(
     propertyName: string,
     mode: IterationInputMode,
-    baseSchema?: DataPortSchema
+    baseSchema?: PropertySchema
   ): void {
     const currentSchema = this.getIterationInputSchema();
     if (typeof currentSchema === "boolean") return;
 
-    const currentProps = (currentSchema.properties || {}) as Record<string, DataPortSchema>;
+    const currentProps = (currentSchema.properties || {}) as Record<string, PropertySchema>;
     const existingProp = currentProps[propertyName];
-    const base: DataPortSchema =
-      baseSchema ??
-      (existingProp ? extractBaseSchema(existingProp) : ({ type: "string" } as DataPortSchema));
+    const base: PropertySchema =
+      baseSchema ?? (existingProp ? extractBaseSchema(existingProp) : { type: "string" });
 
-    let newPropSchema: DataPortSchema;
+    let newPropSchema: PropertySchema;
     switch (mode) {
       case "array":
         newPropSchema = createArraySchema(base);
