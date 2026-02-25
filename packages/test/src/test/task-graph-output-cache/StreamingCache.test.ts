@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  IExecuteContext,
-  Task,
-  TaskStatus,
-  type StreamEvent,
-} from "@workglow/task-graph";
+import { IExecuteContext, Task, TaskStatus, type StreamEvent } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InMemoryTaskOutputRepository } from "../../binding/InMemoryTaskOutputRepository";

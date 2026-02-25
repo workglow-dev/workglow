@@ -96,7 +96,7 @@ export class PostgresVectorStorage<
       const queryVector = `[${Array.from(query).join(",")}]`;
       const vectorCol = String(this.vectorPropertyName);
       const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
-      
+
       let sql = `
         SELECT 
           *,
@@ -310,9 +310,7 @@ export class PostgresVectorStorage<
   }
 
   private getPrimaryKeyWhereClause(row: any): string {
-    const conditions = this.primaryKeyNames.map(
-      (key, idx) => `${String(key)} = $${idx + 1}`
-    );
+    const conditions = this.primaryKeyNames.map((key, idx) => `${String(key)} = $${idx + 1}`);
     return conditions.join(" AND ");
   }
 

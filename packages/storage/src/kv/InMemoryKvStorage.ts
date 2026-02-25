@@ -32,9 +32,6 @@ export class InMemoryKvStorage extends KvViaTabularStorage {
    */
   constructor(keySchema: JsonSchema = { type: "string" }, valueSchema: JsonSchema = {}) {
     super(keySchema, valueSchema);
-    this.tabularRepository = new InMemoryTabularStorage(
-      DefaultKeyValueSchema,
-      DefaultKeyValueKey
-    );
+    this.tabularRepository = new InMemoryTabularStorage(DefaultKeyValueSchema, DefaultKeyValueKey);
   }
 }

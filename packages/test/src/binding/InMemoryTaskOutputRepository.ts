@@ -23,11 +23,9 @@ export const MEMORY_TASK_OUTPUT_REPOSITORY = createServiceToken<InMemoryTaskOutp
 export class InMemoryTaskOutputRepository extends TaskOutputTabularRepository {
   constructor() {
     super({
-      tabularRepository: new InMemoryTabularStorage(
-        TaskOutputSchema,
-        TaskOutputPrimaryKeyNames,
-        ["createdAt"]
-      ),
+      tabularRepository: new InMemoryTabularStorage(TaskOutputSchema, TaskOutputPrimaryKeyNames, [
+        "createdAt",
+      ]),
     });
   }
 }

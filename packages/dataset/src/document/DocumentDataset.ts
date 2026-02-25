@@ -52,7 +52,7 @@ export class DocumentDataset {
    */
   async upsert(document: Document): Promise<Document> {
     const serialized = JSON.stringify(document.toJSON());
-    
+
     const insertEntity: InsertDocumentStorageEntity = {
       doc_id: document.doc_id,
       data: serialized,
