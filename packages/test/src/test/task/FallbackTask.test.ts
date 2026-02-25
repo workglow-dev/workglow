@@ -1,0 +1,446 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  FallbackTask,
+  Task,
+  TaskFailedError,
+  TaskGraph,
+  TaskInput,
+  TaskOutput,
+  TaskStatus,
+  Workflow,
+} from "@workglow/task-graph";
+import { DataPortSchema } from "@workglow/util";
+import { describe, expect, test } from "vitest";
+
+// ============================================================================
+// Test Tasks
+// ============================================================================
+
+class SucceedingTask extends Task<{ value: number }, { result: number }> {
+  public static type = "FallbackTest_SucceedingTask";
+
+  public static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number", default: 0 } },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { result: { type: "number" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }): Promise<{ result: number }> {
+    return { result: (input.value ?? 0) * 10 };
+  }
+}
+
+class FailingAlternativeTask extends Task<{ value: number }, { result: number }> {
+  public static type = "FallbackTest_FailingAlternativeTask";
+
+  public static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number", default: 0 } },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { result: { type: "number" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(): Promise<{ result: number }> {
+    throw new TaskFailedError("Alternative failed");
+  }
+}
+
+class ConditionalFailTask extends Task<{ value: number }, { result: number }> {
+  public static type = "FallbackTest_ConditionalFailTask";
+
+  public static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number", default: 0 } },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { result: { type: "number" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }): Promise<{ result: number }> {
+    if (input.value < 5) {
+      throw new TaskFailedError(`Value ${input.value} is too low`);
+    }
+    return { result: input.value * 100 };
+  }
+}
+
+// ============================================================================
+// FallbackTask Unit Tests
+// ============================================================================
+
+describe("FallbackTask", () => {
+  describe("constructor and configuration", () => {
+    test("should create with default task mode", () => {
+      const task = new FallbackTask({}, {});
+      expect(task.fallbackMode).toBe("task");
+      expect(task.alternatives).toEqual([]);
+    });
+
+    test("should respect data mode configuration", () => {
+      const alternatives = [{ model: "a" }, { model: "b" }];
+      const task = new FallbackTask({}, { fallbackMode: "data", alternatives });
+      expect(task.fallbackMode).toBe("data");
+      expect(task.alternatives).toEqual(alternatives);
+    });
+
+    test("should have hasDynamicSchemas = true", () => {
+      expect(FallbackTask.hasDynamicSchemas).toBe(true);
+    });
+
+    test("static properties are correct", () => {
+      expect(FallbackTask.type).toBe("FallbackTask");
+      expect(FallbackTask.category).toBe("Flow Control");
+    });
+  });
+
+  describe("schema handling", () => {
+    test("input and output schemas are defined", () => {
+      const inputSchema = FallbackTask.inputSchema();
+      const outputSchema = FallbackTask.outputSchema();
+      expect(inputSchema).toBeDefined();
+      expect(outputSchema).toBeDefined();
+    });
+
+    test("task mode input schema is union of all alternatives", () => {
+      const task = new FallbackTask({}, { fallbackMode: "task" });
+      const subGraph = new TaskGraph();
+      subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "alt1" }));
+      task.subGraph = subGraph;
+
+      const schema = task.inputSchema();
+      expect(typeof schema).toBe("object");
+      if (typeof schema === "object") {
+        expect(schema.properties).toHaveProperty("value");
+      }
+    });
+
+    test("task mode output schema comes from first alternative", () => {
+      const task = new FallbackTask({}, { fallbackMode: "task" });
+      const subGraph = new TaskGraph();
+      subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "alt1" }));
+      task.subGraph = subGraph;
+
+      const schema = task.outputSchema();
+      expect(typeof schema).toBe("object");
+      if (typeof schema === "object") {
+        expect(schema.properties).toHaveProperty("result");
+      }
+    });
+  });
+
+  describe("serialization", () => {
+    test("toJSON includes fallbackMode", () => {
+      const task = new FallbackTask({}, { fallbackMode: "task", id: "test-fb" });
+      const json = task.toJSON();
+      expect(json.config).toBeDefined();
+      expect((json.config as Record<string, unknown>).fallbackMode).toBe("task");
+    });
+
+    test("toJSON includes alternatives when present", () => {
+      const alternatives = [{ model: "a" }, { model: "b" }];
+      const task = new FallbackTask({}, { fallbackMode: "data", alternatives, id: "test-fb" });
+      const json = task.toJSON();
+      expect((json.config as Record<string, unknown>).alternatives).toEqual(alternatives);
+    });
+  });
+});
+
+// ============================================================================
+// Task Mode Execution
+// ============================================================================
+
+describe("FallbackTask - Task Mode Execution", () => {
+  test("first alternative succeeds - returns its output", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "alt1" }));
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "alt2" }));
+    task.subGraph = subGraph;
+
+    const result = await task.run({ value: 5 } as TaskInput);
+    expect(result.result).toBe(50);
+  });
+
+  test("first fails, second succeeds - returns second's output", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new FailingAlternativeTask({ value: 0 }, { id: "alt1" }));
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "alt2" }));
+    task.subGraph = subGraph;
+
+    const result = await task.run({ value: 3 } as TaskInput);
+    expect(result.result).toBe(30);
+  });
+
+  test("all alternatives fail - throws aggregate error", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new FailingAlternativeTask({ value: 0 }, { id: "alt1" }));
+    subGraph.addTask(new FailingAlternativeTask({ value: 0 }, { id: "alt2" }));
+    task.subGraph = subGraph;
+
+    await expect(task.run({ value: 1 } as TaskInput)).rejects.toThrow("All 2 alternatives failed");
+    expect(task.status).toBe(TaskStatus.FAILED);
+  });
+
+  test("no alternatives - throws error", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    task.subGraph = new TaskGraph();
+
+    await expect(task.run({ value: 1 } as TaskInput)).rejects.toThrow(
+      "FallbackTask has no alternatives to try"
+    );
+  });
+
+  test("skips remaining alternatives after first success", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "alt1" }));
+    subGraph.addTask(new FailingAlternativeTask({ value: 0 }, { id: "alt2" }));
+    task.subGraph = subGraph;
+
+    // alt1 succeeds, alt2 (which would fail) is never tried
+    const result = await task.run({ value: 7 } as TaskInput);
+    expect(result.result).toBe(70);
+    expect(task.status).toBe(TaskStatus.COMPLETED);
+  });
+});
+
+// ============================================================================
+// Data Mode Execution
+// ============================================================================
+
+describe("FallbackTask - Data Mode Execution", () => {
+  test("first data alternative succeeds", async () => {
+    const task = new FallbackTask(
+      {},
+      {
+        fallbackMode: "data",
+        alternatives: [{ value: 10 }, { value: 20 }],
+      }
+    );
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "template" }));
+    task.subGraph = subGraph;
+
+    const result = await task.run({} as TaskInput);
+    expect(result.result).toBe(100); // 10 * 10
+  });
+
+  test("first data alternative fails, second succeeds", async () => {
+    const task = new FallbackTask(
+      {},
+      {
+        fallbackMode: "data",
+        alternatives: [{ value: 2 }, { value: 10 }],
+      }
+    );
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new ConditionalFailTask({ value: 0 }, { id: "template" }));
+    task.subGraph = subGraph;
+
+    const result = await task.run({} as TaskInput);
+    expect(result.result).toBe(1000); // 10 * 100
+  });
+
+  test("all data alternatives fail - throws aggregate error", async () => {
+    const task = new FallbackTask(
+      {},
+      {
+        fallbackMode: "data",
+        alternatives: [{ value: 1 }, { value: 2 }],
+      }
+    );
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new ConditionalFailTask({ value: 0 }, { id: "template" }));
+    task.subGraph = subGraph;
+
+    await expect(task.run({} as TaskInput)).rejects.toThrow("All 2 data alternatives failed");
+  });
+
+  test("no data alternatives - throws error", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "data", alternatives: [] });
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "template" }));
+    task.subGraph = subGraph;
+
+    await expect(task.run({} as TaskInput)).rejects.toThrow(
+      "FallbackTask has no data alternatives to try"
+    );
+  });
+
+  test("data mode merges alternative with original input", async () => {
+    const task = new FallbackTask(
+      {},
+      {
+        fallbackMode: "data",
+        alternatives: [{ value: 7 }],
+      }
+    );
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "template" }));
+    task.subGraph = subGraph;
+
+    // Original input is empty, alternative provides value: 7
+    const result = await task.run({} as TaskInput);
+    expect(result.result).toBe(70); // 7 * 10
+  });
+});
+
+// ============================================================================
+// Workflow API Tests
+// ============================================================================
+
+describe("FallbackTask - Workflow API", () => {
+  test("Workflow should have fallback method", () => {
+    const workflow = new Workflow();
+    expect(typeof workflow.fallback).toBe("function");
+  });
+
+  test("Workflow should have fallbackWith method", () => {
+    const workflow = new Workflow();
+    expect(typeof workflow.fallbackWith).toBe("function");
+  });
+
+  test("fallback should return a loop builder with endFallback", () => {
+    const workflow = new Workflow();
+    const builder = workflow.fallback();
+    expect(builder).toBeDefined();
+    expect(typeof builder.endFallback).toBe("function");
+  });
+
+  test("fallbackWith should return a loop builder with endFallbackWith", () => {
+    const workflow = new Workflow();
+    const builder = workflow.fallbackWith([{ value: 1 }]);
+    expect(builder).toBeDefined();
+    expect(typeof builder.endFallbackWith).toBe("function");
+  });
+
+  test("fallback should add a FallbackTask to the graph", () => {
+    const workflow = new Workflow();
+    workflow.fallback().addTask(SucceedingTask).endFallback();
+
+    const tasks = workflow.graph.getTasks();
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toBeInstanceOf(FallbackTask);
+    expect((tasks[0] as FallbackTask).fallbackMode).toBe("task");
+  });
+
+  test("fallbackWith should add a FallbackTask with data mode", () => {
+    const alternatives = [{ value: 1 }, { value: 2 }];
+    const workflow = new Workflow();
+    workflow.fallbackWith(alternatives).addTask(SucceedingTask).endFallbackWith();
+
+    const tasks = workflow.graph.getTasks();
+    expect(tasks).toHaveLength(1);
+    const fallbackTask = tasks[0] as FallbackTask;
+    expect(fallbackTask).toBeInstanceOf(FallbackTask);
+    expect(fallbackTask.fallbackMode).toBe("data");
+    expect(fallbackTask.alternatives).toEqual(alternatives);
+  });
+
+  test("fallback with multiple alternatives in subgraph", () => {
+    const workflow = new Workflow();
+    workflow.fallback().addTask(FailingAlternativeTask).addTask(SucceedingTask).endFallback();
+
+    const fallbackTask = workflow.graph.getTasks()[0] as FallbackTask;
+    expect(fallbackTask.subGraph.getTasks()).toHaveLength(2);
+    expect(fallbackTask.subGraph.getTasks()[0]).toBeInstanceOf(FailingAlternativeTask);
+    expect(fallbackTask.subGraph.getTasks()[1]).toBeInstanceOf(SucceedingTask);
+  });
+});
+
+// ============================================================================
+// Workflow Execution Tests
+// ============================================================================
+
+describe("FallbackTask - Workflow Execution", () => {
+  test("task fallback workflow - first succeeds", async () => {
+    const workflow = new Workflow();
+    workflow.fallback().addTask(SucceedingTask).addTask(FailingAlternativeTask).endFallback();
+
+    const result = await workflow.run({ value: 4 });
+    expect(result.result).toBe(40);
+  });
+
+  test("task fallback workflow - first fails, second succeeds", async () => {
+    const workflow = new Workflow();
+    workflow.fallback().addTask(FailingAlternativeTask).addTask(SucceedingTask).endFallback();
+
+    const result = await workflow.run({ value: 3 });
+    expect(result.result).toBe(30);
+  });
+
+  test("task fallback workflow - all fail", async () => {
+    const workflow = new Workflow();
+    workflow
+      .fallback()
+      .addTask(FailingAlternativeTask)
+      .addTask(FailingAlternativeTask)
+      .endFallback();
+
+    await expect(workflow.run({ value: 1 })).rejects.toThrow("All 2 alternatives failed");
+  });
+
+  test("data fallback workflow - first alternative succeeds", async () => {
+    const workflow = new Workflow();
+    workflow
+      .fallbackWith([{ value: 10 }, { value: 20 }])
+      .addTask(SucceedingTask)
+      .endFallbackWith();
+
+    const result = await workflow.run({});
+    expect(result.result).toBe(100); // 10 * 10
+  });
+
+  test("data fallback workflow - fallback to second alternative", async () => {
+    const workflow = new Workflow();
+    workflow
+      .fallbackWith([{ value: 2 }, { value: 10 }])
+      .addTask(ConditionalFailTask)
+      .endFallbackWith();
+
+    const result = await workflow.run({});
+    expect(result.result).toBe(1000); // 10 * 100
+  });
+
+  test("chaining fallback with other tasks", async () => {
+    const workflow = new Workflow();
+    workflow.fallback().addTask(FailingAlternativeTask).addTask(SucceedingTask).endFallback();
+
+    const result = await workflow.run({ value: 5 });
+    expect(result.result).toBe(50);
+  });
+});

@@ -1,0 +1,301 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type { DataPortSchema } from "@workglow/util";
+import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
+import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
+import { FallbackTaskRunner } from "./FallbackTaskRunner";
+import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+
+// ============================================================================
+// Types and Interfaces
+// ============================================================================
+
+/**
+ * Execution mode for the fallback task.
+ *
+ * - `"task"`: Each task in the subgraph is an independent alternative.
+ *   They are tried sequentially until one succeeds.
+ *
+ * - `"data"`: The subgraph contains a template workflow that is executed
+ *   multiple times with different input overrides from the `alternatives` array.
+ */
+export type FallbackMode = "task" | "data";
+
+export const fallbackTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...graphAsTaskConfigSchema["properties"],
+    fallbackMode: { type: "string", enum: ["task", "data"] },
+    alternatives: { type: "array", items: { type: "object", additionalProperties: true } },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+/**
+ * Configuration type for FallbackTask.
+ * Extends GraphAsTaskConfig with fallback-specific options.
+ */
+export type FallbackTaskConfig = GraphAsTaskConfig & {
+  /**
+   * The fallback execution mode.
+   * - `"task"`: Try each task in the subgraph as an alternative.
+   * - `"data"`: Try the template workflow with each set of input overrides.
+   * @default "task"
+   */
+  readonly fallbackMode?: FallbackMode;
+
+  /**
+   * Array of input overrides for data mode.
+   * Each entry is merged with the task input before running the template.
+   * Only used when `fallbackMode` is `"data"`.
+   *
+   * @example
+   * ```typescript
+   * alternatives: [
+   *   { model: "openai:gpt-4" },
+   *   { model: "anthropic:claude-sonnet-4-20250514" },
+   *   { model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" },
+   * ]
+   * ```
+   */
+  readonly alternatives?: Record<string, unknown>[];
+};
+
+// ============================================================================
+// FallbackTask Class
+// ============================================================================
+
+/**
+ * A task that tries multiple alternatives and returns the first successful result.
+ *
+ * FallbackTask provides resilient execution by automatically falling back to
+ * alternative strategies when one fails. This is essential for production AI
+ * workflows where provider availability is unpredictable.
+ *
+ * ## Execution Modes
+ *
+ * ### Task Mode (`fallbackMode: "task"`)
+ * Each task added to the subgraph is an independent alternative. They are
+ * tried sequentially in insertion order. The first successful result is
+ * returned and remaining alternatives are skipped.
+ *
+ * ```typescript
+ * // Via Workflow API:
+ * workflow
+ *   .fallback()
+ *   .notifySlack({ channel: "#alerts", message: "Hello" })
+ *   .notifyEmail({ to: "admin@example.com", subject: "Alert" })
+ *   .notifySms({ phone: "+1234567890", message: "Alert" })
+ *   .endFallback();
+ * ```
+ *
+ * ### Data Mode (`fallbackMode: "data"`)
+ * The subgraph contains a template workflow that is executed multiple times,
+ * each time with different input data merged from the `alternatives` array.
+ *
+ * ```typescript
+ * // Via Workflow API:
+ * workflow
+ *   .fallbackWith([
+ *     { model: "openai:gpt-4" },
+ *     { model: "anthropic:claude-sonnet-4-20250514" },
+ *     { model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" },
+ *   ])
+ *   .textGeneration({ prompt: "Hello" })
+ *   .endFallbackWith();
+ * ```
+ *
+ * ## Error Handling
+ *
+ * If all alternatives fail, a `TaskFailedError` is thrown with a message
+ * that includes all individual error messages. Each attempt's error is
+ * collected and reported for debugging.
+ *
+ * ## Output
+ *
+ * The output is the result from whichever alternative succeeded first.
+ * The output schema matches the inner tasks' output schema.
+ */
+export class FallbackTask<
+  Input extends TaskInput = TaskInput,
+  Output extends TaskOutput = TaskOutput,
+  Config extends FallbackTaskConfig = FallbackTaskConfig,
+> extends GraphAsTask<Input, Output, Config> {
+  // ========================================================================
+  // Static properties
+  // ========================================================================
+
+  public static type: TaskTypeName = "FallbackTask";
+  public static category: string = "Flow Control";
+  public static title: string = "Fallback";
+  public static description: string = "Try alternatives until one succeeds";
+
+  /** FallbackTask has dynamic schemas based on the subgraph structure. */
+  public static hasDynamicSchemas: boolean = true;
+
+  public static configSchema(): DataPortSchema {
+    return fallbackTaskConfigSchema;
+  }
+
+  // ========================================================================
+  // TaskRunner Override
+  // ========================================================================
+
+  declare _runner: FallbackTaskRunner<Input, Output, Config>;
+
+  override get runner(): FallbackTaskRunner<Input, Output, Config> {
+    if (!this._runner) {
+      this._runner = new FallbackTaskRunner<Input, Output, Config>(this);
+    }
+    return this._runner;
+  }
+
+  // ========================================================================
+  // Config accessors
+  // ========================================================================
+
+  public get fallbackMode(): FallbackMode {
+    return this.config?.fallbackMode ?? "task";
+  }
+
+  public get alternatives(): Record<string, unknown>[] {
+    return this.config?.alternatives ?? [];
+  }
+
+  // ========================================================================
+  // Schema Methods
+  // ========================================================================
+
+  /**
+   * In task mode, input schema is the union of all alternative tasks' inputs.
+   * In data mode, input schema comes from the template workflow's starting nodes.
+   */
+  public override inputSchema(): DataPortSchema {
+    if (!this.hasChildren()) {
+      return (this.constructor as typeof FallbackTask).inputSchema();
+    }
+
+    if (this.fallbackMode === "data") {
+      // Data mode: use the base GraphAsTask logic (union of starting node inputs)
+      return super.inputSchema();
+    }
+
+    // Task mode: union of all tasks' input schemas (they are independent alternatives)
+    const properties: Record<string, unknown> = {};
+    const tasks = this.subGraph.getTasks();
+
+    for (const task of tasks) {
+      const taskInputSchema = task.inputSchema();
+      if (typeof taskInputSchema === "boolean") continue;
+      const taskProperties = taskInputSchema.properties || {};
+
+      for (const [inputName, inputProp] of Object.entries(taskProperties)) {
+        if (!properties[inputName]) {
+          properties[inputName] = inputProp;
+        }
+      }
+    }
+
+    return {
+      type: "object",
+      properties,
+      additionalProperties: true,
+    } as DataPortSchema;
+  }
+
+  /**
+   * Output schema is derived from the first task in the subgraph.
+   * All alternatives should produce compatible output.
+   */
+  public override outputSchema(): DataPortSchema {
+    if (!this.hasChildren()) {
+      return (this.constructor as typeof FallbackTask).outputSchema();
+    }
+
+    const tasks = this.subGraph.getTasks();
+    if (tasks.length === 0) {
+      return { type: "object", properties: {}, additionalProperties: false } as DataPortSchema;
+    }
+
+    if (this.fallbackMode === "task") {
+      // Task mode: use the first task's output schema (all alternatives should be compatible)
+      const firstTask = tasks[0];
+      return firstTask.outputSchema();
+    }
+
+    // Data mode: use the ending nodes' output schema via base class logic
+    return super.outputSchema();
+  }
+
+  // ========================================================================
+  // Serialization
+  // ========================================================================
+
+  public override toJSON() {
+    const json = super.toJSON();
+    return {
+      ...json,
+      config: {
+        ...("config" in json ? json.config : {}),
+        fallbackMode: this.fallbackMode,
+        ...(this.alternatives.length > 0 ? { alternatives: this.alternatives } : {}),
+      },
+    };
+  }
+}
+
+// ============================================================================
+// Workflow Prototype Extensions
+// ============================================================================
+
+declare module "../task-graph/Workflow" {
+  interface Workflow {
+    /**
+     * Starts a task-mode fallback block. Each task added inside the block
+     * is an independent alternative tried sequentially until one succeeds.
+     * Use `.endFallback()` to close the block and return to the parent workflow.
+     */
+    fallback: CreateLoopWorkflow<TaskInput, TaskOutput, FallbackTaskConfig>;
+
+    /**
+     * Ends the task-mode fallback block and returns to the parent workflow.
+     */
+    endFallback(): Workflow;
+
+    /**
+     * Starts a data-mode fallback block. The tasks added inside the block
+     * form a template workflow that is re-run with each set of input overrides
+     * from `alternatives`. Use `.endFallbackWith()` to close the block.
+     *
+     * @param alternatives - Array of input override objects to try sequentially
+     */
+    fallbackWith(alternatives: Record<string, unknown>[]): Workflow;
+
+    /**
+     * Ends the data-mode fallback block and returns to the parent workflow.
+     */
+    endFallbackWith(): Workflow;
+  }
+}
+
+queueMicrotask(() => {
+  Workflow.prototype.fallback = function (this: Workflow): Workflow {
+    return this.addLoopTask(FallbackTask, { fallbackMode: "task" });
+  };
+  Workflow.prototype.endFallback = CreateEndLoopWorkflow("endFallback");
+
+  Workflow.prototype.fallbackWith = function (
+    this: Workflow,
+    alternatives: Record<string, unknown>[]
+  ): Workflow {
+    return this.addLoopTask(FallbackTask, {
+      fallbackMode: "data",
+      alternatives,
+    });
+  };
+  Workflow.prototype.endFallbackWith = CreateEndLoopWorkflow("endFallbackWith");
+});
