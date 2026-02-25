@@ -10,8 +10,11 @@ import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
 import { TaskRegistry } from "../task/TaskRegistry";
 import { ConditionalTaskConfig } from "./ConditionalTask";
-import { GraphAsTask } from "./GraphAsTask";
+import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
 import { IteratorTaskConfig } from "./IteratorTask";
+import { JobQueueTaskConfig } from "./JobQueueTask";
+import { MapTaskConfig } from "./MapTask";
+import { ReduceTaskConfig } from "./ReduceTask";
 import { TaskConfig, TaskInput } from "./TaskTypes";
 import { WhileTaskConfig } from "./WhileTask";
 
@@ -24,7 +27,14 @@ import { WhileTaskConfig } from "./WhileTask";
  */
 
 export type JsonTaskConfig = Omit<
-  TaskConfig & WhileTaskConfig & IteratorTaskConfig & ConditionalTaskConfig,
+  TaskConfig &
+    GraphAsTaskConfig &
+    WhileTaskConfig &
+    IteratorTaskConfig &
+    ReduceTaskConfig &
+    MapTaskConfig &
+    ConditionalTaskConfig &
+    JobQueueTaskConfig,
   "id"
 >;
 
