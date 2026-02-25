@@ -80,6 +80,13 @@ export interface IRunConfig {
    */
   shouldAccumulate?: boolean;
 
+  /**
+   * Timeout in milliseconds for task execution.
+   * When set, the task will be automatically aborted if it exceeds this duration.
+   * The abort triggers a TaskTimeoutError (a subclass of TaskAbortedError).
+   */
+  timeout?: number;
+
   updateProgress?: (
     task: ITask,
     progress: number,

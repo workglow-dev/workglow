@@ -18,7 +18,13 @@ import {
   type StreamMode,
 } from "./StreamTypes";
 import { Task } from "./Task";
-import { TaskAbortedError, TaskError, TaskFailedError, TaskInvalidInputError } from "./TaskError";
+import {
+  TaskAbortedError,
+  TaskError,
+  TaskFailedError,
+  TaskInvalidInputError,
+  TaskTimeoutError,
+} from "./TaskError";
 import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
 
 /**
@@ -62,6 +68,19 @@ export class TaskRunner<
    * upstream streaming edges. Keyed by input port name.
    */
   public inputStreams?: Map<string, ReadableStream<StreamEvent>>;
+
+  /**
+   * Timer handle for task-level timeout. Set when `IRunConfig.timeout` is
+   * provided and cleared on completion, error, or abort.
+   */
+  protected timeoutTimer?: ReturnType<typeof setTimeout>;
+
+  /**
+   * When a timeout triggers the abort, this holds the TaskTimeoutError so
+   * handleAbort() can surface the correct error type instead of a generic
+   * TaskAbortedError.
+   */
+  protected pendingTimeoutError?: TaskTimeoutError;
 
   /**
    * Whether the streaming task runner should accumulate text-delta chunks and
@@ -152,7 +171,9 @@ export class TaskRunner<
       return this.task.runOutputData as Output;
     } catch (err: any) {
       await this.handleError(err);
-      throw err;
+      // If a timeout triggered the abort, throw the TaskTimeoutError instead
+      // of the generic TaskAbortedError that the task's execute() may have thrown.
+      throw this.task.error instanceof TaskTimeoutError ? this.task.error : err;
     }
   }
 
@@ -417,6 +438,15 @@ export class TaskRunner<
     // shouldAccumulate defaults to true (backward-compatible for standalone runs)
     this.shouldAccumulate = config.shouldAccumulate !== false;
 
+    // Start timeout timer if configured
+    const timeout = config.timeout ?? this.task.runConfig?.timeout;
+    if (timeout !== undefined && timeout > 0) {
+      this.pendingTimeoutError = new TaskTimeoutError(timeout);
+      this.timeoutTimer = setTimeout(() => {
+        this.abort();
+      }, timeout);
+    }
+
     if (config.updateProgress) {
       this.updateProgress = config.updateProgress;
     }
@@ -440,13 +470,26 @@ export class TaskRunner<
   }
 
   /**
+   * Clears the timeout timer if one is active.
+   */
+  protected clearTimeoutTimer(): void {
+    if (this.timeoutTimer !== undefined) {
+      clearTimeout(this.timeoutTimer);
+      this.timeoutTimer = undefined;
+    }
+  }
+
+  /**
    * Handles task abort
    */
   protected async handleAbort(): Promise<void> {
     if (this.task.status === TaskStatus.ABORTING) return;
+    this.clearTimeoutTimer();
     this.task.status = TaskStatus.ABORTING;
     this.task.progress = 100;
-    this.task.error = new TaskAbortedError();
+    // Use the pending timeout error if the abort was triggered by a timeout
+    this.task.error = this.pendingTimeoutError ?? new TaskAbortedError();
+    this.pendingTimeoutError = undefined;
     this.task.emit("abort", this.task.error);
     this.task.emit("status", this.task.status);
   }
@@ -460,6 +503,8 @@ export class TaskRunner<
    */
   protected async handleComplete(): Promise<void> {
     if (this.task.status === TaskStatus.COMPLETED) return;
+    this.clearTimeoutTimer();
+    this.pendingTimeoutError = undefined;
 
     this.task.completedAt = new Date();
     this.task.progress = 100;
@@ -495,6 +540,8 @@ export class TaskRunner<
   protected async handleError(err: Error): Promise<void> {
     if (err instanceof TaskAbortedError) return this.handleAbort();
     if (this.task.status === TaskStatus.FAILED) return;
+    this.clearTimeoutTimer();
+    this.pendingTimeoutError = undefined;
 
     if (this.task.hasChildren()) {
       this.task.subGraph!.abort();
