@@ -15,6 +15,8 @@ export default defineConfig({
     },
   },
   test: {
+    maxConcurrency: 1,
+    maxWorkers: 1,
     testTimeout: 15000, // 15 second global timeout (PgLite initialization can be slow)
   },
 });
