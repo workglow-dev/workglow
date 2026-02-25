@@ -26,4 +26,4 @@ jobs:
           bun-version: latest
       - run: bun i
       - run: bun run build
-      - run: bun test
+      - run: bun run test
