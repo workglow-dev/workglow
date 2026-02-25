@@ -276,6 +276,7 @@
         "@anthropic-ai/sdk": "catalog:",
         "@electric-sql/pglite": "^0.3.15",
         "@google/generative-ai": "catalog:",
+        "@sroussey/transformers": "catalog:",
         "@supabase/supabase-js": "catalog:",
         "@types/pg": "^8.16.0",
         "@workglow/ai": "workspace:*",
