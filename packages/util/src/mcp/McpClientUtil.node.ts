@@ -15,9 +15,6 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
 
-/** MCP protocol version sent on first request; matches SDK's initialize payload so servers that require the header on all requests accept the connection. */
-const MCP_PROTOCOL_VERSION_HEADER = "2025-11-25";
-
 export const mcpTransportTypes = ["stdio", "sse", "streamable-http"] as const;
 
 export const mcpServerConfigSchema = {
@@ -78,21 +75,11 @@ export async function createMcpClient(
       break;
     case "sse": {
       // SSEClientTransport is deprecated but still needed for legacy servers
-      const requestInit = {
-        headers: { "MCP-Protocol-Version": MCP_PROTOCOL_VERSION_HEADER },
-      };
-      transport = new SSEClientTransport(new URL(config.server_url!), {
-        requestInit,
-      });
+      transport = new SSEClientTransport(new URL(config.server_url!));
       break;
     }
     case "streamable-http": {
-      const requestInit = {
-        headers: { "MCP-Protocol-Version": MCP_PROTOCOL_VERSION_HEADER },
-      };
-      transport = new StreamableHTTPClientTransport(new URL(config.server_url!), {
-        requestInit,
-      });
+      transport = new StreamableHTTPClientTransport(new URL(config.server_url!));
       break;
     }
     default:
@@ -111,41 +98,41 @@ export async function createMcpClient(
     );
   }
 
-  try {
-    await client.connect(transport);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const url = config.server_url ?? "";
-    const is405 =
-      message.includes("405") ||
-      message.includes("Method Not Allowed") ||
-      (typeof err === "object" &&
-        err !== null &&
-        "status" in err &&
-        (err as { status: number }).status === 405);
-    if (is405) {
-      throw new Error(
-        `MCP connection failed with 405 Method Not Allowed for ${url}. ` +
-          `This usually means the server does not accept GET requests. `,
-        { cause: err }
-      );
-    }
-    const is406 =
-      message.includes("406") ||
-      message.includes("Not Acceptable") ||
-      (typeof err === "object" &&
-        err !== null &&
-        "code" in err &&
-        (err as { code: number }).code === 406);
-    if (is406) {
-      throw new Error(
-        `MCP connection failed with 406 Not Acceptable for ${url}. ` +
-          `Try using transport "sse" instead of "streamable-http", or ensure the server accepts the request format (Accept: application/json, text/event-stream and MCP-Protocol-Version).`,
-        { cause: err }
-      );
-    }
-    throw err;
-  }
+  // try {
+  await client.connect(transport);
+  // } catch (err) {
+  //   const message = err instanceof Error ? err.message : String(err);
+  //   const url = config.server_url ?? "";
+  //   const is405 =
+  //     message.includes("405") ||
+  //     message.includes("Method Not Allowed") ||
+  //     (typeof err === "object" &&
+  //       err !== null &&
+  //       "status" in err &&
+  //       (err as { status: number }).status === 405);
+  //   if (is405) {
+  //     throw new Error(
+  //       `MCP connection failed with 405 Method Not Allowed for ${url}. ` +
+  //         `This usually means the server does not accept GET requests. `,
+  //       { cause: err }
+  //     );
+  //   }
+  //   const is406 =
+  //     message.includes("406") ||
+  //     message.includes("Not Acceptable") ||
+  //     (typeof err === "object" &&
+  //       err !== null &&
+  //       "code" in err &&
+  //       (err as { code: number }).code === 406);
+  //   if (is406) {
+  //     throw new Error(
+  //       `MCP connection failed with 406 Not Acceptable for ${url}. ` +
+  //         `Try using transport "sse" instead of "streamable-http", or ensure the server accepts the request format (Accept: application/json, text/event-stream and MCP-Protocol-Version).`,
+  //       { cause: err }
+  //     );
+  //   }
+  //   throw err;
+  // }
   return { client, transport };
 }
 

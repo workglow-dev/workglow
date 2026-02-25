@@ -24,27 +24,10 @@ function transportForUrl(url: string): "sse" | "streamable-http" {
 const MCP_SERVERS = [
   { name: "Cloudflare Docs", url: "https://docs.mcp.cloudflare.com/sse" },
   { name: "Astro Docs", url: "https://mcp.docs.astro.build/mcp" },
-  { name: "Context Awesome", url: "https://www.context-awesome.com/api/mcp" },
-  { name: "DeepWiki", url: "https://mcp.deepwiki.com/sse" },
+  { name: "DeepWiki", url: "https://mcp.deepwiki.com/mcp" },
   { name: "Exa Search", url: "https://mcp.exa.ai/mcp" },
   { name: "Hugging Face", url: "https://hf.co/mcp" },
-  { name: "Semgrep", url: "https://mcp.semgrep.ai/sse" },
   { name: "Remote MCP", url: "https://mcp.remote-mcp.com" },
-  { name: "OpenMesh", url: "https://api.openmesh.dev/mcp" },
-  { name: "OpenZeppelin Cairo Contracts", url: "https://mcp.openzeppelin.com/contracts/cairo/mcp" },
-  {
-    name: "OpenZeppelin Solidity Contracts",
-    url: "https://mcp.openzeppelin.com/contracts/solidity/mcp",
-  },
-  {
-    name: "OpenZeppelin Stellar Contracts",
-    url: "https://mcp.openzeppelin.com/contracts/stellar/mcp",
-  },
-  {
-    name: "OpenZeppelin Stylus Contracts",
-    url: "https://mcp.openzeppelin.com/contracts/stylus/mcp",
-  },
-  { name: "LLM Text", url: "https://mcp.llmtxt.dev/sse" },
   { name: "GitMCP", url: "https://gitmcp.io/docs" },
 ] as const;
 

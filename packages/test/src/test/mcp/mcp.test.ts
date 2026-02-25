@@ -5,12 +5,12 @@
  */
 
 import {
-  mcpClientFactory,
   McpListTask,
   McpPromptGetTask,
   McpResourceReadTask,
   McpToolCallTask,
 } from "@workglow/tasks";
+import { mcpClientFactory } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 function fn() {

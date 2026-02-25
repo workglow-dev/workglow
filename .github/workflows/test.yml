@@ -25,5 +25,5 @@ jobs:
         with:
           bun-version: latest
       - run: bun i
-      - run: bun run rebuild
+      - run: bun run build
       - run: bun test

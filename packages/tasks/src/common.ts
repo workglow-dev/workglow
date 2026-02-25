@@ -7,14 +7,6 @@
 // Load adaptive first so Workflow.prototype.add/subtract/multiply/divide/sum are registered
 import "./task/adaptive";
 
-export {
-  createMcpClient,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  mcpTransportTypes,
-  type McpServerConfig,
-  type McpTransportType,
-} from "@workglow/util";
 export * from "./task/ArrayTask";
 export * from "./task/DebugLogTask";
 export * from "./task/DelayTask";

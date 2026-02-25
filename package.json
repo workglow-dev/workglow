@@ -25,7 +25,7 @@
     "test:vitest": "RUN_ALL_TESTS=1 npx vitest --run",
     "changeset": "changeset",
     "version": "changeset version && bun install",
-    "publish-all": "bun ./scripts/bunsrc-workspace.ts dist && bun run rebuild && bun run test && bun run changeset && bun run version && bun run publish-login && bun run publish",
+    "publish-all": "bun ./scripts/bunsrc-workspace.ts dist && bun run build && bun run test && bun run changeset && bun run version && bun run publish-login && bun run publish",
     "publish-login": "npm login",
     "publish": "bun ./scripts/publish-workspaces.ts"
   },

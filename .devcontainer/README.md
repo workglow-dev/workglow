@@ -20,7 +20,7 @@ This project uses a Dev Container configuration for consistent development envir
 
 ## Manual Setup (if needed)
 
-If you need to rebuild:
+If you need to build:
 
 ```bash
 # Clean and reinstall
