@@ -12,6 +12,7 @@ export * from "./json-schema/FromSchema";
 export * from "./json-schema/JsonSchema";
 export * from "./json-schema/SchemaUtils";
 export * from "./json-schema/SchemaValidation";
+export * from "./json-schema/parsePartialJson";
 export * from "./utilities/BaseError";
 export * from "./utilities/Misc";
 export * from "./utilities/objectOfArraysAsArrayOfObjects";

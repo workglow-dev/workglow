@@ -45,6 +45,7 @@ export class GoogleGeminiProvider extends AiProvider<GeminiModelConfig> {
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
+    "StructuredGenerationTask",
   ] as const;
 
   constructor(

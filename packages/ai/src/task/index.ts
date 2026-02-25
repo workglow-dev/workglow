@@ -30,6 +30,7 @@ import { PoseLandmarkerTask } from "./PoseLandmarkerTask";
 import { QueryExpanderTask } from "./QueryExpanderTask";
 import { RerankerTask } from "./RerankerTask";
 import { StructuralParserTask } from "./StructuralParserTask";
+import { StructuredGenerationTask } from "./StructuredGenerationTask";
 import { TextChunkerTask } from "./TextChunkerTask";
 import { TextClassificationTask } from "./TextClassificationTask";
 import { TextEmbeddingTask } from "./TextEmbeddingTask";
@@ -76,6 +77,7 @@ export const registerAiTasks = () => {
     QueryExpanderTask,
     RerankerTask,
     StructuralParserTask,
+    StructuredGenerationTask,
     TextChunkerTask,
     TextClassificationTask,
     TextEmbeddingTask,
@@ -124,6 +126,7 @@ export * from "./PoseLandmarkerTask";
 export * from "./QueryExpanderTask";
 export * from "./RerankerTask";
 export * from "./StructuralParserTask";
+export * from "./StructuredGenerationTask";
 export * from "./TextChunkerTask";
 export * from "./TextClassificationTask";
 export * from "./TextEmbeddingTask";

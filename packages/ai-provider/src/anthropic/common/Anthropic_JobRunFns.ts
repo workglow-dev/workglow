@@ -10,6 +10,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   TextRewriterTaskInput,
@@ -18,6 +20,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { parsePartialJson } from "@workglow/util";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 
 let _sdk: typeof import("@anthropic-ai/sdk") | undefined;
@@ -247,6 +250,97 @@ export const Anthropic_CountTokens_Reactive: AiProviderReactiveRunFn<
 };
 
 // ========================================================================
+// Structured output implementations (object mode)
+// ========================================================================
+
+export const Anthropic_StructuredGeneration: AiProviderRunFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  AnthropicModelConfig
+> = async (input, model, update_progress, signal, outputSchema) => {
+  update_progress(0, "Starting Anthropic structured generation");
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const schema = input.outputSchema ?? outputSchema;
+
+  const response = await client.messages.create(
+    {
+      model: modelName,
+      messages: [{ role: "user", content: input.prompt }],
+      tools: [
+        {
+          name: "structured_output",
+          description: "Output structured data conforming to the schema",
+          input_schema: schema as any,
+        },
+      ],
+      tool_choice: { type: "tool" as const, name: "structured_output" },
+      max_tokens: getMaxTokens(input, model),
+    },
+    { signal }
+  );
+
+  const toolBlock = response.content.find((b: any) => b.type === "tool_use") as any;
+  const object = toolBlock?.input ?? {};
+
+  update_progress(100, "Completed Anthropic structured generation");
+  return { object };
+};
+
+export const Anthropic_StructuredGeneration_Stream: AiProviderStreamFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  AnthropicModelConfig
+> = async function* (
+  input,
+  model,
+  signal,
+  outputSchema
+): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const schema = input.outputSchema ?? outputSchema;
+
+  const stream = client.messages.stream(
+    {
+      model: modelName,
+      messages: [{ role: "user", content: input.prompt }],
+      tools: [
+        {
+          name: "structured_output",
+          description: "Output structured data conforming to the schema",
+          input_schema: schema as any,
+        },
+      ],
+      tool_choice: { type: "tool" as const, name: "structured_output" },
+      max_tokens: getMaxTokens(input, model),
+    },
+    { signal }
+  );
+
+  let accumulatedJson = "";
+  for await (const event of stream) {
+    if (event.type === "content_block_delta" && (event.delta as any).type === "input_json_delta") {
+      accumulatedJson += (event.delta as any).partial_json;
+      const partial = parsePartialJson(accumulatedJson);
+      if (partial !== undefined) {
+        yield { type: "object-delta", port: "object", objectDelta: partial };
+      }
+    }
+  }
+
+  let finalObject: Record<string, unknown>;
+  try {
+    finalObject = JSON.parse(accumulatedJson);
+  } catch {
+    finalObject = parsePartialJson(accumulatedJson) ?? {};
+  }
+  yield { type: "finish", data: { object: finalObject } as StructuredGenerationTaskOutput };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -255,6 +349,7 @@ export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, Anthropic
   TextGenerationTask: Anthropic_TextGeneration,
   TextRewriterTask: Anthropic_TextRewriter,
   TextSummaryTask: Anthropic_TextSummary,
+  StructuredGenerationTask: Anthropic_StructuredGeneration,
 };
 
 export const ANTHROPIC_STREAM_TASKS: Record<
@@ -264,6 +359,7 @@ export const ANTHROPIC_STREAM_TASKS: Record<
   TextGenerationTask: Anthropic_TextGeneration_Stream,
   TextRewriterTask: Anthropic_TextRewriter_Stream,
   TextSummaryTask: Anthropic_TextSummary_Stream,
+  StructuredGenerationTask: Anthropic_StructuredGeneration_Stream,
 };
 
 export const ANTHROPIC_REACTIVE_TASKS: Record<

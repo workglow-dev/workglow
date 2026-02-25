@@ -11,11 +11,12 @@ import type { DataPortSchema, JsonSchema } from "@workglow/util";
  * - `none`: No streaming (default). `execute()` returns `Promise<Output>`.
  * - `append`: Each chunk is a delta (e.g., a new token).
  * - `replace`: Each chunk is a corrected/revised snapshot of the complete output so far.
+ * - `object`: Each chunk is a progressively more complete partial object snapshot.
  *
  * Declared per-port via the `x-stream` schema extension property.
  * Absent `x-stream` = `"none"`.
  */
-export type StreamMode = "none" | "append" | "replace";
+export type StreamMode = "none" | "append" | "replace" | "object";
 
 /**
  * Append mode: delta chunk (consumer accumulates).
@@ -28,14 +29,15 @@ export type StreamTextDelta = {
 };
 
 /**
- * Object delta for future structured/object streaming.
+ * Object delta for structured/object streaming.
  * `port` identifies which output port this delta belongs to.
- * The exact shape of `objectDelta` is TBD (JSON Merge Patch, partial, etc.).
+ * Each `objectDelta` is a progressively more complete partial object snapshot.
+ * Consumers should replace (not merge) their state with the latest delta.
  */
 export type StreamObjectDelta = {
   type: "object-delta";
   port: string;
-  objectDelta: unknown;
+  objectDelta: Record<string, unknown>;
 };
 
 /**
@@ -95,7 +97,7 @@ export function getPortStreamMode(schema: DataPortSchema | JsonSchema, portId: s
   const prop = (schema.properties as Record<string, any>)?.[portId];
   if (!prop || typeof prop === "boolean") return "none";
   const xStream = prop["x-stream"];
-  if (xStream === "append" || xStream === "replace") return xStream;
+  if (xStream === "append" || xStream === "replace" || xStream === "object") return xStream;
   return "none";
 }
 
@@ -116,7 +118,7 @@ export function getStreamingPorts(
   for (const [name, prop] of Object.entries(props)) {
     if (!prop || typeof prop === "boolean") continue;
     const xStream = (prop as any)["x-stream"];
-    if (xStream === "append" || xStream === "replace") {
+    if (xStream === "append" || xStream === "replace" || xStream === "object") {
       result.push({ port: name, mode: xStream });
     }
   }
@@ -203,4 +205,52 @@ export function edgeNeedsAccumulation(
   if (sourceMode === "none") return false;
   const targetMode = getPortStreamMode(targetSchema, targetPort);
   return sourceMode !== targetMode;
+}
+
+/**
+ * Returns the port ID (property name) of the first output port that declares
+ * `x-stream: "object"`, or `undefined` if no such port exists.
+ *
+ * @param schema - The task's output DataPortSchema
+ * @returns The port name with object streaming, or undefined
+ */
+export function getObjectPortId(schema: DataPortSchema): string | undefined {
+  if (typeof schema === "boolean") return undefined;
+  const props = schema.properties;
+  if (!props) return undefined;
+
+  for (const [name, prop] of Object.entries(props)) {
+    if (!prop || typeof prop === "boolean") continue;
+    if ((prop as any)["x-stream"] === "object") return name;
+  }
+  return undefined;
+}
+
+/**
+ * Returns a map of port names to their JSON Schemas for every output port
+ * that declares `"x-structured-output": true`.
+ *
+ * @param schema - The task's output DataPortSchema
+ * @returns Map of port-name → JSON Schema for structured output ports
+ */
+export function getStructuredOutputSchemas(schema: DataPortSchema): Map<string, JsonSchema> {
+  const result = new Map<string, JsonSchema>();
+  if (typeof schema === "boolean") return result;
+  const props = schema.properties;
+  if (!props) return result;
+
+  for (const [name, prop] of Object.entries(props)) {
+    if (!prop || typeof prop === "boolean") continue;
+    if ((prop as any)["x-structured-output"] === true) {
+      result.set(name, prop as JsonSchema);
+    }
+  }
+  return result;
+}
+
+/**
+ * Returns true if the schema has any output port with `"x-structured-output": true`.
+ */
+export function hasStructuredOutput(schema: DataPortSchema): boolean {
+  return getStructuredOutputSchemas(schema).size > 0;
 }

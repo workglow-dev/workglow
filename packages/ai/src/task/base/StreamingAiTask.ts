@@ -25,7 +25,8 @@ import { AiSingleTaskInput, AiTask } from "./AiTask";
  * Extends AiTask to provide streaming output via executeStream().
  *
  * Subclasses set `streamMode` to control streaming behavior:
- * - 'append': each chunk is a delta (e.g., new token). Default for text generation.
+ * - 'append': each chunk is a delta (e.g., a new token). Default for text generation.
+ * - 'object': each chunk is a progressively more complete partial object.
  * - 'replace': each chunk is a revised full snapshot of the output.
  *
  * The standard execute() method is preserved as a fallback that internally
@@ -44,8 +45,8 @@ export class StreamingAiTask<
 
   /**
    * Streaming execution: creates an AiJob and yields StreamEvents from it.
-   * Wraps port-less text-delta events from providers with the port determined
-   * by the task's output schema `x-stream` annotations.
+   * Wraps port-less text-delta and object-delta events from providers with
+   * the port determined by the task's output schema `x-stream` annotations.
    */
   async *executeStream(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>> {
     const jobInput = await this.getJobInput(input);
@@ -57,7 +58,7 @@ export class StreamingAiTask<
       input: jobInput,
     });
 
-    // Resolve the append port(s) from the output schema for wrapping
+    // Resolve the streaming port(s) from the output schema for wrapping
     const ports = getStreamingPorts(this.outputSchema());
     const defaultPort = ports.length > 0 ? ports[0].port : "text";
 
@@ -66,6 +67,8 @@ export class StreamingAiTask<
       updateProgress: context.updateProgress.bind(this),
     })) {
       if (event.type === "text-delta") {
+        yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
+      } else if (event.type === "object-delta") {
         yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
       } else {
         yield event;

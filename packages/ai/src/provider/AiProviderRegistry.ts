@@ -5,12 +5,15 @@
  */
 
 import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
-import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util";
+import { globalServiceRegistry, WORKER_MANAGER, type JsonSchema } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
 import type { AiProvider } from "./AiProvider";
 
 /**
- * Type for the run function for the AiJob
+ * Type for the run function for the AiJob.
+ * The optional `outputSchema` is provided when the task declares structured output
+ * (via `x-structured-output: true`). Providers use it to request schema-conformant
+ * JSON output from the model API.
  */
 export type AiProviderRunFn<
   Input extends TaskInput = TaskInput,
@@ -20,7 +23,8 @@ export type AiProviderRunFn<
   input: Input,
   model: Model | undefined,
   update_progress: (progress: number, message?: string, details?: any) => void,
-  signal: AbortSignal
+  signal: AbortSignal,
+  outputSchema?: JsonSchema
 ) => Promise<Output>;
 
 /**
@@ -38,6 +42,7 @@ export type AiProviderReactiveRunFn<
  * Type for the streaming run function for the AiJob.
  * Returns an AsyncIterable of StreamEvents instead of a Promise.
  * No `update_progress` callback -- for streaming providers, the stream itself IS the progress signal.
+ * The optional `outputSchema` is provided for structured output tasks.
  */
 export type AiProviderStreamFn<
   Input extends TaskInput = TaskInput,
@@ -46,7 +51,8 @@ export type AiProviderStreamFn<
 > = (
   input: Input,
   model: Model | undefined,
-  signal: AbortSignal
+  signal: AbortSignal,
+  outputSchema?: JsonSchema
 ) => AsyncIterable<StreamEvent<Output>>;
 
 /**
@@ -109,13 +115,14 @@ export class AiProviderRegistry {
       input: Input,
       model: ModelConfig | undefined,
       update_progress: (progress: number, message?: string, details?: any) => void,
-      signal?: AbortSignal
+      signal?: AbortSignal,
+      outputSchema?: JsonSchema
     ) => {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
       const result = await workerManager.callWorkerFunction<Output>(
         modelProvider,
         taskType,
-        [input, model],
+        [input, model, outputSchema],
         {
           signal: signal,
           onProgress: update_progress,
@@ -156,13 +163,14 @@ export class AiProviderRegistry {
     const streamFn: AiProviderStreamFn<Input, Output> = async function* (
       input: Input,
       model: ModelConfig | undefined,
-      signal: AbortSignal
+      signal: AbortSignal,
+      outputSchema?: JsonSchema
     ) {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
       yield* workerManager.callWorkerStreamFunction<StreamEvent<Output>>(
         modelProvider,
         taskType,
-        [input, model],
+        [input, model, outputSchema],
         { signal }
       );
     };
