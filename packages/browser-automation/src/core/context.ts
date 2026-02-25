@@ -43,6 +43,27 @@ export interface BrowserSessionConfig {
   };
 }
 
+/**
+ * Returns a copy of the session config with sensitive fields removed.
+ * Safe to embed in workflow context or task outputs.
+ *
+ * Stripped fields:
+ * - `remoteCdp.apiKey` — remote browser service credential
+ * - `playwright.storageState` — serialized auth cookies / session tokens
+ */
+export function sanitizeBrowserSessionConfig(config: BrowserSessionConfig): BrowserSessionConfig {
+  const sanitized: BrowserSessionConfig = { ...config };
+  if (sanitized.remoteCdp) {
+    const { apiKey: _, ...rest } = sanitized.remoteCdp;
+    sanitized.remoteCdp = rest;
+  }
+  if (sanitized.playwright) {
+    const { storageState: _, ...rest } = sanitized.playwright;
+    sanitized.playwright = rest;
+  }
+  return sanitized;
+}
+
 // ========================================================================
 // Browser Session State (serializable, stored in context.__browser.session)
 // ========================================================================

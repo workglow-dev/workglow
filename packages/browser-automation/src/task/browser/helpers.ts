@@ -14,6 +14,7 @@ import type {
 } from "../../core/context";
 import {
   resolveOrCreateBrowserEnvelope,
+  sanitizeBrowserSessionConfig,
   setBrowserLast,
   clearBrowserEnvelope,
 } from "../../core/context";
@@ -78,8 +79,17 @@ export async function prepareBrowserSession(
   const context = normalizeContext(inputContext);
   const envelope = resolveOrCreateBrowserEnvelope(context, inputSession, inputBackend);
   const manager = getBrowserSessionManager(registry);
-  await manager.getOrCreate(envelope.session);
-  return { context, envelope, manager };
+  await manager.getOrCreate(envelope.session); // full config with secrets needed here
+
+  // Strip secrets before the envelope is embedded into context via task outputs
+  const safeEnvelope: BrowserEnvelope = {
+    ...envelope,
+    session: {
+      ...envelope.session,
+      config: sanitizeBrowserSessionConfig(envelope.session.config),
+    },
+  };
+  return { context, envelope: safeEnvelope, manager };
 }
 
 export { resolveOrCreateBrowserEnvelope, setBrowserLast, clearBrowserEnvelope };
