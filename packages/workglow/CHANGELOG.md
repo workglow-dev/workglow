@@ -1,5 +1,22 @@
 # workglow
 
+## 0.0.102
+
+### Patch Changes
+
+- Update types
+- Updated dependencies
+  - @workglow/ai@0.0.102
+  - @workglow/ai-provider@0.0.102
+  - @workglow/dataset@0.0.102
+  - @workglow/debug@0.0.102
+  - @workglow/job-queue@0.0.102
+  - @workglow/sqlite@0.0.102
+  - @workglow/storage@0.0.102
+  - @workglow/task-graph@0.0.102
+  - @workglow/tasks@0.0.102
+  - @workglow/util@0.0.102
+
 ## 0.0.101
 
 ### Patch Changes
