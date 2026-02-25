@@ -436,11 +436,12 @@ export abstract class BaseTabularStorage<
     const valueNames = this.valueColumns();
     const value: Partial<Value> = {};
     const key: Partial<PrimaryKey> = {};
+    const objRecord = obj as Record<string, unknown>;
     for (const k of primaryKeyNames) {
-      key[k as keyof PrimaryKey] = obj[k as unknown as keyof Entity] as any;
+      (key as Record<string, unknown>)[k as string] = objRecord[k as string];
     }
     for (const k of valueNames) {
-      value[k as keyof Value] = obj[k as unknown as keyof Entity] as any;
+      (value as Record<string, unknown>)[k as string] = objRecord[k as string];
     }
 
     return { value: value as Value, key: key as PrimaryKey };

@@ -245,17 +245,16 @@ export abstract class BaseSqlTabularStorage<
     }
 
     if (actualType.contentEncoding === "blob") {
-      const v: any = value;
-      if (v instanceof Uint8Array) {
-        return v;
+      if (value instanceof Uint8Array) {
+        return value;
       }
-      if (typeof Buffer !== "undefined" && v instanceof Buffer) {
-        return new Uint8Array(v);
+      if (typeof Buffer !== "undefined" && value instanceof Buffer) {
+        return new Uint8Array(value);
       }
-      if (Array.isArray(v)) {
-        return new Uint8Array(v);
+      if (Array.isArray(value)) {
+        return new Uint8Array(value);
       }
-      return v;
+      return value as ValueOptionType;
     } else if (value instanceof Date) {
       // Convert all Date objects to ISO string regardless of type definition
       return value.toISOString();
@@ -273,7 +272,7 @@ export abstract class BaseSqlTabularStorage<
 
     // Handle null values
     if (value === null && this.isNullable(typeDef)) {
-      return null as any;
+      return null as Entity[keyof Entity];
     }
 
     // Extract the non-null type for proper handling
@@ -283,14 +282,13 @@ export abstract class BaseSqlTabularStorage<
     }
 
     if (actualType.contentEncoding === "blob") {
-      const v: any = value;
-      if (typeof Buffer !== "undefined" && v instanceof Buffer) {
-        return new Uint8Array(v) as Entity[keyof Entity];
+      if (typeof Buffer !== "undefined" && value instanceof Buffer) {
+        return new Uint8Array(value) as Entity[keyof Entity];
       }
-      if (v instanceof Uint8Array) {
-        return v as Entity[keyof Entity];
+      if (value instanceof Uint8Array) {
+        return value as Entity[keyof Entity];
       }
-      return v as Entity[keyof Entity];
+      return value as Entity[keyof Entity];
     } else {
       return value as Entity[keyof Entity];
     }
