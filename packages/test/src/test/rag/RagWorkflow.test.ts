@@ -34,6 +34,8 @@
  *    - Xenova/all-MiniLM-L6-v2 (Text Embedding - 384D)
  *    - onnx-community/NeuroBERT-NER-ONNX (Named Entity Recognition)
  *    - Xenova/distilbert-base-uncased-distilled-squad (Question Answering)
+ *
+ * Run with: RUN_AI_PROVIDER_TESTS=1 bun test RagWorkflow
  */
 
 import {
@@ -65,7 +67,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 export { FileLoaderTask } from "@workglow/tasks";
 
-describe("RAG Workflow End-to-End", () => {
+const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
   let storage: InMemoryVectorStorage<
     typeof DocumentChunkSchema,
     typeof DocumentChunkPrimaryKey,

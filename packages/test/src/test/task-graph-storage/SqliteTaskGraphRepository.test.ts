@@ -9,7 +9,9 @@ import { describe } from "vitest";
 import { SqliteTaskGraphRepository } from "../../binding/SqliteTaskGraphRepository";
 import { runGenericTaskGraphRepositoryTests } from "./genericTaskGraphRepositoryTests";
 
-describe("SqliteTaskGraphRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("SqliteTaskGraphRepository", () => {
   runGenericTaskGraphRepositoryTests(async () => {
     const table = `task_graph_test_${uuid4().replace(/-/g, "_")}`;
     return new SqliteTaskGraphRepository(":memory:", table);

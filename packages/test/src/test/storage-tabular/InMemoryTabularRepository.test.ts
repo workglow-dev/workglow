@@ -2,6 +2,8 @@
  * @license
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Run with: RUN_STORAGE_TESTS=1 bun test storage-tabular
  */
 
 import { InMemoryTabularStorage } from "@workglow/storage";
@@ -22,7 +24,9 @@ import {
   UuidSchema,
 } from "./genericTabularRepositoryTests";
 
-describe("InMemoryTabularStorage", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("InMemoryTabularStorage", () => {
   runGenericTabularRepositoryTests(
     async () =>
       new InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(

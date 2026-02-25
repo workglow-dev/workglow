@@ -2,6 +2,8 @@
  * @license
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Run with: RUN_AI_PROVIDER_TESTS=1 bun test ZeroShotTasks
  */
 
 import {
@@ -33,7 +35,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 const TEST_IMAGE_BASE64 =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
 
-describe("Zero-Shot Classification Tasks", () => {
+const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_AI_PROVIDER_TESTS)("Zero-Shot Classification Tasks", () => {
   beforeEach(() => {
     setTaskQueueRegistry(null);
     clearPipelineCache();

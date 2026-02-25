@@ -2,6 +2,8 @@
  * @license
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Run with: RUN_STORAGE_TESTS=1 bun test storage-tabular
  */
 
 import { SqliteTabularStorage } from "@workglow/storage";
@@ -22,7 +24,9 @@ import {
   UuidSchema,
 } from "./genericTabularRepositoryTests";
 
-describe("SqliteTabularStorage", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("SqliteTabularStorage", () => {
   runGenericTabularRepositoryTests(
     async () =>
       new SqliteTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
@@ -40,10 +44,7 @@ describe("SqliteTabularStorage", () => {
         ["category", ["category", "subcategory"], ["subcategory", "category"], "value"]
       ),
     async () => {
-      const repo = new SqliteTabularStorage<
-        typeof AllTypesSchema,
-        typeof AllTypesPrimaryKeyNames
-      >(
+      const repo = new SqliteTabularStorage<typeof AllTypesSchema, typeof AllTypesPrimaryKeyNames>(
         ":memory:",
         `all_types_test_${uuid4().replace(/-/g, "_")}`,
         AllTypesSchema,

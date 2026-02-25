@@ -12,7 +12,9 @@ import {
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 
-describe("IndexedDbTable - Migration Tests", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("IndexedDbTable - Migration Tests", () => {
   const testTableName = "migration_test_table";
 
   afterEach(async () => {

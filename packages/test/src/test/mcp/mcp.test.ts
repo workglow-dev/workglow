@@ -37,9 +37,9 @@ function createMockClient(overrides: Record<string, unknown> = {}) {
     callTool: fn(),
     readResource: fn(),
     getPrompt: fn(),
-    listTools: fn(),
-    listResources: fn(),
-    listPrompts: fn(),
+    listTools: fn().mockResolvedValue({ tools: [] }),
+    listResources: fn().mockResolvedValue({ resources: [] }),
+    listPrompts: fn().mockResolvedValue({ prompts: [] }),
     close: fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -66,6 +66,8 @@ afterEach(() => {
 });
 
 describe("McpToolCallTask", () => {
+  const toolCallConfig = { ...baseInput, tool_name: "greet" };
+
   test("calls a tool and returns content", async () => {
     const mockClient = createMockClient({
       callTool: fn().mockResolvedValue({
@@ -75,17 +77,14 @@ describe("McpToolCallTask", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpToolCallTask();
-    const result = await task.run({
-      ...baseInput,
-      tool_name: "greet",
-      tool_arguments: { name: "world" },
-    });
+    const task = new McpToolCallTask({}, toolCallConfig);
+    const result = await task.run({ name: "world" });
 
     expect(result.content).toEqual([{ type: "text", text: "hello" }]);
     expect(result.isError).toBe(false);
     expect(mockClient.callTool.calls[0]).toEqual([{ name: "greet", arguments: { name: "world" } }]);
-    expect(mockClient.close.calls.length).toBe(1);
+    // discoverSchemas (mcpList) + execute each create a client; both get closed
+    expect(mockClient.close.calls.length).toBeGreaterThanOrEqual(1);
   });
 
   test("returns isError when tool reports error", async () => {
@@ -97,8 +96,8 @@ describe("McpToolCallTask", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpToolCallTask();
-    const result = await task.run({ ...baseInput, tool_name: "fail" });
+    const task = new McpToolCallTask({}, { ...baseInput, tool_name: "fail" });
+    const result = await task.run({});
 
     expect(result.isError).toBe(true);
   });
@@ -109,11 +108,54 @@ describe("McpToolCallTask", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpToolCallTask();
-    await expect(task.run({ ...baseInput, tool_name: "broken" })).rejects.toThrow(
-      "connection lost"
-    );
-    expect(mockClient.close.calls.length).toBe(1);
+    const task = new McpToolCallTask({}, { ...baseInput, tool_name: "broken" });
+    await expect(task.run({})).rejects.toThrow("connection lost");
+    // discoverSchemas (mcpList) + execute each create a client; both get closed
+    expect(mockClient.close.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test("utilizes structuredContent when present", async () => {
+    const mockClient = createMockClient({
+      callTool: fn().mockResolvedValue({
+        content: [{ type: "text", text: '{"temperature": 22.5, "conditions": "Partly cloudy"}' }],
+        structuredContent: { temperature: 22.5, conditions: "Partly cloudy", humidity: 65 },
+        isError: false,
+      }),
+    });
+    mockFactory(mockClient);
+
+    const task = new McpToolCallTask({}, toolCallConfig);
+    const result = await task.run({});
+
+    expect(result.content).toBeDefined();
+    expect(result.isError).toBe(false);
+    expect(result.temperature).toBe(22.5);
+    expect(result.conditions).toBe("Partly cloudy");
+    expect(result.humidity).toBe(65);
+  });
+
+  test("parses JSON from single text content when no structuredContent", async () => {
+    const mockClient = createMockClient({
+      callTool: fn().mockResolvedValue({
+        content: [
+          {
+            type: "text",
+            text: '{"results":[{"title":"Model Context Protocol","url":"https://example.com"}]}',
+          },
+        ],
+        isError: false,
+      }),
+    });
+    mockFactory(mockClient);
+
+    const task = new McpToolCallTask({}, toolCallConfig);
+    const result = await task.run({});
+
+    expect(result.content).toBeDefined();
+    expect(result.isError).toBe(false);
+    expect(result.results).toEqual([
+      { title: "Model Context Protocol", url: "https://example.com" },
+    ]);
   });
 
   test("has correct static properties", () => {

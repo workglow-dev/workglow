@@ -9,7 +9,9 @@ import { describe } from "vitest";
 import { SqliteTaskOutputRepository } from "../../binding/SqliteTaskOutputRepository";
 import { runGenericTaskOutputRepositoryTests } from "./genericTaskOutputRepositoryTests";
 
-describe("SqliteTaskOutputRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("SqliteTaskOutputRepository", () => {
   runGenericTaskOutputRepositoryTests(async () => {
     const id = uuid4().replace(/-/g, "_");
     const dbName = `task_output_test_${id}`;

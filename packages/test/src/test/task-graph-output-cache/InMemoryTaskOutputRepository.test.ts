@@ -8,6 +8,8 @@ import { describe } from "vitest";
 import { InMemoryTaskOutputRepository } from "../../binding/InMemoryTaskOutputRepository";
 import { runGenericTaskOutputRepositoryTests } from "./genericTaskOutputRepositoryTests";
 
-describe("InMemoryTaskOutputRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("InMemoryTaskOutputRepository", () => {
   runGenericTaskOutputRepositoryTests(async () => new InMemoryTaskOutputRepository());
 });

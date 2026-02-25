@@ -9,9 +9,10 @@ import { mkdirSync, rmSync } from "fs";
 import { afterEach, beforeEach, describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
 const testDir = ".cache/test/kv-fs-folder";
 
-describe("FsFolderKvStorage", () => {
+describe.skipIf(!RUN_STORAGE_TESTS)("FsFolderKvStorage", () => {
   beforeEach(() => {
     try {
       mkdirSync(testDir, { recursive: true });

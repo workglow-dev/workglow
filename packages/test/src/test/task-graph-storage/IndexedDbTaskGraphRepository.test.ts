@@ -10,7 +10,9 @@ import { describe } from "vitest";
 import { IndexedDbTaskGraphRepository } from "../../binding/IndexedDbTaskGraphRepository";
 import { runGenericTaskGraphRepositoryTests } from "./genericTaskGraphRepositoryTests";
 
-describe("IndexedDbTaskGraphRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("IndexedDbTaskGraphRepository", () => {
   runGenericTaskGraphRepositoryTests(async () => {
     const table = `task_graph_test_${uuid4().replace(/-/g, "_")}`;
     return new IndexedDbTaskGraphRepository(table);

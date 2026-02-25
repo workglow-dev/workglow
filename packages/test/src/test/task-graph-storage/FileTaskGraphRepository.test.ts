@@ -12,7 +12,9 @@ import { TestIOTask } from "../task/TestTasks";
 
 TaskRegistry.registerTask(TestIOTask);
 
-describe("FsFolderTaskGraphRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("FsFolderTaskGraphRepository", () => {
   let repository: FsFolderTaskGraphRepository;
 
   beforeEach(() => {

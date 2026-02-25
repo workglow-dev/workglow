@@ -15,7 +15,9 @@ import { describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
-describe("SupabaseKvStorage", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("SupabaseKvStorage", () => {
   const client = createSupabaseMockClient();
   runGenericKvRepositoryTests(async (keyType, valueType) => {
     const tableName = `supabase_test_${uuid4().replace(/-/g, "_")}`;

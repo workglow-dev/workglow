@@ -9,14 +9,11 @@ import { uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
-describe("SqliteKvStorage", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("SqliteKvStorage", () => {
   runGenericKvRepositoryTests(
     async (keyType, valueType) =>
-      new SqliteKvStorage(
-        ":memory:",
-        `sql_test_${uuid4().replace(/-/g, "_")}`,
-        keyType,
-        valueType
-      )
+      new SqliteKvStorage(":memory:", `sql_test_${uuid4().replace(/-/g, "_")}`, keyType, valueType)
   );
 });

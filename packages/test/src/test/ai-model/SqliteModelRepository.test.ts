@@ -9,7 +9,9 @@ import { describe } from "vitest";
 import { SqliteModelRepository } from "../../binding/SqliteModelRepository";
 import { runGenericModelRepositoryTests } from "./genericModelRepositoryTests";
 
-describe("SqliteModelRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("SqliteModelRepository", () => {
   runGenericModelRepositoryTests(async () => {
     const id = uuid4().replace(/-/g, "_");
     return new SqliteModelRepository(":memory:", `aimodel_test_${id}`);

@@ -9,10 +9,11 @@ import type { DataPortSchemaObject } from "@workglow/util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock fetch globally
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
 const mockFetch = vi.fn();
 const originalFetch = global.fetch;
 
-describe("HuggingFaceTabularStorage", () => {
+describe.skipIf(!RUN_STORAGE_TESTS)("HuggingFaceTabularStorage", () => {
   beforeAll(() => {
     global.fetch = mockFetch as any;
   });

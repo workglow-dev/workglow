@@ -9,7 +9,9 @@ import { rmSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { FsFolderTaskOutputRepository } from "../../binding/FsFolderTaskOutputRepository";
 
-describe("FsFolderTaskOutputRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("FsFolderTaskOutputRepository", () => {
   let repository: FsFolderTaskOutputRepository;
 
   beforeEach(() => {

@@ -18,6 +18,8 @@ async function createPostgresModelRepository() {
   return new PostgresModelRepository(db, `ai_model_test_${id}`);
 }
 
-describe("PostgresModelRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("PostgresModelRepository", () => {
   runGenericModelRepositoryTests(createPostgresModelRepository);
 });

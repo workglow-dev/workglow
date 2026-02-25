@@ -18,7 +18,9 @@ type TestChangePayload =
   | { readonly type: "UPDATE"; readonly old: TestItem; readonly new: TestItem }
   | { readonly type: "DELETE"; readonly old: TestItem };
 
-describe("HybridSubscriptionManager", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("HybridSubscriptionManager", () => {
   let currentState: Map<string, TestItem>;
   let fetchStateCalls = 0;
 

@@ -18,9 +18,10 @@ import {
   SearchSchema,
 } from "./genericTabularRepositoryTests";
 
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
 const testDir = ".cache/test/testing";
 
-describe("FsFolderTabularStorage", () => {
+describe.skipIf(!RUN_STORAGE_TESTS)("FsFolderTabularStorage", () => {
   beforeEach(() => {
     try {
       mkdirSync(testDir, { recursive: true });
@@ -66,15 +67,12 @@ describe("FsFolderTabularStorage", () => {
   describe("search functionality", () => {
     test("should throw error when attempting to search", async () => {
       try {
-        const repo = new FsFolderTabularStorage<
-          typeof SearchSchema,
-          typeof SearchPrimaryKeyNames
-        >(testDir, SearchSchema, SearchPrimaryKeyNames, [
-          "category",
-          ["category", "subcategory"],
-          ["subcategory", "category"],
-          "value",
-        ]);
+        const repo = new FsFolderTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+          testDir,
+          SearchSchema,
+          SearchPrimaryKeyNames,
+          ["category", ["category", "subcategory"], ["subcategory", "category"], "value"]
+        );
       } catch (error) {
         expect(error).toBeDefined();
       }

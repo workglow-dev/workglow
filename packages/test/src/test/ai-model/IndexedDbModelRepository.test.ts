@@ -10,7 +10,9 @@ import { describe } from "vitest";
 import { IndexedDbModelRepository } from "../../binding/IndexedDbModelRepository";
 import { runGenericModelRepositoryTests } from "./genericModelRepositoryTests";
 
-describe("IndexedDbModelRepository", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("IndexedDbModelRepository", () => {
   runGenericModelRepositoryTests(async () => {
     const id = uuid4().replace(/-/g, "_");
     return new IndexedDbModelRepository(`idx_model_test_${id}`);

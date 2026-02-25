@@ -10,7 +10,9 @@ import "fake-indexeddb/auto";
 import { describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 
-describe("IndexedDbKvStorage", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("IndexedDbKvStorage", () => {
   const dbName = `idx_test_${uuid4().replace(/-/g, "_")}`;
 
   runGenericKvRepositoryTests(

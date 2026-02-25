@@ -18,9 +18,10 @@ import {
   SearchSchema,
 } from "./genericTabularRepositoryTests";
 
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
 const client = createSupabaseMockClient();
 
-describe("SupabaseTabularStorage", () => {
+describe.skipIf(!RUN_STORAGE_TESTS)("SupabaseTabularStorage", () => {
   runGenericTabularRepositoryTests(
     async () =>
       new SupabaseTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(

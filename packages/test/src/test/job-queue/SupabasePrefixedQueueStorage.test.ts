@@ -2,6 +2,8 @@
  * @license
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Run with: RUN_QUEUE_TESTS=1 bun test job-queue
  */
 
 import { SupabaseQueueStorage } from "@workglow/storage";
@@ -10,6 +12,7 @@ import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStorageTests";
 import { runGenericQueueStorageSubscriptionTests } from "./genericQueueStorageSubscriptionTests";
 
+const RUN_QUEUE_TESTS = !!process.env.RUN_QUEUE_TESTS || !!process.env.RUN_ALL_TESTS;
 const client = createSupabaseMockClient();
 
 // Extend SupabaseQueueStorage to use polling for tests since mock doesn't support realtime
@@ -20,7 +23,7 @@ class SupabaseQueueStorageWithPolling<Input, Output> extends SupabaseQueueStorag
   }
 }
 
-describe("SupabasePrefixedQueueStorage", () => {
+describe.skipIf(!RUN_QUEUE_TESTS)("SupabasePrefixedQueueStorage", () => {
   runGenericPrefixedQueueStorageTests(
     (queueName: string, options) => new SupabaseQueueStorage(client, queueName, options)
   );

@@ -14,6 +14,7 @@
  *   - Text generation: SmolLM2 135M Instruct Q4_K_M  (~85 MB)
  *   - Embedding:       BGE Small EN v1.5 Q8_0         (~34 MB)
  *
+ * Run with: RUN_AI_PROVIDER_TESTS=1 bun test LlamaCppProviderIntegration
  */
 
 import {
@@ -78,7 +79,9 @@ const embeddingModel: LlamaCppModelRecord = {
 // Suite setup
 // ========================================================================
 
-describe("LlamaCpp Integration (real models, no mocks)", () => {
+const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_AI_PROVIDER_TESTS)("LlamaCpp Integration (real models, no mocks)", () => {
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());

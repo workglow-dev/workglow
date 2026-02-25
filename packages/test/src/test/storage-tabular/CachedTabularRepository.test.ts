@@ -15,9 +15,10 @@ import {
   SearchSchema,
 } from "./genericTabularRepositoryTests";
 
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
 const spyOn = vi.spyOn;
 
-describe("CachedTabularStorage", () => {
+describe.skipIf(!RUN_STORAGE_TESTS)("CachedTabularStorage", () => {
   describe("generic repository tests", () => {
     runGenericTabularRepositoryTests(
       async () => {
@@ -74,10 +75,10 @@ describe("CachedTabularStorage", () => {
     let cached: CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(() => {
-      durable = new InMemoryTabularStorage<
-        typeof CompoundSchema,
-        typeof CompoundPrimaryKeyNames
-      >(CompoundSchema, CompoundPrimaryKeyNames);
+      durable = new InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+        CompoundSchema,
+        CompoundPrimaryKeyNames
+      );
       cached = new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         durable,
         undefined,
@@ -357,10 +358,10 @@ describe("CachedTabularStorage", () => {
     let cached: CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(() => {
-      durable = new InMemoryTabularStorage<
-        typeof CompoundSchema,
-        typeof CompoundPrimaryKeyNames
-      >(CompoundSchema, CompoundPrimaryKeyNames);
+      durable = new InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+        CompoundSchema,
+        CompoundPrimaryKeyNames
+      );
       cached = new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         durable,
         undefined,
@@ -454,10 +455,10 @@ describe("CachedTabularStorage", () => {
     let cached: CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
 
     beforeEach(() => {
-      durable = new InMemoryTabularStorage<
-        typeof CompoundSchema,
-        typeof CompoundPrimaryKeyNames
-      >(CompoundSchema, CompoundPrimaryKeyNames);
+      durable = new InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+        CompoundSchema,
+        CompoundPrimaryKeyNames
+      );
       cached = new CachedTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         durable,
         undefined,

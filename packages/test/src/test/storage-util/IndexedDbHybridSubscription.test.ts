@@ -13,9 +13,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
  * Integration tests for HybridSubscriptionManager with IndexedDB implementations
  * These tests verify that the hybrid subscription mechanism works correctly with
  * actual IndexedDB storage, testing both single-tab and multi-tab scenarios.
+ *
+ * Run with: RUN_STORAGE_TESTS=1 bun test storage-util
  */
 
-describe("IndexedDB Hybrid Subscription Integration", () => {
+const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_STORAGE_TESTS)("IndexedDB Hybrid Subscription Integration", () => {
   describe("IndexedDbTabularStorage with HybridSubscriptionManager", () => {
     const schema = {
       type: "object" as const,

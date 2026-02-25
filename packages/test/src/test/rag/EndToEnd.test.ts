@@ -37,6 +37,8 @@
  *
  * Sample Document:
  *   - history_of_the_united_states.md
+ *
+ * Run with: RUN_AI_PROVIDER_TESTS=1 bun test EndToEnd
  */
 
 import {
@@ -71,7 +73,9 @@ export { FileLoaderTask } from "@workglow/tasks";
 
 import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 
-describe("End-to-End RAG Pipeline", () => {
+const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
   // In CI, skip summary/NER in document enricher to avoid flaky ONNX model downloads
   // (Hugging Face responses often omit Content-Length, leading to incomplete/corrupt files).
   const isCI = !!process.env.CI;

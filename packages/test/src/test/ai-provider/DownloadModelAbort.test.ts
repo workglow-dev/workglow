@@ -2,6 +2,8 @@
  * @license
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Run with: RUN_AI_PROVIDER_TESTS=1 bun test DownloadModelAbort
  */
 
 import {
@@ -19,7 +21,9 @@ import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transfor
 import { getTaskQueueRegistry, setTaskQueueRegistry, TaskStatus } from "@workglow/task-graph";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-describe("DownloadModelTask abort behavior", () => {
+const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
+
+describe.skipIf(!RUN_AI_PROVIDER_TESTS)("DownloadModelTask abort behavior", () => {
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
