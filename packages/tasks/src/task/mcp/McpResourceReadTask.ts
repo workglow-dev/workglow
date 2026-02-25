@@ -29,6 +29,7 @@ const configSchema = {
       type: "string",
       title: "Resource URI",
       description: "The URI of the resource to read",
+      format: "string:uri:mcp-resourceuri",
     },
   },
   required: ["transport", "resource_uri"],

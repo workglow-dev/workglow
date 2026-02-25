@@ -206,11 +206,11 @@ export class McpPromptGetTask extends Task<
   }
 
   public override inputSchema(): DataPortSchema {
-    return (this.config.inputSchema as DataPortSchema) ?? fallbackInputSchema;
+    return this.config?.inputSchema ?? fallbackInputSchema;
   }
 
   public override outputSchema(): DataPortSchema {
-    return (this.config.outputSchema as DataPortSchema) ?? fallbackOutputSchema;
+    return this.config?.outputSchema ?? fallbackOutputSchema;
   }
 
   private _schemasDiscovering = false;

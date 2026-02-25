@@ -10,10 +10,26 @@
  * transports. Failures indicate connectivity or compatibility issues.
  */
 
-import { McpListTask } from "@workglow/tasks";
+import {
+  McpListTask,
+  McpPromptGetTask,
+  McpResourceReadTask,
+  McpToolCallTask,
+  type McpListTaskOutput,
+  type McpPromptGetTaskConfig,
+  type McpPromptGetTaskOutput,
+  type McpResourceReadTaskConfig,
+  type McpResourceReadTaskOutput,
+  type McpToolCallTaskConfig,
+} from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
 
 const RUN_INTEGRATION = !!process.env.RUN_MCP_INTEGRATION_TESTS || !!process.env.RUN_ALL_TESTS;
+
+/** Assert task run result to expected output type (workaround for generic inference in test.each) */
+function asListOutput<T>(v: unknown): T {
+  return v as T;
+}
 
 /** Derive transport from URL: /sse path → sse, otherwise → streamable-http */
 function transportForUrl(url: string): "sse" | "streamable-http" {
@@ -31,17 +47,59 @@ const MCP_SERVERS = [
   { name: "GitMCP", url: "https://gitmcp.io/docs" },
 ] as const;
 
+/** Build minimal input from tool inputSchema for integration test calls */
+function buildMinimalInput(inputSchema: {
+  properties?: Record<string, unknown>;
+  required?: string[];
+}): Record<string, unknown> {
+  const input: Record<string, unknown> = {};
+  const props = inputSchema?.properties ?? {};
+  const required = inputSchema?.required ?? [];
+  for (const key of required) {
+    const prop = props[key] as { type?: string; default?: unknown } | undefined;
+    if (prop?.default !== undefined) {
+      input[key] = prop.default;
+    } else if (prop?.type === "string") {
+      input[key] = "test";
+    } else if (prop?.type === "number" || prop?.type === "integer") {
+      input[key] = 0;
+    } else if (prop?.type === "boolean") {
+      input[key] = false;
+    } else if (prop?.type === "array") {
+      input[key] = [];
+    } else if (prop?.type === "object") {
+      input[key] = {};
+    } else {
+      input[key] = "test";
+    }
+  }
+  return input;
+}
+
+/** Build minimal prompt arguments from prompt.arguments for integration test calls */
+function buildMinimalPromptArgs(
+  args?: Array<{ name: string; description?: string; required?: boolean }>
+): Record<string, string> {
+  const input: Record<string, string> = {};
+  const list = args ?? [];
+  for (const arg of list) {
+    input[arg.name] = "test";
+  }
+  return input;
+}
+
 describe.skipIf(!RUN_INTEGRATION)("MCP servers integration", () => {
   test.concurrent.each(MCP_SERVERS)(
     "$name lists tools",
     async ({ name, url }) => {
-      const task = new McpListTask();
-      const result = await task.run({
-        transport: transportForUrl(url),
-        server_url: url,
-        list_type: "tools",
-      });
-
+      const listTask = new McpListTask();
+      const result: McpListTaskOutput = asListOutput<McpListTaskOutput>(
+        await listTask.run({
+          transport: transportForUrl(url),
+          server_url: url,
+          list_type: "tools",
+        })
+      );
       expect(result, `${name} should return tools`).toHaveProperty("tools");
       const tools = result.tools ?? [];
       expect(Array.isArray(tools), `${name} tools should be array`).toBe(true);
@@ -49,6 +107,30 @@ describe.skipIf(!RUN_INTEGRATION)("MCP servers integration", () => {
         tools.length,
         `${name} should expose at least one tool (got ${tools.length})`
       ).toBeGreaterThanOrEqual(0);
+
+      if (tools.length > 0) {
+        const first = tools[0] as {
+          name: string;
+          description?: string;
+          inputSchema: { properties?: Record<string, unknown>; required?: string[] };
+          outputSchema?: Record<string, unknown>;
+        };
+        const toolCallConfig = {
+          transport: transportForUrl(url),
+          server_url: url,
+          tool_name: first.name,
+        } as McpToolCallTaskConfig;
+        const toolCallTask = new McpToolCallTask({}, toolCallConfig);
+        const toolInput = buildMinimalInput(first.inputSchema ?? {});
+        const toolResult = await toolCallTask.run(toolInput);
+
+        expect(toolResult, `${name} tool ${first.name} should return content`).toHaveProperty(
+          "content"
+        );
+        expect(Array.isArray(toolResult.content), `${name} tool content should be array`).toBe(
+          true
+        );
+      }
     },
     20000
   );
@@ -56,15 +138,44 @@ describe.skipIf(!RUN_INTEGRATION)("MCP servers integration", () => {
   test.concurrent.each(MCP_SERVERS)(
     "$name lists resources",
     async ({ name, url }) => {
-      const task = new McpListTask();
+      const listTask = new McpListTask();
       try {
-        const result = await task.run({
-          transport: transportForUrl(url),
-          server_url: url,
-          list_type: "resources",
-        });
+        const result = asListOutput<McpListTaskOutput>(
+          await listTask.run({
+            transport: transportForUrl(url),
+            server_url: url,
+            list_type: "resources",
+          })
+        ) as McpListTaskOutput;
         expect(result, `${name} should return resources`).toHaveProperty("resources");
         expect(Array.isArray(result.resources), `${name} resources should be array`).toBe(true);
+        const resources = result.resources ?? [];
+        if (resources.length > 0) {
+          const first = resources[0] as {
+            uri: string;
+            name: string;
+            description?: string;
+            mimeType?: string;
+          };
+          const resourceReadConfig = {
+            transport: transportForUrl(url),
+            server_url: url,
+            resource_uri: first.uri,
+          } as McpResourceReadTaskConfig;
+          const resourceReadTask = new McpResourceReadTask({}, resourceReadConfig);
+          const readResult = asListOutput<McpResourceReadTaskOutput>(
+            await resourceReadTask.run({})
+          ) as McpResourceReadTaskOutput;
+
+          expect(
+            readResult,
+            `${name} resource ${first.name} should return contents`
+          ).toHaveProperty("contents");
+          expect(
+            Array.isArray(readResult.contents),
+            `${name} resource contents should be array`
+          ).toBe(true);
+        }
       } catch (err) {
         // Method not found (-32601) means server doesn't support resources
         const msg = err instanceof Error ? err.message : String(err);
@@ -81,15 +192,53 @@ describe.skipIf(!RUN_INTEGRATION)("MCP servers integration", () => {
   test.concurrent.each(MCP_SERVERS)(
     "$name lists prompts",
     async ({ name, url }) => {
-      const task = new McpListTask();
+      const listTask = new McpListTask();
       try {
-        const result = await task.run({
-          transport: transportForUrl(url),
-          server_url: url,
-          list_type: "prompts",
-        });
+        const result = asListOutput<McpListTaskOutput>(
+          await listTask.run({
+            transport: transportForUrl(url),
+            server_url: url,
+            list_type: "prompts",
+          })
+        ) as McpListTaskOutput;
         expect(result, `${name} should return prompts`).toHaveProperty("prompts");
         expect(Array.isArray(result.prompts), `${name} prompts should be array`).toBe(true);
+        const prompts = result.prompts ?? [];
+        if (prompts.length > 0) {
+          const first = prompts[0] as {
+            name: string;
+            description?: string;
+            arguments?: Array<{ name: string; description?: string; required?: boolean }>;
+          };
+          const promptGetConfig = {
+            transport: transportForUrl(url),
+            server_url: url,
+            prompt_name: first.name,
+          } as McpPromptGetTaskConfig;
+          const promptGetTask = new McpPromptGetTask({}, promptGetConfig);
+          const promptArgs = buildMinimalPromptArgs(first.arguments);
+          try {
+            const promptResult = asListOutput<McpPromptGetTaskOutput>(
+              await promptGetTask.run(promptArgs)
+            ) as McpPromptGetTaskOutput;
+            expect(
+              promptResult,
+              `${name} prompt ${first.name} should return messages`
+            ).toHaveProperty("messages");
+            expect(
+              Array.isArray(promptResult.messages),
+              `${name} prompt messages should be array`
+            ).toBe(true);
+          } catch (promptErr) {
+            // Some prompts require args not fully described in list (e.g. Hugging Face User Summary)
+            const msg = promptErr instanceof Error ? promptErr.message : String(promptErr);
+            if (msg.includes("-32602") || msg.includes("Invalid arguments")) {
+              expect(true).toBe(true);
+              return;
+            }
+            throw promptErr;
+          }
+        }
       } catch (err) {
         // Method not found (-32601) means server doesn't support prompts
         const msg = err instanceof Error ? err.message : String(err);

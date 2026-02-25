@@ -174,8 +174,8 @@ describe("McpResourceReadTask", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpResourceReadTask();
-    const result = await task.run({ ...baseInput, resource_uri: "file:///test.txt" });
+    const task = new McpResourceReadTask({}, { ...baseInput, resource_uri: "file:///test.txt" });
+    const result = await task.run({});
 
     expect(result.contents).toEqual([{ uri: "file:///test.txt", text: "file contents" }]);
     expect(mockClient.readResource.calls[0]).toEqual([{ uri: "file:///test.txt" }]);
@@ -199,12 +199,19 @@ describe("McpPromptGetTask", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpPromptGetTask();
-    const result = await task.run({
-      ...baseInput,
-      prompt_name: "greeting",
-      prompt_arguments: { lang: "en" },
-    });
+    const task = new McpPromptGetTask(
+      {},
+      {
+        ...baseInput,
+        prompt_name: "greeting",
+        inputSchema: {
+          type: "object",
+          properties: { lang: { type: "string" } },
+          additionalProperties: false,
+        },
+      }
+    );
+    const result = await task.run({ lang: "en" });
 
     expect(result.messages).toEqual([{ role: "user", content: { type: "text", text: "Hello" } }]);
     expect(result.description).toBe("A greeting prompt");
