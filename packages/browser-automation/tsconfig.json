@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.json",
+	"include": ["src/**/*"],
+	"exclude": ["dist", "src/__tests__", "src/backend/electron"],
+	"compilerOptions": {
+		"composite": true,
+		"outDir": "./dist",
+		"baseUrl": "./src",
+		"rootDir": "./src"
+	}
+}

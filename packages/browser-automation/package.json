@@ -1,0 +1,58 @@
+{
+  "name": "@workglow/browser-automation",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Browser automation tasks for Workglow DAG pipelines, with pluggable Playwright/Electron/Remote CDP backends.",
+  "scripts": {
+    "watch": "concurrently -c 'auto' 'bun:watch-*'",
+    "watch-node": "bun build --splitting --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
+    "watch-bun": "bun build --splitting --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
+    "watch-types": "tsc --watch --preserveWatchOutput",
+    "build-package": "bun run build-clean && concurrently -c 'auto' -n 'node,bun,types' 'bun run build-node' 'bun run build-bun' 'bun run build-types'",
+    "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
+    "build-node": "bun build --splitting --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
+    "build-bun": "bun build --splitting --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
+    "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
+    "test": "bun test",
+    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+  },
+  "exports": {
+    ".": {
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./src/core.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src/**/*.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@workglow/task-graph": "workspace:*",
+    "@workglow/util": "workspace:*",
+    "playwright": ">=1.40.0"
+  },
+  "peerDependenciesMeta": {
+    "@workglow/task-graph": {
+      "optional": false
+    },
+    "@workglow/util": {
+      "optional": false
+    },
+    "playwright": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@workglow/task-graph": "workspace:*",
+    "@workglow/util": "workspace:*",
+    "playwright": "^1.50.0"
+  }
+}
