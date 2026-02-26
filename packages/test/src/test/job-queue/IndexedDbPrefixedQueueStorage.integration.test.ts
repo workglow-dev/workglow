@@ -4,18 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryQueueStorage } from "@workglow/storage";
+import { IndexedDbQueueStorage } from "@workglow/storage";
+import "fake-indexeddb/auto";
 import { describe } from "vitest";
 import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStorageTests";
 import { runGenericQueueStorageSubscriptionTests } from "./genericQueueStorageSubscriptionTests";
 
-describe("InMemoryPrefixedQueueStorage", () => {
+describe("IndexedDbPrefixedQueueStorage", () => {
   runGenericPrefixedQueueStorageTests(
-    (queueName: string, options) => new InMemoryQueueStorage(queueName, options)
+    (queueName: string, options) => new IndexedDbQueueStorage(queueName, options)
   );
 
   runGenericQueueStorageSubscriptionTests(
-    (queueName: string, options) => new InMemoryQueueStorage(queueName, options),
-    { usesPolling: false, sharesStateAcrossInstances: false }
+    (queueName: string, options) => new IndexedDbQueueStorage(queueName, options),
+    { usesPolling: true, pollingIntervalMs: 1 }
   );
 });
