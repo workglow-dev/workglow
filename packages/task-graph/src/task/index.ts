@@ -6,6 +6,8 @@
 
 export * from "./ConditionalTask";
 export * from "./ConditionUtils";
+export * from "./FallbackTask";
+export * from "./FallbackTaskRunner";
 export * from "./GraphAsTask";
 export * from "./GraphAsTaskRunner";
 export * from "./InputResolver";
@@ -29,6 +31,7 @@ export * from "./WhileTask";
 export * from "./WhileTaskRunner";
 
 import { ConditionalTask } from "./ConditionalTask";
+import { FallbackTask } from "./FallbackTask";
 import { GraphAsTask } from "./GraphAsTask";
 import { MapTask } from "./MapTask";
 import { ReduceTask } from "./ReduceTask";
@@ -36,7 +39,7 @@ import { TaskRegistry } from "./TaskRegistry";
 import { WhileTask } from "./WhileTask";
 
 export const registerBaseTasks = () => {
-  const tasks = [GraphAsTask, ConditionalTask, MapTask, WhileTask, ReduceTask];
+  const tasks = [GraphAsTask, ConditionalTask, FallbackTask, MapTask, WhileTask, ReduceTask];
   tasks.map(TaskRegistry.registerTask);
   return tasks;
 };
