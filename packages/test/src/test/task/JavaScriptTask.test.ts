@@ -336,7 +336,7 @@ describe("JavaScriptTask", () => {
       }
     );
     await task.run();
-    expect(task.id()).toBe("test-metadata");
+    expect(task.id).toBe("test-metadata");
   });
 
   test("static properties are correct", () => {

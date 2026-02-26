@@ -113,9 +113,12 @@ export class GraphAsTask<
   // ========================================================================
 
   /**
-   * Override inputSchema to compute it dynamically from the subgraph at runtime
-   * The input schema is the union of all unconnected inputs from starting nodes
-   * (nodes with zero incoming connections)
+   * Override inputSchema to compute it dynamically from the subgraph at runtime.
+   * For root tasks (no incoming edges) all input properties are collected.
+   * For non-root tasks, only REQUIRED properties that are not satisfied by
+   * any internal dataflow are added — this ensures that required inputs are
+   * included in the graph's input schema without pulling in every optional
+   * downstream property.
    */
   public inputSchema(): DataPortSchema {
     // If there's no subgraph or it has no children, fall back to the static schema
@@ -131,10 +134,10 @@ export class GraphAsTask<
 
     // Identify starting nodes: tasks with no incoming dataflows
     const startingNodes = tasks.filter(
-      (task) => this.subGraph.getSourceDataflows(task.config.id).length === 0
+      (task) => this.subGraph.getSourceDataflows(task.id).length === 0
     );
 
-    // For starting nodes only, collect their unconnected inputs
+    // Collect all properties from root tasks (original behavior)
     for (const task of startingNodes) {
       const taskInputSchema = task.inputSchema();
       if (typeof taskInputSchema === "boolean") {
@@ -163,6 +166,43 @@ export class GraphAsTask<
       }
     }
 
+    // For non-root tasks, collect only REQUIRED properties not satisfied by dataflows.
+    // This handles cases like: map().fetch().structuralParser() where structuralParser
+    // requires "title" but fetch doesn't output it — title must come from the map input.
+    const sourceIds = new Set(startingNodes.map((t) => t.id));
+    for (const task of tasks) {
+      if (sourceIds.has(task.id)) continue;
+
+      const taskInputSchema = task.inputSchema();
+      if (typeof taskInputSchema === "boolean") continue;
+
+      const requiredKeys = new Set<string>(
+        (taskInputSchema.required as string[] | undefined) || []
+      );
+      if (requiredKeys.size === 0) continue;
+
+      const connectedPorts = new Set(
+        this.subGraph.getSourceDataflows(task.id).map((df) => df.targetTaskPortId)
+      );
+
+      for (const key of requiredKeys) {
+        // Skip if already connected via dataflow or already collected from a root task
+        if (connectedPorts.has(key)) continue;
+        if (properties[key]) continue;
+
+        // Skip if the task already has a default value for this property
+        if (task.defaults && task.defaults[key] !== undefined) continue;
+
+        const prop = (taskInputSchema.properties || {})[key];
+        if (!prop || typeof prop === "boolean") continue;
+
+        properties[key] = prop;
+        if (!required.includes(key)) {
+          required.push(key);
+        }
+      }
+    }
+
     return {
       type: "object",
       properties,
@@ -175,18 +215,18 @@ export class GraphAsTask<
   /**
    * Gets the compiled input schema
    */
-  protected override getInputSchemaNode(type: TaskTypeName): SchemaNode {
+  protected override getInputSchemaNode(): SchemaNode {
     // every graph as task is different, so we need to compile the schema for each one
     if (!this._inputSchemaNode) {
-      const dataPortSchema = this.inputSchema();
-      const schemaNode = Task.generateInputSchemaNode(dataPortSchema);
       try {
+        const dataPortSchema = this.inputSchema();
+        const schemaNode = Task.generateInputSchemaNode(dataPortSchema);
         this._inputSchemaNode = schemaNode;
       } catch (error) {
         // If compilation fails, fall back to accepting any object structure
         // This is a safety net for schemas that json-schema-library can't compile
         console.warn(
-          `Failed to compile input schema for ${type}, falling back to permissive validation:`,
+          `Failed to compile input schema for ${this.type}, falling back to permissive validation:`,
           error
         );
         this._inputSchemaNode = compileSchema({});
@@ -205,20 +245,20 @@ export class GraphAsTask<
 
     // Initialize all depths to 0
     for (const task of tasks) {
-      depths.set(task.config.id, 0);
+      depths.set(task.id, 0);
     }
 
     // Use topological sort to calculate depths in order
     const sortedTasks = this.subGraph.topologicallySortedNodes();
 
     for (const task of sortedTasks) {
-      const currentDepth = depths.get(task.config.id) || 0;
-      const targetTasks = this.subGraph.getTargetTasks(task.config.id);
+      const currentDepth = depths.get(task.id) || 0;
+      const targetTasks = this.subGraph.getTargetTasks(task.id);
 
       // Update depths of all target tasks
       for (const targetTask of targetTasks) {
-        const targetDepth = depths.get(targetTask.config.id) || 0;
-        depths.set(targetTask.config.id, Math.max(targetDepth, currentDepth + 1));
+        const targetDepth = depths.get(targetTask.id) || 0;
+        depths.set(targetTask.id, Math.max(targetDepth, currentDepth + 1));
       }
     }
 
@@ -241,17 +281,17 @@ export class GraphAsTask<
     // Find all ending nodes (nodes with no outgoing dataflows)
     const tasks = this.subGraph.getTasks();
     const endingNodes = tasks.filter(
-      (task) => this.subGraph.getTargetDataflows(task.config.id).length === 0
+      (task) => this.subGraph.getTargetDataflows(task.id).length === 0
     );
 
     // Calculate depths for all nodes
     const depths = this.calculateNodeDepths();
 
     // Find the maximum depth among ending nodes
-    const maxDepth = Math.max(...endingNodes.map((task) => depths.get(task.config.id) || 0));
+    const maxDepth = Math.max(...endingNodes.map((task) => depths.get(task.id) || 0));
 
     // Filter ending nodes to only those at the maximum depth (last level)
-    const lastLevelNodes = endingNodes.filter((task) => depths.get(task.config.id) === maxDepth);
+    const lastLevelNodes = endingNodes.filter((task) => depths.get(task.id) === maxDepth);
 
     // ONLY handle PROPERTY_ARRAY strategy
     // Count how many ending nodes produce each property
@@ -352,8 +392,8 @@ export class GraphAsTask<
       const endingNodeIds = new Set<unknown>();
       const tasks = this.subGraph.getTasks();
       for (const task of tasks) {
-        if (this.subGraph.getTargetDataflows(task.config.id).length === 0) {
-          endingNodeIds.add(task.config.id);
+        if (this.subGraph.getTargetDataflows(task.id).length === 0) {
+          endingNodeIds.add(task.id);
         }
       }
 

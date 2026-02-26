@@ -19,4 +19,6 @@ export * from "./queue/SupabaseQueueStorage";
 export * from "./queue-limiter/IndexedDbRateLimiterStorage";
 export * from "./queue-limiter/SupabaseRateLimiterStorage";
 
+export * from "./vector/IndexedDbVectorStorage";
+
 export * from "./util/IndexedDbTable";

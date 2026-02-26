@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util";
+import { getLogger, type DataPortSchema } from "@workglow/util";
 import { evaluateCondition, getNestedValue, type UIConditionConfig } from "./ConditionUtils";
 import type { IExecuteContext } from "./ITask";
 import { Task } from "./Task";
@@ -333,7 +333,7 @@ export class ConditionalTask<
         }
       } catch (error) {
         // If condition throws, treat it as false (branch not taken)
-        console.warn(`Condition evaluation failed for branch "${branch.id}":`, error);
+        getLogger().warn(`Condition evaluation failed for branch "${branch.id}":`, { error });
       }
     }
 

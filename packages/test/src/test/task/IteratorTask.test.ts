@@ -663,10 +663,10 @@ describe("Workflow Integration - Template Graph Access", () => {
 
     // Tasks should have auto-generated UUID IDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    expect(templateTasks[0].config.id).toMatch(uuidRegex);
-    expect(templateTasks[1].config.id).toMatch(uuidRegex);
+    expect(templateTasks[0].id).toMatch(uuidRegex);
+    expect(templateTasks[1].id).toMatch(uuidRegex);
     // IDs should be unique
-    expect(templateTasks[0].config.id).not.toBe(templateTasks[1].config.id);
+    expect(templateTasks[0].id).not.toBe(templateTasks[1].id);
   });
 
   test("template graph dataflows should be created between tasks with matching ports", () => {

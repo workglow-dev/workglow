@@ -5,8 +5,8 @@
  */
 
 import { ITask, ITaskGraph } from "@workglow/task-graph";
-import React, { useEffect, useState } from "react";
 import { Box } from "ink";
+import React, { useEffect, useState } from "react";
 import { TaskUI } from "./TaskUI";
 
 type TaskGraphUIProps = {
@@ -14,7 +14,7 @@ type TaskGraphUIProps = {
 };
 
 function findRootTasks(graph: ITaskGraph): ITask[] {
-  return graph.getTasks().filter((task) => graph.getSourceTasks(task.config.id).length === 0);
+  return graph.getTasks().filter((task) => graph.getSourceTasks(task.id).length === 0);
 }
 
 const TaskGraphUI: React.FC<TaskGraphUIProps> = ({ graph }) => {
@@ -49,7 +49,7 @@ const TaskGraphUI: React.FC<TaskGraphUIProps> = ({ graph }) => {
       key={status}
     >
       {filteredTasks.map((taskItem) => (
-        <TaskUI key={`${taskItem.config.id}`} graph={graph} task={taskItem} />
+        <TaskUI key={`${taskItem.id}`} graph={graph} task={taskItem} />
       ))}
     </Box>
   );

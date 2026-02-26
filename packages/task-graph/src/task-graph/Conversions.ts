@@ -126,7 +126,7 @@ export function connect(
   target: ITask<any, any, any>,
   workflow: IWorkflow<any, any>
 ): void {
-  workflow.graph.addDataflow(new Dataflow(source.config.id, "*", target.config.id, "*"));
+  workflow.graph.addDataflow(new Dataflow(source.id, "*", target.id, "*"));
 }
 
 export function pipe<A extends DataPorts, B extends DataPorts>(

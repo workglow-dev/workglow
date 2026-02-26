@@ -500,7 +500,11 @@ export abstract class IteratorTask<
 
   /**
    * Derives the schema accepted by each iteration of the inner workflow.
-   * This uses root task inputs and does not require an InputTask node.
+   * For root tasks (no incoming edges) all input properties are collected.
+   * For non-root tasks, only REQUIRED properties that are not satisfied by
+   * any internal dataflow are added — this ensures that required inputs are
+   * included in the iterator's input schema without pulling in every optional
+   * downstream property.
    */
   protected getInnerInputSchema(): DataPortSchema | undefined {
     if (!this.hasChildren()) return undefined;
@@ -509,7 +513,7 @@ export abstract class IteratorTask<
     if (tasks.length === 0) return undefined;
 
     const startingNodes = tasks.filter(
-      (task) => this.subGraph.getSourceDataflows(task.config.id).length === 0
+      (task) => this.subGraph.getSourceDataflows(task.id).length === 0
     );
     const sources = startingNodes.length > 0 ? startingNodes : tasks;
 
@@ -517,6 +521,7 @@ export abstract class IteratorTask<
     const required: string[] = [];
     let additionalProperties = false;
 
+    // Collect all properties from root tasks (original behavior)
     for (const task of sources) {
       const inputSchema = task.inputSchema();
       if (typeof inputSchema === "boolean") {
@@ -536,6 +541,42 @@ export abstract class IteratorTask<
       }
 
       for (const key of inputSchema.required || []) {
+        if (!required.includes(key)) {
+          required.push(key);
+        }
+      }
+    }
+
+    // For non-root tasks, collect only REQUIRED properties not satisfied by dataflows.
+    // This handles cases like: map().fetch().structuralParser() where structuralParser
+    // requires "title" but fetch doesn't output it — title must come from the map input.
+    const sourceIds = new Set(sources.map((t) => t.id));
+    for (const task of tasks) {
+      if (sourceIds.has(task.id)) continue;
+
+      const inputSchema = task.inputSchema();
+      if (typeof inputSchema === "boolean") continue;
+
+      const requiredKeys = new Set<string>((inputSchema.required as string[] | undefined) || []);
+      if (requiredKeys.size === 0) continue;
+
+      const connectedPorts = new Set(
+        this.subGraph.getSourceDataflows(task.id).map((df) => df.targetTaskPortId)
+      );
+
+      for (const key of requiredKeys) {
+        // Skip if already connected via dataflow or already collected from a root task
+        if (connectedPorts.has(key)) continue;
+        if (properties[key]) continue;
+
+        // Skip if the task already has a default value for this property
+        // (e.g., .textEmbedding({ model }) stores model in task.defaults)
+        if (task.defaults && task.defaults[key] !== undefined) continue;
+
+        const prop = (inputSchema.properties || {})[key];
+        if (!prop || typeof prop === "boolean") continue;
+
+        properties[key] = prop as DataPortSchema;
         if (!required.includes(key)) {
           required.push(key);
         }
@@ -745,7 +786,7 @@ export abstract class IteratorTask<
 
     const endingNodes = this.subGraph
       .getTasks()
-      .filter((task) => this.subGraph.getTargetDataflows(task.config.id).length === 0);
+      .filter((task) => this.subGraph.getTargetDataflows(task.id).length === 0);
 
     if (endingNodes.length === 0) {
       return { type: "object", properties: {}, additionalProperties: false };

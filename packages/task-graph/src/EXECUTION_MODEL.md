@@ -271,7 +271,7 @@ mergeExecuteOutputsToRunOutput()
 In `runGraphReactive()`:
 
 ```typescript
-const isRootTask = this.graph.getSourceDataflows(task.config.id).length === 0;
+const isRootTask = this.graph.getSourceDataflows(task.id).length === 0;
 
 // For root tasks, pass the input parameter (from parent GraphAsTask)
 const taskInput = isRootTask ? input : {};

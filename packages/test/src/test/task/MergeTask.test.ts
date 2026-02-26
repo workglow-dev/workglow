@@ -155,7 +155,7 @@ describe("MergeTask", () => {
       }
     );
     await task.run();
-    expect(task.id()).toBe("test-metadata");
+    expect(task.id).toBe("test-metadata");
     expect(task.config.title).toBe("Test Merge Task");
   });
 

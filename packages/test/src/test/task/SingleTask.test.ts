@@ -348,14 +348,14 @@ describe("SingleTask", () => {
 
         const task = new Task(input, config);
 
-        expect(task.config.id).toBe("test-id");
+        expect(task.id).toBe("test-id");
         expect(task.config.title).toBe("Test Task");
         expect(task.defaults).toEqual({ testKey: "testValue" });
       });
 
       it("should generate an ID if not provided", () => {
         const task = new Task();
-        expect(task.config.id).toBeDefined();
+        expect(task.id).toBeDefined();
       });
     });
   });

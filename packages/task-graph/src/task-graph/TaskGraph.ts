@@ -57,7 +57,7 @@ class TaskGraphDAG extends DirectedAcyclicGraph<
 > {
   constructor() {
     super(
-      (task: ITask<any, any, any>) => task.config.id,
+      (task: ITask<any, any, any>) => task.id,
       (dataflow: Dataflow) => dataflow.id
     );
   }
@@ -407,7 +407,7 @@ export class TaskGraph implements ITaskGraph {
     const tasks = this.getTasks();
     tasks.forEach((task) => {
       const unsub = task.subscribe("status", (status) => {
-        callback(task.config.id, status);
+        callback(task.id, status);
       });
       unsubscribes.push(unsub);
     });
@@ -417,7 +417,7 @@ export class TaskGraph implements ITaskGraph {
       if (!task || typeof task.subscribe !== "function") return;
 
       const unsub = task.subscribe("status", (status) => {
-        callback(task.config.id, status);
+        callback(task.id, status);
       });
       unsubscribes.push(unsub);
     };
@@ -449,7 +449,7 @@ export class TaskGraph implements ITaskGraph {
     const tasks = this.getTasks();
     tasks.forEach((task) => {
       const unsub = task.subscribe("progress", (progress, message, ...args) => {
-        callback(task.config.id, progress, message, ...args);
+        callback(task.id, progress, message, ...args);
       });
       unsubscribes.push(unsub);
     });
@@ -459,7 +459,7 @@ export class TaskGraph implements ITaskGraph {
       if (!task || typeof task.subscribe !== "function") return;
 
       const unsub = task.subscribe("progress", (progress, message, ...args) => {
-        callback(task.config.id, progress, message, ...args);
+        callback(task.id, progress, message, ...args);
       });
       unsubscribes.push(unsub);
     };
@@ -644,7 +644,7 @@ function serialGraphEdges(
 ): Dataflow[] {
   const edges: Dataflow[] = [];
   for (let i = 0; i < tasks.length - 1; i++) {
-    edges.push(new Dataflow(tasks[i].config.id, inputHandle, tasks[i + 1].config.id, outputHandle));
+    edges.push(new Dataflow(tasks[i].id, inputHandle, tasks[i + 1].id, outputHandle));
   }
   return edges;
 }

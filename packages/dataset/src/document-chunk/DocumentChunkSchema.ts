@@ -18,7 +18,8 @@ export const DocumentChunkSchema = {
     vector: TypedArraySchema(),
     metadata: { type: "object", format: "metadata", additionalProperties: true },
   },
-  additionalProperties: true,
+  required: ["chunk_id", "doc_id", "vector", "metadata"],
+  additionalProperties: false,
 } as const satisfies DataPortSchemaObject;
 export type DocumentChunkSchema = typeof DocumentChunkSchema;
 
