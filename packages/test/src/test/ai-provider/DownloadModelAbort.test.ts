@@ -20,19 +20,27 @@ import {
 } from "@workglow/ai-provider";
 import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry, setTaskQueueRegistry, TaskStatus } from "@workglow/task-graph";
+import { setLogger } from "@workglow/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
 
 describe.skipIf(!RUN_AI_PROVIDER_TESTS)("DownloadModelTask abort behavior", () => {
   const logger = getTestingLogger();
+  setLogger(logger);
 
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+    try {
+      await unloadModel({
+        model: "onnx:Supabase/gte-small:q8",
+      });
+    } catch {}
   });
 
   afterAll(async () => {
@@ -126,8 +134,5 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("DownloadModelTask abort behavior", () =
       // Allow for some in-flight events (up to 20), but not minutes of continued downloading
       expect(progressAfterAbort).toBeLessThan(20);
     }
-    await unloadModel({
-      model: "onnx:Supabase/gte-small:q8",
-    });
   }, 30000);
 });

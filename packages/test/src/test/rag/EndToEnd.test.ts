@@ -67,6 +67,7 @@ import {
 } from "@workglow/dataset";
 import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
+import { setLogger } from "@workglow/util";
 import { join } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 export { FileLoaderTask } from "@workglow/tasks";
@@ -108,6 +109,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
   >;
   let documentDataset: DocumentDataset;
   const logger = getTestingLogger();
+  setLogger(logger);
 
   beforeAll(async () => {
     // Setup task queue and model repository

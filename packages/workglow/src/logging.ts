@@ -27,6 +27,14 @@ export class TsLogLogger implements ILogger {
     }
   }
 
+  warn(message: string, meta?: Record<string, unknown>): void {
+    if (meta) {
+      this.logger.warn(message, meta);
+    } else {
+      this.logger.warn(message);
+    }
+  }
+
   error(message: string, meta?: Record<string, unknown>): void {
     if (meta) {
       this.logger.error(message, meta);

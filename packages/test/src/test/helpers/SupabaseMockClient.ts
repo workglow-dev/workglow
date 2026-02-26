@@ -6,6 +6,7 @@
 
 import { PGlite } from "@electric-sql/pglite";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { setLogger } from "@workglow/util";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -16,6 +17,7 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 export function createSupabaseMockClient(): SupabaseClient {
   const pglite = new PGlite();
   const logger = getTestingLogger();
+  setLogger(logger);
 
   // Create a minimal SupabaseClient-compatible object
   const mockClient = {

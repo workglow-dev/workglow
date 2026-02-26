@@ -27,6 +27,15 @@ export class ConsoleLogger implements ILogger {
     }
   }
 
+  warn(message: string, meta?: Record<string, unknown>): void {
+    const merged = this.merge(meta);
+    if (merged) {
+      console.warn(message, merged);
+    } else {
+      console.warn(message);
+    }
+  }
+
   error(message: string, meta?: Record<string, unknown>): void {
     const merged = this.merge(meta);
     if (merged) {

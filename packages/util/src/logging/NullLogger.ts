@@ -13,6 +13,7 @@ import type { ILogger } from "./ILogger";
 export class NullLogger implements ILogger {
   info(_message: string, _meta?: Record<string, unknown>): void {}
   error(_message: string, _meta?: Record<string, unknown>): void {}
+  warn(_message: string, _meta?: Record<string, unknown>): void {}
   debug(_message: string, _meta?: Record<string, unknown>): void {}
   fatal(_err: Error, _message: string, _meta?: Record<string, unknown>): void {}
   child(_bindings: Record<string, unknown>): ILogger {

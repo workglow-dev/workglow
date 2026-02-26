@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EventEmitter, JsonSchema, uuid4, type EventParameters } from "@workglow/util";
+import { EventEmitter, getLogger, JsonSchema, uuid4, type EventParameters } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
@@ -330,7 +330,7 @@ export class Workflow<
             (taskSchema === true && dataflow.targetTaskPortId !== DATAFLOW_ALL_PORTS)
           ) {
             this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.config.id}`;
-            console.error(this._error);
+            getLogger().error(this._error);
             return;
           }
 
@@ -363,10 +363,10 @@ export class Workflow<
           // In normal mode, remove the task since auto-connect is required
           if (this.isLoopBuilder) {
             this._error = result.error;
-            console.warn(this._error);
+            getLogger().warn(this._error);
           } else {
             this._error = result.error + " Task not added.";
-            console.error(this._error);
+            getLogger().error(this._error);
             this.graph.removeTask(task.config.id);
           }
         }
@@ -507,7 +507,7 @@ export class Workflow<
 
     if (nodes.length === 0) {
       this._error = "No tasks to remove";
-      console.error(this._error);
+      getLogger().error(this._error);
       return this;
     }
 
@@ -665,14 +665,14 @@ export class Workflow<
       if (outputSchema === false && source !== DATAFLOW_ALL_PORTS) {
         const errorMsg = `Task ${lastNode.config.id} has schema 'false' and outputs nothing`;
         this._error = errorMsg;
-        console.error(this._error);
+        getLogger().error(this._error);
         throw new WorkflowError(errorMsg);
       }
       // If outputSchema is true, we skip validation as it outputs everything
     } else if (!(outputSchema.properties as any)?.[source] && source !== DATAFLOW_ALL_PORTS) {
       const errorMsg = `Output ${source} not found on task ${lastNode.config.id}`;
       this._error = errorMsg;
-      console.error(this._error);
+      getLogger().error(this._error);
       throw new WorkflowError(errorMsg);
     }
 

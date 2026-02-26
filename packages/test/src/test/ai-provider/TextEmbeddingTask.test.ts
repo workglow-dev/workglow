@@ -21,6 +21,7 @@ import {
 import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
+import { setLogger } from "@workglow/util";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -29,6 +30,8 @@ const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.e
 
 describe.skipIf(!RUN_AI_PROVIDER_TESTS)("TextEmbeddingTask with real models", () => {
   const logger = getTestingLogger();
+  setLogger(logger);
+
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());

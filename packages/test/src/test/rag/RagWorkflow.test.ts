@@ -61,12 +61,14 @@ import {
 } from "@workglow/dataset";
 import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
+import { setLogger } from "@workglow/util";
 import { readdirSync } from "fs";
 import { join } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+export { FileLoaderTask } from "@workglow/tasks";
+
 import { getTestingLogger } from "../../binding/TestingLogger";
 import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
-export { FileLoaderTask } from "@workglow/tasks";
 
 const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
 
@@ -87,6 +89,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
   const qaModel = "onnx:onnx-community/ModernBERT-finetuned-squad-ONNX";
 
   const logger = getTestingLogger();
+  setLogger(logger);
 
   beforeAll(async () => {
     // Setup task queue and model repository
