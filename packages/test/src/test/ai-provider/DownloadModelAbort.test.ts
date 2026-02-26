@@ -11,6 +11,7 @@ import {
   getGlobalModelRepository,
   InMemoryModelRepository,
   setGlobalModelRepository,
+  unloadModel,
 } from "@workglow/ai";
 import {
   HF_TRANSFORMERS_ONNX,
@@ -122,5 +123,8 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("DownloadModelTask abort behavior", () =
       // Allow for some in-flight events (up to 20), but not minutes of continued downloading
       expect(progressAfterAbort).toBeLessThan(20);
     }
+    await unloadModel({
+      model: "onnx:Supabase/gte-small:q8",
+    });
   }, 30000);
 });
