@@ -23,9 +23,12 @@ import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transfor
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { getTestingLogger } from "../../binding/TestingLogger";
+
 const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
 
 describe.skipIf(!RUN_AI_PROVIDER_TESTS)("TextEmbeddingTask with real models", () => {
+  const logger = getTestingLogger();
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
@@ -67,7 +70,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("TextEmbeddingTask with real models", ()
       let lastProgress = -1;
       download.on("progress", (progress, message, details) => {
         if (progress !== lastProgress) {
-          console.log(
+          logger.info(
             `Overall: ${progress}% | File: ${details?.file || "?"} @ ${(details?.progress || 0).toFixed(1)}%`
           );
           lastProgress = progress;

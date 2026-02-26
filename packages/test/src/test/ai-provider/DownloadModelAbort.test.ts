@@ -21,10 +21,13 @@ import {
 import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry, setTaskQueueRegistry, TaskStatus } from "@workglow/task-graph";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
 
 describe.skipIf(!RUN_AI_PROVIDER_TESTS)("DownloadModelTask abort behavior", () => {
+  const logger = getTestingLogger();
+
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
@@ -90,7 +93,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("DownloadModelTask abort behavior", () =
       // If we get here, check if it was because the download was too fast
       // (model already cached or very small)
       if (!firstProgressSeen || progressCount < 5) {
-        console.log("Note: Download completed too quickly to abort (likely cached)");
+        logger.info("Note: Download completed too quickly to abort (likely cached)");
         expect(download.status).toBe(TaskStatus.COMPLETED);
       } else {
         // If we saw significant progress but still completed, that's unexpected
@@ -114,9 +117,9 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("DownloadModelTask abort behavior", () =
 
       // Progress events after abort should be minimal (maybe a few in-flight ones)
       // If progressAfterAbort is high (e.g., > 20), it means the download continued
-      console.log(`Total progress events: ${progressCount}`);
-      console.log(`Progress before abort: ${progressCount - progressAfterAbort}`);
-      console.log(`Progress after abort: ${progressAfterAbort}`);
+      logger.info(`Total progress events: ${progressCount}`);
+      logger.info(`Progress before abort: ${progressCount - progressAfterAbort}`);
+      logger.info(`Progress after abort: ${progressAfterAbort}`);
 
       // This is the key assertion - if progress continued significantly after abort,
       // it means the underlying downloads weren't stopped

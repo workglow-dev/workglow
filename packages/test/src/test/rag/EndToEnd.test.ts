@@ -71,6 +71,7 @@ import { join } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 export { FileLoaderTask } from "@workglow/tasks";
 
+import { getTestingLogger } from "../../binding/TestingLogger";
 import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 
 const RUN_AI_PROVIDER_TESTS = !!process.env.RUN_AI_PROVIDER_TESTS || !!process.env.RUN_ALL_TESTS;
@@ -106,6 +107,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     typeof DocumentStorageKey
   >;
   let documentDataset: DocumentDataset;
+  const logger = getTestingLogger();
 
   beforeAll(async () => {
     // Setup task queue and model repository
@@ -148,8 +150,8 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     // Get the path to the sample file
     const sampleFilePath = join(__dirname, sampleFileName);
 
-    console.log(`\n=== Stage 1: Document Ingestion ===`);
-    console.log(`Processing: ${sampleFileName}`);
+    logger.info(`\n=== Stage 1: Document Ingestion ===`);
+    logger.info(`Processing: ${sampleFileName}`);
 
     // Complete ingestion workflow as a single chain:
     // fileLoader → structuralParser → documentEnricher → hierarchicalChunker
@@ -204,16 +206,16 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(result.chunk_ids).toBeDefined();
     expect(result.chunk_ids.length).toBe(result.count);
 
-    console.log(`  → Document ID: ${result.doc_id}`);
-    console.log(`  → Stored ${result.count} vectors`);
-    console.log(`  → Chunk IDs: ${result.chunk_ids.slice(0, 3).join(", ")}...`);
+    logger.info(`  → Document ID: ${result.doc_id}`);
+    logger.info(`  → Stored ${result.count} vectors`);
+    logger.info(`  → Chunk IDs: ${result.chunk_ids.slice(0, 3).join(", ")}...`);
   }, 60000); // 1 minute timeout for model download and processing
 
   it("should retrieve relevant chunks via query workflow", async () => {
     const query = "What caused the Civil War?";
 
-    console.log(`\n=== Stage 2: Query Retrieval ===`);
-    console.log(`Query: "${query}"`);
+    logger.info(`\n=== Stage 2: Query Retrieval ===`);
+    logger.info(`Query: "${query}"`);
 
     // Working retrieval workflow: chunkRetrieval → reranker → contextBuilder
     // Note: QueryExpander cannot auto-connect to ChunkRetrieval (queries vs query).
@@ -254,10 +256,10 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(result.chunksUsed).toBeLessThanOrEqual(5);
     expect(result.totalLength).toBe(result.context.length);
 
-    console.log(`  → Built context from ${result.chunksUsed} chunks`);
-    console.log(`  → Total context length: ${result.totalLength} characters`);
-    console.log(`  → Context preview (first 300 chars):`);
-    console.log(`       ${result.context.substring(0, 300)}...`);
+    logger.info(`  → Built context from ${result.chunksUsed} chunks`);
+    logger.info(`  → Total context length: ${result.totalLength} characters`);
+    logger.info(`  → Context preview (first 300 chars):`);
+    logger.info(`       ${result.context.substring(0, 300)}...`);
 
     // Verify the context contains Civil War content
     const contextLower = result.context.toLowerCase();
@@ -291,12 +293,12 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
       },
     ];
 
-    console.log(`\n=== Quality Verification ===`);
+    logger.info(`\n=== Quality Verification ===`);
 
     let totalQueriesWithResults = 0;
 
     for (const { query, expectedTerms } of questions) {
-      console.log(`\nQuery: "${query}"`);
+      logger.info(`\nQuery: "${query}"`);
 
       // Simple retrieval for each question
       const workflow = new Workflow().chunkRetrieval({
@@ -312,18 +314,18 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
       expect(result.chunks).toBeDefined();
 
       if (result.chunks.length === 0) {
-        console.log(`  → No chunks found`);
+        logger.info(`  → No chunks found`);
         continue;
       }
 
-      console.log(`  → Found ${result.chunks.length} chunks`);
-      console.log(`  → First chunk preview: ${result.chunks[0].substring(0, 100)}...`);
+      logger.info(`  → Found ${result.chunks.length} chunks`);
+      logger.info(`  → First chunk preview: ${result.chunks[0].substring(0, 100)}...`);
 
       // Check if relevant content was retrieved
       const allChunksText = result.chunks.join(" ").toLowerCase();
       const foundTerms = expectedTerms.filter((term) => allChunksText.includes(term.toLowerCase()));
 
-      console.log(`  → Matched terms: ${foundTerms.join(", ") || "none"}`);
+      logger.info(`  → Matched terms: ${foundTerms.join(", ") || "none"}`);
 
       if (foundTerms.length > 0) {
         totalQueriesWithResults++;
@@ -338,8 +340,8 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
   it("should use QueryExpander to generate query variations", async () => {
     const query = "What were the major battles of World War II?";
 
-    console.log(`\n=== QueryExpander RAG Task ===`);
-    console.log(`Original query: "${query}"`);
+    logger.info(`\n=== QueryExpander RAG Task ===`);
+    logger.info(`Original query: "${query}"`);
 
     // Use QueryExpander to generate multiple query variations
     // This improves retrieval coverage by searching with different phrasings
@@ -364,15 +366,15 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(expanderResult.method).toBe("paraphrase");
     expect(expanderResult.count).toBe(expanderResult.queries.length);
 
-    console.log(`  → Generated ${expanderResult.count} query variations:`);
+    logger.info(`  → Generated ${expanderResult.count} query variations:`);
     for (const q of expanderResult.queries) {
-      console.log(`     - "${q}"`);
+      logger.info(`     - "${q}"`);
     }
 
     // Now use the expanded queries to retrieve chunks
     // Since QueryExpander outputs `queries` array but ChunkRetrieval expects `query`,
     // we need to manually connect them (known gap in workflow auto-connect)
-    console.log(`\n  → Retrieving chunks for each query variation:`);
+    logger.info(`\n  → Retrieving chunks for each query variation:`);
     let totalChunksFound = 0;
 
     for (const expandedQuery of expanderResult.queries.slice(0, 2)) {
@@ -393,18 +395,18 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
 
       const result = (await retrievalWorkflow.run()) as RerankerTaskOutput;
       totalChunksFound += result.count;
-      console.log(`     Query: "${expandedQuery.substring(0, 50)}..." → ${result.count} chunks`);
+      logger.info(`     Query: "${expandedQuery.substring(0, 50)}..." → ${result.count} chunks`);
     }
 
     expect(totalChunksFound).toBeGreaterThan(0);
-    console.log(`  → Total chunks retrieved across variations: ${totalChunksFound}`);
+    logger.info(`  → Total chunks retrieved across variations: ${totalChunksFound}`);
   }, 180000); // 3 minute timeout
 
   it("should use ContextBuilder with different formats", async () => {
     const query = "What was the Declaration of Independence?";
 
-    console.log(`\n=== ContextBuilder Format Options ===`);
-    console.log(`Query: "${query}"`);
+    logger.info(`\n=== ContextBuilder Format Options ===`);
+    logger.info(`Query: "${query}"`);
 
     // First, retrieve chunks
     const retrievalWorkflow = new Workflow().chunkRetrieval({
@@ -418,7 +420,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     const retrievalResult = (await retrievalWorkflow.run()) as ChunkRetrievalTaskOutput;
     expect(retrievalResult.chunks.length).toBeGreaterThan(0);
 
-    console.log(`  → Retrieved ${retrievalResult.count} chunks`);
+    logger.info(`  → Retrieved ${retrievalResult.count} chunks`);
 
     // Test different ContextBuilder formats
     const formats = ["simple", "numbered", "xml", "markdown"] as const;
@@ -439,10 +441,10 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
       expect(contextResult.context).toBeDefined();
       expect(contextResult.chunksUsed).toBeGreaterThan(0);
 
-      console.log(`\n  → Format: ${format}`);
-      console.log(`     Chunks used: ${contextResult.chunksUsed}`);
-      console.log(`     Total length: ${contextResult.totalLength} chars`);
-      console.log(
+      logger.info(`\n  → Format: ${format}`);
+      logger.info(`     Chunks used: ${contextResult.chunksUsed}`);
+      logger.info(`     Total length: ${contextResult.totalLength} chars`);
+      logger.info(
         `     Preview: ${contextResult.context.substring(0, 150).replace(/\n/g, "\\n")}...`
       );
     }
@@ -451,8 +453,8 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
   it("should use ChunkVectorHybridSearchTask for combined vector + text search", async () => {
     const query = "Civil War slavery abolition Lincoln";
 
-    console.log(`\n=== ChunkVectorHybridSearchTask ===`);
-    console.log(`Query: "${query}"`);
+    logger.info(`\n=== ChunkVectorHybridSearchTask ===`);
+    logger.info(`Query: "${query}"`);
 
     // First, compute the query vector using TextEmbedding
     // HybridSearch requires both a pre-computed vector and text query
@@ -465,7 +467,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(embeddingResult.vector).toBeDefined();
 
     const queryVector = embeddingResult.vector as Float32Array;
-    console.log(`  → Computed query vector (${queryVector.length} dimensions)`);
+    logger.info(`  → Computed query vector (${queryVector.length} dimensions)`);
 
     // Now use hybrid search combining vector similarity with text matching
     const hybridWorkflow = new Workflow().hybridSearch({
@@ -491,8 +493,8 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(result.scores).toBeDefined();
     expect(result.count).toBe(result.chunks.length);
 
-    console.log(`  → Hybrid search found ${result.count} chunks`);
-    console.log(
+    logger.info(`  → Hybrid search found ${result.count} chunks`);
+    logger.info(
       `  → Top scores: ${result.scores
         .slice(0, 3)
         .map((s) => s.toFixed(3))
@@ -504,20 +506,20 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     const relevantTerms = ["civil", "war", "slavery", "lincoln", "union", "emancipation"];
     const foundTerms = relevantTerms.filter((term) => allChunksText.includes(term));
 
-    console.log(`  → Matched terms: ${foundTerms.join(", ")}`);
+    logger.info(`  → Matched terms: ${foundTerms.join(", ")}`);
     expect(foundTerms.length).toBeGreaterThan(0);
 
     // Show first chunk preview
     if (result.chunks.length > 0) {
-      console.log(`  → First chunk: ${result.chunks[0].substring(0, 150)}...`);
+      logger.info(`  → First chunk: ${result.chunks[0].substring(0, 150)}...`);
     }
   }, 120000); // 2 minute timeout
 
   it("should use HierarchyJoinTask to enrich results with document context", async () => {
     const query = "American Revolution independence";
 
-    console.log(`\n=== HierarchyJoinTask ===`);
-    console.log(`Query: "${query}"`);
+    logger.info(`\n=== HierarchyJoinTask ===`);
+    logger.info(`Query: "${query}"`);
 
     // First, retrieve chunks with metadata
     const hierarchyWorkflow = new Workflow()
@@ -546,27 +548,27 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(result.scores).toBeDefined();
     expect(result.count).toBe(result.chunks.length);
 
-    console.log(`  → HierarchyJoin processed ${result.count} chunks`);
+    logger.info(`  → HierarchyJoin processed ${result.count} chunks`);
 
     // Check if metadata was enriched (may have parentSummaries, sectionTitles, entities)
     for (let i = 0; i < Math.min(result.metadata.length, 2); i++) {
       const meta = result.metadata[i] as Record<string, unknown>;
-      console.log(`  → Chunk ${i + 1} metadata keys: ${Object.keys(meta).join(", ")}`);
+      logger.info(`  → Chunk ${i + 1} metadata keys: ${Object.keys(meta).join(", ")}`);
 
       if (meta.parentSummaries) {
-        console.log(`     - Has ${(meta.parentSummaries as string[]).length} parent summaries`);
+        logger.info(`     - Has ${(meta.parentSummaries as string[]).length} parent summaries`);
       }
       if (meta.sectionTitles) {
-        console.log(`     - Section titles: ${(meta.sectionTitles as string[]).join(" > ")}`);
+        logger.info(`     - Section titles: ${(meta.sectionTitles as string[]).join(" > ")}`);
       }
       if (meta.entities) {
-        console.log(`     - Has ${(meta.entities as unknown[]).length} entities`);
+        logger.info(`     - Has ${(meta.entities as unknown[]).length} entities`);
       }
     }
   }, 120000); // 2 minute timeout
 
   it("should demonstrate workflow composability", async () => {
-    console.log(`\n=== Workflow Composability Test ===`);
+    logger.info(`\n=== Workflow Composability Test ===`);
 
     // Test that we can build and verify workflows without running them
     const ingestionWorkflow = new Workflow()
@@ -591,14 +593,14 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(taskTypes).toContain("ChunkToVectorTask");
     expect(taskTypes).toContain("ChunkVectorUpsertTask");
 
-    console.log(`  → Ingestion workflow has ${tasks.length} tasks`);
-    console.log(`  → Task chain: ${taskTypes.join(" → ")}`);
+    logger.info(`  → Ingestion workflow has ${tasks.length} tasks`);
+    logger.info(`  → Task chain: ${taskTypes.join(" → ")}`);
 
     // Verify dataflows were created
     const dataflows = ingestionWorkflow.graph.getDataflows();
     expect(dataflows.length).toBeGreaterThan(0);
 
-    console.log(`  → Created ${dataflows.length} dataflows between tasks`);
+    logger.info(`  → Created ${dataflows.length} dataflows between tasks`);
 
     // Test full retrieval workflow chaining 4 RAG tasks in a single workflow:
     // ChunkRetrieval → HierarchyJoin → Reranker → ContextBuilder
@@ -620,13 +622,13 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(retrievalTaskTypes).toContain("RerankerTask");
     expect(retrievalTaskTypes).toContain("ContextBuilderTask");
 
-    console.log(`  → Retrieval workflow chains ${retrievalTasks.length} RAG tasks`);
-    console.log(`  → Task chain: ${retrievalTaskTypes.join(" → ")}`);
+    logger.info(`  → Retrieval workflow chains ${retrievalTasks.length} RAG tasks`);
+    logger.info(`  → Task chain: ${retrievalTaskTypes.join(" → ")}`);
 
     // Verify dataflows between RAG tasks
     const retrievalDataflows = retrievalWorkflow.graph.getDataflows();
     expect(retrievalDataflows.length).toBeGreaterThan(0);
-    console.log(`  → Created ${retrievalDataflows.length} dataflows between RAG tasks`);
+    logger.info(`  → Created ${retrievalDataflows.length} dataflows between RAG tasks`);
 
     // Test HybridSearch → Reranker → ContextBuilder chain
     // This shows an alternative retrieval path using hybrid search
@@ -650,8 +652,8 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(hybridTaskTypes).toContain("RerankerTask");
     expect(hybridTaskTypes).toContain("ContextBuilderTask");
 
-    console.log(`  → Hybrid retrieval workflow chains ${hybridTasks.length} tasks`);
-    console.log(`  → Task chain: ${hybridTaskTypes.join(" → ")}`);
+    logger.info(`  → Hybrid retrieval workflow chains ${hybridTasks.length} tasks`);
+    logger.info(`  → Task chain: ${hybridTaskTypes.join(" → ")}`);
 
     // Demonstrate QueryExpander standalone - it outputs `queries` array
     // ChunkRetrieval expects `query`, so they can't auto-connect (known gap)
@@ -667,6 +669,6 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("End-to-End RAG Pipeline", () => {
     expect(queryExpandTasks.length).toBe(1);
     expect(queryExpandTasks[0].type).toBe("QueryExpanderTask");
 
-    console.log(`  → QueryExpander verified (outputs 'queries' array for manual iteration)`);
+    logger.info(`  → QueryExpander verified (outputs 'queries' array for manual iteration)`);
   });
 });

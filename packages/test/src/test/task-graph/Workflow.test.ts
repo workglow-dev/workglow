@@ -15,7 +15,7 @@ import {
   WorkflowError,
 } from "@workglow/task-graph";
 import { ScalarAddTask, VectorSubtractTask, VectorSumTask } from "@workglow/tasks";
-import { sleep } from "@workglow/util";
+import { getLogger, NullLogger, setLogger, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   NumberTask,
@@ -30,19 +30,19 @@ import "../task/TestTasks";
 
 const spyOn = vi.spyOn;
 
-const colsoleError = globalThis.console.error;
-
 describe("Workflow", () => {
   let workflow: Workflow;
+  let savedLogger: ReturnType<typeof getLogger>;
 
   beforeEach(() => {
     workflow = new Workflow();
-    globalThis.console.error = () => {};
+    savedLogger = getLogger();
+    setLogger(new NullLogger());
   });
 
   afterEach(() => {
     workflow.reset();
-    globalThis.console.error = colsoleError;
+    setLogger(savedLogger);
   });
 
   describe("constructor", () => {

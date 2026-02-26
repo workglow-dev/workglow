@@ -64,6 +64,7 @@ import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/
 import { readdirSync } from "fs";
 import { join } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 export { FileLoaderTask } from "@workglow/tasks";
 
@@ -84,6 +85,8 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
   const qaModel = "onnx:onnx-community/ModernBERT-finetuned-squad-ONNX";
+
+  const logger = getTestingLogger();
 
   beforeAll(async () => {
     // Setup task queue and model repository
@@ -124,13 +127,13 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
     const docsPath = join(process.cwd(), "docs", "background");
     const files = readdirSync(docsPath).filter((f) => f.endsWith(".md"));
 
-    console.log(`Found ${files.length} markdown files to process`);
+    logger.info(`Found ${files.length} markdown files to process`);
 
     let totalVectors = 0;
 
     for (const file of files) {
       const filePath = join(docsPath, file);
-      console.log(`Processing: ${file}`);
+      logger.info(`Processing: ${file}`);
 
       const ingestionWorkflow = new Workflow();
 
@@ -161,19 +164,19 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
 
       const result = (await ingestionWorkflow.run()) as VectorStoreUpsertTaskOutput;
 
-      console.log(`  → Stored ${result.count} vectors`);
+      logger.info(`  → Stored ${result.count} vectors`);
       totalVectors += result.count;
     }
 
     // Verify vectors were stored
     expect(totalVectors).toBeGreaterThan(0);
-    console.log(`Total vectors in repository: ${totalVectors}`);
+    logger.info(`Total vectors in repository: ${totalVectors}`);
   }, 360000); // 3 minute timeout for model downloads
 
   it("should search for relevant content", async () => {
     const query = "What is retrieval augmented generation?";
 
-    console.log(`\nSearching for: "${query}"`);
+    logger.info(`\nSearching for: "${query}"`);
 
     // Create search workflow
     const searchWorkflow = new Workflow();
@@ -196,11 +199,11 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
     expect(searchResult.scores).toBeDefined();
     expect(searchResult.scores!.length).toBe(searchResult.chunks.length);
 
-    console.log(`Found ${searchResult.chunks.length} relevant chunks:`);
+    logger.info(`Found ${searchResult.chunks.length} relevant chunks:`);
     for (let i = 0; i < searchResult.chunks.length; i++) {
       const chunk = searchResult.chunks[i];
       const score = searchResult.scores![i];
-      console.log(`  ${i + 1}. Score: ${score.toFixed(3)} - ${chunk.substring(0, 80)}...`);
+      logger.info(`  ${i + 1}. Score: ${score.toFixed(3)} - ${chunk.substring(0, 80)}...`);
     }
 
     // Verify scores are in descending order
@@ -212,7 +215,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
   it("should answer questions using retrieved context", async () => {
     const question = "What is RAG?";
 
-    console.log(`\nAnswering question: "${question}"`);
+    logger.info(`\nAnswering question: "${question}"`);
 
     const retrievalResult = await chunkRetrieval({
       dataset: vectorRepoName,
@@ -225,16 +228,16 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
     expect(retrievalResult.chunks).toBeDefined();
 
     if (retrievalResult.chunks.length === 0) {
-      console.log("No relevant chunks found, skipping QA");
+      logger.info("No relevant chunks found, skipping QA");
       return; // Skip QA if no relevant context found
     }
 
-    console.log(`Retrieved ${retrievalResult.chunks.length} context chunks`);
+    logger.info(`Retrieved ${retrievalResult.chunks.length} context chunks`);
 
     // Step 2: Build context from retrieved chunks
     const context = retrievalResult.chunks.join("\n\n");
 
-    console.log(`Context length: ${context.length} characters`);
+    logger.info(`Context length: ${context.length} characters`);
 
     const answer = await textQuestionAnswer({
       context,
@@ -246,14 +249,14 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
     expect(answer.text).toBeDefined();
     expect(typeof answer.text).toBe("string");
     if (answer.text.length > 0) {
-      console.log(`\nAnswer: ${answer.text}`);
+      logger.info(`\nAnswer: ${answer.text}`);
     }
   }, 60000); // 1 minute timeout
 
   it("should handle complex multi-step RAG pipeline", async () => {
     const question = "How does vector search work?";
 
-    console.log(`\nComplex RAG pipeline for: "${question}"`);
+    logger.info(`\nComplex RAG pipeline for: "${question}"`);
 
     // Step 1: Retrieve context
     const retrievalWorkflow = new Workflow();
@@ -268,7 +271,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
     const retrievalResult = (await retrievalWorkflow.run()) as ChunkRetrievalTaskOutput;
 
     if (retrievalResult.chunks.length === 0) {
-      console.log("No chunks found, skipping QA step");
+      logger.info("No chunks found, skipping QA step");
       return;
     }
 
@@ -286,7 +289,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("RAG Workflow End-to-End", () => {
     expect(result.text).toBeDefined();
     expect(typeof result.text).toBe("string");
     if (result.text.length > 0) {
-      console.log(`Answer: ${result.text}`);
+      logger.info(`Answer: ${result.text}`);
     }
   }, 60000); // 1 minute timeout
 });

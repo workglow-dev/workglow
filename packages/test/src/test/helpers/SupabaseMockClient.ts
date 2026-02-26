@@ -7,12 +7,15 @@
 import { PGlite } from "@electric-sql/pglite";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { getTestingLogger } from "../../binding/TestingLogger";
+
 /**
  * Creates a mock Supabase client for testing that uses PGlite as the backend.
  * This provides a real PostgreSQL database for testing without needing a Supabase instance.
  */
 export function createSupabaseMockClient(): SupabaseClient {
   const pglite = new PGlite();
+  const logger = getTestingLogger();
 
   // Create a minimal SupabaseClient-compatible object
   const mockClient = {
@@ -72,7 +75,7 @@ export function createSupabaseMockClient(): SupabaseClient {
 
           // For enum types that don't exist, try to handle gracefully
           if (error.message?.includes("type") && error.message?.includes("does not exist")) {
-            console.warn(`Type creation issue: ${error.message}`);
+            logger.info(`Type creation issue: ${error.message}`);
             return { data: null, error: null };
           }
 

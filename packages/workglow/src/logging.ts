@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Logger } from "tslog";
-import { setLogger } from "@workglow/util";
 import type { ILogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { Logger } from "tslog";
 
 /**
  * {@link ILogger} adapter backed by tslog.
