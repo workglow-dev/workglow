@@ -190,6 +190,9 @@ export class GraphAsTask<
         if (connectedPorts.has(key)) continue;
         if (properties[key]) continue;
 
+        // Skip if the task already has a default value for this property
+        if (task.defaults && task.defaults[key] !== undefined) continue;
+
         const prop = (taskInputSchema.properties || {})[key];
         if (!prop || typeof prop === "boolean") continue;
 

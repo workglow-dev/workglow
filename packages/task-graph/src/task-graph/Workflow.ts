@@ -342,7 +342,7 @@ export class Workflow<
       }
 
       // Auto-connect to parent if needed
-      if (parent && this.graph.getTargetDataflows(parent.config.id).length === 0) {
+      if (parent) {
         // Build the list of earlier tasks (in reverse chronological order)
         const nodes = this._graph.getTasks();
         const parentIndex = nodes.findIndex((n) => n.id === parent.id);
@@ -353,8 +353,15 @@ export class Workflow<
 
         const providedInputKeys = new Set(Object.keys(input || {}));
 
+        // Ports already connected via pending dataflows (e.g., from .rename())
+        // must not be re-matched by auto-connect Strategies 1/2/3.
+        const connectedInputKeys = new Set(
+          this.graph.getSourceDataflows(task.id).map((df) => df.targetTaskPortId)
+        );
+
         const result = Workflow.autoConnect(this.graph, parent, task, {
           providedInputKeys,
+          connectedInputKeys,
           earlierTasks,
         });
 
@@ -969,6 +976,8 @@ export class Workflow<
     options?: {
       /** Keys of inputs that are already provided and don't need connection */
       readonly providedInputKeys?: Set<string>;
+      /** Keys of inputs that are already connected via dataflow (e.g., from rename) and must not be re-matched */
+      readonly connectedInputKeys?: Set<string>;
       /** Earlier tasks to search for unmatched required inputs (in reverse chronological order) */
       readonly earlierTasks?: readonly ITask[];
     }
@@ -981,6 +990,7 @@ export class Workflow<
     const sourceSchema = sourceTask.outputSchema();
     const targetSchema = targetTask.inputSchema();
     const providedInputKeys = options?.providedInputKeys ?? new Set<string>();
+    const connectedInputKeys = options?.connectedInputKeys ?? new Set<string>();
     const earlierTasks = options?.earlierTasks ?? [];
 
     /**
@@ -1126,6 +1136,8 @@ export class Workflow<
       // then apply x-stream tiebreaker when multiple source ports match.
       for (const [toInputPortId, toPortInputSchema] of Object.entries(toSchema.properties || {})) {
         if (matches.has(toInputPortId)) continue;
+        // Skip ports already connected via dataflow (e.g., from rename)
+        if (connectedInputKeys.has(toInputPortId)) continue;
 
         const candidates: string[] = [];
         for (const [fromOutputPortId, fromPortOutputSchema] of Object.entries(
@@ -1193,9 +1205,9 @@ export class Workflow<
     );
 
     // Filter out required inputs that are already provided in the input parameter
-    // These don't need to be connected from previous tasks
+    // or already connected via dataflow (e.g., from rename)
     const requiredInputsNeedingConnection = [...requiredInputs].filter(
-      (r) => !providedInputKeys.has(r)
+      (r) => !providedInputKeys.has(r) && !connectedInputKeys.has(r)
     );
 
     // Compute unmatched required inputs (that aren't already provided)
@@ -1282,9 +1294,17 @@ export class Workflow<
 
     if (matches.size === 0 && requiredInputsNeedingConnection.length === 0) {
       // No matches were made AND no required inputs need connection
-      // This happens in two cases:
+      // This happens in several cases:
       // 1. Task has required inputs, but they were all provided as parameters
       // 2. Task has no required inputs (all optional)
+      // 3. Task is already connected via other means (rename, manual connect)
+
+      // If the target already has incoming connections (from rename, etc.),
+      // consider it already connected and allow the task
+      const existingTargetConnections = graph.getSourceDataflows(targetTask.id);
+      if (existingTargetConnections.length > 0) {
+        return { matches, unmatchedRequired: [] };
+      }
 
       // If task has required inputs that were all provided as parameters, allow the task
       const hasRequiredInputs = requiredInputs.size > 0;

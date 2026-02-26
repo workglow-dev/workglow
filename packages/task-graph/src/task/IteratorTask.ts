@@ -569,6 +569,10 @@ export abstract class IteratorTask<
         if (connectedPorts.has(key)) continue;
         if (properties[key]) continue;
 
+        // Skip if the task already has a default value for this property
+        // (e.g., .textEmbedding({ model }) stores model in task.defaults)
+        if (task.defaults && task.defaults[key] !== undefined) continue;
+
         const prop = (inputSchema.properties || {})[key];
         if (!prop || typeof prop === "boolean") continue;
 
