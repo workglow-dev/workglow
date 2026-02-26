@@ -19,7 +19,7 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, sleep } from "@workglow/util";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 // ========================================================================
 // Test helper tasks
@@ -27,7 +27,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 /**
  * A task that sleeps for a configurable duration, respecting abort signals.
- * Sleep duration is set via the sleepMs property (not config, to avoid schema validation).
+ * Sleep duration is set via the sleepMs property.
  */
 class SlowTask extends Task<{ input: number }, { output: number }> {
   static readonly type = "SlowTask";
@@ -126,13 +126,42 @@ class ErrorRecoveryTask extends Task<Record<string, unknown>, { output: number }
   }
 
   async execute(input: Record<string, unknown>): Promise<{ output: number }> {
-    // Return a fallback value; the error info is available in input
     return { output: -1 };
   }
 }
 
 /**
- * A simple pass-through task that doubles its input.
+ * A recovery task that itself fails — for testing nested error scenarios.
+ */
+class FailingRecoveryTask extends Task<Record<string, unknown>, { output: number }> {
+  static readonly type = "FailingRecoveryTask";
+  static readonly cacheable = false;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        output: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(): Promise<{ output: number }> {
+    throw new TaskFailedError("Recovery also failed");
+  }
+}
+
+/**
+ * A simple task that doubles its input.
  */
 class DoubleTask extends Task<{ input: number }, { output: number }> {
   static readonly type = "DoubleTask";
@@ -163,8 +192,40 @@ class DoubleTask extends Task<{ input: number }, { output: number }> {
   }
 }
 
+/**
+ * A recovery task that captures its input for inspection.
+ */
+class InspectingRecoveryTask extends Task<Record<string, unknown>, { output: number }> {
+  static readonly type = "InspectingRecoveryTask";
+  static readonly cacheable = false;
+  public lastInput: Record<string, unknown> = {};
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        output: { type: "number" },
+      },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: Record<string, unknown>): Promise<{ output: number }> {
+    this.lastInput = { ...input };
+    return { output: 42 };
+  }
+}
+
 // ========================================================================
-// Tests
+// Task-Level Timeout
 // ========================================================================
 
 describe("Task-Level Timeout", () => {
@@ -235,9 +296,31 @@ describe("Task-Level Timeout", () => {
     expect(slow.status).toBe(TaskStatus.ABORTING);
     expect(slow.error).toBeInstanceOf(TaskTimeoutError);
   });
+
+  it("should not arm a timer for timeout of zero", async () => {
+    const task = new SlowTask({ input: 4 }, { timeout: 0 });
+    task.sleepMs = 20;
+
+    const output = await task.run();
+    expect(output.output).toBe(8);
+    expect(task.status).toBe(TaskStatus.COMPLETED);
+  });
+
+  it("should persist timeout in task config for serialization", () => {
+    const task = new SlowTask({}, { timeout: 5000 });
+    expect((task.config as Record<string, unknown>).timeout).toBe(5000);
+  });
 });
 
+// ========================================================================
+// Error Output Ports / Error Routing
+// ========================================================================
+
 describe("Error Output Ports / Error Routing", () => {
+  // ------------------------------------------------------------------
+  // Graph-level error routing
+  // ------------------------------------------------------------------
+
   describe("Graph-level error routing", () => {
     it("should route errors through error-port dataflows instead of failing the graph", async () => {
       const graph = new TaskGraph();
@@ -245,13 +328,11 @@ describe("Error Output Ports / Error Routing", () => {
       const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
 
       graph.addTasks([failTask, recoveryTask]);
-      // Connect the error output port to the recovery task
       graph.addDataflow(new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS));
 
       const runner = new TaskGraphRunner(graph);
       const results = await runner.runGraph();
 
-      // Graph should succeed because error was routed to recovery task
       expect(results.length).toBeGreaterThan(0);
       const recoveryResult = results.find((r) => r.id === "recovery");
       expect(recoveryResult).toBeDefined();
@@ -269,23 +350,20 @@ describe("Error Output Ports / Error Routing", () => {
       graph.addDataflow(new Dataflow("fail", "output", "normal", "input"));
 
       const runner = new TaskGraphRunner(graph);
-      const results = await runner.runGraph();
+      await runner.runGraph();
 
-      // Error port edge should be COMPLETED
       const errorEdges = graph
         .getTargetDataflows("fail")
         .filter((df) => df.sourceTaskPortId === DATAFLOW_ERROR_PORT);
       expect(errorEdges.length).toBe(1);
       expect(errorEdges[0].status).toBe(TaskStatus.COMPLETED);
 
-      // Normal output edge should be DISABLED
       const normalEdges = graph
         .getTargetDataflows("fail")
         .filter((df) => df.sourceTaskPortId !== DATAFLOW_ERROR_PORT);
       expect(normalEdges.length).toBe(1);
       expect(normalEdges[0].status).toBe(TaskStatus.DISABLED);
 
-      // Normal downstream task should be DISABLED (all its inputs are disabled)
       expect(normalDownstream.status).toBe(TaskStatus.DISABLED);
     });
 
@@ -300,36 +378,6 @@ describe("Error Output Ports / Error Routing", () => {
     });
 
     it("should pass error data to the recovery task", async () => {
-      let receivedInput: Record<string, unknown> = {};
-
-      class InspectingRecoveryTask extends Task<Record<string, unknown>, { output: number }> {
-        static readonly type = "InspectingRecoveryTask";
-        static readonly cacheable = false;
-
-        static inputSchema(): DataPortSchema {
-          return {
-            type: "object",
-            properties: {},
-            additionalProperties: true,
-          } as const satisfies DataPortSchema;
-        }
-
-        static outputSchema(): DataPortSchema {
-          return {
-            type: "object",
-            properties: {
-              output: { type: "number" },
-            },
-            additionalProperties: false,
-          } as const satisfies DataPortSchema;
-        }
-
-        async execute(input: Record<string, unknown>): Promise<{ output: number }> {
-          receivedInput = { ...input };
-          return { output: 42 };
-        }
-      }
-
       const graph = new TaskGraph();
       const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
       const inspectTask = new InspectingRecoveryTask({}, { id: "inspect" });
@@ -340,14 +388,14 @@ describe("Error Output Ports / Error Routing", () => {
       const runner = new TaskGraphRunner(graph);
       await runner.runGraph();
 
-      // The recovery task should have received error data
-      expect(receivedInput).toHaveProperty("error");
-      expect(receivedInput).toHaveProperty("errorType");
-      expect(receivedInput.error).toBe("Intentional failure");
-      expect(receivedInput.errorType).toBe("TaskFailedError");
+      expect(inspectTask.lastInput).toHaveProperty("error");
+      expect(inspectTask.lastInput).toHaveProperty("errorType");
+      expect(inspectTask.lastInput.error).toBe("Intentional failure");
+      expect(inspectTask.lastInput.errorType).toBe("TaskFailedError");
     });
 
     it("should allow chaining after error recovery", async () => {
+      // fail --[error]--> recovery --[output]--> downstream
       const graph = new TaskGraph();
       const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
       const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
@@ -360,12 +408,113 @@ describe("Error Output Ports / Error Routing", () => {
       const runner = new TaskGraphRunner(graph);
       const results = await runner.runGraph();
 
-      // Recovery task outputs -1, downstream doubles it to -2
+      // Recovery outputs -1, downstream doubles it to -2
       const downstreamResult = results.find((r) => r.id === "downstream");
       expect(downstreamResult).toBeDefined();
       expect(downstreamResult!.data).toEqual({ output: -2 });
     });
+
+    it("should fail the graph when the recovery task itself fails", async () => {
+      const graph = new TaskGraph();
+      const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
+      const failingRecovery = new FailingRecoveryTask({}, { id: "bad-recovery" });
+
+      graph.addTasks([failTask, failingRecovery]);
+      graph.addDataflow(
+        new Dataflow("fail", DATAFLOW_ERROR_PORT, "bad-recovery", DATAFLOW_ALL_PORTS)
+      );
+
+      const runner = new TaskGraphRunner(graph);
+      await expect(runner.runGraph()).rejects.toThrow("Recovery also failed");
+    });
+
+    it("should handle parallel tasks where one fails with error routing and one succeeds", async () => {
+      // root1 (fails, error-routed) --> recovery
+      // root2 (succeeds)            --> leaf
+      const graph = new TaskGraph();
+      const failTask = new AlwaysFailTask({}, { id: "fail" });
+      const successTask = new DoubleTask({ input: 7 }, { id: "success" });
+      const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+
+      graph.addTasks([failTask, successTask, recoveryTask]);
+      graph.addDataflow(new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS));
+
+      const runner = new TaskGraphRunner(graph);
+      const results = await runner.runGraph();
+
+      // Both the success task and recovery task should produce results
+      const successResult = results.find((r) => r.id === "success");
+      expect(successResult).toBeDefined();
+      expect(successResult!.data).toEqual({ output: 14 });
+
+      const recoveryResult = results.find((r) => r.id === "recovery");
+      expect(recoveryResult).toBeDefined();
+      expect(recoveryResult!.data).toEqual({ output: -1 });
+    });
+
+    it("should propagate through a deep chain: A fails → B recovers → C doubles → D doubles", async () => {
+      const graph = new TaskGraph();
+      const a = new AlwaysFailTask({}, { id: "a" });
+      const b = new ErrorRecoveryTask({}, { id: "b" }); // produces { output: -1 }
+      const c = new DoubleTask({}, { id: "c" }); // doubles to -2
+      const d = new DoubleTask({}, { id: "d" }); // doubles to -4
+
+      graph.addTasks([a, b, c, d]);
+      graph.addDataflow(new Dataflow("a", DATAFLOW_ERROR_PORT, "b", DATAFLOW_ALL_PORTS));
+      graph.addDataflow(new Dataflow("b", "output", "c", "input"));
+      graph.addDataflow(new Dataflow("c", "output", "d", "input"));
+
+      const runner = new TaskGraphRunner(graph);
+      const results = await runner.runGraph();
+
+      const dResult = results.find((r) => r.id === "d");
+      expect(dResult).toBeDefined();
+      expect(dResult!.data).toEqual({ output: -4 });
+    });
   });
+
+  // ------------------------------------------------------------------
+  // Timeout + error routing combined
+  // ------------------------------------------------------------------
+
+  describe("Timeout + error routing combined", () => {
+    it("should route a timeout error through error-port edges", async () => {
+      const graph = new TaskGraph();
+      const slow = new SlowTask({}, { id: "slow", timeout: 30 });
+      slow.sleepMs = 500;
+      const inspectTask = new InspectingRecoveryTask({}, { id: "inspect" });
+
+      graph.addTasks([slow, inspectTask]);
+      graph.addDataflow(new Dataflow("slow", DATAFLOW_ERROR_PORT, "inspect", DATAFLOW_ALL_PORTS));
+
+      const runner = new TaskGraphRunner(graph);
+      const results = await runner.runGraph();
+
+      // The graph should succeed — timeout was routed to recovery
+      const inspectResult = results.find((r) => r.id === "inspect");
+      expect(inspectResult).toBeDefined();
+
+      // Recovery task should have received timeout error data
+      expect(inspectTask.lastInput.errorType).toBe("TaskTimeoutError");
+      expect(inspectTask.lastInput.error).toContain("timed out");
+    });
+
+    it("should fail the graph when a timed-out task has no error-port edges", async () => {
+      const graph = new TaskGraph();
+      const slow = new SlowTask({}, { id: "slow", timeout: 30 });
+      slow.sleepMs = 500;
+
+      graph.addTask(slow);
+      const runner = new TaskGraphRunner(graph);
+
+      await expect(runner.runGraph()).rejects.toThrow();
+      expect(slow.error).toBeInstanceOf(TaskTimeoutError);
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Workflow.onError() builder
+  // ------------------------------------------------------------------
 
   describe("Workflow.onError()", () => {
     it("should add error-port dataflow from previous task to handler", () => {
@@ -388,6 +537,42 @@ describe("Error Output Ports / Error Routing", () => {
       const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
 
       expect(() => workflow.onError(recoveryTask)).toThrow("onError() requires a preceding task");
+    });
+
+    it("should be chainable and return the workflow", () => {
+      const workflow = new Workflow();
+      const failTask = new AlwaysFailTask({}, { id: "fail" });
+      const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+
+      workflow.graph.addTask(failTask);
+      const result = workflow.onError(recoveryTask);
+
+      expect(result).toBe(workflow);
+    });
+
+    it("should work end-to-end: pipe → onError → pipe → run", async () => {
+      // Build: fail → onError(recovery) → double
+      // Expected: fail throws → recovery produces { output: -1 } → double produces { output: -2 }
+      const workflow = new Workflow();
+
+      const failTask = new AlwaysFailTask({}, { id: "fail" });
+      const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+      const doubleTask = new DoubleTask({}, { id: "double" });
+
+      // Build the graph manually since pipe() auto-wires normal ports
+      workflow.graph.addTask(failTask);
+      workflow.onError(recoveryTask);
+
+      // Wire recovery output into double input, then add double
+      workflow.graph.addTask(doubleTask);
+      workflow.graph.addDataflow(new Dataflow("recovery", "output", "double", "input"));
+
+      const runner = new TaskGraphRunner(workflow.toTaskGraph());
+      const results = await runner.runGraph();
+
+      const doubleResult = results.find((r) => r.id === "double");
+      expect(doubleResult).toBeDefined();
+      expect(doubleResult!.data).toEqual({ output: -2 });
     });
   });
 });
