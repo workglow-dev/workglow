@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { ScalarAddTask, ScalarSumTask } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
-import { ScalarAddTask } from "./ScalarAddTask";
-import { ScalarSumTask } from "./ScalarSumTask";
 
 describe("ScalarAddTask", () => {
   test("adds two numbers using sumPrecise", async () => {

@@ -15,7 +15,6 @@ import { join, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const TEST_BASE = join(ROOT, "packages/test/src/test");
-const TASKS_TEST_BASE = join(ROOT, "packages/tasks/src/task");
 
 const KNOWN_KINDS = ["unit", "integration", "end2end"] as const;
 type Kind = (typeof KNOWN_KINDS)[number];
@@ -40,7 +39,7 @@ const SECTION_DIRS: Record<Section, string[]> = {
     join(TEST_BASE, "task-graph-output-cache"),
     join(TEST_BASE, "task-graph-storage"),
   ],
-  task: [join(TEST_BASE, "task"), TASKS_TEST_BASE],
+  task: [join(TEST_BASE, "task")],
   storage: [
     join(TEST_BASE, "storage-kv"),
     join(TEST_BASE, "storage-tabular"),

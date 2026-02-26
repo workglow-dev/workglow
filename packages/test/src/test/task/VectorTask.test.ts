@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {
+  VectorDotProductTask,
+  VectorMultiplyTask,
+  VectorNormalizeTask,
+  VectorSubtractTask,
+  VectorSumTask,
+} from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
-import { VectorDotProductTask } from "./VectorDotProductTask";
-import { VectorMultiplyTask } from "./VectorMultiplyTask";
-import { VectorNormalizeTask } from "./VectorNormalizeTask";
-import { VectorSubtractTask } from "./VectorSubtractTask";
-import { VectorSumTask } from "./VectorSumTask";
 
 describe("VectorSumTask", () => {
   test("sums array of TypedArrays component-wise", async () => {
