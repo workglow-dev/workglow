@@ -16,6 +16,9 @@ import type {
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
@@ -276,6 +279,185 @@ export const HFI_TextSummary_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Tool calling implementations
+// ========================================================================
+
+function buildHFIToolDescription(tool: ToolDefinition): string {
+  let desc = tool.description;
+  if (tool.outputSchema && typeof tool.outputSchema === "object") {
+    desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
+  }
+  return desc;
+}
+
+function mapHFIToolChoice(
+  toolChoice: string | undefined
+): "auto" | "none" | "required" | undefined {
+  if (!toolChoice || toolChoice === "auto") return "auto";
+  if (toolChoice === "none") return "none";
+  if (toolChoice === "required") return "required";
+  // Specific tool names are not supported by HF Inference; fall back to "auto"
+  return "auto";
+}
+
+export const HFI_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  HfInferenceModelConfig
+> = async (input, model, update_progress, signal) => {
+  update_progress(0, "Starting HF Inference tool calling");
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+  const provider = getProvider(model);
+
+  const tools = input.tools.map((t: ToolDefinition) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildHFIToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+
+  const messages: Array<{ role: "system" | "user"; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const toolChoice = mapHFIToolChoice(input.toolChoice);
+
+  const params: any = {
+    model: modelName,
+    messages,
+    max_tokens: input.maxTokens,
+    temperature: input.temperature,
+    provider,
+  };
+
+  if (toolChoice !== "none") {
+    params.tools = tools;
+    params.tool_choice = toolChoice;
+  }
+
+  const response = await client.chatCompletion(params, { signal });
+
+  const text = response.choices[0]?.message?.content ?? "";
+  const toolCalls = ((response.choices[0]?.message as any)?.tool_calls ?? []).map(
+    (tc: any) => ({
+      id: (tc.id as string) ?? `call_${Math.random().toString(36).slice(2, 10)}`,
+      name: tc.function.name as string,
+      input: (typeof tc.function.arguments === "string"
+        ? JSON.parse(tc.function.arguments)
+        : tc.function.arguments ?? {}) as Record<string, unknown>,
+    })
+  );
+
+  update_progress(100, "Completed HF Inference tool calling");
+  return { text, toolCalls };
+};
+
+export const HFI_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  HfInferenceModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+  const provider = getProvider(model);
+
+  const tools = input.tools.map((t: ToolDefinition) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildHFIToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+
+  const messages: Array<{ role: "system" | "user"; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const toolChoice = mapHFIToolChoice(input.toolChoice);
+
+  const params: any = {
+    model: modelName,
+    messages,
+    max_tokens: input.maxTokens,
+    temperature: input.temperature,
+    provider,
+  };
+
+  if (toolChoice !== "none") {
+    params.tools = tools;
+    params.tool_choice = toolChoice;
+  }
+
+  const stream = client.chatCompletionStream(params, { signal });
+
+  let accumulatedText = "";
+  const toolCallAccumulator = new Map<number, { id: string; name: string; arguments: string }>();
+
+  for await (const chunk of stream) {
+    const choice = chunk.choices[0];
+    if (!choice) continue;
+
+    const contentDelta = choice.delta?.content ?? "";
+    if (contentDelta) {
+      accumulatedText += contentDelta;
+      yield { type: "text-delta", port: "text", textDelta: contentDelta };
+    }
+
+    const tcDeltas = (choice.delta as any)?.tool_calls;
+    if (Array.isArray(tcDeltas)) {
+      for (const tcDelta of tcDeltas) {
+        const idx = tcDelta.index as number;
+        if (!toolCallAccumulator.has(idx)) {
+          toolCallAccumulator.set(idx, {
+            id: tcDelta.id ?? "",
+            name: tcDelta.function?.name ?? "",
+            arguments: "",
+          });
+        }
+        const acc = toolCallAccumulator.get(idx)!;
+        if (tcDelta.id) acc.id = tcDelta.id;
+        if (tcDelta.function?.name) acc.name = tcDelta.function.name;
+        if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
+      }
+
+      const snapshot = Array.from(toolCallAccumulator.values()).map((tc) => {
+        let parsedInput: Record<string, unknown>;
+        try {
+          parsedInput = JSON.parse(tc.arguments);
+        } catch {
+          parsedInput = {};
+        }
+        return { id: tc.id, name: tc.name, input: parsedInput };
+      });
+      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot as any };
+    }
+  }
+
+  const toolCalls = Array.from(toolCallAccumulator.values()).map((tc) => {
+    let finalInput: Record<string, unknown>;
+    try {
+      finalInput = JSON.parse(tc.arguments);
+    } catch {
+      finalInput = {};
+    }
+    return { id: tc.id, name: tc.name, input: finalInput };
+  });
+
+  yield {
+    type: "finish",
+    data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -284,6 +466,7 @@ export const HFI_TASKS: Record<string, AiProviderRunFn<any, any, HfInferenceMode
   TextEmbeddingTask: HFI_TextEmbedding,
   TextRewriterTask: HFI_TextRewriter,
   TextSummaryTask: HFI_TextSummary,
+  ToolCallingTask: HFI_ToolCalling,
 };
 
 export const HFI_STREAM_TASKS: Record<
@@ -293,4 +476,5 @@ export const HFI_STREAM_TASKS: Record<
   TextGenerationTask: HFI_TextGeneration_Stream,
   TextRewriterTask: HFI_TextRewriter_Stream,
   TextSummaryTask: HFI_TextSummary_Stream,
+  ToolCallingTask: HFI_ToolCalling_Stream,
 };
