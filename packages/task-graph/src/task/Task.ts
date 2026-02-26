@@ -312,6 +312,13 @@ export class Task<
   config: Config;
 
   /**
+   * Task id from config (read-only).
+   */
+  public get id(): unknown {
+    return this.config.id;
+  }
+
+  /**
    * Runtime configuration (not serialized with the task).
    * Set via the constructor's third argument or mutated by the graph runner.
    */
@@ -380,11 +387,13 @@ export class Task<
     const title = (this.constructor as typeof Task).title || undefined;
     const baseConfig = Object.assign(
       {
-        id: uuid4(),
         ...(title ? { title } : {}),
       },
       config
     ) as Config;
+    if (baseConfig.id === undefined) {
+      (baseConfig as Record<string, unknown>).id = uuid4();
+    }
     this.config = this.validateAndApplyConfigDefaults(baseConfig);
 
     // Store runtime configuration
@@ -847,13 +856,6 @@ export class Task<
     }
 
     return true;
-  }
-
-  /**
-   * Gets the task ID from the config
-   */
-  public id(): unknown {
-    return this.config.id;
   }
 
   // ========================================================================

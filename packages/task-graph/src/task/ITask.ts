@@ -200,7 +200,7 @@ export interface ITaskEvents {
 export interface ITaskSerialization {
   toJSON(): JsonTaskItem | TaskGraphItemJson;
   toDependencyJSON(): JsonTaskItem;
-  id(): unknown;
+  get id(): unknown;
 }
 
 /**
@@ -208,6 +208,7 @@ export interface ITaskSerialization {
  */
 export interface ITaskState<Config extends TaskConfig = TaskConfig> {
   readonly config: Config;
+  get id(): unknown;
   status: TaskStatus;
   progress: number;
   createdAt: Date;
