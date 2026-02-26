@@ -75,6 +75,7 @@ describe("AnthropicProvider", () => {
         "TextRewriterTask",
         "TextSummaryTask",
         "StructuredGenerationTask",
+        "ToolCallingTask",
       ]);
       expect(provider.supportedTaskTypes).not.toContain("TextEmbeddingTask");
     });
@@ -92,7 +93,7 @@ describe("AnthropicProvider", () => {
       const provider = new AnthropicProvider(ANTHROPIC_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
     });
   });
 
@@ -262,8 +263,9 @@ describe("AnthropicProvider", () => {
       expect(ANTHROPIC_TASKS).toHaveProperty("TextRewriterTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextSummaryTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("StructuredGenerationTask");
+      expect(ANTHROPIC_TASKS).toHaveProperty("ToolCallingTask");
       expect(ANTHROPIC_TASKS).not.toHaveProperty("TextEmbeddingTask");
-      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(5);
+      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(6);
     });
   });
 });

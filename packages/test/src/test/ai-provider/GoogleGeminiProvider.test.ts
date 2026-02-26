@@ -86,6 +86,7 @@ describe("GoogleGeminiProvider", () => {
         "TextRewriterTask",
         "TextSummaryTask",
         "StructuredGenerationTask",
+        "ToolCallingTask",
       ]);
     });
 
@@ -103,7 +104,7 @@ describe("GoogleGeminiProvider", () => {
       const provider = new GoogleGeminiProvider(GEMINI_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(7);
     });
   });
 
@@ -257,7 +258,8 @@ describe("GoogleGeminiProvider", () => {
       expect(GEMINI_TASKS).toHaveProperty("TextRewriterTask");
       expect(GEMINI_TASKS).toHaveProperty("TextSummaryTask");
       expect(GEMINI_TASKS).toHaveProperty("StructuredGenerationTask");
-      expect(Object.keys(GEMINI_TASKS)).toHaveLength(6);
+      expect(GEMINI_TASKS).toHaveProperty("ToolCallingTask");
+      expect(Object.keys(GEMINI_TASKS)).toHaveLength(7);
     });
   });
 });

@@ -41,6 +41,7 @@ import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask
 import { TextQuestionAnswerTask } from "./TextQuestionAnswerTask";
 import { TextRewriterTask } from "./TextRewriterTask";
 import { TextSummaryTask } from "./TextSummaryTask";
+import { ToolCallingTask } from "./ToolCallingTask";
 import { TextTranslationTask } from "./TextTranslationTask";
 import { TopicSegmenterTask } from "./TopicSegmenterTask";
 import { UnloadModelTask } from "./UnloadModelTask";
@@ -89,6 +90,7 @@ export const registerAiTasks = () => {
     TextRewriterTask,
     TextSummaryTask,
     TextTranslationTask,
+    ToolCallingTask,
     TopicSegmenterTask,
     UnloadModelTask,
     VectorQuantizeTask,
@@ -138,6 +140,7 @@ export * from "./TextQuestionAnswerTask";
 export * from "./TextRewriterTask";
 export * from "./TextSummaryTask";
 export * from "./TextTranslationTask";
+export * from "./ToolCallingTask";
 export * from "./TopicSegmenterTask";
 export * from "./UnloadModelTask";
 export * from "./VectorQuantizeTask";

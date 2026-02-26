@@ -1,0 +1,232 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
+import { DataPortSchema, FromSchema, JsonSchema } from "@workglow/util";
+import { TypeModel } from "./base/AiTaskSchemas";
+import { StreamingAiTask } from "./base/StreamingAiTask";
+
+// ========================================================================
+// Tool definition types
+// ========================================================================
+
+/**
+ * A tool definition that can be passed to an LLM for tool calling.
+ * Can be created manually or generated from TaskRegistry entries via {@link taskTypesToTools}.
+ */
+export interface ToolDefinition {
+  readonly name: string;
+  readonly description: string;
+  readonly inputSchema: JsonSchema;
+  readonly outputSchema?: JsonSchema;
+}
+
+/**
+ * A tool call returned by the LLM, requesting invocation of a specific tool.
+ */
+export interface ToolCall {
+  readonly id: string;
+  readonly name: string;
+  readonly input: Record<string, unknown>;
+}
+
+// ========================================================================
+// Utility: convert TaskRegistry entries to tool definitions
+// ========================================================================
+
+/**
+ * Converts an allow-list of task type names from the {@link TaskRegistry}
+ * into {@link ToolDefinition} objects suitable for the ToolCallingTask input.
+ *
+ * Each task's `type`, `description`, `inputSchema()`, and `outputSchema()`
+ * are used to build the tool definition.
+ *
+ * @param taskNames - Array of task type names registered in TaskRegistry
+ * @returns Array of ToolDefinition objects
+ * @throws Error if a task name is not found in the registry
+ */
+export function taskTypesToTools(taskNames: ReadonlyArray<string>): ToolDefinition[] {
+  return taskNames.map((name) => {
+    const ctor = TaskRegistry.all.get(name);
+    if (!ctor) {
+      throw new Error(`taskTypesToTools: Unknown task type "${name}" — not found in TaskRegistry`);
+    }
+    return {
+      name: ctor.type,
+      description: (ctor as any).description ?? "",
+      inputSchema: ctor.inputSchema(),
+      outputSchema: ctor.outputSchema(),
+    };
+  });
+}
+
+// ========================================================================
+// Schemas
+// ========================================================================
+
+const ToolDefinitionSchema = {
+  type: "object",
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+      description: "The tool name",
+    },
+    description: {
+      type: "string",
+      title: "Description",
+      description: "A description of what the tool does",
+    },
+    inputSchema: {
+      type: "object",
+      title: "Input Schema",
+      description: "JSON Schema describing the tool's input parameters",
+      additionalProperties: true,
+    },
+    outputSchema: {
+      type: "object",
+      title: "Output Schema",
+      description: "JSON Schema describing what the tool returns",
+      additionalProperties: true,
+    },
+  },
+  required: ["name", "description", "inputSchema"],
+  additionalProperties: false,
+} as const;
+
+const ToolCallSchema = {
+  type: "object",
+  properties: {
+    id: {
+      type: "string",
+      title: "ID",
+      description: "Unique identifier for this tool call",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+      description: "The name of the tool to invoke",
+    },
+    input: {
+      type: "object",
+      title: "Input",
+      description: "The input arguments for the tool call",
+      additionalProperties: true,
+    },
+  },
+  required: ["id", "name", "input"],
+  additionalProperties: false,
+} as const;
+
+const modelSchema = TypeModel("model:ToolCallingTask");
+
+export const ToolCallingInputSchema = {
+  type: "object",
+  properties: {
+    model: modelSchema,
+    prompt: {
+      type: "string",
+      title: "Prompt",
+      description: "The prompt to send to the model",
+    },
+    systemPrompt: {
+      type: "string",
+      title: "System Prompt",
+      description: "Optional system instructions for the model",
+    },
+    tools: {
+      type: "array",
+      title: "Tools",
+      description: "Tool definitions available for the model to call",
+      items: ToolDefinitionSchema,
+    },
+    toolChoice: {
+      type: "string",
+      title: "Tool Choice",
+      description:
+        'Controls tool selection: "auto" (model decides), "none" (no tools), "required" (must call a tool), or a specific tool name',
+      "x-ui-group": "Configuration",
+    },
+    maxTokens: {
+      type: "number",
+      title: "Max Tokens",
+      description: "The maximum number of tokens to generate",
+      minimum: 1,
+      maximum: 4096,
+      "x-ui-group": "Configuration",
+    },
+    temperature: {
+      type: "number",
+      title: "Temperature",
+      description: "The temperature to use for sampling",
+      minimum: 0,
+      maximum: 2,
+      "x-ui-group": "Configuration",
+    },
+  },
+  required: ["model", "prompt", "tools"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export const ToolCallingOutputSchema = {
+  type: "object",
+  properties: {
+    text: {
+      type: "string",
+      title: "Text",
+      description: "Any text content generated by the model",
+    },
+    toolCalls: {
+      type: "array",
+      title: "Tool Calls",
+      description: "Tool invocations requested by the model",
+      items: ToolCallSchema,
+      "x-stream": "object",
+    },
+  },
+  required: ["text", "toolCalls"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type ToolCallingTaskInput = FromSchema<typeof ToolCallingInputSchema>;
+export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
+
+// ========================================================================
+// Task class
+// ========================================================================
+
+export class ToolCallingTask extends StreamingAiTask<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  JobQueueTaskConfig
+> {
+  public static type = "ToolCallingTask";
+  public static category = "AI Text Model";
+  public static title = "Tool Calling";
+  public static description =
+    "Sends a prompt with tool definitions to a language model and returns text along with any tool calls the model requests";
+  public static inputSchema(): DataPortSchema {
+    return ToolCallingInputSchema as DataPortSchema;
+  }
+  public static outputSchema(): DataPortSchema {
+    return ToolCallingOutputSchema as DataPortSchema;
+  }
+}
+
+/**
+ * Convenience function to run a tool calling task.
+ */
+export const toolCalling = (input: ToolCallingTaskInput, config?: JobQueueTaskConfig) => {
+  return new ToolCallingTask({} as ToolCallingTaskInput, config).run(input);
+};
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    toolCalling: CreateWorkflow<ToolCallingTaskInput, ToolCallingTaskOutput, JobQueueTaskConfig>;
+  }
+}
+
+Workflow.prototype.toolCalling = CreateWorkflow(ToolCallingTask);
