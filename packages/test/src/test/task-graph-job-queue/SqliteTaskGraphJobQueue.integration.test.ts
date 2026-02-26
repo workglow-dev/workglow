@@ -5,16 +5,18 @@
  */
 
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
-import { InMemoryQueueStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/sqlite";
+import { SqliteQueueStorage } from "@workglow/storage";
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { runGenericTaskGraphJobQueueTests, TestJob } from "./genericTaskGraphJobQueueTests";
 
-describe("InMemoryTaskGraphJobQueue", () => {
+describe("SqliteTaskGraphJobQueue", () => {
   runGenericTaskGraphJobQueueTests(async () => {
-    const queueName = `inMemory_test_queue_${uuid4()}`;
-    const storage = new InMemoryQueueStorage<TaskInput, TaskOutput>(queueName);
+    const db = new Sqlite.Database(":memory:");
+    const queueName = `sqlite_test_queue_${uuid4()}`;
+    const storage = new SqliteQueueStorage<TaskInput, TaskOutput>(db, queueName);
     await storage.setupDatabase();
 
     const server = new JobQueueServer<TaskInput, TaskOutput>(TestJob, {

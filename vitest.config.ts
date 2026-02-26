@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,5 +18,6 @@ export default defineConfig({
     maxConcurrency: 1,
     maxWorkers: 1,
     testTimeout: 15000, // 15 second global timeout (PgLite initialization can be slow)
+    exclude: [...configDefaults.exclude, "**/*.e2e.test.ts"],
   },
 });
