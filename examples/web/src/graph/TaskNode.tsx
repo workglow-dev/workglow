@@ -175,7 +175,7 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {subTasks.map((subTask) => (
-                <SubTask key={subTask.config.id as string} subTask={subTask} />
+                <SubTask key={subTask.id as string} subTask={subTask} />
               ))}
             </div>
           </div>
@@ -273,7 +273,7 @@ function SubTask({ subTask }: { subTask: ITask }) {
   const hasFileProgress = progressDetails.length > 0;
 
   return (
-    <div key={subTask.config.id as string} className="text-xs subtask-progress">
+    <div key={subTask.id as string} className="text-xs subtask-progress">
       {hasFileProgress ? (
         <>
           {/* Overall progress section - only show when there are multiple files */}

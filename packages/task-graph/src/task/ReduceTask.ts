@@ -130,7 +130,7 @@ export class ReduceTask<
 
     const endingNodes = this.subGraph
       .getTasks()
-      .filter((task) => this.subGraph.getTargetDataflows(task.config.id).length === 0);
+      .filter((task) => this.subGraph.getTargetDataflows(task.id).length === 0);
 
     if (endingNodes.length === 0) {
       return (this.constructor as typeof ReduceTask).outputSchema();

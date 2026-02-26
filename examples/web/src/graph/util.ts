@@ -56,9 +56,7 @@ export const getTruncatedTaskId = (taskId: string): string => {
 // Helper function to update a node
 export const updateNode = (setNodes: React.Dispatch<React.SetStateAction<any[]>>, task: ITask) => {
   setNodes((nds) =>
-    nds.map((node) =>
-      node.id === task.config.id ? { ...node, data: { ...node.data, task } } : node
-    )
+    nds.map((node) => (node.id === task.id ? { ...node, data: { ...node.data, task } } : node))
   );
 };
 

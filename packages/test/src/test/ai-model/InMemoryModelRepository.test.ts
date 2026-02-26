@@ -8,8 +8,6 @@ import { InMemoryModelRepository } from "@workglow/ai";
 import { describe } from "vitest";
 import { runGenericModelRepositoryTests } from "./genericModelRepositoryTests";
 
-const RUN_STORAGE_TESTS = !!process.env.RUN_STORAGE_TESTS || !!process.env.RUN_ALL_TESTS;
-
-describe.skipIf(!RUN_STORAGE_TESTS)("InMemoryModelRepository", () => {
+describe("InMemoryModelRepository", () => {
   runGenericModelRepositoryTests(async () => new InMemoryModelRepository());
 });

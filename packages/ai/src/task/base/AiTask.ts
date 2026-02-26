@@ -11,12 +11,12 @@
 import { Job } from "@workglow/job-queue";
 import {
   type IExecuteReactiveContext,
-  hasStructuredOutput,
   JobQueueTask,
   JobQueueTaskConfig,
   TaskConfigurationError,
   TaskInput,
   type TaskOutput,
+  hasStructuredOutput,
 } from "@workglow/task-graph";
 import { type JsonSchema, type ServiceRegistry } from "@workglow/util";
 

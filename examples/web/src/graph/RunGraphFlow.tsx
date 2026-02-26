@@ -128,7 +128,7 @@ export const RunGraphFlow: React.FC<{
       let data: TaskNodeData = { task };
 
       return {
-        id: task.config.id,
+        id: task.id,
         type,
         data,
       };

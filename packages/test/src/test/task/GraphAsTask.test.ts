@@ -32,7 +32,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskB);
 
       // Connect TaskA's output to TaskB's input
-      const dataflow = new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB");
+      const dataflow = new Dataflow(taskA.id, "outputA", taskB.id, "inputB");
       graph.addDataflow(dataflow);
 
       // Create GraphAsTask with this subgraph
@@ -62,8 +62,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskC);
 
       // Connect TaskA -> TaskC and TaskB -> TaskC
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskC.config.id, "inputC1"));
-      graph.addDataflow(new Dataflow(taskB.config.id, "outputB", taskC.config.id, "inputC2"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskB.id, "outputB", taskC.id, "inputC2"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -93,7 +93,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskC);
 
       // TaskC has an incoming connection from TaskA, making it a non-starting node
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskC.config.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
       const graphAsTask = new GraphAsTask({}, { subGraph: graph });
 
@@ -142,7 +142,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskA);
       graph.addTask(taskB);
 
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -170,8 +170,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskC);
 
       // TaskA connects to both TaskB and TaskC
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskC.config.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -210,7 +210,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       const graph = new TaskGraph();
       graph.addTask(taskA);
       graph.addTask(taskB);
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -252,8 +252,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskC);
 
       // Fork from TaskA
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskC.config.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -300,7 +300,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       const graph = new TaskGraph();
       graph.addTask(taskA);
       graph.addTask(taskB);
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
 
       const graphAsTask = new GraphAsTask({}, { compoundMerge: "PROPERTY_ARRAY" });
       graphAsTask.subGraph = graph;
@@ -326,8 +326,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskB);
       graph.addTask(taskC);
 
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskC.config.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
       const graphAsTask = new GraphAsTask({}, { compoundMerge: "PROPERTY_ARRAY" });
       graphAsTask.subGraph = graph;
@@ -357,8 +357,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskB);
       graph.addTask(taskC);
 
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
-      graph.addDataflow(new Dataflow(taskB.config.id, "outputB", taskC.config.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskB.id, "outputB", taskC.id, "inputC1"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -392,9 +392,9 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskD);
 
       // Create the connections
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
-      graph.addDataflow(new Dataflow(taskB.config.id, "outputB", taskC.config.id, "inputC1"));
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskD.config.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskB.id, "outputB", taskC.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskD.id, "inputC1"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -428,8 +428,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskB);
       graph.addTask(taskC);
 
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskC.config.id, "inputC1"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -462,7 +462,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       const graph = new TaskGraph();
       graph.addTask(taskA);
       graph.addTask(taskB);
-      graph.addDataflow(new Dataflow(taskA.config.id, "outputA", taskB.config.id, "inputB"));
+      graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
 
       const graphAsTask = new GraphAsTask();
       graphAsTask.subGraph = graph;
@@ -527,7 +527,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       const graph2 = new TaskGraph();
       graph2.addTask(taskA2);
       graph2.addTask(taskB2);
-      graph2.addDataflow(new Dataflow(taskA2.config.id, "outputA", taskB2.config.id, "inputB"));
+      graph2.addDataflow(new Dataflow(taskA2.id, "outputA", taskB2.id, "inputB"));
 
       const graphAsTask1 = new GraphAsTask();
       graphAsTask1.subGraph = graph1;

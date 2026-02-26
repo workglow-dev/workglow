@@ -95,7 +95,7 @@ export class DependencyBasedScheduler implements ITaskGraphScheduler {
       return false;
     }
 
-    const sourceDataflows = this.dag.getSourceDataflows(task.config.id);
+    const sourceDataflows = this.dag.getSourceDataflows(task.id);
 
     // If task has incoming dataflows, check if all are DISABLED
     // (In that case, task will be disabled by propagateDisabledStatus, not ready to run)

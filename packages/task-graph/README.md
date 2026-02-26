@@ -960,9 +960,7 @@ class CompositeTask extends GraphAsTask<{ input: string }, { output: string }> {
     const subTask2 = new TextProcessorTask({ multiplier: 2 });
 
     this.subGraph.addTasks([subTask1, subTask2]);
-    this.subGraph.addDataflow(
-      new Dataflow(subTask1.config.id, "processed", subTask2.config.id, "text")
-    );
+    this.subGraph.addDataflow(new Dataflow(subTask1.id, "processed", subTask2.id, "text"));
   }
 }
 ```

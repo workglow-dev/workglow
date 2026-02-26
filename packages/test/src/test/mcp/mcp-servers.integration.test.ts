@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Integration tests for public MCP servers.
- * Run with: RUN_MCP_INTEGRATION_TESTS=1 bun test mcp-servers.integration
  *
  * Note: Some servers may be unavailable, require API keys, or use different
  * transports. Failures indicate connectivity or compatibility issues.
@@ -23,8 +22,6 @@ import {
   type McpToolCallTaskConfig,
 } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
-
-const RUN_INTEGRATION = !!process.env.RUN_MCP_INTEGRATION_TESTS || !!process.env.RUN_ALL_TESTS;
 
 /** Assert task run result to expected output type (workaround for generic inference in test.each) */
 function asListOutput<T>(v: unknown): T {
@@ -87,7 +84,7 @@ function buildMinimalPromptArgs(
   return input;
 }
 
-describe.skipIf(!RUN_INTEGRATION)("MCP servers integration", () => {
+describe("MCP servers integration", () => {
   test.concurrent.each(MCP_SERVERS)(
     "$name lists tools",
     async ({ name, url }) => {

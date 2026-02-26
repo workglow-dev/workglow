@@ -141,7 +141,7 @@ export class TaskGraphRunner {
           break;
         }
 
-        const isRootTask = this.graph.getSourceDataflows(task.config.id).length === 0;
+        const isRootTask = this.graph.getSourceDataflows(task.id).length === 0;
 
         const runAsync = async () => {
           let errorRouted = false;
@@ -150,10 +150,10 @@ export class TaskGraphRunner {
             const taskInput = isRootTask ? input : this.filterInputForTask(task, input);
 
             const taskPromise = this.runTask(task, taskInput);
-            this.inProgressTasks!.set(task.config.id, taskPromise);
+            this.inProgressTasks!.set(task.id, taskPromise);
             const taskResult = await taskPromise;
 
-            if (this.graph.getTargetDataflows(task.config.id).length === 0) {
+            if (this.graph.getTargetDataflows(task.id).length === 0) {
               // we save the results of all the leaves
               results.push(taskResult as GraphSingleTaskResult<ExecuteOutput>);
             }
@@ -165,7 +165,7 @@ export class TaskGraphRunner {
               errorRouted = true;
               this.pushErrorOutputToEdges(task);
             } else {
-              this.failedTaskErrors.set(task.config.id, error as TaskError);
+              this.failedTaskErrors.set(task.id, error as TaskError);
             }
           } finally {
             // IMPORTANT: Push status to edges BEFORE notifying scheduler
@@ -176,7 +176,7 @@ export class TaskGraphRunner {
               this.pushStatusFromNodeToEdges(this.graph, task);
               this.pushErrorFromNodeToEdges(this.graph, task);
             }
-            this.processScheduler.onTaskCompleted(task.config.id);
+            this.processScheduler.onTaskCompleted(task.id);
           }
         };
 
@@ -184,7 +184,7 @@ export class TaskGraphRunner {
         // so we can have many tasks running in parallel
         // but keep track of them to make sure they get awaited
         // otherwise, things will finish after this promise is resolved
-        this.inProgressFunctions.set(Symbol(task.config.id as string), runAsync());
+        this.inProgressFunctions.set(Symbol(task.id as string), runAsync());
       }
     } catch (err) {
       error = err as Error;
@@ -223,7 +223,7 @@ export class TaskGraphRunner {
     const results: GraphResultArray<Output> = [];
     try {
       for await (const task of this.reactiveScheduler.tasks()) {
-        const isRootTask = this.graph.getSourceDataflows(task.config.id).length === 0;
+        const isRootTask = this.graph.getSourceDataflows(task.id).length === 0;
 
         if (task.status === TaskStatus.PENDING) {
           task.resetInputData();
@@ -248,9 +248,9 @@ export class TaskGraphRunner {
         const taskResult = await task.runReactive(taskInput);
 
         await this.pushOutputFromNodeToEdges(task, taskResult);
-        if (this.graph.getTargetDataflows(task.config.id).length === 0) {
+        if (this.graph.getTargetDataflows(task.id).length === 0) {
           results.push({
-            id: task.config.id,
+            id: task.id,
             type: (task.constructor as any).runtype || (task.constructor as any).type,
             data: taskResult as Output,
           });
@@ -286,7 +286,7 @@ export class TaskGraphRunner {
    */
   protected filterInputForTask(task: ITask, input: TaskInput): TaskInput {
     // Get all inputs that are connected to this task via dataflows
-    const sourceDataflows = this.graph.getSourceDataflows(task.config.id);
+    const sourceDataflows = this.graph.getSourceDataflows(task.id);
     const connectedInputs = new Set(sourceDataflows.map((df) => df.targetTaskPortId));
 
     // If DATAFLOW_ALL_PORTS ("*") is in the set, all inputs are connected
@@ -357,7 +357,7 @@ export class TaskGraphRunner {
    * @param task The task to copy input data to
    */
   protected copyInputFromEdgesToNode(task: ITask) {
-    const dataflows = this.graph.getSourceDataflows(task.config.id);
+    const dataflows = this.graph.getSourceDataflows(task.id);
     for (const dataflow of dataflows) {
       this.addInputData(task, dataflow.getPortData());
     }
@@ -369,7 +369,7 @@ export class TaskGraphRunner {
    * @param results The output of the task
    */
   protected async pushOutputFromNodeToEdges(node: ITask, results: TaskOutput) {
-    const dataflows = this.graph.getTargetDataflows(node.config.id);
+    const dataflows = this.graph.getTargetDataflows(node.id);
     for (const dataflow of dataflows) {
       const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow);
       // console.log("pushOutputFromNodeToEdges", dataflow.id, compatibility, Object.keys(results));
@@ -396,7 +396,7 @@ export class TaskGraphRunner {
   protected pushStatusFromNodeToEdges(graph: TaskGraph, node: ITask, status?: TaskStatus): void {
     if (!node?.config?.id) return;
 
-    const dataflows = graph.getTargetDataflows(node.config.id);
+    const dataflows = graph.getTargetDataflows(node.id);
     const effectiveStatus = status ?? node.status;
 
     // Check if this is a ConditionalTask with selective branching
@@ -444,7 +444,7 @@ export class TaskGraphRunner {
    */
   protected pushErrorFromNodeToEdges(graph: TaskGraph, node: ITask): void {
     if (!node?.config?.id) return;
-    graph.getTargetDataflows(node.config.id).forEach((dataflow) => {
+    graph.getTargetDataflows(node.id).forEach((dataflow) => {
       dataflow.error = node.error;
     });
   }
@@ -456,7 +456,7 @@ export class TaskGraphRunner {
    * the entire graph.
    */
   protected hasErrorOutputEdges(task: ITask): boolean {
-    const dataflows = this.graph.getTargetDataflows(task.config.id);
+    const dataflows = this.graph.getTargetDataflows(task.id);
     return dataflows.some((df) => df.sourceTaskPortId === DATAFLOW_ERROR_PORT);
   }
 
@@ -477,7 +477,7 @@ export class TaskGraphRunner {
       errorType: (taskError?.constructor as { type?: string })?.type ?? "TaskError",
     };
 
-    const dataflows = this.graph.getTargetDataflows(task.config.id);
+    const dataflows = this.graph.getTargetDataflows(task.id);
     for (const df of dataflows) {
       if (df.sourceTaskPortId === DATAFLOW_ERROR_PORT) {
         // Route error data to the error-port edge
@@ -517,7 +517,7 @@ export class TaskGraphRunner {
           continue;
         }
 
-        const incomingDataflows = graph.getSourceDataflows(task.config.id);
+        const incomingDataflows = graph.getSourceDataflows(task.id);
 
         // Skip tasks with no incoming dataflows (root tasks)
         if (incomingDataflows.length === 0) {
@@ -537,12 +537,12 @@ export class TaskGraphRunner {
           task.emit("status", task.status);
 
           // Propagate disabled status to its outgoing dataflows
-          graph.getTargetDataflows(task.config.id).forEach((dataflow) => {
+          graph.getTargetDataflows(task.id).forEach((dataflow) => {
             dataflow.setStatus(TaskStatus.DISABLED);
           });
 
           // Mark as completed in scheduler so it doesn't wait for this task
-          this.processScheduler.onTaskCompleted(task.config.id);
+          this.processScheduler.onTaskCompleted(task.id);
 
           changed = true;
         }
@@ -567,7 +567,7 @@ export class TaskGraphRunner {
   protected taskNeedsAccumulation(task: ITask): boolean {
     if (this.outputCache) return true;
 
-    const outEdges = this.graph.getTargetDataflows(task.config.id);
+    const outEdges = this.graph.getTargetDataflows(task.id);
     if (outEdges.length === 0) return this.accumulateLeafOutputs;
 
     const outSchema = task.outputSchema();
@@ -606,7 +606,7 @@ export class TaskGraphRunner {
     // the task's executeStream() (via inputStreams) while the other stays
     // on the edge for materialization by awaitStreamInputs.
     if (isStreamable) {
-      const dataflows = this.graph.getSourceDataflows(task.config.id);
+      const dataflows = this.graph.getSourceDataflows(task.id);
       const streamingEdges = dataflows.filter((df) => df.stream !== undefined);
       if (streamingEdges.length > 0) {
         const inputStreams = new Map<string, ReadableStream<StreamEvent>>();
@@ -647,7 +647,7 @@ export class TaskGraphRunner {
     await this.pushOutputFromNodeToEdges(task, results);
 
     return {
-      id: task.config.id,
+      id: task.id,
       type: (task.constructor as any).runtype || (task.constructor as any).type,
       data: results as T,
     };
@@ -664,7 +664,7 @@ export class TaskGraphRunner {
    * inputs through the normal getPortData() path.
    */
   protected async awaitStreamInputs(task: ITask): Promise<void> {
-    const dataflows = this.graph.getSourceDataflows(task.config.id);
+    const dataflows = this.graph.getSourceDataflows(task.id);
     const streamPromises = dataflows
       .filter((df) => df.stream !== undefined)
       .map((df) => df.awaitStreamValue());
@@ -695,20 +695,20 @@ export class TaskGraphRunner {
         streamingNotified = true;
         this.pushStatusFromNodeToEdges(this.graph, task, TaskStatus.STREAMING);
         this.pushStreamToEdges(task, streamMode);
-        this.processScheduler.onTaskStreaming(task.config.id);
+        this.processScheduler.onTaskStreaming(task.id);
       }
     };
 
     const onStreamStart = () => {
-      this.graph.emit("task_stream_start", task.config.id);
+      this.graph.emit("task_stream_start", task.id);
     };
 
     const onStreamChunk = (event: StreamEvent) => {
-      this.graph.emit("task_stream_chunk", task.config.id, event);
+      this.graph.emit("task_stream_chunk", task.id, event);
     };
 
     const onStreamEnd = (output: Record<string, any>) => {
-      this.graph.emit("task_stream_end", task.config.id, output);
+      this.graph.emit("task_stream_end", task.id, output);
     };
 
     task.on("status", onStatus);
@@ -728,7 +728,7 @@ export class TaskGraphRunner {
       await this.pushOutputFromNodeToEdges(task, results);
 
       return {
-        id: task.config.id,
+        id: task.id,
         type: (task.constructor as any).runtype || (task.constructor as any).type,
         data: results as T,
       };
@@ -792,7 +792,7 @@ export class TaskGraphRunner {
    * uses tee() for fan-out to multiple consumers.
    */
   protected pushStreamToEdges(task: ITask, streamMode: string): void {
-    const targetDataflows = this.graph.getTargetDataflows(task.config.id);
+    const targetDataflows = this.graph.getTargetDataflows(task.id);
     if (targetDataflows.length === 0) return;
 
     // Group edges by their source port

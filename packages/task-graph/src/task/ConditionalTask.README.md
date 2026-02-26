@@ -36,8 +36,8 @@ const lowHandler = new SomeTask({}, { id: "lowHandler" });
 
 const graph = new TaskGraph();
 graph.addTasks([conditional, highHandler, lowHandler]);
-graph.addDataflow(new Dataflow(conditional.config.id, "highPath", highHandler.config.id, "*"));
-graph.addDataflow(new Dataflow(conditional.config.id, "lowPath", lowHandler.config.id, "*"));
+graph.addDataflow(new Dataflow(conditional.id, "highPath", highHandler.id, "*"));
+graph.addDataflow(new Dataflow(conditional.id, "lowPath", lowHandler.id, "*"));
 
 // When value > 100, highHandler runs and lowHandler is DISABLED
 // When value <= 100, lowHandler runs and highHandler is DISABLED
@@ -170,9 +170,9 @@ When wiring ConditionalTask outputs to downstream tasks, use `"*"` (DATAFLOW_ALL
 // Pass all properties from the branch output to the downstream task
 graph.addDataflow(
   new Dataflow(
-    conditional.config.id,
+    conditional.id,
     "highPath", // Source port (branch output)
-    handler.config.id,
+    handler.id,
     "*" // Target: all ports (passes { value, metadata, ... })
   )
 );

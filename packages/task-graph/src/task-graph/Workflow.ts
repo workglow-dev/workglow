@@ -329,12 +329,12 @@ export class Workflow<
               taskSchema.additionalProperties !== true) ||
             (taskSchema === true && dataflow.targetTaskPortId !== DATAFLOW_ALL_PORTS)
           ) {
-            this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.config.id}`;
+            this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.id}`;
             getLogger().error(this._error);
             return;
           }
 
-          dataflow.targetTaskId = task.config.id;
+          dataflow.targetTaskId = task.id;
           this.graph.addDataflow(dataflow);
         });
 
@@ -342,10 +342,10 @@ export class Workflow<
       }
 
       // Auto-connect to parent if needed
-      if (parent && this.graph.getTargetDataflows(parent.config.id).length === 0) {
+      if (parent) {
         // Build the list of earlier tasks (in reverse chronological order)
         const nodes = this._graph.getTasks();
-        const parentIndex = nodes.findIndex((n) => n.config.id === parent.config.id);
+        const parentIndex = nodes.findIndex((n) => n.id === parent.id);
         const earlierTasks: ITask[] = [];
         for (let i = parentIndex - 1; i >= 0; i--) {
           earlierTasks.push(nodes[i]);
@@ -353,8 +353,15 @@ export class Workflow<
 
         const providedInputKeys = new Set(Object.keys(input || {}));
 
+        // Ports already connected via pending dataflows (e.g., from .rename())
+        // must not be re-matched by auto-connect Strategies 1/2/3.
+        const connectedInputKeys = new Set(
+          this.graph.getSourceDataflows(task.id).map((df) => df.targetTaskPortId)
+        );
+
         const result = Workflow.autoConnect(this.graph, parent, task, {
           providedInputKeys,
+          connectedInputKeys,
           earlierTasks,
         });
 
@@ -367,7 +374,7 @@ export class Workflow<
           } else {
             this._error = result.error + " Task not added.";
             getLogger().error(this._error);
-            this.graph.removeTask(task.config.id);
+            this.graph.removeTask(task.id);
           }
         }
       }
@@ -512,7 +519,7 @@ export class Workflow<
     }
 
     const lastNode = nodes[nodes.length - 1];
-    this._graph.removeTask(lastNode.config.id);
+    this._graph.removeTask(lastNode.id);
     return this;
   }
 
@@ -653,7 +660,7 @@ export class Workflow<
     if (-index > nodes.length) {
       const errorMsg = `Back index greater than number of tasks`;
       this._error = errorMsg;
-      console.error(this._error);
+      getLogger().error(this._error);
       throw new WorkflowError(errorMsg);
     }
 
@@ -663,20 +670,20 @@ export class Workflow<
     // Handle boolean schemas
     if (typeof outputSchema === "boolean") {
       if (outputSchema === false && source !== DATAFLOW_ALL_PORTS) {
-        const errorMsg = `Task ${lastNode.config.id} has schema 'false' and outputs nothing`;
+        const errorMsg = `Task ${lastNode.id} has schema 'false' and outputs nothing`;
         this._error = errorMsg;
         getLogger().error(this._error);
         throw new WorkflowError(errorMsg);
       }
       // If outputSchema is true, we skip validation as it outputs everything
     } else if (!(outputSchema.properties as any)?.[source] && source !== DATAFLOW_ALL_PORTS) {
-      const errorMsg = `Output ${source} not found on task ${lastNode.config.id}`;
+      const errorMsg = `Output ${source} not found on task ${lastNode.id}`;
       this._error = errorMsg;
       getLogger().error(this._error);
       throw new WorkflowError(errorMsg);
     }
 
-    this._dataFlows.push(new Dataflow(lastNode.config.id, source, undefined, target));
+    this._dataFlows.push(new Dataflow(lastNode.id, source, undefined, target));
     return this;
   }
 
@@ -697,7 +704,7 @@ export class Workflow<
     const parent = getLastTask(this);
     if (!parent) {
       this._error = "onError() requires a preceding task in the workflow";
-      console.error(this._error);
+      getLogger().error(this._error);
       throw new WorkflowError(this._error);
     }
 
@@ -706,13 +713,13 @@ export class Workflow<
 
     // Connect the previous task's error output port to the handler's all-ports input
     const dataflow = new Dataflow(
-      parent.config.id,
+      parent.id,
       DATAFLOW_ERROR_PORT,
-      handlerTask.config.id,
+      handlerTask.id,
       DATAFLOW_ALL_PORTS
     );
     this.graph.addDataflow(dataflow);
-    this.events.emit("changed", handlerTask.config.id);
+    this.events.emit("changed", handlerTask.id);
 
     return this;
   }
@@ -889,12 +896,12 @@ export class Workflow<
             taskSchema.additionalProperties !== true) ||
           (taskSchema === true && dataflow.targetTaskPortId !== DATAFLOW_ALL_PORTS)
         ) {
-          this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.config.id}`;
-          console.error(this._error);
+          this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.id}`;
+          getLogger().error(this._error);
           return;
         }
 
-        dataflow.targetTaskId = task.config.id;
+        dataflow.targetTaskId = task.id;
         this.graph.addDataflow(dataflow);
       });
 
@@ -924,9 +931,9 @@ export class Workflow<
     if (!pending) return;
     const { parent, iteratorTask } = pending;
 
-    if (this.graph.getTargetDataflows(parent.config.id).length === 0) {
+    if (this.graph.getTargetDataflows(parent.id).length === 0) {
       const nodes = this._graph.getTasks();
-      const parentIndex = nodes.findIndex((n) => n.config.id === parent.config.id);
+      const parentIndex = nodes.findIndex((n) => n.id === parent.id);
       const earlierTasks: ITask[] = [];
       for (let i = parentIndex - 1; i >= 0; i--) {
         earlierTasks.push(nodes[i]);
@@ -938,8 +945,8 @@ export class Workflow<
 
       if (result.error) {
         this._error = result.error + " Task not added.";
-        console.error(this._error);
-        this.graph.removeTask(iteratorTask.config.id);
+        getLogger().error(this._error);
+        this.graph.removeTask(iteratorTask.id);
       }
     }
   }
@@ -969,6 +976,8 @@ export class Workflow<
     options?: {
       /** Keys of inputs that are already provided and don't need connection */
       readonly providedInputKeys?: Set<string>;
+      /** Keys of inputs that are already connected via dataflow (e.g., from rename) and must not be re-matched */
+      readonly connectedInputKeys?: Set<string>;
       /** Earlier tasks to search for unmatched required inputs (in reverse chronological order) */
       readonly earlierTasks?: readonly ITask[];
     }
@@ -981,6 +990,7 @@ export class Workflow<
     const sourceSchema = sourceTask.outputSchema();
     const targetSchema = targetTask.inputSchema();
     const providedInputKeys = options?.providedInputKeys ?? new Set<string>();
+    const connectedInputKeys = options?.connectedInputKeys ?? new Set<string>();
     const earlierTasks = options?.earlierTasks ?? [];
 
     /**
@@ -1126,6 +1136,8 @@ export class Workflow<
       // then apply x-stream tiebreaker when multiple source ports match.
       for (const [toInputPortId, toPortInputSchema] of Object.entries(toSchema.properties || {})) {
         if (matches.has(toInputPortId)) continue;
+        // Skip ports already connected via dataflow (e.g., from rename)
+        if (connectedInputKeys.has(toInputPortId)) continue;
 
         const candidates: string[] = [];
         for (const [fromOutputPortId, fromPortOutputSchema] of Object.entries(
@@ -1160,8 +1172,8 @@ export class Workflow<
     makeMatch(
       sourceSchema,
       targetSchema,
-      sourceTask.config.id,
-      targetTask.config.id,
+      sourceTask.id,
+      targetTask.id,
       ([fromOutputPortId, fromPortOutputSchema], [toInputPortId, toPortInputSchema]) => {
         const outputPortIdMatch = fromOutputPortId === toInputPortId;
         const outputPortIdOutputInput = fromOutputPortId === "output" && toInputPortId === "input";
@@ -1179,8 +1191,8 @@ export class Workflow<
     makeMatch(
       sourceSchema,
       targetSchema,
-      sourceTask.config.id,
-      targetTask.config.id,
+      sourceTask.id,
+      targetTask.id,
       ([_fromOutputPortId, fromPortOutputSchema], [_toInputPortId, toPortInputSchema]) => {
         return isTypeCompatible(fromPortOutputSchema, toPortInputSchema, true);
       }
@@ -1193,9 +1205,9 @@ export class Workflow<
     );
 
     // Filter out required inputs that are already provided in the input parameter
-    // These don't need to be connected from previous tasks
+    // or already connected via dataflow (e.g., from rename)
     const requiredInputsNeedingConnection = [...requiredInputs].filter(
-      (r) => !providedInputKeys.has(r)
+      (r) => !providedInputKeys.has(r) && !connectedInputKeys.has(r)
     );
 
     // Compute unmatched required inputs (that aren't already provided)
@@ -1233,12 +1245,7 @@ export class Workflow<
               ) {
                 matches.set(requiredInputId, fromOutputPortId);
                 graph.addDataflow(
-                  new Dataflow(
-                    earlierTask.config.id,
-                    fromOutputPortId,
-                    targetTask.config.id,
-                    requiredInputId
-                  )
+                  new Dataflow(earlierTask.id, fromOutputPortId, targetTask.id, requiredInputId)
                 );
               }
             }
@@ -1287,9 +1294,17 @@ export class Workflow<
 
     if (matches.size === 0 && requiredInputsNeedingConnection.length === 0) {
       // No matches were made AND no required inputs need connection
-      // This happens in two cases:
+      // This happens in several cases:
       // 1. Task has required inputs, but they were all provided as parameters
       // 2. Task has no required inputs (all optional)
+      // 3. Task is already connected via other means (rename, manual connect)
+
+      // If the target already has incoming connections (from rename, etc.),
+      // consider it already connected and allow the task
+      const existingTargetConnections = graph.getSourceDataflows(targetTask.id);
+      if (existingTargetConnections.length > 0) {
+        return { matches, unmatchedRequired: [] };
+      }
 
       // If task has required inputs that were all provided as parameters, allow the task
       const hasRequiredInputs = requiredInputs.size > 0;
