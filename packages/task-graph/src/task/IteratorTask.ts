@@ -500,7 +500,11 @@ export abstract class IteratorTask<
 
   /**
    * Derives the schema accepted by each iteration of the inner workflow.
-   * This uses root task inputs and does not require an InputTask node.
+   * For root tasks (no incoming edges) all input properties are collected.
+   * For non-root tasks, only REQUIRED properties that are not satisfied by
+   * any internal dataflow are added — this ensures that required inputs are
+   * included in the iterator's input schema without pulling in every optional
+   * downstream property.
    */
   protected getInnerInputSchema(): DataPortSchema | undefined {
     if (!this.hasChildren()) return undefined;
@@ -517,6 +521,7 @@ export abstract class IteratorTask<
     const required: string[] = [];
     let additionalProperties = false;
 
+    // Collect all properties from root tasks (original behavior)
     for (const task of sources) {
       const inputSchema = task.inputSchema();
       if (typeof inputSchema === "boolean") {
@@ -536,6 +541,38 @@ export abstract class IteratorTask<
       }
 
       for (const key of inputSchema.required || []) {
+        if (!required.includes(key)) {
+          required.push(key);
+        }
+      }
+    }
+
+    // For non-root tasks, collect only REQUIRED properties not satisfied by dataflows.
+    // This handles cases like: map().fetch().structuralParser() where structuralParser
+    // requires "title" but fetch doesn't output it — title must come from the map input.
+    const sourceIds = new Set(sources.map((t) => t.config.id));
+    for (const task of tasks) {
+      if (sourceIds.has(task.config.id)) continue;
+
+      const inputSchema = task.inputSchema();
+      if (typeof inputSchema === "boolean") continue;
+
+      const requiredKeys = new Set<string>((inputSchema.required as string[] | undefined) || []);
+      if (requiredKeys.size === 0) continue;
+
+      const connectedPorts = new Set(
+        this.subGraph.getSourceDataflows(task.config.id).map((df) => df.targetTaskPortId)
+      );
+
+      for (const key of requiredKeys) {
+        // Skip if already connected via dataflow or already collected from a root task
+        if (connectedPorts.has(key)) continue;
+        if (properties[key]) continue;
+
+        const prop = (inputSchema.properties || {})[key];
+        if (!prop || typeof prop === "boolean") continue;
+
+        properties[key] = prop as DataPortSchema;
         if (!required.includes(key)) {
           required.push(key);
         }
