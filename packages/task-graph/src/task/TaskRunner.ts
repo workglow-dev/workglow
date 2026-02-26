@@ -438,8 +438,8 @@ export class TaskRunner<
     // shouldAccumulate defaults to true (backward-compatible for standalone runs)
     this.shouldAccumulate = config.shouldAccumulate !== false;
 
-    // Start timeout timer if configured
-    const timeout = config.timeout ?? this.task.runConfig?.timeout;
+    // Start timeout timer if configured (timeout is a design-time config property)
+    const timeout = (this.task.config as Record<string, unknown>).timeout as number | undefined;
     if (timeout !== undefined && timeout > 0) {
       this.pendingTimeoutError = new TaskTimeoutError(timeout);
       this.timeoutTimer = setTimeout(() => {

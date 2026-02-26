@@ -169,20 +169,20 @@ class DoubleTask extends Task<{ input: number }, { output: number }> {
 
 describe("Task-Level Timeout", () => {
   it("should abort a slow task when timeout expires", async () => {
-    const task = new SlowTask();
+    const task = new SlowTask({}, { timeout: 50 });
     task.sleepMs = 500;
 
-    await expect(task.run({}, { timeout: 50 })).rejects.toThrow(TaskTimeoutError);
+    await expect(task.run()).rejects.toThrow(TaskTimeoutError);
     expect(task.status).toBe(TaskStatus.ABORTING);
     expect(task.error).toBeInstanceOf(TaskTimeoutError);
     expect(task.error?.message).toContain("50ms");
   });
 
   it("should complete normally when task finishes before timeout", async () => {
-    const task = new SlowTask({ input: 5 });
+    const task = new SlowTask({ input: 5 }, { timeout: 2000 });
     task.sleepMs = 20;
 
-    const output = await task.run({}, { timeout: 2000 });
+    const output = await task.run();
     expect(output.output).toBe(10);
     expect(task.status).toBe(TaskStatus.COMPLETED);
   });
@@ -197,11 +197,11 @@ describe("Task-Level Timeout", () => {
   });
 
   it("should surface TaskTimeoutError (subclass of TaskAbortedError)", async () => {
-    const task = new SlowTask();
+    const task = new SlowTask({}, { timeout: 30 });
     task.sleepMs = 500;
 
     try {
-      await task.run({}, { timeout: 30 });
+      await task.run();
       expect.unreachable("Should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(TaskTimeoutError);
@@ -210,7 +210,7 @@ describe("Task-Level Timeout", () => {
   });
 
   it("should emit abort event with TaskTimeoutError", async () => {
-    const task = new SlowTask();
+    const task = new SlowTask({}, { timeout: 30 });
     task.sleepMs = 500;
     let receivedError: unknown = null;
 
@@ -218,16 +218,15 @@ describe("Task-Level Timeout", () => {
       receivedError = error;
     });
 
-    await task.run({}, { timeout: 30 }).catch(() => {});
+    await task.run().catch(() => {});
 
     expect(receivedError).toBeInstanceOf(TaskTimeoutError);
   });
 
   it("should work with timeout in a graph runner context", async () => {
     const graph = new TaskGraph();
-    const slow = new SlowTask({ input: 5 }, { id: "slow" });
+    const slow = new SlowTask({ input: 5 }, { id: "slow", timeout: 50 });
     slow.sleepMs = 500;
-    slow.runConfig = { timeout: 50 };
 
     graph.addTask(slow);
     const runner = new TaskGraphRunner(graph);
