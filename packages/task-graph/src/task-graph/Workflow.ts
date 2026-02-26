@@ -443,7 +443,7 @@ export class Workflow<
    * @param input - The input to the task graph
    * @returns The output of the task graph
    */
-  public async run(input: Input = {} as Input): Promise<PropertyArrayGraphResult<Output>> {
+  public async run(input: Partial<Input> = {}): Promise<PropertyArrayGraphResult<Output>> {
     // In loop builder mode, finalize template and delegate to parent
     if (this.isLoopBuilder) {
       this.finalizeTemplate();

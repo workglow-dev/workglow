@@ -13,5 +13,5 @@ export interface IWorkflow<
   Output extends TaskOutput = TaskOutput,
 > {
   graph: TaskGraph;
-  run(input?: Input): Promise<GraphResult<Output, typeof PROPERTY_ARRAY>>;
+  run(input?: Partial<Input>): Promise<GraphResult<Output, typeof PROPERTY_ARRAY>>;
 }
