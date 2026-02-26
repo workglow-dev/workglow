@@ -4,4 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * as Sqlite from "bun:sqlite";
+import * as SqliteNamespace from "bun:sqlite";
+/** Re-export bun:sqlite as Sqlite for @workglow/sqlite API. */
+const Sqlite = SqliteNamespace;
+export { Sqlite };
