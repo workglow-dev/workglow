@@ -19,8 +19,8 @@ import {
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mockChat = vi.fn();
