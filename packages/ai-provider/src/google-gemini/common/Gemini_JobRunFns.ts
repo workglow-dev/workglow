@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TaskType } from "@google/generative-ai";
-import type { FunctionCallingMode } from "@google/generative-ai";
+import type { FunctionCallingMode, TaskType } from "@google/generative-ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
