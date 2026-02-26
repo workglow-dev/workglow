@@ -215,18 +215,18 @@ export class GraphAsTask<
   /**
    * Gets the compiled input schema
    */
-  protected override getInputSchemaNode(type: TaskTypeName): SchemaNode {
+  protected override getInputSchemaNode(): SchemaNode {
     // every graph as task is different, so we need to compile the schema for each one
     if (!this._inputSchemaNode) {
-      const dataPortSchema = this.inputSchema();
-      const schemaNode = Task.generateInputSchemaNode(dataPortSchema);
       try {
+        const dataPortSchema = this.inputSchema();
+        const schemaNode = Task.generateInputSchemaNode(dataPortSchema);
         this._inputSchemaNode = schemaNode;
       } catch (error) {
         // If compilation fails, fall back to accepting any object structure
         // This is a safety net for schemas that json-schema-library can't compile
         console.warn(
-          `Failed to compile input schema for ${type}, falling back to permissive validation:`,
+          `Failed to compile input schema for ${this.type}, falling back to permissive validation:`,
           error
         );
         this._inputSchemaNode = compileSchema({});

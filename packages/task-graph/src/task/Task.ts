@@ -413,7 +413,7 @@ export class Task<
       return {};
     }
     try {
-      const compiledSchema = this.getInputSchemaNode(this.type);
+      const compiledSchema = this.getInputSchemaNode();
       const defaultData = compiledSchema.getData(undefined, {
         addOptionalProps: true,
         removeInvalidData: false,
@@ -739,29 +739,37 @@ export class Task<
   // ========================================================================
 
   /**
-   * The compiled config schema (cached per task type)
-   */
-  private static _configSchemaNode: Map<string, SchemaNode> = new Map();
-
-  /**
    * Gets the compiled config schema node, or undefined if no configSchema is defined.
+   *
+   * The compiled schema is cached directly on the concrete class object (not in a shared
+   * inherited Map) so that each subclass always uses its own configSchema() result.
+   * A shared Map keyed only by type name can be poisoned if a different class computes
+   * and caches the schema first — e.g., due to cross-package static-method resolution
+   * inconsistencies in bundled outputs.
    */
-  private static getConfigSchemaNode(type: TaskTypeName): SchemaNode | undefined {
+  private static getConfigSchemaNode(): SchemaNode | undefined {
     const schema = this.configSchema();
     if (!schema) return undefined;
-    if (!this._configSchemaNode.has(type)) {
+    // Use Object.hasOwn so each class gets its own entry rather than inheriting
+    // from a parent class that already cached under the same key.
+    if (!Object.hasOwn(this, "__compiledConfigSchema")) {
       try {
         const schemaNode =
           typeof schema === "boolean"
             ? compileSchema(schema ? {} : { not: {} })
             : compileSchema(schema);
-        this._configSchemaNode.set(type, schemaNode);
+        Object.defineProperty(this, "__compiledConfigSchema", {
+          value: schemaNode,
+          writable: true,
+          configurable: true,
+          enumerable: false,
+        });
       } catch (error) {
         console.warn(`Failed to compile config schema for ${this.type}:`, error);
         return undefined;
       }
     }
-    return this._configSchemaNode.get(type);
+    return (this as any).__compiledConfigSchema as SchemaNode;
   }
 
   /**
@@ -771,7 +779,7 @@ export class Task<
    */
   private validateAndApplyConfigDefaults(config: Config): Config {
     const ctor = this.constructor as typeof Task;
-    const schemaNode = ctor.getConfigSchemaNode(this.type);
+    const schemaNode = ctor.getConfigSchemaNode();
     if (!schemaNode) return config;
 
     const result = schemaNode.validate(config);
@@ -788,11 +796,6 @@ export class Task<
     return config;
   }
 
-  /**
-   * The compiled input schema
-   */
-  private static _inputSchemaNode: Map<string, SchemaNode> = new Map();
-
   protected static generateInputSchemaNode(schema: DataPortSchema) {
     if (typeof schema === "boolean") {
       if (schema === false) {
@@ -804,14 +807,21 @@ export class Task<
   }
 
   /**
-   * Gets the compiled input schema
+   * Gets the compiled input schema, cached per class (not in a shared inherited Map).
+   * Uses Object.hasOwn so each subclass stores its own compiled schema and never
+   * picks up a stale entry cached by a different class with the same type name.
    */
-  protected static getInputSchemaNode(type: TaskTypeName): SchemaNode {
-    if (!this._inputSchemaNode.has(type)) {
+  protected static getInputSchemaNode(): SchemaNode {
+    if (!Object.hasOwn(this, "__compiledInputSchema")) {
       const dataPortSchema = this.inputSchema();
       const schemaNode = this.generateInputSchemaNode(dataPortSchema);
       try {
-        this._inputSchemaNode.set(type, schemaNode);
+        Object.defineProperty(this, "__compiledInputSchema", {
+          value: schemaNode,
+          writable: true,
+          configurable: true,
+          enumerable: false,
+        });
       } catch (error) {
         // If compilation fails, fall back to accepting any object structure
         // This is a safety net for schemas that json-schema-library can't compile
@@ -819,14 +829,19 @@ export class Task<
           `Failed to compile input schema for ${this.type}, falling back to permissive validation:`,
           error
         );
-        this._inputSchemaNode.set(type, compileSchema({}));
+        Object.defineProperty(this, "__compiledInputSchema", {
+          value: compileSchema({}),
+          writable: true,
+          configurable: true,
+          enumerable: false,
+        });
       }
     }
-    return this._inputSchemaNode.get(type)!;
+    return (this as any).__compiledInputSchema as SchemaNode;
   }
 
-  protected getInputSchemaNode(type: TaskTypeName): SchemaNode {
-    return (this.constructor as typeof Task).getInputSchemaNode(type);
+  protected getInputSchemaNode(): SchemaNode {
+    return (this.constructor as typeof Task).getInputSchemaNode();
   }
 
   /**
@@ -841,7 +856,7 @@ export class Task<
       const instanceSchema = this.inputSchema();
       schemaNode = ctor.generateInputSchemaNode(instanceSchema);
     } else {
-      schemaNode = this.getInputSchemaNode(this.type);
+      schemaNode = this.getInputSchemaNode();
     }
     const result = schemaNode.validate(input);
 
