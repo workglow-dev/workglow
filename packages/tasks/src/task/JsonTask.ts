@@ -106,7 +106,7 @@ export class JsonTask<
           if (!sourceTask) {
             throw new TaskConfigurationError(`Dependency id ${dep.id} not found`);
           }
-          const df = new Dataflow(sourceTask.config.id, dep.output, item.id, input);
+          const df = new Dataflow(sourceTask.id, dep.output, item.id, input);
           this.subGraph.addDataflow(df);
         }
       }

@@ -393,12 +393,8 @@ describe("ConditionalTask Graph Integration", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, doubleTask, halveTask]);
 
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "forDouble", doubleTask.config.id, "input")
-      );
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "forHalve", halveTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "forDouble", doubleTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "forHalve", halveTask.id, "input"));
 
       await graph.run({ value: 10 });
 
@@ -425,10 +421,8 @@ describe("ConditionalTask Graph Integration", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, takenTask, notTakenTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "taken", takenTask.config.id, "input"));
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "notTaken", notTakenTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "taken", takenTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "notTaken", notTakenTask.id, "input"));
 
       await graph.run({});
 
@@ -462,20 +456,12 @@ describe("ConditionalTask Graph Integration", () => {
       graph.addTasks([conditional, activeTask1, inactiveTask1, inactiveTask2, inactiveTask3]);
 
       // Active path
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "active", activeTask1.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "active", activeTask1.id, "input"));
 
       // Inactive path (cascading)
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "inactive", inactiveTask1.config.id, "input")
-      );
-      graph.addDataflow(
-        new Dataflow(inactiveTask1.config.id, "executed", inactiveTask2.config.id, "input")
-      );
-      graph.addDataflow(
-        new Dataflow(inactiveTask2.config.id, "executed", inactiveTask3.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "inactive", inactiveTask1.id, "input"));
+      graph.addDataflow(new Dataflow(inactiveTask1.id, "executed", inactiveTask2.id, "input"));
+      graph.addDataflow(new Dataflow(inactiveTask2.id, "executed", inactiveTask3.id, "input"));
 
       await graph.run({});
 
@@ -509,12 +495,8 @@ describe("ConditionalTask Graph Integration", () => {
       graph.addTasks([conditional, mergeTask]);
 
       // Both branches connect to the same task
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "active", mergeTask.config.id, "input")
-      );
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "inactive", mergeTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "active", mergeTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "inactive", mergeTask.id, "input"));
 
       await graph.run({});
 
@@ -546,9 +528,9 @@ describe("ConditionalTask Graph Integration", () => {
       const graph = new TaskGraph();
       graph.addTasks([switchTask, taskA, taskB, taskC]);
 
-      graph.addDataflow(new Dataflow(switchTask.config.id, "typeA", taskA.config.id, "input"));
-      graph.addDataflow(new Dataflow(switchTask.config.id, "typeB", taskB.config.id, "input"));
-      graph.addDataflow(new Dataflow(switchTask.config.id, "typeC", taskC.config.id, "input"));
+      graph.addDataflow(new Dataflow(switchTask.id, "typeA", taskA.id, "input"));
+      graph.addDataflow(new Dataflow(switchTask.id, "typeB", taskB.id, "input"));
+      graph.addDataflow(new Dataflow(switchTask.id, "typeC", taskC.id, "input"));
 
       await graph.run({ type: "B" });
 
@@ -580,9 +562,9 @@ describe("ConditionalTask Graph Integration", () => {
       const graph = new TaskGraph();
       graph.addTasks([multiPath, task1, task2, task3]);
 
-      graph.addDataflow(new Dataflow(multiPath.config.id, "path1", task1.config.id, "input"));
-      graph.addDataflow(new Dataflow(multiPath.config.id, "path2", task2.config.id, "input"));
-      graph.addDataflow(new Dataflow(multiPath.config.id, "path3", task3.config.id, "input"));
+      graph.addDataflow(new Dataflow(multiPath.id, "path1", task1.id, "input"));
+      graph.addDataflow(new Dataflow(multiPath.id, "path2", task2.id, "input"));
+      graph.addDataflow(new Dataflow(multiPath.id, "path3", task3.id, "input"));
 
       await graph.run({});
 
@@ -638,20 +620,12 @@ describe("ConditionalTask Graph Integration", () => {
       graph.addTasks([typeConditional, tierConditional, goldTask, silverTask, standardTask]);
 
       // Type conditional outputs
-      graph.addDataflow(
-        new Dataflow(typeConditional.config.id, "premium", tierConditional.config.id, "premium")
-      );
-      graph.addDataflow(
-        new Dataflow(typeConditional.config.id, "standard", standardTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(typeConditional.id, "premium", tierConditional.id, "premium"));
+      graph.addDataflow(new Dataflow(typeConditional.id, "standard", standardTask.id, "input"));
 
       // Tier conditional outputs
-      graph.addDataflow(
-        new Dataflow(tierConditional.config.id, "gold", goldTask.config.id, "input")
-      );
-      graph.addDataflow(
-        new Dataflow(tierConditional.config.id, "silver", silverTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(tierConditional.id, "gold", goldTask.id, "input"));
+      graph.addDataflow(new Dataflow(tierConditional.id, "silver", silverTask.id, "input"));
 
       await graph.run({ userType: "premium", tier: "gold" });
 
@@ -680,18 +654,8 @@ describe("ConditionalTask Graph Integration", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, activeTask, inactiveTask]);
 
-      const activeDataflow = new Dataflow(
-        conditional.config.id,
-        "active",
-        activeTask.config.id,
-        "input"
-      );
-      const inactiveDataflow = new Dataflow(
-        conditional.config.id,
-        "inactive",
-        inactiveTask.config.id,
-        "input"
-      );
+      const activeDataflow = new Dataflow(conditional.id, "active", activeTask.id, "input");
+      const inactiveDataflow = new Dataflow(conditional.id, "inactive", inactiveTask.id, "input");
 
       graph.addDataflow(activeDataflow);
       graph.addDataflow(inactiveDataflow);
@@ -735,10 +699,10 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, taskA, taskB, mergeTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "pathA", taskA.config.id, "value"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "pathB", taskB.config.id, "value"));
-      graph.addDataflow(new Dataflow(taskA.config.id, "doubled", mergeTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(taskB.config.id, "halved", mergeTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "pathA", taskA.id, "value"));
+      graph.addDataflow(new Dataflow(conditional.id, "pathB", taskB.id, "value"));
+      graph.addDataflow(new Dataflow(taskA.id, "doubled", mergeTask.id, "input"));
+      graph.addDataflow(new Dataflow(taskB.id, "halved", mergeTask.id, "input"));
 
       await graph.run({ value: 10 });
 
@@ -769,10 +733,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, highTask, mediumTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "high", highTask.config.id, "input"));
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "medium", mediumTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "high", highTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "medium", mediumTask.id, "input"));
 
       await graph.run({ value: 10 }); // No branch matches
 
@@ -803,11 +765,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([inputTask, conditional, largeTask, smallTask]);
 
-      graph.addDataflow(
-        new Dataflow(inputTask.config.id, "doubled", conditional.config.id, "doubled")
-      );
-      graph.addDataflow(new Dataflow(conditional.config.id, "large", largeTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "small", smallTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(inputTask.id, "doubled", conditional.id, "doubled"));
+      graph.addDataflow(new Dataflow(conditional.id, "large", largeTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "small", smallTask.id, "input"));
 
       await graph.run({ value: 10 }); // doubled = 20 > 10, so large path
 
@@ -850,10 +810,10 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional1, conditional2, task1Yes, task1No, task2Yes, task2No]);
 
-      graph.addDataflow(new Dataflow(conditional1.config.id, "yes1", task1Yes.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional1.config.id, "no1", task1No.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional2.config.id, "yes2", task2Yes.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional2.config.id, "no2", task2No.config.id, "input"));
+      graph.addDataflow(new Dataflow(conditional1.id, "yes1", task1Yes.id, "input"));
+      graph.addDataflow(new Dataflow(conditional1.id, "no1", task1No.id, "input"));
+      graph.addDataflow(new Dataflow(conditional2.id, "yes2", task2Yes.id, "input"));
+      graph.addDataflow(new Dataflow(conditional2.id, "no2", task2No.id, "input"));
 
       await graph.run({ flag1: true, flag2: false });
 
@@ -891,10 +851,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       graph.addTasks([conditional, processTask, skipTask]);
 
       // Use DATAFLOW_ALL_PORTS to pass all data through
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "toProcess", processTask.config.id, "*")
-      );
-      graph.addDataflow(new Dataflow(conditional.config.id, "toSkip", skipTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "toProcess", processTask.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "toSkip", skipTask.id, "input"));
 
       const results = await graph.run({ shouldProcess: true, value: 42 });
 
@@ -925,10 +883,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, processTask, skipTask]);
 
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "toProcess", processTask.config.id, "*")
-      );
-      graph.addDataflow(new Dataflow(conditional.config.id, "toSkip", skipTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "toProcess", processTask.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "toSkip", skipTask.id, "input"));
 
       await graph.run({ shouldProcess: false, value: 42 });
 
@@ -958,12 +914,10 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([doubler, conditional, processTask, halveTask]);
 
-      graph.addDataflow(
-        new Dataflow(doubler.config.id, "doubled", conditional.config.id, "doubled")
-      );
+      graph.addDataflow(new Dataflow(doubler.id, "doubled", conditional.id, "doubled"));
       // Use DATAFLOW_ALL_PORTS for ProcessValueTask
-      graph.addDataflow(new Dataflow(conditional.config.id, "big", processTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "small", halveTask.config.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "big", processTask.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "small", halveTask.id, "*"));
 
       // Input 30 -> doubled = 60 -> big branch (60 > 50)
       await graph.run({ value: 30 });
@@ -995,11 +949,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([doubler, conditional, bigTask, smallTask]);
 
-      graph.addDataflow(
-        new Dataflow(doubler.config.id, "doubled", conditional.config.id, "doubled")
-      );
-      graph.addDataflow(new Dataflow(conditional.config.id, "big", bigTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "small", smallTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(doubler.id, "doubled", conditional.id, "doubled"));
+      graph.addDataflow(new Dataflow(conditional.id, "big", bigTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "small", smallTask.id, "input"));
 
       // Input 10 -> doubled = 20 -> small branch (20 <= 50)
       await graph.run({ value: 10 });
@@ -1038,10 +990,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([validator, processTask, errorHandler]);
 
-      graph.addDataflow(new Dataflow(validator.config.id, "valid", processTask.config.id, "*"));
-      graph.addDataflow(
-        new Dataflow(validator.config.id, "invalid", errorHandler.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(validator.id, "valid", processTask.id, "*"));
+      graph.addDataflow(new Dataflow(validator.id, "invalid", errorHandler.id, "input"));
 
       // Valid input
       await graph.run({ value: 500 });
@@ -1083,10 +1033,10 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([router, criticalTask, highTask, normalTask, lowTask]);
 
-      graph.addDataflow(new Dataflow(router.config.id, "critical", criticalTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(router.config.id, "high", highTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(router.config.id, "normal", normalTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(router.config.id, "low", lowTask.config.id, "*"));
+      graph.addDataflow(new Dataflow(router.id, "critical", criticalTask.id, "*"));
+      graph.addDataflow(new Dataflow(router.id, "high", highTask.id, "*"));
+      graph.addDataflow(new Dataflow(router.id, "normal", normalTask.id, "*"));
+      graph.addDataflow(new Dataflow(router.id, "low", lowTask.id, "*"));
 
       await graph.run({ priority: "high", value: 100 });
 
@@ -1115,8 +1065,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([featureGate, v2Processor, v1Processor]);
 
-      graph.addDataflow(new Dataflow(featureGate.config.id, "v2", v2Processor.config.id, "*"));
-      graph.addDataflow(new Dataflow(featureGate.config.id, "v1", v1Processor.config.id, "*"));
+      graph.addDataflow(new Dataflow(featureGate.id, "v2", v2Processor.id, "*"));
+      graph.addDataflow(new Dataflow(featureGate.id, "v1", v1Processor.id, "*"));
 
       // Test with v2 enabled
       await graph.run({ features: { v2Enabled: true }, value: 100 });
@@ -1151,9 +1101,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([fanOut, proc1, proc2, proc3]);
 
-      graph.addDataflow(new Dataflow(fanOut.config.id, "proc1", proc1.config.id, "*"));
-      graph.addDataflow(new Dataflow(fanOut.config.id, "proc2", proc2.config.id, "*"));
-      graph.addDataflow(new Dataflow(fanOut.config.id, "proc3", proc3.config.id, "*"));
+      graph.addDataflow(new Dataflow(fanOut.id, "proc1", proc1.id, "*"));
+      graph.addDataflow(new Dataflow(fanOut.id, "proc2", proc2.id, "*"));
+      graph.addDataflow(new Dataflow(fanOut.id, "proc3", proc3.id, "*"));
 
       await graph.run({ value: 100 });
 
@@ -1191,12 +1141,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, activeTask, inactiveTask]);
 
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "active", activeTask.config.id, "input")
-      );
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "inactive", inactiveTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "active", activeTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "inactive", inactiveTask.id, "input"));
 
       await graph.run({});
 
@@ -1227,8 +1173,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, yesTask, noTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "yes", yesTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "no", noTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "yes", yesTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "no", noTask.id, "input"));
 
       await graph.run({});
 
@@ -1263,8 +1209,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, hugeTask, normalTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "huge", hugeTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "normal", normalTask.config.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "huge", hugeTask.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "normal", normalTask.id, "*"));
 
       await graph.run({ value: Number.MAX_SAFE_INTEGER });
 
@@ -1293,9 +1239,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, adminTask, userTask, guestTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "admin", adminTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "user", userTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "guest", guestTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "admin", adminTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "user", userTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "guest", guestTask.id, "input"));
 
       await graph.run({ role: "user", value: 42 });
 
@@ -1330,10 +1276,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, hasItemsTask, emptyTask]);
 
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "hasItems", hasItemsTask.config.id, "*")
-      );
-      graph.addDataflow(new Dataflow(conditional.config.id, "empty", emptyTask.config.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "hasItems", hasItemsTask.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "empty", emptyTask.id, "input"));
 
       await graph.run({ items: [1, 2, 3], value: 100 });
 
@@ -1374,10 +1318,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, deepTask, shallowTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "deep", deepTask.config.id, "input"));
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "shallow", shallowTask.config.id, "input")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "deep", deepTask.id, "input"));
+      graph.addDataflow(new Dataflow(conditional.id, "shallow", shallowTask.id, "input"));
 
       await graph.run({
         level1: {
@@ -1417,9 +1359,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([errorRouter, retryTask, failTask, successTask]);
 
-      graph.addDataflow(new Dataflow(errorRouter.config.id, "retry", retryTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(errorRouter.config.id, "fail", failTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(errorRouter.config.id, "success", successTask.config.id, "*"));
+      graph.addDataflow(new Dataflow(errorRouter.id, "retry", retryTask.id, "*"));
+      graph.addDataflow(new Dataflow(errorRouter.id, "fail", failTask.id, "input"));
+      graph.addDataflow(new Dataflow(errorRouter.id, "success", successTask.id, "*"));
 
       // Test retry scenario
       await graph.run({ errorCode: "TIMEOUT", value: 1 });
@@ -1491,14 +1433,12 @@ describe("ConditionalTask Complex Scenarios", () => {
       graph.addTasks([cond1, cond2, cond3, largeTask, smallTask, oddTask, nonPositiveTask]);
 
       // Wire up the pipeline
-      graph.addDataflow(new Dataflow(cond1.config.id, "positive", cond2.config.id, "positive"));
-      graph.addDataflow(
-        new Dataflow(cond1.config.id, "nonPositive", nonPositiveTask.config.id, "input")
-      );
-      graph.addDataflow(new Dataflow(cond2.config.id, "even", cond3.config.id, "even"));
-      graph.addDataflow(new Dataflow(cond2.config.id, "odd", oddTask.config.id, "input"));
-      graph.addDataflow(new Dataflow(cond3.config.id, "large", largeTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(cond3.config.id, "small", smallTask.config.id, "*"));
+      graph.addDataflow(new Dataflow(cond1.id, "positive", cond2.id, "positive"));
+      graph.addDataflow(new Dataflow(cond1.id, "nonPositive", nonPositiveTask.id, "input"));
+      graph.addDataflow(new Dataflow(cond2.id, "even", cond3.id, "even"));
+      graph.addDataflow(new Dataflow(cond2.id, "odd", oddTask.id, "input"));
+      graph.addDataflow(new Dataflow(cond3.id, "large", largeTask.id, "*"));
+      graph.addDataflow(new Dataflow(cond3.id, "small", smallTask.id, "*"));
 
       // Test: positive (200) -> even -> large
       await graph.run({ value: 200 });
@@ -1542,9 +1482,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, doubleTask, halveTask, processTask]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "multiply", doubleTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "divide", halveTask.config.id, "*"));
-      graph.addDataflow(new Dataflow(conditional.config.id, "process", processTask.config.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "multiply", doubleTask.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "divide", halveTask.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "process", processTask.id, "*"));
 
       // Test multiply path
       await graph.run({ operation: "multiply", value: 25 });
@@ -1590,13 +1530,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([conditional, zeroProcessor, negativeProcessor, positiveProcessor]);
 
-      graph.addDataflow(new Dataflow(conditional.config.id, "zero", zeroProcessor.config.id, "*"));
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "negative", negativeProcessor.config.id, "*")
-      );
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "positive", positiveProcessor.config.id, "*")
-      );
+      graph.addDataflow(new Dataflow(conditional.id, "zero", zeroProcessor.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "negative", negativeProcessor.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "positive", positiveProcessor.id, "*"));
 
       // Test zero
       await graph.run({ value: 0 });
@@ -1637,8 +1573,8 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([fanOut, processor1, processor2]);
 
-      graph.addDataflow(new Dataflow(fanOut.config.id, "proc1", processor1.config.id, "*"));
-      graph.addDataflow(new Dataflow(fanOut.config.id, "proc2", processor2.config.id, "*"));
+      graph.addDataflow(new Dataflow(fanOut.id, "proc1", processor1.id, "*"));
+      graph.addDataflow(new Dataflow(fanOut.id, "proc2", processor2.id, "*"));
 
       await graph.run({ value: 999 });
 
@@ -1670,9 +1606,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([multiPath, evenProcessor, div3Processor, div5Processor]);
 
-      graph.addDataflow(new Dataflow(multiPath.config.id, "even", evenProcessor.config.id, "*"));
-      graph.addDataflow(new Dataflow(multiPath.config.id, "div3", div3Processor.config.id, "*"));
-      graph.addDataflow(new Dataflow(multiPath.config.id, "div5", div5Processor.config.id, "*"));
+      graph.addDataflow(new Dataflow(multiPath.id, "even", evenProcessor.id, "*"));
+      graph.addDataflow(new Dataflow(multiPath.id, "div3", div3Processor.id, "*"));
+      graph.addDataflow(new Dataflow(multiPath.id, "div5", div5Processor.id, "*"));
 
       // Test value 30 (divisible by 2, 3, and 5)
       await graph.run({ value: 30 });
@@ -1717,15 +1653,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([doubler, conditional, overflowProcessor, normalProcessor]);
 
-      graph.addDataflow(
-        new Dataflow(doubler.config.id, "doubled", conditional.config.id, "doubled")
-      );
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "overflow", overflowProcessor.config.id, "*")
-      );
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "normal", normalProcessor.config.id, "*")
-      );
+      graph.addDataflow(new Dataflow(doubler.id, "doubled", conditional.id, "doubled"));
+      graph.addDataflow(new Dataflow(conditional.id, "overflow", overflowProcessor.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "normal", normalProcessor.id, "*"));
 
       // Test overflow path (500001 * 2 = 1000002)
       await graph.run({ value: 500001 });
@@ -1769,13 +1699,9 @@ describe("ConditionalTask Complex Scenarios", () => {
       const graph = new TaskGraph();
       graph.addTasks([halver, conditional, integerProcessor, decimalProcessor]);
 
-      graph.addDataflow(new Dataflow(halver.config.id, "halved", conditional.config.id, "halved"));
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "integer", integerProcessor.config.id, "*")
-      );
-      graph.addDataflow(
-        new Dataflow(conditional.config.id, "decimal", decimalProcessor.config.id, "*")
-      );
+      graph.addDataflow(new Dataflow(halver.id, "halved", conditional.id, "halved"));
+      graph.addDataflow(new Dataflow(conditional.id, "integer", integerProcessor.id, "*"));
+      graph.addDataflow(new Dataflow(conditional.id, "decimal", decimalProcessor.id, "*"));
 
       // Test integer result (100 / 2 = 50)
       await graph.run({ value: 100 });

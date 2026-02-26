@@ -108,7 +108,7 @@ describe("TaskJSON", () => {
 
       const task = createTaskFromGraphJSON(json);
 
-      expect(task.config.id).toBe("task1");
+      expect(task.id).toBe("task1");
       expect(task.type).toBe("DoubleToResultTask");
       expect(task.config.title).toBe("My Task");
       expect(task.defaults).toEqual({ value: 42 });
@@ -201,8 +201,8 @@ describe("TaskJSON", () => {
 
       const tasks = graph.getTasks();
       expect(tasks).toHaveLength(2);
-      expect(tasks[0].config.id).toBe("task1");
-      expect(tasks[1].config.id).toBe("task2");
+      expect(tasks[0].id).toBe("task1");
+      expect(tasks[1].id).toBe("task2");
 
       const dataflows = graph.getDataflows();
       expect(dataflows).toHaveLength(1);
@@ -244,7 +244,7 @@ describe("TaskJSON", () => {
 
       const tasks = graph.getTasks();
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].config.id).toBe("parent");
+      expect(tasks[0].id).toBe("parent");
       expect(tasks[0]).toBeInstanceOf(GraphAsTask);
 
       const graphAsTask = tasks[0] as GraphAsTask<any, any>;
@@ -270,7 +270,7 @@ describe("TaskJSON", () => {
       const restoredTasks = restoredGraph.getTasks();
 
       expect(restoredTasks).toHaveLength(originalTasks.length);
-      expect(restoredTasks[0].config.id).toBe(originalTasks[0].config.id);
+      expect(restoredTasks[0].id).toBe(originalTasks[0].id);
       expect(restoredTasks[0].type).toBe(originalTasks[0].type);
       expect(restoredTasks[0].config.title).toBe(originalTasks[0].config.title);
       expect(restoredTasks[0].defaults).toEqual(originalTasks[0].defaults);
@@ -321,8 +321,8 @@ describe("TaskJSON", () => {
       expect(restoredParent.subGraph).toBeDefined();
       const restoredChildren = restoredParent.subGraph!.getTasks();
       expect(restoredChildren).toHaveLength(2);
-      expect(restoredChildren[0].config.id).toBe("child1");
-      expect(restoredChildren[1].config.id).toBe("child2");
+      expect(restoredChildren[0].id).toBe("child1");
+      expect(restoredChildren[1].id).toBe("child2");
     });
   });
 });

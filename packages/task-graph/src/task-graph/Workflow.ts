@@ -329,12 +329,12 @@ export class Workflow<
               taskSchema.additionalProperties !== true) ||
             (taskSchema === true && dataflow.targetTaskPortId !== DATAFLOW_ALL_PORTS)
           ) {
-            this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.config.id}`;
+            this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.id}`;
             getLogger().error(this._error);
             return;
           }
 
-          dataflow.targetTaskId = task.config.id;
+          dataflow.targetTaskId = task.id;
           this.graph.addDataflow(dataflow);
         });
 
@@ -345,7 +345,7 @@ export class Workflow<
       if (parent && this.graph.getTargetDataflows(parent.config.id).length === 0) {
         // Build the list of earlier tasks (in reverse chronological order)
         const nodes = this._graph.getTasks();
-        const parentIndex = nodes.findIndex((n) => n.config.id === parent.config.id);
+        const parentIndex = nodes.findIndex((n) => n.id === parent.id);
         const earlierTasks: ITask[] = [];
         for (let i = parentIndex - 1; i >= 0; i--) {
           earlierTasks.push(nodes[i]);
@@ -367,7 +367,7 @@ export class Workflow<
           } else {
             this._error = result.error + " Task not added.";
             getLogger().error(this._error);
-            this.graph.removeTask(task.config.id);
+            this.graph.removeTask(task.id);
           }
         }
       }
@@ -512,7 +512,7 @@ export class Workflow<
     }
 
     const lastNode = nodes[nodes.length - 1];
-    this._graph.removeTask(lastNode.config.id);
+    this._graph.removeTask(lastNode.id);
     return this;
   }
 
@@ -653,7 +653,7 @@ export class Workflow<
     if (-index > nodes.length) {
       const errorMsg = `Back index greater than number of tasks`;
       this._error = errorMsg;
-      console.error(this._error);
+      getLogger().error(this._error);
       throw new WorkflowError(errorMsg);
     }
 
@@ -663,20 +663,20 @@ export class Workflow<
     // Handle boolean schemas
     if (typeof outputSchema === "boolean") {
       if (outputSchema === false && source !== DATAFLOW_ALL_PORTS) {
-        const errorMsg = `Task ${lastNode.config.id} has schema 'false' and outputs nothing`;
+        const errorMsg = `Task ${lastNode.id} has schema 'false' and outputs nothing`;
         this._error = errorMsg;
         getLogger().error(this._error);
         throw new WorkflowError(errorMsg);
       }
       // If outputSchema is true, we skip validation as it outputs everything
     } else if (!(outputSchema.properties as any)?.[source] && source !== DATAFLOW_ALL_PORTS) {
-      const errorMsg = `Output ${source} not found on task ${lastNode.config.id}`;
+      const errorMsg = `Output ${source} not found on task ${lastNode.id}`;
       this._error = errorMsg;
       getLogger().error(this._error);
       throw new WorkflowError(errorMsg);
     }
 
-    this._dataFlows.push(new Dataflow(lastNode.config.id, source, undefined, target));
+    this._dataFlows.push(new Dataflow(lastNode.id, source, undefined, target));
     return this;
   }
 
@@ -697,7 +697,7 @@ export class Workflow<
     const parent = getLastTask(this);
     if (!parent) {
       this._error = "onError() requires a preceding task in the workflow";
-      console.error(this._error);
+      getLogger().error(this._error);
       throw new WorkflowError(this._error);
     }
 
@@ -706,13 +706,13 @@ export class Workflow<
 
     // Connect the previous task's error output port to the handler's all-ports input
     const dataflow = new Dataflow(
-      parent.config.id,
+      parent.id,
       DATAFLOW_ERROR_PORT,
-      handlerTask.config.id,
+      handlerTask.id,
       DATAFLOW_ALL_PORTS
     );
     this.graph.addDataflow(dataflow);
-    this.events.emit("changed", handlerTask.config.id);
+    this.events.emit("changed", handlerTask.id);
 
     return this;
   }
@@ -889,12 +889,12 @@ export class Workflow<
             taskSchema.additionalProperties !== true) ||
           (taskSchema === true && dataflow.targetTaskPortId !== DATAFLOW_ALL_PORTS)
         ) {
-          this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.config.id}`;
-          console.error(this._error);
+          this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.id}`;
+          getLogger().error(this._error);
           return;
         }
 
-        dataflow.targetTaskId = task.config.id;
+        dataflow.targetTaskId = task.id;
         this.graph.addDataflow(dataflow);
       });
 
@@ -924,9 +924,9 @@ export class Workflow<
     if (!pending) return;
     const { parent, iteratorTask } = pending;
 
-    if (this.graph.getTargetDataflows(parent.config.id).length === 0) {
+    if (this.graph.getTargetDataflows(parent.id).length === 0) {
       const nodes = this._graph.getTasks();
-      const parentIndex = nodes.findIndex((n) => n.config.id === parent.config.id);
+      const parentIndex = nodes.findIndex((n) => n.id === parent.id);
       const earlierTasks: ITask[] = [];
       for (let i = parentIndex - 1; i >= 0; i--) {
         earlierTasks.push(nodes[i]);
@@ -938,8 +938,8 @@ export class Workflow<
 
       if (result.error) {
         this._error = result.error + " Task not added.";
-        console.error(this._error);
-        this.graph.removeTask(iteratorTask.config.id);
+        getLogger().error(this._error);
+        this.graph.removeTask(iteratorTask.id);
       }
     }
   }
@@ -1160,8 +1160,8 @@ export class Workflow<
     makeMatch(
       sourceSchema,
       targetSchema,
-      sourceTask.config.id,
-      targetTask.config.id,
+      sourceTask.id,
+      targetTask.id,
       ([fromOutputPortId, fromPortOutputSchema], [toInputPortId, toPortInputSchema]) => {
         const outputPortIdMatch = fromOutputPortId === toInputPortId;
         const outputPortIdOutputInput = fromOutputPortId === "output" && toInputPortId === "input";
@@ -1179,8 +1179,8 @@ export class Workflow<
     makeMatch(
       sourceSchema,
       targetSchema,
-      sourceTask.config.id,
-      targetTask.config.id,
+      sourceTask.id,
+      targetTask.id,
       ([_fromOutputPortId, fromPortOutputSchema], [_toInputPortId, toPortInputSchema]) => {
         return isTypeCompatible(fromPortOutputSchema, toPortInputSchema, true);
       }
@@ -1233,12 +1233,7 @@ export class Workflow<
               ) {
                 matches.set(requiredInputId, fromOutputPortId);
                 graph.addDataflow(
-                  new Dataflow(
-                    earlierTask.config.id,
-                    fromOutputPortId,
-                    targetTask.config.id,
-                    requiredInputId
-                  )
+                  new Dataflow(earlierTask.id, fromOutputPortId, targetTask.id, requiredInputId)
                 );
               }
             }

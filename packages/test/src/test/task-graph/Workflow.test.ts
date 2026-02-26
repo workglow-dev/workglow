@@ -235,9 +235,9 @@ describe("Workflow", () => {
       const dataflows = workflow.graph.getDataflows();
       expect(dataflows).toHaveLength(1);
       const dataflow = dataflows[0];
-      expect(dataflow.sourceTaskId).toBe(nodes[0].config.id);
+      expect(dataflow.sourceTaskId).toBe(nodes[0].id);
       expect(dataflow.sourceTaskPortId).toBe("customOutput");
-      expect(dataflow.targetTaskId).toBe(nodes[1].config.id);
+      expect(dataflow.targetTaskId).toBe(nodes[1].id);
       expect(dataflow.targetTaskPortId).toBe("customInput");
     });
 
@@ -436,18 +436,18 @@ describe("Workflow", () => {
 
       // Check connections - text should come from first task (TextOutputTask)
       const textConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[2].config.id && df.targetTaskPortId === "text"
+        (df) => df.targetTaskId === nodes[2].id && df.targetTaskPortId === "text"
       );
       expect(textConnection).toBeDefined();
-      expect(textConnection?.sourceTaskId).toBe(nodes[0].config.id);
+      expect(textConnection?.sourceTaskId).toBe(nodes[0].id);
       expect(textConnection?.sourceTaskPortId).toBe("text");
 
       // Check connections - vector should come from second task (VectorOutputOnlyTask)
       const vectorConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[2].config.id && df.targetTaskPortId === "vector"
+        (df) => df.targetTaskId === nodes[2].id && df.targetTaskPortId === "vector"
       );
       expect(vectorConnection).toBeDefined();
-      expect(vectorConnection?.sourceTaskId).toBe(nodes[1].config.id);
+      expect(vectorConnection?.sourceTaskId).toBe(nodes[1].id);
       expect(vectorConnection?.sourceTaskPortId).toBe("vector");
     });
 
@@ -488,18 +488,18 @@ describe("Workflow", () => {
 
       // Verify the text connection comes from the first task (looking back 2 tasks)
       const textConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[3].config.id && df.targetTaskPortId === "text"
+        (df) => df.targetTaskId === nodes[3].id && df.targetTaskPortId === "text"
       );
       expect(textConnection).toBeDefined();
-      expect(textConnection?.sourceTaskId).toBe(nodes[0].config.id);
+      expect(textConnection?.sourceTaskId).toBe(nodes[0].id);
       expect(textConnection?.sourceTaskPortId).toBe("text");
 
       // Verify the vector connection comes from the passthrough task (parent)
       const vectorConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[3].config.id && df.targetTaskPortId === "vector"
+        (df) => df.targetTaskId === nodes[3].id && df.targetTaskPortId === "vector"
       );
       expect(vectorConnection).toBeDefined();
-      expect(vectorConnection?.sourceTaskId).toBe(nodes[2].config.id);
+      expect(vectorConnection?.sourceTaskId).toBe(nodes[2].id);
     });
 
     it("should handle partial match where parent provides some required inputs", () => {
@@ -524,17 +524,17 @@ describe("Workflow", () => {
 
       // Verify text comes from the first task (4 tasks back)
       const textConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[4].config.id && df.targetTaskPortId === "text"
+        (df) => df.targetTaskId === nodes[4].id && df.targetTaskPortId === "text"
       );
       expect(textConnection).toBeDefined();
-      expect(textConnection?.sourceTaskId).toBe(nodes[0].config.id);
+      expect(textConnection?.sourceTaskId).toBe(nodes[0].id);
 
       // Verify vector comes from the parent (last vectorOutputOnly)
       const vectorConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[4].config.id && df.targetTaskPortId === "vector"
+        (df) => df.targetTaskId === nodes[4].id && df.targetTaskPortId === "vector"
       );
       expect(vectorConnection).toBeDefined();
-      expect(vectorConnection?.sourceTaskId).toBe(nodes[3].config.id);
+      expect(vectorConnection?.sourceTaskId).toBe(nodes[3].id);
     });
 
     it("should successfully match when all required inputs come from parent", () => {
@@ -555,8 +555,8 @@ describe("Workflow", () => {
       // Verify connection from parent only (not looking back)
       expect(dataflows).toHaveLength(1);
       const connection = dataflows[0];
-      expect(connection.sourceTaskId).toBe(nodes[0].config.id);
-      expect(connection.targetTaskId).toBe(nodes[1].config.id);
+      expect(connection.sourceTaskId).toBe(nodes[0].id);
+      expect(connection.targetTaskId).toBe(nodes[1].id);
       expect(connection.sourceTaskPortId).toBe("output");
       expect(connection.targetTaskPortId).toBe("input");
     });
@@ -662,14 +662,14 @@ describe("Workflow", () => {
       expect(dataflows.length).toBeGreaterThanOrEqual(1);
 
       const vectorConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[2].config.id && df.targetTaskPortId === "vector"
+        (df) => df.targetTaskId === nodes[2].id && df.targetTaskPortId === "vector"
       );
       expect(vectorConnection).toBeDefined();
-      expect(vectorConnection?.sourceTaskId).toBe(nodes[1].config.id);
+      expect(vectorConnection?.sourceTaskId).toBe(nodes[1].id);
 
       // No connection for text (it was provided as parameter)
       const textConnection = dataflows.find(
-        (df) => df.targetTaskId === nodes[2].config.id && df.targetTaskPortId === "text"
+        (df) => df.targetTaskId === nodes[2].id && df.targetTaskPortId === "text"
       );
       expect(textConnection).toBeUndefined();
     });

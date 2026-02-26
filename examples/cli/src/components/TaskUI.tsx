@@ -140,7 +140,7 @@ export const TaskUI: FC<{
       } else {
         const childTasks = task.hasChildren() ? task.subGraph.getTasks() : [];
         const tasks = childTasks.filter(
-          (t: ITask) => task.subGraph.getSourceDataflows(t.config.id).length == 0
+          (t: ITask) => task.subGraph.getSourceDataflows(t.id).length == 0
         );
         setSubGraphTasks(tasks);
       }
@@ -174,8 +174,8 @@ export const TaskUI: FC<{
     };
 
     onRegenerate();
-    const targets = graph.getTargetTasks(task.config.id);
-    const unique = [...new Map(targets.map((t) => [t.config.id, t])).values()];
+    const targets = graph.getTargetTasks(task.id);
+    const unique = [...new Map(targets.map((t) => [t.id, t])).values()];
     setDependantChildren(unique);
 
     task.on("start", onStart);
@@ -202,14 +202,14 @@ export const TaskUI: FC<{
   }, [task, graph]);
 
   return (
-    <Box key={task.config.id as string} flexDirection="column">
+    <Box key={task.id as string} flexDirection="column">
       <Box height={error ? 3 : 1}>
         <Box marginRight={1} flexShrink={0}>
           <StatusIcon status={status} dependant={dependant} />
         </Box>
 
         <Box flexShrink={0}>
-          <Text>{task.config.title || (task.config.id as string)}</Text>
+          <Text>{task.config.title || (task.id as string)}</Text>
         </Box>
         {status == TaskStatus.PROCESSING && progress == 0 && (
           <Box marginLeft={2}>
@@ -271,14 +271,14 @@ export const TaskUI: FC<{
       {!arrayProgress && subGraphTasks.length > 0 && !(task instanceof ArrayTask) && (
         <Box flexDirection="column" marginLeft={2} borderColor="gray">
           {subGraphTasks.map((taskItem) => (
-            <TaskUI key={`${taskItem.config.id}`} task={taskItem} graph={task.subGraph} />
+            <TaskUI key={`${taskItem.id}`} task={taskItem} graph={task.subGraph} />
           ))}
         </Box>
       )}
       {dependantChildren && (
         <Box flexDirection="column">
           {dependantChildren.map((taskItem) => (
-            <TaskUI key={`${taskItem.config.id}`} task={taskItem} graph={graph} dependant={true} />
+            <TaskUI key={`${taskItem.id}`} task={taskItem} graph={graph} dependant={true} />
           ))}
         </Box>
       )}

@@ -610,7 +610,7 @@ export class WhileTask<
     // Get ending nodes from subgraph
     const tasks = this.subGraph.getTasks();
     const endingNodes = tasks.filter(
-      (task) => this.subGraph.getTargetDataflows(task.config.id).length === 0
+      (task) => this.subGraph.getTargetDataflows(task.id).length === 0
     );
 
     if (endingNodes.length === 0) {

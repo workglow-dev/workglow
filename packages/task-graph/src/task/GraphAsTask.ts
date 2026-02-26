@@ -134,7 +134,7 @@ export class GraphAsTask<
 
     // Identify starting nodes: tasks with no incoming dataflows
     const startingNodes = tasks.filter(
-      (task) => this.subGraph.getSourceDataflows(task.config.id).length === 0
+      (task) => this.subGraph.getSourceDataflows(task.id).length === 0
     );
 
     // Collect all properties from root tasks (original behavior)
@@ -169,9 +169,9 @@ export class GraphAsTask<
     // For non-root tasks, collect only REQUIRED properties not satisfied by dataflows.
     // This handles cases like: map().fetch().structuralParser() where structuralParser
     // requires "title" but fetch doesn't output it — title must come from the map input.
-    const sourceIds = new Set(startingNodes.map((t) => t.config.id));
+    const sourceIds = new Set(startingNodes.map((t) => t.id));
     for (const task of tasks) {
-      if (sourceIds.has(task.config.id)) continue;
+      if (sourceIds.has(task.id)) continue;
 
       const taskInputSchema = task.inputSchema();
       if (typeof taskInputSchema === "boolean") continue;
@@ -182,7 +182,7 @@ export class GraphAsTask<
       if (requiredKeys.size === 0) continue;
 
       const connectedPorts = new Set(
-        this.subGraph.getSourceDataflows(task.config.id).map((df) => df.targetTaskPortId)
+        this.subGraph.getSourceDataflows(task.id).map((df) => df.targetTaskPortId)
       );
 
       for (const key of requiredKeys) {
@@ -242,20 +242,20 @@ export class GraphAsTask<
 
     // Initialize all depths to 0
     for (const task of tasks) {
-      depths.set(task.config.id, 0);
+      depths.set(task.id, 0);
     }
 
     // Use topological sort to calculate depths in order
     const sortedTasks = this.subGraph.topologicallySortedNodes();
 
     for (const task of sortedTasks) {
-      const currentDepth = depths.get(task.config.id) || 0;
-      const targetTasks = this.subGraph.getTargetTasks(task.config.id);
+      const currentDepth = depths.get(task.id) || 0;
+      const targetTasks = this.subGraph.getTargetTasks(task.id);
 
       // Update depths of all target tasks
       for (const targetTask of targetTasks) {
-        const targetDepth = depths.get(targetTask.config.id) || 0;
-        depths.set(targetTask.config.id, Math.max(targetDepth, currentDepth + 1));
+        const targetDepth = depths.get(targetTask.id) || 0;
+        depths.set(targetTask.id, Math.max(targetDepth, currentDepth + 1));
       }
     }
 
@@ -278,17 +278,17 @@ export class GraphAsTask<
     // Find all ending nodes (nodes with no outgoing dataflows)
     const tasks = this.subGraph.getTasks();
     const endingNodes = tasks.filter(
-      (task) => this.subGraph.getTargetDataflows(task.config.id).length === 0
+      (task) => this.subGraph.getTargetDataflows(task.id).length === 0
     );
 
     // Calculate depths for all nodes
     const depths = this.calculateNodeDepths();
 
     // Find the maximum depth among ending nodes
-    const maxDepth = Math.max(...endingNodes.map((task) => depths.get(task.config.id) || 0));
+    const maxDepth = Math.max(...endingNodes.map((task) => depths.get(task.id) || 0));
 
     // Filter ending nodes to only those at the maximum depth (last level)
-    const lastLevelNodes = endingNodes.filter((task) => depths.get(task.config.id) === maxDepth);
+    const lastLevelNodes = endingNodes.filter((task) => depths.get(task.id) === maxDepth);
 
     // ONLY handle PROPERTY_ARRAY strategy
     // Count how many ending nodes produce each property
@@ -389,8 +389,8 @@ export class GraphAsTask<
       const endingNodeIds = new Set<unknown>();
       const tasks = this.subGraph.getTasks();
       for (const task of tasks) {
-        if (this.subGraph.getTargetDataflows(task.config.id).length === 0) {
-          endingNodeIds.add(task.config.id);
+        if (this.subGraph.getTargetDataflows(task.id).length === 0) {
+          endingNodeIds.add(task.id);
         }
       }
 

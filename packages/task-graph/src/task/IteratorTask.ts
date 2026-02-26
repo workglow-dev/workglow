@@ -513,7 +513,7 @@ export abstract class IteratorTask<
     if (tasks.length === 0) return undefined;
 
     const startingNodes = tasks.filter(
-      (task) => this.subGraph.getSourceDataflows(task.config.id).length === 0
+      (task) => this.subGraph.getSourceDataflows(task.id).length === 0
     );
     const sources = startingNodes.length > 0 ? startingNodes : tasks;
 
@@ -550,9 +550,9 @@ export abstract class IteratorTask<
     // For non-root tasks, collect only REQUIRED properties not satisfied by dataflows.
     // This handles cases like: map().fetch().structuralParser() where structuralParser
     // requires "title" but fetch doesn't output it — title must come from the map input.
-    const sourceIds = new Set(sources.map((t) => t.config.id));
+    const sourceIds = new Set(sources.map((t) => t.id));
     for (const task of tasks) {
-      if (sourceIds.has(task.config.id)) continue;
+      if (sourceIds.has(task.id)) continue;
 
       const inputSchema = task.inputSchema();
       if (typeof inputSchema === "boolean") continue;
@@ -561,7 +561,7 @@ export abstract class IteratorTask<
       if (requiredKeys.size === 0) continue;
 
       const connectedPorts = new Set(
-        this.subGraph.getSourceDataflows(task.config.id).map((df) => df.targetTaskPortId)
+        this.subGraph.getSourceDataflows(task.id).map((df) => df.targetTaskPortId)
       );
 
       for (const key of requiredKeys) {
@@ -782,7 +782,7 @@ export abstract class IteratorTask<
 
     const endingNodes = this.subGraph
       .getTasks()
-      .filter((task) => this.subGraph.getTargetDataflows(task.config.id).length === 0);
+      .filter((task) => this.subGraph.getTargetDataflows(task.id).length === 0);
 
     if (endingNodes.length === 0) {
       return { type: "object", properties: {}, additionalProperties: false };

@@ -897,7 +897,7 @@ export class Task<
   public toJSON(): TaskGraphItemJson {
     const extras = this.config.extras;
     const json: TaskGraphItemJson = this.stripSymbols({
-      id: this.config.id,
+      id: this.id,
       type: this.type,
       defaults: this.defaults,
       config: {
@@ -995,7 +995,7 @@ export class Task<
         this.subGraph.removeDataflow(dataflow);
       }
       for (const child of this.subGraph.getTasks()) {
-        this.subGraph.removeTask(child.config.id);
+        this.subGraph.removeTask(child.id);
       }
     }
     this.events.emit("regenerate");
