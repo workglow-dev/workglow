@@ -44,14 +44,14 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("TextEmbeddingTask with real models", ()
     it("should generate embeddings with gte-small model", async () => {
       // Register model
       const model: HfTransformersOnnxModelRecord = {
-        model_id: "onnx:Supabase/gte-small:q8",
+        model_id: "onnx:Xenova/gte-small:q8",
         title: "gte-small",
-        description: "Supabase/gte-small quantized to 8bit",
+        description: "Xenova/gte-small quantized to 8bit",
         tasks: ["TextEmbeddingTask"],
         provider: HF_TRANSFORMERS_ONNX,
         provider_config: {
           pipeline: "feature-extraction",
-          model_path: "Supabase/gte-small",
+          model_path: "Xenova/gte-small",
           dtype: "q8",
           native_dimensions: 384,
         },
@@ -62,7 +62,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("TextEmbeddingTask with real models", ()
 
       // First download the model
       const download = new DownloadModelTask({
-        model: "onnx:Supabase/gte-small:q8",
+        model: "onnx:Xenova/gte-small:q8",
       });
       let lastProgress = -1;
       download.on("progress", (progress, message, details) => {
@@ -79,7 +79,7 @@ describe.skipIf(!RUN_AI_PROVIDER_TESTS)("TextEmbeddingTask with real models", ()
       // Now test embeddings
       const embeddingWorkflow = new Workflow();
       embeddingWorkflow.textEmbedding({
-        model: "onnx:Supabase/gte-small:q8",
+        model: "onnx:Xenova/gte-small:q8",
         text: "The quick brown fox jumps over the lazy dog",
       });
 
