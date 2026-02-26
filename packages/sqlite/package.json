@@ -1,7 +1,6 @@
 {
   "name": "@workglow/sqlite",
   "type": "module",
-  "sideEffects": false,
   "version": "0.0.102",
   "description": "SQLite database providing cross-platform database support for browser, Node.js, and Bun environments.",
   "scripts": {
@@ -35,6 +34,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13"
   },
+  "sideEffects": true,
   "exports": {
     ".": {
       "react-native": "./dist/browser.js",
