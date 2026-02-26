@@ -15,6 +15,9 @@ import type {
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
@@ -244,6 +247,136 @@ export const Ollama_TextSummary_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Tool calling implementations
+// ========================================================================
+
+function buildOllamaToolDescription(tool: ToolDefinition): string {
+  let desc = tool.description;
+  if (tool.outputSchema && typeof tool.outputSchema === "object") {
+    desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
+  }
+  return desc;
+}
+
+function mapOllamaTools(tools: ReadonlyArray<ToolDefinition>) {
+  return tools.map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildOllamaToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+}
+
+export const Ollama_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  OllamaModelConfig
+> = async (input, model, update_progress, signal) => {
+  update_progress(0, "Starting Ollama tool calling");
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
+
+  const response = await client.chat({
+    model: modelName,
+    messages,
+    tools,
+    options: {
+      temperature: input.temperature,
+      num_predict: input.maxTokens,
+    },
+  });
+
+  const text = response.message.content ?? "";
+  const toolCalls = (response.message.tool_calls ?? []).map(
+    (tc: any, index: number) => ({
+      id: `call_${index}`,
+      name: tc.function.name as string,
+      input: (typeof tc.function.arguments === "string"
+        ? JSON.parse(tc.function.arguments)
+        : tc.function.arguments ?? {}) as Record<string, unknown>,
+    })
+  );
+
+  update_progress(100, "Completed Ollama tool calling");
+  return { text, toolCalls };
+};
+
+export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  OllamaModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
+
+  const stream = await client.chat({
+    model: modelName,
+    messages,
+    tools,
+    options: {
+      temperature: input.temperature,
+      num_predict: input.maxTokens,
+    },
+    stream: true,
+  });
+
+  const onAbort = () => stream.abort();
+  signal.addEventListener("abort", onAbort, { once: true });
+
+  let accumulatedText = "";
+  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+
+  try {
+    for await (const chunk of stream) {
+      const delta = chunk.message.content;
+      if (delta) {
+        accumulatedText += delta;
+        yield { type: "text-delta", port: "text", textDelta: delta };
+      }
+
+      const chunkToolCalls = (chunk.message as any).tool_calls;
+      if (Array.isArray(chunkToolCalls) && chunkToolCalls.length > 0) {
+        for (const tc of chunkToolCalls) {
+          toolCalls.push({
+            id: `call_${toolCalls.length}`,
+            name: tc.function.name as string,
+            input: (typeof tc.function.arguments === "string"
+              ? JSON.parse(tc.function.arguments)
+              : tc.function.arguments ?? {}) as Record<string, unknown>,
+          });
+        }
+        yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
+      }
+    }
+
+    yield {
+      type: "finish",
+      data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput,
+    };
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -252,6 +385,7 @@ export const OLLAMA_TASKS: Record<string, AiProviderRunFn<any, any, OllamaModelC
   TextEmbeddingTask: Ollama_TextEmbedding,
   TextRewriterTask: Ollama_TextRewriter,
   TextSummaryTask: Ollama_TextSummary,
+  ToolCallingTask: Ollama_ToolCalling,
 };
 
 export const OLLAMA_STREAM_TASKS: Record<
@@ -261,4 +395,5 @@ export const OLLAMA_STREAM_TASKS: Record<
   TextGenerationTask: Ollama_TextGeneration_Stream,
   TextRewriterTask: Ollama_TextRewriter_Stream,
   TextSummaryTask: Ollama_TextSummary_Stream,
+  ToolCallingTask: Ollama_ToolCalling_Stream,
 };
