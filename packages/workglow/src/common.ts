@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import "./logging";
+
 export * from "@workglow/ai";
 export * from "@workglow/ai-provider";
 export * from "@workglow/dataset";

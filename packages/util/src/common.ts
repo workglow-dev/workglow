@@ -6,6 +6,7 @@
 
 export * from "./di";
 export * from "./events/EventEmitter";
+export * from "./logging";
 export * from "./graph";
 export * from "./json-schema/DataPortSchema";
 export * from "./json-schema/FromSchema";

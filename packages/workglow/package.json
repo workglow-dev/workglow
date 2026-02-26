@@ -79,7 +79,8 @@
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
-    "@workglow/util": "workspace:*"
+    "@workglow/util": "workspace:*",
+    "tslog": "^4.9.3"
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
