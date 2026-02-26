@@ -11,7 +11,7 @@
  * Sections: graph, task, storage, queue, util, ai, provider, mcp, rag (default: all)
  */
 
-import { join, resolve, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const TEST_BASE = join(ROOT, "packages/test/src/test");
@@ -113,13 +113,10 @@ async function runBunTest(files: string[]): Promise<number> {
 async function runVitest(files: string[]): Promise<number> {
   // Pass relative paths from root as positional args — vitest treats them as name filters
   const relFiles = files.map((f) => relative(ROOT, f));
-  const proc = Bun.spawn(
-    ["npx", "vitest", "run", "--silent", ...relFiles.flatMap((f) => ["--include", f])],
-    {
-      cwd: ROOT,
-      stdio: ["inherit", "inherit", "inherit"],
-    }
-  );
+  const proc = Bun.spawn(["npx", "vitest", "run", "--silent=true", ...relFiles], {
+    cwd: ROOT,
+    stdio: ["inherit", "inherit", "inherit"],
+  });
   return proc.exited;
 }
 
@@ -132,19 +129,22 @@ if (rawArgs.includes("--help")) {
   process.exit(0);
 }
 
-const bunOnly = rawArgs.includes("--bun-only");
-const vitestOnly = rawArgs.includes("--vitest-only");
-const positional = rawArgs.filter((a) => !a.startsWith("--"));
+const KNOWN_RUNNERS = ["bun", "vitest"] as const;
 
+const bunOnly = rawArgs.includes("bun");
+const vitestOnly = rawArgs.includes("vitest");
+const runners: (typeof KNOWN_RUNNERS)[number][] = [];
 const kinds: Kind[] = [];
 const sections: Section[] = [];
 const unknown: string[] = [];
 
-for (const arg of positional) {
+for (const arg of rawArgs) {
   if ((KNOWN_KINDS as readonly string[]).includes(arg)) {
     kinds.push(arg as Kind);
   } else if ((KNOWN_SECTIONS as readonly string[]).includes(arg)) {
     sections.push(arg as Section);
+  } else if (KNOWN_RUNNERS.includes(arg as (typeof KNOWN_RUNNERS)[number])) {
+    runners.push(arg as (typeof KNOWN_RUNNERS)[number]);
   } else {
     unknown.push(arg);
   }
@@ -154,13 +154,17 @@ if (unknown.length > 0) {
   console.error(`Unknown argument(s): ${unknown.join(", ")}`);
   console.error(`Valid kinds:    ${KNOWN_KINDS.join(", ")}`);
   console.error(`Valid sections: ${KNOWN_SECTIONS.join(", ")}`);
+  console.error(`Valid runners: ${KNOWN_RUNNERS.join(", ")}`);
+
   process.exit(1);
 }
 
 // ── Collect test files ────────────────────────────────────────────────────────
 
 const dirs =
-  sections.length > 0 ? sections.flatMap((s) => SECTION_DIRS[s]) : Object.values(SECTION_DIRS).flat();
+  sections.length > 0
+    ? sections.flatMap((s) => SECTION_DIRS[s])
+    : Object.values(SECTION_DIRS).flat();
 
 const files = collectFiles(dirs, kinds);
 
