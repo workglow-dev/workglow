@@ -6,7 +6,9 @@
 
 import {
   FallbackTask,
+  IExecuteContext,
   Task,
+  TaskAbortedError,
   TaskFailedError,
   TaskGraph,
   TaskInput,
@@ -14,7 +16,7 @@ import {
   TaskStatus,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util";
+import { DataPortSchema, sleep } from "@workglow/util";
 import { describe, expect, test } from "vitest";
 
 // ============================================================================
@@ -93,6 +95,37 @@ class ConditionalFailTask extends Task<{ value: number }, { result: number }> {
       throw new TaskFailedError(`Value ${input.value} is too low`);
     }
     return { result: input.value * 100 };
+  }
+}
+
+class SlowSucceedingTask extends Task<{ value: number }, { result: number }> {
+  public static type = "FallbackTest_SlowSucceedingTask";
+  public static readonly cacheable = false;
+
+  public static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "number", default: 0 } },
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { result: { type: "number" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(input: { value: number }, context: IExecuteContext): Promise<{ result: number }> {
+    for (let elapsed = 0; elapsed < 300; elapsed += 10) {
+      if (context.signal?.aborted) {
+        throw new TaskAbortedError();
+      }
+      await sleep(10);
+    }
+    return { result: (input.value ?? 0) * 10 };
   }
 }
 
@@ -442,5 +475,50 @@ describe("FallbackTask - Workflow Execution", () => {
 
     const result = await workflow.run({ value: 5 });
     expect(result.result).toBe(50);
+  });
+});
+
+// ============================================================================
+// Timeout & Abort Integration
+// ============================================================================
+
+describe("FallbackTask - Timeout & Abort", () => {
+  test("task mode: timed-out alternative is retryable, falls back to next", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    const subGraph = new TaskGraph();
+    // First alternative: slow task with a tight timeout (will time out)
+    const slowTask = new SlowSucceedingTask({ value: 0 }, { id: "slow", timeout: 50 });
+    // Second alternative: fast succeeding task
+    subGraph.addTask(slowTask);
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "fast" }));
+    task.subGraph = subGraph;
+
+    const result = await task.run({ value: 4 } as TaskInput);
+    expect(result.result).toBe(40);
+  });
+
+  test("task mode: slow first alternative times out, fast second succeeds", async () => {
+    // The slow task with a tight timeout will be aborted by TaskTimeoutError.
+    // Since timeouts are retryable, the fallback should try the second alternative.
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    const subGraph = new TaskGraph();
+    subGraph.addTask(new SlowSucceedingTask({ value: 0 }, { id: "slow", timeout: 50 }));
+    subGraph.addTask(new SucceedingTask({ value: 0 }, { id: "fast" }));
+    task.subGraph = subGraph;
+
+    const result = await task.run({ value: 8 } as TaskInput);
+    // The slow task times out, fallback goes to fast task: 8 * 10 = 80
+    expect(result.result).toBe(80);
+  });
+
+  test("aggregate error labels timeout failures distinctly", async () => {
+    const task = new FallbackTask({}, { fallbackMode: "task" });
+    const subGraph = new TaskGraph();
+    // Both alternatives time out
+    subGraph.addTask(new SlowSucceedingTask({ value: 0 }, { id: "slow1", timeout: 50 }));
+    subGraph.addTask(new SlowSucceedingTask({ value: 0 }, { id: "slow2", timeout: 50 }));
+    task.subGraph = subGraph;
+
+    await expect(task.run({ value: 1 } as TaskInput)).rejects.toThrow("[timeout]");
   });
 });

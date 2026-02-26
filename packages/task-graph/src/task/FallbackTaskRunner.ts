@@ -7,7 +7,7 @@
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { FallbackTask, FallbackTaskConfig } from "./FallbackTask";
 import type { ITask } from "./ITask";
-import { TaskAbortedError, TaskFailedError } from "./TaskError";
+import { TaskAbortedError, TaskFailedError, TaskTimeoutError } from "./TaskError";
 import { TaskStatus, type TaskInput, type TaskOutput } from "./TaskTypes";
 
 /**
@@ -87,6 +87,10 @@ export class FallbackTaskRunner<
         // Apply reactive post-processing
         return (await this.executeTaskReactive(input, result as Output)) as Output;
       } catch (error) {
+        // Aborts (non-timeout) are not retryable — propagate immediately
+        if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {
+          throw error;
+        }
         errors.push({ task: alternativeTask, error: error as Error });
         // Continue to next alternative
       }
@@ -152,6 +156,10 @@ export class FallbackTaskRunner<
         // Apply reactive post-processing
         return (await this.executeTaskReactive(input, mergedOutput)) as Output;
       } catch (error) {
+        // Aborts (non-timeout) are not retryable — propagate immediately
+        if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {
+          throw error;
+        }
         errors.push({ alternative, error: error as Error });
         // Continue to next alternative
       }
@@ -197,7 +205,12 @@ export class FallbackTaskRunner<
     mode: "task" | "data"
   ): TaskFailedError {
     const label = mode === "task" ? "alternative" : "data alternative";
-    const details = errors.map((e, i) => `  ${label} ${i + 1}: ${e.error.message}`).join("\n");
+    const details = errors
+      .map((e, i) => {
+        const prefix = e.error instanceof TaskTimeoutError ? "[timeout] " : "";
+        return `  ${label} ${i + 1}: ${prefix}${e.error.message}`;
+      })
+      .join("\n");
     return new TaskFailedError(`All ${errors.length} ${label}s failed:\n${details}`);
   }
 }
