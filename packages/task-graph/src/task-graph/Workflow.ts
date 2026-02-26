@@ -13,8 +13,8 @@ import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
 import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
-import { getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
-import { Dataflow, DATAFLOW_ALL_PORTS } from "./Dataflow";
+import { ensureTask, getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
+import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import { IWorkflow } from "./IWorkflow";
 import { TaskGraph } from "./TaskGraph";
 import {
@@ -677,6 +677,43 @@ export class Workflow<
     }
 
     this._dataFlows.push(new Dataflow(lastNode.config.id, source, undefined, target));
+    return this;
+  }
+
+  /**
+   * Adds an error handler task that receives errors from the previous task.
+   *
+   * When the previous task fails, instead of failing the entire workflow, the
+   * error is routed to the handler task via the `[error]` output port. The
+   * handler task receives `{ error, errorType }` as input and can produce
+   * output that flows to subsequent tasks in the pipeline.
+   *
+   * @param handler - A task, task class, or pipe function to handle the error
+   * @returns The current workflow for chaining
+   */
+  public onError(handler: Taskish): Workflow {
+    this._error = "";
+
+    const parent = getLastTask(this);
+    if (!parent) {
+      this._error = "onError() requires a preceding task in the workflow";
+      console.error(this._error);
+      throw new WorkflowError(this._error);
+    }
+
+    const handlerTask = ensureTask(handler);
+    this.graph.addTask(handlerTask);
+
+    // Connect the previous task's error output port to the handler's all-ports input
+    const dataflow = new Dataflow(
+      parent.config.id,
+      DATAFLOW_ERROR_PORT,
+      handlerTask.config.id,
+      DATAFLOW_ALL_PORTS
+    );
+    this.graph.addDataflow(dataflow);
+    this.events.emit("changed", handlerTask.config.id);
+
     return this;
   }
 

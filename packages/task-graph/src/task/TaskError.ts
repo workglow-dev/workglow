@@ -48,6 +48,18 @@ export class TaskAbortedError extends TaskError {
 }
 
 /**
+ * A task error that is caused by a task exceeding its timeout
+ *
+ * Examples: task.runConfig.timeout exceeded during execution
+ */
+export class TaskTimeoutError extends TaskAbortedError {
+  static readonly type: string = "TaskTimeoutError";
+  constructor(timeoutMs?: number) {
+    super(timeoutMs ? `Task timed out after ${timeoutMs}ms` : "Task timed out");
+  }
+}
+
+/**
  * A task error that is caused by a task failing
  *
  * Examples: task.run() threw an error

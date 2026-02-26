@@ -84,6 +84,7 @@ export type TaskTypeName = string;
  *  - inputSchema:  dynamic input schema override (for tasks like InputTask)
  *  - outputSchema: dynamic output schema override (for tasks like OutputTask)
  *  - extras:       arbitrary user data serialized with the task JSON
+ *  - timeout:      max execution time in milliseconds (auto-aborts with TaskTimeoutError)
  */
 export const TaskConfigSchema = {
   type: "object",
@@ -94,6 +95,7 @@ export const TaskConfigSchema = {
     title: { type: "string" },
     description: { type: "string" },
     cacheable: { type: "boolean" },
+    timeout: { type: "number", description: "Max execution time in milliseconds" },
     inputSchema: {
       type: "object",
       properties: {},

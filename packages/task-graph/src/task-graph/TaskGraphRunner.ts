@@ -24,7 +24,7 @@ import {
 import { Task } from "../task/Task";
 import { TaskAbortedError, TaskConfigurationError, TaskError } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
-import { DATAFLOW_ALL_PORTS } from "./Dataflow";
+import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import { TaskGraph, TaskGraphRunConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
@@ -144,6 +144,7 @@ export class TaskGraphRunner {
         const isRootTask = this.graph.getSourceDataflows(task.config.id).length === 0;
 
         const runAsync = async () => {
+          let errorRouted = false;
           try {
             // Only filter input for non-root tasks; root tasks get the full input
             const taskInput = isRootTask ? input : this.filterInputForTask(task, input);
@@ -157,13 +158,24 @@ export class TaskGraphRunner {
               results.push(taskResult as GraphSingleTaskResult<ExecuteOutput>);
             }
           } catch (error) {
-            this.failedTaskErrors.set(task.config.id, error as TaskError);
+            if (this.hasErrorOutputEdges(task)) {
+              // Route the error through error-port dataflows instead of failing the graph.
+              // pushErrorOutputToEdges sets edge statuses directly (COMPLETED for error
+              // edges, DISABLED for normal edges), so we skip the normal status push.
+              errorRouted = true;
+              this.pushErrorOutputToEdges(task);
+            } else {
+              this.failedTaskErrors.set(task.config.id, error as TaskError);
+            }
           } finally {
             // IMPORTANT: Push status to edges BEFORE notifying scheduler
             // This ensures dataflow statuses (including DISABLED) are set
-            // before the scheduler checks which tasks are ready
-            this.pushStatusFromNodeToEdges(this.graph, task);
-            this.pushErrorFromNodeToEdges(this.graph, task);
+            // before the scheduler checks which tasks are ready.
+            // Skip normal status push when error routing already set edge statuses.
+            if (!errorRouted) {
+              this.pushStatusFromNodeToEdges(this.graph, task);
+              this.pushErrorFromNodeToEdges(this.graph, task);
+            }
             this.processScheduler.onTaskCompleted(task.config.id);
           }
         };
@@ -435,6 +447,50 @@ export class TaskGraphRunner {
     graph.getTargetDataflows(node.config.id).forEach((dataflow) => {
       dataflow.error = node.error;
     });
+  }
+
+  /**
+   * Returns true if the task has any outgoing dataflow edges that use the
+   * error output port (`[error]`). These edges indicate that the task's
+   * errors should be routed to downstream handler tasks instead of failing
+   * the entire graph.
+   */
+  protected hasErrorOutputEdges(task: ITask): boolean {
+    const dataflows = this.graph.getTargetDataflows(task.config.id);
+    return dataflows.some((df) => df.sourceTaskPortId === DATAFLOW_ERROR_PORT);
+  }
+
+  /**
+   * Routes a failed task's error through its error-port dataflow edges.
+   *
+   * For each outgoing dataflow:
+   * - Error-port edges (`[error]`) receive the error data and get COMPLETED status
+   * - Non-error-port edges get DISABLED status (the task didn't produce normal output)
+   *
+   * After setting edge statuses, propagateDisabledStatus() cascades DISABLED
+   * through any downstream tasks that only had non-error inputs from this task.
+   */
+  protected pushErrorOutputToEdges(task: ITask): void {
+    const taskError = task.error;
+    const errorData = {
+      error: taskError?.message ?? "Unknown error",
+      errorType: (taskError?.constructor as { type?: string })?.type ?? "TaskError",
+    };
+
+    const dataflows = this.graph.getTargetDataflows(task.config.id);
+    for (const df of dataflows) {
+      if (df.sourceTaskPortId === DATAFLOW_ERROR_PORT) {
+        // Route error data to the error-port edge
+        df.value = errorData;
+        df.setStatus(TaskStatus.COMPLETED);
+      } else {
+        // Normal output edges are disabled — this task didn't produce output
+        df.setStatus(TaskStatus.DISABLED);
+      }
+    }
+
+    // Cascade disabled status to downstream tasks whose ALL inputs are now disabled
+    this.propagateDisabledStatus(this.graph);
   }
 
   /**
