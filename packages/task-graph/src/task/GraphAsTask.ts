@@ -113,9 +113,12 @@ export class GraphAsTask<
   // ========================================================================
 
   /**
-   * Override inputSchema to compute it dynamically from the subgraph at runtime
-   * The input schema is the union of all unconnected inputs from starting nodes
-   * (nodes with zero incoming connections)
+   * Override inputSchema to compute it dynamically from the subgraph at runtime.
+   * For root tasks (no incoming edges) all input properties are collected.
+   * For non-root tasks, only REQUIRED properties that are not satisfied by
+   * any internal dataflow are added — this ensures that required inputs are
+   * included in the graph's input schema without pulling in every optional
+   * downstream property.
    */
   public inputSchema(): DataPortSchema {
     // If there's no subgraph or it has no children, fall back to the static schema
@@ -134,7 +137,7 @@ export class GraphAsTask<
       (task) => this.subGraph.getSourceDataflows(task.config.id).length === 0
     );
 
-    // For starting nodes only, collect their unconnected inputs
+    // Collect all properties from root tasks (original behavior)
     for (const task of startingNodes) {
       const taskInputSchema = task.inputSchema();
       if (typeof taskInputSchema === "boolean") {
@@ -159,6 +162,40 @@ export class GraphAsTask<
           if (taskInputSchema.required && taskInputSchema.required.includes(inputName)) {
             required.push(inputName);
           }
+        }
+      }
+    }
+
+    // For non-root tasks, collect only REQUIRED properties not satisfied by dataflows.
+    // This handles cases like: map().fetch().structuralParser() where structuralParser
+    // requires "title" but fetch doesn't output it — title must come from the map input.
+    const sourceIds = new Set(startingNodes.map((t) => t.config.id));
+    for (const task of tasks) {
+      if (sourceIds.has(task.config.id)) continue;
+
+      const taskInputSchema = task.inputSchema();
+      if (typeof taskInputSchema === "boolean") continue;
+
+      const requiredKeys = new Set<string>(
+        (taskInputSchema.required as string[] | undefined) || []
+      );
+      if (requiredKeys.size === 0) continue;
+
+      const connectedPorts = new Set(
+        this.subGraph.getSourceDataflows(task.config.id).map((df) => df.targetTaskPortId)
+      );
+
+      for (const key of requiredKeys) {
+        // Skip if already connected via dataflow or already collected from a root task
+        if (connectedPorts.has(key)) continue;
+        if (properties[key]) continue;
+
+        const prop = (taskInputSchema.properties || {})[key];
+        if (!prop || typeof prop === "boolean") continue;
+
+        properties[key] = prop;
+        if (!required.includes(key)) {
+          required.push(key);
         }
       }
     }
