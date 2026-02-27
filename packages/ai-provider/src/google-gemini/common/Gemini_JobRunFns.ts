@@ -503,7 +503,6 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
           name: part.functionCall.name,
           input: (part.functionCall.args as Record<string, unknown>) ?? {},
         });
-        yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
       }
     }
   }

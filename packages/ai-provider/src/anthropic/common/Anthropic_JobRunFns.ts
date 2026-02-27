@@ -480,20 +480,6 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
         const meta = blockMeta.get(index);
         if (meta) {
           meta.json += delta.partial_json;
-          // Parse accumulated JSON for this tool call and yield progressive update
-          let parsedInput: Record<string, unknown>;
-          try {
-            parsedInput = JSON.parse(meta.json);
-          } catch {
-            const partial = parsePartialJson(meta.json);
-            parsedInput = (partial as Record<string, unknown>) ?? {};
-          }
-          // Build current tool calls snapshot
-          const snapshot = [
-            ...toolCalls,
-            { id: meta.id ?? "", name: meta.name ?? "", input: parsedInput },
-          ];
-          yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot as any };
         }
       }
     } else if (event.type === "content_block_stop") {
@@ -507,7 +493,6 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
           finalInput = (parsePartialJson(meta.json) as Record<string, unknown>) ?? {};
         }
         toolCalls.push({ id: meta.id ?? "", name: meta.name ?? "", input: finalInput });
-        yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
       }
       blockMeta.delete(index);
     }

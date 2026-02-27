@@ -12,6 +12,8 @@ import {
   Anthropic_TextGeneration,
   Anthropic_TextRewriter,
   Anthropic_TextSummary,
+  Anthropic_ToolCalling,
+  Anthropic_ToolCalling_Stream,
 } from "@workglow/ai-provider/anthropic";
 import {
   getTaskQueueRegistry,
@@ -22,10 +24,11 @@ import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vit
 
 const mockMessagesCreate = vi.fn();
 const mockMessagesCountTokens = vi.fn();
+const mockMessagesStream = vi.fn();
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class MockAnthropic {
-    messages = { create: mockMessagesCreate, countTokens: mockMessagesCountTokens };
+    messages = { create: mockMessagesCreate, countTokens: mockMessagesCountTokens, stream: mockMessagesStream };
     constructor(_opts: any) {}
   },
 }));
@@ -249,6 +252,193 @@ describe("AnthropicProvider", () => {
       const [params] = mockMessagesCountTokens.mock.calls[0];
       expect(params.model).toBe("claude-sonnet-4-20250514");
       expect(params.messages).toEqual([{ role: "user", content: "Hello Claude" }]);
+    });
+  });
+
+  describe("Anthropic_ToolCalling", () => {
+    const sampleTool = {
+      name: "search",
+      description: "Search the web",
+      inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+    };
+
+    test("should map tool_choice auto and send tools in request", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "Let me search that." }],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        { prompt: "Search something", model: model as any, tools: [sampleTool], toolChoice: "auto" },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.tool_choice).toEqual({ type: "auto" });
+      expect(params.tools).toHaveLength(1);
+      expect(params.tools[0].name).toBe("search");
+    });
+
+    test("should parse tool_use blocks from response", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [
+          { type: "tool_use", id: "tu1", name: "search", input: { query: "cats" } },
+        ],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_ToolCalling(
+        { prompt: "Search for cats", model: model as any, tools: [sampleTool] },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0]).toEqual({ id: "tu1", name: "search", input: { query: "cats" } });
+      expect(result.text).toBe("");
+    });
+
+    test("should extract text and tool_use blocks together", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [
+          { type: "text", text: "I will search now." },
+          { type: "tool_use", id: "tu2", name: "search", input: { query: "dogs" } },
+        ],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_ToolCalling(
+        { prompt: "Search dogs", model: model as any, tools: [sampleTool] },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toBe("I will search now.");
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0].name).toBe("search");
+    });
+
+    test("should not send tools when toolChoice is none", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "ok" }],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        { prompt: "test", model: model as any, tools: [sampleTool], toolChoice: "none" },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.tools).toBeUndefined();
+      expect(params.tool_choice).toBeUndefined();
+    });
+  });
+
+  describe("Anthropic_ToolCalling_Stream", () => {
+    const sampleTool = {
+      name: "search",
+      description: "Search the web",
+      inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+    };
+
+    function makeAsyncIterable(events: any[]) {
+      return {
+        [Symbol.asyncIterator]() {
+          let i = 0;
+          return {
+            async next() {
+              if (i < events.length) return { value: events[i++], done: false };
+              return { value: undefined, done: true };
+            },
+          };
+        },
+      };
+    }
+
+    test("should yield text-delta for text_delta events", async () => {
+      mockMessagesStream.mockReturnValue(
+        makeAsyncIterable([
+          { type: "content_block_start", index: 0, content_block: { type: "text" } },
+          { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Hello" } },
+          { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: " there" } },
+          { type: "content_block_stop", index: 0 },
+        ])
+      );
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const events: any[] = [];
+      for await (const event of Anthropic_ToolCalling_Stream(
+        { prompt: "Say hi", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0].textDelta).toBe("Hello");
+      expect(textDeltas[1].textDelta).toBe(" there");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.text).toBe("Hello there");
+    });
+
+    test("should accumulate input_json_delta and include tool_use in finish event", async () => {
+      mockMessagesStream.mockReturnValue(
+        makeAsyncIterable([
+          { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "tu1", name: "search" } },
+          { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"query"' } },
+          { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: ':"cats"}' } },
+          { type: "content_block_stop", index: 0 },
+        ])
+      );
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const events: any[] = [];
+      for await (const event of Anthropic_ToolCalling_Stream(
+        { prompt: "Search cats", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.toolCalls).toHaveLength(1);
+      expect(finish.data.toolCalls[0]).toEqual({ id: "tu1", name: "search", input: { query: "cats" } });
+    });
+
+    test("should not emit object-delta events for toolCalls", async () => {
+      mockMessagesStream.mockReturnValue(
+        makeAsyncIterable([
+          { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "tu1", name: "search" } },
+          { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"query":"test"}' } },
+          { type: "content_block_stop", index: 0 },
+        ])
+      );
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const events: any[] = [];
+      for await (const event of Anthropic_ToolCalling_Stream(
+        { prompt: "test", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas).toHaveLength(0);
     });
   });
 

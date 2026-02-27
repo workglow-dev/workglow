@@ -13,6 +13,8 @@ import {
   Gemini_TextGeneration,
   Gemini_TextRewriter,
   Gemini_TextSummary,
+  Gemini_ToolCalling,
+  Gemini_ToolCalling_Stream,
 } from "@workglow/ai-provider/google-gemini";
 import {
   getTaskQueueRegistry,
@@ -22,6 +24,7 @@ import {
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockGenerateContent = vi.fn();
+const mockGenerateContentStream = vi.fn();
 const mockEmbedContent = vi.fn();
 const mockBatchEmbedContents = vi.fn();
 const mockCountTokens = vi.fn();
@@ -32,6 +35,7 @@ vi.mock("@google/generative-ai", () => ({
     getGenerativeModel(_opts: any) {
       return {
         generateContent: mockGenerateContent,
+        generateContentStream: mockGenerateContentStream,
         embedContent: mockEmbedContent,
         batchEmbedContents: mockBatchEmbedContents,
         countTokens: mockCountTokens,
@@ -243,6 +247,191 @@ describe("GoogleGeminiProvider", () => {
       expect(result).toEqual({ count: 7 });
       expect(mockCountTokens).toHaveBeenCalledOnce();
       expect(mockCountTokens).toHaveBeenCalledWith("Hello Gemini");
+    });
+  });
+
+  describe("Gemini_ToolCalling", () => {
+    const sampleTool = {
+      name: "get_price",
+      description: "Get the price of a product",
+      inputSchema: { type: "object", properties: { product: { type: "string" } }, required: ["product"] },
+    };
+
+    test("should send function declarations and toolConfig in request", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: { candidates: [{ content: { parts: [{ text: "Checking price." }] } }] },
+      });
+
+      const model = makeModel("gemini-2.0-flash");
+      await Gemini_ToolCalling(
+        { prompt: "Get price", model: model as any, tools: [sampleTool], toolChoice: "auto" },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(mockGenerateContent).toHaveBeenCalledOnce();
+    });
+
+    test("should parse functionCall parts and return ToolCall objects", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  { functionCall: { name: "get_price", args: { product: "laptop" } } },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("gemini-2.0-flash");
+      const result = await Gemini_ToolCalling(
+        { prompt: "Price of laptop?", model: model as any, tools: [sampleTool] },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0].name).toBe("get_price");
+      expect(result.toolCalls[0].input).toEqual({ product: "laptop" });
+      expect(result.toolCalls[0].id).toBe("call_0");
+    });
+
+    test("should return text parts and tool calls together", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  { text: "Let me look that up." },
+                  { functionCall: { name: "get_price", args: { product: "phone" } } },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("gemini-2.0-flash");
+      const result = await Gemini_ToolCalling(
+        { prompt: "Price of phone?", model: model as any, tools: [sampleTool] },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toBe("Let me look that up.");
+      expect(result.toolCalls).toHaveLength(1);
+    });
+  });
+
+  describe("Gemini_ToolCalling_Stream", () => {
+    const sampleTool = {
+      name: "get_price",
+      description: "Get the price of a product",
+      inputSchema: { type: "object", properties: { product: { type: "string" } }, required: ["product"] },
+    };
+
+    function makeStreamResult(chunks: any[]) {
+      return {
+        stream: {
+          [Symbol.asyncIterator]() {
+            let i = 0;
+            return {
+              async next() {
+                if (i < chunks.length) return { value: chunks[i++], done: false };
+                return { value: undefined, done: true };
+              },
+            };
+          },
+        },
+      };
+    }
+
+    test("should yield text-delta for text parts", async () => {
+      mockGenerateContentStream.mockResolvedValue(
+        makeStreamResult([
+          { candidates: [{ content: { parts: [{ text: "Hello" }] } }] },
+          { candidates: [{ content: { parts: [{ text: " Gemini" }] } }] },
+        ])
+      );
+
+      const model = makeModel("gemini-2.0-flash");
+      const events: any[] = [];
+      for await (const event of Gemini_ToolCalling_Stream(
+        { prompt: "Say hi", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0].textDelta).toBe("Hello");
+      expect(textDeltas[1].textDelta).toBe(" Gemini");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.text).toBe("Hello Gemini");
+    });
+
+    test("should accumulate functionCall parts and include them in finish event", async () => {
+      mockGenerateContentStream.mockResolvedValue(
+        makeStreamResult([
+          {
+            candidates: [
+              { content: { parts: [{ functionCall: { name: "get_price", args: { product: "tablet" } } }] } },
+            ],
+          },
+        ])
+      );
+
+      const model = makeModel("gemini-2.0-flash");
+      const events: any[] = [];
+      for await (const event of Gemini_ToolCalling_Stream(
+        { prompt: "Price of tablet?", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.toolCalls).toHaveLength(1);
+      expect(finish.data.toolCalls[0]).toEqual({ id: "call_0", name: "get_price", input: { product: "tablet" } });
+    });
+
+    test("should not emit object-delta events for toolCalls", async () => {
+      mockGenerateContentStream.mockResolvedValue(
+        makeStreamResult([
+          {
+            candidates: [
+              { content: { parts: [{ functionCall: { name: "get_price", args: { product: "watch" } } }] } },
+            ],
+          },
+        ])
+      );
+
+      const model = makeModel("gemini-2.0-flash");
+      const events: any[] = [];
+      for await (const event of Gemini_ToolCalling_Stream(
+        { prompt: "test", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas).toHaveLength(0);
     });
   });
 

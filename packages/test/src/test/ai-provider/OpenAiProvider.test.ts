@@ -13,6 +13,8 @@ import {
   OpenAI_TextGeneration,
   OpenAI_TextRewriter,
   OpenAI_TextSummary,
+  OpenAI_ToolCalling,
+  OpenAI_ToolCalling_Stream,
   _setTiktokenForTesting,
 } from "@workglow/ai-provider/openai";
 import {
@@ -336,6 +338,224 @@ describe("OpenAiProvider", () => {
       );
 
       expect(result).toEqual({ count: 2 });
+    });
+  });
+
+  describe("OpenAI_ToolCalling", () => {
+    const sampleTool = {
+      name: "get_weather",
+      description: "Get the weather for a city",
+      inputSchema: {
+        type: "object",
+        properties: { city: { type: "string" } },
+        required: ["city"],
+      },
+    };
+
+    test("should map toolChoice auto to request", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: "Here is the weather.", tool_calls: [] } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_ToolCalling(
+        { prompt: "What is the weather?", model: model as any, tools: [sampleTool], toolChoice: "auto" },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.tool_choice).toBe("auto");
+      expect(params.tools).toHaveLength(1);
+      expect(params.tools[0].function.name).toBe("get_weather");
+    });
+
+    test("should map a specific toolChoice name to function object", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: null, tool_calls: [{ id: "c1", function: { name: "get_weather", arguments: '{"city":"NYC"}' } }] } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_ToolCalling(
+        { prompt: "Weather in NYC?", model: model as any, tools: [sampleTool], toolChoice: "get_weather" },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.tool_choice).toEqual({ type: "function", function: { name: "get_weather" } });
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0]).toEqual({ id: "c1", name: "get_weather", input: { city: "NYC" } });
+    });
+
+    test("should parse message.tool_calls and return ToolCall objects", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                { id: "tc1", function: { name: "get_weather", arguments: '{"city":"London"}' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_ToolCalling(
+        { prompt: "Weather?", model: model as any, tools: [sampleTool] },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0]).toEqual({ id: "tc1", name: "get_weather", input: { city: "London" } });
+      expect(result.text).toBe("");
+    });
+
+    test("should fall back to empty input when tool arguments are invalid JSON", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [{ id: "tc1", function: { name: "get_weather", arguments: "not-json{" } }],
+            },
+          },
+        ],
+      });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_ToolCalling(
+        { prompt: "test", model: model as any, tools: [sampleTool] },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0].input).toBeDefined();
+    });
+
+    test("should include system prompt when provided", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: "ok", tool_calls: [] } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_ToolCalling(
+        { prompt: "user msg", model: model as any, tools: [sampleTool], systemPrompt: "You are helpful." },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.messages[0]).toEqual({ role: "system", content: "You are helpful." });
+      expect(params.messages[1]).toEqual({ role: "user", content: "user msg" });
+    });
+  });
+
+  describe("OpenAI_ToolCalling_Stream", () => {
+    const sampleTool = {
+      name: "get_weather",
+      description: "Get the weather",
+      inputSchema: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
+    };
+
+    function makeStreamChunks(chunks: any[]) {
+      return {
+        [Symbol.asyncIterator]() {
+          let i = 0;
+          return {
+            async next() {
+              if (i < chunks.length) return { value: chunks[i++], done: false };
+              return { value: undefined, done: true };
+            },
+          };
+        },
+      };
+    }
+
+    test("should yield text-delta events for content chunks", async () => {
+      mockCreate.mockResolvedValue(
+        makeStreamChunks([
+          { choices: [{ delta: { content: "Hello" } }] },
+          { choices: [{ delta: { content: " world" } }] },
+          { choices: [{ delta: {} }] },
+        ])
+      );
+
+      const model = makeModel("gpt-4o");
+      const events: any[] = [];
+      for await (const event of OpenAI_ToolCalling_Stream(
+        { prompt: "Say hi", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0].textDelta).toBe("Hello");
+      expect(textDeltas[1].textDelta).toBe(" world");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.text).toBe("Hello world");
+    });
+
+    test("should accumulate tool_calls deltas and include them in finish event", async () => {
+      mockCreate.mockResolvedValue(
+        makeStreamChunks([
+          { choices: [{ delta: { tool_calls: [{ index: 0, id: "tc1", function: { name: "get_weather", arguments: "" } }] } }] },
+          { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '{"city"' } }] } }] },
+          { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: ':"NYC"}' } }] } }] },
+          { choices: [{ delta: {} }] },
+        ])
+      );
+
+      const model = makeModel("gpt-4o");
+      const events: any[] = [];
+      for await (const event of OpenAI_ToolCalling_Stream(
+        { prompt: "Weather?", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.toolCalls).toHaveLength(1);
+      expect(finish.data.toolCalls[0]).toEqual({ id: "tc1", name: "get_weather", input: { city: "NYC" } });
+    });
+
+    test("should not emit object-delta events for toolCalls", async () => {
+      mockCreate.mockResolvedValue(
+        makeStreamChunks([
+          { choices: [{ delta: { tool_calls: [{ index: 0, id: "tc1", function: { name: "get_weather", arguments: '{"city":"LA"}' } }] } }] },
+          { choices: [{ delta: {} }] },
+        ])
+      );
+
+      const model = makeModel("gpt-4o");
+      const events: any[] = [];
+      for await (const event of OpenAI_ToolCalling_Stream(
+        { prompt: "test", model: model as any, tools: [sampleTool] },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas).toHaveLength(0);
     });
   });
 

@@ -487,11 +487,27 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
   const response = await client.chat.completions.create(params, { signal });
 
   const text = response.choices[0]?.message?.content ?? "";
-  const toolCalls = (response.choices[0]?.message?.tool_calls ?? []).map((tc: any) => ({
-    id: tc.id as string,
-    name: tc.function.name as string,
-    input: JSON.parse(tc.function.arguments) as Record<string, unknown>,
-  }));
+  const toolCalls = (response.choices[0]?.message?.tool_calls ?? []).map((tc: any) => {
+    const id = tc.id as string;
+    const name = tc.function.name as string;
+    let input: Record<string, unknown> = {};
+    const rawArgs = tc.function?.arguments;
+    if (typeof rawArgs === "string") {
+      try {
+        input = JSON.parse(rawArgs) as Record<string, unknown>;
+      } catch {
+        try {
+          const partial = parsePartialJson(rawArgs);
+          if (partial && typeof partial === "object") {
+            input = partial as Record<string, unknown>;
+          }
+        } catch {
+          input = {};
+        }
+      }
+    }
+    return { id, name, input };
+  });
 
   update_progress(100, "Completed OpenAI tool calling");
   return { text, toolCalls };
@@ -566,19 +582,6 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
         if (tcDelta.function?.name) acc.name = tcDelta.function.name;
         if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
       }
-
-      // Yield progressive snapshot of all tool calls
-      const snapshot = Array.from(toolCallAccumulator.values()).map((tc) => {
-        let parsedInput: Record<string, unknown>;
-        try {
-          parsedInput = JSON.parse(tc.arguments);
-        } catch {
-          const partial = parsePartialJson(tc.arguments);
-          parsedInput = (partial as Record<string, unknown>) ?? {};
-        }
-        return { id: tc.id, name: tc.name, input: parsedInput };
-      });
-      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot as any };
     }
   }
 
