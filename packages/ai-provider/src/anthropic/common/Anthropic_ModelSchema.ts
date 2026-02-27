@@ -30,6 +30,12 @@ export const AnthropicModelSchema = {
             "Anthropic API key. Falls back to ANTHROPIC_API_KEY environment variable if not set.",
           "x-ui-hidden": true,
         },
+        credential_key: {
+          type: "string",
+          description:
+            "Key to look up in the credential store. Checked before api_key and environment variables.",
+          "x-ui-hidden": true,
+        },
         base_url: {
           type: "string",
           description: "Base URL for the Anthropic API (optional).",

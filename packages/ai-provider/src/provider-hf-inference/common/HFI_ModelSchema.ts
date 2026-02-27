@@ -28,6 +28,13 @@ export const HfInferenceModelSchema = {
           type: "string",
           description:
             "Hugging Face API key. Falls back to HF_TOKEN environment variable if not set.",
+          "x-ui-hidden": true,
+        },
+        credential_key: {
+          type: "string",
+          description:
+            "Key to look up in the credential store. Checked before api_key and environment variables.",
+          "x-ui-hidden": true,
         },
         provider: {
           type: "string",

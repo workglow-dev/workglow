@@ -19,7 +19,7 @@ import {
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema, resolveCredential } from "@workglow/util";
 
 const inputSchema = {
   type: "object",
@@ -60,6 +60,13 @@ const inputSchema = {
       type: "number",
       title: "Timeout",
       description: "Request timeout in milliseconds",
+    },
+    credential_key: {
+      type: "string",
+      title: "Credential Key",
+      description:
+        "Key to look up in the credential store. The resolved value is sent as a Bearer token in the Authorization header.",
+      "x-ui-hidden": true,
     },
     queue: {
       oneOf: [{ type: "boolean" }, { type: "string" }],
@@ -188,11 +195,23 @@ export class FetchUrlJob<
    * Executes the job using the provided function.
    */
   async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
+    // Resolve credential and merge into headers if credential_key is provided
+    const headers: Record<string, string> = { ...input.headers };
+    const credentialKey = (input as Record<string, unknown>).credential_key as
+      | string
+      | undefined;
+    if (credentialKey) {
+      const credential = await resolveCredential(credentialKey);
+      if (credential) {
+        headers["Authorization"] = `Bearer ${credential}`;
+      }
+    }
+
     const response = await fetchWithProgress(
       input.url!,
       {
         method: input.method,
-        headers: input.headers,
+        headers,
         body: input.body,
         signal: context.signal,
       },
