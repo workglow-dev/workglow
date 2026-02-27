@@ -77,6 +77,7 @@ export class FileLoaderTask extends BaseFileLoaderTask {
         csv: undefined,
         image: undefined,
         pdf: undefined,
+        frontmatter: undefined,
         metadata: {
           url,
           format: detectedFormat,
@@ -107,6 +108,7 @@ export class FileLoaderTask extends BaseFileLoaderTask {
         csv: csvData,
         image: undefined,
         pdf: undefined,
+        frontmatter: undefined,
         metadata: {
           url,
           format: detectedFormat,
@@ -136,6 +138,7 @@ export class FileLoaderTask extends BaseFileLoaderTask {
         csv: undefined,
         image: imageData,
         pdf: undefined,
+        frontmatter: undefined,
         metadata: {
           url,
           format: detectedFormat,
@@ -165,6 +168,7 @@ export class FileLoaderTask extends BaseFileLoaderTask {
         csv: undefined,
         image: undefined,
         pdf: pdfData,
+        frontmatter: undefined,
         metadata: {
           url,
           format: detectedFormat,
@@ -194,12 +198,33 @@ export class FileLoaderTask extends BaseFileLoaderTask {
       throw new TaskAbortedError("Task aborted");
     }
     await context.updateProgress(100, "File loaded successfully");
+
+    if (detectedFormat === "markdown") {
+      const { frontmatter, body } = this.parseFrontmatter(fileContent);
+      return {
+        text: body,
+        json: undefined,
+        csv: undefined,
+        image: undefined,
+        pdf: undefined,
+        frontmatter,
+        metadata: {
+          url,
+          format: detectedFormat,
+          size: fileContent.length,
+          title,
+          mimeType,
+        },
+      };
+    }
+
     return {
       text: fileContent,
       json: undefined,
       csv: undefined,
       image: undefined,
       pdf: undefined,
+      frontmatter: undefined,
       metadata: {
         url,
         format: detectedFormat,

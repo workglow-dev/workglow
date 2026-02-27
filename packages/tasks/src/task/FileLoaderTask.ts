@@ -65,6 +65,11 @@ const outputSchema = {
       title: "PDF",
       description: "Base64 data URL for PDF files",
     },
+    frontmatter: {
+      type: "object",
+      title: "Frontmatter",
+      description: "Parsed YAML frontmatter from markdown/MDX files",
+    },
     metadata: {
       type: "object",
       properties: {
@@ -144,7 +149,7 @@ export class FileLoaderTask extends Task<
     await context.updateProgress(60, "Parsing file content");
 
     const title = url.split("/").pop() || url;
-    const { text, json, csv, image, pdf, size, mimeType } = await this.parseResponse(
+    const { text, json, csv, image, pdf, frontmatter, size, mimeType } = await this.parseResponse(
       response,
       url,
       detectedFormat
@@ -161,6 +166,7 @@ export class FileLoaderTask extends Task<
       csv,
       image,
       pdf,
+      frontmatter,
       metadata: {
         url,
         format: detectedFormat,
@@ -195,6 +201,157 @@ export class FileLoaderTask extends Task<
   }
 
   /**
+   * Parse YAML frontmatter from markdown/MDX content.
+   * Supports common frontmatter patterns: strings, numbers, booleans, arrays, and nested objects.
+   */
+  protected parseFrontmatter(content: string): {
+    readonly frontmatter: Record<string, unknown> | undefined;
+    readonly body: string;
+  } {
+    // Strip optional BOM and leading whitespace
+    const trimmed = content.replace(/^\uFEFF/, "");
+    if (!trimmed.startsWith("---\n") && !trimmed.startsWith("---\r\n")) {
+      return { frontmatter: undefined, body: content };
+    }
+
+    const firstDelimEnd = trimmed.indexOf("\n") + 1;
+    const closingIdx = trimmed.indexOf("\n---", firstDelimEnd);
+    if (closingIdx === -1) {
+      return { frontmatter: undefined, body: content };
+    }
+
+    const yamlBlock = trimmed.slice(firstDelimEnd, closingIdx);
+    // Body starts after the closing --- and its trailing newline
+    const afterClosing = closingIdx + 4; // "\n---".length
+    let bodyStart = afterClosing;
+    if (trimmed[bodyStart] === "\r") bodyStart++;
+    if (trimmed[bodyStart] === "\n") bodyStart++;
+    const body = trimmed.slice(bodyStart).replace(/^\r?\n/, "");
+
+    const frontmatter = this.parseSimpleYaml(yamlBlock);
+    return { frontmatter, body };
+  }
+
+  /**
+   * Lightweight line-based YAML parser for frontmatter key-value pairs.
+   */
+  private parseSimpleYaml(yaml: string): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    const lines = yaml.split(/\r?\n/);
+    let i = 0;
+
+    while (i < lines.length) {
+      i = this.parseYamlLine(lines, i, result, 0);
+    }
+
+    return result;
+  }
+
+  private parseYamlLine(
+    lines: readonly string[],
+    index: number,
+    target: Record<string, unknown>,
+    indent: number
+  ): number {
+    if (index >= lines.length) return index + 1;
+    const line = lines[index];
+
+    // Skip empty lines and comments
+    if (line.trim() === "" || line.trim().startsWith("#")) {
+      return index + 1;
+    }
+
+    const lineIndent = line.length - line.trimStart().length;
+    if (lineIndent < indent) return index; // Dedented, stop
+
+    const match = line.match(/^(\s*)([^:#]+?)\s*:\s*(.*)?$/);
+    if (!match) return index + 1;
+
+    const key = match[2].trim();
+    const rawValue = (match[3] ?? "").trim();
+
+    if (rawValue === "" || rawValue === "|" || rawValue === ">") {
+      // Check if next line is an array or nested object
+      const nextIndex = index + 1;
+      if (nextIndex < lines.length) {
+        const nextLine = lines[nextIndex];
+        const nextTrimmed = nextLine.trimStart();
+        const nextIndent = nextLine.length - nextTrimmed.length;
+
+        if (nextIndent > lineIndent && nextTrimmed.startsWith("- ")) {
+          // Array
+          const arr: unknown[] = [];
+          let j = nextIndex;
+          while (j < lines.length) {
+            const arrLine = lines[j];
+            const arrTrimmed = arrLine.trimStart();
+            const arrIndent = arrLine.length - arrTrimmed.length;
+            if (arrTrimmed === "" || arrTrimmed.startsWith("#")) {
+              j++;
+              continue;
+            }
+            if (arrIndent < nextIndent) break;
+            if (arrTrimmed.startsWith("- ")) {
+              arr.push(this.parseYamlValue(arrTrimmed.slice(2).trim()));
+              j++;
+            } else {
+              break;
+            }
+          }
+          target[key] = arr;
+          return j;
+        } else if (nextIndent > lineIndent) {
+          // Nested object
+          const nested: Record<string, unknown> = {};
+          let j = nextIndex;
+          while (j < lines.length) {
+            const nestedLine = lines[j];
+            const nestedTrimmed = nestedLine.trimStart();
+            const nestedIndent = nestedLine.length - nestedTrimmed.length;
+            if (nestedTrimmed === "" || nestedTrimmed.startsWith("#")) {
+              j++;
+              continue;
+            }
+            if (nestedIndent < nextIndent) break;
+            j = this.parseYamlLine(lines, j, nested, nextIndent);
+          }
+          target[key] = nested;
+          return j;
+        }
+      }
+      // Empty value
+      target[key] = rawValue === "" ? null : rawValue;
+      return index + 1;
+    }
+
+    target[key] = this.parseYamlValue(rawValue);
+    return index + 1;
+  }
+
+  private parseYamlValue(raw: string): unknown {
+    // Quoted strings
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+      return raw.slice(1, -1);
+    }
+    // Booleans
+    if (raw === "true" || raw === "True" || raw === "TRUE") return true;
+    if (raw === "false" || raw === "False" || raw === "FALSE") return false;
+    // Null
+    if (raw === "null" || raw === "~") return null;
+    // Numbers
+    if (/^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
+    // Inline arrays [a, b, c]
+    if (raw.startsWith("[") && raw.endsWith("]")) {
+      return raw
+        .slice(1, -1)
+        .split(",")
+        .map((item) => this.parseYamlValue(item.trim()));
+    }
+    // Plain string
+    return raw;
+  }
+
+  /**
    * Parse the fetch response into typed outputs
    */
   protected async parseResponse(
@@ -207,6 +364,7 @@ export class FileLoaderTask extends Task<
     readonly csv: Array<Record<string, string>> | undefined;
     readonly image: string | undefined;
     readonly pdf: string | undefined;
+    readonly frontmatter: Record<string, unknown> | undefined;
     readonly size: number;
     readonly mimeType: string;
   }> {
@@ -224,6 +382,7 @@ export class FileLoaderTask extends Task<
         csv: undefined,
         image: undefined,
         pdf: undefined,
+        frontmatter: undefined,
         size: content.length,
         mimeType: responseMimeType || "application/json",
       };
@@ -241,6 +400,7 @@ export class FileLoaderTask extends Task<
         csv: csvData,
         image: undefined,
         pdf: undefined,
+        frontmatter: undefined,
         size: content.length,
         mimeType: responseMimeType || "text/csv",
       };
@@ -261,6 +421,7 @@ export class FileLoaderTask extends Task<
         csv: undefined,
         image: imageData,
         pdf: undefined,
+        frontmatter: undefined,
         size: blob.size,
         mimeType,
       };
@@ -279,6 +440,7 @@ export class FileLoaderTask extends Task<
         csv: undefined,
         image: undefined,
         pdf: pdfData,
+        frontmatter: undefined,
         size: blob.size,
         mimeType,
       };
@@ -296,12 +458,28 @@ export class FileLoaderTask extends Task<
         : detectedFormat === "html"
           ? "text/html"
           : "text/plain");
+
+    if (detectedFormat === "markdown") {
+      const { frontmatter, body } = this.parseFrontmatter(content);
+      return {
+        text: body,
+        json: undefined,
+        csv: undefined,
+        image: undefined,
+        pdf: undefined,
+        frontmatter,
+        size: content.length,
+        mimeType,
+      };
+    }
+
     return {
       text: content,
       json: undefined,
       csv: undefined,
       image: undefined,
       pdf: undefined,
+      frontmatter: undefined,
       size: content.length,
       mimeType,
     };
@@ -342,7 +520,7 @@ export class FileLoaderTask extends Task<
   ): "text" | "markdown" | "json" | "csv" | "pdf" | "image" | "html" {
     if (format === "auto") {
       const urlLower = url.toLowerCase();
-      if (urlLower.endsWith(".md") || urlLower.endsWith(".markdown")) {
+      if (urlLower.endsWith(".md") || urlLower.endsWith(".mdx") || urlLower.endsWith(".markdown")) {
         return "markdown";
       } else if (urlLower.endsWith(".json")) {
         return "json";
