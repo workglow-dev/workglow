@@ -6,18 +6,17 @@
 
 import type { DataPortSchema } from "@workglow/util";
 import { compileSchema, SchemaNode } from "@workglow/util";
-import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
+import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
-import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
+import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
 import {
   TaskConfigSchema,
   type TaskConfig,
-  type TaskIdType,
   type TaskInput,
   type TaskOutput,
   type TaskTypeName,
@@ -126,89 +125,7 @@ export class GraphAsTask<
       return (this.constructor as typeof Task).inputSchema();
     }
 
-    const properties: Record<string, any> = {};
-    const required: string[] = [];
-
-    // Get all tasks in the graph
-    const tasks = this.subGraph.getTasks();
-
-    // Identify starting nodes: tasks with no incoming dataflows
-    const startingNodes = tasks.filter(
-      (task) => this.subGraph.getSourceDataflows(task.id).length === 0
-    );
-
-    // Collect all properties from root tasks (original behavior)
-    for (const task of startingNodes) {
-      const taskInputSchema = task.inputSchema();
-      if (typeof taskInputSchema === "boolean") {
-        if (taskInputSchema === false) {
-          continue;
-        }
-        if (taskInputSchema === true) {
-          properties[DATAFLOW_ALL_PORTS] = {};
-          continue;
-        }
-      }
-      const taskProperties = taskInputSchema.properties || {};
-
-      // Add all inputs from starting nodes to the graph's input schema
-      for (const [inputName, inputProp] of Object.entries(taskProperties)) {
-        // If the same input name exists in multiple nodes, we use the first one
-        // In a more sophisticated implementation, we might want to merge or validate compatibility
-        if (!properties[inputName]) {
-          properties[inputName] = inputProp;
-
-          // Check if this input is required
-          if (taskInputSchema.required && taskInputSchema.required.includes(inputName)) {
-            required.push(inputName);
-          }
-        }
-      }
-    }
-
-    // For non-root tasks, collect only REQUIRED properties not satisfied by dataflows.
-    // This handles cases like: map().fetch().structuralParser() where structuralParser
-    // requires "title" but fetch doesn't output it — title must come from the map input.
-    const sourceIds = new Set(startingNodes.map((t) => t.id));
-    for (const task of tasks) {
-      if (sourceIds.has(task.id)) continue;
-
-      const taskInputSchema = task.inputSchema();
-      if (typeof taskInputSchema === "boolean") continue;
-
-      const requiredKeys = new Set<string>(
-        (taskInputSchema.required as string[] | undefined) || []
-      );
-      if (requiredKeys.size === 0) continue;
-
-      const connectedPorts = new Set(
-        this.subGraph.getSourceDataflows(task.id).map((df) => df.targetTaskPortId)
-      );
-
-      for (const key of requiredKeys) {
-        // Skip if already connected via dataflow or already collected from a root task
-        if (connectedPorts.has(key)) continue;
-        if (properties[key]) continue;
-
-        // Skip if the task already has a default value for this property
-        if (task.defaults && task.defaults[key] !== undefined) continue;
-
-        const prop = (taskInputSchema.properties || {})[key];
-        if (!prop || typeof prop === "boolean") continue;
-
-        properties[key] = prop;
-        if (!required.includes(key)) {
-          required.push(key);
-        }
-      }
-    }
-
-    return {
-      type: "object",
-      properties,
-      ...(required.length > 0 ? { required } : {}),
-      additionalProperties: false,
-    } as const satisfies DataPortSchema;
+    return computeGraphInputSchema(this.subGraph);
   }
 
   protected _inputSchemaNode: SchemaNode | undefined;
@@ -236,112 +153,18 @@ export class GraphAsTask<
   }
 
   /**
-   * Calculates the depth (longest path from any starting node) for each task in the graph
-   * @returns A map of task IDs to their depths
-   */
-  private calculateNodeDepths(): Map<TaskIdType, number> {
-    const depths = new Map<TaskIdType, number>();
-    const tasks = this.subGraph.getTasks();
 
-    // Initialize all depths to 0
-    for (const task of tasks) {
-      depths.set(task.id, 0);
-    }
-
-    // Use topological sort to calculate depths in order
-    const sortedTasks = this.subGraph.topologicallySortedNodes();
-
-    for (const task of sortedTasks) {
-      const currentDepth = depths.get(task.id) || 0;
-      const targetTasks = this.subGraph.getTargetTasks(task.id);
-
-      // Update depths of all target tasks
-      for (const targetTask of targetTasks) {
-        const targetDepth = depths.get(targetTask.id) || 0;
-        depths.set(targetTask.id, Math.max(targetDepth, currentDepth + 1));
-      }
-    }
-
-    return depths;
-  }
-
-  /**
    * Override outputSchema to compute it dynamically from the subgraph at runtime
    * The output schema depends on the compoundMerge strategy and the nodes at the last level
    */
+
   public override outputSchema(): DataPortSchema {
     // If there's no subgraph or it has no children, fall back to the static schema
     if (!this.hasChildren()) {
       return (this.constructor as typeof Task).outputSchema();
     }
 
-    const properties: Record<string, any> = {};
-    const required: string[] = [];
-
-    // Find all ending nodes (nodes with no outgoing dataflows)
-    const tasks = this.subGraph.getTasks();
-    const endingNodes = tasks.filter(
-      (task) => this.subGraph.getTargetDataflows(task.id).length === 0
-    );
-
-    // Calculate depths for all nodes
-    const depths = this.calculateNodeDepths();
-
-    // Find the maximum depth among ending nodes
-    const maxDepth = Math.max(...endingNodes.map((task) => depths.get(task.id) || 0));
-
-    // Filter ending nodes to only those at the maximum depth (last level)
-    const lastLevelNodes = endingNodes.filter((task) => depths.get(task.id) === maxDepth);
-
-    // ONLY handle PROPERTY_ARRAY strategy
-    // Count how many ending nodes produce each property
-    const propertyCount: Record<string, number> = {};
-    const propertySchema: Record<string, any> = {};
-
-    for (const task of lastLevelNodes) {
-      const taskOutputSchema = task.outputSchema();
-      if (typeof taskOutputSchema === "boolean") {
-        if (taskOutputSchema === false) {
-          continue;
-        }
-        if (taskOutputSchema === true) {
-          properties[DATAFLOW_ALL_PORTS] = {};
-          continue;
-        }
-      }
-      const taskProperties = taskOutputSchema.properties || {};
-
-      for (const [outputName, outputProp] of Object.entries(taskProperties)) {
-        propertyCount[outputName] = (propertyCount[outputName] || 0) + 1;
-        // Store the first schema we encounter for each property
-        if (!propertySchema[outputName]) {
-          propertySchema[outputName] = outputProp;
-        }
-      }
-    }
-
-    // Build the final schema: properties produced by multiple nodes become arrays
-    for (const [outputName, count] of Object.entries(propertyCount)) {
-      const outputProp = propertySchema[outputName];
-
-      if (lastLevelNodes.length === 1) {
-        // Single ending node: use property as-is
-        properties[outputName] = outputProp;
-      } else {
-        // Multiple ending nodes: all properties become arrays due to collectPropertyValues
-        properties[outputName] = {
-          type: "array",
-          items: outputProp as any,
-        };
-      }
-    }
-
-    return {
-      type: "object",
-      properties,
-      ...(required.length > 0 ? { required } : {}),
-      additionalProperties: false,
-    } as DataPortSchema;
+    return computeGraphOutputSchema(this.subGraph);
   }
 
   /**
@@ -471,14 +294,14 @@ export class GraphAsTask<
    * Serializes the task and its subtasks into a format that can be stored
    * @returns The serialized task and subtasks
    */
-  public toJSON(): TaskGraphItemJson {
-    let json = super.toJSON();
+  public override toJSON(options?: TaskGraphJsonOptions): TaskGraphItemJson {
+    let json = super.toJSON(options);
     const hasChildren = this.hasChildren();
     if (hasChildren) {
       json = {
         ...json,
         merge: this.compoundMerge,
-        subgraph: this.subGraph!.toJSON(),
+        subgraph: this.subGraph!.toJSON(options),
       };
     }
     return json;
@@ -488,13 +311,13 @@ export class GraphAsTask<
    * Converts the task to a JSON format suitable for dependency tracking
    * @returns The task and subtasks in JSON thats easier for humans to read
    */
-  public toDependencyJSON(): JsonTaskItem {
-    const json = this.toJSON();
+  public override toDependencyJSON(options?: TaskGraphJsonOptions): JsonTaskItem {
+    const json = this.toJSON(options);
     if (this.hasChildren()) {
       if ("subgraph" in json) {
         delete json.subgraph;
       }
-      return { ...json, subtasks: this.subGraph!.toDependencyJSON() };
+      return { ...json, subtasks: this.subGraph!.toDependencyJSON(options) };
     }
     return json;
   }

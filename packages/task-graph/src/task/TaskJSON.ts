@@ -96,6 +96,11 @@ export type DataflowJson = {
   targetTaskPortId: string;
 };
 
+export interface TaskGraphJsonOptions {
+  /** When true, synthetic InputTask/OutputTask boundary nodes are added at each graph level */
+  readonly withBoundaryNodes?: boolean;
+}
+
 const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
   if (!item.id) throw new TaskJSONError("Task id required");
   if (!item.type) throw new TaskJSONError("Task type required");
@@ -180,3 +185,4 @@ export const createGraphFromGraphJSON = (graphJsonObj: TaskGraphJson) => {
   }
   return subGraph;
 };
+

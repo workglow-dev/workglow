@@ -18,7 +18,7 @@ import type {
   TaskEventParameters,
   TaskEvents,
 } from "./TaskEvents";
-import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
+import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
 import type { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
 
@@ -198,8 +198,8 @@ export interface ITaskEvents {
  * Interface for task serialization
  */
 export interface ITaskSerialization {
-  toJSON(): JsonTaskItem | TaskGraphItemJson;
-  toDependencyJSON(): JsonTaskItem;
+  toJSON(options?: TaskGraphJsonOptions): JsonTaskItem | TaskGraphItemJson;
+  toDependencyJSON(options?: TaskGraphJsonOptions): JsonTaskItem;
   get id(): unknown;
 }
 

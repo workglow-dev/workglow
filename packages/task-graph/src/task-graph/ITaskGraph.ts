@@ -6,7 +6,7 @@
 
 import { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
-import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
+import { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { Dataflow, DataflowIdType } from "./Dataflow";
 import type { TaskGraphRunConfig } from "./TaskGraph";
@@ -48,8 +48,8 @@ export interface ITaskGraph {
   getSourceTasks(taskId: unknown): ITask[];
   getTargetTasks(taskId: unknown): ITask[];
   removeTask(taskId: unknown): void;
-  toJSON(): TaskGraphJson;
-  toDependencyJSON(): JsonTaskItem[];
+  toJSON(options?: TaskGraphJsonOptions): TaskGraphJson;
+  toDependencyJSON(options?: TaskGraphJsonOptions): JsonTaskItem[];
   subscribe<Event extends TaskGraphEvents>(
     event: Event,
     fn: TaskGraphEventListener<Event>

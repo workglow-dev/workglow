@@ -11,7 +11,7 @@ import type { ITask, ITaskConstructor } from "../task/ITask";
 import { getPortStreamMode, type StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
-import type { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
+import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
 import { ensureTask, getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
@@ -526,19 +526,23 @@ export class Workflow<
   /**
    * Converts the task graph to JSON
    *
+   * @param options Options controlling serialization (e.g., boundary nodes)
    * @returns The task graph as JSON
    */
-  public toJSON(): TaskGraphJson {
-    return this._graph.toJSON();
+  public toJSON(options: TaskGraphJsonOptions = { withBoundaryNodes: true }): TaskGraphJson {
+    return this._graph.toJSON(options);
   }
 
   /**
    * Converts the task graph to dependency JSON
    *
+   * @param options Options controlling serialization (e.g., boundary nodes)
    * @returns The task graph as dependency JSON
    */
-  public toDependencyJSON(): JsonTaskItem[] {
-    return this._graph.toDependencyJSON();
+  public toDependencyJSON(
+    options: TaskGraphJsonOptions = { withBoundaryNodes: true }
+  ): JsonTaskItem[] {
+    return this._graph.toDependencyJSON(options);
   }
 
   // Replace both the instance and static pipe methods with properly typed versions

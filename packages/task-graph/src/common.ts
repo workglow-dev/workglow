@@ -7,6 +7,7 @@
 export * from "./task-graph/Dataflow";
 export * from "./task-graph/DataflowEvents";
 
+export * from "./task-graph/GraphSchemaUtils";
 export * from "./task-graph/ITaskGraph";
 export * from "./task-graph/TaskGraph";
 export * from "./task-graph/TaskGraphEvents";

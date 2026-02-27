@@ -176,6 +176,25 @@ describe("Workflow", () => {
 
       expect(json).toHaveProperty("tasks");
       expect(json).toHaveProperty("dataflows");
+      // Default includes boundary nodes: InputTask + 1 task + OutputTask = 3
+      expect(json.tasks).toHaveLength(3);
+      expect(json.tasks[0].type).toBe("InputTask");
+      expect(json.tasks[json.tasks.length - 1].type).toBe("OutputTask");
+    });
+
+    it("should convert the task graph to JSON without boundary nodes", () => {
+      const addTestTask = Workflow.createWorkflow<
+        { input: string },
+        { output: string },
+        TaskConfig
+      >(TestSimpleTask);
+
+      workflow = addTestTask.call(workflow, { input: "test" });
+
+      const json = workflow.toJSON({ withBoundaryNodes: false });
+
+      expect(json).toHaveProperty("tasks");
+      expect(json).toHaveProperty("dataflows");
       expect(json.tasks).toHaveLength(1);
     });
 
@@ -189,6 +208,24 @@ describe("Workflow", () => {
       workflow = addTestTask.call(workflow, { input: "test" });
 
       const json = workflow.toDependencyJSON();
+
+      expect(Array.isArray(json)).toBe(true);
+      // Default includes boundary nodes: InputTask + 1 task + OutputTask = 3
+      expect(json).toHaveLength(3);
+      expect(json[0].type).toBe("InputTask");
+      expect(json[json.length - 1].type).toBe("OutputTask");
+    });
+
+    it("should convert the task graph to dependency JSON without boundary nodes", () => {
+      const addTestTask = Workflow.createWorkflow<
+        { input: string },
+        { output: string },
+        TaskConfig
+      >(TestSimpleTask);
+
+      workflow = addTestTask.call(workflow, { input: "test" });
+
+      const json = workflow.toDependencyJSON({ withBoundaryNodes: false });
 
       expect(Array.isArray(json)).toBe(true);
       expect(json).toHaveLength(1);

@@ -8,7 +8,11 @@ import { DirectedAcyclicGraph, EventEmitter, ServiceRegistry, uuid4 } from "@wor
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
-import { JsonTaskItem, TaskGraphJson } from "../task/TaskJSON";
+import {
+  addBoundaryNodesToDependencyJson,
+  addBoundaryNodesToGraphJson,
+} from "./GraphSchemaUtils";
+import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction } from "./Conversions";
 import { Dataflow, type DataflowIdType } from "./Dataflow";
@@ -317,23 +321,29 @@ export class TaskGraph implements ITaskGraph {
 
   /**
    * Converts the task graph to a JSON format suitable for dependency tracking
-   * @returns An array of JsonTaskItem objects, each representing a task and its dependencies
+   * @param options Options controlling serialization (e.g., boundary nodes)
+   * @returns A TaskGraphJson object representing the tasks and dataflows
    */
-  public toJSON(): TaskGraphJson {
-    const tasks = this.getTasks().map((node) => node.toJSON());
+  public toJSON(options?: TaskGraphJsonOptions): TaskGraphJson {
+    const tasks = this.getTasks().map((node) => node.toJSON(options));
     const dataflows = this.getDataflows().map((df) => df.toJSON());
-    return {
+    let json: TaskGraphJson = {
       tasks,
       dataflows,
     };
+    if (options?.withBoundaryNodes) {
+      json = addBoundaryNodesToGraphJson(json, this);
+    }
+    return json;
   }
 
   /**
    * Converts the task graph to a JSON format suitable for dependency tracking
+   * @param options Options controlling serialization (e.g., boundary nodes)
    * @returns An array of JsonTaskItem objects, each representing a task and its dependencies
    */
-  public toDependencyJSON(): JsonTaskItem[] {
-    const tasks = this.getTasks().flatMap((node) => node.toDependencyJSON());
+  public toDependencyJSON(options?: TaskGraphJsonOptions): JsonTaskItem[] {
+    const tasks = this.getTasks().flatMap((node) => node.toDependencyJSON(options));
     this.getDataflows().forEach((df) => {
       const target = tasks.find((node) => node.id === df.targetTaskId)!;
       if (!target.dependencies) {
@@ -359,6 +369,9 @@ export class TaskGraph implements ITaskGraph {
         }
       }
     });
+    if (options?.withBoundaryNodes) {
+      return addBoundaryNodesToDependencyJson(tasks, this);
+    }
     return tasks;
   }
 

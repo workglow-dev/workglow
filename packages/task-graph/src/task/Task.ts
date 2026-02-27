@@ -28,7 +28,7 @@ import {
   type TaskEventParameters,
   type TaskEvents,
 } from "./TaskEvents";
-import type { JsonTaskItem, TaskGraphItemJson } from "./TaskJSON";
+import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
 import {
   TaskConfigSchema,
@@ -907,9 +907,10 @@ export class Task<
 
   /**
    * Serializes the task and its subtasks into a format that can be stored
+   * @param _options Options controlling serialization (used by subclasses)
    * @returns The serialized task and subtasks
    */
-  public toJSON(): TaskGraphItemJson {
+  public toJSON(_options?: TaskGraphJsonOptions): TaskGraphItemJson {
     const extras = this.config.extras;
     const json: TaskGraphItemJson = this.stripSymbols({
       id: this.id,
@@ -917,6 +918,7 @@ export class Task<
       defaults: this.defaults,
       config: {
         ...(this.config.title ? { title: this.config.title } : {}),
+        ...(this.config.description ? { description: this.config.description } : {}),
         ...(this.config.inputSchema ? { inputSchema: this.config.inputSchema } : {}),
         ...(this.config.outputSchema ? { outputSchema: this.config.outputSchema } : {}),
         ...(extras && Object.keys(extras).length ? { extras } : {}),
@@ -927,10 +929,11 @@ export class Task<
 
   /**
    * Converts the task to a JSON format suitable for dependency tracking
+   * @param options Options controlling serialization (used by subclasses)
    * @returns The task and subtasks in JSON thats easier for humans to read
    */
-  public toDependencyJSON(): JsonTaskItem {
-    const json = this.toJSON();
+  public toDependencyJSON(options?: TaskGraphJsonOptions): JsonTaskItem {
+    const json = this.toJSON(options);
     return json;
   }
 
