@@ -144,5 +144,48 @@ describe("TextEmbeddingTask with real models", () => {
       const vectorSum = Array.from(vector).reduce((sum, val) => sum + Math.abs(val as number), 0);
       expect(vectorSum).toBeGreaterThan(0);
     }, 120000);
+
+    it("should generate embeddings for an array of texts using map", async () => {
+      // Reuses the gte-small model registered and downloaded by the first test
+      const texts = [
+        "The quick brown fox jumps over the lazy dog",
+        "Machine learning is a subset of artificial intelligence",
+        "Embeddings capture semantic meaning of text",
+      ];
+
+      const workflow = new Workflow();
+      workflow
+        .map()
+        .textEmbedding({ model: "onnx:Xenova/gte-small:q8" })
+        .endMap();
+
+      const result = (await workflow.run({ text: texts })) as {
+        vector: readonly (Float32Array | number[])[];
+      };
+
+      // Should produce one embedding per input text
+      expect(result).toBeDefined();
+      expect(result.vector).toBeDefined();
+      expect(result.vector).toHaveLength(texts.length);
+
+      // Each embedding should be the correct dimension and non-trivial
+      for (let i = 0; i < texts.length; i++) {
+        const vector = result.vector[i];
+        expect(Array.isArray(vector) || vector instanceof Float32Array).toBe(true);
+        expect(vector.length).toBe(384);
+
+        const vectorSum = Array.from(vector).reduce(
+          (sum, val) => sum + Math.abs(val as number),
+          0
+        );
+        expect(vectorSum).toBeGreaterThan(0);
+      }
+
+      // Verify different texts produce different embeddings
+      const v0 = Array.from(result.vector[0]);
+      const v1 = Array.from(result.vector[1]);
+      const diff = v0.reduce((sum, val, i) => sum + Math.abs(val - (v1[i] as number)), 0);
+      expect(diff).toBeGreaterThan(0);
+    }, 120000);
   });
 });
