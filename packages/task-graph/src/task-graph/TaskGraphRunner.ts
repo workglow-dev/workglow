@@ -936,7 +936,7 @@ export class TaskGraphRunner {
     this.failedTaskErrors.clear();
 
     const logger = getLogger();
-    logger.group(this.timerLabel, { taskCount: this.graph.getTasks().length });
+    logger.group(this.timerLabel, { graph: this.graph });
     logger.time(this.timerLabel);
 
     this.graph.emit("start");

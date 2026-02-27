@@ -65,6 +65,8 @@ export class IteratorTaskRunner<
       : [];
     const completionOrderResults: TaskOutput[] = [];
 
+    let completedCount = 0;
+
     for (let batchStart = 0; batchStart < iterationCount; batchStart += batchSize) {
       if (this.abortController?.signal.aborted) {
         break;
@@ -77,7 +79,15 @@ export class IteratorTaskRunner<
         batchIndices,
         analysis,
         iterationCount,
-        concurrency
+        concurrency,
+        async () => {
+          completedCount++;
+          const progress = Math.round((completedCount / iterationCount) * 100);
+          await this.handleProgress(
+            progress,
+            `Completed ${completedCount}/${iterationCount} iterations`
+          );
+        }
       );
 
       for (const { index, result } of batchResults) {
@@ -89,9 +99,6 @@ export class IteratorTaskRunner<
           completionOrderResults.push(result);
         }
       }
-
-      const progress = Math.round((batchEnd / iterationCount) * 100);
-      await this.handleProgress(progress, `Completed ${batchEnd}/${iterationCount} iterations`);
     }
 
     const collected = preserveOrder
@@ -128,7 +135,8 @@ export class IteratorTaskRunner<
     indices: number[],
     analysis: IterationAnalysisResult,
     iterationCount: number,
-    concurrency: number
+    concurrency: number,
+    onItemComplete?: () => Promise<void>
   ): Promise<Array<{ index: number; result: TaskOutput | undefined }>> {
     const results: Array<{ index: number; result: TaskOutput | undefined }> = [];
     let cursor = 0;
@@ -152,6 +160,7 @@ export class IteratorTaskRunner<
         const iterationInput = this.task.buildIterationRunInput(analysis, index, iterationCount);
         const result = await this.executeSubgraphIteration(iterationInput);
         results.push({ index, result });
+        await onItemComplete?.();
       }
     });
 

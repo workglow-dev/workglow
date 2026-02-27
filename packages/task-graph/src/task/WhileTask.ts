@@ -413,9 +413,12 @@ export class WhileTask<
 
       this._currentIteration++;
 
-      // Update progress
-      const progress = Math.min((this._currentIteration / effectiveMax) * 100, 99);
-      await context.updateProgress(progress, `Iteration ${this._currentIteration}`);
+      // Update progress — cap at 99 since the loop may stop before effectiveMax
+      const progress = Math.min(Math.round((this._currentIteration / effectiveMax) * 100), 99);
+      await context.updateProgress(
+        progress,
+        `Completed ${this._currentIteration}/${effectiveMax} iterations`
+      );
     }
 
     return currentOutput;
@@ -485,8 +488,11 @@ export class WhileTask<
 
       this._currentIteration++;
 
-      const progress = Math.min((this._currentIteration / effectiveMax) * 100, 99);
-      await context.updateProgress(progress, `Iteration ${this._currentIteration}`);
+      const progress = Math.min(Math.round((this._currentIteration / effectiveMax) * 100), 99);
+      await context.updateProgress(
+        progress,
+        `Completed ${this._currentIteration}/${effectiveMax} iterations`
+      );
     }
 
     yield { type: "finish", data: currentOutput } as StreamFinish<Output>;
