@@ -26,3 +26,4 @@ export * from "./vector/VectorSimilarityUtils";
 export * from "./vector/VectorUtils";
 export * from "./worker/WorkerManager";
 export * from "./worker/WorkerServer";
+export * from "./credentials";

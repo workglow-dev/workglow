@@ -27,3 +27,5 @@ export * from "./util/PollingSubscriptionManager";
 
 export * from "./vector/InMemoryVectorStorage";
 export * from "./vector/IVectorStorage";
+
+export * from "./credentials/EncryptedKvCredentialStore";

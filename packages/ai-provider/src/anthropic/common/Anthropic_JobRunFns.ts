@@ -20,7 +20,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson } from "@workglow/util";
+import { getLogger, parsePartialJson, resolveCredential } from "@workglow/util";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 
 let _sdk: typeof import("@anthropic-ai/sdk") | undefined;
@@ -39,12 +39,20 @@ async function loadAnthropicSDK() {
 
 async function getClient(model: AnthropicModelConfig | undefined) {
   const Anthropic = await loadAnthropicSDK();
+
+  // Resolution order: credential store → explicit api_key → environment variable
+  const credentialKey = (model?.provider_config as Record<string, unknown>)?.credential_key as
+    | string
+    | undefined;
+  const storedCredential = credentialKey ? await resolveCredential(credentialKey) : undefined;
+
   const apiKey =
+    storedCredential ||
     model?.provider_config?.api_key ||
     (typeof process !== "undefined" ? process.env?.ANTHROPIC_API_KEY : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing Anthropic API key: set provider_config.api_key or the ANTHROPIC_API_KEY environment variable."
+      "Missing Anthropic API key: set provider_config.credential_key, provider_config.api_key, or the ANTHROPIC_API_KEY environment variable."
     );
   }
   return new Anthropic({
