@@ -19,6 +19,9 @@ const TEST_BASE = join(ROOT, "packages/test/src/test");
 const KNOWN_KINDS = ["unit", "integration", "end2end"] as const;
 type Kind = (typeof KNOWN_KINDS)[number];
 
+const KNOWN_RUNNERS = ["bun", "vitest"] as const;
+type Runner = (typeof KNOWN_RUNNERS)[number];
+
 const KNOWN_SECTIONS = [
   "graph",
   "task",
@@ -55,15 +58,14 @@ const SECTION_DIRS: Record<Section, string[]> = {
 };
 
 function showHelp(): void {
-  console.log(`Usage: bun scripts/test.ts [kinds...] [sections...] [options]
+  console.log(`Usage: bun scripts/test.ts [kinds...] [sections...] [runners...] [options]
 
 Kinds:    ${KNOWN_KINDS.join(", ")} (default: all)
 Sections: ${KNOWN_SECTIONS.join(", ")} (default: all)
+Runners:  ${KNOWN_RUNNERS.join(", ")} (default: both)
 
 Options:
   --help         Show this usage message
-  --bun-only     Only run bun test (skip vitest)
-  --vitest-only  Only run vitest (skip bun test)
 
 Examples:
   bun scripts/test.ts                       # Run all tests
@@ -72,6 +74,9 @@ Examples:
   bun scripts/test.ts storage               # Run only storage tests
   bun scripts/test.ts storage unit          # Run only unit tests in storage dirs
   bun scripts/test.ts graph task unit       # Run unit tests in graph + task dirs
+  bun scripts/test.ts bun                   # Run only tests using bun
+  bun scripts/test.ts vitest                # Run only tests using vitest
+  bun scripts/test.ts bun graph unit        # Run tests using bun in graph dirs
 `);
 }
 
@@ -128,11 +133,9 @@ if (rawArgs.includes("--help")) {
   process.exit(0);
 }
 
-const KNOWN_RUNNERS = ["bun", "vitest"] as const;
-
 const bunOnly = rawArgs.includes("bun");
 const vitestOnly = rawArgs.includes("vitest");
-const runners: (typeof KNOWN_RUNNERS)[number][] = [];
+const runners: Runner[] = [];
 const kinds: Kind[] = [];
 const sections: Section[] = [];
 const unknown: string[] = [];
@@ -142,8 +145,8 @@ for (const arg of rawArgs) {
     kinds.push(arg as Kind);
   } else if ((KNOWN_SECTIONS as readonly string[]).includes(arg)) {
     sections.push(arg as Section);
-  } else if (KNOWN_RUNNERS.includes(arg as (typeof KNOWN_RUNNERS)[number])) {
-    runners.push(arg as (typeof KNOWN_RUNNERS)[number]);
+  } else if (KNOWN_RUNNERS.includes(arg as Runner)) {
+    runners.push(arg as Runner);
   } else {
     unknown.push(arg);
   }
