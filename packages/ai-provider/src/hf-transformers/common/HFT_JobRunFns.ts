@@ -655,9 +655,11 @@ export const HFT_TextEmbedding: AiProviderRunFn<
 
     // Extract each embedding vector using tensor indexing
     // hfVector[i] returns a sub-tensor for the i-th text
-    const vectors: TypedArray[] = Array.from(
-      { length: numTexts },
-      (_, i) => (hfVector as any)[i].data as TypedArray
+    // .slice() is required to create independent TypedArrays with their own ArrayBuffers,
+    // because sub-tensor views all share the same backing buffer, which causes DataCloneError
+    // when postMessage tries to transfer the same ArrayBuffer multiple times.
+    const vectors: TypedArray[] = Array.from({ length: numTexts }, (_, i) =>
+      ((hfVector as any)[i].data as TypedArray).slice()
     );
 
     logger.timeEnd(timerLabel, { batchSize: numTexts, dimensions: vectorDim });

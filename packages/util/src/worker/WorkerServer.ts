@@ -108,8 +108,9 @@ export class WorkerServer {
     }
     this.completedRequests.add(id);
     const transferables = extractTransferables(result);
+    const uniqueTransferables = [...new Set(transferables)];
     // @ts-ignore - Ignore type mismatch between standard Transferable and Bun.Transferable
-    postMessage({ id, type: "complete", data: result }, transferables);
+    postMessage({ id, type: "complete", data: result }, uniqueTransferables);
   };
 
   private postError = (id: string, errorMessage: string) => {
@@ -126,6 +127,21 @@ export class WorkerServer {
     }
     postMessage({ id, type: "stream_chunk", data: event });
   };
+
+  /**
+   * Send the ready message to the main thread, advertising which functions are
+   * registered in each category. Call this after all functions have been registered
+   * so WorkerManager can skip unnecessary roundtrips for unregistered calls.
+   */
+  sendReady() {
+    // @ts-ignore
+    postMessage({
+      type: "ready",
+      functions: Object.keys(this.functions),
+      streamFunctions: Object.keys(this.streamFunctions),
+      reactiveFunctions: Object.keys(this.reactiveFunctions),
+    });
+  }
 
   registerFunction(name: string, fn: (...args: any[]) => Promise<any>) {
     this.functions[name] = fn;

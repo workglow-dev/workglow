@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry, parentPort, WORKER_SERVER } from "@workglow/util";
+import { globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
 import { AnthropicProvider } from "./AnthropicProvider";
 import {
   ANTHROPIC_REACTIVE_TASKS,
@@ -19,6 +19,6 @@ export function ANTHROPIC_WORKER_JOBRUN_REGISTER() {
     ANTHROPIC_STREAM_TASKS,
     ANTHROPIC_REACTIVE_TASKS
   ).registerOnWorkerServer(workerServer);
-  parentPort.postMessage({ type: "ready" });
+  workerServer.sendReady();
   console.log("ANTHROPIC_WORKER_JOBRUN registered");
 }

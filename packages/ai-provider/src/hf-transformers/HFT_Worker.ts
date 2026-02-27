@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry, parentPort, WORKER_SERVER } from "@workglow/util";
+import { globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
 import { HFT_REACTIVE_TASKS, HFT_STREAM_TASKS, HFT_TASKS } from "./common/HFT_JobRunFns";
 import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
 
@@ -15,6 +15,6 @@ export function HFT_WORKER_JOBRUN_REGISTER() {
     HFT_STREAM_TASKS,
     HFT_REACTIVE_TASKS
   ).registerOnWorkerServer(workerServer);
-  parentPort.postMessage({ type: "ready" });
+  workerServer.sendReady();
   console.log("HFT_WORKER_JOBRUN registered");
 }

@@ -6,77 +6,13 @@
 
 import { createServiceToken, globalServiceRegistry } from "../di";
 
-/**
- * Extracts transferables from an object.
- * @param obj - The object to extract transferables from.
- * @returns An array of transferables.
- */
-function extractTransferables(obj: any): Transferable[] {
-  const transferables: Transferable[] = [];
-  const seen = new WeakSet();
-
-  function findTransferables(value: any) {
-    // Avoid infinite recursion
-    if (value && typeof value === "object" && seen.has(value)) {
-      return;
-    }
-    if (value && typeof value === "object") {
-      seen.add(value);
-    }
-
-    // Handle TypedArrays
-    if (value instanceof Float32Array || value instanceof Int16Array) {
-      transferables.push(value.buffer);
-    }
-    // Handle other TypedArrays
-    else if (
-      value instanceof Uint8Array ||
-      value instanceof Uint8ClampedArray ||
-      value instanceof Int8Array ||
-      value instanceof Uint16Array ||
-      value instanceof Int32Array ||
-      value instanceof Uint32Array ||
-      value instanceof Float64Array ||
-      value instanceof BigInt64Array ||
-      value instanceof BigUint64Array
-    ) {
-      transferables.push(value.buffer);
-    }
-    // Handle OffscreenCanvas
-    else if (typeof OffscreenCanvas !== "undefined" && value instanceof OffscreenCanvas) {
-      transferables.push(value);
-    }
-    // Handle ImageBitmap
-    else if (typeof ImageBitmap !== "undefined" && value instanceof ImageBitmap) {
-      transferables.push(value);
-    }
-    // Handle VideoFrame
-    else if (typeof VideoFrame !== "undefined" && value instanceof VideoFrame) {
-      transferables.push(value);
-    }
-    // Handle MessagePort
-    else if (typeof MessagePort !== "undefined" && value instanceof MessagePort) {
-      transferables.push(value);
-    }
-    // Handle ArrayBuffer
-    else if (value instanceof ArrayBuffer) {
-      transferables.push(value);
-    }
-    // Recursively search arrays and objects
-    else if (Array.isArray(value)) {
-      value.forEach(findTransferables);
-    } else if (value && typeof value === "object") {
-      Object.values(value).forEach(findTransferables);
-    }
-  }
-
-  findTransferables(obj);
-  return transferables;
-}
-
 export class WorkerManager {
   private workers: Map<string, Worker> = new Map();
   private readyWorkers: Map<string, Promise<void>> = new Map();
+  /** Function names registered on each worker, populated from the ready message. */
+  private workerFunctions: Map<string, Set<string>> = new Map();
+  private workerStreamFunctions: Map<string, Set<string>> = new Map();
+  private workerReactiveFunctions: Map<string, Set<string>> = new Map();
 
   registerWorker(name: string, worker: Worker) {
     if (this.workers.has(name)) throw new Error(`Worker ${name} is already registered.`);
@@ -94,6 +30,9 @@ export class WorkerManager {
       const handleReady = (event: MessageEvent) => {
         if (event.data?.type === "ready") {
           worker.removeEventListener("message", handleReady);
+          this.workerFunctions.set(name, new Set(event.data.functions ?? []));
+          this.workerStreamFunctions.set(name, new Set(event.data.streamFunctions ?? []));
+          this.workerReactiveFunctions.set(name, new Set(event.data.reactiveFunctions ?? []));
           resolve();
         }
       };
@@ -122,6 +61,11 @@ export class WorkerManager {
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
     await this.readyWorkers.get(workerName);
+
+    const knownFunctions = this.workerFunctions.get(workerName);
+    if (knownFunctions && !knownFunctions.has(functionName)) {
+      throw new Error(`Function "${functionName}" is not registered on worker "${workerName}".`);
+    }
 
     return new Promise((resolve, reject) => {
       const requestId = crypto.randomUUID();
@@ -155,9 +99,13 @@ export class WorkerManager {
         options.signal.addEventListener("abort", handleAbort, { once: true });
       }
 
+      // Note: We intentionally do NOT transfer TypedArrays from the main thread to the worker.
+      // Transferring detaches the buffers on the main thread, which breaks downstream tasks
+      // that still need those TypedArrays (e.g., the embedding vectors flowing through the
+      // task graph). Workers send results back with transferables (zero-copy), but the
+      // main thread always clones data going to workers to preserve its own references.
       const message = { id: requestId, type: "call", functionName, args };
-      const transferables = extractTransferables(message);
-      worker.postMessage(message, transferables);
+      worker.postMessage(message);
     });
   }
 
@@ -179,6 +127,10 @@ export class WorkerManager {
     const worker = this.workers.get(workerName);
     if (!worker) return undefined;
     await this.readyWorkers.get(workerName);
+
+    // Skip the roundtrip if the worker didn't register a reactive function for this name.
+    const knownReactive = this.workerReactiveFunctions.get(workerName);
+    if (knownReactive && !knownReactive.has(functionName)) return undefined;
 
     return new Promise((resolve) => {
       const requestId = crypto.randomUUID();
@@ -202,8 +154,8 @@ export class WorkerManager {
       worker.addEventListener("message", handleMessage);
 
       const message = { id: requestId, type: "call", functionName, args, reactive: true };
-      const transferables = extractTransferables(message);
-      worker.postMessage(message, transferables);
+      // Note: No transferables — same reasoning as callWorkerFunction above.
+      worker.postMessage(message);
     });
   }
 
@@ -228,6 +180,13 @@ export class WorkerManager {
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
     await this.readyWorkers.get(workerName);
+
+    // The worker falls back to regular functions for stream calls, so either counts.
+    const knownStream = this.workerStreamFunctions.get(workerName);
+    const knownFns = this.workerFunctions.get(workerName);
+    if (knownStream && knownFns && !knownStream.has(functionName) && !knownFns.has(functionName)) {
+      throw new Error(`Function "${functionName}" is not registered on worker "${workerName}".`);
+    }
 
     const requestId = crypto.randomUUID();
 
@@ -284,9 +243,9 @@ export class WorkerManager {
     }
 
     // Send call message with stream flag
+    // Note: No transferables — same reasoning as callWorkerFunction above.
     const message = { id: requestId, type: "call", functionName, args, stream: true };
-    const transferables = extractTransferables(message);
-    worker.postMessage(message, transferables);
+    worker.postMessage(message);
 
     let completedNormally = false;
     try {
