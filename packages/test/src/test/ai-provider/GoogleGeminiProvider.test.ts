@@ -13,6 +13,8 @@ import {
   Gemini_TextGeneration,
   Gemini_TextRewriter,
   Gemini_TextSummary,
+  Gemini_ToolCalling,
+  Gemini_ToolCalling_Stream,
 } from "@workglow/ai-provider/google-gemini";
 import {
   getTaskQueueRegistry,
@@ -22,6 +24,7 @@ import {
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockGenerateContent = vi.fn();
+const mockGenerateContentStream = vi.fn();
 const mockEmbedContent = vi.fn();
 const mockBatchEmbedContents = vi.fn();
 const mockCountTokens = vi.fn();
@@ -32,6 +35,7 @@ vi.mock("@google/generative-ai", () => ({
     getGenerativeModel(_opts: any) {
       return {
         generateContent: mockGenerateContent,
+        generateContentStream: mockGenerateContentStream,
         embedContent: mockEmbedContent,
         batchEmbedContents: mockBatchEmbedContents,
         countTokens: mockCountTokens,
@@ -243,6 +247,119 @@ describe("GoogleGeminiProvider", () => {
       expect(result).toEqual({ count: 7 });
       expect(mockCountTokens).toHaveBeenCalledOnce();
       expect(mockCountTokens).toHaveBeenCalledWith("Hello Gemini");
+    });
+  });
+
+  describe("Gemini_ToolCalling", () => {
+    const sampleTools = [
+      {
+        name: "get_weather",
+        description: "Get the weather for a location",
+        inputSchema: {
+          type: "object" as const,
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+      },
+    ];
+
+    test("should map toolConfig and tools into the Gemini request", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          candidates: [{ content: { parts: [{ text: "Checking weather…" }] } }],
+        },
+      });
+
+      const model = makeModel("gemini-2.0-flash");
+      await Gemini_ToolCalling(
+        { prompt: "What is the weather?", tools: sampleTools, toolChoice: "auto", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(mockGenerateContent).toHaveBeenCalledOnce();
+    });
+
+    test("should parse functionCall parts into Record keyed by generated id", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "get_weather",
+                      args: { location: "Tokyo" },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("gemini-2.0-flash");
+      const result = await Gemini_ToolCalling(
+        { prompt: "Weather in Tokyo?", tools: sampleTools, model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const keys = Object.keys(result.toolCalls as Record<string, unknown>);
+      expect(keys).toHaveLength(1);
+      const call = (result.toolCalls as any)[keys[0]];
+      expect(call.name).toBe("get_weather");
+      expect(call.input).toEqual({ location: "Tokyo" });
+    });
+
+    test("should stream functionCall parts as object-delta events keyed by id", async () => {
+      async function* fakeStream() {
+        yield {
+          candidates: [{ content: { parts: [{ text: "Here you go" }] } }],
+        };
+        yield {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    functionCall: { name: "get_weather", args: { location: "Sydney" } },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      }
+      mockGenerateContentStream.mockResolvedValue({ stream: fakeStream() });
+
+      const model = makeModel("gemini-2.0-flash");
+      const events: any[] = [];
+      for await (const event of Gemini_ToolCalling_Stream(
+        { prompt: "Weather in Sydney?", tools: sampleTools, model: model as any },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas[0].textDelta).toBe("Here you go");
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas.length).toBeGreaterThan(0);
+      const lastDelta = objectDeltas[objectDeltas.length - 1];
+      const keys = Object.keys(lastDelta.objectDelta);
+      expect(keys).toHaveLength(1);
+      expect((lastDelta.objectDelta as any)[keys[0]].name).toBe("get_weather");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(Object.keys(finish.data.toolCalls as Record<string, unknown>)).toHaveLength(1);
     });
   });
 

@@ -434,7 +434,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
 
   const textParts: string[] = [];
-  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+  const toolCalls: Record<string, unknown> = {};
   let callIndex = 0;
 
   for (const part of parts) {
@@ -442,11 +442,12 @@ export const Gemini_ToolCalling: AiProviderRunFn<
       textParts.push(part.text);
     }
     if ("functionCall" in part && part.functionCall) {
-      toolCalls.push({
-        id: `call_${callIndex++}`,
+      const id = `call_${callIndex++}`;
+      toolCalls[id] = {
+        id,
         name: part.functionCall.name,
         input: (part.functionCall.args as Record<string, unknown>) ?? {},
-      });
+      };
     }
   }
 
@@ -487,7 +488,7 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
   );
 
   let accumulatedText = "";
-  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+  const toolCalls: Record<string, unknown> = {};
   let callIndex = 0;
 
   for await (const chunk of result.stream) {
@@ -498,12 +499,13 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
         yield { type: "text-delta", port: "text", textDelta: part.text };
       }
       if ("functionCall" in part && part.functionCall) {
-        toolCalls.push({
-          id: `call_${callIndex++}`,
+        const id = `call_${callIndex++}`;
+        toolCalls[id] = {
+          id,
           name: part.functionCall.name,
           input: (part.functionCall.args as Record<string, unknown>) ?? {},
-        });
-        yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
+        };
+        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
       }
     }
   }

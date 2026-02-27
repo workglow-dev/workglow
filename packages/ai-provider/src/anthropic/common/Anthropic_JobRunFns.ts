@@ -405,13 +405,17 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
     .map((b: any) => b.text)
     .join("");
 
-  const toolCalls = response.content
+  const toolCalls: Record<string, unknown> = {};
+  response.content
     .filter((b: any) => b.type === "tool_use")
-    .map((b: any) => ({
-      id: b.id as string,
-      name: b.name as string,
-      input: (b.input as Record<string, unknown>) ?? {},
-    }));
+    .forEach((b: any) => {
+      const id = b.id as string;
+      toolCalls[id] = {
+        id,
+        name: b.name as string,
+        input: (b.input as Record<string, unknown>) ?? {},
+      };
+    });
 
   update_progress(100, "Completed Anthropic tool calling");
   return { text, toolCalls };
@@ -454,7 +458,7 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   // Track content blocks by index
   const blockMeta = new Map<number, { type: string; id?: string; name?: string; json: string }>();
   let accumulatedText = "";
-  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+  const toolCalls: Record<string, unknown> = {};
 
   for await (const event of stream) {
     if (event.type === "content_block_start") {
@@ -488,12 +492,12 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
             const partial = parsePartialJson(meta.json);
             parsedInput = (partial as Record<string, unknown>) ?? {};
           }
-          // Build current tool calls snapshot
-          const snapshot = [
+          // Build current tool calls snapshot as Record keyed by id
+          const snapshotObject: Record<string, unknown> = {
             ...toolCalls,
-            { id: meta.id ?? "", name: meta.name ?? "", input: parsedInput },
-          ];
-          yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot as any };
+            [meta.id ?? ""]: { id: meta.id ?? "", name: meta.name ?? "", input: parsedInput },
+          };
+          yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
         }
       }
     } else if (event.type === "content_block_stop") {
@@ -506,8 +510,9 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
         } catch {
           finalInput = (parsePartialJson(meta.json) as Record<string, unknown>) ?? {};
         }
-        toolCalls.push({ id: meta.id ?? "", name: meta.name ?? "", input: finalInput });
-        yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
+        const id = meta.id ?? "";
+        toolCalls[id] = { id, name: meta.name ?? "", input: finalInput };
+        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
       }
       blockMeta.delete(index);
     }
