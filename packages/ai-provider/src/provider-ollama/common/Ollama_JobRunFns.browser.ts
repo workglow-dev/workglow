@@ -298,13 +298,24 @@ export const Ollama_ToolCalling: AiProviderRunFn<
 
   const text = response.message.content ?? "";
   const toolCalls = (response.message.tool_calls ?? []).map(
-    (tc: any, index: number) => ({
-      id: `call_${index}`,
-      name: tc.function.name as string,
-      input: (typeof tc.function.arguments === "string"
-        ? JSON.parse(tc.function.arguments)
-        : tc.function.arguments ?? {}) as Record<string, unknown>,
-    })
+    (tc: any, index: number) => {
+      let parsedInput: Record<string, unknown> = {};
+      const fnArgs = tc.function.arguments;
+      if (typeof fnArgs === "string") {
+        try {
+          parsedInput = JSON.parse(fnArgs);
+        } catch {
+          parsedInput = {};
+        }
+      } else if (fnArgs != null) {
+        parsedInput = fnArgs as Record<string, unknown>;
+      }
+      return {
+        id: `call_${index}`,
+        name: tc.function.name as string,
+        input: parsedInput,
+      };
+    }
   );
 
   update_progress(100, "Completed Ollama tool calling");
@@ -355,12 +366,21 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
       const chunkToolCalls = (chunk.message as any).tool_calls;
       if (Array.isArray(chunkToolCalls) && chunkToolCalls.length > 0) {
         for (const tc of chunkToolCalls) {
+          let parsedInput: Record<string, unknown> = {};
+          const fnArgs = tc.function.arguments;
+          if (typeof fnArgs === "string") {
+            try {
+              parsedInput = JSON.parse(fnArgs);
+            } catch {
+              parsedInput = {};
+            }
+          } else if (fnArgs != null) {
+            parsedInput = fnArgs as Record<string, unknown>;
+          }
           toolCalls.push({
             id: `call_${toolCalls.length}`,
             name: tc.function.name as string,
-            input: (typeof tc.function.arguments === "string"
-              ? JSON.parse(tc.function.arguments)
-              : tc.function.arguments ?? {}) as Record<string, unknown>,
+            input: parsedInput,
           });
         }
         yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
