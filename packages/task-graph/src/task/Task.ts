@@ -621,7 +621,9 @@ export class Task<
         if (isArray) {
           const existingItems = Array.isArray(this.runInputData[inputId])
             ? this.runInputData[inputId]
-            : [this.runInputData[inputId]];
+            : this.runInputData[inputId] !== undefined
+              ? [this.runInputData[inputId]]
+              : [];
           const newitems = [...existingItems];
 
           const overrideItem = overrides[inputId];

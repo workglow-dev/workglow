@@ -1028,7 +1028,10 @@ export class Workflow<
           const prop = (sourceSchema.properties as any)?.[df.sourceTaskPortId];
           if (prop && typeof prop !== "boolean") {
             properties[df.targetTaskPortId] = prop;
-            if (!required.includes(df.targetTaskPortId)) {
+            if (
+              sourceSchema.required?.includes(df.sourceTaskPortId) &&
+              !required.includes(df.targetTaskPortId)
+            ) {
               required.push(df.targetTaskPortId);
             }
           }

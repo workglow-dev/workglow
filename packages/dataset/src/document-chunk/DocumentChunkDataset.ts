@@ -108,7 +108,7 @@ export class DocumentChunkDataset {
    * Clear all chunks
    */
   async clear(): Promise<void> {
-    return (this.storage as any).clear();
+    return this.storage.deleteAll();
   }
 
   /**

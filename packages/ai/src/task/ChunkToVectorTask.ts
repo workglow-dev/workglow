@@ -27,6 +27,11 @@ const inputSchema = {
       title: "Document ID",
       description: "The document ID",
     },
+    doc_title: {
+      type: "string",
+      title: "Document Title",
+      description: "Human-readable title for the source document",
+    },
     chunks: {
       type: "array",
       items: ChunkNodeSchema(),
@@ -116,7 +121,7 @@ export class ChunkToVectorTask extends Task<
     input: ChunkToVectorTaskInput,
     context: IExecuteContext
   ): Promise<ChunkToVectorTaskOutput> {
-    const { chunks, vectors } = input;
+    const { chunks, vectors, doc_title } = input;
 
     const chunkArray = chunks as ChunkNode[];
 
@@ -145,6 +150,7 @@ export class ChunkToVectorTask extends Task<
         depth: chunk.depth,
         text: chunk.text,
         nodePath: chunk.nodePath,
+        ...(doc_title ? { doc_title } : {}),
         // Include enrichment if present
         ...(chunk.enrichment || {}),
       });
