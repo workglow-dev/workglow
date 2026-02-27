@@ -83,7 +83,7 @@ import { VectorSumTask } from "./task/vector/VectorSumTask";
 // Register all common tasks with the TaskRegistry.
 // Centralized registration ensures tasks are available for JSON deserialization
 // and prevents tree-shaking issues.
-export const registerCommonTasks = () => {
+export let registerCommonTasks = () => {
   const tasks = [
     DebugLogTask,
     DelayTask,
