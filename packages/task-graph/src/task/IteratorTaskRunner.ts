@@ -6,6 +6,7 @@
 
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { IterationAnalysisResult, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
+import { createGraphFromGraphJSON } from "./TaskJSON";
 import type { TaskInput, TaskOutput } from "./TaskTypes";
 
 /**
@@ -19,11 +20,6 @@ export class IteratorTaskRunner<
   Config extends IteratorTaskConfig = IteratorTaskConfig,
 > extends GraphAsTaskRunner<Input, Output, Config> {
   declare task: IteratorTask<Input, Output, Config>;
-
-  /**
-   * Subgraph runs are serialized against one shared subgraph instance.
-   */
-  private subGraphRunChain: Promise<void> = Promise.resolve();
 
   /**
    * For iterator tasks, reactive runs use full execution for correctness.
@@ -166,34 +162,24 @@ export class IteratorTaskRunner<
   protected async executeSubgraphIteration(
     input: Record<string, unknown>
   ): Promise<TaskOutput | undefined> {
-    let releaseTurn: (() => void) | undefined;
-    const waitForPreviousRun = this.subGraphRunChain;
-    this.subGraphRunChain = new Promise<void>((resolve) => {
-      releaseTurn = resolve;
+    if (this.abortController?.signal.aborted) {
+      return undefined;
+    }
+
+    const subGraphClone = createGraphFromGraphJSON(this.task.subGraph.toJSON());
+
+    const results = await subGraphClone.run<TaskOutput>(input as TaskInput, {
+      parentSignal: this.abortController?.signal,
+      outputCache: this.outputCache,
     });
 
-    await waitForPreviousRun;
-
-    try {
-      if (this.abortController?.signal.aborted) {
-        return undefined;
-      }
-
-      const results = await this.task.subGraph.run<TaskOutput>(input as TaskInput, {
-        parentSignal: this.abortController?.signal,
-        outputCache: this.outputCache,
-      });
-
-      if (results.length === 0) {
-        return undefined;
-      }
-
-      return this.task.subGraph.mergeExecuteOutputsToRunOutput(
-        results,
-        this.task.compoundMerge
-      ) as TaskOutput;
-    } finally {
-      releaseTurn?.();
+    if (results.length === 0) {
+      return undefined;
     }
+
+    return subGraphClone.mergeExecuteOutputsToRunOutput(
+      results,
+      this.task.compoundMerge
+    ) as TaskOutput;
   }
 }
