@@ -325,70 +325,88 @@ export function addBoundaryNodesToGraphJson(
   json: TaskGraphJson,
   graph: TaskGraph
 ): TaskGraphJson {
-  const inputSchema = computeGraphInputSchema(graph, { trackOrigins: true });
-  const outputSchema = computeGraphOutputSchema(graph, { trackOrigins: true });
+  const hasInputTask = json.tasks.some((t) => t.type === "InputTask");
+  const hasOutputTask = json.tasks.some((t) => t.type === "OutputTask");
 
-  const inputTaskId = uuid4();
-  const outputTaskId = uuid4();
+  // Skip entirely if both boundary tasks already exist
+  if (hasInputTask && hasOutputTask) {
+    return json;
+  }
 
-  // Strip origin annotations for the boundary node configs
-  const strippedInputSchema = stripOriginAnnotations(inputSchema);
-  const strippedOutputSchema = stripOriginAnnotations(outputSchema);
+  const inputSchema = !hasInputTask
+    ? computeGraphInputSchema(graph, { trackOrigins: true })
+    : undefined;
+  const outputSchema = !hasOutputTask
+    ? computeGraphOutputSchema(graph, { trackOrigins: true })
+    : undefined;
 
-  const inputTaskJson: TaskGraphItemJson = {
-    id: inputTaskId,
-    type: "InputTask",
-    config: {
-      inputSchema: strippedInputSchema,
-      outputSchema: strippedInputSchema,
-    },
-  };
-
-  const outputTaskJson: TaskGraphItemJson = {
-    id: outputTaskId,
-    type: "OutputTask",
-    config: {
-      inputSchema: strippedOutputSchema,
-      outputSchema: strippedOutputSchema,
-    },
-  };
-
-  // Create per-property dataflows from InputTask to origin tasks
+  const prependTasks: TaskGraphItemJson[] = [];
+  const appendTasks: TaskGraphItemJson[] = [];
   const inputDataflows: DataflowJson[] = [];
-  if (typeof inputSchema !== "boolean" && inputSchema.properties) {
-    for (const [propName, prop] of Object.entries(inputSchema.properties)) {
-      if (!prop || typeof prop === "boolean") continue;
-      const origins = getOriginTaskIds(prop as Record<string, any>);
-      for (const originId of origins) {
-        inputDataflows.push({
-          sourceTaskId: inputTaskId,
-          sourceTaskPortId: propName,
-          targetTaskId: originId,
-          targetTaskPortId: propName,
-        });
+  const outputDataflows: DataflowJson[] = [];
+
+  if (!hasInputTask && inputSchema) {
+    const inputTaskId = uuid4();
+    const strippedInputSchema = stripOriginAnnotations(inputSchema);
+
+    prependTasks.push({
+      id: inputTaskId,
+      type: "InputTask",
+      config: {
+        inputSchema: strippedInputSchema,
+        outputSchema: strippedInputSchema,
+      },
+    });
+
+    // Create per-property dataflows from InputTask to origin tasks
+    if (typeof inputSchema !== "boolean" && inputSchema.properties) {
+      for (const [propName, prop] of Object.entries(inputSchema.properties)) {
+        if (!prop || typeof prop === "boolean") continue;
+        const origins = getOriginTaskIds(prop as Record<string, any>);
+        for (const originId of origins) {
+          inputDataflows.push({
+            sourceTaskId: inputTaskId,
+            sourceTaskPortId: propName,
+            targetTaskId: originId,
+            targetTaskPortId: propName,
+          });
+        }
       }
     }
   }
 
-  // Create per-property dataflows from origin tasks to OutputTask
-  const outputDataflows: DataflowJson[] = [];
-  if (typeof outputSchema !== "boolean" && outputSchema.properties) {
-    for (const [propName, prop] of Object.entries(outputSchema.properties)) {
-      if (!prop || typeof prop === "boolean") continue;
-      const origins = getOriginTaskIds(prop as Record<string, any>);
-      for (const originId of origins) {
-        outputDataflows.push({
-          sourceTaskId: originId,
-          sourceTaskPortId: propName,
-          targetTaskId: outputTaskId,
-          targetTaskPortId: propName,
-        });
+  if (!hasOutputTask && outputSchema) {
+    const outputTaskId = uuid4();
+    const strippedOutputSchema = stripOriginAnnotations(outputSchema);
+
+    appendTasks.push({
+      id: outputTaskId,
+      type: "OutputTask",
+      config: {
+        inputSchema: strippedOutputSchema,
+        outputSchema: strippedOutputSchema,
+      },
+    });
+
+    // Create per-property dataflows from origin tasks to OutputTask
+    if (typeof outputSchema !== "boolean" && outputSchema.properties) {
+      for (const [propName, prop] of Object.entries(outputSchema.properties)) {
+        if (!prop || typeof prop === "boolean") continue;
+        const origins = getOriginTaskIds(prop as Record<string, any>);
+        for (const originId of origins) {
+          outputDataflows.push({
+            sourceTaskId: originId,
+            sourceTaskPortId: propName,
+            targetTaskId: outputTaskId,
+            targetTaskPortId: propName,
+          });
+        }
       }
     }
   }
 
   return {
-    tasks: [inputTaskJson, ...json.tasks, outputTaskJson],
+    tasks: [...prependTasks, ...json.tasks, ...appendTasks],
     dataflows: [...inputDataflows, ...json.dataflows, ...outputDataflows],
   };
 }
@@ -401,74 +419,87 @@ export function addBoundaryNodesToDependencyJson(
   items: JsonTaskItem[],
   graph: TaskGraph
 ): JsonTaskItem[] {
-  const inputSchema = computeGraphInputSchema(graph, { trackOrigins: true });
-  const outputSchema = computeGraphOutputSchema(graph, { trackOrigins: true });
+  const hasInputTask = items.some((t) => t.type === "InputTask");
+  const hasOutputTask = items.some((t) => t.type === "OutputTask");
 
-  const inputTaskId = uuid4();
-  const outputTaskId = uuid4();
+  // Skip entirely if both boundary tasks already exist
+  if (hasInputTask && hasOutputTask) {
+    return items;
+  }
 
-  // Strip origin annotations for the boundary node configs
-  const strippedInputSchema = stripOriginAnnotations(inputSchema);
-  const strippedOutputSchema = stripOriginAnnotations(outputSchema);
+  const prependItems: JsonTaskItem[] = [];
+  const appendItems: JsonTaskItem[] = [];
 
-  const inputTaskItem: JsonTaskItem = {
-    id: inputTaskId,
-    type: "InputTask",
-    config: {
-      inputSchema: strippedInputSchema,
-      outputSchema: strippedInputSchema,
-    },
-  };
+  if (!hasInputTask) {
+    const inputSchema = computeGraphInputSchema(graph, { trackOrigins: true });
+    const inputTaskId = uuid4();
+    const strippedInputSchema = stripOriginAnnotations(inputSchema);
 
-  // Build dependencies for items that receive data from InputTask
-  if (typeof inputSchema !== "boolean" && inputSchema.properties) {
-    for (const [propName, prop] of Object.entries(inputSchema.properties)) {
-      if (!prop || typeof prop === "boolean") continue;
-      const origins = getOriginTaskIds(prop as Record<string, any>);
-      for (const originId of origins) {
-        const targetItem = items.find((item) => item.id === originId);
-        if (!targetItem) continue;
-        if (!targetItem.dependencies) {
-          targetItem.dependencies = {};
-        }
-        const existing = targetItem.dependencies[propName];
-        const dep = { id: inputTaskId, output: propName };
-        if (!existing) {
-          targetItem.dependencies[propName] = dep;
-        } else if (Array.isArray(existing)) {
-          existing.push(dep);
-        } else {
-          targetItem.dependencies[propName] = [existing, dep];
+    prependItems.push({
+      id: inputTaskId,
+      type: "InputTask",
+      config: {
+        inputSchema: strippedInputSchema,
+        outputSchema: strippedInputSchema,
+      },
+    });
+
+    // Build dependencies for items that receive data from InputTask
+    if (typeof inputSchema !== "boolean" && inputSchema.properties) {
+      for (const [propName, prop] of Object.entries(inputSchema.properties)) {
+        if (!prop || typeof prop === "boolean") continue;
+        const origins = getOriginTaskIds(prop as Record<string, any>);
+        for (const originId of origins) {
+          const targetItem = items.find((item) => item.id === originId);
+          if (!targetItem) continue;
+          if (!targetItem.dependencies) {
+            targetItem.dependencies = {};
+          }
+          const existing = targetItem.dependencies[propName];
+          const dep = { id: inputTaskId, output: propName };
+          if (!existing) {
+            targetItem.dependencies[propName] = dep;
+          } else if (Array.isArray(existing)) {
+            existing.push(dep);
+          } else {
+            targetItem.dependencies[propName] = [existing, dep];
+          }
         }
       }
     }
   }
 
-  // Build dependencies for OutputTask from origin tasks
-  const outputDependencies: JsonTaskItem["dependencies"] = {};
-  if (typeof outputSchema !== "boolean" && outputSchema.properties) {
-    for (const [propName, prop] of Object.entries(outputSchema.properties)) {
-      if (!prop || typeof prop === "boolean") continue;
-      const origins = getOriginTaskIds(prop as Record<string, any>);
-      if (origins.length === 1) {
-        outputDependencies[propName] = { id: origins[0], output: propName };
-      } else if (origins.length > 1) {
-        outputDependencies[propName] = origins.map((id) => ({ id, output: propName }));
+  if (!hasOutputTask) {
+    const outputSchema = computeGraphOutputSchema(graph, { trackOrigins: true });
+    const outputTaskId = uuid4();
+    const strippedOutputSchema = stripOriginAnnotations(outputSchema);
+
+    // Build dependencies for OutputTask from origin tasks
+    const outputDependencies: JsonTaskItem["dependencies"] = {};
+    if (typeof outputSchema !== "boolean" && outputSchema.properties) {
+      for (const [propName, prop] of Object.entries(outputSchema.properties)) {
+        if (!prop || typeof prop === "boolean") continue;
+        const origins = getOriginTaskIds(prop as Record<string, any>);
+        if (origins.length === 1) {
+          outputDependencies[propName] = { id: origins[0], output: propName };
+        } else if (origins.length > 1) {
+          outputDependencies[propName] = origins.map((id) => ({ id, output: propName }));
+        }
       }
     }
+
+    appendItems.push({
+      id: outputTaskId,
+      type: "OutputTask",
+      config: {
+        inputSchema: strippedOutputSchema,
+        outputSchema: strippedOutputSchema,
+      },
+      ...(Object.keys(outputDependencies).length > 0
+        ? { dependencies: outputDependencies }
+        : {}),
+    });
   }
 
-  const outputTaskItem: JsonTaskItem = {
-    id: outputTaskId,
-    type: "OutputTask",
-    config: {
-      inputSchema: strippedOutputSchema,
-      outputSchema: strippedOutputSchema,
-    },
-    ...(Object.keys(outputDependencies).length > 0
-      ? { dependencies: outputDependencies }
-      : {}),
-  };
-
-  return [inputTaskItem, ...items, outputTaskItem];
+  return [...prependItems, ...items, ...appendItems];
 }

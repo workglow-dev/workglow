@@ -419,6 +419,145 @@ Bob,35,`;
     expect(json.users[0].tags).toContain("admin");
   });
 
+  test("parses markdown frontmatter", async () => {
+    const markdownContent = `---
+title: Hello World
+date: 2025-01-15
+draft: false
+tags:
+  - javascript
+  - typescript
+---
+
+# Hello World
+
+This is the body.`;
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        new Response(markdownContent, {
+          status: 200,
+          headers: { "Content-Type": "text/markdown" },
+        })
+      )
+    );
+
+    const task = new FileLoaderTask({ url: "https://example.com/post.md", format: "auto" });
+    const result = await task.run();
+
+    expect(result.metadata.format).toBe("markdown");
+    expect(result.frontmatter).toEqual({
+      title: "Hello World",
+      date: "2025-01-15",
+      draft: false,
+      tags: ["javascript", "typescript"],
+    });
+    expect(result.text).toBe("# Hello World\n\nThis is the body.");
+  });
+
+  test("returns undefined frontmatter for markdown without frontmatter", async () => {
+    const markdownContent = "# Hello\n\nNo frontmatter here.";
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        new Response(markdownContent, {
+          status: 200,
+          headers: { "Content-Type": "text/markdown" },
+        })
+      )
+    );
+
+    const task = new FileLoaderTask({ url: "https://example.com/plain.md" });
+    const result = await task.run();
+
+    expect(result.frontmatter).toBeUndefined();
+    expect(result.text).toBe(markdownContent);
+  });
+
+  test("parses MDX frontmatter with auto-detection", async () => {
+    const mdxContent = `---
+title: Component Page
+layout: docs
+---
+
+import { Button } from './Button';
+
+# Component Page
+
+<Button />`;
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        new Response(mdxContent, {
+          status: 200,
+          headers: { "Content-Type": "text/markdown" },
+        })
+      )
+    );
+
+    const task = new FileLoaderTask({ url: "https://example.com/page.mdx", format: "auto" });
+    const result = await task.run();
+
+    expect(result.metadata.format).toBe("markdown");
+    expect(result.frontmatter).toEqual({
+      title: "Component Page",
+      layout: "docs",
+    });
+    expect(result.text).toContain("import { Button }");
+  });
+
+  test("parses frontmatter with various value types", async () => {
+    const markdownContent = `---
+string_val: hello
+number_int: 42
+number_float: 3.14
+bool_true: true
+bool_false: false
+null_val: null
+quoted: "quoted value"
+single_quoted: 'single quoted'
+---
+
+Body content.`;
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        new Response(markdownContent, {
+          status: 200,
+          headers: { "Content-Type": "text/markdown" },
+        })
+      )
+    );
+
+    const task = new FileLoaderTask({ url: "https://example.com/types.md" });
+    const result = await task.run();
+
+    expect(result.frontmatter).toEqual({
+      string_val: "hello",
+      number_int: 42,
+      number_float: 3.14,
+      bool_true: true,
+      bool_false: false,
+      null_val: null,
+      quoted: "quoted value",
+      single_quoted: "single quoted",
+    });
+  });
+
+  test("returns undefined frontmatter for non-markdown formats", async () => {
+    const textContent = "---\ntitle: Not Parsed\n---\nBody";
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        new Response(textContent, {
+          status: 200,
+          headers: { "Content-Type": "text/plain" },
+        })
+      )
+    );
+
+    const task = new FileLoaderTask({ url: "https://example.com/test.txt", format: "text" });
+    const result = await task.run();
+
+    expect(result.frontmatter).toBeUndefined();
+    expect(result.text).toBe(textContent);
+  });
+
   test("parses JSON correctly", async () => {
     const jsonData = { test: "value" };
     mockFetch.mockImplementation(() =>

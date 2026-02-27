@@ -433,6 +433,137 @@ Bob,35,`;
     expect(result.csv).toHaveLength(2);
   });
 
+  test("parses markdown frontmatter from file", async () => {
+    const content = `---
+title: Hello World
+date: 2025-01-15
+draft: false
+tags:
+  - javascript
+  - typescript
+---
+
+# Hello World
+
+This is the body.`;
+    const filePath = join(testDir, "frontmatter.md");
+    writeFileSync(filePath, content, "utf-8");
+
+    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const result = await task.run();
+
+    expect(result.metadata.format).toBe("markdown");
+    expect(result.frontmatter).toEqual({
+      title: "Hello World",
+      date: "2025-01-15",
+      draft: false,
+      tags: ["javascript", "typescript"],
+    });
+    expect(result.text).toBe("# Hello World\n\nThis is the body.");
+  });
+
+  test("returns undefined frontmatter for markdown without frontmatter", async () => {
+    const content = "# Hello\n\nNo frontmatter here.";
+    const filePath = join(testDir, "no-frontmatter.md");
+    writeFileSync(filePath, content, "utf-8");
+
+    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const result = await task.run();
+
+    expect(result.frontmatter).toBeUndefined();
+    expect(result.text).toBe(content);
+  });
+
+  test("parses MDX frontmatter with auto-detection", async () => {
+    const content = `---
+title: Component Page
+layout: docs
+---
+
+import { Button } from './Button';
+
+# Component Page`;
+    const filePath = join(testDir, "page.mdx");
+    writeFileSync(filePath, content, "utf-8");
+
+    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "auto" });
+    const result = await task.run();
+
+    expect(result.metadata.format).toBe("markdown");
+    expect(result.frontmatter).toEqual({
+      title: "Component Page",
+      layout: "docs",
+    });
+    expect(result.text).toContain("import { Button }");
+  });
+
+  test("parses frontmatter with various value types", async () => {
+    const content = `---
+string_val: hello
+number_int: 42
+number_float: 3.14
+bool_true: true
+bool_false: false
+null_val: null
+quoted: "quoted value"
+single_quoted: 'single quoted'
+---
+
+Body content.`;
+    const filePath = join(testDir, "types.md");
+    writeFileSync(filePath, content, "utf-8");
+
+    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const result = await task.run();
+
+    expect(result.frontmatter).toEqual({
+      string_val: "hello",
+      number_int: 42,
+      number_float: 3.14,
+      bool_true: true,
+      bool_false: false,
+      null_val: null,
+      quoted: "quoted value",
+      single_quoted: "single quoted",
+    });
+  });
+
+  test("returns undefined frontmatter for non-markdown text files", async () => {
+    const content = "---\ntitle: Not Parsed\n---\nBody";
+    const filePath = join(testDir, "test.txt");
+    writeFileSync(filePath, content, "utf-8");
+
+    const task = new FileLoaderTask({ url: `file://${filePath}`, format: "text" });
+    const result = await task.run();
+
+    expect(result.frontmatter).toBeUndefined();
+    expect(result.text).toBe(content);
+  });
+
+  test("parses frontmatter with nested objects", async () => {
+    const content = `---
+title: Nested Test
+author:
+  name: John Doe
+  email: john@example.com
+---
+
+Body.`;
+    const filePath = join(testDir, "nested.md");
+    writeFileSync(filePath, content, "utf-8");
+
+    const task = new FileLoaderTask({ url: `file://${filePath}` });
+    const result = await task.run();
+
+    expect(result.frontmatter).toEqual({
+      title: "Nested Test",
+      author: {
+        name: "John Doe",
+        email: "john@example.com",
+      },
+    });
+  });
+
   test("handles markdown with .markdown extension", async () => {
     const content = "# Title\n\nContent";
     const filePath = join(testDir, "test.markdown");

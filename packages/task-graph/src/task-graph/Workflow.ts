@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EventEmitter, getLogger, JsonSchema, uuid4, type EventParameters } from "@workglow/util";
+import {
+  EventEmitter,
+  getLogger,
+  JsonSchema,
+  uuid4,
+  type DataPortSchema,
+  type EventParameters,
+} from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
@@ -377,6 +384,11 @@ export class Workflow<
             this.graph.removeTask(task.id);
           }
         }
+      }
+
+      // Update InputTask/OutputTask schemas based on connected dataflows
+      if (!this._error) {
+        Workflow.updateBoundaryTaskSchemas(this._graph);
       }
 
       // Preserve input type from the start of the chain
@@ -956,6 +968,89 @@ export class Workflow<
   }
 
   /**
+   * Updates InputTask/OutputTask config schemas based on their connected dataflows.
+   * InputTask schema reflects its outgoing dataflow targets' input schemas.
+   * OutputTask schema reflects its incoming dataflow sources' output schemas.
+   */
+  private static updateBoundaryTaskSchemas(graph: TaskGraph): void {
+    const tasks = graph.getTasks();
+
+    for (const task of tasks) {
+      if (task.type === "InputTask") {
+        const outgoing = graph.getTargetDataflows(task.id);
+        if (outgoing.length === 0) continue;
+
+        const properties: Record<string, any> = {};
+        const required: string[] = [];
+
+        for (const df of outgoing) {
+          const targetTask = graph.getTask(df.targetTaskId);
+          if (!targetTask) continue;
+          const targetSchema = targetTask.inputSchema();
+          if (typeof targetSchema === "boolean") continue;
+          const prop = (targetSchema.properties as any)?.[df.targetTaskPortId];
+          if (prop && typeof prop !== "boolean") {
+            properties[df.sourceTaskPortId] = prop;
+            if (targetSchema.required?.includes(df.targetTaskPortId)) {
+              if (!required.includes(df.sourceTaskPortId)) {
+                required.push(df.sourceTaskPortId);
+              }
+            }
+          }
+        }
+
+        const schema = {
+          type: "object",
+          properties,
+          ...(required.length > 0 ? { required } : {}),
+          additionalProperties: false,
+        } as DataPortSchema;
+
+        (task as any).config = {
+          ...(task as any).config,
+          inputSchema: schema,
+          outputSchema: schema,
+        };
+      }
+
+      if (task.type === "OutputTask") {
+        const incoming = graph.getSourceDataflows(task.id);
+        if (incoming.length === 0) continue;
+
+        const properties: Record<string, any> = {};
+        const required: string[] = [];
+
+        for (const df of incoming) {
+          const sourceTask = graph.getTask(df.sourceTaskId);
+          if (!sourceTask) continue;
+          const sourceSchema = sourceTask.outputSchema();
+          if (typeof sourceSchema === "boolean") continue;
+          const prop = (sourceSchema.properties as any)?.[df.sourceTaskPortId];
+          if (prop && typeof prop !== "boolean") {
+            properties[df.targetTaskPortId] = prop;
+            if (!required.includes(df.targetTaskPortId)) {
+              required.push(df.targetTaskPortId);
+            }
+          }
+        }
+
+        const schema = {
+          type: "object",
+          properties,
+          ...(required.length > 0 ? { required } : {}),
+          additionalProperties: false,
+        } as DataPortSchema;
+
+        (task as any).config = {
+          ...(task as any).config,
+          inputSchema: schema,
+          outputSchema: schema,
+        };
+      }
+    }
+  }
+
+  /**
    * Options for auto-connect operation.
    */
   public static readonly AutoConnectOptions: unique symbol = Symbol("AutoConnectOptions");
@@ -1122,6 +1217,7 @@ export class Workflow<
           (typeof toSchema === "object" && toSchema.additionalProperties === true)
         ) {
           for (const fromOutputPortId of Object.keys(fromSchema.properties || {})) {
+            if (matches.has(fromOutputPortId)) continue;
             matches.set(fromOutputPortId, fromOutputPortId);
             graph.addDataflow(
               new Dataflow(fromTaskId, fromOutputPortId, toTaskId, fromOutputPortId)
@@ -1129,6 +1225,22 @@ export class Workflow<
           }
           return;
         }
+      }
+      // When source is InputTask/OutputTask (pass-through with additionalProperties),
+      // create same-name dataflows for all target input ports
+      if (
+        typeof fromSchema === "object" &&
+        fromSchema.additionalProperties === true &&
+        typeof toSchema === "object" &&
+        (sourceTask.type === "InputTask" || sourceTask.type === "OutputTask")
+      ) {
+        for (const toInputPortId of Object.keys(toSchema.properties || {})) {
+          if (matches.has(toInputPortId)) continue;
+          if (connectedInputKeys.has(toInputPortId)) continue;
+          matches.set(toInputPortId, toInputPortId);
+          graph.addDataflow(new Dataflow(fromTaskId, toInputPortId, toTaskId, toInputPortId));
+        }
+        return;
       }
       // If either schema is true or false, skip auto-matching
       // as we cannot determine the appropriate connections
@@ -1222,6 +1334,21 @@ export class Workflow<
       for (let i = 0; i < earlierTasks.length && unmatchedRequired.length > 0; i++) {
         const earlierTask = earlierTasks[i];
         const earlierOutputSchema = earlierTask.outputSchema();
+
+        // When earlier task is InputTask (pass-through), satisfy all unmatched
+        // required inputs directly. InputTask's schema may have been narrowed by
+        // updateBoundaryTaskSchemas, but it can always provide any port at runtime.
+        if (earlierTask.type === "InputTask") {
+          for (const requiredInputId of [...unmatchedRequired]) {
+            if (matches.has(requiredInputId)) continue;
+            matches.set(requiredInputId, requiredInputId);
+            graph.addDataflow(
+              new Dataflow(earlierTask.id, requiredInputId, targetTask.id, requiredInputId)
+            );
+          }
+          unmatchedRequired = unmatchedRequired.filter((r) => !matches.has(r));
+          continue;
+        }
 
         // Helper function to match from an earlier task (only for unmatched required inputs)
         const makeMatchFromEarlier = (

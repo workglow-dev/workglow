@@ -5,6 +5,7 @@
  */
 
 import {
+  computeGraphInputSchema,
   CreateWorkflow,
   hasVectorOutput,
   PROPERTY_ARRAY,
@@ -14,7 +15,7 @@ import {
   Workflow,
   WorkflowError,
 } from "@workglow/task-graph";
-import { ScalarAddTask, VectorSubtractTask, VectorSumTask } from "@workglow/tasks";
+import { InputTask, OutputTask, ScalarAddTask, VectorSubtractTask, VectorSumTask } from "@workglow/tasks";
 import { getLogger, NullLogger, setLogger, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -914,6 +915,169 @@ describe("Workflow", () => {
     it("should create a workflow using static methods", () => {
       const workflow = Workflow.parallel([new TestSimpleTask(), new TestSimpleTask()]);
       expect(workflow).toBeInstanceOf(Workflow);
+    });
+  });
+
+  describe("InputTask/OutputTask in workflows", () => {
+    it("should auto-connect input() to next task without error", () => {
+      workflow = workflow.input().testSimple({ input: "test" });
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(2);
+      expect(workflow.graph.getTasks()[0]).toBeInstanceOf(InputTask);
+      expect(workflow.graph.getTasks()[1]).toBeInstanceOf(TestSimpleTask);
+
+      const dataflows = workflow.graph.getDataflows();
+      expect(dataflows).toHaveLength(1);
+      expect(dataflows[0].sourceTaskPortId).toBe("input");
+      expect(dataflows[0].targetTaskPortId).toBe("input");
+    });
+
+    it("should auto-connect input() through multiple tasks", () => {
+      workflow = workflow.input().testSimple().testSimple();
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(3);
+
+      const dataflows = workflow.graph.getDataflows();
+      // InputTask -> TestSimpleTask1 (input), TestSimpleTask1 -> TestSimpleTask2 (output->input)
+      expect(dataflows).toHaveLength(2);
+    });
+
+    it("should satisfy unmet required inputs via Strategy 3 from InputTask", () => {
+      // InputTask -> VectorOutputOnlyTask -> TextVectorInputTask
+      // TextVectorInputTask requires { text, vector }
+      // VectorOutputOnlyTask provides { vector }
+      // InputTask should satisfy { text } via Strategy 3 (earlier task lookup)
+      workflow = workflow.input().vectorOutputOnly({ size: 3 }).textVectorInput();
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(3);
+
+      const dataflows = workflow.graph.getDataflows();
+      const nodes = workflow.graph.getTasks();
+
+      // text should come from InputTask (Strategy 3)
+      const textConnection = dataflows.find(
+        (df) => df.targetTaskId === nodes[2].id && df.targetTaskPortId === "text"
+      );
+      expect(textConnection).toBeDefined();
+      expect(textConnection?.sourceTaskId).toBe(nodes[0].id); // InputTask
+
+      // vector should come from VectorOutputOnlyTask (Strategy 1)
+      const vectorConnection = dataflows.find(
+        (df) => df.targetTaskId === nodes[2].id && df.targetTaskPortId === "vector"
+      );
+      expect(vectorConnection).toBeDefined();
+      expect(vectorConnection?.sourceTaskId).toBe(nodes[1].id); // VectorOutputOnlyTask
+    });
+
+    it("should update InputTask schema to reflect connected target inputs", () => {
+      workflow = workflow.input().testSimple();
+
+      expect(workflow.error).toBe("");
+      const inputTask = workflow.graph.getTasks()[0];
+      expect(inputTask.type).toBe("InputTask");
+
+      const schema = inputTask.inputSchema();
+      expect(typeof schema).toBe("object");
+      if (typeof schema === "object") {
+        expect(schema.properties).toHaveProperty("input");
+        expect((schema.properties as any).input.type).toBe("string");
+        expect(schema.additionalProperties).toBe(false);
+      }
+
+      // Input and output schemas should be identical (pass-through)
+      expect(inputTask.outputSchema()).toEqual(inputTask.inputSchema());
+    });
+
+    it("should update OutputTask schema to reflect connected source outputs", () => {
+      workflow = workflow.testSimple({ input: "test" }).output();
+
+      expect(workflow.error).toBe("");
+      const nodes = workflow.graph.getTasks();
+      const outputTask = nodes[nodes.length - 1];
+      expect(outputTask.type).toBe("OutputTask");
+
+      const schema = outputTask.inputSchema();
+      expect(typeof schema).toBe("object");
+      if (typeof schema === "object") {
+        expect(schema.properties).toHaveProperty("output");
+        expect((schema.properties as any).output.type).toBe("string");
+        expect(schema.additionalProperties).toBe(false);
+      }
+
+      // Input and output schemas should be identical (pass-through)
+      expect(outputTask.outputSchema()).toEqual(outputTask.inputSchema());
+    });
+
+    it("should execute end-to-end with input().someTask().output()", async () => {
+      workflow = workflow.input().testSimple().output();
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(3);
+
+      const result = await workflow.run({ input: "hello" });
+      expect(result).toEqual({ output: "processed-hello" });
+    });
+
+    it("should execute input().testSimple() with runtime input", async () => {
+      workflow = workflow.input().testSimple();
+
+      expect(workflow.error).toBe("");
+      const result = await workflow.run({ input: "world" });
+      expect(result).toEqual({ output: "processed-world" });
+    });
+
+    it("should produce correct computeGraphInputSchema when InputTask is present", () => {
+      workflow = workflow.input().testSimple();
+
+      expect(workflow.error).toBe("");
+
+      // computeGraphInputSchema should reflect InputTask's dynamic schema
+      const graphSchema = computeGraphInputSchema(workflow.graph);
+      expect(typeof graphSchema).toBe("object");
+      if (typeof graphSchema === "object") {
+        expect(graphSchema.properties).toHaveProperty("input");
+        expect((graphSchema.properties as any).input.type).toBe("string");
+      }
+    });
+
+    it("should handle input() as first task followed by multi-input task", () => {
+      // InputTask -> TextVectorInputTask
+      // TextVectorInputTask requires { text, vector }
+      // InputTask should satisfy both via direct auto-connect
+      workflow = workflow.input().textVectorInput();
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(2);
+
+      const dataflows = workflow.graph.getDataflows();
+      expect(dataflows).toHaveLength(2);
+
+      const portNames = dataflows.map((df) => df.targetTaskPortId).sort();
+      expect(portNames).toEqual(["text", "vector"]);
+
+      // InputTask schema should include both ports
+      const inputTask = workflow.graph.getTasks()[0];
+      const schema = inputTask.inputSchema();
+      if (typeof schema === "object") {
+        expect(schema.properties).toHaveProperty("text");
+        expect(schema.properties).toHaveProperty("vector");
+      }
+    });
+
+    it("should auto-connect output() from previous task", () => {
+      workflow = workflow.testSimple({ input: "test" }).output();
+
+      expect(workflow.error).toBe("");
+      expect(workflow.graph.getTasks()).toHaveLength(2);
+      expect(workflow.graph.getTasks()[1]).toBeInstanceOf(OutputTask);
+
+      const dataflows = workflow.graph.getDataflows();
+      expect(dataflows).toHaveLength(1);
+      expect(dataflows[0].sourceTaskPortId).toBe("output");
+      expect(dataflows[0].targetTaskPortId).toBe("output");
     });
   });
 });
