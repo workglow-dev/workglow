@@ -59,6 +59,32 @@ export class TsLogLogger implements ILogger {
     }
   }
 
+  time(label: string, meta?: Record<string, unknown>): void {
+    if (meta) {
+      this.logger.info(`[time] ${label}`, meta);
+    }
+    console.time(label);
+  }
+
+  timeEnd(label: string, meta?: Record<string, unknown>): void {
+    console.timeEnd(label);
+    if (meta) {
+      this.logger.info(`[timeEnd] ${label}`, meta);
+    }
+  }
+
+  group(label: string, meta?: Record<string, unknown>): void {
+    if (meta) {
+      console.group(label, meta);
+    } else {
+      console.group(label);
+    }
+  }
+
+  groupEnd(): void {
+    console.groupEnd();
+  }
+
   child(bindings: Record<string, unknown>): ILogger {
     return new TsLogLogger(this.logger.getSubLogger({}, bindings));
   }

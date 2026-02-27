@@ -11,6 +11,15 @@ import { DirectedAcyclicGraph } from "@workglow/util";
 type Config = Record<string, unknown>;
 
 /**
+ * Formats a duration in milliseconds as a human-readable string.
+ */
+function formatDuration(ms: number): string {
+  if (ms < 1) return `${(ms * 1000).toFixed(0)}\u00B5s`;
+  if (ms < 1000) return `${ms.toFixed(1)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+}
+
+/**
  * Extracts property keys from a JSON schema, handling boolean schemas.
  * Boolean schemas: true = accepts any, false = rejects all
  */
@@ -109,6 +118,25 @@ class WorkflowConsoleFormatter extends ConsoleFormatter {
         dfTag.createObjectTag(df);
       }
     }
+
+    // Show total duration computed from earliest startedAt to latest completedAt
+    let earliestStart: Date | undefined;
+    let latestEnd: Date | undefined;
+    for (const t of tasks) {
+      if (t.startedAt && (!earliestStart || t.startedAt < earliestStart)) {
+        earliestStart = t.startedAt;
+      }
+      if (t.completedAt && (!latestEnd || t.completedAt > latestEnd)) {
+        latestEnd = t.completedAt;
+      }
+    }
+    if (earliestStart && latestEnd) {
+      const durationMs = latestEnd.getTime() - earliestStart.getTime();
+      const timing = nodes.createListItem("", "list-style-type: none;");
+      timing.highlightText("Total duration: ");
+      timing.createTextChild(formatDuration(durationMs));
+    }
+
     // @ts-ignore
     const dag = obj._dag ?? obj.graph._dag;
 
@@ -387,6 +415,26 @@ class TaskConsoleFormatter extends ConsoleFormatter {
     }
 
     body.createStatusListItem(task.status);
+
+    if (task.startedAt || task.completedAt) {
+      const timing = body.createStyledList("Timing:");
+      if (task.startedAt) {
+        const li = timing.createListItem("", "padding-left: 20px;");
+        li.inputText("startedAt: ");
+        li.createTextChild(task.startedAt.toISOString());
+      }
+      if (task.completedAt) {
+        const li = timing.createListItem("", "padding-left: 20px;");
+        li.inputText("completedAt: ");
+        li.createTextChild(task.completedAt.toISOString());
+      }
+      if (task.startedAt && task.completedAt) {
+        const durationMs = task.completedAt.getTime() - task.startedAt.getTime();
+        const li = timing.createListItem("", "padding-left: 20px;");
+        li.highlightText("duration: ");
+        li.createTextChild(formatDuration(durationMs));
+      }
+    }
 
     // @ts-ignore
     const dag = task.subGraph?._dag;

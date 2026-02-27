@@ -23,7 +23,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { parsePartialJson } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 
 let _sdk: typeof import("@google/generative-ai") | undefined;
@@ -67,6 +67,10 @@ export const Gemini_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `gemini:TextGeneration:${model?.provider_config?.model_name}`;
+  logger.time(timerLabel, { model: model?.provider_config?.model_name });
+
   update_progress(0, "Starting Gemini text generation");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
@@ -85,6 +89,7 @@ export const Gemini_TextGeneration: AiProviderRunFn<
 
   const text = result.response.text();
   update_progress(100, "Completed Gemini text generation");
+  logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
   return { text };
 };
 
@@ -93,6 +98,10 @@ export const Gemini_TextEmbedding: AiProviderRunFn<
   TextEmbeddingTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `gemini:TextEmbedding:${model?.provider_config?.model_name}`;
+  logger.time(timerLabel, { model: model?.provider_config?.model_name });
+
   update_progress(0, "Starting Gemini text embedding");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
@@ -111,6 +120,7 @@ export const Gemini_TextEmbedding: AiProviderRunFn<
       })),
     });
     update_progress(100, "Completed Gemini text embedding");
+    logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name, batch: true });
     return {
       vector: result.embeddings.map((e) => new Float32Array(e.values)),
     };
@@ -122,6 +132,7 @@ export const Gemini_TextEmbedding: AiProviderRunFn<
   });
 
   update_progress(100, "Completed Gemini text embedding");
+  logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
   return { vector: new Float32Array(result.embedding.values) };
 };
 

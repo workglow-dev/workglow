@@ -18,6 +18,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { getLogger } from "@workglow/util";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
 
 let _sdk: typeof import("@huggingface/inference") | undefined;
@@ -66,6 +67,10 @@ export const HFI_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   HfInferenceModelConfig
 > = async (input, model, update_progress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `hfi:TextGeneration:${model?.provider_config?.model_name}`;
+  logger.time(timerLabel, { model: model?.provider_config?.model_name });
+
   update_progress(0, "Starting HF Inference text generation");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -85,6 +90,7 @@ export const HFI_TextGeneration: AiProviderRunFn<
   );
 
   update_progress(100, "Completed HF Inference text generation");
+  logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
   return { text: response.choices[0]?.message?.content ?? "" };
 };
 
@@ -93,6 +99,10 @@ export const HFI_TextEmbedding: AiProviderRunFn<
   TextEmbeddingTaskOutput,
   HfInferenceModelConfig
 > = async (input, model, update_progress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `hfi:TextEmbedding:${model?.provider_config?.model_name}`;
+  logger.time(timerLabel, { model: model?.provider_config?.model_name });
+
   update_progress(0, "Starting HF Inference text embedding");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -111,6 +121,7 @@ export const HFI_TextEmbedding: AiProviderRunFn<
     );
 
     update_progress(100, "Completed HF Inference text embedding");
+    logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name, batch: true });
     return {
       vector: embeddings.map((embedding) => new Float32Array(embedding as unknown as number[])),
     };
@@ -125,6 +136,7 @@ export const HFI_TextEmbedding: AiProviderRunFn<
   );
 
   update_progress(100, "Completed HF Inference text embedding");
+  logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
   return { vector: new Float32Array(embedding as unknown as number[]) };
 };
 

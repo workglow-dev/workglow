@@ -22,7 +22,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { parsePartialJson } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 
 let _sdk: typeof import("openai") | undefined;
@@ -68,6 +68,10 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `openai:TextGeneration:${model?.provider_config?.model_name}`;
+  logger.time(timerLabel, { model: model?.provider_config?.model_name });
+
   update_progress(0, "Starting OpenAI text generation");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -86,6 +90,7 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
   );
 
   update_progress(100, "Completed OpenAI text generation");
+  logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
   return { text: response.choices[0]?.message?.content ?? "" };
 };
 
@@ -94,6 +99,10 @@ export const OpenAI_TextEmbedding: AiProviderRunFn<
   TextEmbeddingTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `openai:TextEmbedding:${model?.provider_config?.model_name}`;
+  logger.time(timerLabel, { model: model?.provider_config?.model_name });
+
   update_progress(0, "Starting OpenAI text embedding");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -107,6 +116,7 @@ export const OpenAI_TextEmbedding: AiProviderRunFn<
   );
 
   update_progress(100, "Completed OpenAI text embedding");
+  logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
 
   if (Array.isArray(input.text)) {
     return {

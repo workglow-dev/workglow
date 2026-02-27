@@ -92,7 +92,7 @@ async function loadTransformersSDK() {
   return _transformersSdk;
 }
 
-import { TypedArray } from "@workglow/util";
+import { getLogger, TypedArray } from "@workglow/util";
 import { CallbackStatus } from "./HFT_CallbackStatus";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
@@ -151,6 +151,7 @@ const getPipeline = async (
 ) => {
   const cacheKey = getPipelineCacheKey(model);
   if (pipelines.has(cacheKey)) {
+    getLogger().debug("HFT pipeline cache hit", { cacheKey });
     return pipelines.get(cacheKey);
   }
 
@@ -483,17 +484,24 @@ const doGetPipeline = async (
 
   const { pipeline } = await loadTransformersSDK();
 
+  const logger = getLogger();
+  const pipelineTimerLabel = `hft:pipeline:${cacheKey}`;
+  logger.time(pipelineTimerLabel, { pipelineType, modelPath });
+
   try {
     const result = await pipeline(pipelineType, model.provider_config.model_path, pipelineOptions);
 
     // Check if aborted after pipeline creation
     if (abortSignal?.aborted) {
+      logger.timeEnd(pipelineTimerLabel, { status: "aborted" });
       throw new Error("Operation aborted after pipeline creation");
     }
 
+    logger.timeEnd(pipelineTimerLabel, { status: "loaded" });
     pipelines.set(cacheKey, result);
     return result;
   } catch (error: any) {
+    logger.timeEnd(pipelineTimerLabel, { status: "error", error: String(error) });
     // If aborted, throw a clean abort error rather than internal stream errors
     if (abortSignal?.aborted || modelController.signal.aborted) {
       throw new Error("Pipeline download aborted");
@@ -513,10 +521,15 @@ export const HFT_Download: AiProviderRunFn<
   DownloadModelTaskRunOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `hft:Download:${model?.provider_config.model_path}`;
+  logger.time(timerLabel, { model: model?.provider_config.model_path });
+
   // Download the model by creating a pipeline
   // Use 100 as progressScaleMax since this is download-only (0-100%)
   await getPipeline(model!, onProgress, {}, signal, 100);
 
+  logger.timeEnd(timerLabel, { model: model?.provider_config.model_path });
   return {
     model: input.model!,
   };
@@ -596,12 +609,21 @@ export const HFT_TextEmbedding: AiProviderRunFn<
   TextEmbeddingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `hft:TextEmbedding:${model?.provider_config.model_path}`;
+  logger.time(timerLabel, { model: model?.provider_config.model_path });
+
   const generateEmbedding: FeatureExtractionPipeline = await getPipeline(
     model!,
     onProgress,
     {},
     signal
   );
+
+  logger.debug("HFT TextEmbedding: pipeline ready, generating embedding", {
+    model: model?.provider_config.model_path,
+    inputLength: Array.isArray(input.text) ? input.text.length : input.text?.length,
+  });
 
   // Generate the embedding
   const hfVector = await generateEmbedding(input.text, {
@@ -638,11 +660,13 @@ export const HFT_TextEmbedding: AiProviderRunFn<
       (_, i) => (hfVector as any)[i].data as TypedArray
     );
 
+    logger.timeEnd(timerLabel, { batchSize: numTexts, dimensions: vectorDim });
     return { vector: vectors };
   }
 
   // Output[number] text input - validate dimensions
   if (hfVector.size !== embeddingDim) {
+    logger.timeEnd(timerLabel, { status: "error", reason: "dimension mismatch" });
     console.warn(
       `HuggingFace Embedding vector length does not match model dimensions v${hfVector.size} != m${embeddingDim}`,
       input,
@@ -653,6 +677,7 @@ export const HFT_TextEmbedding: AiProviderRunFn<
     );
   }
 
+  logger.timeEnd(timerLabel, { dimensions: hfVector.size });
   return { vector: hfVector.data as TypedArray };
 };
 
@@ -805,7 +830,16 @@ export const HFT_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `hft:TextGeneration:${model?.provider_config.model_path}`;
+  logger.time(timerLabel, { model: model?.provider_config.model_path });
+
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
+
+  logger.debug("HFT TextGeneration: pipeline ready, generating text", {
+    model: model?.provider_config.model_path,
+    promptLength: input.prompt?.length,
+  });
 
   const streamer = createTextStreamer(generateText.tokenizer, onProgress);
 
@@ -821,6 +855,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
   if (Array.isArray(text)) {
     text = text[text.length - 1]?.content;
   }
+  logger.timeEnd(timerLabel, { outputLength: text?.length });
   return {
     text,
   };
@@ -1031,6 +1066,10 @@ export const HFT_ImageEmbedding: AiProviderRunFn<
   ImageEmbeddingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const logger = getLogger();
+  const timerLabel = `hft:ImageEmbedding:${model?.provider_config.model_path}`;
+  logger.time(timerLabel, { model: model?.provider_config.model_path });
+
   const embedder: ImageFeatureExtractionPipeline = await getPipeline(
     model!,
     onProgress,
@@ -1038,8 +1077,13 @@ export const HFT_ImageEmbedding: AiProviderRunFn<
     signal
   );
 
+  logger.debug("HFT ImageEmbedding: pipeline ready, generating embedding", {
+    model: model?.provider_config.model_path,
+  });
+
   const result: any = await embedder(input.image as string);
 
+  logger.timeEnd(timerLabel, { dimensions: result?.data?.length });
   return {
     vector: result.data as TypedArray,
   } as ImageEmbeddingTaskOutput;

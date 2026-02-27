@@ -63,6 +63,35 @@ export class ConsoleLogger implements ILogger {
     }
   }
 
+  time(label: string, meta?: Record<string, unknown>): void {
+    const merged = this.merge(meta);
+    if (merged) {
+      console.info(`[time] ${label}`, merged);
+    }
+    console.time(label);
+  }
+
+  timeEnd(label: string, meta?: Record<string, unknown>): void {
+    console.timeEnd(label);
+    const merged = this.merge(meta);
+    if (merged) {
+      console.info(`[timeEnd] ${label}`, merged);
+    }
+  }
+
+  group(label: string, meta?: Record<string, unknown>): void {
+    const merged = this.merge(meta);
+    if (merged) {
+      console.group(label, merged);
+    } else {
+      console.group(label);
+    }
+  }
+
+  groupEnd(): void {
+    console.groupEnd();
+  }
+
   child(bindings: Record<string, unknown>): ILogger {
     return new ConsoleLogger({ ...this.bindings, ...bindings });
   }

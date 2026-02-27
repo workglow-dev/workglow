@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry, ServiceRegistry } from "@workglow/util";
+import { getLogger, globalServiceRegistry, ServiceRegistry } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
@@ -99,6 +99,13 @@ export class TaskRunner<
     this.task = task;
     this.own = this.own.bind(this);
     this.handleProgress = this.handleProgress.bind(this);
+  }
+
+  /**
+   * Returns a label for timing this task's execution.
+   */
+  protected get timerLabel(): string {
+    return `task:${this.task.type}:${this.task.config.id}`;
   }
 
   // ========================================================================
@@ -455,6 +462,8 @@ export class TaskRunner<
       this.registry = config.registry;
     }
 
+    getLogger().time(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
+
     this.task.emit("start");
     this.task.emit("status", this.task.status);
   }
@@ -485,6 +494,7 @@ export class TaskRunner<
   protected async handleAbort(): Promise<void> {
     if (this.task.status === TaskStatus.ABORTING) return;
     this.clearTimeoutTimer();
+    getLogger().timeEnd(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
     this.task.status = TaskStatus.ABORTING;
     this.task.progress = 100;
     // Use the pending timeout error if the abort was triggered by a timeout
@@ -505,6 +515,8 @@ export class TaskRunner<
     if (this.task.status === TaskStatus.COMPLETED) return;
     this.clearTimeoutTimer();
     this.pendingTimeoutError = undefined;
+
+    getLogger().timeEnd(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
 
     this.task.completedAt = new Date();
     this.task.progress = 100;
@@ -542,6 +554,7 @@ export class TaskRunner<
     if (this.task.status === TaskStatus.FAILED) return;
     this.clearTimeoutTimer();
     this.pendingTimeoutError = undefined;
+    getLogger().timeEnd(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
 
     if (this.task.hasChildren()) {
       this.task.subGraph!.abort();

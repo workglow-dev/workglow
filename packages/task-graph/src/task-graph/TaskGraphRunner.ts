@@ -7,6 +7,7 @@
 import {
   collectPropertyValues,
   ConvertAllToOptionalArray,
+  getLogger,
   globalServiceRegistry,
   ServiceRegistry,
   uuid4,
@@ -114,6 +115,18 @@ export class TaskGraphRunner {
     this.graph = graph;
     graph.outputCache = outputCache;
     this.handleProgress = this.handleProgress.bind(this);
+  }
+
+  /**
+   * Unique ID for the current run, used for timing labels.
+   */
+  protected runId: string = "";
+
+  /**
+   * Returns a label for timing this graph's execution.
+   */
+  protected get timerLabel(): string {
+    return `graph:${this.runId}`;
   }
 
   // ========================================================================
@@ -915,11 +928,17 @@ export class TaskGraphRunner {
       );
     }
 
-    this.resetGraph(this.graph, uuid4());
+    this.runId = uuid4();
+    this.resetGraph(this.graph, this.runId);
     this.processScheduler.reset();
     this.inProgressTasks.clear();
     this.inProgressFunctions.clear();
     this.failedTaskErrors.clear();
+
+    const logger = getLogger();
+    logger.group(this.timerLabel, { taskCount: this.graph.getTasks().length });
+    logger.time(this.timerLabel);
+
     this.graph.emit("start");
   }
 
@@ -936,6 +955,11 @@ export class TaskGraphRunner {
    */
   protected async handleComplete(): Promise<void> {
     this.running = false;
+
+    const logger = getLogger();
+    logger.timeEnd(this.timerLabel);
+    logger.groupEnd();
+
     this.graph.emit("complete");
   }
 
@@ -955,6 +979,11 @@ export class TaskGraphRunner {
       })
     );
     this.running = false;
+
+    const logger = getLogger();
+    logger.timeEnd(this.timerLabel);
+    logger.groupEnd();
+
     this.graph.emit("error", error);
   }
 
@@ -972,6 +1001,11 @@ export class TaskGraphRunner {
       }
     });
     this.running = false;
+
+    const logger = getLogger();
+    logger.timeEnd(this.timerLabel);
+    logger.groupEnd();
+
     this.graph.emit("abort");
   }
 

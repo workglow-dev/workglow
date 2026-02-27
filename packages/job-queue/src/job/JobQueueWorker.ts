@@ -5,7 +5,7 @@
  */
 
 import { IQueueStorage, JobStatus, JobStorageFormat } from "@workglow/storage";
-import { EventEmitter, sleep, uuid4 } from "@workglow/util";
+import { EventEmitter, getLogger, sleep, uuid4 } from "@workglow/util";
 import { ILimiter } from "../limiter/ILimiter";
 import { NullLimiter } from "../limiter/NullLimiter";
 import { Job, JobClass } from "./Job";
@@ -255,6 +255,9 @@ export class JobQueueWorker<
     }
 
     const startTime = Date.now();
+    const timerLabel = `job:${job.id}`;
+    const logger = getLogger();
+    logger.time(timerLabel, { queue: this.queueName, jobId: job.id });
 
     try {
       await this.validateJobState(job);
@@ -284,6 +287,7 @@ export class JobQueueWorker<
         await this.failJob(job, error);
       }
     } finally {
+      logger.timeEnd(timerLabel, { queue: this.queueName, jobId: job.id });
       await this.limiter.recordJobCompletion();
     }
   }

@@ -16,6 +16,10 @@ export class NullLogger implements ILogger {
   warn(_message: string, _meta?: Record<string, unknown>): void {}
   debug(_message: string, _meta?: Record<string, unknown>): void {}
   fatal(_err: Error, _message: string, _meta?: Record<string, unknown>): void {}
+  time(_label: string, _meta?: Record<string, unknown>): void {}
+  timeEnd(_label: string, _meta?: Record<string, unknown>): void {}
+  group(_label: string, _meta?: Record<string, unknown>): void {}
+  groupEnd(): void {}
   child(_bindings: Record<string, unknown>): ILogger {
     return this;
   }
