@@ -72,6 +72,9 @@ import type {
   TextSummaryTaskOutput,
   TextTranslationTaskInput,
   TextTranslationTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
@@ -1483,6 +1486,213 @@ export const HFT_CountTokens_Reactive: AiProviderReactiveRunFn<
 };
 
 // ========================================================================
+// Tool calling implementations
+// ========================================================================
+
+function buildHftToolDescription(tool: ToolDefinition): string {
+  let desc = tool.description;
+  if (tool.outputSchema && typeof tool.outputSchema === "object") {
+    desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
+  }
+  return desc;
+}
+
+function mapHftTools(tools: ReadonlyArray<ToolDefinition>) {
+  return tools.map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildHftToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+}
+
+/**
+ * Parse tool calls from model-generated text.
+ *
+ * Many instruct models (Qwen, Llama, Hermes, etc.) emit tool calls in one of
+ * these formats:
+ *
+ * 1. `<tool_call>{"name":"fn","arguments":{...}}</tool_call>` (Qwen/Hermes)
+ * 2. Plain JSON objects with a "name" + "arguments" key
+ * 3. `{"function":{"name":"fn","arguments":{...}}}`
+ *
+ * This function extracts all such tool calls from the raw response text
+ * and returns both the cleaned text (with tool-call markup removed) and
+ * the parsed ToolCall array.
+ */
+function parseToolCallsFromText(responseText: string): {
+  text: string;
+  toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }>;
+} {
+  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+  let cleanedText = responseText;
+
+  // Pattern 1: <tool_call>...</tool_call> blocks (Qwen, Hermes, etc.)
+  const toolCallTagRegex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
+  let tagMatch;
+  while ((tagMatch = toolCallTagRegex.exec(responseText)) !== null) {
+    try {
+      const parsed = JSON.parse(tagMatch[1].trim());
+      toolCalls.push({
+        id: `call_${toolCalls.length}`,
+        name: parsed.name ?? parsed.function?.name ?? "",
+        input: (parsed.arguments ?? parsed.function?.arguments ?? parsed.parameters ?? {}) as Record<
+          string,
+          unknown
+        >,
+      });
+    } catch {
+      // Not valid JSON inside the tag, skip
+    }
+  }
+
+  if (toolCalls.length > 0) {
+    // Remove tool_call tags from the text output
+    cleanedText = responseText.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
+    return { text: cleanedText, toolCalls };
+  }
+
+  // Pattern 2: Try to find JSON objects with "name" and "arguments" keys
+  const jsonRegex = /\{[\s\S]*?\}/g;
+  let jsonMatch;
+  while ((jsonMatch = jsonRegex.exec(responseText)) !== null) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.name && (parsed.arguments !== undefined || parsed.parameters !== undefined)) {
+        toolCalls.push({
+          id: `call_${toolCalls.length}`,
+          name: parsed.name as string,
+          input: (parsed.arguments ?? parsed.parameters ?? {}) as Record<string, unknown>,
+        });
+      } else if (parsed.function?.name) {
+        toolCalls.push({
+          id: `call_${toolCalls.length}`,
+          name: parsed.function.name as string,
+          input: (typeof parsed.function.arguments === "string"
+            ? JSON.parse(parsed.function.arguments)
+            : parsed.function.arguments ?? {}) as Record<string, unknown>,
+        });
+      }
+    } catch {
+      // Not valid JSON, skip
+    }
+  }
+
+  if (toolCalls.length > 0) {
+    cleanedText = "";
+  }
+
+  return { text: cleanedText, toolCalls };
+}
+
+export const HFT_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, model, onProgress, signal) => {
+  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const tools = input.toolChoice === "none" ? undefined : mapHftTools(input.tools);
+
+  // Use the tokenizer's chat template to format the prompt with tool definitions
+  const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tools,
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+
+  let results = await generateText(prompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  });
+
+  if (!Array.isArray(results)) {
+    results = [results];
+  }
+
+  let responseText = (results[0] as TextGenerationOutput[number])?.generated_text;
+  if (Array.isArray(responseText)) {
+    responseText = responseText[responseText.length - 1]?.content;
+  }
+  responseText = (responseText ?? "").trim();
+
+  const { text, toolCalls } = parseToolCallsFromText(responseText);
+  return { text, toolCalls };
+};
+
+export const HFT_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  const noopProgress = () => {};
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const tools = input.toolChoice === "none" ? undefined : mapHftTools(input.tools);
+
+  const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tools,
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  const queue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
+
+  let fullText = "";
+  const originalPush = queue.push;
+  queue.push = (event: StreamEvent<ToolCallingTaskOutput>) => {
+    if (event.type === "text-delta" && "textDelta" in event) {
+      fullText += event.textDelta;
+    }
+    originalPush(event);
+  };
+
+  const pipelinePromise = generateText(prompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  }).then(
+    () => queue.done(),
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+
+  // Parse the accumulated text for tool calls
+  const { text, toolCalls } = parseToolCallsFromText(fullText);
+
+  if (toolCalls.length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
+  }
+
+  yield {
+    type: "finish",
+    data: { text, toolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -1511,6 +1721,7 @@ export const HFT_TASKS = {
   ImageEmbeddingTask: HFT_ImageEmbedding,
   ImageClassificationTask: HFT_ImageClassification,
   ObjectDetectionTask: HFT_ObjectDetection,
+  ToolCallingTask: HFT_ToolCalling,
 } as const;
 
 /**
@@ -1526,6 +1737,7 @@ export const HFT_STREAM_TASKS: Record<
   TextSummaryTask: HFT_TextSummary_Stream,
   TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
   TextTranslationTask: HFT_TextTranslation_Stream,
+  ToolCallingTask: HFT_ToolCalling_Stream,
 };
 
 export const HFT_REACTIVE_TASKS: Record<
