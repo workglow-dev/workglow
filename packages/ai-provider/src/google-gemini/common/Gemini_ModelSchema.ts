@@ -27,6 +27,13 @@ export const GeminiModelSchema = {
         api_key: {
           type: "string",
           description: "Google AI API key. Falls back to default API key if not set.",
+          "x-ui-hidden": true,
+        },
+        credential_key: {
+          type: "string",
+          description:
+            "Key to look up in the credential store. Checked before api_key and environment variables.",
+          "x-ui-hidden": true,
         },
         embedding_task_type: {
           oneOf: [

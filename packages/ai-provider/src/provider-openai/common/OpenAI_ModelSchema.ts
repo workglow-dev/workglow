@@ -26,6 +26,13 @@ export const OpenAiModelSchema = {
         api_key: {
           type: "string",
           description: "OpenAI API key. Falls back to default API key if not set.",
+          "x-ui-hidden": true,
+        },
+        credential_key: {
+          type: "string",
+          description:
+            "Key to look up in the credential store. Checked before api_key and environment variables.",
+          "x-ui-hidden": true,
         },
         base_url: {
           type: "string",

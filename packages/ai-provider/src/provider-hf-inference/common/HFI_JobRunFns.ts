@@ -18,7 +18,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger, resolveCredential } from "@workglow/util";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
 
 let _sdk: typeof import("@huggingface/inference") | undefined;
@@ -37,12 +37,20 @@ async function loadHfInferenceSDK() {
 
 async function getClient(model: HfInferenceModelConfig | undefined) {
   const sdk = await loadHfInferenceSDK();
+
+  // Resolution order: credential store → explicit api_key → environment variable
+  const credentialKey = (model?.provider_config as Record<string, unknown>)?.credential_key as
+    | string
+    | undefined;
+  const storedCredential = credentialKey ? await resolveCredential(credentialKey) : undefined;
+
   const apiKey =
+    storedCredential ||
     model?.provider_config?.api_key ||
     (typeof process !== "undefined" ? process.env?.HF_TOKEN : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing Hugging Face API key: set provider_config.api_key or the HF_TOKEN environment variable."
+      "Missing Hugging Face API key: set provider_config.credential_key, provider_config.api_key, or the HF_TOKEN environment variable."
     );
   }
   return new sdk.InferenceClient(apiKey);
