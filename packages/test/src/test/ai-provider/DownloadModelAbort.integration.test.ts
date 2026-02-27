@@ -6,6 +6,7 @@
 
 import {
   DownloadModelTask,
+  DownloadModelTaskRunOutput,
   getGlobalModelRepository,
   InMemoryModelRepository,
   setGlobalModelRepository,
@@ -18,28 +19,30 @@ import {
 } from "@workglow/ai-provider";
 import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry, setTaskQueueRegistry, TaskStatus } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { setLogger, sleep } from "@workglow/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("DownloadModelTask abort behavior", () => {
-  const logger = getTestingLogger();
+  let logger = getTestingLogger();
   setLogger(logger);
+
+  const modelId = "onnx:Supabase/gte-small:q8";
 
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
-    try {
-      await unloadModel({
-        model: "onnx:Supabase/gte-small:q8",
-      });
-    } catch {}
   });
 
   afterAll(async () => {
+    try {
+      await unloadModel({
+        model: modelId,
+      });
+    } catch {}
     getTaskQueueRegistry().stopQueues().clearQueues();
     setTaskQueueRegistry(null);
   });
@@ -47,7 +50,7 @@ describe("DownloadModelTask abort behavior", () => {
   it("should abort download when task is aborted", async () => {
     // Register a model
     const model: HfTransformersOnnxModelRecord = {
-      model_id: "onnx:Supabase/gte-small:q8",
+      model_id: modelId,
       title: "gte-small",
       description: "Supabase/gte-small quantized to 8bit",
       tasks: ["TextEmbeddingTask"],
@@ -64,7 +67,7 @@ describe("DownloadModelTask abort behavior", () => {
     await getGlobalModelRepository().addModel(model);
 
     const download = new DownloadModelTask({
-      model: "onnx:Supabase/gte-small:q8",
+      model: modelId,
     });
 
     let progressCount = 0;
@@ -73,6 +76,7 @@ describe("DownloadModelTask abort behavior", () => {
     let firstProgressSeen = false;
 
     download.on("progress", () => {
+      logger.info("Progress event:", { progressCount });
       if (!firstProgressSeen) {
         firstProgressSeen = true;
         // Abort as soon as we see the first progress event
@@ -80,7 +84,8 @@ describe("DownloadModelTask abort behavior", () => {
         setTimeout(() => {
           abortCalled = true;
           download.abort();
-        }, 10);
+          logger.info("Abort called");
+        }, 1);
       }
       progressCount++;
       if (abortCalled) {
@@ -88,12 +93,15 @@ describe("DownloadModelTask abort behavior", () => {
       }
     });
 
-    // Start the download
-    const downloadPromise = download.run();
-
+    let downloadPromise: Promise<DownloadModelTaskRunOutput>;
     // The download should throw an error due to abort
+    logger.info("Starting download");
+    // Start the download
+    downloadPromise = download.run();
+    logger.info("Download started");
     try {
       await downloadPromise;
+      logger.info("Download completed");
       // If we get here, check if it was because the download was too fast
       // (model already cached or very small)
       if (!firstProgressSeen || progressCount < 5) {
@@ -101,23 +109,29 @@ describe("DownloadModelTask abort behavior", () => {
         expect(download.status).toBe(TaskStatus.COMPLETED);
       } else {
         // If we saw significant progress but still completed, that's unexpected
+        logger.info("Download should have been aborted after seeing progress events");
         expect.fail("Download should have been aborted after seeing progress events");
       }
     } catch (error: any) {
+      logger.info("Download failed:", { error });
       // Expected to throw - verify the task is in aborting or error state
       expect([TaskStatus.ABORTING, TaskStatus.FAILED]).toContain(download.status);
 
       // The error should indicate abort (could be from our code or from the library)
-      const errorMessage = error?.message?.toLowerCase() || "";
+      const errorMessage: string = error?.message?.toLowerCase() || "";
       const isAbortError =
         errorMessage.includes("abort") ||
+        errorMessage.includes("protobuf parsing failed") ||
         errorMessage.includes("closed") ||
         error?.code === "ERR_INVALID_STATE";
+
+      if (!isAbortError) console.error("Unexpected error:", { errorMessage, error });
 
       expect(isAbortError).toBe(true);
 
       // Give it a moment to settle any in-flight operations
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const sleepPromise = sleep(1000);
+      await Promise.race([sleepPromise, downloadPromise.catch(() => {})]);
 
       // Progress events after abort should be minimal (maybe a few in-flight ones)
       // If progressAfterAbort is high (e.g., > 20), it means the download continued

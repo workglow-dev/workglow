@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, EventEmitter, makeFingerprint, sleep, uuid4 } from "@workglow/util";
+import {
+  createServiceToken,
+  EventEmitter,
+  getLogger,
+  makeFingerprint,
+  sleep,
+  uuid4,
+} from "@workglow/util";
 import {
   IQueueStorage,
   JobStatus,
@@ -187,14 +194,26 @@ export class InMemoryQueueStorage<Input, Output> implements IQueueStorage<Input,
     if (!job) {
       // Job not found - this can happen if the job was already completed/removed
       // or if there's a race condition. Silently ignore progress updates for missing jobs.
-      console.warn("Job not found for progress update", id); //TODO: find out why this happens
+      const jobWithAnyPrefix = this.jobQueue.find((j) => j.id === id);
+      getLogger().warn("Job not found for progress update", {
+        id,
+        reason: jobWithAnyPrefix ? "prefix_mismatch" : "missing",
+        existingStatus: jobWithAnyPrefix?.status,
+        queueName: this.queueName,
+        prefixValues: this.prefixValues,
+      });
       return;
     }
 
     // Skip progress updates for jobs that are already completed or failed
     // to avoid unnecessary updates and potential race conditions
     if (job.status === JobStatus.COMPLETED || job.status === JobStatus.FAILED) {
-      console.warn("Job already completed or failed for progress update", id); //TODO: find out why this happens
+      getLogger().warn("Job already completed or failed for progress update", {
+        id,
+        status: job.status,
+        completedAt: job.completed_at,
+        error: job.error,
+      });
       return;
     }
 
