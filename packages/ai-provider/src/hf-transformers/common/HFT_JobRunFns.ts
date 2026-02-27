@@ -1443,7 +1443,7 @@ export const HFT_CountTokens_Reactive: AiProviderReactiveRunFn<
 // Tool calling implementations
 // ========================================================================
 
-function buildHftToolDescription(tool: ToolDefinition): string {
+function buildHFTToolDescription(tool: ToolDefinition): string {
   let desc = tool.description;
   if (tool.outputSchema && typeof tool.outputSchema === "object") {
     desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
@@ -1451,12 +1451,12 @@ function buildHftToolDescription(tool: ToolDefinition): string {
   return desc;
 }
 
-function mapHftTools(tools: ReadonlyArray<ToolDefinition>) {
+function mapHFTTools(tools: ReadonlyArray<ToolDefinition>) {
   return tools.map((t) => ({
     type: "function" as const,
     function: {
       name: t.name,
-      description: buildHftToolDescription(t),
+      description: buildHFTToolDescription(t),
       parameters: t.inputSchema as any,
     },
   }));
@@ -1508,26 +1508,77 @@ function parseToolCallsFromText(responseText: string): {
     return { text: cleanedText, toolCalls };
   }
 
-  // Pattern 2: Try to find JSON objects with "name" and "arguments" keys
-  const jsonRegex = /\{[\s\S]*?\}/g;
-  let jsonMatch;
-  while ((jsonMatch = jsonRegex.exec(responseText)) !== null) {
+  // Pattern 2: Use a brace-balanced scanner to correctly handle nested JSON objects.
+  const jsonCandidates: Array<{ text: string; start: number; end: number }> = [];
+  (function collectBalancedJsonBlocks(source: string) {
+    const length = source.length;
+    let i = 0;
+    while (i < length) {
+      if (source[i] !== "{") {
+        i++;
+        continue;
+      }
+      let depth = 1;
+      let j = i + 1;
+      let inString = false;
+      let escape = false;
+      while (j < length && depth > 0) {
+        const ch = source[j];
+        if (inString) {
+          if (escape) {
+            escape = false;
+          } else if (ch === "\\") {
+            escape = true;
+          } else if (ch === '"') {
+            inString = false;
+          }
+        } else {
+          if (ch === '"') {
+            inString = true;
+          } else if (ch === "{") {
+            depth++;
+          } else if (ch === "}") {
+            depth--;
+          }
+        }
+        j++;
+      }
+      if (depth === 0) {
+        jsonCandidates.push({ text: source.slice(i, j), start: i, end: j });
+        i = j;
+      } else {
+        break;
+      }
+    }
+  })(responseText);
+
+  const matchedRanges: Array<{ start: number; end: number }> = [];
+  for (const candidate of jsonCandidates) {
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(candidate.text);
       if (parsed.name && (parsed.arguments !== undefined || parsed.parameters !== undefined)) {
         toolCalls.push({
           id: `call_${toolCalls.length}`,
           name: parsed.name as string,
           input: (parsed.arguments ?? parsed.parameters ?? {}) as Record<string, unknown>,
         });
+        matchedRanges.push({ start: candidate.start, end: candidate.end });
       } else if (parsed.function?.name) {
+        let functionArgs: unknown = parsed.function.arguments ?? {};
+        if (typeof functionArgs === "string") {
+          try {
+            functionArgs = JSON.parse(functionArgs);
+          } catch (innerError) {
+            console.warn("Failed to parse tool call function.arguments as JSON", innerError);
+            functionArgs = {};
+          }
+        }
         toolCalls.push({
           id: `call_${toolCalls.length}`,
           name: parsed.function.name as string,
-          input: (typeof parsed.function.arguments === "string"
-            ? JSON.parse(parsed.function.arguments)
-            : parsed.function.arguments ?? {}) as Record<string, unknown>,
+          input: (functionArgs ?? {}) as Record<string, unknown>,
         });
+        matchedRanges.push({ start: candidate.start, end: candidate.end });
       }
     } catch {
       // Not valid JSON, skip
@@ -1535,10 +1586,59 @@ function parseToolCallsFromText(responseText: string): {
   }
 
   if (toolCalls.length > 0) {
-    cleanedText = "";
+    // Remove only the matched JSON portions, preserving surrounding text
+    let result = "";
+    let lastIndex = 0;
+    for (const range of matchedRanges) {
+      result += responseText.slice(lastIndex, range.start);
+      lastIndex = range.end;
+    }
+    result += responseText.slice(lastIndex);
+    cleanedText = result.trim();
   }
 
   return { text: cleanedText, toolCalls };
+}
+
+/**
+ * Resolve the tools list and optionally mutate the messages array based on the toolChoice option.
+ * - "none": no tools
+ * - "required": all tools + adds a system instruction so the model must call a tool
+ * - specific name: filter to that tool (falls back to all tools if not found)
+ * - "auto" / undefined: all tools
+ */
+function resolveHFTToolsAndMessages(
+  input: ToolCallingTaskInput,
+  messages: Array<{ role: string; content: string }>
+): ReturnType<typeof mapHFTTools> | undefined {
+  if (input.toolChoice === "none") {
+    return undefined;
+  }
+
+  if (input.toolChoice === "required") {
+    const requiredInstruction =
+      "You must call at least one tool from the provided tool list when answering.";
+    if (messages.length > 0 && messages[0].role === "system") {
+      messages[0] = { ...messages[0], content: `${messages[0].content}\n\n${requiredInstruction}` };
+    } else {
+      messages.unshift({ role: "system", content: requiredInstruction });
+    }
+    return mapHFTTools(input.tools);
+  }
+
+  if (
+    typeof input.toolChoice === "string" &&
+    input.toolChoice !== "auto"
+  ) {
+    // Specific tool name: filter to that tool if it exists
+    const selectedTools = input.tools?.filter(
+      (tool: ToolDefinition) => tool.name === input.toolChoice
+    );
+    const toolsToMap = selectedTools && selectedTools.length > 0 ? selectedTools : input.tools;
+    return mapHFTTools(toolsToMap);
+  }
+
+  return mapHFTTools(input.tools);
 }
 
 export const HFT_ToolCalling: AiProviderRunFn<
@@ -1554,7 +1654,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
   }
   messages.push({ role: "user", content: input.prompt });
 
-  const tools = input.toolChoice === "none" ? undefined : mapHftTools(input.tools);
+  const tools = resolveHFTToolsAndMessages(input, messages);
 
   // Use the tokenizer's chat template to format the prompt with tool definitions
   const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
@@ -1600,7 +1700,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   }
   messages.push({ role: "user", content: input.prompt });
 
-  const tools = input.toolChoice === "none" ? undefined : mapHftTools(input.tools);
+  const tools = resolveHFTToolsAndMessages(input, messages);
 
   const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
     tools,
@@ -1634,15 +1734,16 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   await pipelinePromise;
 
   // Parse the accumulated text for tool calls
-  const { text, toolCalls } = parseToolCallsFromText(fullText);
+  const { toolCalls } = parseToolCallsFromText(fullText);
 
   if (toolCalls.length > 0) {
     yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
   }
 
+  // Use the same text that was streamed via text-delta events for consistency
   yield {
     type: "finish",
-    data: { text, toolCalls } as ToolCallingTaskOutput,
+    data: { text: fullText, toolCalls } as ToolCallingTaskOutput,
   };
 };
 
