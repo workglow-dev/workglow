@@ -83,11 +83,18 @@ describe("InMemoryCredentialStore", () => {
     expect(await store.has("valid")).toBe(true);
   });
 
-  it("should preserve metadata across updates", async () => {
+  it("should update the value on repeated put calls", async () => {
     await store.put("key", "v1", { label: "My Key", provider: "test" });
     await store.put("key", "v2");
     expect(await store.get("key")).toBe("v2");
-    // Label and provider should be preserved from the first put
+  });
+
+  it("should preserve expiresAt when not provided on update", async () => {
+    const futureDate = new Date(Date.now() + 60_000);
+    await store.put("key", "v1", { expiresAt: futureDate });
+    await store.put("key", "v2"); // no expiresAt provided — expiry should be preserved
+    expect(await store.get("key")).toBe("v2");
+    expect(await store.has("key")).toBe(true);
   });
 
   it("should exclude expired keys from keys()", async () => {
