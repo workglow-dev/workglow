@@ -22,7 +22,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson, resolveCredential } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 
 let _sdk: typeof import("openai") | undefined;
@@ -39,18 +39,12 @@ async function loadOpenAISDK() {
 
 async function getClient(model: OpenAiModelConfig | undefined) {
   const OpenAI = await loadOpenAISDK();
-
-  // Resolution order: credential store → explicit api_key → environment variable
-  const credentialKey = model?.provider_config?.credential_key;
-  const storedCredential = credentialKey ? await resolveCredential(credentialKey) : undefined;
-
   const apiKey =
-    storedCredential ??
-    model?.provider_config?.api_key ??
+    model?.provider_config?.api_key ||
     (typeof process !== "undefined" ? process.env?.OPENAI_API_KEY : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing OpenAI API key: set provider_config.credential_key, provider_config.api_key, or the OPENAI_API_KEY environment variable."
+      "Missing OpenAI API key: set provider_config.api_key or the OPENAI_API_KEY environment variable."
     );
   }
   return new OpenAI({
