@@ -93,7 +93,7 @@ export class AiTask<
     // Resolve credential_key → api_key on the main thread before job dispatch.
     // This ensures workers receive the resolved API key in the serialized job input.
     const providerConfig = model.provider_config as Record<string, unknown> | undefined;
-    if (providerConfig?.credential_key && !providerConfig.api_key) {
+    if (providerConfig?.credential_key) {
       const resolved = await resolveCredential(providerConfig.credential_key as string);
       if (resolved) {
         input = {

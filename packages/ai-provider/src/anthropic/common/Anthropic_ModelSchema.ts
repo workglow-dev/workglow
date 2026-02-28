@@ -24,16 +24,10 @@ export const AnthropicModelSchema = {
           description:
             "The Anthropic model identifier (e.g., 'claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022').",
         },
-        api_key: {
-          type: "string",
-          description:
-            "Anthropic API key. Falls back to ANTHROPIC_API_KEY environment variable if not set.",
-          "x-ui-hidden": true,
-        },
         credential_key: {
           type: "string",
           description:
-            "Key to look up in the credential store. Checked before api_key and environment variables.",
+            "Key to look up in the credential store for the API key.",
           "x-ui-hidden": true,
         },
         base_url: {

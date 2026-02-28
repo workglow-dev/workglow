@@ -35,14 +35,21 @@ async function loadHfInferenceSDK() {
   return _sdk;
 }
 
+interface ResolvedProviderConfig {
+  readonly api_key?: string;
+  readonly model_name?: string;
+  readonly provider?: string;
+}
+
 async function getClient(model: HfInferenceModelConfig | undefined) {
   const sdk = await loadHfInferenceSDK();
+  const config = model?.provider_config as ResolvedProviderConfig | undefined;
   const apiKey =
-    model?.provider_config?.api_key ||
+    config?.api_key ||
     (typeof process !== "undefined" ? process.env?.HF_TOKEN : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing Hugging Face API key: set provider_config.api_key or the HF_TOKEN environment variable."
+      "Missing Hugging Face API key: set provider_config.credential_key or the HF_TOKEN environment variable."
     );
   }
   return new sdk.InferenceClient(apiKey);
