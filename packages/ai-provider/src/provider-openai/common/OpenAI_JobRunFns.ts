@@ -489,10 +489,11 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
   const text = response.choices[0]?.message?.content ?? "";
   const toolCalls: Record<string, unknown> = {};
   for (const tc of response.choices[0]?.message?.tool_calls ?? []) {
+    if (!("function" in tc)) continue;
     const id = tc.id as string;
     const name = tc.function.name as string;
     let input: Record<string, unknown> = {};
-    const rawArgs = tc.function?.arguments;
+    const rawArgs = tc.function.arguments;
     if (typeof rawArgs === "string") {
       try {
         input = JSON.parse(rawArgs) as Record<string, unknown>;
