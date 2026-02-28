@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteReactiveContext,
+  Task,
+  TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const inputSchema = {
@@ -84,7 +90,11 @@ export class JsonPathTask<
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  async executeReactive(
+    input: Input,
+    _output: Output,
+    _context: IExecuteReactiveContext
+  ): Promise<Output> {
     const segments = input.path.split(".");
     const result = resolvePath(input.value, segments);
     return { result } as Output;

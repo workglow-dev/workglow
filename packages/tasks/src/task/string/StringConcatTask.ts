@@ -4,25 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteReactiveContext,
+  Task,
+  TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const inputSchema = {
   type: "object",
-  properties: {
-    a: {
-      type: "string",
-      title: "A",
-      description: "First string",
-    },
-    b: {
-      type: "string",
-      title: "B",
-      description: "Second string",
-    },
-  },
-  required: ["a", "b"],
-  additionalProperties: false,
+  properties: {},
+  additionalProperties: { type: "string" },
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
@@ -31,7 +25,7 @@ const outputSchema = {
     result: {
       type: "string",
       title: "Result",
-      description: "Concatenation of a and b",
+      description: "Concatenation of all input strings",
     },
   },
   required: ["result"],
@@ -49,7 +43,7 @@ export class StringConcatTask<
   static readonly type = "StringConcatTask";
   static readonly category = "String";
   public static title = "Concat";
-  public static description = "Concatenates two strings";
+  public static description = "Concatenates all input strings";
 
   static inputSchema() {
     return inputSchema;
@@ -59,8 +53,12 @@ export class StringConcatTask<
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
-    return { result: input.a + input.b } as Output;
+  async executeReactive(
+    input: Input,
+    _output: Output,
+    _context: IExecuteReactiveContext
+  ): Promise<Output> {
+    return { result: Object.values(input).join("") } as Output;
   }
 }
 

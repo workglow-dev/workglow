@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteReactiveContext,
+  Task,
+  TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const inputSchema = {
@@ -18,9 +24,15 @@ const inputSchema = {
     format: {
       type: "string",
       title: "Format",
-      description:
-        "Output format: 'iso', 'date', 'time', 'datetime', 'unix', or a locale string (e.g. 'en-US')",
+      enum: ["iso", "date", "time", "datetime", "unix"],
+      description: "Output format: 'iso', 'date', 'time', 'datetime', 'unix'",
       default: "iso",
+    },
+    locale: {
+      type: "string",
+      title: "Locale",
+      description: "Locale string (e.g. 'en-US')",
+      default: "en-US",
     },
     timeZone: {
       type: "string",
@@ -66,7 +78,11 @@ export class DateFormatTask<
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  async executeReactive(
+    input: Input,
+    _output: Output,
+    _context: IExecuteReactiveContext
+  ): Promise<Output> {
     const dateInput = /^\d+$/.test(input.value) ? Number(input.value) : input.value;
     const date = new Date(dateInput);
 
@@ -75,6 +91,7 @@ export class DateFormatTask<
     }
 
     const format = input.format ?? "iso";
+    const locale = input.locale;
     const timeZone = input.timeZone;
     let result: string;
 
@@ -83,20 +100,17 @@ export class DateFormatTask<
         result = date.toISOString();
         break;
       case "date":
-        result = date.toLocaleDateString("en-US", timeZone ? { timeZone } : undefined);
+        result = date.toLocaleDateString(locale, timeZone ? { timeZone } : undefined);
         break;
       case "time":
-        result = date.toLocaleTimeString("en-US", timeZone ? { timeZone } : undefined);
-        break;
-      case "datetime":
-        result = date.toLocaleString("en-US", timeZone ? { timeZone } : undefined);
+        result = date.toLocaleTimeString(locale, timeZone ? { timeZone } : undefined);
         break;
       case "unix":
         result = String(date.getTime());
         break;
+      case "datetime":
       default:
-        // Treat format as a locale identifier
-        result = date.toLocaleString(format, timeZone ? { timeZone } : undefined);
+        result = date.toLocaleString(locale, timeZone ? { timeZone } : undefined);
         break;
     }
 

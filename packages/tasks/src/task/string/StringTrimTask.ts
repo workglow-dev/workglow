@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteReactiveContext,
+  Task,
+  TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const inputSchema = {
@@ -54,7 +60,11 @@ export class StringTrimTask<
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  async executeReactive(
+    input: Input,
+    output: Output,
+    _context: IExecuteReactiveContext
+  ): Promise<Output> {
     return { result: input.value.trim() } as Output;
   }
 }
