@@ -105,9 +105,17 @@ describe("HFTransformersBinding", () => {
       workflow.downloadModel({
         model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       });
-      workflow.run();
-      await sleep(1);
-      expect(await registeredQueue?.client.size()).toEqual(1);
+      workflow.run().catch(() => {});
+      // Poll until the job appears in the queue (the async chain from run() to
+      // storage.add() includes multiple async hops that can't be reliably covered
+      // by a fixed sleep duration)
+      let size = 0;
+      for (let i = 0; i < 100; i++) {
+        size = (await registeredQueue?.client.size()) ?? 0;
+        if (size > 0) break;
+        await sleep(10);
+      }
+      expect(size).toEqual(1);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
     });
@@ -172,9 +180,17 @@ describe("HFTransformersBinding", () => {
       workflow.downloadModel({
         model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       });
-      workflow.run();
-      await sleep(1);
-      expect(await registeredQueue?.client.size()).toEqual(1);
+      workflow.run().catch(() => {});
+      // Poll until the job appears in the queue (the async chain from run() to
+      // storage.add() includes multiple async hops that can't be reliably covered
+      // by a fixed sleep duration)
+      let size = 0;
+      for (let i = 0; i < 100; i++) {
+        size = (await registeredQueue?.client.size()) ?? 0;
+        if (size > 0) break;
+        await sleep(10);
+      }
+      expect(size).toEqual(1);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
     });
