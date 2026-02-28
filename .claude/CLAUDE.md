@@ -153,6 +153,8 @@ Each provider is a separate sub-export with optional peer dependencies:
 - `@workglow/ai-provider/llamacpp` — node-llama-cpp
 - `@workglow/ai-provider/tf-mediapipe` — TensorFlow MediaPipe (browser)
 
+**Important: `*_JobRunFns.ts` files execute inside workers.** Workers have an isolated runtime with a separate `globalServiceRegistry`. Do not access main-thread-only state (e.g., credential stores, service registries) from run functions. Instead, resolve such state in the task class on the main thread (e.g., `AiTask.getJobInput()`) and pass the resolved values through the serialized job input.
+
 ### `@workglow/util` — shared utilities
 
 `EventEmitter`, `ServiceRegistry` (DI), `DirectedAcyclicGraph`, `DataPortSchema`/`JsonSchema` types, `SchemaUtils`/`SchemaValidation`, `uuid4`, `sleep`, `WorkerManager`/`WorkerServer`, vector math, tensor types.
