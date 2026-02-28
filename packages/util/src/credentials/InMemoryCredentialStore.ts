@@ -39,7 +39,7 @@ export class InMemoryCredentialStore implements ICredentialStore {
       provider: options?.provider ?? existing?.metadata.provider,
       createdAt: existing?.metadata.createdAt ?? now,
       updatedAt: now,
-      expiresAt: options?.expiresAt,
+      expiresAt: options?.expiresAt ?? existing?.metadata.expiresAt,
     };
     this.store.set(key, { key, value, metadata });
   }

@@ -42,16 +42,14 @@ async function loadGeminiSDK() {
 
 async function getApiKey(model: GeminiModelConfig | undefined): Promise<string> {
   // Resolution order: credential store → explicit api_key → environment variable
-  const credentialKey = (model?.provider_config as Record<string, unknown>)?.credential_key as
-    | string
-    | undefined;
+  const credentialKey = model?.provider_config?.credential_key;
   const storedCredential = credentialKey ? await resolveCredential(credentialKey) : undefined;
 
   const apiKey =
-    storedCredential ||
-    model?.provider_config?.api_key ||
+    storedCredential ??
+    model?.provider_config?.api_key ??
     (typeof process !== "undefined"
-      ? process.env?.GOOGLE_API_KEY || process.env?.GEMINI_API_KEY
+      ? process.env?.GOOGLE_API_KEY ?? process.env?.GEMINI_API_KEY
       : undefined);
   if (!apiKey) {
     throw new Error(

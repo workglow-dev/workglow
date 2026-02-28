@@ -23,6 +23,9 @@ interface StoredCredential {
   readonly expiresAt: string | undefined;
 }
 
+/** Number of bytes used for the PBKDF2 salt prepended to each ciphertext. */
+const SALT_LENGTH = 16;
+
 /**
  * Derives a 256-bit AES-GCM key from a passphrase using PBKDF2.
  */
@@ -40,32 +43,65 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
   );
 }
 
-async function encrypt(plaintext: string, passphrase: string): Promise<{ encrypted: string; iv: string }> {
+/**
+ * Encrypts plaintext using AES-256-GCM with a random salt and IV.
+ * The salt is prepended to the ciphertext bytes and stored in the `encrypted` field
+ * so that decryption can reconstruct the same key.
+ *
+ * @param keyCache - Per-store cache of derived CryptoKey instances keyed by base64(salt).
+ */
+async function encrypt(
+  plaintext: string,
+  passphrase: string,
+  keyCache: Map<string, CryptoKey>
+): Promise<{ encrypted: string; iv: string }> {
   const enc = new TextEncoder();
-  // Use a fixed salt derived from the passphrase so we get a deterministic key
-  // (the random IV still ensures ciphertext uniqueness)
-  const salt = enc.encode(passphrase.padEnd(16, "\0").slice(0, 16));
-  const key = await deriveKey(passphrase, salt);
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+  const saltB64 = bufToBase64(salt);
+  let key = keyCache.get(saltB64);
+  if (!key) {
+    key = await deriveKey(passphrase, salt);
+    keyCache.set(saltB64, key);
+  }
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await crypto.subtle.encrypt(
+  const rawCiphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
     enc.encode(plaintext)
   );
+  // Prepend the salt to the ciphertext so decrypt can recover it.
+  const ciphertextBytes = new Uint8Array(rawCiphertext);
+  const combined = new Uint8Array(SALT_LENGTH + ciphertextBytes.length);
+  combined.set(salt, 0);
+  combined.set(ciphertextBytes, SALT_LENGTH);
   return {
-    encrypted: bufToBase64(new Uint8Array(ciphertext)),
+    encrypted: bufToBase64(combined),
     iv: bufToBase64(iv),
   };
 }
 
-async function decrypt(encrypted: string, iv: string, passphrase: string): Promise<string> {
-  const enc = new TextEncoder();
-  const salt = enc.encode(passphrase.padEnd(16, "\0").slice(0, 16));
-  const key = await deriveKey(passphrase, salt);
+/**
+ * @param keyCache - Per-store cache of derived CryptoKey instances keyed by base64(salt).
+ */
+async function decrypt(
+  encrypted: string,
+  iv: string,
+  passphrase: string,
+  keyCache: Map<string, CryptoKey>
+): Promise<string> {
+  const encryptedBuf = base64ToBuf(encrypted);
+  const salt = encryptedBuf.subarray(0, SALT_LENGTH);
+  const ciphertextBytes = encryptedBuf.subarray(SALT_LENGTH);
+  const saltB64 = bufToBase64(salt);
+  let key = keyCache.get(saltB64);
+  if (!key) {
+    key = await deriveKey(passphrase, salt);
+    keyCache.set(saltB64, key);
+  }
   const plainBuf = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: base64ToBuf(iv) as unknown as ArrayBuffer },
     key,
-    base64ToBuf(encrypted) as unknown as ArrayBuffer
+    ciphertextBytes as unknown as ArrayBuffer
   );
   return new TextDecoder().decode(plainBuf);
 }
@@ -106,8 +142,11 @@ function base64ToBuf(b64: string): Uint8Array {
  * ```
  */
 export class EncryptedKvCredentialStore implements ICredentialStore {
+  /** Per-instance cache of derived CryptoKey instances keyed by base64(salt). */
+  private readonly keyCache = new Map<string, CryptoKey>();
+
   constructor(
-    private readonly kv: IKvStorage<string, any, any>,
+    private readonly kv: IKvStorage<string, StoredCredential>,
     private readonly passphrase: string
   ) {
     if (!passphrase) {
@@ -124,14 +163,14 @@ export class EncryptedKvCredentialStore implements ICredentialStore {
       return undefined;
     }
 
-    return decrypt(raw.encrypted, raw.iv, this.passphrase);
+    return decrypt(raw.encrypted, raw.iv, this.passphrase, this.keyCache);
   }
 
   async put(key: string, value: string, options?: CredentialPutOptions): Promise<void> {
     const now = new Date();
     const existing = (await this.kv.get(key)) as StoredCredential | undefined;
 
-    const { encrypted, iv } = await encrypt(value, this.passphrase);
+    const { encrypted, iv } = await encrypt(value, this.passphrase, this.keyCache);
 
     const stored: StoredCredential = {
       encrypted,
@@ -140,7 +179,7 @@ export class EncryptedKvCredentialStore implements ICredentialStore {
       provider: options?.provider ?? existing?.provider,
       createdAt: existing?.createdAt ?? now.toISOString(),
       updatedAt: now.toISOString(),
-      expiresAt: options?.expiresAt?.toISOString(),
+      expiresAt: options?.expiresAt ? options.expiresAt.toISOString() : existing?.expiresAt,
     };
 
     await this.kv.put(key, stored);
@@ -172,12 +211,11 @@ export class EncryptedKvCredentialStore implements ICredentialStore {
     const now = new Date();
     const result: string[] = [];
     for (const entry of all) {
-      const record = entry as { key: string; value: StoredCredential };
-      if (record.value.expiresAt && new Date(record.value.expiresAt) <= now) {
-        await this.kv.delete(record.key);
+      if (entry.value.expiresAt && new Date(entry.value.expiresAt) <= now) {
+        await this.kv.delete(entry.key);
         continue;
       }
-      result.push(record.key);
+      result.push(entry.key);
     }
     return result;
   }
