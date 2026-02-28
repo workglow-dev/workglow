@@ -385,7 +385,11 @@ export class TaskGraphRunner {
     const dataflows = this.graph.getTargetDataflows(node.id);
     for (const dataflow of dataflows) {
       const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow);
-      // console.log("pushOutputFromNodeToEdges", dataflow.id, compatibility, Object.keys(results));
+      getLogger().debug("pushOutputFromNodeToEdges", {
+        dataflowId: dataflow.id,
+        compatibility,
+        resultsKeys: Object.keys(results),
+      });
       if (compatibility === "static") {
         dataflow.setPortData(results);
       } else if (compatibility === "runtime") {
@@ -393,7 +397,11 @@ export class TaskGraphRunner {
         const narrowed = await task.narrowInput({ ...results }, this.registry);
         dataflow.setPortData(narrowed);
       } else {
-        // don't push incompatible data
+        getLogger().warn("pushOutputFromNodeToEdges", {
+          dataflowId: dataflow.id,
+          compatibility,
+          resultsKeys: Object.keys(results),
+        });
       }
     }
   }

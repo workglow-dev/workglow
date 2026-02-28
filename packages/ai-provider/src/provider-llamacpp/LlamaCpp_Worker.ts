@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
+import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
 import {
   LLAMACPP_REACTIVE_TASKS,
   LLAMACPP_STREAM_TASKS,
@@ -20,5 +20,5 @@ export function LLAMACPP_WORKER_JOBRUN_REGISTER() {
     LLAMACPP_REACTIVE_TASKS
   ).registerOnWorkerServer(workerServer);
   workerServer.sendReady();
-  console.log("LLAMACPP_WORKER_JOBRUN registered");
+  getLogger().info("LLAMACPP_WORKER_JOBRUN registered");
 }

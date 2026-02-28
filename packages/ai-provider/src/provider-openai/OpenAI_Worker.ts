@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
+import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
 import {
   OPENAI_REACTIVE_TASKS,
   OPENAI_STREAM_TASKS,
@@ -20,5 +20,5 @@ export function OPENAI_WORKER_JOBRUN_REGISTER() {
     OPENAI_REACTIVE_TASKS
   ).registerOnWorkerServer(workerServer);
   workerServer.sendReady();
-  console.log("OPENAI_WORKER_JOBRUN registered");
+  getLogger().info("OPENAI_WORKER_JOBRUN registered");
 }
