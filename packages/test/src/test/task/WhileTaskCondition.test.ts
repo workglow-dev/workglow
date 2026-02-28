@@ -7,12 +7,16 @@
 import { Workflow } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 import { RefineTask } from "./TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // WhileTask with serialized whileConfig (conditionField/operator/value)
 // ============================================================================
 
 describe("WhileTask with serialized whileConfig", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("condition auto-building from extras", () => {
     it("should loop while conditionField less_than conditionValue", async () => {
       const workflow = new Workflow();

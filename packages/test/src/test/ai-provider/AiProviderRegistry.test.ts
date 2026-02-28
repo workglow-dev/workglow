@@ -21,6 +21,8 @@ import {
   TaskQueueRegistry,
 } from "@workglow/task-graph";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
 
@@ -28,6 +30,8 @@ const mock = vi.fn;
 const TEST_PROVIDER = "test-provider";
 
 describe("AiProviderRegistry", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let server: JobQueueServer<AiJobInput<TaskInput>, TaskOutput>;
   let client: JobQueueClient<AiJobInput<TaskInput>, TaskOutput>;
   let storage: IQueueStorage<AiJobInput<TaskInput>, TaskOutput>;

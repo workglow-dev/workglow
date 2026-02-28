@@ -7,8 +7,12 @@
 import { beforeEach, describe, expect, test } from "vitest";
 
 import { TestSmartCloneTask } from "./TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("Task.smartClone circular reference detection", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let task: TestSmartCloneTask;
 
   beforeEach(() => {

@@ -7,8 +7,12 @@
 import { TaskGraph, TaskStatus, Workflow } from "@workglow/task-graph";
 import { split, SplitTask } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("SplitTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   test("splits an array into individual outputs", async () => {
     const result = await split({
       input: [1, 2, 3, 4, 5],

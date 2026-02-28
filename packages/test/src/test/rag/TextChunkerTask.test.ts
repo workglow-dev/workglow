@@ -6,8 +6,12 @@
 
 import { ChunkingStrategy, textChunker } from "@workglow/ai";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("TextChunkerTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   const testText =
     "This is the first sentence. This is the second sentence! This is the third sentence? " +
     "This is the fourth sentence. This is the fifth sentence.";

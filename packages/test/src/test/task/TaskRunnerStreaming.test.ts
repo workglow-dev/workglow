@@ -12,9 +12,10 @@ import {
   isTaskStreamable,
   type StreamEvent,
 } from "@workglow/task-graph";
-import { DataPortSchema, sleep } from "@workglow/util";
+import { DataPortSchema, sleep, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { InMemoryTaskOutputRepository } from "../../binding/InMemoryTaskOutputRepository";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // Test Tasks
@@ -236,6 +237,8 @@ class TestStreamingCodeAppendTask extends Task<CodeTestInput, CodeTestOutput> {
 // ============================================================================
 
 describe("TaskRunner Streaming", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("Append Mode", () => {
     it("should emit stream_start, stream_chunk, and stream_end events", async () => {
       const task = new TestStreamingAppendTask({ prompt: "test" });

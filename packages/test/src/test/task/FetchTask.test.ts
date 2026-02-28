@@ -24,8 +24,9 @@ import {
   FetchUrlTaskInput,
   FetchUrlTaskOutput,
 } from "@workglow/tasks";
-import { sleep } from "@workglow/util";
+import { sleep, setLogger } from "@workglow/util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
 
@@ -47,6 +48,8 @@ const mockFetch = mock((input: RequestInfo | URL, init?: RequestInit) =>
 const oldFetch = global.fetch;
 
 describe("FetchUrlTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   beforeAll(() => {
     (global as any).fetch = mockFetch;
   });

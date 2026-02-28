@@ -9,10 +9,14 @@ import { Sqlite } from "@workglow/sqlite";
 import { SqliteQueueStorage, SqliteRateLimiterStorage } from "@workglow/storage";
 import { describe } from "vitest";
 import { runGenericJobQueueTests } from "./genericJobQueueTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const db = new Sqlite.Database(":memory:");
 
 describe("SqliteJobQueue", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericJobQueueTests(
     (queueName: string) => new SqliteQueueStorage(db, queueName),
     async (queueName: string, maxExecutions: number, windowSizeInSeconds: number) => {

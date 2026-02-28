@@ -29,11 +29,15 @@ import {
   type TaskOutput,
 } from "@workglow/task-graph";
 import { beforeEach, describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const TEST_IMAGE_BASE64 =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
 
 describe("Zero-Shot Classification Tasks", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   beforeEach(() => {
     setTaskQueueRegistry(null);
     clearPipelineCache();

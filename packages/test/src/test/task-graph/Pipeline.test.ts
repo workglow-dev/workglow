@@ -13,6 +13,8 @@ import {
   PipelineDoubleTask as DoubleTask,
   PipelineSquareTask as SquareTask,
 } from "../task/TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 /**
  * Example workflow test that demonstrates the use of pipe()
@@ -23,6 +25,8 @@ import {
  * 4. Square the value
  */
 describe("Pipeline", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("should run the pipe()", async () => {
     // Create our tasks
     const doubleTask = new DoubleTask({ value: 3 });

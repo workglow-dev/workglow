@@ -16,6 +16,8 @@ import {
 import { describe, expect, test } from "vitest";
 
 import { DoubleToResultTask, TestGraphAsTask, TestTaskWithDefaults } from "./TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // Register test tasks
 TaskRegistry.registerTask(DoubleToResultTask);
@@ -23,6 +25,8 @@ TaskRegistry.registerTask(TestTaskWithDefaults);
 TaskRegistry.registerTask(TestGraphAsTask);
 
 describe("TaskJSON", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("Task.toJSON()", () => {
     test("should serialize a simple task to JSON", () => {
       const task = new DoubleToResultTask({ value: 42 }, { id: "task1", title: "My Task" });

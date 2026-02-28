@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { parsePartialJson } from "@workglow/util";
+import { parsePartialJson, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("parsePartialJson", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("complete JSON", () => {
     it("should parse a complete JSON object", () => {
       expect(parsePartialJson('{"name":"Alice","age":30}')).toEqual({

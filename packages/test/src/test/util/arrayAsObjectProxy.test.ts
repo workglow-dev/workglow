@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { objectOfArraysAsArrayOfObjects } from "@workglow/util";
+import { objectOfArraysAsArrayOfObjects, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("Object of arrays to array of objects proxy", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("should return the initial length and numeric index access", () => {
     const data = { id: [1, 2, 3], name: ["Alice", "Bob", "Charlie"] };
     const proxy = objectOfArraysAsArrayOfObjects(data);

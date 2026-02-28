@@ -11,8 +11,12 @@ import {
 } from "@workglow/storage";
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("IndexedDbTable - Migration Tests", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   const testTableName = "migration_test_table";
 
   afterEach(async () => {

@@ -5,10 +5,13 @@
  */
 
 import { vectorQuantize } from "@workglow/ai";
-import { TensorType } from "@workglow/util";
+import { TensorType, setLogger } from "@workglow/util";
 import { describe, expect, test } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("VectorQuantizeTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   const testVector = new Float32Array([0.5, -0.5, 0.8, -0.3, 0.0, 1.0, -1.0]);
 
   test("should quantize to INT8", async () => {

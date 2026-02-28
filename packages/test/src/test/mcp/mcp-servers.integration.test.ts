@@ -22,6 +22,8 @@ import {
   type McpToolCallTaskConfig,
 } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 /** Assert task run result to expected output type (workaround for generic inference in test.each) */
 function asListOutput<T>(v: unknown): T {
@@ -85,6 +87,8 @@ function buildMinimalPromptArgs(
 }
 
 describe("MCP servers integration", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   test.concurrent.each(MCP_SERVERS)(
     "$name lists tools",
     async ({ name, url }) => {

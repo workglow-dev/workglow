@@ -5,11 +5,12 @@
  */
 
 import { PGlite } from "@electric-sql/pglite";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import { Pool } from "pg";
 import { describe } from "vitest";
 import { PostgresModelRepository } from "../../binding/PostgresModelRepository";
 import { runGenericModelRepositoryTests } from "./genericModelRepositoryTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const db = new PGlite() as unknown as Pool;
 
@@ -19,5 +20,7 @@ async function createPostgresModelRepository() {
 }
 
 describe("PostgresModelRepository", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericModelRepositoryTests(createPostgresModelRepository);
 });

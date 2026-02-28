@@ -8,10 +8,13 @@ import "@workglow/ai"; // Trigger Workflow prototype extensions
 import type { ChunkToVectorTaskOutput, HierarchicalChunkerTaskOutput } from "@workglow/ai";
 import { type ChunkNode, StructuralParser } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkToVectorTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("should transform chunks and vectors to vector store format", async () => {
     const markdown = "# Test\n\nContent.";
     const doc_id = uuid4();

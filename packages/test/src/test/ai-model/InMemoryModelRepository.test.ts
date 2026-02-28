@@ -7,7 +7,11 @@
 import { InMemoryModelRepository } from "@workglow/ai";
 import { describe } from "vitest";
 import { runGenericModelRepositoryTests } from "./genericModelRepositoryTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("InMemoryModelRepository", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericModelRepositoryTests(async () => new InMemoryModelRepository());
 });

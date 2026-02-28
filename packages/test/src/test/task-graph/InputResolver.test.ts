@@ -17,10 +17,14 @@ import {
   globalServiceRegistry,
   registerInputResolver,
   type DataPortSchema,
+  setLogger,
 } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("InputResolver", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   // Test schema for tabular repository
   const testEntitySchema = {
     type: "object",

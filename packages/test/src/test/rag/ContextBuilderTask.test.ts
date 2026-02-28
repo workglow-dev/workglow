@@ -6,8 +6,12 @@
 
 import { ContextFormat, contextBuilder } from "@workglow/ai";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ContextBuilderTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   const testChunks = [
     "First chunk of text about artificial intelligence.",
     "Second chunk discussing machine learning algorithms.",

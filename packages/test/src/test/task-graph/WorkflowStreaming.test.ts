@@ -12,8 +12,9 @@ import {
   type StreamEvent,
   type TaskIdType,
 } from "@workglow/task-graph";
-import { DataPortSchema, sleep } from "@workglow/util";
+import { DataPortSchema, sleep, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // Test Tasks
@@ -87,6 +88,8 @@ class WFNonStreamSink extends Task<{ text: string }, TextOutput> {
 // ============================================================================
 
 describe("Workflow Streaming Events", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("should emit stream_start on the workflow when a task begins streaming", async () => {
     const workflow = new Workflow();
 

@@ -18,7 +18,7 @@ import {
   TaskRegistry,
   TaskStatus,
 } from "@workglow/task-graph";
-import { sleep } from "@workglow/util";
+import { sleep, setLogger } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   FailingTask,
@@ -27,10 +27,13 @@ import {
   TestDoubleTask,
   TestSquareTask,
 } from "../task/TestTasks";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 TaskRegistry.all.clear();
 
 describe("TaskSubGraphRunner", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let runner: TaskGraphRunner;
   let graph: TaskGraph;
 

@@ -2,8 +2,9 @@
 // previous fork: https://github.com/sroussey/typescript-graph
 // license: MIT
 
-import { Graph, NodeAlreadyExistsError, NodeDoesntExistError, serialize } from "@workglow/util";
+import { Graph, NodeAlreadyExistsError, NodeDoesntExistError, serialize, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // Simple synchronous hash (FNV-1a 32-bit) for strings / bytes.
 // Non-cryptographic, use only for IDs / maps / cache keys etc.
@@ -63,6 +64,8 @@ export const edgeIdentity = (edge: any, node1Identity: any, node2Identity: any) 
  */
 
 describe("Graph", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("can be instantiated", () => {
     expect(new Graph<Record<string, any>>(nodeIdentity, edgeIdentity)).toBeInstanceOf(Graph);
     expect(

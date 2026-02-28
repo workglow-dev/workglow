@@ -7,11 +7,14 @@
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import { describe } from "vitest";
 import { runGenericTaskGraphJobQueueTests, TestJob } from "./genericTaskGraphJobQueueTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("InMemoryTaskGraphJobQueue", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericTaskGraphJobQueueTests(async () => {
     const queueName = `inMemory_test_queue_${uuid4()}`;
     const storage = new InMemoryQueueStorage<TaskInput, TaskOutput>(queueName);

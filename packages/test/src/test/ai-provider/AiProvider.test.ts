@@ -19,6 +19,8 @@ import {
   TaskQueueRegistry,
 } from "@workglow/task-graph";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
 
@@ -59,6 +61,8 @@ class StaticTaskTypesProvider extends AiProvider {
 }
 
 describe("AiProvider", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let aiProviderRegistry: AiProviderRegistry;
 
   beforeEach(async () => {

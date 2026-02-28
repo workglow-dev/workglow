@@ -14,8 +14,9 @@ import {
   TaskStatus,
   type StreamEvent,
 } from "@workglow/task-graph";
-import { DataPortSchema, sleep } from "@workglow/util";
+import { DataPortSchema, sleep, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // Test Tasks for DAG streaming
@@ -237,6 +238,8 @@ class ReplaceSourceTask extends Task<TextInput, TextOutput> {
 // ============================================================================
 
 describe("TaskGraph Streaming", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let graph: TaskGraph;
   let runner: TaskGraphRunner;
 

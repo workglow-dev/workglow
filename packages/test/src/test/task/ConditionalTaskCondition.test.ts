@@ -7,12 +7,16 @@
 import type { UIConditionConfig } from "@workglow/task-graph";
 import { ConditionalTask } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // ConditionalTask with serialized conditionConfig
 // ============================================================================
 
 describe("ConditionalTask with serialized conditionConfig", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("conditionConfig from input", () => {
     it("should route to matching branch based on field/operator/value", async () => {
       const task = new ConditionalTask(

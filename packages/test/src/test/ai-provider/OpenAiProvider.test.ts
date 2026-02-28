@@ -21,6 +21,8 @@ import {
   setTaskQueueRegistry,
 } from "@workglow/task-graph";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mockCreate = vi.fn();
 const mockEmbeddingsCreate = vi.fn();
@@ -49,6 +51,8 @@ const noopProgress = () => {};
 const abortSignal = new AbortController().signal;
 
 describe("OpenAiProvider", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let registry: AiProviderRegistry;
 
   beforeEach(() => {

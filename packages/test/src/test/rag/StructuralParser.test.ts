@@ -6,8 +6,12 @@
 
 import { NodeKind, StructuralParser } from "@workglow/dataset";
 import { describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("StructuralParser", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("Markdown parsing", () => {
     it("should parse markdown with headers into hierarchical tree", async () => {
       const markdown = `# Main Title

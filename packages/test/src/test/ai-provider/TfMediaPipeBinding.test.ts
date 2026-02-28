@@ -38,10 +38,14 @@
 // } from "@workglow/task-graph";
 // import { sleep } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // const db = new Sqlite.Database(":memory:");
 
 describe("TfMediaPipeBinding", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("should skip media pipe tests", () => {
     expect(true).toBe(true);
   });

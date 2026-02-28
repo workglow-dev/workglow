@@ -21,8 +21,12 @@ import {
   UuidPrimaryKeyNames,
   UuidSchema,
 } from "./genericTabularRepositoryTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("InMemoryTabularStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericTabularRepositoryTests(
     async () =>
       new InMemoryTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(

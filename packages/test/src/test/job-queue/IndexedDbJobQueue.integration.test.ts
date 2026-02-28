@@ -9,8 +9,12 @@ import { IndexedDbQueueStorage, IndexedDbRateLimiterStorage } from "@workglow/st
 import "fake-indexeddb/auto";
 import { describe } from "vitest";
 import { runGenericJobQueueTests } from "./genericJobQueueTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("IndexedDbJobQueue", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericJobQueueTests(
     (queueName: string) => new IndexedDbQueueStorage(queueName),
     async (queueName: string, maxExecutions: number, windowSizeInSeconds: number) => {

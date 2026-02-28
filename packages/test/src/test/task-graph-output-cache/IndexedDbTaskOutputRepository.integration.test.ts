@@ -4,13 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import "fake-indexeddb/auto";
 import { describe } from "vitest";
 import { IndexedDbTaskOutputRepository } from "../../binding/IndexedDbTaskOutputRepository";
 import { runGenericTaskOutputRepositoryTests } from "./genericTaskOutputRepositoryTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("IndexedDbTaskOutputRepository", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericTaskOutputRepositoryTests(async () => {
     const id = uuid4().replace(/-/g, "_");
     const dbName = `idx_test_${id}`;

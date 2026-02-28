@@ -17,8 +17,9 @@ import {
   TaskStatus,
 } from "@workglow/task-graph";
 import { ArrayTask } from "@workglow/tasks";
-import { ConvertAllToOptionalArray, DataPortSchema } from "@workglow/util";
+import { ConvertAllToOptionalArray, DataPortSchema, setLogger } from "@workglow/util";
 import { describe, expect, test, vi } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const spyOn = vi.spyOn;
 
@@ -391,6 +392,8 @@ class QueryAppendTask extends ArrayTask<
 }
 
 describe("ArrayTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   test("MultiplyRunTask in task mode run plain", async () => {
     const task = new MultiplyRunTask({
       a: 4,

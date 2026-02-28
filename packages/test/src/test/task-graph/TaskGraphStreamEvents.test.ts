@@ -13,8 +13,9 @@ import {
   type StreamEvent,
   type TaskIdType,
 } from "@workglow/task-graph";
-import { DataPortSchema, sleep } from "@workglow/util";
+import { DataPortSchema, sleep, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // Test Tasks
@@ -88,6 +89,8 @@ class NonStreamTask extends Task<{ text: string }, TextOutput> {
 // ============================================================================
 
 describe("TaskGraph Stream Events", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("task_stream_start / task_stream_chunk / task_stream_end on TaskGraph", () => {
     it("should emit task_stream_start when a streaming task begins", async () => {
       const graph = new TaskGraph();

@@ -9,6 +9,8 @@ import { describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStorageTests";
 import { runGenericQueueStorageSubscriptionTests } from "./genericQueueStorageSubscriptionTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const client = createSupabaseMockClient();
 
@@ -21,6 +23,8 @@ class SupabaseQueueStorageWithPolling<Input, Output> extends SupabaseQueueStorag
 }
 
 describe("SupabasePrefixedQueueStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericPrefixedQueueStorageTests(
     (queueName: string, options) => new SupabaseQueueStorage(client, queueName, options)
   );

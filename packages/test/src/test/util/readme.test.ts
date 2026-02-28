@@ -2,11 +2,14 @@
 // previous fork: https://github.com/sroussey/typescript-graph
 // license: MIT
 
-import { DirectedAcyclicGraph, DirectedGraph, Graph } from "@workglow/util";
+import { DirectedAcyclicGraph, DirectedGraph, Graph, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { edgeIdentity } from "./graph.test";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("The Readme", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("runs the first example correctly", () => {
     // Identify the node type to be used with the graph
     interface NodeType {

@@ -7,8 +7,12 @@
 import { TaskGraph, TaskStatus, Workflow } from "@workglow/task-graph";
 import { javaScript, JavaScriptTask } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("JavaScriptTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   test("executes simple JavaScript code", async () => {
     const result = await javaScript({
       javascript_code: "1 + 1",

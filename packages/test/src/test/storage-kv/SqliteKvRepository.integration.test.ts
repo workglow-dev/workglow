@@ -5,11 +5,14 @@
  */
 
 import { SqliteKvStorage } from "@workglow/storage";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import { describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("SqliteKvStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericKvRepositoryTests(
     async (keyType, valueType) =>
       new SqliteKvStorage(":memory:", `sql_test_${uuid4().replace(/-/g, "_")}`, keyType, valueType)

@@ -10,10 +10,14 @@ import { PostgresQueueStorage, PostgresRateLimiterStorage } from "@workglow/stor
 import { Pool } from "pg";
 import { describe } from "vitest";
 import { runGenericJobQueueTests } from "./genericJobQueueTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const db = new PGlite() as unknown as Pool;
 
 describe("PostgresJobQueue", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericJobQueueTests(
     (queueName: string) => new PostgresQueueStorage(db, queueName),
     async (queueName: string, maxExecutions: number, windowSizeInSeconds: number) => {

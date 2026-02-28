@@ -36,12 +36,15 @@ import {
   TaskOutput,
   Workflow,
 } from "@workglow/task-graph";
-import { sleep } from "@workglow/util";
+import { sleep, setLogger } from "@workglow/util";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const db = new Sqlite.Database(":memory:");
 
 describe("HFTransformersBinding", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   beforeEach(() => {
     setTaskQueueRegistry(null);
   });

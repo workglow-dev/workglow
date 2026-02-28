@@ -7,8 +7,12 @@
 import { TaskGraph, TaskStatus, Workflow } from "@workglow/task-graph";
 import { merge, MergeTask } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("MergeTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   test("merges multiple inputs into a single array", async () => {
     const result = await merge({
       input_0: 1,

@@ -14,8 +14,12 @@ import {
 } from "@workglow/dataset";
 import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkVectorSearchTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let storage: InMemoryVectorStorage<
     typeof DocumentChunkSchema,
     typeof DocumentChunkPrimaryKey,

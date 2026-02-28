@@ -9,10 +9,14 @@ import { SupabaseQueueStorage, SupabaseRateLimiterStorage } from "@workglow/stor
 import { describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericJobQueueTests } from "./genericJobQueueTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const client = createSupabaseMockClient();
 
 describe("SupabaseJobQueue", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericJobQueueTests(
     (queueName: string) => new SupabaseQueueStorage(client, queueName),
     async (queueName: string, maxExecutions: number, windowSizeInSeconds: number) => {

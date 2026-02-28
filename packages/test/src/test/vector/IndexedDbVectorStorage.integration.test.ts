@@ -7,8 +7,9 @@
 import "fake-indexeddb/auto";
 import { IndexedDbVectorStorage } from "@workglow/storage";
 import type { DataPortSchemaObject } from "@workglow/util";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const VectorSchema = {
   type: "object",
@@ -32,6 +33,8 @@ type VectorEntity = {
 const VectorPrimaryKey = ["chunk_id"] as const;
 
 describe("IndexedDbVectorStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   const dbName = `idx_vec_test_${uuid4().replace(/-/g, "_")}`;
   let storage: IndexedDbVectorStorage<
     typeof VectorSchema,

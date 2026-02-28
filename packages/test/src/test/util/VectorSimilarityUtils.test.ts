@@ -9,10 +9,14 @@ import {
   jaccardSimilarity,
   hammingDistance,
   hammingSimilarity,
+  setLogger,
 } from "@workglow/util";
 import { describe, expect, test } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("VectorSimilarityUtils", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("cosineSimilarity", () => {
     test("should calculate cosine similarity for identical vectors", () => {
       const a = new Float32Array([1, 2, 3, 4]);

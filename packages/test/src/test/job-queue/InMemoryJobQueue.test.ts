@@ -8,8 +8,12 @@ import { RateLimiter } from "@workglow/job-queue";
 import { InMemoryQueueStorage, InMemoryRateLimiterStorage } from "@workglow/storage";
 import { describe } from "vitest";
 import { runGenericJobQueueTests } from "./genericJobQueueTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("InMemoryJobQueue", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericJobQueueTests(
     (queueName: string) => new InMemoryQueueStorage(queueName),
     (queueName: string, maxExecutions: number, windowSizeInSeconds: number) =>

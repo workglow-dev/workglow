@@ -14,10 +14,14 @@ import {
   SearchPrimaryKeyNames,
   SearchSchema,
 } from "./genericTabularRepositoryTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const spyOn = vi.spyOn;
 
 describe("CachedTabularStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("generic repository tests", () => {
     runGenericTabularRepositoryTests(
       async () => {

@@ -23,6 +23,8 @@ import {
   PlainStringProviderTask,
   TextGenerationModelProviderTask,
 } from "../task/TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 /**
  * Test model fixtures for embedding models
@@ -89,6 +91,8 @@ async function createTestRegistry(models: ModelRecord[]): Promise<ServiceRegistr
 }
 
 describe("TaskGraph with format annotations", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let graph: TaskGraph;
 
   beforeEach(() => {

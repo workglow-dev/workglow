@@ -5,9 +5,10 @@
  */
 
 import { IndexedDbQueueStorage, IndexedDbTabularStorage } from "@workglow/storage";
-import { sleep, uuid4 } from "@workglow/util";
+import { sleep, uuid4, setLogger } from "@workglow/util";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 /**
  * Integration tests for HybridSubscriptionManager with IndexedDB implementations
@@ -16,6 +17,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
  */
 
 describe("IndexedDB Hybrid Subscription Integration", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("IndexedDbTabularStorage with HybridSubscriptionManager", () => {
     const schema = {
       type: "object" as const,

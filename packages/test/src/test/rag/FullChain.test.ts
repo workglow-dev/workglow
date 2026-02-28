@@ -6,13 +6,16 @@
 
 import { HierarchicalChunkerTaskOutput } from "@workglow/ai";
 import { ChunkNode, DocumentChunkPrimaryKey, DocumentChunkSchema } from "@workglow/dataset";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import { InMemoryVectorStorage } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { beforeAll, describe, expect, it } from "vitest";
 import { registerTasks } from "../../binding/RegisterTasks";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("Complete chainable workflow", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   beforeAll(async () => {
     registerTasks();
   });

@@ -6,12 +6,16 @@
 
 // Import directly from source to avoid ambiguous export issue
 import { FileLoaderTask } from "@workglow/tasks";
+import { setLogger } from "@workglow/util";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("FileLoaderTask (server - local files)", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let testDir: string;
 
   beforeEach(() => {
@@ -481,6 +485,8 @@ layout: docs
 ---
 
 import { Button } from './Button';
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 # Component Page`;
     const filePath = join(testDir, "page.mdx");

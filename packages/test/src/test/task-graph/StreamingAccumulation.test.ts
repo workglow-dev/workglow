@@ -34,9 +34,10 @@ import {
   TaskStatus,
   type StreamEvent,
 } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util";
+import { DataPortSchema, setLogger } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InMemoryTaskOutputRepository } from "../../binding/InMemoryTaskOutputRepository";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // Test task definitions
@@ -244,6 +245,8 @@ function makeGraph(): { graph: TaskGraph; runner: TaskGraphRunner } {
 // ============================================================================
 
 describe("Source-task streaming accumulation", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("TaskRunner: shouldAccumulate flag", () => {
     it("should emit enriched finish event when shouldAccumulate=true (default)", async () => {
       const task = new AppendTask({ prompt: "test" });

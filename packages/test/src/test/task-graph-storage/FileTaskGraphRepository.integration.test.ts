@@ -9,10 +9,14 @@ import { rmSync } from "fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { FsFolderTaskGraphRepository } from "../../binding/FsFolderTaskGraphRepository";
 import { TestIOTask } from "../task/TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 TaskRegistry.registerTask(TestIOTask);
 
 describe("FsFolderTaskGraphRepository", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let repository: FsFolderTaskGraphRepository;
 
   beforeEach(() => {

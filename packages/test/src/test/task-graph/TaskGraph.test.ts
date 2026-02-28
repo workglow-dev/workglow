@@ -7,8 +7,12 @@
 import { Dataflow, serialGraph, TaskGraph, TaskStatus } from "@workglow/task-graph";
 import { beforeEach, describe, expect, it } from "vitest";
 import { TestIOTask } from "../task/TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("TaskGraph", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let graph = new TaskGraph();
   let tasks: TestIOTask[];
 

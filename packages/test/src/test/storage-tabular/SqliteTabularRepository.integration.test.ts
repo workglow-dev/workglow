@@ -5,7 +5,7 @@
  */
 
 import { SqliteTabularStorage } from "@workglow/storage";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import { describe } from "vitest";
 import {
   AllTypesPrimaryKeyNames,
@@ -21,8 +21,11 @@ import {
   UuidPrimaryKeyNames,
   UuidSchema,
 } from "./genericTabularRepositoryTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("SqliteTabularStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericTabularRepositoryTests(
     async () =>
       new SqliteTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(

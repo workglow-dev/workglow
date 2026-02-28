@@ -5,8 +5,9 @@
  */
 
 import { ChangePayloadFactory, HybridSubscriptionManager } from "@workglow/storage";
-import { sleep } from "@workglow/util";
+import { sleep, setLogger } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 interface TestItem {
   readonly id: string;
@@ -19,6 +20,8 @@ type TestChangePayload =
   | { readonly type: "DELETE"; readonly old: TestItem };
 
 describe("HybridSubscriptionManager", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let currentState: Map<string, TestItem>;
   let fetchStateCalls = 0;
 

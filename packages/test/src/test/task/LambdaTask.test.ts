@@ -7,8 +7,12 @@
 import { TaskGraph, Workflow } from "@workglow/task-graph";
 import { lambda, LambdaTask } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("LambdaTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   test("in command mode", async () => {
     const results = await lambda(
       { data: null },

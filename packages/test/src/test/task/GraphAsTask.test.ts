@@ -5,7 +5,7 @@
  */
 
 import { Dataflow, GraphAsTask, TaskGraph } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util";
+import { DataPortSchema, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,8 +18,11 @@ import {
   TestGraphAsTask_AB,
   TestGraphAsTask_Value,
 } from "./TestTasks";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("GraphAsTask Dynamic Schema", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("Input Schema Calculation", () => {
     it("should calculate input schema from unconnected inputs of starting nodes", () => {
       // Create a graph with TaskA -> TaskB

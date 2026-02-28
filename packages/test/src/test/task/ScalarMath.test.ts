@@ -6,19 +6,27 @@
 
 import { ScalarAddTask, ScalarSumTask } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
-describe("ScalarAddTask", () => {
-  test("adds two numbers using sumPrecise", async () => {
-    const task = new ScalarAddTask();
-    const result = await task.run({ a: 1.1, b: 2.2 });
-    expect(result.result).toBeCloseTo(3.3);
-  });
-});
+describe("ScalarMath", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
 
-describe("ScalarSumTask", () => {
-  test("sums array of numbers", async () => {
-    const task = new ScalarSumTask();
-    const result = await task.run({ values: [1, 2, 3, 4, 5] });
-    expect(result.result).toBe(15);
+  describe("ScalarAddTask", () => {
+    test("adds two numbers using sumPrecise", async () => {
+      const task = new ScalarAddTask();
+      const result = await task.run({ a: 1.1, b: 2.2 });
+      expect(result.result).toBeCloseTo(3.3);
+    });
   });
+
+  describe("ScalarSumTask", () => {
+    test("sums array of numbers", async () => {
+      const task = new ScalarSumTask();
+      const result = await task.run({ values: [1, 2, 3, 4, 5] });
+      expect(result.result).toBe(15);
+    });
+  });
+
 });

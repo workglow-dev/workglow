@@ -5,10 +5,13 @@
  */
 
 import type { JsonSchema } from "@workglow/util";
-import { areObjectSchemasSemanticallyCompatible, areSemanticallyCompatible } from "@workglow/util";
+import { areObjectSchemasSemanticallyCompatible, areSemanticallyCompatible, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("SchemaUtils", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("areSemanticallyCompatible", () => {
     describe("boolean schemas", () => {
       it("should return incompatible when target is false", () => {

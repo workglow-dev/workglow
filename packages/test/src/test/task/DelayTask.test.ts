@@ -7,8 +7,12 @@
 import { TaskAbortedError, TaskStatus } from "@workglow/task-graph";
 import { DelayTask } from "@workglow/tasks";
 import { beforeEach, describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("DelayTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let task: DelayTask;
 
   beforeEach(() => {

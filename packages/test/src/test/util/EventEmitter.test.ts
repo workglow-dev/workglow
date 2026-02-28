@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EventEmitter } from "@workglow/util";
+import { EventEmitter, setLogger } from "@workglow/util";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
 
@@ -17,6 +18,8 @@ interface TestEvents extends Record<string, (...args: any) => any> {
 }
 
 describe("EventEmitter", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let emitter: EventEmitter<TestEvents>;
 
   beforeEach(() => {

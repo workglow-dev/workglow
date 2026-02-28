@@ -8,8 +8,12 @@ import { InMemoryQueueStorage } from "@workglow/storage";
 import { describe } from "vitest";
 import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStorageTests";
 import { runGenericQueueStorageSubscriptionTests } from "./genericQueueStorageSubscriptionTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("InMemoryPrefixedQueueStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   runGenericPrefixedQueueStorageTests(
     (queueName: string, options) => new InMemoryQueueStorage(queueName, options)
   );

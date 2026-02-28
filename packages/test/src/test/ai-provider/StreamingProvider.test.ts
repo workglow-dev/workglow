@@ -23,12 +23,16 @@ import {
   type StreamEvent,
 } from "@workglow/task-graph";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
 
 const MOCK_PROVIDER = "mock-streaming-provider";
 
 describe("Streaming Provider", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let server: JobQueueServer<AiJobInput<TaskInput>, TaskOutput>;
   let client: JobQueueClient<AiJobInput<TaskInput>, TaskOutput>;
   let storage: IQueueStorage<AiJobInput<TaskInput>, TaskOutput>;

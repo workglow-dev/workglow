@@ -7,10 +7,14 @@
 import { Task, TaskAbortedError, TaskError, TaskStatus } from "@workglow/task-graph";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EventTestTask, SimpleProcessingTask, TestIOTask } from "./TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const spyOn = vi.spyOn;
 
 describe("SingleTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("TestIOTask", () => {
     it("should create with input data and run the task", async () => {
       const input = { key: "value" };

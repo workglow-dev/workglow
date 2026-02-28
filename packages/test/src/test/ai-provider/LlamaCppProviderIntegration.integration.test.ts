@@ -31,6 +31,8 @@ import {
 } from "@workglow/ai-provider/llamacpp";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ========================================================================
 // Model definitions (tiny models suitable for testing)
@@ -78,6 +80,8 @@ const embeddingModel: LlamaCppModelRecord = {
 // ========================================================================
 
 describe("LlamaCpp Integration (real models, no mocks)", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   beforeAll(async () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());

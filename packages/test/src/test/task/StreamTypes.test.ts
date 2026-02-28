@@ -26,8 +26,12 @@ import {
 } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
 import { describe, expect, it } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("StreamTypes", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("StreamMode", () => {
     it("should accept 'none' as a valid StreamMode", () => {
       const mode: StreamMode = "none";

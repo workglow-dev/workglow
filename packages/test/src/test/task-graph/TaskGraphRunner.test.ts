@@ -15,7 +15,7 @@ import {
   TaskOutput,
   TaskStatus,
 } from "@workglow/task-graph";
-import { sleep } from "@workglow/util";
+import { sleep, setLogger } from "@workglow/util";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FailingTask,
@@ -25,10 +25,13 @@ import {
   TestIOTask,
   TestSquareTask,
 } from "../task/TestTasks";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const spyOn = vi.spyOn;
 
 describe("TaskGraphRunner", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let runner: TaskGraphRunner;
   let graph: TaskGraph;
   let nodes: ITask[];

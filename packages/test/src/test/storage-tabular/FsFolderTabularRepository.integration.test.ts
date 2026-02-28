@@ -17,10 +17,14 @@ import {
   SearchPrimaryKeyNames,
   SearchSchema,
 } from "./genericTabularRepositoryTests";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const testDir = ".cache/test/testing";
 
 describe("FsFolderTabularStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   beforeEach(() => {
     try {
       mkdirSync(testDir, { recursive: true });

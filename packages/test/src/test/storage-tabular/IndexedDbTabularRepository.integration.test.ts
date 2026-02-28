@@ -6,7 +6,7 @@
 
 import { IndexedDbTabularStorage } from "@workglow/storage";
 import type { DataPortSchemaObject, FromSchema } from "@workglow/util";
-import { uuid4 } from "@workglow/util";
+import { uuid4, setLogger } from "@workglow/util";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -25,8 +25,11 @@ import {
   UuidPrimaryKeyNames,
   UuidSchema,
 } from "./genericTabularRepositoryTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("IndexedDbTabularStorage", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   const dbName = `idx_test_${uuid4().replace(/-/g, "_")}`;
 
   runGenericTabularRepositoryTests(

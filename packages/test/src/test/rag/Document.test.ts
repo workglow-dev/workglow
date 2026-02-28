@@ -7,8 +7,12 @@
 import type { ChunkNode, DocumentNode } from "@workglow/dataset";
 import { Document, NodeKind } from "@workglow/dataset";
 import { describe, expect, test } from "vitest";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("Document", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   const createTestDocumentNode = (): DocumentNode => ({
     nodeId: "root",
     kind: NodeKind.DOCUMENT,

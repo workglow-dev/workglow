@@ -2,15 +2,18 @@
 // previous fork: https://github.com/sroussey/typescript-graph
 // license: MIT
 
-import { CycleError, DirectedAcyclicGraph, DirectedGraph } from "@workglow/util";
+import { CycleError, DirectedAcyclicGraph, DirectedGraph, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { edgeIdentity, nodeIdentity } from "./graph.test";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 /***
  * Directed Acyclic Graph test
  */
 
 describe("Directed Acyclic Graph", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("can be instantiated", () => {
     expect(
       new DirectedAcyclicGraph<Record<string, unknown>>(nodeIdentity, edgeIdentity)

@@ -23,6 +23,8 @@ import {
   GraphAsTask_TaskC,
   TestGraphAsTask,
 } from "./TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // Register test tasks
 TaskRegistry.registerTask(DoubleToResultTask);
@@ -32,6 +34,8 @@ TaskRegistry.registerTask(GraphAsTask_TaskC);
 TaskRegistry.registerTask(TestGraphAsTask);
 
 describe("Boundary Nodes", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("TaskGraph.toJSON({ withBoundaryNodes: true })", () => {
     it("should add InputTask and OutputTask boundary nodes for a simple linear graph", () => {
       const graph = new TaskGraph();

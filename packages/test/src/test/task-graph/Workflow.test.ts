@@ -15,7 +15,13 @@ import {
   Workflow,
   WorkflowError,
 } from "@workglow/task-graph";
-import { InputTask, OutputTask, ScalarAddTask, VectorSubtractTask, VectorSumTask } from "@workglow/tasks";
+import {
+  InputTask,
+  OutputTask,
+  ScalarAddTask,
+  VectorSubtractTask,
+  VectorSumTask,
+} from "@workglow/tasks";
 import { getLogger, NullLogger, setLogger, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -27,11 +33,14 @@ import {
   TestSimpleTask,
 } from "../task/TestTasks";
 // Import to register vector test tasks with the workflow system
+import { getTestingLogger } from "../../binding/TestingLogger";
 import "../task/TestTasks";
 
 const spyOn = vi.spyOn;
 
 describe("Workflow", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let workflow: Workflow;
   let savedLogger: ReturnType<typeof getLogger>;
 

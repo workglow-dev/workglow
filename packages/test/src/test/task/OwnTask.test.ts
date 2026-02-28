@@ -2,8 +2,12 @@ import { Task } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
 import { TaskCreatorTask } from "./TestTasks";
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("Task own functionality", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("TaskCreatorTask", () => {
     it("should add created tasks to subgraph during execution", async () => {
       const task = new TaskCreatorTask();

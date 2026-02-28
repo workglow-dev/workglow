@@ -5,9 +5,10 @@
  */
 
 import { IExecuteContext, Task, TaskStatus, type StreamEvent } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util";
+import { DataPortSchema, setLogger } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InMemoryTaskOutputRepository } from "../../binding/InMemoryTaskOutputRepository";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // Test Tasks
@@ -145,6 +146,8 @@ class NoCacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
 // ============================================================================
 
 describe("Streaming Cache Integration", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   let cache: InMemoryTaskOutputRepository;
 
   beforeEach(async () => {

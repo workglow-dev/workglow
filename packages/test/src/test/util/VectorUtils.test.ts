@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { inner, magnitude, normalize, normalizeNumberArray } from "@workglow/util";
+import { inner, magnitude, normalize, normalizeNumberArray, setLogger } from "@workglow/util";
 import { describe, expect, test } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("VectorUtils", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   describe("magnitude", () => {
     test("should calculate magnitude for Float32Array", () => {
       const vector = new Float32Array([3, 4]);

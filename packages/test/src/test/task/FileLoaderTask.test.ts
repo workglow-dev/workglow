@@ -5,7 +5,9 @@
  */
 
 import { FileLoaderTask } from "@workglow/tasks";
+import { setLogger } from "@workglow/util";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
 
@@ -17,6 +19,8 @@ const mockFetch = mock((input: RequestInfo | URL, init?: RequestInit) =>
 const oldFetch = global.fetch;
 
 describe("FileLoaderTask", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   beforeAll(() => {
     (global as any).fetch = mockFetch;
   });
@@ -479,6 +483,8 @@ layout: docs
 ---
 
 import { Button } from './Button';
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 # Component Page
 

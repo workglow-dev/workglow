@@ -2,15 +2,18 @@
 // previous fork: https://github.com/sroussey/typescript-graph
 // license: MIT
 
-import { DirectedGraph, NodeDoesntExistError } from "@workglow/util";
+import { DirectedGraph, NodeDoesntExistError, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { edgeIdentity, nodeIdentity } from "./graph.test";
+import { getTestingLogger } from "../../binding/TestingLogger";
 
 /***
  * Directed Graph test
  */
 
 describe("Directed Graph", () => {
+  let logger = getTestingLogger();
+  setLogger(logger);
   it("can be instantiated", () => {
     expect(new DirectedGraph<Record<string, any>>(nodeIdentity, edgeIdentity)).toBeInstanceOf(
       DirectedGraph
