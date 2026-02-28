@@ -19,10 +19,24 @@ export * from "./task/MergeTask";
 export * from "./task/OutputTask";
 export * from "./task/SplitTask";
 export * from "./task/adaptive";
+export * from "./task/DateFormatTask";
+export * from "./task/JsonPathTask";
+export * from "./task/RegexTask";
+export * from "./task/TemplateTask";
 export * from "./task/mcp/McpListTask";
 export * from "./task/mcp/McpPromptGetTask";
 export * from "./task/mcp/McpResourceReadTask";
 export * from "./task/mcp/McpToolCallTask";
+export * from "./task/string/StringConcatTask";
+export * from "./task/string/StringIncludesTask";
+export * from "./task/string/StringJoinTask";
+export * from "./task/string/StringLengthTask";
+export * from "./task/string/StringLowerCaseTask";
+export * from "./task/string/StringReplaceTask";
+export * from "./task/string/StringSliceTask";
+export * from "./task/string/StringTemplateTask";
+export * from "./task/string/StringTrimTask";
+export * from "./task/string/StringUpperCaseTask";
 export * from "./task/scalar/ScalarAbsTask";
 export * from "./task/scalar/ScalarAddTask";
 export * from "./task/scalar/ScalarCeilTask";
@@ -45,16 +59,30 @@ export * from "./task/vector/VectorSubtractTask";
 export * from "./task/vector/VectorSumTask";
 
 import { TaskRegistry } from "@workglow/task-graph";
+import { DateFormatTask } from "./task/DateFormatTask";
 import { DebugLogTask } from "./task/DebugLogTask";
 import { DelayTask } from "./task/DelayTask";
 import { FetchUrlTask } from "./task/FetchUrlTask";
 import { InputTask } from "./task/InputTask";
 import { JavaScriptTask } from "./task/JavaScriptTask";
+import { JsonPathTask } from "./task/JsonPathTask";
 import { JsonTask } from "./task/JsonTask";
 import { LambdaTask } from "./task/LambdaTask";
 import { MergeTask } from "./task/MergeTask";
 import { OutputTask } from "./task/OutputTask";
+import { RegexTask } from "./task/RegexTask";
 import { SplitTask } from "./task/SplitTask";
+import { StringConcatTask } from "./task/string/StringConcatTask";
+import { StringIncludesTask } from "./task/string/StringIncludesTask";
+import { StringJoinTask } from "./task/string/StringJoinTask";
+import { StringLengthTask } from "./task/string/StringLengthTask";
+import { StringLowerCaseTask } from "./task/string/StringLowerCaseTask";
+import { StringReplaceTask } from "./task/string/StringReplaceTask";
+import { StringSliceTask } from "./task/string/StringSliceTask";
+import { StringTemplateTask } from "./task/string/StringTemplateTask";
+import { StringTrimTask } from "./task/string/StringTrimTask";
+import { StringUpperCaseTask } from "./task/string/StringUpperCaseTask";
+import { TemplateTask } from "./task/TemplateTask";
 import { McpListTask } from "./task/mcp/McpListTask";
 import { McpPromptGetTask } from "./task/mcp/McpPromptGetTask";
 import { McpResourceReadTask } from "./task/mcp/McpResourceReadTask";
@@ -119,6 +147,20 @@ export let registerCommonTasks = () => {
     McpResourceReadTask,
     McpPromptGetTask,
     McpListTask,
+    StringConcatTask,
+    StringIncludesTask,
+    StringJoinTask,
+    StringLengthTask,
+    StringLowerCaseTask,
+    StringReplaceTask,
+    StringSliceTask,
+    StringTemplateTask,
+    StringTrimTask,
+    StringUpperCaseTask,
+    JsonPathTask,
+    TemplateTask,
+    DateFormatTask,
+    RegexTask,
   ];
   tasks.map(TaskRegistry.registerTask);
   return tasks;

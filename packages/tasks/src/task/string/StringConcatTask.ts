@@ -1,0 +1,71 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  CreateWorkflow,
+  IExecuteReactiveContext,
+  Task,
+  TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
+import { DataPortSchema, FromSchema } from "@workglow/util";
+
+const inputSchema = {
+  type: "object",
+  properties: {},
+  additionalProperties: { type: "string" },
+} as const satisfies DataPortSchema;
+
+const outputSchema = {
+  type: "object",
+  properties: {
+    result: {
+      type: "string",
+      title: "Result",
+      description: "Concatenation of all input strings",
+    },
+  },
+  required: ["result"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type StringConcatTaskInput = FromSchema<typeof inputSchema>;
+export type StringConcatTaskOutput = FromSchema<typeof outputSchema>;
+
+export class StringConcatTask<
+  Input extends StringConcatTaskInput = StringConcatTaskInput,
+  Output extends StringConcatTaskOutput = StringConcatTaskOutput,
+  Config extends TaskConfig = TaskConfig,
+> extends Task<Input, Output, Config> {
+  static readonly type = "StringConcatTask";
+  static readonly category = "String";
+  public static title = "Concat";
+  public static description = "Concatenates all input strings";
+
+  static inputSchema() {
+    return inputSchema;
+  }
+
+  static outputSchema() {
+    return outputSchema;
+  }
+
+  async executeReactive(
+    input: Input,
+    _output: Output,
+    _context: IExecuteReactiveContext
+  ): Promise<Output> {
+    return { result: Object.values(input).join("") } as Output;
+  }
+}
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    stringConcat: CreateWorkflow<StringConcatTaskInput, StringConcatTaskOutput, TaskConfig>;
+  }
+}
+
+Workflow.prototype.stringConcat = CreateWorkflow(StringConcatTask);
