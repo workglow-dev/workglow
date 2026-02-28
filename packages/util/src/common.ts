@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export * from "./crypto/Crypto";
 export * from "./di";
 export * from "./events/EventEmitter";
 export * from "./logging";
