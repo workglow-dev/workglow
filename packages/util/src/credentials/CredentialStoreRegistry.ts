@@ -6,6 +6,7 @@
 
 import { globalServiceRegistry } from "../di/ServiceRegistry";
 import type { ServiceRegistry } from "../di/ServiceRegistry";
+import { registerInputResolver } from "../di/InputResolverRegistry";
 import { CREDENTIAL_STORE } from "./ICredentialStore";
 import type { ICredentialStore } from "./ICredentialStore";
 import { InMemoryCredentialStore } from "./InMemoryCredentialStore";
@@ -54,3 +55,11 @@ export async function resolveCredential(
 
   return store.get(key);
 }
+
+// Register "credential" input resolver so resolveSchemaInputs can resolve
+// credential_key properties annotated with format: "credential" automatically.
+// Returns undefined (rather than throwing) when the key isn't found, so
+// downstream code (e.g., provider getClient) can fall back to env vars.
+registerInputResolver("credential", async (id, _format, registry) => {
+  return (await resolveCredential(id, registry)) ?? id;
+});

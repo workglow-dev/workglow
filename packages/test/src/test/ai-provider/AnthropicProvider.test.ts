@@ -32,13 +32,13 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
-const makeModel = (modelName: string, api_key = "test-key") => ({
+const makeModel = (modelName: string, credential_key = "test-key") => ({
   model_id: "test-uuid",
   title: "Test Model",
   description: "Test",
   tasks: ["TextGenerationTask"],
   provider: ANTHROPIC as typeof ANTHROPIC,
-  provider_config: { model_name: modelName, api_key },
+  provider_config: { model_name: modelName, credential_key },
   metadata: {},
 });
 

@@ -136,6 +136,141 @@ describe("InputResolver", () => {
     });
   });
 
+  describe("recursive resolution", () => {
+    test("should recurse into nested object properties", async () => {
+      registerInputResolver("nested-test", (_id, _format, _registry) => {
+        return "resolved-value";
+      });
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          config: {
+            type: "object",
+            properties: {
+              key: { type: "string", format: "nested-test" },
+            },
+          },
+        },
+      };
+
+      const input = { config: { key: "my-id" } };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.config).toEqual({ key: "resolved-value" });
+
+      // Clean up
+      getInputResolvers().delete("nested-test");
+    });
+
+    test("should recurse after format resolution (string -> object -> recurse)", async () => {
+      // Simulate a model resolver that returns an object with a nested credential_key
+      registerInputResolver("mock-model", (_id, _format, _registry) => {
+        return { provider: "test", provider_config: { credential_key: "secret-ref" } };
+      });
+      registerInputResolver("mock-cred", (_id, _format, _registry) => {
+        return "resolved-secret";
+      });
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          model: {
+            oneOf: [
+              { type: "string", format: "mock-model" },
+              {
+                type: "object",
+                format: "mock-model",
+                properties: {
+                  provider: { type: "string" },
+                  provider_config: {
+                    type: "object",
+                    properties: {
+                      credential_key: { type: "string", format: "mock-cred" },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      // String value gets resolved to object, then recursed into
+      const input = { model: "my-model-id" };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.model).toEqual({
+        provider: "test",
+        provider_config: { credential_key: "resolved-secret" },
+      });
+
+      // Clean up
+      getInputResolvers().delete("mock-model");
+      getInputResolvers().delete("mock-cred");
+    });
+
+    test("should recurse into inline object values via oneOf schema", async () => {
+      registerInputResolver("inner-test", (_id, _format, _registry) => {
+        return "inner-resolved";
+      });
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          model: {
+            oneOf: [
+              { type: "string" },
+              {
+                type: "object",
+                properties: {
+                  nested_key: { type: "string", format: "inner-test" },
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      // Inline object value — should recurse into it
+      const input = { model: { nested_key: "some-id" } };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.model).toEqual({ nested_key: "inner-resolved" });
+
+      // Clean up
+      getInputResolvers().delete("inner-test");
+    });
+
+    test("should not recurse into non-object values", async () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          config: {
+            type: "object",
+            properties: {
+              key: { type: "string" },
+            },
+          },
+        },
+      };
+
+      // Pass a string where an object is expected — should not crash
+      const input = { config: "not-an-object" };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.config).toBe("not-an-object");
+    });
+  });
+
   describe("registerInputResolver", () => {
     test("should register custom resolver", async () => {
       // Register a custom resolver for a test format
