@@ -21,6 +21,8 @@ import {
   DeleteSearchCriteria,
   InsertEntity,
   isSearchCondition,
+  QueryOptions,
+  SearchCriteria,
   SearchOperator,
   SimplifyPrimaryKey,
   TabularChangePayload,
@@ -924,6 +926,55 @@ export class PostgresTabularStorage<
     const { whereClause, params } = this.buildDeleteSearchWhere(criteria);
     await db.query(`DELETE FROM "${this.table}" WHERE ${whereClause}`, params);
     this.events.emit("delete", criteriaKeys[0] as keyof Entity);
+  }
+
+  /**
+   * Queries entries matching the specified search criteria with optional ordering and limit.
+   *
+   * @param criteria - Object with column names as keys and values or SearchConditions
+   * @param options - Optional ordering and limit options
+   * @returns Array of matching entities or undefined if no matches found
+   */
+  async query(
+    criteria: SearchCriteria<Entity>,
+    options?: QueryOptions<Entity>
+  ): Promise<Entity[] | undefined> {
+    const db = this.db;
+    const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
+
+    let sql = `SELECT * FROM "${this.table}"`;
+    let params: ValueOptionType[] = [];
+
+    if (criteriaKeys.length > 0) {
+      const { whereClause, params: whereParams } = this.buildDeleteSearchWhere(criteria);
+      sql += ` WHERE ${whereClause}`;
+      params = whereParams;
+    }
+
+    if (options?.orderBy && options.orderBy.length > 0) {
+      const orderClauses = options.orderBy.map(
+        (o) => `"${String(o.column)}" ${o.direction}`
+      );
+      sql += ` ORDER BY ${orderClauses.join(", ")}`;
+    }
+
+    if (options?.limit !== undefined) {
+      sql += ` LIMIT $${params.length + 1}`;
+      params.push(options.limit);
+    }
+
+    const result = await db.query(sql, params);
+
+    if (result.rows.length > 0) {
+      for (const row of result.rows) {
+        const record = row as Record<string, unknown>;
+        for (const k in this.schema.properties) {
+          record[k] = this.sqlToJsValue(k, record[k] as ValueOptionType);
+        }
+      }
+      return result.rows as Entity[];
+    }
+    return undefined;
   }
 
   /**

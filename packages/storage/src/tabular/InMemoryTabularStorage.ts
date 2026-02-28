@@ -23,6 +23,8 @@ import {
   DeleteSearchCriteria,
   InsertEntity,
   isSearchCondition,
+  QueryOptions,
+  SearchCriteria,
   SimplifyPrimaryKey,
   TabularChangePayload,
   TabularSubscribeOptions,
@@ -322,6 +324,82 @@ export class InMemoryTabularStorage<
       const { key } = this.separateKeyValueFromCombined(entity);
       this.events.emit("delete", key as keyof Entity);
     }
+  }
+
+  /**
+   * Queries entries matching the specified search criteria with optional ordering and limit.
+   *
+   * @param criteria - Object with column names as keys and values or SearchConditions
+   * @param options - Optional ordering and limit options
+   * @returns Array of matching entities or undefined if no matches found
+   */
+  async query(
+    criteria: SearchCriteria<Entity>,
+    options?: QueryOptions<Entity>
+  ): Promise<Entity[] | undefined> {
+    const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
+
+    let results: Entity[];
+
+    if (criteriaKeys.length === 0) {
+      results = Array.from(this.values.values());
+    } else {
+      results = Array.from(this.values.values()).filter((entity) => {
+        for (const column of criteriaKeys) {
+          const criterion = criteria[column];
+          const columnValue = entity[column];
+
+          if (isSearchCondition(criterion)) {
+            const { value, operator } = criterion;
+            const v = value as string | number;
+            const cv = columnValue as string | number | null | undefined;
+            switch (operator) {
+              case "=":
+                if (cv !== v) return false;
+                break;
+              case "<":
+                if (cv === null || cv === undefined || !(cv < v)) return false;
+                break;
+              case "<=":
+                if (cv === null || cv === undefined || !(cv <= v)) return false;
+                break;
+              case ">":
+                if (cv === null || cv === undefined || !(cv > v)) return false;
+                break;
+              case ">=":
+                if (cv === null || cv === undefined || !(cv >= v)) return false;
+                break;
+              default:
+                return false;
+            }
+          } else {
+            if (columnValue !== criterion) return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    if (options?.orderBy && options.orderBy.length > 0) {
+      results.sort((a, b) => {
+        for (const { column, direction } of options.orderBy!) {
+          const aVal = a[column] as string | number | null | undefined;
+          const bVal = b[column] as string | number | null | undefined;
+          if (aVal == null && bVal == null) continue;
+          if (aVal == null) return direction === "ASC" ? -1 : 1;
+          if (bVal == null) return direction === "ASC" ? 1 : -1;
+          if (aVal < bVal) return direction === "ASC" ? -1 : 1;
+          if (aVal > bVal) return direction === "ASC" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    if (options?.limit !== undefined) {
+      results = results.slice(0, options.limit);
+    }
+
+    return results.length > 0 ? results : undefined;
   }
 
   /**

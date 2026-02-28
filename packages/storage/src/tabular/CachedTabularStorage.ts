@@ -8,6 +8,7 @@ import {
   createServiceToken,
   DataPortSchemaObject,
   FromSchema,
+  getLogger,
   TypedArraySchemaOptions,
 } from "@workglow/util";
 import { BaseTabularStorage, ClientProvidedKeysOption } from "./BaseTabularStorage";
@@ -18,6 +19,8 @@ import {
   DeleteSearchCriteria,
   InsertEntity,
   ITabularStorage,
+  QueryOptions,
+  SearchCriteria,
   SimplifyPrimaryKey,
   TabularSubscribeOptions,
 } from "./ITabularStorage";
@@ -132,7 +135,7 @@ export class CachedTabularStorage<
       }
       this.cacheInitialized = true;
     } catch (error) {
-      console.warn("Failed to initialize cache from durable repository:", error);
+      getLogger().warn("Failed to initialize cache from durable repository:", { error });
       this.cacheInitialized = true; // Mark as initialized even on error to avoid retry loops
     }
   }
@@ -291,6 +294,22 @@ export class CachedTabularStorage<
 
     // Delegate to durable storage (source of truth) to avoid inconsistency
     return await this.durable.getBulk(offset, limit);
+  }
+
+  /**
+   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Delegates to the durable repository since cache doesn't support comparison operators.
+   *
+   * @param criteria - Object with column names as keys and values or SearchConditions
+   * @param options - Optional ordering and limit options
+   * @returns Array of matching entities or undefined if no matches found
+   */
+  async query(
+    criteria: SearchCriteria<Entity>,
+    options?: QueryOptions<Entity>
+  ): Promise<Entity[] | undefined> {
+    await this.initializeCache();
+    return await this.durable.query(criteria, options);
   }
 
   /**

@@ -29,6 +29,8 @@ import {
   DeleteSearchCriteria,
   InsertEntity,
   isSearchCondition,
+  QueryOptions,
+  SearchCriteria,
   SearchOperator,
   SimplifyPrimaryKey,
   TabularChangePayload,
@@ -716,6 +718,64 @@ export class IndexedDbTabularStorage<
       } catch (error) {
         reject(error);
       }
+    });
+  }
+
+  /**
+   * Queries entries matching the specified search criteria with optional ordering and limit.
+   *
+   * @param criteria - Object with column names as keys and values or SearchConditions
+   * @param options - Optional ordering and limit options
+   * @returns Array of matching entities or undefined if no matches found
+   */
+  async query(
+    criteria: SearchCriteria<Entity>,
+    options?: QueryOptions<Entity>
+  ): Promise<Entity[] | undefined> {
+    const db = await this.getDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.table, "readonly");
+      const store = transaction.objectStore(this.table);
+      const getAllRequest = store.getAll();
+
+      getAllRequest.onsuccess = () => {
+        const allRecords: Entity[] = getAllRequest.result;
+        const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
+
+        let results: Entity[];
+
+        if (criteriaKeys.length === 0) {
+          results = allRecords;
+        } else {
+          results = allRecords.filter((record) => this.matchesCriteria(record, criteria));
+        }
+
+        if (options?.orderBy && options.orderBy.length > 0) {
+          results.sort((a, b) => {
+            for (const { column, direction } of options.orderBy!) {
+              const aVal = a[column] as string | number | null | undefined;
+              const bVal = b[column] as string | number | null | undefined;
+              if (aVal == null && bVal == null) continue;
+              if (aVal == null) return direction === "ASC" ? -1 : 1;
+              if (bVal == null) return direction === "ASC" ? 1 : -1;
+              if (aVal < bVal) return direction === "ASC" ? -1 : 1;
+              if (aVal > bVal) return direction === "ASC" ? 1 : -1;
+            }
+            return 0;
+          });
+        }
+
+        if (options?.limit !== undefined) {
+          results = results.slice(0, options.limit);
+        }
+
+        resolve(results.length > 0 ? results : undefined);
+      };
+
+      getAllRequest.onerror = () => {
+        reject(getAllRequest.error);
+      };
     });
   }
 

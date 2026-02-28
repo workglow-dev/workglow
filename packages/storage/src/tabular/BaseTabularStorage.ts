@@ -18,6 +18,8 @@ import {
   DeleteSearchCriteria,
   InsertEntity,
   ITabularStorage,
+  QueryOptions,
+  SearchCriteria,
   SimplifyPrimaryKey,
   TabularChangePayload,
   TabularEventListener,
@@ -314,6 +316,20 @@ export abstract class BaseTabularStorage<
    * @param criteria - Object with column names as keys and values or SearchConditions
    */
   abstract deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void>;
+
+  /**
+   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Unlike `search`, this method does not require an index and supports comparison operators,
+   * ORDER BY, and LIMIT.
+   *
+   * @param criteria - Object with column names as keys and values or SearchConditions
+   * @param options - Optional ordering and limit options
+   * @returns Array of matching entities or undefined if no matches found
+   */
+  abstract query(
+    criteria: SearchCriteria<Entity>,
+    options?: QueryOptions<Entity>
+  ): Promise<Entity[] | undefined>;
 
   /**
    * Abstract method to be implemented by concrete repositories to search for rows

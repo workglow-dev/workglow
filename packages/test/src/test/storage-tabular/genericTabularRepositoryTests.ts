@@ -826,6 +826,279 @@ export function runGenericTabularRepositoryTests(
       });
     });
 
+    describe(`query tests`, () => {
+      let repository: ITabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
+
+      beforeEach(async () => {
+        repository = await createSearchableRepository();
+        await repository.setupDatabase?.();
+      });
+
+      afterEach(async () => {
+        await repository.deleteAll();
+      });
+
+      it("should return matching entries with equality criteria", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "electronics",
+          subcategory: "phones",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "2",
+          category: "books",
+          subcategory: "fiction",
+          value: 200,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const results = await repository.query({ category: "electronics" });
+        expect(results?.length).toBe(1);
+        expect(results?.[0].id).toBe("1");
+      });
+
+      it("should return entries matching comparison operators", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "electronics",
+          subcategory: "phones",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "2",
+          category: "electronics",
+          subcategory: "laptops",
+          value: 200,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "3",
+          category: "electronics",
+          subcategory: "tablets",
+          value: 300,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const lessThan = await repository.query({ value: { value: 200, operator: "<" } });
+        expect(lessThan?.length).toBe(1);
+        expect(lessThan?.[0].id).toBe("1");
+
+        const lessOrEqual = await repository.query({ value: { value: 200, operator: "<=" } });
+        expect(lessOrEqual?.length).toBe(2);
+        expect(lessOrEqual?.map((r) => r.id).sort()).toEqual(["1", "2"]);
+
+        const greaterThan = await repository.query({ value: { value: 200, operator: ">" } });
+        expect(greaterThan?.length).toBe(1);
+        expect(greaterThan?.[0].id).toBe("3");
+
+        const greaterOrEqual = await repository.query({
+          value: { value: 200, operator: ">=" },
+        });
+        expect(greaterOrEqual?.length).toBe(2);
+        expect(greaterOrEqual?.map((r) => r.id).sort()).toEqual(["2", "3"]);
+      });
+
+      it("should order results by ASC", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "a",
+          subcategory: "x",
+          value: 300,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "2",
+          category: "a",
+          subcategory: "x",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "3",
+          category: "a",
+          subcategory: "x",
+          value: 200,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const results = await repository.query(
+          {},
+          { orderBy: [{ column: "value", direction: "ASC" }] }
+        );
+        expect(results?.length).toBe(3);
+        expect(results?.map((r) => r.value)).toEqual([100, 200, 300]);
+      });
+
+      it("should order results by DESC", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "a",
+          subcategory: "x",
+          value: 300,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "2",
+          category: "a",
+          subcategory: "x",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "3",
+          category: "a",
+          subcategory: "x",
+          value: 200,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const results = await repository.query(
+          {},
+          { orderBy: [{ column: "value", direction: "DESC" }] }
+        );
+        expect(results?.length).toBe(3);
+        expect(results?.map((r) => r.value)).toEqual([300, 200, 100]);
+      });
+
+      it("should limit results", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "a",
+          subcategory: "x",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "2",
+          category: "a",
+          subcategory: "x",
+          value: 200,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "3",
+          category: "a",
+          subcategory: "x",
+          value: 300,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const results = await repository.query(
+          {},
+          { orderBy: [{ column: "value", direction: "ASC" }], limit: 2 }
+        );
+        expect(results?.length).toBe(2);
+        expect(results?.map((r) => r.value)).toEqual([100, 200]);
+      });
+
+      it("should combine criteria, orderBy, and limit", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "electronics",
+          subcategory: "phones",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "2",
+          category: "electronics",
+          subcategory: "laptops",
+          value: 200,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "3",
+          category: "electronics",
+          subcategory: "tablets",
+          value: 300,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "4",
+          category: "books",
+          subcategory: "fiction",
+          value: 50,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const results = await repository.query(
+          { category: "electronics" },
+          { orderBy: [{ column: "value", direction: "DESC" }], limit: 2 }
+        );
+        expect(results?.length).toBe(2);
+        expect(results?.map((r) => r.value)).toEqual([300, 200]);
+      });
+
+      it("should return all entries with empty criteria and orderBy", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "b",
+          subcategory: "x",
+          value: 200,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await repository.put({
+          id: "2",
+          category: "a",
+          subcategory: "x",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const results = await repository.query(
+          {},
+          { orderBy: [{ column: "category", direction: "ASC" }] }
+        );
+        expect(results?.length).toBe(2);
+        expect(results?.map((r) => r.category)).toEqual(["a", "b"]);
+      });
+
+      it("should return undefined when no matches found", async () => {
+        const now = new Date().toISOString();
+        await repository.put({
+          id: "1",
+          category: "electronics",
+          subcategory: "phones",
+          value: 100,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const results = await repository.query({ category: "nonexistent" });
+        expect(results).toBeUndefined();
+      });
+    });
+
     describe("return value tests with timestamps", () => {
       let repository: ITabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>;
 

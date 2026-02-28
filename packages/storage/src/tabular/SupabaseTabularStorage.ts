@@ -20,6 +20,8 @@ import {
   DeleteSearchCriteria,
   InsertEntity,
   isSearchCondition,
+  QueryOptions,
+  SearchCriteria,
   SearchOperator,
   SimplifyPrimaryKey,
   TabularChangePayload,
@@ -717,6 +719,82 @@ export class SupabaseTabularStorage<
 
     if (error) throw error;
     this.events.emit("delete", criteriaKeys[0] as keyof Entity);
+  }
+
+  /**
+   * Queries entries matching the specified search criteria with optional ordering and limit.
+   *
+   * @param criteria - Object with column names as keys and values or SearchConditions
+   * @param options - Optional ordering and limit options
+   * @returns Array of matching entities or undefined if no matches found
+   */
+  async query(
+    criteria: SearchCriteria<Entity>,
+    options?: QueryOptions<Entity>
+  ): Promise<Entity[] | undefined> {
+    const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
+
+    let query = this.client.from(this.table).select("*");
+
+    for (const column of criteriaKeys) {
+      if (!(column in this.schema.properties)) {
+        throw new Error(`Schema must have a ${String(column)} field to use query`);
+      }
+
+      const criterion = criteria[column];
+      let operator: SearchOperator = "=";
+      let value: Entity[keyof Entity];
+
+      if (isSearchCondition(criterion)) {
+        operator = criterion.operator;
+        value = criterion.value as Entity[keyof Entity];
+      } else {
+        value = criterion as Entity[keyof Entity];
+      }
+
+      switch (operator) {
+        case "=":
+          query = query.eq(String(column), value);
+          break;
+        case "<":
+          query = query.lt(String(column), value);
+          break;
+        case "<=":
+          query = query.lte(String(column), value);
+          break;
+        case ">":
+          query = query.gt(String(column), value);
+          break;
+        case ">=":
+          query = query.gte(String(column), value);
+          break;
+      }
+    }
+
+    if (options?.orderBy) {
+      for (const { column, direction } of options.orderBy) {
+        query = query.order(String(column), { ascending: direction === "ASC" });
+      }
+    }
+
+    if (options?.limit !== undefined) {
+      query = query.limit(options.limit);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      for (const row of data) {
+        const record = row as Record<string, unknown>;
+        for (const key in this.schema.properties) {
+          record[key] = this.sqlToJsValue(key, record[key] as ValueOptionType);
+        }
+      }
+      return data as Entity[];
+    }
+    return undefined;
   }
 
   /**

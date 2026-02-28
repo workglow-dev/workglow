@@ -99,6 +99,20 @@ export type DeleteSearchCriteria<Entity> = {
   readonly [K in keyof Entity]?: Entity[K] | SearchCondition<Entity[K]>;
 };
 
+export type SearchCriteria<Entity> = DeleteSearchCriteria<Entity>;
+
+export type SortDirection = "ASC" | "DESC";
+
+export interface OrderBy<Entity> {
+  readonly column: keyof Entity;
+  readonly direction: SortDirection;
+}
+
+export interface QueryOptions<Entity> {
+  readonly orderBy?: ReadonlyArray<OrderBy<Entity>>;
+  readonly limit?: number;
+}
+
 /**
  * Type guard to check if a value is a SearchCondition
  */
@@ -225,6 +239,20 @@ export interface ITabularStorage<
 
   // Convenience methods
   search(key: Partial<Entity>): Promise<Entity[] | undefined>;
+
+  /**
+   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Unlike `search`, this method does not require an index and supports comparison operators,
+   * ORDER BY, and LIMIT.
+   *
+   * @param criteria - Object with column names as keys and values or SearchConditions
+   * @param options - Optional ordering and limit options
+   * @returns Array of matching entities or undefined if no matches found
+   */
+  query(
+    criteria: SearchCriteria<Entity>,
+    options?: QueryOptions<Entity>
+  ): Promise<Entity[] | undefined>;
 
   /**
    * Subscribes to changes in the repository (including remote changes).
