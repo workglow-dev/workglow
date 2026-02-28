@@ -36,6 +36,7 @@ async function loadHfInferenceSDK() {
 }
 
 interface ResolvedProviderConfig {
+  readonly credential_key?: string;
   readonly api_key?: string;
   readonly model_name?: string;
   readonly provider?: string;
@@ -45,6 +46,7 @@ async function getClient(model: HfInferenceModelConfig | undefined) {
   const sdk = await loadHfInferenceSDK();
   const config = model?.provider_config as ResolvedProviderConfig | undefined;
   const apiKey =
+    config?.credential_key ||
     config?.api_key ||
     (typeof process !== "undefined" ? process.env?.HF_TOKEN : undefined);
   if (!apiKey) {

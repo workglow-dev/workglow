@@ -38,6 +38,7 @@ async function loadAnthropicSDK() {
 }
 
 interface ResolvedProviderConfig {
+  readonly credential_key?: string;
   readonly api_key?: string;
   readonly model_name?: string;
   readonly base_url?: string;
@@ -48,6 +49,7 @@ async function getClient(model: AnthropicModelConfig | undefined) {
   const Anthropic = await loadAnthropicSDK();
   const config = model?.provider_config as ResolvedProviderConfig | undefined;
   const apiKey =
+    config?.credential_key ||
     config?.api_key ||
     (typeof process !== "undefined" ? process.env?.ANTHROPIC_API_KEY : undefined);
   if (!apiKey) {

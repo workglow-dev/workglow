@@ -18,7 +18,7 @@ import {
   type TaskOutput,
   hasStructuredOutput,
 } from "@workglow/task-graph";
-import { type JsonSchema, type ServiceRegistry, resolveCredential } from "@workglow/util";
+import { type JsonSchema, type ServiceRegistry } from "@workglow/util";
 
 import { AiJob, AiJobInput } from "../../job/AiJob";
 import { MODEL_REPOSITORY } from "../../model/ModelRegistry";
@@ -88,19 +88,6 @@ export class AiTask<
       throw new TaskConfigurationError(
         "AiTask: Model was not resolved to ModelConfig - this indicates a bug in the resolution system"
       );
-    }
-
-    // Resolve credential_key → api_key on the main thread before job dispatch.
-    // This ensures workers receive the resolved API key in the serialized job input.
-    const providerConfig = model.provider_config as Record<string, unknown> | undefined;
-    if (providerConfig?.credential_key) {
-      const resolved = await resolveCredential(providerConfig.credential_key as string);
-      if (resolved) {
-        input = {
-          ...input,
-          model: { ...model, provider_config: { ...providerConfig, api_key: resolved } },
-        } as Input;
-      }
     }
 
     const runtype = (this.constructor as any).runtype ?? (this.constructor as any).type;

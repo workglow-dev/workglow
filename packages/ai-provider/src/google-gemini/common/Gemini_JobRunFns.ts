@@ -41,6 +41,7 @@ async function loadGeminiSDK() {
 }
 
 interface ResolvedProviderConfig {
+  readonly credential_key?: string;
   readonly api_key?: string;
   readonly model_name?: string;
   readonly embedding_task_type?: string | null;
@@ -49,6 +50,7 @@ interface ResolvedProviderConfig {
 function getApiKey(model: GeminiModelConfig | undefined): string {
   const config = model?.provider_config as ResolvedProviderConfig | undefined;
   const apiKey =
+    config?.credential_key ||
     config?.api_key ||
     (typeof process !== "undefined"
       ? process.env?.GOOGLE_API_KEY || process.env?.GEMINI_API_KEY

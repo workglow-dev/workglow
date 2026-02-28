@@ -21,7 +21,14 @@ export const ModelConfigSchema = {
     title: { type: "string" },
     description: { type: "string", "x-ui-editor": "textarea" },
     provider: { type: "string" },
-    provider_config: { type: "object", default: {} },
+    provider_config: {
+      type: "object",
+      properties: {
+        credential_key: { type: "string", format: "credential", "x-ui-hidden": true },
+      },
+      additionalProperties: true,
+      default: {},
+    },
     metadata: { type: "object", default: {}, "x-ui-hidden": true },
   },
   required: ["provider", "provider_config"],

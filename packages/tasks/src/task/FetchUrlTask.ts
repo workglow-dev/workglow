@@ -20,7 +20,7 @@ import {
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema, resolveCredential } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const inputSchema = {
   type: "object",
@@ -64,6 +64,7 @@ const inputSchema = {
     },
     credential_key: {
       type: "string",
+      format: "credential",
       title: "Credential Key",
       description:
         "Key to look up in the credential store. The resolved value is sent as a Bearer token in the Authorization header.",
@@ -373,22 +374,19 @@ export class FetchUrlTask<
   }
 
   /**
-   * Resolve credential_key → Authorization header on the main thread before job dispatch.
-   * This ensures workers receive already-resolved headers in the serialized job input.
+   * Uses the already-resolved credential_key (resolved by the input resolver system)
+   * to set the Authorization header before job dispatch.
    */
   override async execute(
     input: Input,
     executeContext: IExecuteContext
   ): Promise<Output | undefined> {
-    const credentialKey = input.credential_key;
-    if (credentialKey) {
-      const credential = await resolveCredential(credentialKey);
-      if (credential) {
-        input = {
-          ...input,
-          headers: { ...input.headers, Authorization: `Bearer ${credential}` },
-        };
-      }
+    const credential = input.credential_key;
+    if (credential) {
+      input = {
+        ...input,
+        headers: { ...input.headers, Authorization: `Bearer ${credential}` },
+      };
     }
     return super.execute(input, executeContext);
   }
