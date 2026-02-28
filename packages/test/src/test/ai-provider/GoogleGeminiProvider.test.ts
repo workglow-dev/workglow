@@ -19,8 +19,8 @@ import {
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mockGenerateContent = vi.fn();
@@ -42,13 +42,13 @@ vi.mock("@google/generative-ai", () => ({
   },
 }));
 
-const makeModel = (modelName: string, apiKey = "test-key") => ({
+const makeModel = (modelName: string, credential_key = "test-key") => ({
   model_id: "test-uuid",
   title: "Test Model",
   description: "Test",
   tasks: ["TextGenerationTask"],
   provider: GOOGLE_GEMINI as typeof GOOGLE_GEMINI,
-  provider_config: { model_name: modelName, api_key: apiKey },
+  provider_config: { model_name: modelName, credential_key },
   metadata: {},
 });
 

@@ -23,15 +23,10 @@ export const OpenAiModelSchema = {
           type: "string",
           description: "The OpenAI model identifier (e.g., 'gpt-4o', 'text-embedding-3-small').",
         },
-        api_key: {
-          type: "string",
-          description: "OpenAI API key. Falls back to default API key if not set.",
-          "x-ui-hidden": true,
-        },
         credential_key: {
           type: "string",
           description:
-            "Key to look up in the credential store. Checked before api_key and environment variables.",
+            "Key to look up in the credential store for the API key.",
           "x-ui-hidden": true,
         },
         base_url: {

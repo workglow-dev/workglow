@@ -40,15 +40,22 @@ async function loadGeminiSDK() {
   return _sdk.GoogleGenerativeAI;
 }
 
+interface ResolvedProviderConfig {
+  readonly api_key?: string;
+  readonly model_name?: string;
+  readonly embedding_task_type?: string | null;
+}
+
 function getApiKey(model: GeminiModelConfig | undefined): string {
+  const config = model?.provider_config as ResolvedProviderConfig | undefined;
   const apiKey =
-    model?.provider_config?.api_key ||
+    config?.api_key ||
     (typeof process !== "undefined"
       ? process.env?.GOOGLE_API_KEY || process.env?.GEMINI_API_KEY
       : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing Google API key: set provider_config.api_key or the GOOGLE_API_KEY / GEMINI_API_KEY environment variable."
+      "Missing Google API key: set provider_config.credential_key or the GOOGLE_API_KEY / GEMINI_API_KEY environment variable."
     );
   }
   return apiKey;

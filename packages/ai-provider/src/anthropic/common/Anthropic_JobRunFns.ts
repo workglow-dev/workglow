@@ -37,19 +37,27 @@ async function loadAnthropicSDK() {
   return _sdk.default;
 }
 
+interface ResolvedProviderConfig {
+  readonly api_key?: string;
+  readonly model_name?: string;
+  readonly base_url?: string;
+  readonly max_tokens?: number;
+}
+
 async function getClient(model: AnthropicModelConfig | undefined) {
   const Anthropic = await loadAnthropicSDK();
+  const config = model?.provider_config as ResolvedProviderConfig | undefined;
   const apiKey =
-    model?.provider_config?.api_key ||
+    config?.api_key ||
     (typeof process !== "undefined" ? process.env?.ANTHROPIC_API_KEY : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing Anthropic API key: set provider_config.api_key or the ANTHROPIC_API_KEY environment variable."
+      "Missing Anthropic API key: set provider_config.credential_key or the ANTHROPIC_API_KEY environment variable."
     );
   }
   return new Anthropic({
     apiKey,
-    baseURL: model?.provider_config?.base_url || undefined,
+    baseURL: config?.base_url || undefined,
     dangerouslyAllowBrowser: true,
   });
 }

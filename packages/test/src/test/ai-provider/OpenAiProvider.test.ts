@@ -20,8 +20,8 @@ import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,
 } from "@workglow/task-graph";
-import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mockCreate = vi.fn();
@@ -37,13 +37,13 @@ vi.mock("openai", () => ({
 
 const mockTiktokenEncode = vi.fn();
 
-const makeModel = (modelName: string, apiKey = "test-key") => ({
+const makeModel = (modelName: string, credential_key = "test-key") => ({
   model_id: "test-uuid",
   title: "Test Model",
   description: "Test",
   tasks: ["TextGenerationTask"],
   provider: OPENAI as typeof OPENAI,
-  provider_config: { model_name: modelName, api_key: apiKey },
+  provider_config: { model_name: modelName, credential_key },
   metadata: {},
 });
 

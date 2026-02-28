@@ -37,20 +37,28 @@ async function loadOpenAISDK() {
   return _sdk.default;
 }
 
+interface ResolvedProviderConfig {
+  readonly api_key?: string;
+  readonly model_name?: string;
+  readonly base_url?: string;
+  readonly organization?: string;
+}
+
 async function getClient(model: OpenAiModelConfig | undefined) {
   const OpenAI = await loadOpenAISDK();
+  const config = model?.provider_config as ResolvedProviderConfig | undefined;
   const apiKey =
-    model?.provider_config?.api_key ||
+    config?.api_key ||
     (typeof process !== "undefined" ? process.env?.OPENAI_API_KEY : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing OpenAI API key: set provider_config.api_key or the OPENAI_API_KEY environment variable."
+      "Missing OpenAI API key: set provider_config.credential_key or the OPENAI_API_KEY environment variable."
     );
   }
   return new OpenAI({
     apiKey,
-    baseURL: model?.provider_config?.base_url || undefined,
-    organization: model?.provider_config?.organization || undefined,
+    baseURL: config?.base_url || undefined,
+    organization: config?.organization || undefined,
     dangerouslyAllowBrowser: true,
   });
 }
