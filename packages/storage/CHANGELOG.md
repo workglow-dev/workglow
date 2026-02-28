@@ -1,5 +1,14 @@
 # @workglow/storage
 
+## 0.0.104
+
+### Patch Changes
+
+- Add credential storage and resolution handling
+- Updated dependencies
+  - @workglow/sqlite@0.0.104
+  - @workglow/util@0.0.104
+
 ## 0.0.103
 
 ### Patch Changes

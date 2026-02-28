@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.104
+
+### Patch Changes
+
+- Add credential storage and resolution handling
+
 ## 0.0.103
 
 ### Patch Changes
