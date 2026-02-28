@@ -1,5 +1,16 @@
 # @workglow/tasks
 
+## 0.0.103
+
+### Patch Changes
+
+- Structured Outputs, Task timeouts, Error output ports, Fallback Task, Logger, IndexedDbVectorStorage, misc fixes
+- Updated dependencies
+  - @workglow/job-queue@0.0.103
+  - @workglow/storage@0.0.103
+  - @workglow/task-graph@0.0.103
+  - @workglow/util@0.0.103
+
 ## 0.0.102
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # @workglow/test
 
+## 0.0.103
+
+### Patch Changes
+
+- Structured Outputs, Task timeouts, Error output ports, Fallback Task, Logger, IndexedDbVectorStorage, misc fixes
+- Updated dependencies
+  - @workglow/ai@0.0.103
+  - @workglow/ai-provider@0.0.103
+  - @workglow/dataset@0.0.103
+  - @workglow/job-queue@0.0.103
+  - @workglow/sqlite@0.0.103
+  - @workglow/storage@0.0.103
+  - @workglow/task-graph@0.0.103
+  - @workglow/tasks@0.0.103
+  - @workglow/util@0.0.103
+
 ## 0.0.102
 
 ### Patch Changes
