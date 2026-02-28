@@ -365,13 +365,24 @@ export const HFI_ToolCalling: AiProviderRunFn<
 
   const text = response.choices[0]?.message?.content ?? "";
   const toolCalls = ((response.choices[0]?.message as any)?.tool_calls ?? []).map(
-    (tc: any) => ({
-      id: (tc.id as string) ?? `call_${Math.random().toString(36).slice(2, 10)}`,
-      name: tc.function.name as string,
-      input: (typeof tc.function.arguments === "string"
-        ? JSON.parse(tc.function.arguments)
-        : tc.function.arguments ?? {}) as Record<string, unknown>,
-    })
+    (tc: any) => {
+      let parsedInput: Record<string, unknown> = {};
+      const rawArgs = tc.function?.arguments;
+      if (typeof rawArgs === "string") {
+        try {
+          parsedInput = JSON.parse(rawArgs);
+        } catch {
+          parsedInput = {};
+        }
+      } else if (rawArgs != null) {
+        parsedInput = rawArgs as Record<string, unknown>;
+      }
+      return {
+        id: (tc.id as string) ?? `call_${Math.random().toString(36).slice(2, 10)}`,
+        name: tc.function.name as string,
+        input: parsedInput,
+      };
+    }
   );
 
   update_progress(100, "Completed HF Inference tool calling");

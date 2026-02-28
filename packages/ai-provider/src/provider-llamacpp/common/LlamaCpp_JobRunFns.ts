@@ -572,7 +572,8 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   const context = await getOrCreateTextContext(model);
 
   const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
-  const functions = buildLlamaCppFunctions(input.tools, capturedCalls);
+  const functions =
+    input.toolChoice === "none" ? undefined : buildLlamaCppFunctions(input.tools, capturedCalls);
 
   update_progress(10, "Running tool calling");
   const sequence = context.getSequence();
@@ -585,7 +586,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   try {
     const text = await session.prompt(input.prompt, {
       signal,
-      functions,
+      ...(functions && { functions }),
       ...(input.temperature !== undefined && { temperature: input.temperature }),
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
     });
@@ -619,7 +620,8 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
   const context = await getOrCreateTextContext(model);
 
   const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
-  const functions = buildLlamaCppFunctions(input.tools, capturedCalls);
+  const functions =
+    input.toolChoice === "none" ? undefined : buildLlamaCppFunctions(input.tools, capturedCalls);
 
   const sequence = context.getSequence();
   const { LlamaChatSession } = _sdk!;
@@ -628,32 +630,77 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
     ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
   });
 
-  try {
-    yield* streamFromSession<ToolCallingTaskOutput>(
-      (onTextChunk) => {
-        return session.prompt(input.prompt, {
-          signal,
-          functions,
-          onTextChunk,
-          ...(input.temperature !== undefined && { temperature: input.temperature }),
-          ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
-        });
+  const queue: string[] = [];
+  let isComplete = false;
+  let completionError: unknown;
+  let resolveWait: (() => void) | null = null;
+
+  const notifyWaiter = () => {
+    resolveWait?.();
+    resolveWait = null;
+  };
+
+  let accumulatedText = "";
+  const promptPromise = session
+    .prompt(input.prompt, {
+      signal,
+      ...(functions && { functions }),
+      onTextChunk: (chunk: string) => {
+        queue.push(chunk);
+        notifyWaiter();
       },
-      signal
-    );
+      ...(input.temperature !== undefined && { temperature: input.temperature }),
+      ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
+    })
+    .then(() => {
+      isComplete = true;
+      notifyWaiter();
+    })
+    .catch((err: unknown) => {
+      completionError = err;
+      isComplete = true;
+      notifyWaiter();
+    });
+
+  try {
+    while (true) {
+      while (queue.length > 0) {
+        const chunk = queue.shift()!;
+        accumulatedText += chunk;
+        yield { type: "text-delta", port: "text", textDelta: chunk };
+      }
+      if (isComplete) break;
+      await new Promise<void>((r) => {
+        resolveWait = r;
+      });
+    }
+    // Drain any remaining chunks after completion signal
+    while (queue.length > 0) {
+      const chunk = queue.shift()!;
+      accumulatedText += chunk;
+      yield { type: "text-delta", port: "text", textDelta: chunk };
+    }
   } finally {
+    await promptPromise.catch(() => {});
     sequence.dispose();
   }
 
-  // After streaming text completes, yield any captured tool calls
-  if (capturedCalls.length > 0) {
-    const toolCalls = capturedCalls.map((call, index) => ({
-      id: `call_${index}`,
-      name: call.name,
-      input: call.input,
-    }));
+  if (completionError) {
+    if (!signal.aborted) throw completionError;
+    return;
+  }
+
+  const toolCalls = capturedCalls.map((call, index) => ({
+    id: `call_${index}`,
+    name: call.name,
+    input: call.input,
+  }));
+
+  if (toolCalls.length > 0) {
     yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
   }
+
+  yield { type: "finish", data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput };
 };
 
 // ========================================================================
