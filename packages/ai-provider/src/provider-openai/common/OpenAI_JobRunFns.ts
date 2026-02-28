@@ -507,11 +507,29 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
   const response = await client.chat.completions.create(params, { signal });
 
   const text = response.choices[0]?.message?.content ?? "";
-  const toolCalls = (response.choices[0]?.message?.tool_calls ?? []).map((tc: any) => ({
-    id: tc.id as string,
-    name: tc.function.name as string,
-    input: JSON.parse(tc.function.arguments) as Record<string, unknown>,
-  }));
+  const toolCalls: Record<string, unknown> = {};
+  for (const tc of response.choices[0]?.message?.tool_calls ?? []) {
+    if (!("function" in tc)) continue;
+    const id = tc.id as string;
+    const name = tc.function.name as string;
+    let input: Record<string, unknown> = {};
+    const rawArgs = tc.function.arguments;
+    if (typeof rawArgs === "string") {
+      try {
+        input = JSON.parse(rawArgs) as Record<string, unknown>;
+      } catch {
+        try {
+          const partial = parsePartialJson(rawArgs);
+          if (partial && typeof partial === "object") {
+            input = partial as Record<string, unknown>;
+          }
+        } catch {
+          input = {};
+        }
+      }
+    }
+    toolCalls[id] = { id, name, input };
+  }
 
   update_progress(100, "Completed OpenAI tool calling");
   return { text, toolCalls };
@@ -587,8 +605,9 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
         if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
       }
 
-      // Yield progressive snapshot of all tool calls
-      const snapshot = Array.from(toolCallAccumulator.values()).map((tc) => {
+      // Yield progressive snapshot of all tool calls as Record keyed by id
+      const snapshotObject: Record<string, unknown> = {};
+      Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
         let parsedInput: Record<string, unknown>;
         try {
           parsedInput = JSON.parse(tc.arguments);
@@ -596,21 +615,24 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
           const partial = parsePartialJson(tc.arguments);
           parsedInput = (partial as Record<string, unknown>) ?? {};
         }
-        return { id: tc.id, name: tc.name, input: parsedInput };
+        const key = tc.id || String(idx);
+        snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
       });
-      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot as any };
+      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
     }
   }
 
-  // Build final tool calls
-  const toolCalls = Array.from(toolCallAccumulator.values()).map((tc) => {
+  // Build final tool calls as Record keyed by id
+  const toolCalls: Record<string, unknown> = {};
+  Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
     let finalInput: Record<string, unknown>;
     try {
       finalInput = JSON.parse(tc.arguments);
     } catch {
       finalInput = (parsePartialJson(tc.arguments) as Record<string, unknown>) ?? {};
     }
-    return { id: tc.id, name: tc.name, input: finalInput };
+    const key = tc.id || String(idx);
+    toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
   });
 
   yield {

@@ -13,6 +13,8 @@ import {
   OpenAI_TextGeneration,
   OpenAI_TextRewriter,
   OpenAI_TextSummary,
+  OpenAI_ToolCalling,
+  OpenAI_ToolCalling_Stream,
   _setTiktokenForTesting,
 } from "@workglow/ai-provider/openai";
 import {
@@ -340,6 +342,150 @@ describe("OpenAiProvider", () => {
       );
 
       expect(result).toEqual({ count: 2 });
+    });
+  });
+
+  describe("OpenAI_ToolCalling", () => {
+    const sampleTools = [
+      {
+        name: "get_weather",
+        description: "Get the weather for a location",
+        inputSchema: {
+          type: "object" as const,
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+      },
+    ];
+
+    test("should map toolChoice and tools into the OpenAI request", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: "Checking weather…", tool_calls: [] } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_ToolCalling(
+        { prompt: "What is the weather?", tools: sampleTools, toolChoice: "auto", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.tools).toHaveLength(1);
+      expect(params.tools[0].type).toBe("function");
+      expect(params.tools[0].function.name).toBe("get_weather");
+      expect(params.tool_choice).toBe("auto");
+    });
+
+    test("should parse message.tool_calls into Record keyed by id", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                { id: "call_1", function: { name: "get_weather", arguments: '{"location":"London"}' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_ToolCalling(
+        { prompt: "What is the weather in London?", tools: sampleTools, model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveProperty("call_1");
+      expect((result.toolCalls as any)["call_1"]).toEqual({
+        id: "call_1",
+        name: "get_weather",
+        input: { location: "London" },
+      });
+    });
+
+    test("should fall back gracefully when tool arguments are invalid JSON", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                { id: "call_2", function: { name: "get_weather", arguments: '{"location":' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_ToolCalling(
+        { prompt: "test", tools: sampleTools, model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveProperty("call_2");
+    });
+
+    test("should accumulate tool_calls deltas in streaming mode", async () => {
+      const chunks = [
+        { choices: [{ delta: { content: "Here you go" }, finish_reason: null }] },
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [{ index: 0, id: "call_3", function: { name: "get_weather", arguments: "" } }],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [{ index: 0, function: { arguments: '{"location":"Paris"}' } }],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        { choices: [{ delta: {}, finish_reason: "tool_calls" }] },
+      ];
+
+      async function* chunkStream() {
+        for (const c of chunks) yield c;
+      }
+      mockCreate.mockResolvedValue(chunkStream());
+
+      const model = makeModel("gpt-4o");
+      const events: any[] = [];
+      for await (const event of OpenAI_ToolCalling_Stream(
+        { prompt: "Weather in Paris?", tools: sampleTools, model: model as any },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas[0].textDelta).toBe("Here you go");
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas.length).toBeGreaterThan(0);
+      const lastDelta = objectDeltas[objectDeltas.length - 1];
+      expect(lastDelta.objectDelta).toHaveProperty("call_3");
+      expect((lastDelta.objectDelta as any)["call_3"].name).toBe("get_weather");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.toolCalls).toHaveProperty("call_3");
     });
   });
 

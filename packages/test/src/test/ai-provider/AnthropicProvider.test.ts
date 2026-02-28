@@ -12,6 +12,8 @@ import {
   Anthropic_TextGeneration,
   Anthropic_TextRewriter,
   Anthropic_TextSummary,
+  Anthropic_ToolCalling,
+  Anthropic_ToolCalling_Stream,
 } from "@workglow/ai-provider/anthropic";
 import {
   getTaskQueueRegistry,
@@ -24,10 +26,15 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mockMessagesCreate = vi.fn();
 const mockMessagesCountTokens = vi.fn();
+const mockMessagesStream = vi.fn();
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class MockAnthropic {
-    messages = { create: mockMessagesCreate, countTokens: mockMessagesCountTokens };
+    messages = {
+      create: mockMessagesCreate,
+      countTokens: mockMessagesCountTokens,
+      stream: mockMessagesStream,
+    };
     constructor(_opts: any) {}
   },
 }));
@@ -253,6 +260,114 @@ describe("AnthropicProvider", () => {
       const [params] = mockMessagesCountTokens.mock.calls[0];
       expect(params.model).toBe("claude-sonnet-4-20250514");
       expect(params.messages).toEqual([{ role: "user", content: "Hello Claude" }]);
+    });
+  });
+
+  describe("Anthropic_ToolCalling", () => {
+    const sampleTools = [
+      {
+        name: "get_weather",
+        description: "Get the weather for a location",
+        inputSchema: {
+          type: "object" as const,
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+      },
+    ];
+
+    test("should map tool_choice and tools into the Anthropic request", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "Checking weather…" }],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        { prompt: "What is the weather?", tools: sampleTools, toolChoice: "auto", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.tools).toHaveLength(1);
+      expect(params.tools[0].name).toBe("get_weather");
+      expect(params.tool_choice).toEqual({ type: "auto" });
+    });
+
+    test("should parse tool_use blocks into Record keyed by id", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [
+          { type: "text", text: "" },
+          { type: "tool_use", id: "tu_1", name: "get_weather", input: { location: "London" } },
+        ],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_ToolCalling(
+        { prompt: "Weather in London?", tools: sampleTools, model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveProperty("tu_1");
+      expect((result.toolCalls as any)["tu_1"]).toEqual({
+        id: "tu_1",
+        name: "get_weather",
+        input: { location: "London" },
+      });
+    });
+
+    test("should accumulate input_json_delta events in streaming mode", async () => {
+      const streamEvents = [
+        { type: "content_block_start", index: 0, content_block: { type: "text" } },
+        {
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "text_delta", text: "Here you go" },
+        },
+        { type: "content_block_stop", index: 0 },
+        {
+          type: "content_block_start",
+          index: 1,
+          content_block: { type: "tool_use", id: "tu_2", name: "get_weather" },
+        },
+        {
+          type: "content_block_delta",
+          index: 1,
+          delta: { type: "input_json_delta", partial_json: '{"location":"Berlin"}' },
+        },
+        { type: "content_block_stop", index: 1 },
+      ];
+
+      async function* fakeStream() {
+        for (const e of streamEvents) yield e;
+      }
+      mockMessagesStream.mockReturnValue(fakeStream());
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const events: any[] = [];
+      for await (const event of Anthropic_ToolCalling_Stream(
+        { prompt: "Weather in Berlin?", tools: sampleTools, model: model as any },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas[0].textDelta).toBe("Here you go");
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas.length).toBeGreaterThan(0);
+      const lastDelta = objectDeltas[objectDeltas.length - 1];
+      expect(lastDelta.objectDelta).toHaveProperty("tu_2");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.toolCalls).toHaveProperty("tu_2");
+      expect((finish.data.toolCalls as any)["tu_2"].name).toBe("get_weather");
     });
   });
 
