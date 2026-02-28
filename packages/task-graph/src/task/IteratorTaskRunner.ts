@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Dataflow } from "../task-graph/Dataflow";
+import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
+import type { ITaskConstructor } from "./ITask";
 import type { IterationAnalysisResult, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
-import { createGraphFromGraphJSON } from "./TaskJSON";
 import type { TaskInput, TaskOutput } from "./TaskTypes";
 
 /**
@@ -168,6 +170,29 @@ export class IteratorTaskRunner<
     return results;
   }
 
+  /**
+   * Clones a TaskGraph by reconstructing each task from its constructor,
+   * defaults, and config. This preserves non-serializable config such as
+   * function references (e.g. WhileTask condition functions).
+   */
+  private cloneGraph(graph: TaskGraph): TaskGraph {
+    const clone = new TaskGraph();
+    for (const task of graph.getTasks()) {
+      const ctor = task.constructor as ITaskConstructor<any, any, any>;
+      const newTask = new ctor(task.defaults, task.config);
+      if (task.hasChildren()) {
+        newTask.subGraph = this.cloneGraph(task.subGraph);
+      }
+      clone.addTask(newTask);
+    }
+    for (const df of graph.getDataflows()) {
+      clone.addDataflow(
+        new Dataflow(df.sourceTaskId, df.sourceTaskPortId, df.targetTaskId, df.targetTaskPortId)
+      );
+    }
+    return clone;
+  }
+
   protected async executeSubgraphIteration(
     input: Record<string, unknown>
   ): Promise<TaskOutput | undefined> {
@@ -175,9 +200,9 @@ export class IteratorTaskRunner<
       return undefined;
     }
 
-    const subGraphClone = createGraphFromGraphJSON(this.task.subGraph.toJSON());
+    const graphClone = this.cloneGraph(this.task.subGraph);
 
-    const results = await subGraphClone.run<TaskOutput>(input as TaskInput, {
+    const results = await graphClone.run<TaskOutput>(input as TaskInput, {
       parentSignal: this.abortController?.signal,
       outputCache: this.outputCache,
     });
@@ -186,7 +211,7 @@ export class IteratorTaskRunner<
       return undefined;
     }
 
-    return subGraphClone.mergeExecuteOutputsToRunOutput(
+    return graphClone.mergeExecuteOutputsToRunOutput(
       results,
       this.task.compoundMerge
     ) as TaskOutput;

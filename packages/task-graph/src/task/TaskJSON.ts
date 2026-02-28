@@ -17,6 +17,7 @@ import { MapTaskConfig } from "./MapTask";
 import { ReduceTaskConfig } from "./ReduceTask";
 import { TaskConfig, TaskInput } from "./TaskTypes";
 import { WhileTaskConfig } from "./WhileTask";
+import type { ITaskConstructor } from "./ITask";
 
 // ========================================================================
 // JSON Serialization Types
@@ -101,13 +102,16 @@ export interface TaskGraphJsonOptions {
   readonly withBoundaryNodes?: boolean;
 }
 
-const createSingleTaskFromJSON = (item: JsonTaskItem | TaskGraphItemJson) => {
+const createSingleTaskFromJSON = (
+  item: JsonTaskItem | TaskGraphItemJson,
+  taskRegistry?: Map<string, ITaskConstructor<any, any, any>>
+) => {
   if (!item.id) throw new TaskJSONError("Task id required");
   if (!item.type) throw new TaskJSONError("Task type required");
   if (item.defaults && Array.isArray(item.defaults))
     throw new TaskJSONError("Task defaults must be an object");
 
-  const taskClass = TaskRegistry.all.get(item.type);
+  const taskClass = taskRegistry?.get(item.type) ?? TaskRegistry.all.get(item.type);
   if (!taskClass)
     throw new TaskJSONError(`Task type ${item.type} not found, perhaps not registered?`);
 
@@ -152,13 +156,16 @@ export const createGraphFromDependencyJSON = (jsonItems: JsonTaskItem[]) => {
  * @returns A new task instance
  * @throws Error if required fields are missing or invalid
  */
-export const createTaskFromGraphJSON = (item: TaskGraphItemJson) => {
-  const task = createSingleTaskFromJSON(item);
+export const createTaskFromGraphJSON = (
+  item: TaskGraphItemJson,
+  taskRegistry?: Map<string, ITaskConstructor<any, any, any>>
+) => {
+  const task = createSingleTaskFromJSON(item, taskRegistry);
   if (item.subgraph) {
     if (!(task instanceof GraphAsTask)) {
       throw new TaskConfigurationError("Subgraph is only supported for GraphAsTask");
     }
-    task.subGraph = createGraphFromGraphJSON(item.subgraph);
+    task.subGraph = createGraphFromGraphJSON(item.subgraph, taskRegistry);
   }
   return task;
 };
@@ -168,10 +175,13 @@ export const createTaskFromGraphJSON = (item: TaskGraphItemJson) => {
  * @param graphJsonObj The JSON representation of the task graph
  * @returns A new TaskGraph instance with all tasks and data flows
  */
-export const createGraphFromGraphJSON = (graphJsonObj: TaskGraphJson) => {
+export const createGraphFromGraphJSON = (
+  graphJsonObj: TaskGraphJson,
+  taskRegistry?: Map<string, ITaskConstructor<any, any, any>>
+) => {
   const subGraph = new TaskGraph();
   for (const subitem of graphJsonObj.tasks) {
-    subGraph.addTask(createTaskFromGraphJSON(subitem));
+    subGraph.addTask(createTaskFromGraphJSON(subitem, taskRegistry));
   }
   for (const subitem of graphJsonObj.dataflows) {
     subGraph.addDataflow(
