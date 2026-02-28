@@ -5,9 +5,7 @@ permissions:
 
 on:
   push:
-    branches-ignore: ["main"]
   pull_request:
-    branches-ignore: ["main"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
