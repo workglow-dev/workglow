@@ -59,7 +59,14 @@ export interface CredentialPutOptions {
 export interface ICredentialStore {
   /**
    * Retrieve a credential value by key.
-   * @returns The secret value, or undefined if not found or expired.
+   *
+   * Returns the secret value if found and not expired, or `undefined` if the
+   * credential does not exist or is expired.
+   *
+   * Implementations MAY reject the returned promise on backend, storage, or
+   * cryptographic errors (e.g., I/O failure, decryption failure, corrupt data).
+   * Such errors MUST NOT include credential secret values in their messages or
+   * metadata.
    */
   get(key: string): Promise<string | undefined>;
 

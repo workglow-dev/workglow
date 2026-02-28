@@ -196,14 +196,12 @@ export class FetchUrlJob<
    */
   async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
     // Resolve credential and merge into headers if credential_key is provided
-    const headers: Record<string, string> = { ...input.headers };
-    const credentialKey = (input as Record<string, unknown>).credential_key as
-      | string
-      | undefined;
+    const requestHeaders: Record<string, string> = { ...input.headers };
+    const credentialKey = input.credential_key;
     if (credentialKey) {
       const credential = await resolveCredential(credentialKey);
       if (credential) {
-        headers["Authorization"] = `Bearer ${credential}`;
+        requestHeaders["Authorization"] = `Bearer ${credential}`;
       }
     }
 
@@ -211,7 +209,7 @@ export class FetchUrlJob<
       input.url!,
       {
         method: input.method,
-        headers,
+        headers: requestHeaders,
         body: input.body,
         signal: context.signal,
       },
@@ -221,14 +219,14 @@ export class FetchUrlJob<
     if (response.ok) {
       // Extract metadata from response
       const contentType = response.headers.get("content-type") ?? "";
-      const headers: Record<string, string> = {};
+      const responseHeaders: Record<string, string> = {};
       response.headers.forEach((value, key) => {
-        headers[key] = value;
+        responseHeaders[key] = value;
       });
 
       const metadata = {
         contentType,
-        headers,
+        headers: responseHeaders,
       };
 
       // Infer response type from response headers if not specified
