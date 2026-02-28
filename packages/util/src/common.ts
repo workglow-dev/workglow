@@ -27,3 +27,4 @@ export * from "./vector/VectorUtils";
 export * from "./worker/WorkerManager";
 export * from "./worker/WorkerServer";
 export * from "./credentials";
+export * from "./crypto/WebCrypto";

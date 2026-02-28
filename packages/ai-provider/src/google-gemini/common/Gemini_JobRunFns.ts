@@ -23,7 +23,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson, resolveCredential } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 
 let _sdk: typeof import("@google/generative-ai") | undefined;
@@ -40,20 +40,15 @@ async function loadGeminiSDK() {
   return _sdk.GoogleGenerativeAI;
 }
 
-async function getApiKey(model: GeminiModelConfig | undefined): Promise<string> {
-  // Resolution order: credential store → explicit api_key → environment variable
-  const credentialKey = model?.provider_config?.credential_key;
-  const storedCredential = credentialKey ? await resolveCredential(credentialKey) : undefined;
-
+function getApiKey(model: GeminiModelConfig | undefined): string {
   const apiKey =
-    storedCredential ??
-    model?.provider_config?.api_key ??
+    model?.provider_config?.api_key ||
     (typeof process !== "undefined"
-      ? process.env?.GOOGLE_API_KEY ?? process.env?.GEMINI_API_KEY
+      ? process.env?.GOOGLE_API_KEY || process.env?.GEMINI_API_KEY
       : undefined);
   if (!apiKey) {
     throw new Error(
-      "Missing Google API key: set provider_config.credential_key, provider_config.api_key, or the GOOGLE_API_KEY / GEMINI_API_KEY environment variable."
+      "Missing Google API key: set provider_config.api_key or the GOOGLE_API_KEY / GEMINI_API_KEY environment variable."
     );
   }
   return apiKey;
@@ -78,7 +73,7 @@ export const Gemini_TextGeneration: AiProviderRunFn<
 
   update_progress(0, "Starting Gemini text generation");
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     generationConfig: {
@@ -109,7 +104,7 @@ export const Gemini_TextEmbedding: AiProviderRunFn<
 
   update_progress(0, "Starting Gemini text embedding");
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const embeddingModel = genAI.getGenerativeModel({
     model: getModelName(model),
   });
@@ -148,7 +143,7 @@ export const Gemini_TextRewriter: AiProviderRunFn<
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Gemini text rewriting");
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     systemInstruction: input.prompt,
@@ -170,7 +165,7 @@ export const Gemini_TextSummary: AiProviderRunFn<
 > = async (input, model, update_progress, signal) => {
   update_progress(0, "Starting Gemini text summarization");
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     systemInstruction: "Summarize the following text concisely.",
@@ -195,7 +190,7 @@ export const Gemini_TextGeneration_Stream: AiProviderStreamFn<
   GeminiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     generationConfig: {
@@ -225,7 +220,7 @@ export const Gemini_TextRewriter_Stream: AiProviderStreamFn<
   GeminiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     systemInstruction: input.prompt,
@@ -251,7 +246,7 @@ export const Gemini_TextSummary_Stream: AiProviderStreamFn<
   GeminiModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextSummaryTaskOutput>> {
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     systemInstruction: "Summarize the following text concisely.",
@@ -277,7 +272,7 @@ export const Gemini_CountTokens: AiProviderRunFn<
   GeminiModelConfig
 > = async (input, model, onProgress, signal) => {
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({ model: getModelName(model) });
   const result = await genModel.countTokens(input.text);
   return { count: result.totalTokens };
@@ -302,7 +297,7 @@ export const Gemini_StructuredGeneration: AiProviderRunFn<
 > = async (input, model, update_progress, signal, outputSchema) => {
   update_progress(0, "Starting Gemini structured generation");
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
 
   const schema = input.outputSchema ?? outputSchema;
 
@@ -336,7 +331,7 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
   outputSchema
 ): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
   const GoogleGenerativeAI = await loadGeminiSDK();
-  const genAI = new GoogleGenerativeAI(await getApiKey(model));
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
 
   const schema = input.outputSchema ?? outputSchema;
 

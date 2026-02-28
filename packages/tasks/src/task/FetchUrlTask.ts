@@ -13,6 +13,7 @@ import {
 } from "@workglow/job-queue";
 import {
   CreateWorkflow,
+  type IExecuteContext,
   JobQueueTask,
   JobQueueTaskConfig,
   TaskConfigurationError,
@@ -195,21 +196,11 @@ export class FetchUrlJob<
    * Executes the job using the provided function.
    */
   async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
-    // Resolve credential and merge into headers if credential_key is provided
-    const requestHeaders: Record<string, string> = { ...input.headers };
-    const credentialKey = input.credential_key;
-    if (credentialKey) {
-      const credential = await resolveCredential(credentialKey);
-      if (credential) {
-        requestHeaders["Authorization"] = `Bearer ${credential}`;
-      }
-    }
-
     const response = await fetchWithProgress(
       input.url!,
       {
         method: input.method,
-        headers: requestHeaders,
+        headers: input.headers,
         body: input.body,
         signal: context.signal,
       },
@@ -379,6 +370,27 @@ export class FetchUrlTask<
     }
     super(input, config);
     this.jobClass = FetchUrlJob;
+  }
+
+  /**
+   * Resolve credential_key → Authorization header on the main thread before job dispatch.
+   * This ensures workers receive already-resolved headers in the serialized job input.
+   */
+  override async execute(
+    input: Input,
+    executeContext: IExecuteContext
+  ): Promise<Output | undefined> {
+    const credentialKey = input.credential_key;
+    if (credentialKey) {
+      const credential = await resolveCredential(credentialKey);
+      if (credential) {
+        input = {
+          ...input,
+          headers: { ...input.headers, Authorization: `Bearer ${credential}` },
+        };
+      }
+    }
+    return super.execute(input, executeContext);
   }
 
   /**
