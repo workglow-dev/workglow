@@ -383,6 +383,12 @@ export class InMemoryTabularStorage<
     if (options?.orderBy && options.orderBy.length > 0) {
       results.sort((a, b) => {
         for (const { column, direction } of options.orderBy!) {
+          if (!(column in this.schema.properties)) {
+            throw new Error(`Schema must have a ${String(column)} field to use query`);
+          }
+          if (direction !== "ASC" && direction !== "DESC") {
+            throw new Error(`Invalid sort direction: ${String(direction)}`);
+          }
           const aVal = a[column] as string | number | null | undefined;
           const bVal = b[column] as string | number | null | undefined;
           if (aVal == null && bVal == null) continue;

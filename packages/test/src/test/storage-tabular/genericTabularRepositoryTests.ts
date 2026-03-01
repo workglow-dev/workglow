@@ -1083,6 +1083,14 @@ export function runGenericTabularRepositoryTests(
         expect(results?.map((r) => r.category)).toEqual(["a", "b"]);
       });
 
+      it("should reject query ordering for unknown columns", async () => {
+        await expect(
+          repository.query({}, {
+            orderBy: [{ column: "notAColumn" as keyof SearchEntity, direction: "ASC" }],
+          })
+        ).rejects.toThrow("Schema must have a notAColumn field to use query");
+      });
+
       it("should return undefined when no matches found", async () => {
         const now = new Date().toISOString();
         await repository.put({
