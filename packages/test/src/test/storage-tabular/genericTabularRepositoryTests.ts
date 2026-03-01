@@ -1086,7 +1086,7 @@ export function runGenericTabularRepositoryTests(
       it("should reject query ordering for unknown columns", async () => {
         await expect(
           repository.query({}, {
-            orderBy: [{ column: "notAColumn" as keyof SearchEntity, direction: "ASC" }],
+            orderBy: [{ column: "notAColumn" as any, direction: "ASC" }],
           })
         ).rejects.toThrow("Schema must have a notAColumn field to use query orderBy");
       });
