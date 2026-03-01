@@ -690,68 +690,6 @@ export class SqliteTabularStorage<
   }
 
   /**
-   * Method to be implemented by concrete repositories to search for key-value pairs
-   * based on a partial key.
-   *
-   * @param key - Partial key to search for
-   * @returns Promise resolving to an array of combined key-value objects or undefined if not found
-   */
-  public async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    const db = this.db;
-    const searchKeys = Object.keys(key) as Array<keyof Entity>;
-    if (searchKeys.length === 0) {
-      return undefined;
-    }
-
-    // Find the best matching index for the search
-    const bestIndex = super.findBestMatchingIndex(searchKeys);
-    if (!bestIndex) {
-      throw new Error(
-        `No suitable index found for the search criteria, searching for ['${searchKeys.join(
-          "', '"
-        )}'] with pk ['${this.primaryKeyNames.join("', '")}'] and indexes ['${this.indexes.join(
-          "', '"
-        )}']`
-      );
-    }
-
-    // very columns in primary key or value schema
-    const validColumns = [...this.primaryKeyColumns(), ...this.valueColumns()];
-    // @ts-ignore
-    const invalidColumns = searchKeys.filter((key) => !validColumns.includes(key));
-    if (invalidColumns.length > 0) {
-      throw new Error(`Invalid columns in search criteria: ${invalidColumns.join(", ")}`);
-    }
-
-    const whereClauses = Object.keys(key)
-      .map((key, i) => `"${key}" = ?`)
-      .join(" AND ");
-    const whereClauseValues = Object.entries(key).map(([k, v]) =>
-      this.jsToSqlValue(k, v as Entity[keyof Entity])
-    );
-
-    const sql = `SELECT * FROM \`${this.table}\` WHERE ${whereClauses}`;
-    const stmt = db.prepare<Entity, ExcludeDateKeyOptionType[]>(sql);
-    // @ts-ignore
-    const result = stmt.all(...whereClauseValues);
-
-    if (result.length > 0) {
-      // Convert all returned rows according to schema (not only value columns)
-      for (const row of result) {
-        const record = row as Record<string, unknown>;
-        for (const k in this.schema.properties) {
-          record[k] = this.sqlToJsValue(k, record[k] as ValueOptionType);
-        }
-      }
-      this.events.emit("search", key, result);
-      return result;
-    } else {
-      this.events.emit("search", key, undefined);
-      return undefined;
-    }
-  }
-
-  /**
    * Deletes a key-value pair from the database
    * @param key - The primary key object to delete
    * @emits 'delete' event when successful
@@ -769,14 +707,39 @@ export class SqliteTabularStorage<
   }
 
   /**
-   * Retrieves all entries from the database table
+   * Retrieves all entries from the database table, with optional ordering, offset, and limit.
+   * @param options - Optional ordering, limit, and offset options
    * @returns Promise resolving to an array of entries or undefined if not found
    */
-  async getAll(): Promise<Entity[] | undefined> {
+  async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
+    this.validateGetAllOptions(options);
     const db = this.db;
-    const sql = `SELECT * FROM \`${this.table}\``;
-    const stmt = db.prepare<Entity, []>(sql);
-    const value = stmt.all();
+    let sql = `SELECT * FROM \`${this.table}\``;
+    const params: ValueOptionType[] = [];
+
+    if (options?.orderBy && options.orderBy.length > 0) {
+      const orderClauses = options.orderBy.map(
+        (o) => `\`${String(o.column)}\` ${o.direction}`
+      );
+      sql += ` ORDER BY ${orderClauses.join(", ")}`;
+    }
+
+    if (options?.limit !== undefined) {
+      sql += ` LIMIT ?`;
+      params.push(options.limit);
+    }
+
+    if (options?.offset !== undefined) {
+      if (options.limit === undefined) {
+        sql += ` LIMIT -1`;
+      }
+      sql += ` OFFSET ?`;
+      params.push(options.offset);
+    }
+
+    const stmt = db.prepare(sql);
+    // @ts-ignore
+    const value = params.length > 0 ? stmt.all(...params) : stmt.all();
     if (!value.length) return undefined;
     // Convert all columns according to schema for each row
     for (const row of value) {
@@ -785,7 +748,7 @@ export class SqliteTabularStorage<
         record[k] = this.sqlToJsValue(k, record[k] as ValueOptionType);
       }
     }
-    return value;
+    return value as Entity[];
   }
 
   /**
@@ -900,27 +863,22 @@ export class SqliteTabularStorage<
   }
 
   /**
-   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Queries entries matching the specified search criteria with optional ordering, limit, and offset.
    *
    * @param criteria - Object with column names as keys and values or SearchConditions
-   * @param options - Optional ordering and limit options
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of matching entities or undefined if no matches found
    */
   async query(
     criteria: SearchCriteria<Entity>,
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
+    this.validateQueryParams(criteria, options);
     const db = this.db;
-    const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
 
     let sql = `SELECT * FROM \`${this.table}\``;
-    let params: ValueOptionType[] = [];
-
-    if (criteriaKeys.length > 0) {
-      const { whereClause, params: whereParams } = this.buildDeleteSearchWhere(criteria);
-      sql += ` WHERE ${whereClause}`;
-      params = whereParams;
-    }
+    const { whereClause, params } = this.buildDeleteSearchWhere(criteria);
+    sql += ` WHERE ${whereClause}`;
 
     if (options?.orderBy && options.orderBy.length > 0) {
       const orderClauses = options.orderBy.map(
@@ -934,6 +892,14 @@ export class SqliteTabularStorage<
       params.push(options.limit);
     }
 
+    if (options?.offset !== undefined) {
+      if (options.limit === undefined) {
+        sql += ` LIMIT -1`;
+      }
+      sql += ` OFFSET ?`;
+      params.push(options.offset);
+    }
+
     const stmt = db.prepare(sql);
     // @ts-ignore
     const result = stmt.all(...params) as Entity[];
@@ -945,8 +911,10 @@ export class SqliteTabularStorage<
           record[k] = this.sqlToJsValue(k, record[k] as ValueOptionType);
         }
       }
+      this.events.emit("query", criteria as Partial<Entity>, result);
       return result;
     }
+    this.events.emit("query", criteria as Partial<Entity>, undefined);
     return undefined;
   }
 

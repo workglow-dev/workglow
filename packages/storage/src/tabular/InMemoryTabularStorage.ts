@@ -165,45 +165,6 @@ export class InMemoryTabularStorage<
   }
 
   /**
-   * Searches for entries matching a partial key
-   * @param key - Partial key object to search for
-   * @returns Array of matching combined objects
-   * @throws Error if search criteria outside of searchable fields
-   */
-  async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    const searchKeys = Object.keys(key) as Array<keyof Entity>;
-    if (searchKeys.length === 0) {
-      return undefined;
-    }
-
-    // Find the best matching index
-    const bestIndex = this.findBestMatchingIndex(searchKeys);
-    if (!bestIndex) {
-      throw new Error(
-        `No suitable index found for the search criteria, searching for ['${searchKeys.join(
-          "', '"
-        )}'] with pk ['${this.primaryKeyNames.join("', '")}'] and indexes ['${this.indexes.join(
-          "', '"
-        )}']`
-      );
-    }
-
-    // Filter results based on the search criteria
-    const results = Array.from(this.values.values()).filter((item) =>
-      // @ts-ignore
-      Object.entries(key).every(([k, v]) => item[k] === v)
-    );
-
-    if (results.length > 0) {
-      this.events.emit("search", key, results);
-      return results;
-    } else {
-      this.events.emit("search", key, undefined);
-      return undefined;
-    }
-  }
-
-  /**
    * Deletes an entry by its key
    * @param key - The primary key object of the entry to delete
    * @emits 'delete' event with the fingerprint ID when successful
@@ -225,11 +186,37 @@ export class InMemoryTabularStorage<
   }
 
   /**
-   * Returns an array of all entries in the repository
+   * Returns an array of all entries in the repository, with optional ordering, offset, and limit.
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of all entries in the repository
    */
-  async getAll(): Promise<Entity[] | undefined> {
-    const all = Array.from(this.values.values());
+  async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
+    this.validateGetAllOptions(options);
+    let all = Array.from(this.values.values());
+
+    if (options?.orderBy && options.orderBy.length > 0) {
+      all.sort((a, b) => {
+        for (const { column, direction } of options.orderBy!) {
+          const aVal = a[column] as string | number | null | undefined;
+          const bVal = b[column] as string | number | null | undefined;
+          if (aVal == null && bVal == null) continue;
+          if (aVal == null) return direction === "ASC" ? -1 : 1;
+          if (bVal == null) return direction === "ASC" ? 1 : -1;
+          if (aVal < bVal) return direction === "ASC" ? -1 : 1;
+          if (aVal > bVal) return direction === "ASC" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    if (options?.offset !== undefined) {
+      all = all.slice(options.offset);
+    }
+
+    if (options?.limit !== undefined) {
+      all = all.slice(0, options.limit);
+    }
+
     return all.length > 0 ? all : undefined;
   }
 
@@ -327,58 +314,54 @@ export class InMemoryTabularStorage<
   }
 
   /**
-   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Queries entries matching the specified search criteria with optional ordering, limit, and offset.
    *
    * @param criteria - Object with column names as keys and values or SearchConditions
-   * @param options - Optional ordering and limit options
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of matching entities or undefined if no matches found
    */
   async query(
     criteria: SearchCriteria<Entity>,
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
+    this.validateQueryParams(criteria, options);
+
     const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
 
-    let results: Entity[];
+    let results: Entity[] = Array.from(this.values.values()).filter((entity) => {
+      for (const column of criteriaKeys) {
+        const criterion = criteria[column];
+        const columnValue = entity[column];
 
-    if (criteriaKeys.length === 0) {
-      results = Array.from(this.values.values());
-    } else {
-      results = Array.from(this.values.values()).filter((entity) => {
-        for (const column of criteriaKeys) {
-          const criterion = criteria[column];
-          const columnValue = entity[column];
-
-          if (isSearchCondition(criterion)) {
-            const { value, operator } = criterion;
-            const v = value as string | number;
-            const cv = columnValue as string | number | null | undefined;
-            switch (operator) {
-              case "=":
-                if (cv !== v) return false;
-                break;
-              case "<":
-                if (cv === null || cv === undefined || !(cv < v)) return false;
-                break;
-              case "<=":
-                if (cv === null || cv === undefined || !(cv <= v)) return false;
-                break;
-              case ">":
-                if (cv === null || cv === undefined || !(cv > v)) return false;
-                break;
-              case ">=":
-                if (cv === null || cv === undefined || !(cv >= v)) return false;
-                break;
-              default:
-                return false;
-            }
-          } else {
-            if (columnValue !== criterion) return false;
+        if (isSearchCondition(criterion)) {
+          const { value, operator } = criterion;
+          const v = value as string | number;
+          const cv = columnValue as string | number | null | undefined;
+          switch (operator) {
+            case "=":
+              if (cv !== v) return false;
+              break;
+            case "<":
+              if (cv === null || cv === undefined || !(cv < v)) return false;
+              break;
+            case "<=":
+              if (cv === null || cv === undefined || !(cv <= v)) return false;
+              break;
+            case ">":
+              if (cv === null || cv === undefined || !(cv > v)) return false;
+              break;
+            case ">=":
+              if (cv === null || cv === undefined || !(cv >= v)) return false;
+              break;
+            default:
+              return false;
           }
+        } else {
+          if (columnValue !== criterion) return false;
         }
-        return true;
-      });
-    }
+      }
+      return true;
+    });
 
     if (options?.orderBy && options.orderBy.length > 0) {
       results.sort((a, b) => {
@@ -395,11 +378,17 @@ export class InMemoryTabularStorage<
       });
     }
 
+    if (options?.offset !== undefined) {
+      results = results.slice(options.offset);
+    }
+
     if (options?.limit !== undefined) {
       results = results.slice(0, options.limit);
     }
 
-    return results.length > 0 ? results : undefined;
+    const result = results.length > 0 ? results : undefined;
+    this.events.emit("query", criteria as Partial<Entity>, result);
+    return result;
   }
 
   /**

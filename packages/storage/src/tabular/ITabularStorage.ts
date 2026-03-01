@@ -20,7 +20,7 @@ export type ValueOptionType = string | number | bigint | boolean | null | Uint8A
 export type TabularEventListeners<PrimaryKey, Entity> = {
   put: (entity: Entity) => void;
   get: (key: PrimaryKey, entity: Entity | undefined) => void;
-  search: (key: Partial<Entity>, entities: Entity[] | undefined) => void;
+  query: (key: Partial<Entity>, entities: Entity[] | undefined) => void;
   delete: (key: keyof Entity) => void;
   clearall: () => void;
 };
@@ -111,6 +111,7 @@ export interface OrderBy<Entity> {
 export interface QueryOptions<Entity> {
   readonly orderBy?: ReadonlyArray<OrderBy<Entity>>;
   readonly limit?: number;
+  readonly offset?: number;
 }
 
 /**
@@ -174,7 +175,7 @@ export interface ITabularStorage<
   putBulk(values: InsertType[]): Promise<Entity[]>;
   get(key: PrimaryKey): Promise<Entity | undefined>;
   delete(key: PrimaryKey | Entity): Promise<void>;
-  getAll(): Promise<Entity[] | undefined>;
+  getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined>;
   deleteAll(): Promise<void>;
   size(): Promise<number>;
   /**
@@ -237,16 +238,12 @@ export interface ITabularStorage<
     name: Event
   ): Promise<TabularEventParameters<Event, PrimaryKey, Entity>>;
 
-  // Convenience methods
-  search(key: Partial<Entity>): Promise<Entity[] | undefined>;
-
   /**
-   * Queries entries matching the specified search criteria with optional ordering and limit.
-   * Unlike `search`, this method does not require an index and supports comparison operators,
-   * ORDER BY, and LIMIT.
+   * Queries entries matching the specified search criteria with optional ordering, limit, and offset.
+   * Uses optimized index paths when possible, falls back to full scan otherwise.
    *
    * @param criteria - Object with column names as keys and values or SearchConditions
-   * @param options - Optional ordering and limit options
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of matching entities or undefined if no matches found
    */
   query(

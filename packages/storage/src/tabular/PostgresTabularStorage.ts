@@ -718,67 +718,6 @@ export class PostgresTabularStorage<
   }
 
   /**
-   * Method to be implemented by concrete repositories to search for rows
-   * based on a partial key.
-   *
-   * @param key - Partial key to search for
-   * @returns Promise resolving to an array of combined row objects or undefined if not found
-   */
-  public async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    const db = this.db;
-    const searchKeys = Object.keys(key);
-    if (searchKeys.length === 0) {
-      return undefined;
-    }
-
-    // Find the best matching index for the search
-    const bestIndex = this.findBestMatchingIndex(searchKeys as Array<keyof Entity>);
-    if (!bestIndex) {
-      throw new Error(
-        `No suitable index found for the search criteria, searching for ['${searchKeys.join(
-          "', '"
-        )}'] with pk ['${this.primaryKeyNames.join("', '")}'] and indexes ['${this.indexes.join(
-          "', '"
-        )}']`
-      );
-    }
-
-    // very columns in primary key or value schema
-    const validColumns = [...this.primaryKeyColumns(), ...this.valueColumns()];
-    // @ts-expect-error
-    const invalidColumns = searchKeys.filter((key) => !validColumns.includes(key));
-    if (invalidColumns.length > 0) {
-      throw new Error(`Invalid columns in search criteria: ${invalidColumns.join(", ")}`);
-    }
-
-    const whereClauses = Object.keys(key)
-      .map((key, i) => `"${key}" = $${i + 1}`)
-      .join(" AND ");
-    const whereClauseValues = Object.entries(key).map(([k, v]) =>
-      this.jsToSqlValue(k, v as Entity[keyof Entity])
-    );
-
-    const sql = `SELECT * FROM "${this.table}" WHERE ${whereClauses}`;
-    // @ts-ignore - Entity generic doesn't satisfy QueryResultRow constraint
-    const result = await db.query<Entity, ValueOptionType[]>(sql, whereClauseValues);
-
-    if (result.rows.length > 0) {
-      // Convert all columns according to schema
-      for (const row of result.rows) {
-        const record = row as Record<string, unknown>;
-        for (const k in this.schema.properties) {
-          record[k] = this.sqlToJsValue(k, record[k] as ValueOptionType);
-        }
-      }
-      this.events.emit("search", key, result.rows);
-      return result.rows;
-    } else {
-      this.events.emit("search", key, undefined);
-      return undefined;
-    }
-  }
-
-  /**
    * Deletes a row from the database.
    *
    * @param key - The primary key object to delete
@@ -797,13 +736,34 @@ export class PostgresTabularStorage<
   }
 
   /**
-   * Retrieves all entries from the database table
+   * Retrieves all entries from the database table, with optional ordering, offset, and limit.
+   * @param options - Optional ordering, limit, and offset options
    * @returns Promise resolving to an array of entries or undefined if not found
    */
-  async getAll(): Promise<Entity[] | undefined> {
+  async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
+    this.validateGetAllOptions(options);
     const db = this.db;
-    const sql = `SELECT * FROM "${this.table}"`;
-    const result = await db.query(sql);
+    let sql = `SELECT * FROM "${this.table}"`;
+    const params: ValueOptionType[] = [];
+
+    if (options?.orderBy && options.orderBy.length > 0) {
+      const orderClauses = options.orderBy.map(
+        (o) => `"${String(o.column)}" ${o.direction}`
+      );
+      sql += ` ORDER BY ${orderClauses.join(", ")}`;
+    }
+
+    if (options?.limit !== undefined) {
+      sql += ` LIMIT $${params.length + 1}`;
+      params.push(options.limit);
+    }
+
+    if (options?.offset !== undefined) {
+      sql += ` OFFSET $${params.length + 1}`;
+      params.push(options.offset);
+    }
+
+    const result = params.length > 0 ? await db.query(sql, params) : await db.query(sql);
 
     if (result.rows.length > 0) {
       // Convert all columns according to schema
@@ -929,27 +889,22 @@ export class PostgresTabularStorage<
   }
 
   /**
-   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Queries entries matching the specified search criteria with optional ordering, limit, and offset.
    *
    * @param criteria - Object with column names as keys and values or SearchConditions
-   * @param options - Optional ordering and limit options
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of matching entities or undefined if no matches found
    */
   async query(
     criteria: SearchCriteria<Entity>,
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
+    this.validateQueryParams(criteria, options);
     const db = this.db;
-    const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
 
     let sql = `SELECT * FROM "${this.table}"`;
-    let params: ValueOptionType[] = [];
-
-    if (criteriaKeys.length > 0) {
-      const { whereClause, params: whereParams } = this.buildDeleteSearchWhere(criteria);
-      sql += ` WHERE ${whereClause}`;
-      params = whereParams;
-    }
+    const { whereClause, params } = this.buildDeleteSearchWhere(criteria);
+    sql += ` WHERE ${whereClause}`;
 
     if (options?.orderBy && options.orderBy.length > 0) {
       const orderClauses = options.orderBy.map(
@@ -963,6 +918,11 @@ export class PostgresTabularStorage<
       params.push(options.limit);
     }
 
+    if (options?.offset !== undefined) {
+      sql += ` OFFSET $${params.length + 1}`;
+      params.push(options.offset);
+    }
+
     const result = await db.query(sql, params);
 
     if (result.rows.length > 0) {
@@ -972,8 +932,10 @@ export class PostgresTabularStorage<
           record[k] = this.sqlToJsValue(k, record[k] as ValueOptionType);
         }
       }
+      this.events.emit("query", criteria as Partial<Entity>, result.rows as Entity[]);
       return result.rows as Entity[];
     }
+    this.events.emit("query", criteria as Partial<Entity>, undefined);
     return undefined;
   }
 

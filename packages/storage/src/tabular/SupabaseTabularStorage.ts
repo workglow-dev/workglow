@@ -502,65 +502,6 @@ export class SupabaseTabularStorage<
   }
 
   /**
-   * Method to search for rows based on a partial key.
-   *
-   * @param searchCriteria - Partial entity to search for
-   * @returns Promise resolving to an array of entities or undefined if not found
-   */
-  public async search(searchCriteria: Partial<Entity>): Promise<Entity[] | undefined> {
-    const searchKeys = Object.keys(searchCriteria);
-    if (searchKeys.length === 0) {
-      return undefined;
-    }
-
-    // Find the best matching index for the search
-    const bestIndex = this.findBestMatchingIndex(searchKeys as Array<keyof Entity>);
-    if (!bestIndex) {
-      throw new Error(
-        `No suitable index found for the search criteria, searching for ['${searchKeys.join(
-          "', '"
-        )}'] with pk ['${this.primaryKeyNames.join("', '")}'] and indexes ['${this.indexes.join(
-          "', '"
-        )}']`
-      );
-    }
-
-    // Verify columns in primary key or value schema
-    const validColumns = [...this.primaryKeyColumns(), ...this.valueColumns()];
-    // @ts-expect-error
-    const invalidColumns = searchKeys.filter((key) => !validColumns.includes(key));
-    if (invalidColumns.length > 0) {
-      throw new Error(`Invalid columns in search criteria: ${invalidColumns.join(", ")}`);
-    }
-
-    let query = this.client.from(this.table).select("*");
-
-    // Build the where clause from search criteria
-    for (const [key, value] of Object.entries(searchCriteria)) {
-      query = query.eq(key, value);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    if (data && data.length > 0) {
-      // Convert all columns from SQL to JS values
-      for (const row of data) {
-        const record = row as Record<string, unknown>;
-        for (const key in this.schema.properties) {
-          record[key] = this.sqlToJsValue(key, record[key] as ValueOptionType);
-        }
-      }
-      this.events.emit("search", searchCriteria, data as Entity[]);
-      return data as Entity[];
-    } else {
-      this.events.emit("search", searchCriteria, undefined);
-      return undefined;
-    }
-  }
-
-  /**
    * Deletes a row from the database.
    *
    * @param value - The primary key object or entity to delete
@@ -584,11 +525,30 @@ export class SupabaseTabularStorage<
   }
 
   /**
-   * Retrieves all entries from the database table
+   * Retrieves all entries from the database table, with optional ordering, offset, and limit.
+   * @param options - Optional ordering, limit, and offset options
    * @returns Promise resolving to an array of entries or undefined if not found
    */
-  async getAll(): Promise<Entity[] | undefined> {
-    const { data, error } = await this.client.from(this.table).select("*");
+  async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
+    this.validateGetAllOptions(options);
+    let query = this.client.from(this.table).select("*");
+
+    if (options?.orderBy) {
+      for (const { column, direction } of options.orderBy) {
+        query = query.order(String(column), { ascending: direction === "ASC" });
+      }
+    }
+
+    if (options?.offset !== undefined || options?.limit !== undefined) {
+      const start = options?.offset ?? 0;
+      if (options?.limit !== undefined) {
+        query = query.range(start, start + options.limit - 1);
+      } else if (options?.offset !== undefined) {
+        query = query.range(start, start + 999999);
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -722,25 +682,22 @@ export class SupabaseTabularStorage<
   }
 
   /**
-   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Queries entries matching the specified search criteria with optional ordering, limit, and offset.
    *
    * @param criteria - Object with column names as keys and values or SearchConditions
-   * @param options - Optional ordering and limit options
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of matching entities or undefined if no matches found
    */
   async query(
     criteria: SearchCriteria<Entity>,
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
+    this.validateQueryParams(criteria, options);
     const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
 
     let query = this.client.from(this.table).select("*");
 
     for (const column of criteriaKeys) {
-      if (!(column in this.schema.properties)) {
-        throw new Error(`Schema must have a ${String(column)} field to use query`);
-      }
-
       const criterion = criteria[column];
       let operator: SearchOperator = "=";
       let value: Entity[keyof Entity];
@@ -777,7 +734,14 @@ export class SupabaseTabularStorage<
       }
     }
 
-    if (options?.limit !== undefined) {
+    if (options?.offset !== undefined || options?.limit !== undefined) {
+      const start = options?.offset ?? 0;
+      if (options?.limit !== undefined) {
+        query = query.range(start, start + options.limit - 1);
+      } else if (options?.offset !== undefined) {
+        query = query.range(start, start + 999999);
+      }
+    } else if (options?.limit !== undefined) {
       query = query.limit(options.limit);
     }
 
@@ -792,8 +756,10 @@ export class SupabaseTabularStorage<
           record[key] = this.sqlToJsValue(key, record[key] as ValueOptionType);
         }
       }
+      this.events.emit("query", criteria as Partial<Entity>, data as Entity[]);
       return data as Entity[];
     }
+    this.events.emit("query", criteria as Partial<Entity>, undefined);
     return undefined;
   }
 

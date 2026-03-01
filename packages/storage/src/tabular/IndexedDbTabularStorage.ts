@@ -334,10 +334,12 @@ export class IndexedDbTabularStorage<
   }
 
   /**
-   * Returns an array of all entries in the repository.
+   * Returns an array of all entries in the repository, with optional ordering, offset, and limit.
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of all entries in the repository.
    */
-  async getAll(): Promise<Entity[] | undefined> {
+  async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
+    this.validateGetAllOptions(options);
     const db = await this.getDb();
     const transaction = db.transaction(this.table, "readonly");
     const store = transaction.objectStore(this.table);
@@ -345,149 +347,37 @@ export class IndexedDbTabularStorage<
     return new Promise((resolve, reject) => {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
-        const values = request.result;
+        let values: Entity[] = request.result;
+        if (values.length === 0) {
+          resolve(undefined);
+          return;
+        }
+
+        if (options?.orderBy && options.orderBy.length > 0) {
+          values.sort((a, b) => {
+            for (const { column, direction } of options.orderBy!) {
+              const aVal = a[column] as string | number | null | undefined;
+              const bVal = b[column] as string | number | null | undefined;
+              if (aVal == null && bVal == null) continue;
+              if (aVal == null) return direction === "ASC" ? -1 : 1;
+              if (bVal == null) return direction === "ASC" ? 1 : -1;
+              if (aVal < bVal) return direction === "ASC" ? -1 : 1;
+              if (aVal > bVal) return direction === "ASC" ? 1 : -1;
+            }
+            return 0;
+          });
+        }
+
+        if (options?.offset !== undefined) {
+          values = values.slice(options.offset);
+        }
+
+        if (options?.limit !== undefined) {
+          values = values.slice(0, options.limit);
+        }
+
         resolve(values.length > 0 ? values : undefined);
       };
-    });
-  }
-
-  /**
-   * Searches for records matching the specified partial query.
-   * It uses an appropriate index if one exists, or scans all records.
-   * @param key - Partial query object.
-   * @returns Array of matching records or undefined.
-   */
-  async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    const db = await this.getDb();
-    const searchKeys = Object.keys(key) as Array<keyof Entity>;
-    if (searchKeys.length === 0) {
-      return undefined;
-    }
-
-    // Find the best matching index for the search
-    const bestIndex = this.findBestMatchingIndex(searchKeys);
-    if (!bestIndex) {
-      throw new Error("No suitable index found for the search criteria");
-    }
-
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(this.table, "readonly");
-      const store = transaction.objectStore(this.table);
-
-      // For compound indexes, the index name is the columns joined by underscore
-      const indexName = bestIndex.join("_");
-      const primaryKeyName = this.primaryKeyColumns().join("_");
-      const isPrimaryKey = indexName === primaryKeyName;
-
-      // Get the values for the index columns that we have
-      const indexValues: IDBValidKey[] = [];
-
-      // Collect values for consecutive columns from the start of the index
-      for (const col of bestIndex) {
-        const val = key[col];
-        // Break on first undefined value for compound index
-        if (val === undefined) break;
-        if (typeof val !== "string" && typeof val !== "number") {
-          throw new Error(`Invalid value type for indexed column ${String(col)}`);
-        }
-        indexValues.push(val);
-      }
-
-      // If we have at least one valid index value, use it
-      if (indexValues.length > 0) {
-        const index = isPrimaryKey ? store : store.index(indexName);
-        const isPartialMatch = indexValues.length < bestIndex.length;
-
-        if (isPartialMatch) {
-          // For partial matches on compound indexes, we need to handle two cases:
-          // 1. If all columns in the compound index are required in the schema,
-          //    we can use cursor-based prefix matching (efficient)
-          // 2. If any columns are optional (could be undefined), records without those
-          //    values won't be in the index, so we must do a full scan
-
-          // Check if all columns in the compound index are required
-          const allColumnsRequired = bestIndex.every((col) => {
-            const colName = String(col);
-            return this.schema.required?.includes(colName);
-          });
-
-          if (allColumnsRequired) {
-            // All index columns are required, so all records will be in the index
-            // We can use cursor-based prefix matching for better performance
-            const results: Entity[] = [];
-            const keyRange = IDBKeyRange.lowerBound(indexValues);
-            const cursorRequest = index.openCursor(keyRange);
-
-            cursorRequest.onsuccess = () => {
-              const cursor = cursorRequest.result;
-              if (cursor) {
-                const item = cursor.value as Entity;
-                const cursorKey = Array.isArray(cursor.key) ? cursor.key : [cursor.key];
-
-                // Check if cursor key still matches our prefix
-                const prefixMatches = indexValues.every((val, idx) => cursorKey[idx] === val);
-
-                if (!prefixMatches) {
-                  // Moved past our prefix range
-                  resolve(results.length > 0 ? results : undefined);
-                  return;
-                }
-
-                // Check all search criteria (including non-indexed columns)
-                // @ts-ignore
-                const matches = Object.entries(key).every(([k, v]) => item[k] === v);
-                if (matches) {
-                  results.push(item);
-                }
-                cursor.continue();
-              } else {
-                // Cursor exhausted
-                resolve(results.length > 0 ? results : undefined);
-              }
-            };
-
-            cursorRequest.onerror = () => {
-              reject(cursorRequest.error);
-            };
-          } else {
-            // Some index columns are optional, records with undefined values won't be indexed
-            // Fall back to full scan to ensure we don't miss any matching records
-            const getAllRequest = store.getAll();
-
-            getAllRequest.onsuccess = () => {
-              const allRecords: Entity[] = getAllRequest.result;
-              const results = allRecords.filter((item) =>
-                // @ts-ignore
-                Object.entries(key).every(([k, v]) => item[k] === v)
-              );
-              resolve(results.length > 0 ? results : undefined);
-            };
-
-            getAllRequest.onerror = () => {
-              reject(getAllRequest.error);
-            };
-          }
-        } else {
-          // Exact match: use getAll with the exact key
-          const request = index.getAll(indexValues.length === 1 ? indexValues[0] : indexValues);
-
-          request.onsuccess = () => {
-            // Filter results for any additional search keys
-            const results = request.result.filter((item: Entity) =>
-              // @ts-ignore
-              Object.entries(key).every(([k, v]) => item[k] === v)
-            );
-            resolve(results.length > 0 ? results : undefined);
-          };
-
-          request.onerror = () => {
-            console.error("Search error:", request.error);
-            reject(request.error);
-          };
-        }
-      } else {
-        throw new Error(`No valid values provided for indexed columns: ${bestIndex.join(", ")}`);
-      }
     });
   }
 
@@ -722,16 +612,17 @@ export class IndexedDbTabularStorage<
   }
 
   /**
-   * Queries entries matching the specified search criteria with optional ordering and limit.
+   * Queries entries matching the specified search criteria with optional ordering, limit, and offset.
    *
    * @param criteria - Object with column names as keys and values or SearchConditions
-   * @param options - Optional ordering and limit options
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of matching entities or undefined if no matches found
    */
   async query(
     criteria: SearchCriteria<Entity>,
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
+    this.validateQueryParams(criteria, options);
     const db = await this.getDb();
 
     return new Promise((resolve, reject) => {
@@ -741,15 +632,10 @@ export class IndexedDbTabularStorage<
 
       getAllRequest.onsuccess = () => {
         const allRecords: Entity[] = getAllRequest.result;
-        const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
 
-        let results: Entity[];
-
-        if (criteriaKeys.length === 0) {
-          results = allRecords;
-        } else {
-          results = allRecords.filter((record) => this.matchesCriteria(record, criteria));
-        }
+        let results: Entity[] = allRecords.filter((record) =>
+          this.matchesCriteria(record, criteria)
+        );
 
         if (options?.orderBy && options.orderBy.length > 0) {
           results.sort((a, b) => {
@@ -766,11 +652,17 @@ export class IndexedDbTabularStorage<
           });
         }
 
+        if (options?.offset !== undefined) {
+          results = results.slice(options.offset);
+        }
+
         if (options?.limit !== undefined) {
           results = results.slice(0, options.limit);
         }
 
-        resolve(results.length > 0 ? results : undefined);
+        const result = results.length > 0 ? results : undefined;
+        this.events.emit("query", criteria as Partial<Entity>, result);
+        resolve(result);
       };
 
       getAllRequest.onerror = () => {

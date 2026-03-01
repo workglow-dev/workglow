@@ -136,8 +136,8 @@ export class SharedInMemoryTabularStorage<
     this.inMemoryRepo.on("get", (key, entity) => {
       this.events.emit("get", key, entity);
     });
-    this.inMemoryRepo.on("search", (key, entities) => {
-      this.events.emit("search", key, entities);
+    this.inMemoryRepo.on("query", (key, entities) => {
+      this.events.emit("query", key, entities);
     });
     this.inMemoryRepo.on("delete", (key) => {
       this.events.emit("delete", key);
@@ -284,16 +284,6 @@ export class SharedInMemoryTabularStorage<
   }
 
   /**
-   * Searches for entries matching a partial key
-   * @param key - Partial key object to search for
-   * @returns Array of matching combined objects
-   * @throws Error if search criteria outside of searchable fields
-   */
-  async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    return await this.inMemoryRepo.search(key);
-  }
-
-  /**
    * Deletes an entry by its key
    * @param value - The primary key object or entity of the entry to delete
    * @emits 'delete' event with the fingerprint ID when successful
@@ -314,11 +304,12 @@ export class SharedInMemoryTabularStorage<
   }
 
   /**
-   * Returns an array of all entries in the repository
+   * Returns an array of all entries in the repository, with optional ordering, offset, and limit.
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of all entries in the repository
    */
-  async getAll(): Promise<Entity[] | undefined> {
-    return await this.inMemoryRepo.getAll();
+  async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
+    return await this.inMemoryRepo.getAll(options);
   }
 
   /**

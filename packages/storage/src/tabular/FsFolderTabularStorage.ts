@@ -32,6 +32,7 @@ import {
   TabularChangePayload,
   TabularSubscribeOptions,
 } from "./ITabularStorage";
+import { StorageUnsupportedError } from "./StorageError";
 
 export const FS_FOLDER_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.fsFolder"
@@ -313,14 +314,6 @@ export class FsFolderTabularStorage<
   }
 
   /**
-   * Search is not supported in the filesystem implementation.
-   * @throws {Error} Always throws an error indicating search is not supported
-   */
-  async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    throw new Error("Search not supported for FsFolderTabularStorage");
-  }
-
-  /**
    * Generates the full filesystem path for a given key.
    * @private
    */
@@ -333,13 +326,13 @@ export class FsFolderTabularStorage<
 
   /**
    * Query is not supported for filesystem repository.
-   * @throws Error always - query is not supported for filesystem storage
+   * @throws StorageUnsupportedError always
    */
   async query(
     _criteria: SearchCriteria<Entity>,
     _options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
-    throw new Error("query is not supported for FsFolderTabularStorage");
+    throw new StorageUnsupportedError("query", "FsFolderTabularStorage");
   }
 
   /**

@@ -160,7 +160,7 @@ describe("IndexedDbTabularStorage", () => {
         });
 
         // Partial match: category + subcategory (2 of 3 index columns)
-        const electronicsPhones = await repo.search({
+        const electronicsPhones = await repo.query({
           category: "electronics",
           subcategory: "phones",
         });
@@ -168,12 +168,12 @@ describe("IndexedDbTabularStorage", () => {
         expect(electronicsPhones?.map((e) => e.id).sort()).toEqual(["1", "2"]);
 
         // Partial match: just category (1 of 3 index columns)
-        const electronics = await repo.search({ category: "electronics" });
+        const electronics = await repo.query({ category: "electronics" });
         expect(electronics?.length).toBe(3);
         expect(electronics?.map((e) => e.id).sort()).toEqual(["1", "2", "3"]);
 
         // Full match on compound index
-        const specific = await repo.search({
+        const specific = await repo.query({
           category: "electronics",
           subcategory: "phones",
           kind: "smartphone",
@@ -191,7 +191,7 @@ describe("IndexedDbTabularStorage", () => {
           value: 100,
         });
 
-        const result = await repo.search({
+        const result = await repo.query({
           category: "books",
           subcategory: "fiction",
         });
@@ -254,14 +254,14 @@ describe("IndexedDbTabularStorage", () => {
         } as OptionalEntity);
 
         // Partial match should find ALL records, including those without 'kind'
-        const electronicsPhones = await repo.search({
+        const electronicsPhones = await repo.query({
           category: "electronics",
           subcategory: "phones",
         });
         expect(electronicsPhones?.length).toBe(2);
         expect(electronicsPhones?.map((e) => e.id).sort()).toEqual(["1", "2"]);
 
-        const electronicsLaptops = await repo.search({
+        const electronicsLaptops = await repo.query({
           category: "electronics",
           subcategory: "laptops",
         });
@@ -269,7 +269,7 @@ describe("IndexedDbTabularStorage", () => {
         expect(electronicsLaptops?.map((e) => e.id).sort()).toEqual(["3", "4"]);
 
         // Search for all electronics
-        const electronics = await repo.search({ category: "electronics" });
+        const electronics = await repo.query({ category: "electronics" });
         expect(electronics?.length).toBe(4);
         expect(electronics?.map((e) => e.id).sort()).toEqual(["1", "2", "3", "4"]);
       });
@@ -296,14 +296,14 @@ describe("IndexedDbTabularStorage", () => {
         } as OptionalEntity);
 
         // Should find all records even though none are in the compound index
-        const booksFiction = await repo.search({
+        const booksFiction = await repo.query({
           category: "books",
           subcategory: "fiction",
         });
         expect(booksFiction?.length).toBe(2);
         expect(booksFiction?.map((e) => e.id).sort()).toEqual(["1", "2"]);
 
-        const allBooks = await repo.search({ category: "books" });
+        const allBooks = await repo.query({ category: "books" });
         expect(allBooks?.length).toBe(3);
       });
 
@@ -330,7 +330,7 @@ describe("IndexedDbTabularStorage", () => {
         });
 
         // Should find all three records
-        const results = await repo.search({
+        const results = await repo.query({
           category: "mixed",
           subcategory: "test",
         });

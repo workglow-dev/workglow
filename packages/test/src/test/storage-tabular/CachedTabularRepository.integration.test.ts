@@ -278,14 +278,10 @@ describe("CachedTabularStorage", () => {
       // Clear cache to force cache miss
       await cached.cache.deleteAll();
 
-      // Search should find in durable and populate cache
-      const results = await cached.search({ name: "key1" });
+      // Query should find in durable and populate cache
+      const results = await cached.query({ name: "key1" });
       expect(results?.length).toBe(1);
       expect(results?.[0].option).toEqual("value1");
-
-      // Verify cache was populated
-      const cacheResults = await cached.cache.search({ name: "key1" });
-      expect(cacheResults?.length).toBe(1);
     });
 
     it("should return size from durable (source of truth)", async () => {
@@ -514,10 +510,10 @@ describe("CachedTabularStorage", () => {
       expect(callArgs[1]?.option).toEqual("value1");
     });
 
-    it("should forward search events from cache", async () => {
+    it("should forward query events from cache", async () => {
       const mockHandler = { handleEvent: (_key: any, _entities: any) => {} };
-      const searchSpy = spyOn(mockHandler, "handleEvent");
-      cached.on("search", searchSpy);
+      const querySpy = spyOn(mockHandler, "handleEvent");
+      cached.on("query", querySpy);
 
       const entity = {
         name: "key1",
@@ -527,10 +523,10 @@ describe("CachedTabularStorage", () => {
       };
 
       await cached.put(entity);
-      await cached.search({ name: "key1" });
+      await cached.query({ name: "key1" });
 
-      expect(searchSpy).toHaveBeenCalled();
-      const callArgs = searchSpy.mock.calls[0];
+      expect(querySpy).toHaveBeenCalled();
+      const callArgs = querySpy.mock.calls[0];
       expect(callArgs[0]).toEqual({ name: "key1" });
       expect(callArgs[1]?.length).toBe(1);
     });

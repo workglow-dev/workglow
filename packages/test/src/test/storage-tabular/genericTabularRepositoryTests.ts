@@ -269,12 +269,12 @@ export function runGenericTabularRepositoryTests(
           updatedAt: new Date().toISOString(),
         });
         // Test searching with single column
-        const electronicsOnly = await searchableRepo.search({ category: "electronics" });
+        const electronicsOnly = await searchableRepo.query({ category: "electronics" });
         expect(electronicsOnly?.length).toBe(2);
         expect(electronicsOnly?.map((item) => item.id).sort()).toEqual(["1", "2"]);
 
         // Test searching with compound criteria
-        const electronicsPhones = await searchableRepo.search({
+        const electronicsPhones = await searchableRepo.query({
           category: "electronics",
           subcategory: "phones",
         });
@@ -282,7 +282,7 @@ export function runGenericTabularRepositoryTests(
         expect(electronicsPhones?.[0].id).toBe("1");
 
         // Test searching with non-existent values
-        const nonExistent = await searchableRepo.search({
+        const nonExistent = await searchableRepo.query({
           category: "electronics",
           subcategory: "tablets",
         });
@@ -309,11 +309,11 @@ export function runGenericTabularRepositoryTests(
         });
 
         // Search with criteria in different orders should work the same
-        const search1 = await searchableRepo.search({
+        const search1 = await searchableRepo.query({
           category: "electronics",
           subcategory: "phones",
         });
-        const search2 = await searchableRepo.search({
+        const search2 = await searchableRepo.query({
           subcategory: "phones",
           category: "electronics",
         });
@@ -352,12 +352,12 @@ export function runGenericTabularRepositoryTests(
         });
 
         // Search with value field
-        const highValue = await searchableRepo.search({ value: 300 });
+        const highValue = await searchableRepo.query({ value: 300 });
         expect(highValue?.length).toBe(1);
         expect(highValue?.[0].id).toBe("3");
 
         // Search with multiple fields including a non-indexed one
-        const expensivePhones = await searchableRepo.search({
+        const expensivePhones = await searchableRepo.query({
           subcategory: "phones",
           value: 200,
         });
@@ -935,10 +935,9 @@ export function runGenericTabularRepositoryTests(
           updatedAt: now,
         });
 
-        const results = await repository.query(
-          {},
-          { orderBy: [{ column: "value", direction: "ASC" }] }
-        );
+        const results = await repository.getAll({
+          orderBy: [{ column: "value", direction: "ASC" }],
+        });
         expect(results?.length).toBe(3);
         expect(results?.map((r) => r.value)).toEqual([100, 200, 300]);
       });
@@ -970,10 +969,9 @@ export function runGenericTabularRepositoryTests(
           updatedAt: now,
         });
 
-        const results = await repository.query(
-          {},
-          { orderBy: [{ column: "value", direction: "DESC" }] }
-        );
+        const results = await repository.getAll({
+          orderBy: [{ column: "value", direction: "DESC" }],
+        });
         expect(results?.length).toBe(3);
         expect(results?.map((r) => r.value)).toEqual([300, 200, 100]);
       });
@@ -1005,10 +1003,10 @@ export function runGenericTabularRepositoryTests(
           updatedAt: now,
         });
 
-        const results = await repository.query(
-          {},
-          { orderBy: [{ column: "value", direction: "ASC" }], limit: 2 }
-        );
+        const results = await repository.getAll({
+          orderBy: [{ column: "value", direction: "ASC" }],
+          limit: 2,
+        });
         expect(results?.length).toBe(2);
         expect(results?.map((r) => r.value)).toEqual([100, 200]);
       });
@@ -1056,7 +1054,7 @@ export function runGenericTabularRepositoryTests(
         expect(results?.map((r) => r.value)).toEqual([300, 200]);
       });
 
-      it("should return all entries with empty criteria and orderBy", async () => {
+      it("should return all entries with getAll and orderBy", async () => {
         const now = new Date().toISOString();
         await repository.put({
           id: "1",
@@ -1075,10 +1073,9 @@ export function runGenericTabularRepositoryTests(
           updatedAt: now,
         });
 
-        const results = await repository.query(
-          {},
-          { orderBy: [{ column: "category", direction: "ASC" }] }
-        );
+        const results = await repository.getAll({
+          orderBy: [{ column: "category", direction: "ASC" }],
+        });
         expect(results?.length).toBe(2);
         expect(results?.map((r) => r.category)).toEqual(["a", "b"]);
       });

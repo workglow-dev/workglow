@@ -481,7 +481,7 @@ describe("HuggingFaceTabularStorage", () => {
         }),
       });
 
-      const result = await storage.search({ label: 1 } as any);
+      const result = await storage.query({ label: 1 } as any);
 
       expect(result).toHaveLength(2);
       expect(mockFetch).toHaveBeenCalledWith(
@@ -490,16 +490,32 @@ describe("HuggingFaceTabularStorage", () => {
       );
     });
 
-    it("should throw error when searching without suitable index", async () => {
-      await expect(storage.search({ text: "test" } as any)).rejects.toThrow(
-        "No suitable index found"
+    it("should query entities by non-indexed columns", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [],
+          rows: [
+            { row_idx: 0, row: { id: 1, text: "test", label: 0 }, truncated_cells: [] },
+          ],
+          num_rows_total: 1,
+          num_rows_per_page: 100,
+          partial: false,
+        }),
+      });
+
+      const result = await storage.query({ text: "test" } as any);
+
+      expect(result).toHaveLength(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("where=text%3D%27test%27"),
+        expect.any(Object)
       );
     });
 
-    it("should throw error when all search values are null or undefined", async () => {
-      await expect(storage.search({ label: null } as any)).rejects.toThrow(
-        "Search criteria must include at least one non-null and non-undefined value to build a valid WHERE clause."
-      );
+    it("should return undefined when all search values are null or undefined", async () => {
+      const result = await storage.query({ label: null } as any);
+      expect(result).toBeUndefined();
     });
 
     it("should get dataset size", async () => {

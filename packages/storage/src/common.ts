@@ -9,6 +9,7 @@ export * from "./tabular/CachedTabularStorage";
 export * from "./tabular/HuggingFaceTabularStorage";
 export * from "./tabular/InMemoryTabularStorage";
 export * from "./tabular/ITabularStorage";
+export * from "./tabular/StorageError";
 export * from "./tabular/TabularStorageRegistry";
 
 export * from "./kv/IKvStorage";

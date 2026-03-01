@@ -111,8 +111,8 @@ export class CachedTabularStorage<
     this.cache.on("get", (key, entity) => {
       this.events.emit("get", key, entity);
     });
-    this.cache.on("search", (key, entities) => {
-      this.events.emit("search", key, entities);
+    this.cache.on("query", (key, entities) => {
+      this.events.emit("query", key, entities);
     });
     this.cache.on("delete", (key) => {
       this.events.emit("delete", key);
@@ -200,29 +200,6 @@ export class CachedTabularStorage<
   }
 
   /**
-   * Searches for entries matching a partial key
-   * @param key - Partial key object to search for
-   * @returns Array of matching combined objects
-   * @throws Error if search criteria outside of searchable fields
-   */
-  async search(key: Partial<Entity>): Promise<Entity[] | undefined> {
-    await this.initializeCache();
-
-    // Try cache first
-    let results = await this.cache.search(key);
-
-    // If not found in cache, search durable and cache results
-    if (results === undefined) {
-      results = await this.durable.search(key);
-      if (results && results.length > 0) {
-        await this.cache.putBulk(results);
-      }
-    }
-
-    return results;
-  }
-
-  /**
    * Deletes an entry from both cache and durable repository
    * @param value - The primary key object or entity of the entry to delete
    * @emits 'delete' event with the fingerprint ID when successful
@@ -252,13 +229,14 @@ export class CachedTabularStorage<
   }
 
   /**
-   * Returns an array of all entries in the repository
+   * Returns an array of all entries in the repository, with optional ordering, offset, and limit.
+   * @param options - Optional ordering, limit, and offset options
    * @returns Array of all entries in the repository
    */
-  async getAll(): Promise<Entity[] | undefined> {
+  async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
     await this.initializeCache();
 
-    // Try cache first
+    // Try cache first (without options for population check)
     let results = await this.cache.getAll();
 
     // If cache is empty, get from durable and populate cache
@@ -267,6 +245,11 @@ export class CachedTabularStorage<
       if (results && results.length > 0) {
         await this.cache.putBulk(results);
       }
+    }
+
+    // If options provided, apply them via the cache
+    if (options && results && results.length > 0) {
+      return await this.cache.getAll(options);
     }
 
     return results;
@@ -298,7 +281,8 @@ export class CachedTabularStorage<
 
   /**
    * Queries entries matching the specified search criteria with optional ordering and limit.
-   * Delegates to the durable repository since cache doesn't support comparison operators.
+   * Delegates to the cache (which has all data after initialization) for best performance.
+   * Falls back to durable if cache returns no results.
    *
    * @param criteria - Object with column names as keys and values or SearchConditions
    * @param options - Optional ordering and limit options
@@ -309,7 +293,7 @@ export class CachedTabularStorage<
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
     await this.initializeCache();
-    return await this.durable.query(criteria, options);
+    return await this.cache.query(criteria, options);
   }
 
   /**
