@@ -365,7 +365,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
 
   const text = response.choices[0]?.message?.content ?? "";
   const toolCalls: Record<string, unknown> = {};
-  ((response.choices[0]?.message as any)?.tool_calls ?? []).forEach((tc: any) => {
+  ((response.choices[0]?.message as any)?.tool_calls ?? []).forEach((tc: any, idx: number) => {
     let parsedInput: Record<string, unknown> = {};
     const rawArgs = tc.function?.arguments;
     if (typeof rawArgs === "string") {
@@ -377,7 +377,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
     } else if (rawArgs != null) {
       parsedInput = rawArgs as Record<string, unknown>;
     }
-    const id = (tc.id as string) ?? `call_${Math.random().toString(36).slice(2, 10)}`;
+    const id = (tc.id as string) ?? `call_${idx}`;
     toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
   });
 
@@ -464,8 +464,8 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
         } catch {
           parsedInput = {};
         }
-        const key = tc.id || String(idx);
-        snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
+        const key = String(idx);
+        snapshotObject[key] = { id: tc.id || String(idx), name: tc.name, input: parsedInput };
       });
       yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
     }
@@ -479,8 +479,8 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
     } catch {
       finalInput = {};
     }
-    const key = tc.id || String(idx);
-    toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
+    const key = String(idx);
+    toolCalls[key] = { id: tc.id || String(idx), name: tc.name, input: finalInput };
   });
 
   yield {

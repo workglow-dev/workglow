@@ -615,8 +615,8 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
           const partial = parsePartialJson(tc.arguments);
           parsedInput = (partial as Record<string, unknown>) ?? {};
         }
-        const key = tc.id || String(idx);
-        snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
+        const key = String(idx);
+        snapshotObject[key] = { id: tc.id || String(idx), name: tc.name, input: parsedInput };
       });
       yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
     }
@@ -631,8 +631,8 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
     } catch {
       finalInput = (parsePartialJson(tc.arguments) as Record<string, unknown>) ?? {};
     }
-    const key = tc.id || String(idx);
-    toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
+    const key = String(idx);
+    toolCalls[key] = { id: tc.id || String(idx), name: tc.name, input: finalInput };
   });
 
   yield {

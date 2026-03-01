@@ -1783,17 +1783,17 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   yield* queue.iterable;
   await pipelinePromise;
 
-  // Parse the accumulated text for tool calls
-  const { toolCalls } = parseToolCallsFromText(fullText);
+  // Parse the accumulated text for tool calls and cleaned user-visible text
+  const { text, toolCalls } = parseToolCallsFromText(fullText);
 
   if (Object.keys(toolCalls).length > 0) {
     yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
   }
 
-  // Use the same text that was streamed via text-delta events for consistency
+  // Emit a finish event with cleaned text (without tool-call markup/JSON), matching non-streaming behavior
   yield {
     type: "finish",
-    data: { text: fullText, toolCalls } as ToolCallingTaskOutput,
+    data: { text, toolCalls } as ToolCallingTaskOutput,
   };
 };
 
