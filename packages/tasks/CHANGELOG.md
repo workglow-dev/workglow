@@ -1,5 +1,16 @@
 # @workglow/tasks
 
+## 0.0.105
+
+### Patch Changes
+
+- Storage rename search to query
+- Updated dependencies
+  - @workglow/job-queue@0.0.105
+  - @workglow/storage@0.0.105
+  - @workglow/task-graph@0.0.105
+  - @workglow/util@0.0.105
+
 ## 0.0.104
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.105
+
+### Patch Changes
+
+- Storage rename search to query
+
 ## 0.0.104
 
 ### Patch Changes

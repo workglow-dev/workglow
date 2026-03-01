@@ -1,5 +1,14 @@
 # @workglow/debug
 
+## 0.0.105
+
+### Patch Changes
+
+- Storage rename search to query
+- Updated dependencies
+  - @workglow/task-graph@0.0.105
+  - @workglow/util@0.0.105
+
 ## 0.0.104
 
 ### Patch Changes
