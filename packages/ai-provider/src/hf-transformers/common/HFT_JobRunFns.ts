@@ -1524,9 +1524,10 @@ function mapHFTTools(tools: ReadonlyArray<ToolDefinition>) {
  */
 function parseToolCallsFromText(responseText: string): {
   text: string;
-  toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }>;
+  toolCalls: Record<string, unknown>;
 } {
-  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+  const toolCalls: Record<string, unknown> = {};
+  let callIndex = 0;
   let cleanedText = responseText;
 
   // Pattern 1: <tool_call>...</tool_call> blocks (Qwen, Hermes, etc.)
@@ -1535,20 +1536,21 @@ function parseToolCallsFromText(responseText: string): {
   while ((tagMatch = toolCallTagRegex.exec(responseText)) !== null) {
     try {
       const parsed = JSON.parse(tagMatch[1].trim());
-      toolCalls.push({
-        id: `call_${toolCalls.length}`,
+      const id = `call_${callIndex++}`;
+      toolCalls[id] = {
+        id,
         name: parsed.name ?? parsed.function?.name ?? "",
         input: (parsed.arguments ?? parsed.function?.arguments ?? parsed.parameters ?? {}) as Record<
           string,
           unknown
         >,
-      });
+      };
     } catch {
       // Not valid JSON inside the tag, skip
     }
   }
 
-  if (toolCalls.length > 0) {
+  if (Object.keys(toolCalls).length > 0) {
     // Remove tool_call tags from the text output
     cleanedText = responseText.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
     return { text: cleanedText, toolCalls };
@@ -1603,11 +1605,12 @@ function parseToolCallsFromText(responseText: string): {
     try {
       const parsed = JSON.parse(candidate.text);
       if (parsed.name && (parsed.arguments !== undefined || parsed.parameters !== undefined)) {
-        toolCalls.push({
-          id: `call_${toolCalls.length}`,
+        const id = `call_${callIndex++}`;
+        toolCalls[id] = {
+          id,
           name: parsed.name as string,
           input: (parsed.arguments ?? parsed.parameters ?? {}) as Record<string, unknown>,
-        });
+        };
         matchedRanges.push({ start: candidate.start, end: candidate.end });
       } else if (parsed.function?.name) {
         let functionArgs: unknown = parsed.function.arguments ?? {};
@@ -1619,11 +1622,12 @@ function parseToolCallsFromText(responseText: string): {
             functionArgs = {};
           }
         }
-        toolCalls.push({
-          id: `call_${toolCalls.length}`,
+        const id = `call_${callIndex++}`;
+        toolCalls[id] = {
+          id,
           name: parsed.function.name as string,
           input: (functionArgs ?? {}) as Record<string, unknown>,
-        });
+        };
         matchedRanges.push({ start: candidate.start, end: candidate.end });
       }
     } catch {
@@ -1631,7 +1635,7 @@ function parseToolCallsFromText(responseText: string): {
     }
   }
 
-  if (toolCalls.length > 0) {
+  if (Object.keys(toolCalls).length > 0) {
     // Remove only the matched JSON portions, preserving surrounding text
     let result = "";
     let lastIndex = 0;
@@ -1782,8 +1786,8 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   // Parse the accumulated text for tool calls
   const { toolCalls } = parseToolCallsFromText(fullText);
 
-  if (toolCalls.length > 0) {
-    yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
+  if (Object.keys(toolCalls).length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
   }
 
   // Use the same text that was streamed via text-delta events for consistency
