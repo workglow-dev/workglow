@@ -7,18 +7,50 @@
 import type { ILogger } from "./ILogger";
 
 /**
- * Default logger that delegates to the global `console` object.
+ * Log-level names in ascending severity order.
+ */
+export type LogLevel = "debug" | "info" | "warn" | "error" | "fatal";
+
+const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+  fatal: 4,
+};
+
+export interface ConsoleLoggerOptions {
+  readonly bindings?: Record<string, unknown>;
+  readonly level?: LogLevel;
+  readonly timings?: boolean;
+}
+
+/**
+ * Logger that delegates to the global `console` object.
  * When created via {@link child}, accumulated bindings are passed
  * as a second argument to every console call.
+ *
+ * Supports optional level filtering (messages below the configured
+ * level are silently discarded) and an opt-in `timings` flag that
+ * controls whether {@link time}/{@link timeEnd} produce output.
  */
 export class ConsoleLogger implements ILogger {
   private readonly bindings: Record<string, unknown>;
+  private readonly level: LogLevel;
+  private readonly timings: boolean;
 
-  constructor(bindings: Record<string, unknown> = {}) {
-    this.bindings = bindings;
+  constructor(options: ConsoleLoggerOptions = {}) {
+    this.bindings = options.bindings ?? {};
+    this.level = options.level ?? "debug";
+    this.timings = options.timings ?? false;
+  }
+
+  private enabled(level: LogLevel): boolean {
+    return LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[this.level];
   }
 
   info(message: string, meta?: Record<string, unknown>): void {
+    if (!this.enabled("info")) return;
     const merged = this.merge(meta);
     if (merged) {
       console.info(message, merged);
@@ -28,6 +60,7 @@ export class ConsoleLogger implements ILogger {
   }
 
   warn(message: string, meta?: Record<string, unknown>): void {
+    if (!this.enabled("warn")) return;
     const merged = this.merge(meta);
     if (merged) {
       console.warn(message, merged);
@@ -37,6 +70,7 @@ export class ConsoleLogger implements ILogger {
   }
 
   error(message: string, meta?: Record<string, unknown>): void {
+    if (!this.enabled("error")) return;
     const merged = this.merge(meta);
     if (merged) {
       console.error(message, merged);
@@ -46,6 +80,7 @@ export class ConsoleLogger implements ILogger {
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
+    if (!this.enabled("debug")) return;
     const merged = this.merge(meta);
     if (merged) {
       console.debug(message, merged);
@@ -55,6 +90,7 @@ export class ConsoleLogger implements ILogger {
   }
 
   fatal(err: Error, message: string, meta?: Record<string, unknown>): void {
+    if (!this.enabled("fatal")) return;
     const merged = this.merge(meta);
     if (merged) {
       console.error(message, { ...merged, error: err });
@@ -64,6 +100,7 @@ export class ConsoleLogger implements ILogger {
   }
 
   time(label: string, meta?: Record<string, unknown>): void {
+    if (!this.timings) return;
     const merged = this.merge(meta);
     if (merged) {
       console.info(`[time] ${label}`, merged);
@@ -72,6 +109,7 @@ export class ConsoleLogger implements ILogger {
   }
 
   timeEnd(label: string, meta?: Record<string, unknown>): void {
+    if (!this.timings) return;
     console.timeEnd(label);
     const merged = this.merge(meta);
     if (merged) {
@@ -93,7 +131,11 @@ export class ConsoleLogger implements ILogger {
   }
 
   child(bindings: Record<string, unknown>): ILogger {
-    return new ConsoleLogger({ ...this.bindings, ...bindings });
+    return new ConsoleLogger({
+      bindings: { ...this.bindings, ...bindings },
+      level: this.level,
+      timings: this.timings,
+    });
   }
 
   private merge(meta: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
