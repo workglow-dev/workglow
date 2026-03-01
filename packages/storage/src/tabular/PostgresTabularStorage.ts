@@ -953,13 +953,14 @@ export class PostgresTabularStorage<
 
     if (options?.orderBy && options.orderBy.length > 0) {
       const orderClauses = options.orderBy.map((o) => {
-        if (!(o.column in this.schema.properties)) {
-          throw new Error(`Schema must have a ${String(o.column)} field to use query`);
+        const column = String(o.column);
+        if (!(column in this.schema.properties)) {
+          throw new Error(`Schema must have a ${column} field to use query orderBy`);
         }
         if (o.direction !== "ASC" && o.direction !== "DESC") {
           throw new Error(`Invalid sort direction: ${String(o.direction)}`);
         }
-        return `"${String(o.column)}" ${o.direction}`;
+        return `"${column.replaceAll('"', '""')}" ${o.direction}`;
       });
       sql += ` ORDER BY ${orderClauses.join(", ")}`;
     }

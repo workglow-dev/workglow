@@ -1088,7 +1088,7 @@ export function runGenericTabularRepositoryTests(
           repository.query({}, {
             orderBy: [{ column: "notAColumn" as keyof SearchEntity, direction: "ASC" }],
           })
-        ).rejects.toThrow("Schema must have a notAColumn field to use query");
+        ).rejects.toThrow("Schema must have a notAColumn field to use query orderBy");
       });
 
       it("should return undefined when no matches found", async () => {

@@ -774,7 +774,7 @@ export class SupabaseTabularStorage<
     if (options?.orderBy) {
       for (const { column, direction } of options.orderBy) {
         if (!(column in this.schema.properties)) {
-          throw new Error(`Schema must have a ${String(column)} field to use query`);
+          throw new Error(`Schema must have a ${String(column)} field to use query orderBy`);
         }
         if (direction !== "ASC" && direction !== "DESC") {
           throw new Error(`Invalid sort direction: ${String(direction)}`);
