@@ -591,11 +591,11 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
     });
 
-    const toolCalls = capturedCalls.map((call, index) => ({
-      id: `call_${index}`,
-      name: call.name,
-      input: call.input,
-    }));
+    const toolCalls: Record<string, unknown> = {};
+    capturedCalls.forEach((call, index) => {
+      const id = `call_${index}`;
+      toolCalls[id] = { id, name: call.name, input: call.input };
+    });
 
     update_progress(100, "Tool calling complete");
     return { text, toolCalls };
@@ -690,14 +690,14 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
     return;
   }
 
-  const toolCalls = capturedCalls.map((call, index) => ({
-    id: `call_${index}`,
-    name: call.name,
-    input: call.input,
-  }));
+  const toolCalls: Record<string, unknown> = {};
+  capturedCalls.forEach((call, index) => {
+    const id = `call_${index}`;
+    toolCalls[id] = { id, name: call.name, input: call.input };
+  });
 
-  if (toolCalls.length > 0) {
-    yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
+  if (Object.keys(toolCalls).length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
   }
 
   yield { type: "finish", data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput };

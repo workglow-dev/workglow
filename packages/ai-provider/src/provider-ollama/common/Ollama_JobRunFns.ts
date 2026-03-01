@@ -297,26 +297,22 @@ export const Ollama_ToolCalling: AiProviderRunFn<
   });
 
   const text = response.message.content ?? "";
-  const toolCalls = (response.message.tool_calls ?? []).map(
-    (tc: any, index: number) => {
-      let parsedInput: Record<string, unknown> = {};
-      const fnArgs = tc.function.arguments;
-      if (typeof fnArgs === "string") {
-        try {
-          parsedInput = JSON.parse(fnArgs);
-        } catch {
-          parsedInput = {};
-        }
-      } else if (fnArgs != null) {
-        parsedInput = fnArgs as Record<string, unknown>;
+  const toolCalls: Record<string, unknown> = {};
+  (response.message.tool_calls ?? []).forEach((tc: any, index: number) => {
+    let parsedInput: Record<string, unknown> = {};
+    const fnArgs = tc.function.arguments;
+    if (typeof fnArgs === "string") {
+      try {
+        parsedInput = JSON.parse(fnArgs);
+      } catch {
+        parsedInput = {};
       }
-      return {
-        id: `call_${index}`,
-        name: tc.function.name as string,
-        input: parsedInput,
-      };
+    } else if (fnArgs != null) {
+      parsedInput = fnArgs as Record<string, unknown>;
     }
-  );
+    const id = `call_${index}`;
+    toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
+  });
 
   update_progress(100, "Completed Ollama tool calling");
   return { text, toolCalls };
@@ -353,7 +349,8 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
   signal.addEventListener("abort", onAbort, { once: true });
 
   let accumulatedText = "";
-  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+  const toolCalls: Record<string, unknown> = {};
+  let callIndex = 0;
 
   try {
     for await (const chunk of stream) {
@@ -377,13 +374,10 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
           } else if (fnArgs != null) {
             parsedInput = fnArgs as Record<string, unknown>;
           }
-          toolCalls.push({
-            id: `call_${toolCalls.length}`,
-            name: tc.function.name as string,
-            input: parsedInput,
-          });
+          const id = `call_${callIndex++}`;
+          toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
         }
-        yield { type: "object-delta", port: "toolCalls", objectDelta: toolCalls as any };
+        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
       }
     }
 

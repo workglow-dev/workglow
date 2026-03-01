@@ -256,8 +256,8 @@ describe("OllamaProvider", () => {
       );
 
       expect(result.text).toBe("");
-      expect(result.toolCalls).toHaveLength(1);
-      expect(result.toolCalls[0]).toEqual({
+      expect(Object.keys(result.toolCalls)).toHaveLength(1);
+      expect(result.toolCalls["call_0"]).toEqual({
         id: "call_0",
         name: "get_weather",
         input: { city: "San Francisco" },
@@ -286,7 +286,7 @@ describe("OllamaProvider", () => {
       );
 
       expect(result.text).toBe("I can help with that! Let me check the weather.");
-      expect(result.toolCalls).toHaveLength(0);
+      expect(Object.keys(result.toolCalls)).toHaveLength(0);
     });
 
     test("should not send tools when toolChoice is none", async () => {
@@ -360,7 +360,7 @@ describe("OllamaProvider", () => {
         abortSignal
       );
 
-      expect(result.toolCalls[0].input).toEqual({ city: "New York" });
+      expect((result.toolCalls["call_0"] as any).input).toEqual({ city: "New York" });
     });
   });
 

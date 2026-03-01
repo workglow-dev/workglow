@@ -364,26 +364,22 @@ export const HFI_ToolCalling: AiProviderRunFn<
   const response = await client.chatCompletion(params, { signal });
 
   const text = response.choices[0]?.message?.content ?? "";
-  const toolCalls = ((response.choices[0]?.message as any)?.tool_calls ?? []).map(
-    (tc: any) => {
-      let parsedInput: Record<string, unknown> = {};
-      const rawArgs = tc.function?.arguments;
-      if (typeof rawArgs === "string") {
-        try {
-          parsedInput = JSON.parse(rawArgs);
-        } catch {
-          parsedInput = {};
-        }
-      } else if (rawArgs != null) {
-        parsedInput = rawArgs as Record<string, unknown>;
+  const toolCalls: Record<string, unknown> = {};
+  ((response.choices[0]?.message as any)?.tool_calls ?? []).forEach((tc: any) => {
+    let parsedInput: Record<string, unknown> = {};
+    const rawArgs = tc.function?.arguments;
+    if (typeof rawArgs === "string") {
+      try {
+        parsedInput = JSON.parse(rawArgs);
+      } catch {
+        parsedInput = {};
       }
-      return {
-        id: (tc.id as string) ?? `call_${Math.random().toString(36).slice(2, 10)}`,
-        name: tc.function.name as string,
-        input: parsedInput,
-      };
+    } else if (rawArgs != null) {
+      parsedInput = rawArgs as Record<string, unknown>;
     }
-  );
+    const id = (tc.id as string) ?? `call_${Math.random().toString(36).slice(2, 10)}`;
+    toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
+  });
 
   update_progress(100, "Completed HF Inference tool calling");
   return { text, toolCalls };
@@ -460,27 +456,31 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
         if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
       }
 
-      const snapshot = Array.from(toolCallAccumulator.values()).map((tc) => {
+      const snapshotObject: Record<string, unknown> = {};
+      Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
         let parsedInput: Record<string, unknown>;
         try {
           parsedInput = JSON.parse(tc.arguments);
         } catch {
           parsedInput = {};
         }
-        return { id: tc.id, name: tc.name, input: parsedInput };
+        const key = tc.id || String(idx);
+        snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
       });
-      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot as any };
+      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
     }
   }
 
-  const toolCalls = Array.from(toolCallAccumulator.values()).map((tc) => {
+  const toolCalls: Record<string, unknown> = {};
+  Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
     let finalInput: Record<string, unknown>;
     try {
       finalInput = JSON.parse(tc.arguments);
     } catch {
       finalInput = {};
     }
-    return { id: tc.id, name: tc.name, input: finalInput };
+    const key = tc.id || String(idx);
+    toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
   });
 
   yield {
