@@ -88,7 +88,7 @@ export interface McpToolSource {
 export interface FunctionToolSource {
   readonly type: "function";
   readonly definition: ToolDefinition;
-  readonly execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  readonly run: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
 export type ToolSource = RegistryToolSource | McpToolSource | FunctionToolSource;
