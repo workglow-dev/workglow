@@ -16,7 +16,12 @@ import {
   type HfTransformersOnnxModelRecord,
   HuggingFaceTransformersProvider,
 } from "@workglow/ai-provider";
-import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import {
+  clearPipelineCache,
+  HFT_REACTIVE_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_TASKS,
+} from "@workglow/ai-provider/hf-transformers";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
@@ -32,7 +37,11 @@ describe("TextEmbeddingTask with real models", () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+    await new HuggingFaceTransformersProvider(
+      HFT_TASKS,
+      HFT_STREAM_TASKS,
+      HFT_REACTIVE_TASKS
+    ).register({ mode: "inline" });
   });
 
   afterAll(async () => {

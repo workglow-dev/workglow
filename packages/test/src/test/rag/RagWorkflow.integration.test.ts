@@ -46,7 +46,12 @@ import {
   VectorStoreUpsertTaskOutput,
 } from "@workglow/ai";
 import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
-import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import {
+  clearPipelineCache,
+  HFT_REACTIVE_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_TASKS,
+} from "@workglow/ai-provider/hf-transformers";
 import {
   DocumentChunk,
   DocumentChunkDataset,
@@ -92,7 +97,11 @@ describe("RAG Workflow End-to-End", () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+    await new HuggingFaceTransformersProvider(
+      HFT_TASKS,
+      HFT_STREAM_TASKS,
+      HFT_REACTIVE_TASKS
+    ).register({ mode: "inline" });
 
     await registerHuggingfaceLocalModels();
 

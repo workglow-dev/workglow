@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
 
 import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
-import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry } from "@workglow/task-graph";
-import { NullLogger, setLogger } from "@workglow/util";
 import { program } from "commander";
 import { registerHuggingfaceLocalModels } from "./ONNXModelSamples";
 import { AddBaseCommands } from "./TaskCLI";
@@ -12,10 +10,11 @@ program.version("1.0.0").description("A CLI to run tasks.");
 
 AddBaseCommands(program);
 
-setLogger(new NullLogger());
-
 await registerHuggingfaceLocalModels();
-await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+await new HuggingFaceTransformersProvider().register({
+  mode: "worker",
+  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+});
 
 await program.parseAsync(process.argv);
 

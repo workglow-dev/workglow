@@ -19,11 +19,16 @@ import {
   HuggingFaceTransformersProvider,
   type HfTransformersOnnxModelRecord,
 } from "@workglow/ai-provider";
-import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import {
+  clearPipelineCache,
+  HFT_REACTIVE_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_TASKS,
+} from "@workglow/ai-provider/hf-transformers";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 // Test image (1x1 pixel red PNG, base64 encoded)
@@ -36,7 +41,11 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
   beforeEach(async () => {
     setTaskQueueRegistry(null);
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+    await new HuggingFaceTransformersProvider(
+      HFT_TASKS,
+      HFT_STREAM_TASKS,
+      HFT_REACTIVE_TASKS
+    ).register({ mode: "inline" });
     setGlobalModelRepository(new InMemoryModelRepository());
   });
   afterEach(async () => {

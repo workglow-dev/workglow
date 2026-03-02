@@ -19,7 +19,12 @@ import {
   HuggingFaceTransformersProvider,
   type HfTransformersOnnxModelRecord,
 } from "@workglow/ai-provider";
-import { clearPipelineCache, HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
+import {
+  clearPipelineCache,
+  HFT_REACTIVE_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_TASKS,
+} from "@workglow/ai-provider/hf-transformers";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import {
@@ -28,8 +33,8 @@ import {
   type TaskInput,
   type TaskOutput,
 } from "@workglow/task-graph";
-import { beforeEach, describe, expect, it } from "vitest";
 import { setLogger } from "@workglow/util";
+import { beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const TEST_IMAGE_BASE64 =
@@ -64,7 +69,11 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+      await new HuggingFaceTransformersProvider(
+        HFT_TASKS,
+        HFT_STREAM_TASKS,
+        HFT_REACTIVE_TASKS
+      ).register({
         mode: "inline",
         queue: { autoCreate: false },
       });
@@ -126,7 +135,11 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+      await new HuggingFaceTransformersProvider(
+        HFT_TASKS,
+        HFT_STREAM_TASKS,
+        HFT_REACTIVE_TASKS
+      ).register({
         mode: "inline",
         queue: { autoCreate: false },
       });
@@ -183,7 +196,11 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+      await new HuggingFaceTransformersProvider(
+        HFT_TASKS,
+        HFT_STREAM_TASKS,
+        HFT_REACTIVE_TASKS
+      ).register({
         mode: "inline",
         queue: { autoCreate: false },
       });
@@ -250,7 +267,11 @@ describe("Zero-Shot Classification Tasks", () => {
       });
 
       client.attach(server);
-      await new HuggingFaceTransformersProvider(HFT_TASKS).register({
+      await new HuggingFaceTransformersProvider(
+        HFT_TASKS,
+        HFT_STREAM_TASKS,
+        HFT_REACTIVE_TASKS
+      ).register({
         mode: "inline",
         queue: { autoCreate: false },
       });

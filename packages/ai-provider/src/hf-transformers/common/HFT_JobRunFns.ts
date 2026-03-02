@@ -1921,7 +1921,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
 
 /**
  * All HuggingFace Transformers task run functions, keyed by task type name.
- * Pass this to `new HuggingFaceTransformersProvider(HFT_TASKS)` when the
+ * Pass this to `new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS)` when the
  * actual run function implementations are needed (inline mode, worker server).
  */
 export const HFT_TASKS = {
@@ -1949,7 +1949,7 @@ export const HFT_TASKS = {
 
 /**
  * Streaming variants of HuggingFace Transformers task run functions.
- * Pass this as the second argument to `new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS)`.
+ * Pass this as the second argument to `new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS)`.
  */
 export const HFT_STREAM_TASKS: Record<
   string,

@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ToolCallingTaskOutput } from "@workglow/ai";
 import {
   DownloadModelTask,
   getGlobalModelRepository,
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
-import type { ToolCallingTaskOutput } from "@workglow/ai";
 import {
   HF_TRANSFORMERS_ONNX,
   type HfTransformersOnnxModelRecord,
@@ -19,6 +19,8 @@ import {
 import {
   clearPipelineCache,
   createToolCallMarkupFilter,
+  HFT_REACTIVE_TASKS,
+  HFT_STREAM_TASKS,
   HFT_TASKS,
   parseToolCallsFromText,
 } from "@workglow/ai-provider/hf-transformers";
@@ -153,42 +155,26 @@ describe("createToolCallMarkupFilter", () => {
 
   it("should suppress a complete <tool_call> block in a single token", () => {
     expect(
-      runFilter([
-        "Here is the result.",
-        '<tool_call>{"name":"fn","arguments":{}}</tool_call>',
-      ])
+      runFilter(["Here is the result.", '<tool_call>{"name":"fn","arguments":{}}</tool_call>'])
     ).toBe("Here is the result.");
   });
 
   it("should suppress a <tool_call> block split across multiple tokens", () => {
     expect(
-      runFilter([
-        "Hi. ",
-        "<tool",
-        "_call>",
-        '{"name":"fn",',
-        '"arguments":{}}',
-        "</tool",
-        "_call>",
-      ])
+      runFilter(["Hi. ", "<tool", "_call>", '{"name":"fn",', '"arguments":{}}', "</tool", "_call>"])
     ).toBe("Hi. ");
   });
 
   it("should emit text after a closed tool_call block", () => {
-    expect(
-      runFilter([
-        '<tool_call>{"name":"fn","arguments":{}}</tool_call>',
-        " Done.",
-      ])
-    ).toBe(" Done.");
+    expect(runFilter(['<tool_call>{"name":"fn","arguments":{}}</tool_call>', " Done."])).toBe(
+      " Done."
+    );
   });
 
   it("should handle text after the close tag in the same token", () => {
-    expect(
-      runFilter([
-        '<tool_call>{"name":"fn","arguments":{}}</tool_call> trailing text',
-      ])
-    ).toBe(" trailing text");
+    expect(runFilter(['<tool_call>{"name":"fn","arguments":{}}</tool_call> trailing text'])).toBe(
+      " trailing text"
+    );
   });
 
   it("should suppress multiple tool_call blocks", () => {
@@ -249,7 +235,11 @@ describe("ToolCallingTask with HFT models", () => {
     setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+    await new HuggingFaceTransformersProvider(
+      HFT_TASKS,
+      HFT_STREAM_TASKS,
+      HFT_REACTIVE_TASKS
+    ).register({ mode: "inline" });
   });
 
   afterAll(async () => {

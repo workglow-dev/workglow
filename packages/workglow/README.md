@@ -24,10 +24,12 @@ bun add workglow
 
 ```typescript
 import { Workflow, TextGenerationTask, HuggingFaceTransformersProvider } from "workglow";
-import { HFT_TASKS } from "workglow/hf-transformers";
+import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS } from "workglow/hf-transformers";
 
 // Register a provider
-await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
+  { mode: "inline" }
+);
 
 // Create and run a workflow
 const workflow = new Workflow();

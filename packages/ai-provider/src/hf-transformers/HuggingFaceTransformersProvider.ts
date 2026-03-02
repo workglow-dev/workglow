@@ -32,12 +32,12 @@ import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
  * });
  *
  * // Inline mode -- caller provides the tasks:
- * import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
- * await new HuggingFaceTransformersProvider(HFT_TASKS).register({ mode: "inline" });
+ * import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS } from "@workglow/ai-provider/hf-transformers";
+ * await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register({ mode: "inline" });
  *
  * // Worker side -- caller provides the tasks:
- * import { HFT_TASKS } from "@workglow/ai-provider/hf-transformers";
- * new HuggingFaceTransformersProvider(HFT_TASKS).registerOnWorkerServer(workerServer);
+ * import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS } from "@workglow/ai-provider/hf-transformers";
+ * new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).registerOnWorkerServer(workerServer);
  * ```
  */
 export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOnnxModelConfig> {
