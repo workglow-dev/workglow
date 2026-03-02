@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.108
+
+### Features
+
+- add "x-ui-manual" property to JsonSchemaCustomProps for user-defined properties
+
 ## 0.0.107
 
 ## 0.0.106

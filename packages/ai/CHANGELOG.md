@@ -1,5 +1,7 @@
 # @workglow/ai
 
+## 0.0.108
+
 ## 0.0.107
 
 ### Bug Fixes
