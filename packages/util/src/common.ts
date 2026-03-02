@@ -28,3 +28,5 @@ export * from "./worker/WorkerManager";
 export * from "./worker/WorkerServer";
 export * from "./credentials";
 export * from "./crypto/WebCrypto";
+export * from "./mcp/McpAuthTypes";
+export * from "./mcp/McpAuthProvider";

@@ -14,6 +14,11 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
+import { getGlobalCredentialStore } from "../credentials/CredentialStoreRegistry";
+import { mcpAuthConfigSchema, buildAuthConfig } from "./McpAuthTypes";
+import type { McpAuthConfig } from "./McpAuthTypes";
+import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
+import { getLogger } from "../logging/LoggerRegistry";
 
 export const mcpTransportTypes = ["stdio", "sse", "streamable-http"] as const;
 
@@ -47,6 +52,7 @@ export const mcpServerConfigSchema = {
     title: "Environment",
     description: "Environment variables (for stdio transport)",
   },
+  ...mcpAuthConfigSchema,
 } as const satisfies DataPortSchemaObject["properties"];
 
 export type McpTransportType = (typeof mcpTransportTypes)[number];
@@ -57,6 +63,9 @@ export interface McpServerConfig {
   command?: string;
   args?: string[];
   env?: Record<string, string>;
+  auth?: McpAuthConfig;
+  // Flat auth properties from schema (used when config comes from JSON Schema forms)
+  auth_type?: string;
 }
 
 export async function createMcpClient(
@@ -65,8 +74,33 @@ export async function createMcpClient(
 ): Promise<{ client: Client; transport: Transport }> {
   let transport: Transport;
 
+  // Resolve auth config: prefer structured `auth` object, fall back to flat props
+  let auth: McpAuthConfig | undefined =
+    config.auth ?? buildAuthConfig({ ...config });
+
+  // Resolve credential store keys to actual secret values
+  if (auth && auth.type !== "none") {
+    auth = await resolveAuthSecrets(auth, getGlobalCredentialStore());
+  }
+
+  // Build auth provider for OAuth flows
+  const authProvider =
+    auth && auth.type !== "none" && auth.type !== "bearer"
+      ? createAuthProvider(auth, config.server_url ?? "", getGlobalCredentialStore())
+      : undefined;
+
+  // Build request headers for bearer auth
+  const bearerHeaders: Record<string, string> =
+    auth?.type === "bearer" ? { Authorization: `Bearer ${auth.token}` } : {};
+
   switch (config.transport) {
     case "stdio":
+      if (auth && auth.type !== "none") {
+        getLogger().warn(
+          "MCP auth is not supported for stdio transport; auth config ignored. " +
+            "Use env vars to pass credentials to stdio servers."
+        );
+      }
       transport = new StdioClientTransport({
         command: config.command!,
         args: config.args,
@@ -75,11 +109,21 @@ export async function createMcpClient(
       break;
     case "sse": {
       // SSEClientTransport is deprecated but still needed for legacy servers
-      transport = new SSEClientTransport(new URL(config.server_url!));
+      const requestInit =
+        Object.keys(bearerHeaders).length > 0 ? { headers: bearerHeaders } : undefined;
+      transport = new SSEClientTransport(new URL(config.server_url!), {
+        authProvider,
+        requestInit,
+      });
       break;
     }
     case "streamable-http": {
-      transport = new StreamableHTTPClientTransport(new URL(config.server_url!));
+      const requestInit =
+        Object.keys(bearerHeaders).length > 0 ? { headers: bearerHeaders } : undefined;
+      transport = new StreamableHTTPClientTransport(new URL(config.server_url!), {
+        authProvider,
+        requestInit,
+      });
       break;
     }
     default:
