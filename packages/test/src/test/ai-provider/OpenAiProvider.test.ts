@@ -90,6 +90,7 @@ describe("OpenAiProvider", () => {
         "TextRewriterTask",
         "TextSummaryTask",
         "CountTokensTask",
+        "ModelInfoTask",
         "StructuredGenerationTask",
         "ToolCallingTask",
       ]);
@@ -119,7 +120,7 @@ describe("OpenAiProvider", () => {
       const provider = new OpenAiProvider(OPENAI_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(7);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(8);
     });
   });
 
@@ -533,9 +534,10 @@ describe("OpenAiProvider", () => {
       expect(OPENAI_TASKS).toHaveProperty("TextRewriterTask");
       expect(OPENAI_TASKS).toHaveProperty("TextSummaryTask");
       expect(OPENAI_TASKS).toHaveProperty("CountTokensTask");
+      expect(OPENAI_TASKS).toHaveProperty("ModelInfoTask");
       expect(OPENAI_TASKS).toHaveProperty("StructuredGenerationTask");
       expect(OPENAI_TASKS).toHaveProperty("ToolCallingTask");
-      expect(Object.keys(OPENAI_TASKS)).toHaveLength(7);
+      expect(Object.keys(OPENAI_TASKS)).toHaveLength(8);
     });
   });
 });

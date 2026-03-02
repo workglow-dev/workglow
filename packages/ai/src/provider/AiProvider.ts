@@ -75,6 +75,12 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   /** Unique provider identifier (e.g., "HF_TRANSFORMERS_ONNX") */
   abstract readonly name: string;
 
+  /** Whether this provider runs models locally (on the same machine). */
+  abstract readonly isLocal: boolean;
+
+  /** Whether this provider can run in a browser environment. */
+  abstract readonly supportsBrowser: boolean;
+
   /**
    * List of task type names this provider supports.
    * This is lightweight metadata -- no heavy library imports needed.

@@ -77,6 +77,8 @@ import type {
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
@@ -1919,6 +1921,62 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   yield {
     type: "finish",
     data: { text: cleanedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
+// Model info
+// ========================================================================
+
+export const HFT_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, model) => {
+  const is_loaded = pipelines.has(getPipelineCacheKey(model!));
+
+  let is_cached = is_loaded;
+  let file_sizes: Record<string, number> | null = null;
+
+  // Try the browser Cache API to check for downloaded model files
+  if (typeof caches !== "undefined") {
+    try {
+      const cache = await caches.open(HTF_CACHE_NAME);
+      const keys = await cache.keys();
+      const model_path = model!.provider_config.model_path;
+      const prefix = `/${model_path}/`;
+      const sizes: Record<string, number> = {};
+
+      for (const request of keys) {
+        const url = new URL(request.url);
+        if (url.pathname.startsWith(prefix)) {
+          is_cached = true;
+          const response = await cache.match(request);
+          const contentLength = response?.headers.get("Content-Length");
+          if (contentLength) {
+            const filename = url.pathname.slice(prefix.length);
+            sizes[filename] = parseInt(contentLength, 10);
+          }
+        }
+      }
+
+      if (Object.keys(sizes).length > 0) {
+        file_sizes = sizes;
+      }
+    } catch {
+      // Cache API not available or failed
+    }
+  }
+
+  return {
+    model: input.model,
+    is_local: true,
+    is_remote: false,
+    supports_browser: true,
+    supports_node: true,
+    is_cached,
+    is_loaded,
+    file_sizes,
   };
 };
 

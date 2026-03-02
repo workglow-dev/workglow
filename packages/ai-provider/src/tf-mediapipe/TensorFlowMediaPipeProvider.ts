@@ -36,10 +36,13 @@ import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
  */
 export class TensorFlowMediaPipeProvider extends AiProvider<TFMPModelConfig> {
   readonly name = TENSORFLOW_MEDIAPIPE;
+  readonly isLocal = true;
+  readonly supportsBrowser = true;
 
   readonly taskTypes = [
     "DownloadModelTask",
     "UnloadModelTask",
+    "ModelInfoTask",
     "TextEmbeddingTask",
     "TextLanguageDetectionTask",
     "TextClassificationTask",

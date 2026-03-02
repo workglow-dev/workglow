@@ -29,6 +29,8 @@ const TEST_PROVIDER_NAME = "test-ai-provider";
 // A concrete test provider that accepts tasks via constructor (dependency injection)
 class TestProvider extends AiProvider {
   readonly name = TEST_PROVIDER_NAME;
+  readonly isLocal = false;
+  readonly supportsBrowser = true;
   readonly taskTypes: readonly string[];
 
   public initializeCalled = false;
@@ -53,6 +55,8 @@ class TestProvider extends AiProvider {
 // A provider with static taskTypes (like the real providers)
 class StaticTaskTypesProvider extends AiProvider {
   readonly name = "static-task-types-provider";
+  readonly isLocal = false;
+  readonly supportsBrowser = true;
   readonly taskTypes = ["TextGenerationTask", "TextEmbeddingTask"] as const;
 
   constructor(fns?: Record<string, AiProviderRunFn<any, any, any>>) {

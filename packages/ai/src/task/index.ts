@@ -25,6 +25,7 @@ import { ImageClassificationTask } from "./ImageClassificationTask";
 import { ImageEmbeddingTask } from "./ImageEmbeddingTask";
 import { ImageSegmentationTask } from "./ImageSegmentationTask";
 import { ImageToTextTask } from "./ImageToTextTask";
+import { ModelInfoTask } from "./ModelInfoTask";
 import { ObjectDetectionTask } from "./ObjectDetectionTask";
 import { PoseLandmarkerTask } from "./PoseLandmarkerTask";
 import { QueryExpanderTask } from "./QueryExpanderTask";
@@ -73,6 +74,7 @@ export const registerAiTasks = () => {
     ImageEmbeddingTask,
     ImageSegmentationTask,
     ImageToTextTask,
+    ModelInfoTask,
     ObjectDetectionTask,
     PoseLandmarkerTask,
     QueryExpanderTask,
@@ -123,6 +125,7 @@ export * from "./ImageClassificationTask";
 export * from "./ImageEmbeddingTask";
 export * from "./ImageSegmentationTask";
 export * from "./ImageToTextTask";
+export * from "./ModelInfoTask";
 export * from "./ObjectDetectionTask";
 export * from "./PoseLandmarkerTask";
 export * from "./QueryExpanderTask";

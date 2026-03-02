@@ -73,6 +73,7 @@ describe("OllamaProvider", () => {
       const provider = new OllamaProvider();
       expect(provider.name).toBe(OLLAMA);
       expect(provider.supportedTaskTypes).toEqual([
+        "ModelInfoTask",
         "TextGenerationTask",
         "TextEmbeddingTask",
         "TextRewriterTask",
@@ -96,7 +97,7 @@ describe("OllamaProvider", () => {
       const provider = new OllamaProvider(OLLAMA_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
     });
   });
 
@@ -477,12 +478,13 @@ describe("OllamaProvider", () => {
 
   describe("OLLAMA_TASKS", () => {
     test("should export all task run functions", () => {
+      expect(OLLAMA_TASKS).toHaveProperty("ModelInfoTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextGenerationTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextEmbeddingTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextRewriterTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextSummaryTask");
       expect(OLLAMA_TASKS).toHaveProperty("ToolCallingTask");
-      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(5);
+      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(6);
     });
   });
 });

@@ -10,6 +10,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   StructuredGenerationTaskInput,
   StructuredGenerationTaskOutput,
   TextGenerationTaskInput,
@@ -534,11 +536,33 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const Anthropic_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  AnthropicModelConfig
+> = async (input) => {
+  return {
+    model: input.model,
+    is_local: false,
+    is_remote: true,
+    supports_browser: true,
+    supports_node: true,
+    is_cached: false,
+    is_loaded: false,
+    file_sizes: null,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>> = {
   CountTokensTask: Anthropic_CountTokens,
+  ModelInfoTask: Anthropic_ModelInfo,
   TextGenerationTask: Anthropic_TextGeneration,
   TextRewriterTask: Anthropic_TextRewriter,
   TextSummaryTask: Anthropic_TextSummary,

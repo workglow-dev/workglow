@@ -78,6 +78,7 @@ describe("AnthropicProvider", () => {
       expect(provider.name).toBe(ANTHROPIC);
       expect(provider.supportedTaskTypes).toEqual([
         "CountTokensTask",
+        "ModelInfoTask",
         "TextGenerationTask",
         "TextRewriterTask",
         "TextSummaryTask",
@@ -100,7 +101,7 @@ describe("AnthropicProvider", () => {
       const provider = new AnthropicProvider(ANTHROPIC_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(7);
     });
   });
 
@@ -399,13 +400,14 @@ describe("AnthropicProvider", () => {
   describe("ANTHROPIC_TASKS", () => {
     test("should export three task run functions (no embedding)", () => {
       expect(ANTHROPIC_TASKS).toHaveProperty("CountTokensTask");
+      expect(ANTHROPIC_TASKS).toHaveProperty("ModelInfoTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextGenerationTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextRewriterTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextSummaryTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("StructuredGenerationTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("ToolCallingTask");
       expect(ANTHROPIC_TASKS).not.toHaveProperty("TextEmbeddingTask");
-      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(6);
+      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(7);
     });
   });
 });
