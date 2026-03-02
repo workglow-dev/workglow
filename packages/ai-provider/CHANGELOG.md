@@ -1,5 +1,11 @@
 # @workglow/ai-provider
 
+## 0.0.109
+
+### Features
+
+- introduce ModelInfoTask and enhance AiProvider with local and browser support properties
+
 ## 0.0.108
 
 ## 0.0.107
