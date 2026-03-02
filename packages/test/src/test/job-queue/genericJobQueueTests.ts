@@ -273,29 +273,30 @@ export function runGenericJobQueueTests(
     });
 
     it("should run the queue and get rate limited", async () => {
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task2", data: "input2" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task1", data: "input1" });
-      await client.submit({ taskType: "task2", data: "input2" });
+      const totalJobs = 16;
+      const maxAllowed = 4; // limiter: 4 per 60s
+      for (let i = 0; i < totalJobs - 1; i++) {
+        await client.submit({ taskType: "task1", data: `input${i}` });
+      }
+      await client.submit({ taskType: "task2", data: "input_last" });
+
       await server.start();
-      await sleep(10);
+
+      // Wait until the rate limiter's budget is exhausted: poll until at least
+      // `maxAllowed` jobs have left PENDING (completed or processing), or timeout.
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const pending = await client.size(JobStatus.PENDING);
+        if (pending <= totalJobs - maxAllowed) break;
+        await sleep(5);
+      }
+
       await server.stop();
-      // Limiter is 4 per 60s, so at most 4 jobs run in 10ms; at least 12 must remain pending.
-      // Do not assert a specific job is pending (claim order can vary by backend).
+
+      // The limiter allows at most `maxAllowed` jobs in its window, so the
+      // remaining jobs must still be pending.
       const pendingCount = await client.size(JobStatus.PENDING);
-      expect(pendingCount).toBeGreaterThanOrEqual(12);
+      expect(pendingCount).toBeGreaterThanOrEqual(totalJobs - maxAllowed);
     });
 
     it("should abort a long-running job and trigger the abort event", async () => {
