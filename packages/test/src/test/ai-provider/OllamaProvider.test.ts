@@ -53,19 +53,21 @@ describe("OllamaProvider", () => {
   setLogger(logger);
   let registry: AiProviderRegistry;
 
-  beforeEach(() => {
-    setTaskQueueRegistry(new TaskQueueRegistry());
+  beforeEach(async () => {
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
     vi.clearAllMocks();
+    vi.spyOn(logger, "warn");
   });
 
-  afterEach(() => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
+  afterEach(async () => {
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
   });
 
-  afterAll(() => {
-    setTaskQueueRegistry(null);
+  afterAll(async () => {
+    await setTaskQueueRegistry(null);
   });
 
   describe("provider class", () => {
@@ -259,7 +261,7 @@ describe("OllamaProvider", () => {
 
       expect(result.text).toBe("");
       expect(Object.keys(result.toolCalls)).toHaveLength(1);
-      expect(result.toolCalls["call_0"]).toEqual({
+      expect((result.toolCalls as Record<string, unknown>)["call_0"]).toEqual({
         id: "call_0",
         name: "get_weather",
         input: { city: "San Francisco" },
@@ -362,7 +364,9 @@ describe("OllamaProvider", () => {
         abortSignal
       );
 
-      expect((result.toolCalls["call_0"] as any).input).toEqual({ city: "New York" });
+      expect(((result.toolCalls as Record<string, unknown>)["call_0"] as any).input).toEqual({
+        city: "New York",
+      });
     });
 
     test("should filter out tool calls with unknown names", async () => {
@@ -395,7 +399,9 @@ describe("OllamaProvider", () => {
       );
 
       expect(Object.keys(result.toolCalls)).toHaveLength(1);
-      expect((result.toolCalls["call_0"] as any).name).toBe("get_weather");
+      expect(((result.toolCalls as Record<string, unknown>)["call_0"] as any).name).toBe(
+        "get_weather"
+      );
     });
 
     test("should stream text and tool calls", async () => {
@@ -446,6 +452,105 @@ describe("OllamaProvider", () => {
       expect(finish).toBeDefined();
       expect(Object.keys(finish.data.toolCalls)).toHaveLength(1);
       expect((finish.data.toolCalls["call_0"] as any).name).toBe("get_weather");
+    });
+  });
+
+  describe("array input handling", () => {
+    test("Ollama_TextGeneration should process prompt arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({ message: { content: "Result A" } })
+        .mockResolvedValueOnce({ message: { content: "Result B" } });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_TextGeneration(
+        { prompt: ["prompt a", "prompt b"], model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ text: ["Result A", "Result B"] });
+      expect(mockChat).toHaveBeenCalledTimes(2);
+      expect(mockChat.mock.calls[0][0].messages[0].content).toBe("prompt a");
+      expect(mockChat.mock.calls[1][0].messages[0].content).toBe("prompt b");
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("array input received"));
+    });
+
+    test("Ollama_TextRewriter should process text arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({ message: { content: "Rewritten A" } })
+        .mockResolvedValueOnce({ message: { content: "Rewritten B" } });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_TextRewriter(
+        { text: ["text a", "text b"], prompt: "Make formal", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ text: ["Rewritten A", "Rewritten B"] });
+      expect(mockChat).toHaveBeenCalledTimes(2);
+      expect(mockChat.mock.calls[0][0].messages[1].content).toBe("text a");
+      expect(mockChat.mock.calls[1][0].messages[1].content).toBe("text b");
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("array input received"));
+    });
+
+    test("Ollama_TextSummary should process text arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({ message: { content: "Summary A" } })
+        .mockResolvedValueOnce({ message: { content: "Summary B" } });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_TextSummary(
+        { text: ["long text a", "long text b"], model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ text: ["Summary A", "Summary B"] });
+      expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    test("Ollama_ToolCalling should process prompt arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({
+          message: {
+            content: "text A",
+            tool_calls: [{ function: { name: "get_weather", arguments: { city: "SF" } } }],
+          },
+        })
+        .mockResolvedValueOnce({
+          message: {
+            content: "text B",
+            tool_calls: [{ function: { name: "get_weather", arguments: { city: "NY" } } }],
+          },
+        });
+
+      const model = makeModel("llama3.2");
+      const sampleTools = [
+        {
+          name: "get_weather",
+          description: "Get weather",
+          inputSchema: {
+            type: "object",
+            properties: { city: { type: "string" } },
+            required: ["city"],
+          },
+        },
+      ];
+      const result = await Ollama_ToolCalling(
+        { prompt: ["weather SF", "weather NY"], model: model as any, tools: sampleTools },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["text A", "text B"]);
+      expect(Array.isArray(result.toolCalls)).toBe(true);
+      expect((result.toolCalls as Record<string, unknown>[]).length).toBe(2);
+      expect(mockChat).toHaveBeenCalledTimes(2);
     });
   });
 

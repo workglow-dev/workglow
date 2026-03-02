@@ -24,7 +24,7 @@ import {
   FetchUrlTaskInput,
   FetchUrlTaskOutput,
 } from "@workglow/tasks";
-import { sleep, setLogger } from "@workglow/util";
+import { setLogger, sleep } from "@workglow/util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -58,13 +58,13 @@ describe("FetchUrlTask", () => {
     (global as any).fetch = oldFetch;
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch.mockClear();
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
   });
 
-  afterEach(() => {
-    setTaskQueueRegistry(null);
+  afterEach(async () => {
+    await setTaskQueueRegistry(null);
   });
 
   test("fetches multiple URLs successfully", async () => {

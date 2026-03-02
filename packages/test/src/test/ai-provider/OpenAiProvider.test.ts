@@ -57,8 +57,8 @@ describe("OpenAiProvider", () => {
   setLogger(logger);
   let registry: AiProviderRegistry;
 
-  beforeEach(() => {
-    setTaskQueueRegistry(new TaskQueueRegistry());
+  beforeEach(async () => {
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
     _setTiktokenForTesting({
@@ -71,13 +71,14 @@ describe("OpenAiProvider", () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
+  afterEach(async () => {
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     _setTiktokenForTesting(undefined);
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
   });
 
   describe("provider class", () => {

@@ -25,7 +25,7 @@ describe("SqliteTaskGraphJobQueue", () => {
     const server = new JobQueueServer<TaskInput, TaskOutput>(TestJob, {
       storage,
       queueName,
-      limiter: new ConcurrencyLimiter(1, 10),
+      limiter: new ConcurrencyLimiter(1),
       pollIntervalMs: 1,
     });
 

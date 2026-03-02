@@ -18,4 +18,5 @@ await new HuggingFaceTransformersProvider().register({
 
 await program.parseAsync(process.argv);
 
-getTaskQueueRegistry().stopQueues();
+await getTaskQueueRegistry().stopQueues();
+process.exit(0);

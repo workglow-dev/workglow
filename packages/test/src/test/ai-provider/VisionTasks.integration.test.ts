@@ -39,7 +39,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
   let logger = getTestingLogger();
   setLogger(logger);
   beforeEach(async () => {
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(
       HFT_TASKS,
@@ -49,8 +49,9 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
     setGlobalModelRepository(new InMemoryModelRepository());
   });
   afterEach(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   describe("ImageSegmentationTask", () => {
@@ -240,13 +241,14 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
 //   const isBrowser = typeof document !== "undefined";
 
 //   beforeEach(async () => {
-//     setTaskQueueRegistry(null);
+//     await setTaskQueueRegistry(null);
 //     await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
 //     setGlobalModelRepository(new InMemoryModelRepository());
 //   });
 //   afterEach(async () => {
-//     getTaskQueueRegistry().stopQueues().clearQueues();
-//     setTaskQueueRegistry(null);
+//     await getTaskQueueRegistry().stopQueues();
+//     await getTaskQueueRegistry().clearQueues();
+//     await setTaskQueueRegistry(null);
 //   });
 
 //   describe("ImageClassificationTask", () => {

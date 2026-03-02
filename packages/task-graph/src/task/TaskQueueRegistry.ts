@@ -65,11 +65,10 @@ export class TaskQueueRegistry {
    *
    * @returns The registry instance for chaining
    */
-  startQueues(): this {
+  async startQueues() {
     for (const queue of this.queues.values()) {
-      queue.server.start();
+      await queue.server.start();
     }
-    return this;
   }
 
   /**
@@ -78,11 +77,10 @@ export class TaskQueueRegistry {
    *
    * @returns The registry instance for chaining
    */
-  stopQueues(): this {
+  async stopQueues() {
     for (const queue of this.queues.values()) {
-      queue.server.stop();
+      await queue.server.stop();
     }
-    return this;
   }
 
   /**
@@ -91,11 +89,10 @@ export class TaskQueueRegistry {
    *
    * @returns The registry instance for chaining
    */
-  clearQueues(): this {
+  async clearQueues() {
     for (const queue of this.queues.values()) {
-      queue.storage.deleteAll();
+      await queue.storage.deleteAll();
     }
-    return this;
   }
 }
 
@@ -118,10 +115,10 @@ export function getTaskQueueRegistry(): TaskQueueRegistry {
  *
  * @param registry - The new registry instance to use, or null to clear
  */
-export function setTaskQueueRegistry(registry: TaskQueueRegistry | null): void {
+export async function setTaskQueueRegistry(registry: TaskQueueRegistry | null): Promise<void> {
   if (taskQueueRegistry) {
-    taskQueueRegistry.stopQueues();
-    taskQueueRegistry.clearQueues();
+    await taskQueueRegistry.stopQueues();
+    await taskQueueRegistry.clearQueues();
   }
   taskQueueRegistry = registry;
 }

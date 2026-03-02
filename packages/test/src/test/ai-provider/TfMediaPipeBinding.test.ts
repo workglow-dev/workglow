@@ -37,20 +37,20 @@
 //   Workflow,
 // } from "@workglow/task-graph";
 // import { sleep } from "@workglow/util";
-import { describe, expect, it } from "vitest";
 import { setLogger } from "@workglow/util";
+import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 // const db = new Sqlite.Database(":memory:");
 
-describe("TfMediaPipeBinding", () => {
+describe("TfMediaPipeBinding", async () => {
   let logger = getTestingLogger();
   setLogger(logger);
   it("should skip media pipe tests", () => {
     expect(true).toBe(true);
   });
-  //   beforeEach(() => {
-  //     setTaskQueueRegistry(null);
+  //   beforeEach(async () => {
+  //     await setTaskQueueRegistry(null);
   //   });
   //   describe("InMemoryJobQueue", () => {
   //     it("should initialize without errors", async () => {
@@ -171,7 +171,8 @@ describe("TfMediaPipeBinding", () => {
   //     });
   //   });
   //   afterAll(async () => {
-  //     getTaskQueueRegistry().stopQueues().clearQueues();
-  //     setTaskQueueRegistry(null);
+  //     await getTaskQueueRegistry().stopQueues();
+  //     await getTaskQueueRegistry().clearQueues();
+  //     await setTaskQueueRegistry(null);
   //   });
 });

@@ -232,7 +232,7 @@ describe("ToolCallingTask with HFT models", () => {
   setLogger(logger);
 
   beforeAll(async () => {
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(
@@ -243,8 +243,9 @@ describe("ToolCallingTask with HFT models", () => {
   });
 
   afterAll(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   const MODEL_ID = "onnx:onnx-community/Qwen2.5-0.5B-Instruct:q4";

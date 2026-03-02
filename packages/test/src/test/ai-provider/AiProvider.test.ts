@@ -18,8 +18,8 @@ import {
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
@@ -70,17 +70,18 @@ describe("AiProvider", () => {
   let aiProviderRegistry: AiProviderRegistry;
 
   beforeEach(async () => {
-    setTaskQueueRegistry(new TaskQueueRegistry());
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     aiProviderRegistry = getAiProviderRegistry();
   });
 
   afterEach(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
   });
 
   afterAll(async () => {
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
   });
 
   describe("supportedTaskTypes", () => {

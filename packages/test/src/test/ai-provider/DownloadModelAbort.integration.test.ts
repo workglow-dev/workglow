@@ -36,7 +36,7 @@ describe("DownloadModelTask abort behavior", () => {
   const modelId = "onnx:Supabase/gte-small:q8";
 
   beforeAll(async () => {
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(
@@ -52,8 +52,9 @@ describe("DownloadModelTask abort behavior", () => {
         model: modelId,
       });
     } catch {}
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   it("should abort download when task is aborted", async () => {

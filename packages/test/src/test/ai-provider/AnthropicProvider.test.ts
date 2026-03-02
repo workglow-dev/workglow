@@ -57,19 +57,20 @@ describe("AnthropicProvider", () => {
   setLogger(logger);
   let registry: AiProviderRegistry;
 
-  beforeEach(() => {
-    setTaskQueueRegistry(new TaskQueueRegistry());
+  beforeEach(async () => {
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
+  afterEach(async () => {
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
   });
 
-  afterAll(() => {
-    setTaskQueueRegistry(null);
+  afterAll(async () => {
+    await setTaskQueueRegistry(null);
   });
 
   describe("provider class", () => {

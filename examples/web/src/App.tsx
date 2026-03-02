@@ -31,8 +31,8 @@ await new HuggingFaceTransformersProvider().register({
 });
 
 const queueRegistry = getTaskQueueRegistry();
-queueRegistry.clearQueues();
-queueRegistry.startQueues();
+await queueRegistry.clearQueues();
+await queueRegistry.startQueues();
 const taskOutputCache = new IndexedDbTaskOutputRepository();
 const taskGraphRepo = new IndexedDbTaskGraphRepository();
 const resetGraph = () => {

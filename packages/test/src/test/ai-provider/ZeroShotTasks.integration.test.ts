@@ -43,8 +43,8 @@ const TEST_IMAGE_BASE64 =
 describe("Zero-Shot Classification Tasks", () => {
   let logger = getTestingLogger();
   setLogger(logger);
-  beforeEach(() => {
-    setTaskQueueRegistry(null);
+  beforeEach(async () => {
+    await setTaskQueueRegistry(null);
     clearPipelineCache();
   });
 
@@ -59,7 +59,7 @@ describe("Zero-Shot Classification Tasks", () => {
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
         queueName: HF_TRANSFORMERS_ONNX,
-        limiter: new ConcurrencyLimiter(1, 10),
+        limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 
@@ -125,7 +125,7 @@ describe("Zero-Shot Classification Tasks", () => {
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
         queueName: HF_TRANSFORMERS_ONNX,
-        limiter: new ConcurrencyLimiter(1, 10),
+        limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 
@@ -186,7 +186,7 @@ describe("Zero-Shot Classification Tasks", () => {
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
         queueName: HF_TRANSFORMERS_ONNX,
-        limiter: new ConcurrencyLimiter(1, 10),
+        limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 
@@ -257,7 +257,7 @@ describe("Zero-Shot Classification Tasks", () => {
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
         queueName: HF_TRANSFORMERS_ONNX,
-        limiter: new ConcurrencyLimiter(1, 10),
+        limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 

@@ -34,7 +34,7 @@ describe("TextEmbeddingTask with real models", () => {
   setLogger(logger);
 
   beforeAll(async () => {
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(
@@ -45,8 +45,9 @@ describe("TextEmbeddingTask with real models", () => {
   });
 
   afterAll(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   beforeEach(() => {});
