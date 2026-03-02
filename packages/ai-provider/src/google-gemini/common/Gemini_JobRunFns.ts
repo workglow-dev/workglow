@@ -82,6 +82,19 @@ export const Gemini_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "Gemini_TextGeneration: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const results: string[] = [];
+    for (const item of prompts) {
+      const r = await Gemini_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   const logger = getLogger();
   const timerLabel = `gemini:TextGeneration:${model?.provider_config?.model_name}`;
   logger.time(timerLabel, { model: model?.provider_config?.model_name });
@@ -99,7 +112,7 @@ export const Gemini_TextGeneration: AiProviderRunFn<
   });
 
   const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+    contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
   });
 
   const text = result.response.text();
@@ -142,7 +155,7 @@ export const Gemini_TextEmbedding: AiProviderRunFn<
   }
 
   const result = await embeddingModel.embedContent({
-    content: { role: "user", parts: [{ text: input.text }] },
+    content: { role: "user", parts: [{ text: input.text as string }] },
     taskType,
   });
 
@@ -156,16 +169,29 @@ export const Gemini_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "Gemini_TextRewriter: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await Gemini_TextRewriter({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   update_progress(0, "Starting Gemini text rewriting");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
-    systemInstruction: input.prompt,
+    systemInstruction: input.prompt as string,
   });
 
   const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.text }] }],
+    contents: [{ role: "user", parts: [{ text: input.text as string }] }],
   });
 
   const text = result.response.text();
@@ -178,6 +204,19 @@ export const Gemini_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "Gemini_TextSummary: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await Gemini_TextSummary({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   update_progress(0, "Starting Gemini text summarization");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
@@ -187,7 +226,7 @@ export const Gemini_TextSummary: AiProviderRunFn<
   });
 
   const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.text }] }],
+    contents: [{ role: "user", parts: [{ text: input.text as string }] }],
   });
 
   const text = result.response.text();
@@ -216,7 +255,7 @@ export const Gemini_TextGeneration_Stream: AiProviderStreamFn<
   });
 
   const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.prompt }] }] },
+    { contents: [{ role: "user", parts: [{ text: input.prompt as string }] }] },
     { signal }
   );
 
@@ -238,11 +277,11 @@ export const Gemini_TextRewriter_Stream: AiProviderStreamFn<
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
-    systemInstruction: input.prompt,
+    systemInstruction: input.prompt as string,
   });
 
   const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.text }] }] },
+    { contents: [{ role: "user", parts: [{ text: input.text as string }] }] },
     { signal }
   );
 
@@ -268,7 +307,7 @@ export const Gemini_TextSummary_Stream: AiProviderStreamFn<
   });
 
   const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.text }] }] },
+    { contents: [{ role: "user", parts: [{ text: input.text as string }] }] },
     { signal }
   );
 
@@ -286,10 +325,23 @@ export const Gemini_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   GeminiModelConfig
 > = async (input, model, onProgress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "Gemini_CountTokens: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const counts: number[] = [];
+    for (const item of texts) {
+      const r = await Gemini_CountTokens({ ...input, text: item }, model, onProgress, signal);
+      counts.push(r.count as number);
+    }
+    return { count: counts };
+  }
+
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({ model: getModelName(model) });
-  const result = await genModel.countTokens(input.text);
+  const result = await genModel.countTokens(input.text as string);
   return { count: result.totalTokens };
 };
 
@@ -298,7 +350,7 @@ export const Gemini_CountTokens_Reactive: AiProviderReactiveRunFn<
   CountTokensTaskOutput,
   GeminiModelConfig
 > = async (input, _output, _model) => {
-  return { count: Math.ceil(input.text.length / 4) };
+  return { count: Math.ceil((input.text as string).length / 4) };
 };
 
 // ========================================================================
@@ -327,7 +379,7 @@ export const Gemini_StructuredGeneration: AiProviderRunFn<
   });
 
   const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+    contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
   });
 
   const text = result.response.text();
@@ -361,7 +413,7 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
   });
 
   const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.prompt }] }] },
+    { contents: [{ role: "user", parts: [{ text: input.prompt as string }] }] },
     { signal }
   );
 
@@ -418,6 +470,21 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "Gemini_ToolCalling: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const texts: string[] = [];
+    const toolCallsList: Record<string, unknown>[] = [];
+    for (const item of prompts) {
+      const r = await Gemini_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      texts.push(r.text as string);
+      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+    }
+    return { text: texts, toolCalls: toolCallsList };
+  }
+
   update_progress(0, "Starting Gemini tool calling");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
@@ -442,7 +509,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   });
 
   const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+    contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
   });
 
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
@@ -497,7 +564,7 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
   });
 
   const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.prompt }] }] },
+    { contents: [{ role: "user", parts: [{ text: input.prompt as string }] }] },
     { signal }
   );
 

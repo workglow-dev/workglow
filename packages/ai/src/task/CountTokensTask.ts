@@ -7,18 +7,18 @@
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { TypeModel } from "./base/AiTaskSchemas";
+import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 
 const modelSchema = TypeModel("model");
 
 export const CountTokensInputSchema = {
   type: "object",
   properties: {
-    text: {
+    text: TypeSingleOrArray({
       type: "string",
       title: "Text",
       description: "The text to count tokens for",
-    },
+    }),
     model: modelSchema,
   },
   required: ["text", "model"],
@@ -28,11 +28,11 @@ export const CountTokensInputSchema = {
 export const CountTokensOutputSchema = {
   type: "object",
   properties: {
-    count: {
+    count: TypeSingleOrArray({
       type: "number",
       title: "Token Count",
       description: "The number of tokens in the text",
-    },
+    }),
   },
   required: ["count"],
   additionalProperties: false,

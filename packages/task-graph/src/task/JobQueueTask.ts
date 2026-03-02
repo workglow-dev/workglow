@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Job, JobConstructorParam } from "@workglow/job-queue";
+import { Job, JobClass } from "@workglow/job-queue";
 import type { DataPortSchema } from "@workglow/util";
 import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
 import { IExecuteContext } from "./ITask";
@@ -76,14 +76,12 @@ export abstract class JobQueueTask<
   /** ID of the current runner being used */
   currentRunnerId?: string;
 
-  public jobClass: new (config: JobConstructorParam<Input, Output>) => Job<Input, Output>;
+  public jobClass: JobClass<any, any>;
 
   constructor(input: Partial<Input> = {} as Input, config: Config = {} as Config) {
     config.queue ??= true;
     super(input, config);
-    this.jobClass = Job as unknown as new (
-      config: JobConstructorParam<Input, Output>
-    ) => Job<Input, Output>;
+    this.jobClass = Job as JobClass<any, any>;
   }
 
   async execute(input: Input, executeContext: IExecuteContext): Promise<Output | undefined> {

@@ -6,15 +6,15 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { TypeModel } from "./base/AiTaskSchemas";
+import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 
-const generatedTextSchema = {
+const generatedTextSchema = TypeSingleOrArray({
   type: "string",
   title: "Text",
   description: "The generated text",
   "x-stream": "append",
-} as const;
+});
 
 const modelSchema = TypeModel("model:TextGenerationTask");
 
@@ -22,11 +22,11 @@ export const TextGenerationInputSchema = {
   type: "object",
   properties: {
     model: modelSchema,
-    prompt: {
+    prompt: TypeSingleOrArray({
       type: "string",
       title: "Prompt",
       description: "The prompt to generate text from",
-    },
+    }),
     maxTokens: {
       type: "number",
       title: "Max Tokens",

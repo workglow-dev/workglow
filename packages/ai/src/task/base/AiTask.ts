@@ -8,7 +8,7 @@
  * @description This file contains the implementation of the JobQueueTask class and its derived classes.
  */
 
-import { Job } from "@workglow/job-queue";
+import { Job, JobClass } from "@workglow/job-queue";
 import {
   type IExecuteReactiveContext,
   JobQueueTask,
@@ -65,6 +65,7 @@ export class AiTask<
       modelLabel ? " with model " + modelLabel : ""
     }`;
     super(input, config);
+    this.jobClass = AiJob as JobClass<AiJobInput<Input>, Output>;
   }
 
   // ========================================================================

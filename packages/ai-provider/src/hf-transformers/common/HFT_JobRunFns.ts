@@ -52,6 +52,8 @@ import type {
   ImageSegmentationTaskOutput,
   ImageToTextTaskInput,
   ImageToTextTaskOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   ObjectDetectionTaskInput,
   ObjectDetectionTaskOutput,
   TextClassificationTaskInput,
@@ -77,8 +79,6 @@ import type {
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
-  ModelInfoTaskInput,
-  ModelInfoTaskOutput,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
@@ -194,90 +194,56 @@ const doGetPipeline = async (
   cacheKey: string,
   signal?: AbortSignal
 ) => {
-  // Track file sizes and progress for weighted calculation
-  const fileSizes = new Map<string, number>();
-  const fileProgress = new Map<string, number>();
-  const fileCompleted = new Set<string>();
-  const fileFirstSent = new Set<string>();
-  const fileLastSent = new Set<string>();
-  const fileLastEventTime = new Map<string, number>();
-  const pendingProgressByFile = new Map<
-    string,
-    { progress: number; file: string; fileProgress: number }
-  >();
+  // Throttle state for progress events
+  let lastProgressTime = 0;
+  let pendingProgress: { progress: number; file: string; fileProgress: number } | null = null;
   let throttleTimer: ReturnType<typeof setTimeout> | null = null;
   const THROTTLE_MS = 160;
 
-  // Pre-estimate total download size based on typical model structure:
-  // 3 tiny files (~1KB each) + 1 medium file (~20MB) + 0-2 large files (~1GB each if present)
-  const estimatedTinyFiles = 3;
-  const estimatedMediumFiles = 1;
-  const estimatedTinySize = 1024; // 1KB
-  const estimatedMediumSize = 20 * 1024 * 1024; // 20MB
-  const estimatedLargeSize = 1024 * 1024 * 1024; // 1GB
-
-  // Start with minimum estimate (4 files), add large files dynamically as we discover them
-  const baseEstimate =
-    estimatedTinyFiles * estimatedTinySize + estimatedMediumFiles * estimatedMediumSize;
-
   /**
-   * Sends a progress event, respecting throttling but always sending first/last per file
+   * Sends a progress event, throttled to avoid flooding the worker channel.
+   * Always sends first event and final (>=progressScaleMax) immediately.
    */
-  const sendProgress = (
-    overallProgress: number,
-    file: string,
-    fileProgressValue: number,
-    isFirst: boolean,
-    isLast: boolean
-  ): void => {
+  const sendProgress = (progress: number, file: string, fileProgress: number): void => {
     const now = Date.now();
-    const lastTime = fileLastEventTime.get(file) || 0;
-    const timeSinceLastEvent = now - lastTime;
-    const shouldThrottle = !isFirst && !isLast && timeSinceLastEvent < THROTTLE_MS;
+    const timeSinceLastEvent = now - lastProgressTime;
+    const isFirst = lastProgressTime === 0;
+    const isFinal = progress >= progressScaleMax;
 
-    if (shouldThrottle) {
-      // Store pending progress for this file
-      pendingProgressByFile.set(file, {
-        progress: overallProgress,
-        file,
-        fileProgress: fileProgressValue,
-      });
-      // Schedule sending if not already scheduled
+    if (isFirst || isFinal) {
+      if (throttleTimer) {
+        clearTimeout(throttleTimer);
+        throttleTimer = null;
+      }
+      pendingProgress = null;
+      onProgress(Math.round(progress), "Downloading model", { file, progress: fileProgress });
+      lastProgressTime = now;
+      return;
+    }
+
+    if (timeSinceLastEvent < THROTTLE_MS) {
+      pendingProgress = { progress, file, fileProgress };
       if (!throttleTimer) {
         const timeRemaining = Math.max(1, THROTTLE_MS - timeSinceLastEvent);
         throttleTimer = setTimeout(() => {
-          // Send all pending progress events
-          for (const [pendingFile, pending] of pendingProgressByFile.entries()) {
-            onProgress(Math.round(pending.progress), "Downloading model", {
-              file: pendingFile,
-              progress: pending.fileProgress,
-            });
-            fileLastEventTime.set(pendingFile, Date.now());
-          }
-          pendingProgressByFile.clear();
           throttleTimer = null;
+          if (pendingProgress) {
+            onProgress(Math.round(pendingProgress.progress), "Downloading model", {
+              file: pendingProgress.file,
+              progress: pendingProgress.fileProgress,
+            });
+            lastProgressTime = Date.now();
+            pendingProgress = null;
+          }
         }, timeRemaining);
       }
       return;
     }
 
-    // Send immediately
-    onProgress(Math.round(overallProgress), "Downloading model", {
-      file,
-      progress: fileProgressValue,
-    });
-    fileLastEventTime.set(file, now);
-    // Clear any pending progress for this file since we're sending it now
-    pendingProgressByFile.delete(file);
-    if (throttleTimer && pendingProgressByFile.size === 0) {
-      clearTimeout(throttleTimer);
-      throttleTimer = null;
-    }
+    onProgress(Math.round(progress), "Downloading model", { file, progress: fileProgress });
+    lastProgressTime = now;
+    pendingProgress = null;
   };
-
-  // Track whether we've seen a substantial file (to avoid premature progress reports for tiny config files)
-  let hasSeenSubstantialFile = false;
-  const substantialFileThreshold = 1024 * 1024; // 1MB - files larger than this are substantial
 
   // Get the abort signal from the signal parameter
   const abortSignal = signal;
@@ -294,180 +260,37 @@ const doGetPipeline = async (
     }
   }
 
-  // Create a callback status object for progress tracking
+  // Use aggregate progress_total event from @huggingface/transformers v4 pipeline()
   const progressCallback = (status: ProgressInfo) => {
-    // Check if operation has been aborted before processing progress
-    if (abortSignal?.aborted) {
-      return; // Don't process progress for aborted operations
-    }
+    if (abortSignal?.aborted) return;
 
-    if (status.status === "progress") {
-      const file = status.file;
-      const fileTotal = status.total;
-      const fileProgressValue = status.progress;
+    if ((status as any).status === "progress_total") {
+      const totalStatus = status as any;
+      const scaledProgress = (totalStatus.progress * progressScaleMax) / 100;
 
-      // Track file size on first progress event
-      if (!fileSizes.has(file)) {
-        fileSizes.set(file, fileTotal);
-        fileProgress.set(file, 0);
-
-        // Check if this is a substantial file
-        if (fileTotal >= substantialFileThreshold) {
-          hasSeenSubstantialFile = true;
-        }
-      }
-
-      // Update file progress
-      fileProgress.set(file, fileProgressValue);
-
-      // Check if file is complete
-      const isComplete = fileProgressValue >= 100;
-      if (isComplete && !fileCompleted.has(file)) {
-        fileCompleted.add(file);
-        fileProgress.set(file, 100);
-      }
-
-      // Calculate actual loaded bytes and adjust estimated total
-      let actualLoadedSize = 0;
-      let actualTotalSize = 0;
-
-      // Categorize seen files and track their actual sizes
-      const tinyThreshold = 100 * 1024; // 100KB - files smaller are config/vocab
-      const mediumThreshold = 100 * 1024 * 1024; // 100MB - tokenizer and small models
-      let seenTinyCount = 0;
-      let seenMediumCount = 0;
-      let seenLargeCount = 0;
-
-      for (const [trackedFile, size] of fileSizes.entries()) {
-        actualTotalSize += size;
-        const progress = fileProgress.get(trackedFile) || 0;
-        actualLoadedSize += (size * progress) / 100;
-
-        // Categorize file
-        if (size < tinyThreshold) {
-          seenTinyCount++;
-        } else if (size < mediumThreshold) {
-          seenMediumCount++;
-        } else {
-          seenLargeCount++;
-        }
-      }
-
-      // Adjust estimated total size:
-      // - Start with actual sizes of seen files
-      // - Add estimates for unseen tiny/medium files
-      // - For large files: conservatively assume 1 until we've seen all expected files
-      const unseenTinyFiles = Math.max(0, estimatedTinyFiles - seenTinyCount);
-      const unseenMediumFiles = Math.max(0, estimatedMediumFiles - seenMediumCount);
-
-      // Dynamically estimate large files:
-      // - If we've seen a large file, assume up to 2 total
-      // - Otherwise, conservatively assume 1 large file might exist to prevent premature 100% progress
-      // - This prevents the progress from jumping when a large file appears unexpectedly
-      let estimatedLargeFiles: number;
-      if (seenLargeCount > 0) {
-        estimatedLargeFiles = 2; // We've seen at least one, expect up to 2
-      } else {
-        estimatedLargeFiles = 1; // Haven't seen any large files yet, but assume 1 might exist
-      }
-      const unseenLargeFiles = Math.max(0, estimatedLargeFiles - seenLargeCount);
-
-      const adjustedTotalSize =
-        actualTotalSize +
-        unseenTinyFiles * estimatedTinySize +
-        unseenMediumFiles * estimatedMediumSize +
-        unseenLargeFiles * estimatedLargeSize;
-
-      // Scale progress to the configured range (0-100 for download-only, 0-10 for download+run)
-      const rawProgress = adjustedTotalSize > 0 ? (actualLoadedSize / adjustedTotalSize) * 100 : 0;
-      const overallProgress = (rawProgress * progressScaleMax) / 100;
-
-      // Determine if this is first or last event for this file
-      const isFirst = !fileFirstSent.has(file);
-      const isLast = isComplete && !fileLastSent.has(file);
-
-      if (isFirst) {
-        fileFirstSent.add(file);
-      }
-      if (isLast) {
-        fileLastSent.add(file);
-      }
-
-      // Only report progress if we've seen a substantial file (to avoid premature 100% for tiny config files)
-      if (hasSeenSubstantialFile) {
-        sendProgress(overallProgress, file, fileProgressValue, isFirst, isLast);
-      }
-    } else if (status.status === "done" || status.status === "download") {
-      // Handle file completion from bookend events
-      const file = status.file;
-
-      // Check if this file should mark the start of substantial downloads
-      const fileSize = fileSizes.get(file) || 0;
-      if (fileSize >= substantialFileThreshold) {
-        hasSeenSubstantialFile = true;
-      }
-
-      if (!fileCompleted.has(file)) {
-        fileCompleted.add(file);
-        fileProgress.set(file, 100);
-
-        // Recalculate overall progress using same logic as progress handler
-        let actualLoadedSize = 0;
-        let actualTotalSize = 0;
-
-        const tinyThreshold = 100 * 1024; // 100KB - files smaller are config/vocab
-        const mediumThreshold = 100 * 1024 * 1024; // 100MB - tokenizer and small models
-        let seenTinyCount = 0;
-        let seenMediumCount = 0;
-        let seenLargeCount = 0;
-
-        for (const [trackedFile, size] of fileSizes.entries()) {
-          actualTotalSize += size;
-          const progress = fileProgress.get(trackedFile) || 0;
-          actualLoadedSize += (size * progress) / 100;
-
-          // Categorize file
-          if (size < tinyThreshold) {
-            seenTinyCount++;
-          } else if (size < mediumThreshold) {
-            seenMediumCount++;
-          } else {
-            seenLargeCount++;
+      // Find the currently active file (one still downloading)
+      let activeFile = "";
+      let activeFileProgress = 0;
+      const files: Record<string, { loaded: number; total: number }> | undefined =
+        totalStatus.files;
+      if (files) {
+        for (const [file, info] of Object.entries(files)) {
+          if (info.loaded < info.total) {
+            activeFile = file;
+            activeFileProgress = info.total > 0 ? (info.loaded / info.total) * 100 : 0;
+            break;
           }
         }
-
-        // Adjust estimated total size (same logic as progress handler)
-        const unseenTinyFiles = Math.max(0, estimatedTinyFiles - seenTinyCount);
-        const unseenMediumFiles = Math.max(0, estimatedMediumFiles - seenMediumCount);
-
-        // Dynamically estimate large files (same logic as progress handler)
-        let estimatedLargeFiles: number;
-        if (seenLargeCount > 0) {
-          estimatedLargeFiles = 2;
-        } else {
-          estimatedLargeFiles = 1;
-        }
-        const unseenLargeFiles = Math.max(0, estimatedLargeFiles - seenLargeCount);
-
-        const adjustedTotalSize =
-          actualTotalSize +
-          unseenTinyFiles * estimatedTinySize +
-          unseenMediumFiles * estimatedMediumSize +
-          unseenLargeFiles * estimatedLargeSize;
-
-        // Scale progress to the configured range (0-100 for download-only, 0-10 for download+run)
-        const rawProgress =
-          adjustedTotalSize > 0 ? (actualLoadedSize / adjustedTotalSize) * 100 : 0;
-        const overallProgress = (rawProgress * progressScaleMax) / 100;
-        const isLast = !fileLastSent.has(file);
-        if (isLast) {
-          fileLastSent.add(file);
-          // Only report if we've seen a substantial file
-          if (hasSeenSubstantialFile) {
-            sendProgress(overallProgress, file, 100, false, true);
+        if (!activeFile) {
+          const fileNames = Object.keys(files);
+          if (fileNames.length > 0) {
+            activeFile = fileNames[fileNames.length - 1];
+            activeFileProgress = 100;
           }
         }
       }
+
+      sendProgress(scaledProgress, activeFile, activeFileProgress);
     }
   };
 
@@ -497,6 +320,25 @@ const doGetPipeline = async (
 
   try {
     const result = await pipeline(pipelineType, model.provider_config.model_path, pipelineOptions);
+
+    // Flush pending throttled progress and clean up timer
+    if (throttleTimer) {
+      clearTimeout(throttleTimer);
+      throttleTimer = null;
+    }
+    // pendingProgress may have been set by progressCallback during the pipeline() await
+    const finalPending = pendingProgress as {
+      progress: number;
+      file: string;
+      fileProgress: number;
+    } | null;
+    if (finalPending) {
+      onProgress(Math.round(finalPending.progress), "Downloading model", {
+        file: finalPending.file,
+        progress: finalPending.fileProgress,
+      });
+      pendingProgress = null;
+    }
 
     // Check if aborted after pipeline creation
     if (abortSignal?.aborted) {
@@ -695,6 +537,8 @@ export const HFT_TextClassification: AiProviderRunFn<
   TextClassificationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.text);
+
   if (model?.provider_config?.pipeline === "zero-shot-classification") {
     if (
       !input.candidateLabels ||
@@ -710,7 +554,24 @@ export const HFT_TextClassification: AiProviderRunFn<
       {},
       signal
     );
-    const result: any = await zeroShotClassifier(input.text, input.candidateLabels as string[], {});
+    const result: any = await zeroShotClassifier(
+      input.text as any,
+      input.candidateLabels as string[],
+      {}
+    );
+
+    if (isArrayInput) {
+      // Batch result: result is an array of { labels, scores } per input
+      const results = Array.isArray(result) && Array.isArray(result[0]?.labels) ? result : [result];
+      return {
+        categories: results.map((r: any) =>
+          r.labels.map((label: string, idx: number) => ({
+            label,
+            score: r.scores[idx],
+          }))
+        ),
+      };
+    }
 
     return {
       categories: result.labels.map((label: string, idx: number) => ({
@@ -726,9 +587,22 @@ export const HFT_TextClassification: AiProviderRunFn<
     {},
     signal
   );
-  const result = await TextClassification(input.text, {
+  const result = await TextClassification(input.text as any, {
     top_k: input.maxCategories || undefined,
   });
+
+  if (isArrayInput) {
+    // Batch result: outer array per input, inner array of categories
+    return {
+      categories: (result as any[]).map((perInput: any) => {
+        const items = Array.isArray(perInput) ? perInput : [perInput];
+        return items.map((category: any) => ({
+          label: category.label as string,
+          score: category.score as number,
+        }));
+      }),
+    };
+  }
 
   if (Array.isArray(result[0])) {
     return {
@@ -752,15 +626,29 @@ export const HFT_TextLanguageDetection: AiProviderRunFn<
   TextLanguageDetectionTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.text);
+
   const TextClassification: TextClassificationPipeline = await getPipeline(
     model!,
     onProgress,
     {},
     signal
   );
-  const result = await TextClassification(input.text, {
+  const result = await TextClassification(input.text as any, {
     top_k: input.maxLanguages || undefined,
   });
+
+  if (isArrayInput) {
+    return {
+      languages: (result as any[]).map((perInput: any) => {
+        const items = Array.isArray(perInput) ? perInput : [perInput];
+        return items.map((category: any) => ({
+          language: category.label as string,
+          score: category.score as number,
+        }));
+      }),
+    };
+  }
 
   if (Array.isArray(result[0])) {
     return {
@@ -784,15 +672,31 @@ export const HFT_TextNamedEntityRecognition: AiProviderRunFn<
   TextNamedEntityRecognitionTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.text);
+
   const textNamedEntityRecognition: TokenClassificationPipeline = await getPipeline(
     model!,
     onProgress,
     {},
     signal
   );
-  let results = await textNamedEntityRecognition(input.text, {
+  const results = await textNamedEntityRecognition(input.text as any, {
     ignore_labels: input.blockList as string[] | undefined,
   });
+
+  if (isArrayInput) {
+    return {
+      entities: (results as unknown as TokenClassificationOutput[]).map((perInput) => {
+        const items = Array.isArray(perInput) ? perInput : [perInput];
+        return items.map((entity) => ({
+          entity: entity.entity,
+          score: entity.score,
+          word: entity.word,
+        }));
+      }),
+    };
+  }
+
   let entities: TokenClassificationOutput = [];
   if (!Array.isArray(results)) {
     entities = [results];
@@ -813,8 +717,24 @@ export const HFT_TextFillMask: AiProviderRunFn<
   TextFillMaskTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.text);
+
   const unmasker: FillMaskPipeline = await getPipeline(model!, onProgress, {}, signal);
-  let results = await unmasker(input.text);
+  const results = await unmasker(input.text as any);
+
+  if (isArrayInput) {
+    return {
+      predictions: (results as unknown as FillMaskOutput[]).map((perInput) => {
+        const items = Array.isArray(perInput) ? perInput : [perInput];
+        return items.map((prediction) => ({
+          entity: prediction.token_str,
+          score: prediction.score,
+          sequence: prediction.sequence,
+        }));
+      }),
+    };
+  }
+
   let predictions: FillMaskOutput = [];
   if (!Array.isArray(results)) {
     predictions = [results];
@@ -843,18 +763,33 @@ export const HFT_TextGeneration: AiProviderRunFn<
   const timerLabel = `hft:TextGeneration:${model?.provider_config.model_path}`;
   logger.time(timerLabel, { model: model?.provider_config.model_path });
 
+  const isArrayInput = Array.isArray(input.prompt);
+
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
   logger.debug("HFT TextGeneration: pipeline ready, generating text", {
     model: model?.provider_config.model_path,
-    promptLength: input.prompt?.length,
+    promptLength: isArrayInput ? (input.prompt as string[]).length : input.prompt?.length,
   });
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+  const streamer = isArrayInput
+    ? undefined
+    : createTextStreamer(generateText.tokenizer, onProgress);
 
-  let results = await generateText(input.prompt, {
-    streamer,
+  let results = await generateText(input.prompt as any, {
+    ...(streamer ? { streamer } : {}),
   });
+
+  if (isArrayInput) {
+    // Batch result: results is an array, one entry per prompt
+    const batchResults = Array.isArray(results) ? results : [results];
+    const texts = batchResults.map((r) => {
+      const seqs = Array.isArray(r) ? r : [r];
+      return extractGeneratedText((seqs[0] as TextGenerationOutput[number])?.generated_text);
+    });
+    logger.timeEnd(timerLabel, { batchSize: texts.length });
+    return { text: texts };
+  }
 
   if (!Array.isArray(results)) {
     results = [results];
@@ -875,14 +810,27 @@ export const HFT_TextTranslation: AiProviderRunFn<
   TextTranslationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const translate: TranslationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const streamer = createTextStreamer(translate.tokenizer, onProgress);
+  const isArrayInput = Array.isArray(input.text);
 
-  const result = await translate(input.text, {
-    src_lang: input.source_lang,
-    tgt_lang: input.target_lang,
-    streamer,
-  } as any);
+  const translate: TranslationPipeline = await getPipeline(model!, onProgress, {}, signal);
+  const streamer = isArrayInput ? undefined : createTextStreamer(translate.tokenizer, onProgress);
+
+  const result = await translate(
+    input.text as any,
+    {
+      src_lang: input.source_lang,
+      tgt_lang: input.target_lang,
+      ...(streamer ? { streamer } : {}),
+    } as any
+  );
+
+  if (isArrayInput) {
+    const batchResults = Array.isArray(result) ? result : [result];
+    return {
+      text: batchResults.map((r) => (r as TranslationOutput[number])?.translation_text || ""),
+      target_lang: input.target_lang,
+    };
+  }
 
   const translatedText = Array.isArray(result)
     ? (result[0] as TranslationOutput[number])?.translation_text || ""
@@ -903,14 +851,37 @@ export const HFT_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.text);
+
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+  const streamer = isArrayInput
+    ? undefined
+    : createTextStreamer(generateText.tokenizer, onProgress);
+
+  if (isArrayInput) {
+    const texts = input.text as string[];
+    const promptedTexts = texts.map((t) => (input.prompt ? input.prompt + "\n" : "") + t);
+
+    let results = await generateText(promptedTexts, {});
+
+    const batchResults = Array.isArray(results) ? results : [results];
+    const outputTexts = batchResults.map((r, i) => {
+      const seqs = Array.isArray(r) ? r : [r];
+      const text = extractGeneratedText((seqs[0] as TextGenerationOutput[number])?.generated_text);
+      if (text === promptedTexts[i]) {
+        throw new Error("Rewriter failed to generate new text");
+      }
+      return text;
+    });
+
+    return { text: outputTexts };
+  }
 
   // This lib doesn't support this kind of rewriting with a separate prompt vs text
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
 
   let results = await generateText(promptedText, {
-    streamer,
+    ...(streamer ? { streamer } : {}),
   });
 
   if (!Array.isArray(results)) {
@@ -937,12 +908,26 @@ export const HFT_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const streamer = createTextStreamer(generateSummary.tokenizer, onProgress);
+  const isArrayInput = Array.isArray(input.text);
 
-  let result = await generateSummary(input.text, {
-    streamer,
-  } as any);
+  const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {}, signal);
+  const streamer = isArrayInput
+    ? undefined
+    : createTextStreamer(generateSummary.tokenizer, onProgress);
+
+  const result = await generateSummary(
+    input.text as any,
+    {
+      ...(streamer ? { streamer } : {}),
+    } as any
+  );
+
+  if (isArrayInput) {
+    const batchResults = Array.isArray(result) ? result : [result];
+    return {
+      text: batchResults.map((r) => (r as SummarizationOutput[number])?.summary_text || ""),
+    };
+  }
 
   let summaryText = "";
   if (Array.isArray(result)) {
@@ -965,6 +950,8 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
   TextQuestionAnswerTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.question);
+
   // Get the question answering pipeline
   const generateAnswer: QuestionAnsweringPipeline = await getPipeline(
     model!,
@@ -972,11 +959,40 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
     {},
     signal
   );
+
+  if (isArrayInput) {
+    const questions = input.question as string[];
+    const contexts = input.context as string[];
+    if (questions.length !== contexts.length) {
+      throw new Error(
+        `question[] and context[] must have the same length: ${questions.length} != ${contexts.length}`
+      );
+    }
+
+    const answers: string[] = [];
+    for (let i = 0; i < questions.length; i++) {
+      const result = await generateAnswer(questions[i], contexts[i], {} as any);
+      let answerText = "";
+      if (Array.isArray(result)) {
+        answerText = (result[0] as DocumentQuestionAnsweringOutput[number])?.answer || "";
+      } else {
+        answerText = (result as DocumentQuestionAnsweringOutput[number])?.answer || "";
+      }
+      answers.push(answerText);
+    }
+
+    return { text: answers };
+  }
+
   const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress);
 
-  const result = await generateAnswer(input.question, input.context, {
-    streamer,
-  } as any);
+  const result = await generateAnswer(
+    input.question as string,
+    input.context as string,
+    {
+      streamer,
+    } as any
+  );
 
   let answerText = "";
   if (Array.isArray(result)) {
@@ -1436,7 +1452,7 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
   const queue = createStreamEventQueue<StreamEvent<TextGenerationTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
 
-  const pipelinePromise = generateText(input.prompt, {
+  const pipelinePromise = generateText(input.prompt as string, {
     streamer,
   }).then(
     () => queue.done(),
@@ -1459,7 +1475,7 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
   const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
 
-  const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
+  const promptedText = (input.prompt ? input.prompt + "\n" : "") + (input.text as string);
 
   const pipelinePromise = generateText(promptedText, {
     streamer,
@@ -1489,9 +1505,12 @@ export const HFT_TextSummary_Stream: AiProviderStreamFn<
   const queue = createStreamEventQueue<StreamEvent<TextSummaryTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue);
 
-  const pipelinePromise = generateSummary(input.text, {
-    streamer,
-  } as any).then(
+  const pipelinePromise = generateSummary(
+    input.text as string,
+    {
+      streamer,
+    } as any
+  ).then(
     () => queue.done(),
     (err: Error) => queue.error(err)
   );
@@ -1525,9 +1544,13 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
     | DocumentQuestionAnsweringOutput[number]
     | DocumentQuestionAnsweringOutput
     | undefined;
-  const pipelinePromise = generateAnswer(input.question, input.context, {
-    streamer,
-  } as any).then(
+  const pipelinePromise = generateAnswer(
+    input.question as string,
+    input.context as string,
+    {
+      streamer,
+    } as any
+  ).then(
     (result) => {
       pipelineResult = result;
       queue.done();
@@ -1560,11 +1583,14 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
   const queue = createStreamEventQueue<StreamEvent<TextTranslationTaskOutput>>();
   const streamer = createStreamingTextStreamer(translate.tokenizer, queue);
 
-  const pipelinePromise = translate(input.text, {
-    src_lang: input.source_lang,
-    tgt_lang: input.target_lang,
-    streamer,
-  } as any).then(
+  const pipelinePromise = translate(
+    input.text as string,
+    {
+      src_lang: input.source_lang,
+      tgt_lang: input.target_lang,
+      streamer,
+    } as any
+  ).then(
     () => queue.done(),
     (err: Error) => queue.error(err)
   );
@@ -1579,12 +1605,21 @@ export const HFT_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.text);
+
   const { AutoTokenizer } = _transformersSdk!;
   const tokenizer = await AutoTokenizer.from_pretrained(model!.provider_config.model_path, {
     progress_callback: (progress: any) => onProgress(progress?.progress ?? 0),
   });
+
+  if (isArrayInput) {
+    const texts = input.text as string[];
+    const counts = texts.map((t) => tokenizer.encode(t).length);
+    return { count: counts };
+  }
+
   // encode() returns number[] of token IDs for a single input string
-  const tokenIds = tokenizer.encode(input.text);
+  const tokenIds = tokenizer.encode(input.text as string);
   return { count: tokenIds.length };
 };
 
@@ -1796,13 +1831,58 @@ export const HFT_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
+  const isArrayInput = Array.isArray(input.prompt);
+
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
+
+  if (isArrayInput) {
+    const prompts = input.prompt as string[];
+    const texts: string[] = [];
+    const allToolCalls: Record<string, unknown>[] = [];
+
+    for (const promptText of prompts) {
+      const messages: Array<{ role: string; content: string }> = [];
+      if (input.systemPrompt) {
+        messages.push({ role: "system", content: input.systemPrompt as string });
+      }
+      messages.push({ role: "user", content: promptText });
+
+      const singleInput = { ...input, prompt: promptText } as ToolCallingTaskInput;
+      const tools = resolveHFTToolsAndMessages(singleInput, messages);
+
+      const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+        tools,
+        tokenize: false,
+        add_generation_prompt: true,
+      }) as string;
+
+      let results = await generateText(prompt, {
+        max_new_tokens: input.maxTokens ?? 1024,
+        temperature: input.temperature ?? undefined,
+        return_full_text: false,
+      });
+
+      if (!Array.isArray(results)) {
+        results = [results];
+      }
+
+      const responseText = extractGeneratedText(
+        (results[0] as TextGenerationOutput[number])?.generated_text
+      ).trim();
+
+      const parsed = parseToolCallsFromText(responseText);
+      texts.push(parsed.text);
+      allToolCalls.push(filterValidToolCalls(parsed.toolCalls, input.tools));
+    }
+
+    return { text: texts, toolCalls: allToolCalls };
+  }
 
   const messages: Array<{ role: string; content: string }> = [];
   if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
+    messages.push({ role: "system", content: input.systemPrompt as string });
   }
-  messages.push({ role: "user", content: input.prompt });
+  messages.push({ role: "user", content: input.prompt as string });
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 
@@ -1844,9 +1924,9 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
 
   const messages: Array<{ role: string; content: string }> = [];
   if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
+    messages.push({ role: "system", content: input.systemPrompt as string });
   }
-  messages.push({ role: "user", content: input.prompt });
+  messages.push({ role: "user", content: input.prompt as string });
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 
@@ -1928,6 +2008,49 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
 // Model info
 // ========================================================================
 
+/** In-memory cache for HF Hub API file-size responses to avoid repeated network calls. */
+const hfHubFileSizeCache = new Map<string, Record<string, number> | null>();
+
+/** Fetch file sizes for a HuggingFace model from the Hub API (used when the model is not yet cached locally). */
+async function fetchHFHubFileSizes(model_path: string): Promise<Record<string, number> | null> {
+  if (hfHubFileSizeCache.has(model_path)) {
+    return hfHubFileSizeCache.get(model_path)!;
+  }
+
+  try {
+    const response = await fetch(`https://huggingface.co/api/models/${model_path}`);
+    if (!response.ok) {
+      hfHubFileSizeCache.set(model_path, null);
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      siblings?: Array<{ rfilename: string; size?: number | null; lfs?: { size: number } | null }>;
+    };
+
+    const siblings = data.siblings;
+    if (!siblings || siblings.length === 0) {
+      hfHubFileSizeCache.set(model_path, null);
+      return null;
+    }
+
+    const sizes: Record<string, number> = {};
+    for (const sibling of siblings) {
+      const size = sibling.lfs?.size ?? sibling.size;
+      if (size && size > 0) {
+        sizes[sibling.rfilename] = size;
+      }
+    }
+
+    const result = Object.keys(sizes).length > 0 ? sizes : null;
+    hfHubFileSizeCache.set(model_path, result);
+    return result;
+  } catch {
+    hfHubFileSizeCache.set(model_path, null);
+    return null;
+  }
+}
+
 export const HFT_ModelInfo: AiProviderRunFn<
   ModelInfoTaskInput,
   ModelInfoTaskOutput,
@@ -1966,6 +2089,11 @@ export const HFT_ModelInfo: AiProviderRunFn<
     } catch {
       // Cache API not available or failed
     }
+  }
+
+  // If the model is not cached locally, fall back to the HF Hub API for file sizes
+  if (!is_cached) {
+    file_sizes = await fetchHFHubFileSizes(model!.provider_config.model_path);
   }
 
   return {

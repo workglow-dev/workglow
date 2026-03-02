@@ -6,7 +6,7 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { TypeModel } from "./base/AiTaskSchemas";
+import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const modelSchema = TypeModel("model:TextRewriterTask");
@@ -14,11 +14,11 @@ const modelSchema = TypeModel("model:TextRewriterTask");
 export const TextRewriterInputSchema = {
   type: "object",
   properties: {
-    text: {
+    text: TypeSingleOrArray({
       type: "string",
       title: "Text",
       description: "The text to rewrite",
-    },
+    }),
     prompt: {
       type: "string",
       title: "Prompt",
@@ -33,12 +33,12 @@ export const TextRewriterInputSchema = {
 export const TextRewriterOutputSchema = {
   type: "object",
   properties: {
-    text: {
+    text: TypeSingleOrArray({
       type: "string",
       title: "Text",
       description: "The rewritten text",
       "x-stream": "append",
-    },
+    }),
   },
   required: ["text"],
   additionalProperties: false,

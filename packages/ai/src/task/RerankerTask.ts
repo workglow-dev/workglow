@@ -212,7 +212,9 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Jo
           new TextClassificationTask({ text: pairText, model: model, maxCategories: 2 })
         );
         const result = await task.run();
-        const crossScore = this.extractCrossEncoderScore(result.categories);
+        const crossScore = this.extractCrossEncoderScore(
+          result.categories as Array<{ label: string; score: number }>
+        );
         return {
           chunk,
           score: Number.isFinite(crossScore) ? crossScore : scores[index] || 0,

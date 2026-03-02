@@ -176,7 +176,7 @@ export class ContextBuilderTask extends Task<
       countFn = async (text: string): Promise<number> => {
         try {
           const result = await countTask.run({ text });
-          return result.count;
+          return result.count as number;
         } catch (_err) {
           // Fall back to local token estimation if CountTokensTask is unavailable or fails.
           return estimateTokens(text);
