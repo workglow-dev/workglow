@@ -2008,93 +2008,44 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
 // Model info
 // ========================================================================
 
-/** In-memory cache for HF Hub API file-size responses to avoid repeated network calls. */
-const hfHubFileSizeCache = new Map<string, Record<string, number> | null>();
-
-/** Fetch file sizes for a HuggingFace model from the Hub API (used when the model is not yet cached locally). */
-async function fetchHFHubFileSizes(model_path: string): Promise<Record<string, number> | null> {
-  if (hfHubFileSizeCache.has(model_path)) {
-    return hfHubFileSizeCache.get(model_path)!;
-  }
-
-  try {
-    const response = await fetch(`https://huggingface.co/api/models/${model_path}`);
-    if (!response.ok) {
-      hfHubFileSizeCache.set(model_path, null);
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      siblings?: Array<{ rfilename: string; size?: number | null; lfs?: { size: number } | null }>;
-    };
-
-    const siblings = data.siblings;
-    if (!siblings || siblings.length === 0) {
-      hfHubFileSizeCache.set(model_path, null);
-      return null;
-    }
-
-    const sizes: Record<string, number> = {};
-    for (const sibling of siblings) {
-      const size = sibling.lfs?.size ?? sibling.size;
-      if (size && size > 0) {
-        sizes[sibling.rfilename] = size;
-      }
-    }
-
-    const result = Object.keys(sizes).length > 0 ? sizes : null;
-    hfHubFileSizeCache.set(model_path, result);
-    return result;
-  } catch {
-    hfHubFileSizeCache.set(model_path, null);
-    return null;
-  }
-}
-
 export const HFT_ModelInfo: AiProviderRunFn<
   ModelInfoTaskInput,
   ModelInfoTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model) => {
+  const logger = getLogger();
+  const { ModelRegistry } = await loadTransformersSDK();
+  const timerLabel = `hft:ModelInfo:${model?.provider_config.model_path}`;
+  logger.time(timerLabel, { model: model?.provider_config.model_path });
+
   const is_loaded = pipelines.has(getPipelineCacheKey(model!));
 
-  let is_cached = is_loaded;
+  const { pipeline: pipelineType, model_path, dtype, device } = model!.provider_config;
+
+  const cacheStatus = await ModelRegistry.is_pipeline_cached(pipelineType, model_path, {
+    ...(dtype ? { dtype } : {}),
+    ...(device ? { device: device as any } : {}),
+  });
+  const is_cached = is_loaded || cacheStatus.allCached;
+
+  // Get file sizes via metadata for all files the pipeline needs
   let file_sizes: Record<string, number> | null = null;
-
-  // Try the browser Cache API to check for downloaded model files
-  if (typeof caches !== "undefined") {
-    try {
-      const cache = await caches.open(HTF_CACHE_NAME);
-      const keys = await cache.keys();
-      const model_path = model!.provider_config.model_path;
-      const prefix = `/${model_path}/`;
-      const sizes: Record<string, number> = {};
-
-      for (const request of keys) {
-        const url = new URL(request.url);
-        if (url.pathname.startsWith(prefix)) {
-          is_cached = true;
-          const response = await cache.match(request);
-          const contentLength = response?.headers.get("Content-Length");
-          if (contentLength) {
-            const filename = url.pathname.slice(prefix.length);
-            sizes[filename] = parseInt(contentLength, 10);
-          }
+  if (cacheStatus.files.length > 0) {
+    const sizes: Record<string, number> = {};
+    await Promise.all(
+      cacheStatus.files.map(async ({ file }) => {
+        const metadata = await ModelRegistry.get_file_metadata(model_path, file);
+        if (metadata.exists && metadata.size !== undefined) {
+          sizes[file] = metadata.size;
         }
-      }
-
-      if (Object.keys(sizes).length > 0) {
-        file_sizes = sizes;
-      }
-    } catch {
-      // Cache API not available or failed
+      })
+    );
+    if (Object.keys(sizes).length > 0) {
+      file_sizes = sizes;
     }
   }
 
-  // If the model is not cached locally, fall back to the HF Hub API for file sizes
-  if (!is_cached) {
-    file_sizes = await fetchHFHubFileSizes(model!.provider_config.model_path);
-  }
+  logger.timeEnd(timerLabel, { model: model?.provider_config.model_path });
 
   return {
     model: input.model,
