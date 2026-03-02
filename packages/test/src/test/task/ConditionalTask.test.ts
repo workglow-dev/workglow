@@ -279,7 +279,11 @@ describe("ConditionalTask", () => {
                 condition: (i: any) => i?.value !== undefined,
                 outputPort: "hasValue",
               },
-              { id: "noValue", condition: (i: any) => i?.value === undefined, outputPort: "noValue" },
+              {
+                id: "noValue",
+                condition: (i: any) => i?.value === undefined,
+                outputPort: "noValue",
+              },
             ],
           }
         );
@@ -626,7 +630,9 @@ describe("ConditionalTask", () => {
         graph.addTasks([typeConditional, tierConditional, goldTask, silverTask, standardTask]);
 
         // Type conditional outputs
-        graph.addDataflow(new Dataflow(typeConditional.id, "premium", tierConditional.id, "premium"));
+        graph.addDataflow(
+          new Dataflow(typeConditional.id, "premium", tierConditional.id, "premium")
+        );
         graph.addDataflow(new Dataflow(typeConditional.id, "standard", standardTask.id, "input"));
 
         // Tier conditional outputs
@@ -845,7 +851,11 @@ describe("ConditionalTask", () => {
                 condition: (i: any) => i.shouldProcess === true,
                 outputPort: "toProcess",
               },
-              { id: "skip", condition: (i: any) => i.shouldProcess === false, outputPort: "toSkip" },
+              {
+                id: "skip",
+                condition: (i: any) => i.shouldProcess === false,
+                outputPort: "toSkip",
+              },
             ],
           }
         );
@@ -878,7 +888,11 @@ describe("ConditionalTask", () => {
                 condition: (i: any) => i.shouldProcess === true,
                 outputPort: "toProcess",
               },
-              { id: "skip", condition: (i: any) => i.shouldProcess === false, outputPort: "toSkip" },
+              {
+                id: "skip",
+                condition: (i: any) => i.shouldProcess === false,
+                outputPort: "toSkip",
+              },
             ],
           }
         );
@@ -1023,7 +1037,11 @@ describe("ConditionalTask", () => {
                 outputPort: "critical",
               },
               { id: "high", condition: (i: any) => i.priority === "high", outputPort: "high" },
-              { id: "normal", condition: (i: any) => i.priority === "normal", outputPort: "normal" },
+              {
+                id: "normal",
+                condition: (i: any) => i.priority === "normal",
+                outputPort: "normal",
+              },
               { id: "low", condition: (i: any) => i.priority === "low", outputPort: "low" },
             ],
             defaultBranch: "normal",
@@ -1404,7 +1422,11 @@ describe("ConditionalTask", () => {
           {
             id: "cond2",
             branches: [
-              { id: "even", condition: (i: any) => i.positive?.value % 2 === 0, outputPort: "even" },
+              {
+                id: "even",
+                condition: (i: any) => i.positive?.value % 2 === 0,
+                outputPort: "even",
+              },
               { id: "odd", condition: (i: any) => i.positive?.value % 2 !== 0, outputPort: "odd" },
             ],
           }
@@ -1471,7 +1493,11 @@ describe("ConditionalTask", () => {
                 condition: (i: any) => i.operation === "multiply",
                 outputPort: "multiply",
               },
-              { id: "divide", condition: (i: any) => i.operation === "divide", outputPort: "divide" },
+              {
+                id: "divide",
+                condition: (i: any) => i.operation === "divide",
+                outputPort: "divide",
+              },
               {
                 id: "process",
                 condition: (i: any) => i.operation === "process",
@@ -1647,7 +1673,11 @@ describe("ConditionalTask", () => {
           {
             id: "conditional",
             branches: [
-              { id: "overflow", condition: (i: any) => i.doubled > 1000000, outputPort: "overflow" },
+              {
+                id: "overflow",
+                condition: (i: any) => i.doubled > 1000000,
+                outputPort: "overflow",
+              },
               { id: "normal", condition: (i: any) => i.doubled <= 1000000, outputPort: "normal" },
             ],
           }
@@ -1840,5 +1870,4 @@ describe("ConditionalTask", () => {
       });
     });
   });
-
 });

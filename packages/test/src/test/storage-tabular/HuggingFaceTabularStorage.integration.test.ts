@@ -495,9 +495,7 @@ describe("HuggingFaceTabularStorage", () => {
         ok: true,
         json: async () => ({
           features: [],
-          rows: [
-            { row_idx: 0, row: { id: 1, text: "test", label: 0 }, truncated_cells: [] },
-          ],
+          rows: [{ row_idx: 0, row: { id: 1, text: "test", label: 0 }, truncated_cells: [] }],
           num_rows_total: 1,
           num_rows_per_page: 100,
           partial: false,

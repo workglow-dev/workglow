@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TaskType } from "@google/generative-ai";
+import type { FunctionCallingMode, TaskType } from "@google/generative-ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -21,7 +21,11 @@ import type {
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
@@ -381,6 +385,151 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Tool calling implementations
+// ========================================================================
+
+function mapGeminiToolConfig(
+  toolChoice: string | undefined
+):
+  | { functionCallingConfig: { mode: FunctionCallingMode; allowedFunctionNames?: string[] } }
+  | undefined {
+  if (!toolChoice || toolChoice === "auto") {
+    return { functionCallingConfig: { mode: "AUTO" as FunctionCallingMode } };
+  }
+  if (toolChoice === "none") {
+    return { functionCallingConfig: { mode: "NONE" as FunctionCallingMode } };
+  }
+  if (toolChoice === "required") {
+    return { functionCallingConfig: { mode: "ANY" as FunctionCallingMode } };
+  }
+  // Specific tool name
+  return {
+    functionCallingConfig: {
+      mode: "ANY" as FunctionCallingMode,
+      allowedFunctionNames: [toolChoice],
+    },
+  };
+}
+
+export const Gemini_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  GeminiModelConfig
+> = async (input, model, update_progress, signal) => {
+  update_progress(0, "Starting Gemini tool calling");
+  const GoogleGenerativeAI = await loadGeminiSDK();
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+
+  const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
+    name: t.name,
+    description: buildToolDescription(t),
+    parameters: t.inputSchema as any,
+  }));
+
+  const toolConfig = mapGeminiToolConfig(input.toolChoice);
+
+  const genModel = genAI.getGenerativeModel({
+    model: getModelName(model),
+    tools: [{ functionDeclarations }],
+    toolConfig: toolConfig as any,
+    systemInstruction: input.systemPrompt || undefined,
+    generationConfig: {
+      maxOutputTokens: input.maxTokens,
+      temperature: input.temperature,
+    },
+  });
+
+  const result = await genModel.generateContent({
+    contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+  });
+
+  const parts = result.response.candidates?.[0]?.content?.parts ?? [];
+
+  const textParts: string[] = [];
+  const toolCalls: Record<string, unknown> = {};
+  let callIndex = 0;
+
+  for (const part of parts) {
+    if ("text" in part && part.text) {
+      textParts.push(part.text);
+    }
+    if ("functionCall" in part && part.functionCall) {
+      const id = `call_${callIndex++}`;
+      toolCalls[id] = {
+        id,
+        name: part.functionCall.name,
+        input: (part.functionCall.args as Record<string, unknown>) ?? {},
+      };
+    }
+  }
+
+  update_progress(100, "Completed Gemini tool calling");
+  return { text: textParts.join(""), toolCalls: filterValidToolCalls(toolCalls, input.tools) };
+};
+
+export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  GeminiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  const GoogleGenerativeAI = await loadGeminiSDK();
+  const genAI = new GoogleGenerativeAI(getApiKey(model));
+
+  const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
+    name: t.name,
+    description: buildToolDescription(t),
+    parameters: t.inputSchema as any,
+  }));
+
+  const toolConfig = mapGeminiToolConfig(input.toolChoice);
+
+  const genModel = genAI.getGenerativeModel({
+    model: getModelName(model),
+    tools: [{ functionDeclarations }],
+    toolConfig: toolConfig as any,
+    systemInstruction: input.systemPrompt || undefined,
+    generationConfig: {
+      maxOutputTokens: input.maxTokens,
+      temperature: input.temperature,
+    },
+  });
+
+  const result = await genModel.generateContentStream(
+    { contents: [{ role: "user", parts: [{ text: input.prompt }] }] },
+    { signal }
+  );
+
+  let accumulatedText = "";
+  const toolCalls: Record<string, unknown> = {};
+  let callIndex = 0;
+
+  for await (const chunk of result.stream) {
+    const parts = chunk.candidates?.[0]?.content?.parts ?? [];
+    for (const part of parts) {
+      if ("text" in part && part.text) {
+        accumulatedText += part.text;
+        yield { type: "text-delta", port: "text", textDelta: part.text };
+      }
+      if ("functionCall" in part && part.functionCall) {
+        const id = `call_${callIndex++}`;
+        toolCalls[id] = {
+          id,
+          name: part.functionCall.name,
+          input: (part.functionCall.args as Record<string, unknown>) ?? {},
+        };
+        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
+      }
+    }
+  }
+
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
+  yield {
+    type: "finish",
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -391,6 +540,7 @@ export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelC
   TextRewriterTask: Gemini_TextRewriter,
   TextSummaryTask: Gemini_TextSummary,
   StructuredGenerationTask: Gemini_StructuredGeneration,
+  ToolCallingTask: Gemini_ToolCalling,
 };
 
 export const GEMINI_STREAM_TASKS: Record<
@@ -401,6 +551,7 @@ export const GEMINI_STREAM_TASKS: Record<
   TextRewriterTask: Gemini_TextRewriter_Stream,
   TextSummaryTask: Gemini_TextSummary_Stream,
   StructuredGenerationTask: Gemini_StructuredGeneration_Stream,
+  ToolCallingTask: Gemini_ToolCalling_Stream,
 };
 
 export const GEMINI_REACTIVE_TASKS: Record<

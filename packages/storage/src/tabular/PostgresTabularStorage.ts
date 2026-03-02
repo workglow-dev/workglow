@@ -747,9 +747,7 @@ export class PostgresTabularStorage<
     const params: ValueOptionType[] = [];
 
     if (options?.orderBy && options.orderBy.length > 0) {
-      const orderClauses = options.orderBy.map(
-        (o) => `"${String(o.column)}" ${o.direction}`
-      );
+      const orderClauses = options.orderBy.map((o) => `"${String(o.column)}" ${o.direction}`);
       sql += ` ORDER BY ${orderClauses.join(", ")}`;
     }
 
@@ -907,9 +905,7 @@ export class PostgresTabularStorage<
     sql += ` WHERE ${whereClause}`;
 
     if (options?.orderBy && options.orderBy.length > 0) {
-      const orderClauses = options.orderBy.map(
-        (o) => `"${String(o.column)}" ${o.direction}`
-      );
+      const orderClauses = options.orderBy.map((o) => `"${String(o.column)}" ${o.direction}`);
       sql += ` ORDER BY ${orderClauses.join(", ")}`;
     }
 

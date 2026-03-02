@@ -74,9 +74,7 @@ export function computeGraphInputSchema(
   const tasks = graph.getTasks();
 
   // Identify starting nodes: tasks with no incoming dataflows
-  const startingNodes = tasks.filter(
-    (task) => graph.getSourceDataflows(task.id).length === 0
-  );
+  const startingNodes = tasks.filter((task) => graph.getSourceDataflows(task.id).length === 0);
 
   // Collect all properties from root tasks
   for (const task of startingNodes) {
@@ -117,9 +115,7 @@ export function computeGraphInputSchema(
     const taskInputSchema = task.inputSchema();
     if (typeof taskInputSchema === "boolean") continue;
 
-    const requiredKeys = new Set<string>(
-      (taskInputSchema.required as string[] | undefined) || []
-    );
+    const requiredKeys = new Set<string>((taskInputSchema.required as string[] | undefined) || []);
     if (requiredKeys.size === 0) continue;
 
     const connectedPorts = new Set(
@@ -193,9 +189,7 @@ export function computeGraphOutputSchema(
 
   // Find all ending nodes (nodes with no outgoing dataflows)
   const tasks = graph.getTasks();
-  const endingNodes = tasks.filter(
-    (task) => graph.getTargetDataflows(task.id).length === 0
-  );
+  const endingNodes = tasks.filter((task) => graph.getTargetDataflows(task.id).length === 0);
 
   // Calculate depths for all nodes
   const depths = calculateNodeDepths(graph);
@@ -291,10 +285,11 @@ function stripOriginAnnotations(schema: DataPortSchema): DataPortSchema {
       strippedProperties[key] = prop;
       continue;
     }
-    const { "x-source-task-id": _id, "x-source-task-ids": _ids, ...rest } = prop as Record<
-      string,
-      any
-    >;
+    const {
+      "x-source-task-id": _id,
+      "x-source-task-ids": _ids,
+      ...rest
+    } = prop as Record<string, any>;
     strippedProperties[key] = rest;
   }
 
@@ -321,10 +316,7 @@ function getOriginTaskIds(prop: Record<string, any>): TaskIdType[] {
  * InputTask is placed first in the tasks array, OutputTask last.
  * Per-property dataflows connect them to the origin tasks using origin tracking annotations.
  */
-export function addBoundaryNodesToGraphJson(
-  json: TaskGraphJson,
-  graph: TaskGraph
-): TaskGraphJson {
+export function addBoundaryNodesToGraphJson(json: TaskGraphJson, graph: TaskGraph): TaskGraphJson {
   const hasInputTask = json.tasks.some((t) => t.type === "InputTask");
   const hasOutputTask = json.tasks.some((t) => t.type === "OutputTask");
 
@@ -495,9 +487,7 @@ export function addBoundaryNodesToDependencyJson(
         inputSchema: strippedOutputSchema,
         outputSchema: strippedOutputSchema,
       },
-      ...(Object.keys(outputDependencies).length > 0
-        ? { dependencies: outputDependencies }
-        : {}),
+      ...(Object.keys(outputDependencies).length > 0 ? { dependencies: outputDependencies } : {}),
     });
   }
 

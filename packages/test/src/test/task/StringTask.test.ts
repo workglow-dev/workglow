@@ -178,5 +178,4 @@ describe("StringTask", () => {
       expect(result.result).toBe("Hello, {{name}}!");
     });
   });
-
 });

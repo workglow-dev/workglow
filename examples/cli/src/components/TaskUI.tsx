@@ -10,48 +10,26 @@ import { ArrayTask } from "@workglow/tasks";
 import { Box, Text } from "ink";
 import type { FC } from "react";
 import { memo, useEffect, useRef, useState } from "react";
-import { createBar, Spinner, symbols } from "./Elements";
+import { createBar, formatDuration, Spinner, symbols } from "./Elements";
 
 const StatusIcon = memo(
-  ({ status, dependant }: { status: TaskStatus; dependant: boolean }) => {
-    const dep = (
-      <Text color="grey">{!dependant ? symbols.arrowDashedRight : symbols.arrowDashedDown} </Text>
-    );
-    let sym = null;
-    if (status === TaskStatus.PROCESSING) {
-      sym = <Spinner color="yellow" />;
+  ({ status }: { status: TaskStatus }) => {
+    if (status === TaskStatus.PROCESSING || status === TaskStatus.STREAMING) {
+      return <Spinner color="yellow" />;
     }
-
-    if (status === TaskStatus.STREAMING) {
-      sym = <Spinner color="cyan" />;
-    }
-
     if (status === TaskStatus.ABORTING) {
-      sym = <Text color="yellow">{symbols.warning}</Text>;
+      return <Text color="yellow">{symbols.warning}</Text>;
     }
-
     if (status === TaskStatus.FAILED) {
-      sym = <Text color="red">{symbols.cross}</Text>;
+      return <Text color="red">{symbols.cross}</Text>;
     }
-
     if (status === TaskStatus.DISABLED) {
-      sym = <Text color="gray">{symbols.info}</Text>;
+      return <Text color="gray">{symbols.info}</Text>;
     }
-
     if (status === TaskStatus.COMPLETED) {
-      sym = <Text color="green">{symbols.tick}</Text>;
+      return <Text color="green">{symbols.tick}</Text>;
     }
-
-    if (status === TaskStatus.PENDING) {
-      sym = <Text color="gray">{symbols.squareSmallFilled}</Text>;
-    }
-
-    return (
-      <>
-        {dep}
-        {sym}
-      </>
-    );
+    return <Text color="gray">{symbols.squareSmallFilled}</Text>;
   },
   (prevProps, nextProps) => prevProps.status === nextProps.status
 );
@@ -59,36 +37,37 @@ const StatusIcon = memo(
 export const TaskUI: FC<{
   task: ITask;
   graph: ITaskGraph;
-  dependant?: boolean;
-}> = ({ task, graph, dependant = false }) => {
+  indent?: number;
+}> = ({ task, graph, indent = 0 }) => {
   const [status, setStatus] = useState<TaskStatus>(task.status);
-  const [input, setInput] = useState<string>(JSON.stringify(task.runInputData).slice(0, 200));
-  const [output, setOutput] = useState<string>(JSON.stringify(task.runOutputData).slice(0, 200));
   const [progress, setProgress] = useState<number>(task.progress);
   const [progressMessage, setProgressMessage] = useState<string>("");
   const [progressDetails, setProgressDetails] = useState<any>(undefined);
   const [progressGenerationText, setProgressGenerationText] = useState<string>("");
   const [subGraphTasks, setSubGraphTasks] = useState<ITask[]>([]);
-  const [dependantChildren, setDependantChildren] = useState<ITask[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [arrayProgress, setArrayProgress] = useState<{ completed: number; total: number } | null>(
     null
   );
   const [streamingText, setStreamingText] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [startedAt, setStartedAt] = useState<Date | undefined>(task.startedAt);
+  const [completedAt, setCompletedAt] = useState<Date | undefined>(task.completedAt);
+  const [elapsed, setElapsed] = useState<string>("");
   const streamingTextRef = useRef<string>("");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const onStart = () => {
       setStatus(TaskStatus.PROCESSING);
-      setInput(JSON.stringify(task.runInputData).slice(0, 200));
-      setOutput(JSON.stringify(task.runOutputData).slice(0, 200));
       setError(null);
       setArrayProgress(null);
       setProgressGenerationText("");
       setProgressMessage("");
       setProgress(0);
       setProgressDetails(undefined);
+      setStartedAt(new Date());
+      setCompletedAt(undefined);
     };
 
     const onProgress = (...args: any[]) => {
@@ -115,13 +94,15 @@ export const TaskUI: FC<{
 
     const onComplete = () => {
       setStatus(TaskStatus.COMPLETED);
-      setOutput(JSON.stringify(task.runOutputData).slice(0, 200));
+      const now = new Date();
+      setCompletedAt(now);
       setError(null);
     };
 
     const onError = (error: any) => {
       setStatus(TaskStatus.FAILED);
-      setError((prevErr) => (prevErr ? `${error?.message}` : error?.message));
+      setCompletedAt(new Date());
+      setError(error?.message ?? String(error));
     };
 
     const onRegenerate = () => {
@@ -148,6 +129,7 @@ export const TaskUI: FC<{
 
     const onAbort = () => {
       setStatus(TaskStatus.ABORTING);
+      setCompletedAt(new Date());
       setError((prevErr) => (prevErr ? `${prevErr}\nAborted` : "Aborted"));
     };
 
@@ -174,9 +156,6 @@ export const TaskUI: FC<{
     };
 
     onRegenerate();
-    const targets = graph.getTargetTasks(task.id);
-    const unique = [...new Map(targets.map((t) => [t.id, t])).values()];
-    setDependantChildren(unique);
 
     task.on("start", onStart);
     task.on("progress", onProgress);
@@ -201,87 +180,125 @@ export const TaskUI: FC<{
     };
   }, [task, graph]);
 
+  // Live elapsed-time ticker for in-progress tasks
+  useEffect(() => {
+    if (
+      (status === TaskStatus.PROCESSING || status === TaskStatus.STREAMING) &&
+      startedAt &&
+      !completedAt
+    ) {
+      const tick = () => setElapsed(formatDuration(startedAt, undefined));
+      tick();
+      timerRef.current = setInterval(tick, 100);
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
+    } else if (startedAt && completedAt) {
+      setElapsed(formatDuration(startedAt, completedAt));
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  }, [status, startedAt, completedAt]);
+
+  const taskTitle = task.config.title || task.type || (task.id as string);
+
   return (
-    <Box key={task.id as string} flexDirection="column">
-      <Box height={error ? 3 : 1}>
-        <Box marginRight={1} flexShrink={0}>
-          <StatusIcon status={status} dependant={dependant} />
+    <Box key={task.id as string} flexDirection="column" marginLeft={indent}>
+      {/* Main task line */}
+      <Box>
+        <Box width={2} flexShrink={0}>
+          <StatusIcon status={status} />
         </Box>
-
         <Box flexShrink={0}>
-          <Text>{task.config.title || (task.id as string)}</Text>
+          <Text
+            bold={status === TaskStatus.PROCESSING || status === TaskStatus.STREAMING}
+            dimColor={status === TaskStatus.PENDING || status === TaskStatus.DISABLED}
+          >
+            {taskTitle}
+          </Text>
         </Box>
-        {status == TaskStatus.PROCESSING && progress == 0 && (
-          <Box marginLeft={2}>
-            <Text color="gray" wrap="truncate-middle">{`${symbols.arrowLeft} ${input}`}</Text>
-          </Box>
-        )}
 
-        {status === TaskStatus.STREAMING && (
-          <Box marginLeft={2} flexShrink={1}>
-            <Text color="cyan">[streaming]</Text>
-          </Box>
-        )}
-
+        {/* Progress bar inline for processing tasks */}
         {status === TaskStatus.PROCESSING && progress > 0 && (
-          <Box marginLeft={2} flexShrink={1}>
-            <Text dimColor>[{status}]</Text>
+          <Box marginLeft={1} flexShrink={1}>
             <Text dimColor>
-              {progress > 0 &&
-                ` ${createBar(progress / 100, 20)} ${progressMessage ?? ""} ${Math.round(progress)}%`}
+              {createBar(progress / 100, 15)} {Math.round(progress)}%
             </Text>
           </Box>
         )}
-        {status == TaskStatus.COMPLETED && (
-          <Box marginLeft={2} flexShrink={1}>
-            <Text color="gray" wrap="truncate">{`${symbols.arrowRight} ${output}`}</Text>
+
+        {/* Duration on the right */}
+        {elapsed && (
+          <Box marginLeft={1} flexShrink={0}>
+            <Text dimColor>{elapsed}</Text>
           </Box>
         )}
-        {error && (
-          <Box marginLeft={2} flexShrink={1}>
-            <Text color="red">{`${symbols.warning} ${error.includes(": ") ? error.substring(error.indexOf(": ") + 2) : error}`}</Text>
+
+        {/* Error summary inline */}
+        {error && status === TaskStatus.FAILED && (
+          <Box marginLeft={1} flexShrink={1}>
+            <Text color="red" wrap="truncate">
+              {error.includes(": ") ? error.substring(error.indexOf(": ") + 2) : error}
+            </Text>
+          </Box>
+        )}
+
+        {/* Aborting inline */}
+        {status === TaskStatus.ABORTING && (
+          <Box marginLeft={1}>
+            <Text color="yellow">aborted</Text>
           </Box>
         )}
       </Box>
-      {status == TaskStatus.PROCESSING &&
+
+      {/* Detail lines (indented under the task) */}
+      {status === TaskStatus.PROCESSING &&
         progressDetails &&
-        progressMessage == "Downloading model" &&
+        progressMessage === "Downloading model" &&
         progressDetails.map((d: any) => (
           <Box marginLeft={2} key={d.file}>
-            <Text color="gray">{`${symbols.arrowDashedRight} ${createBar(d.progress / 100, 10)} ${d.file} ${Math.round(d.progress)}%`}</Text>
+            <Text dimColor>
+              {createBar(d.progress / 100, 10)} {d.file} {Math.round(d.progress)}%
+            </Text>
           </Box>
         ))}
-      {status == TaskStatus.PROCESSING &&
+
+      {status === TaskStatus.PROCESSING &&
         progressGenerationText &&
-        progressMessage == "Generating" && (
+        progressMessage === "Generating" && (
           <Box marginLeft={2}>
-            <Text color="gray">{`${symbols.arrowDashedRight} ${createBar(progress / 100, 10)} ${progressGenerationText ?? ""}`}</Text>
+            <Text dimColor wrap="truncate">
+              {progressGenerationText}
+            </Text>
           </Box>
         )}
+
       {(status === TaskStatus.STREAMING || isStreaming) && streamingText && (
         <Box marginLeft={2}>
-          <Text color="cyan" wrap="truncate">{`${symbols.arrowDashedRight} ${streamingText}`}</Text>
+          <Text color="cyan" wrap="truncate">
+            {streamingText.length > 200 ? streamingText.slice(-200) : streamingText}
+          </Text>
         </Box>
       )}
+
       {arrayProgress && (
         <Box marginLeft={2}>
-          <Text color="gray">{`${symbols.arrowDashedRight} Processing array tasks: ${arrayProgress.completed}/${arrayProgress.total} completed ${createBar(arrayProgress.completed / arrayProgress.total, 10)}`}</Text>
+          <Text dimColor>
+            {arrayProgress.completed}/{arrayProgress.total} completed{" "}
+            {createBar(arrayProgress.completed / arrayProgress.total, 10)}
+          </Text>
         </Box>
       )}
-      {!arrayProgress && subGraphTasks.length > 0 && !(task instanceof ArrayTask) && (
-        <Box flexDirection="column" marginLeft={2} borderColor="gray">
-          {subGraphTasks.map((taskItem) => (
-            <TaskUI key={`${taskItem.id}`} task={taskItem} graph={task.subGraph} />
-          ))}
-        </Box>
-      )}
-      {dependantChildren && (
-        <Box flexDirection="column">
-          {dependantChildren.map((taskItem) => (
-            <TaskUI key={`${taskItem.id}`} task={taskItem} graph={graph} dependant={true} />
-          ))}
-        </Box>
-      )}
+
+      {/* Sub-graph tasks (nested) */}
+      {!arrayProgress &&
+        subGraphTasks.length > 0 &&
+        !(task instanceof ArrayTask) &&
+        subGraphTasks.map((taskItem) => (
+          <TaskUI key={`${taskItem.id}`} task={taskItem} graph={task.subGraph} indent={2} />
+        ))}
     </Box>
   );
 };

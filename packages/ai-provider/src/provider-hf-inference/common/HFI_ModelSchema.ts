@@ -27,8 +27,7 @@ export const HfInferenceModelSchema = {
         credential_key: {
           type: "string",
           format: "credential",
-          description:
-            "Key to look up in the credential store for the API key.",
+          description: "Key to look up in the credential store for the API key.",
           "x-ui-hidden": true,
         },
         provider: {

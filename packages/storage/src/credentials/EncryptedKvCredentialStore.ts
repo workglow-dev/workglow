@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  CredentialPutOptions,
-  ICredentialStore,
-} from "@workglow/util";
+import type { CredentialPutOptions, ICredentialStore } from "@workglow/util";
 import { decrypt, encrypt } from "@workglow/util";
 import type { IKvStorage } from "../kv/IKvStorage";
 

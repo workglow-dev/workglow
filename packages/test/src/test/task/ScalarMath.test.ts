@@ -28,5 +28,4 @@ describe("ScalarMath", () => {
       expect(result.result).toBe(15);
     });
   });
-
 });

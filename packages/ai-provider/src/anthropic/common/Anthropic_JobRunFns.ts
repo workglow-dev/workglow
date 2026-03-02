@@ -18,7 +18,11 @@ import type {
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
@@ -356,6 +360,180 @@ export const Anthropic_StructuredGeneration_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Tool calling implementations
+// ========================================================================
+
+function mapAnthropicToolChoice(
+  toolChoice: string | undefined
+): { type: "auto" } | { type: "any" } | { type: "tool"; name: string } | undefined {
+  if (!toolChoice || toolChoice === "auto") return { type: "auto" };
+  if (toolChoice === "none") return undefined;
+  if (toolChoice === "required") return { type: "any" };
+  return { type: "tool", name: toolChoice };
+}
+
+export const Anthropic_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  AnthropicModelConfig
+> = async (input, model, update_progress, signal) => {
+  update_progress(0, "Starting Anthropic tool calling");
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const tools = input.tools.map((t: ToolDefinition) => ({
+    name: t.name,
+    description: buildToolDescription(t),
+    input_schema: t.inputSchema as any,
+  }));
+
+  const toolChoice = mapAnthropicToolChoice(input.toolChoice);
+
+  const params: any = {
+    model: modelName,
+    messages: [{ role: "user", content: input.prompt }],
+    max_tokens: getMaxTokens(input, model),
+    temperature: input.temperature,
+  };
+
+  if (input.systemPrompt) {
+    params.system = input.systemPrompt;
+  }
+
+  // "none" means don't send tools at all
+  if (toolChoice !== undefined) {
+    params.tools = tools;
+    params.tool_choice = toolChoice;
+  }
+
+  const response = await client.messages.create(params, { signal });
+
+  const text = response.content
+    .filter((b: any) => b.type === "text")
+    .map((b: any) => b.text)
+    .join("");
+
+  const toolCalls: Record<string, unknown> = {};
+  response.content
+    .filter((b: any) => b.type === "tool_use")
+    .forEach((b: any) => {
+      const id = b.id as string;
+      toolCalls[id] = {
+        id,
+        name: b.name as string,
+        input: (b.input as Record<string, unknown>) ?? {},
+      };
+    });
+
+  update_progress(100, "Completed Anthropic tool calling");
+  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
+};
+
+export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  AnthropicModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const tools = input.tools.map((t: ToolDefinition) => ({
+    name: t.name,
+    description: buildToolDescription(t),
+    input_schema: t.inputSchema as any,
+  }));
+
+  const toolChoice = mapAnthropicToolChoice(input.toolChoice);
+
+  const params: any = {
+    model: modelName,
+    messages: [{ role: "user", content: input.prompt }],
+    max_tokens: getMaxTokens(input, model),
+    temperature: input.temperature,
+  };
+
+  if (input.systemPrompt) {
+    params.system = input.systemPrompt;
+  }
+
+  if (toolChoice !== undefined) {
+    params.tools = tools;
+    params.tool_choice = toolChoice;
+  }
+
+  const stream = client.messages.stream(params, { signal });
+
+  // Track content blocks by index
+  const blockMeta = new Map<number, { type: string; id?: string; name?: string; json: string }>();
+  let accumulatedText = "";
+  const toolCalls: Record<string, unknown> = {};
+
+  for await (const event of stream) {
+    if (event.type === "content_block_start") {
+      const block = (event as any).content_block;
+      const index = (event as any).index as number;
+      if (block.type === "tool_use") {
+        blockMeta.set(index, {
+          type: "tool_use",
+          id: block.id,
+          name: block.name,
+          json: "",
+        });
+      } else if (block.type === "text") {
+        blockMeta.set(index, { type: "text", json: "" });
+      }
+    } else if (event.type === "content_block_delta") {
+      const index = (event as any).index as number;
+      const delta = event.delta as any;
+      if (delta.type === "text_delta") {
+        accumulatedText += delta.text;
+        yield { type: "text-delta", port: "text", textDelta: delta.text };
+      } else if (delta.type === "input_json_delta") {
+        const meta = blockMeta.get(index);
+        if (meta) {
+          meta.json += delta.partial_json;
+          // Parse accumulated JSON for this tool call and yield progressive update
+          let parsedInput: Record<string, unknown>;
+          try {
+            parsedInput = JSON.parse(meta.json);
+          } catch {
+            const partial = parsePartialJson(meta.json);
+            parsedInput = (partial as Record<string, unknown>) ?? {};
+          }
+          // Build current tool calls snapshot as Record keyed by id
+          const snapshotObject: Record<string, unknown> = {
+            ...toolCalls,
+            [meta.id ?? ""]: { id: meta.id ?? "", name: meta.name ?? "", input: parsedInput },
+          };
+          yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
+        }
+      }
+    } else if (event.type === "content_block_stop") {
+      const index = (event as any).index as number;
+      const meta = blockMeta.get(index);
+      if (meta?.type === "tool_use") {
+        let finalInput: Record<string, unknown>;
+        try {
+          finalInput = JSON.parse(meta.json);
+        } catch {
+          finalInput = (parsePartialJson(meta.json) as Record<string, unknown>) ?? {};
+        }
+        const id = meta.id ?? "";
+        toolCalls[id] = { id, name: meta.name ?? "", input: finalInput };
+        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
+      }
+      blockMeta.delete(index);
+    }
+  }
+
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
+  yield {
+    type: "finish",
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -365,6 +543,7 @@ export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, Anthropic
   TextRewriterTask: Anthropic_TextRewriter,
   TextSummaryTask: Anthropic_TextSummary,
   StructuredGenerationTask: Anthropic_StructuredGeneration,
+  ToolCallingTask: Anthropic_ToolCalling,
 };
 
 export const ANTHROPIC_STREAM_TASKS: Record<
@@ -375,6 +554,7 @@ export const ANTHROPIC_STREAM_TASKS: Record<
   TextRewriterTask: Anthropic_TextRewriter_Stream,
   TextSummaryTask: Anthropic_TextSummary_Stream,
   StructuredGenerationTask: Anthropic_StructuredGeneration_Stream,
+  ToolCallingTask: Anthropic_ToolCalling_Stream,
 };
 
 export const ANTHROPIC_REACTIVE_TASKS: Record<

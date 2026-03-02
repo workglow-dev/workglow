@@ -12,14 +12,16 @@ import {
   Ollama_TextGeneration,
   Ollama_TextRewriter,
   Ollama_TextSummary,
+  Ollama_ToolCalling,
+  Ollama_ToolCalling_Stream,
 } from "@workglow/ai-provider/ollama";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mockChat = vi.fn();
@@ -75,6 +77,7 @@ describe("OllamaProvider", () => {
         "TextEmbeddingTask",
         "TextRewriterTask",
         "TextSummaryTask",
+        "ToolCallingTask",
       ]);
     });
 
@@ -85,6 +88,7 @@ describe("OllamaProvider", () => {
       expect(registry.getProvider(OLLAMA)).toBe(provider);
       expect(registry.getDirectRunFn(OLLAMA, "TextGenerationTask")).toBeDefined();
       expect(registry.getDirectRunFn(OLLAMA, "TextEmbeddingTask")).toBeDefined();
+      expect(registry.getDirectRunFn(OLLAMA, "ToolCallingTask")).toBeDefined();
     });
 
     test("should register on worker server", () => {
@@ -92,7 +96,7 @@ describe("OllamaProvider", () => {
       const provider = new OllamaProvider(OLLAMA_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(4);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -214,6 +218,236 @@ describe("OllamaProvider", () => {
     });
   });
 
+  describe("Ollama_ToolCalling", () => {
+    const sampleTools = [
+      {
+        name: "get_weather",
+        description: "Get the current weather for a city",
+        inputSchema: {
+          type: "object",
+          properties: {
+            city: { type: "string", description: "The city name" },
+          },
+          required: ["city"],
+        },
+      },
+    ];
+
+    test("should call chat with tools and extract tool calls", async () => {
+      mockChat.mockResolvedValue({
+        message: {
+          content: "",
+          tool_calls: [
+            {
+              function: {
+                name: "get_weather",
+                arguments: { city: "San Francisco" },
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_ToolCalling(
+        { prompt: "What's the weather in SF?", model: model as any, tools: sampleTools },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toBe("");
+      expect(Object.keys(result.toolCalls)).toHaveLength(1);
+      expect(result.toolCalls["call_0"]).toEqual({
+        id: "call_0",
+        name: "get_weather",
+        input: { city: "San Francisco" },
+      });
+
+      const [params] = mockChat.mock.calls[0];
+      expect(params.tools).toBeDefined();
+      expect(params.tools[0].type).toBe("function");
+      expect(params.tools[0].function.name).toBe("get_weather");
+    });
+
+    test("should return text when model responds without tool calls", async () => {
+      mockChat.mockResolvedValue({
+        message: {
+          content: "I can help with that! Let me check the weather.",
+          tool_calls: [],
+        },
+      });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_ToolCalling(
+        { prompt: "Hello", model: model as any, tools: sampleTools },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toBe("I can help with that! Let me check the weather.");
+      expect(Object.keys(result.toolCalls)).toHaveLength(0);
+    });
+
+    test("should not send tools when toolChoice is none", async () => {
+      mockChat.mockResolvedValue({
+        message: { content: "No tools needed", tool_calls: [] },
+      });
+
+      const model = makeModel("llama3.2");
+      await Ollama_ToolCalling(
+        {
+          prompt: "Hello",
+          model: model as any,
+          tools: sampleTools,
+          toolChoice: "none",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockChat.mock.calls[0];
+      expect(params.tools).toBeUndefined();
+    });
+
+    test("should pass system prompt", async () => {
+      mockChat.mockResolvedValue({
+        message: { content: "OK", tool_calls: [] },
+      });
+
+      const model = makeModel("llama3.2");
+      await Ollama_ToolCalling(
+        {
+          prompt: "Hello",
+          model: model as any,
+          tools: sampleTools,
+          systemPrompt: "You are a weather assistant.",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockChat.mock.calls[0];
+      expect(params.messages[0]).toEqual({
+        role: "system",
+        content: "You are a weather assistant.",
+      });
+      expect(params.messages[1]).toEqual({ role: "user", content: "Hello" });
+    });
+
+    test("should handle string arguments from tool calls", async () => {
+      mockChat.mockResolvedValue({
+        message: {
+          content: "",
+          tool_calls: [
+            {
+              function: {
+                name: "get_weather",
+                arguments: '{"city":"New York"}',
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_ToolCalling(
+        { prompt: "Weather in NY?", model: model as any, tools: sampleTools },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect((result.toolCalls["call_0"] as any).input).toEqual({ city: "New York" });
+    });
+
+    test("should filter out tool calls with unknown names", async () => {
+      mockChat.mockResolvedValue({
+        message: {
+          content: "",
+          tool_calls: [
+            {
+              function: {
+                name: "get_weather",
+                arguments: { city: "London" },
+              },
+            },
+            {
+              function: {
+                name: "unknown_tool",
+                arguments: { foo: "bar" },
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_ToolCalling(
+        { prompt: "test", model: model as any, tools: sampleTools },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(Object.keys(result.toolCalls)).toHaveLength(1);
+      expect((result.toolCalls["call_0"] as any).name).toBe("get_weather");
+    });
+
+    test("should stream text and tool calls", async () => {
+      const chunks = [
+        { message: { content: "Checking " } },
+        { message: { content: "weather..." } },
+        {
+          message: {
+            content: "",
+            tool_calls: [
+              {
+                function: {
+                  name: "get_weather",
+                  arguments: { city: "Paris" },
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      async function* fakeStream() {
+        for (const c of chunks) yield c;
+      }
+      const stream = fakeStream() as any;
+      stream.abort = () => {};
+      mockChat.mockResolvedValue(stream);
+
+      const model = makeModel("llama3.2");
+      const events: any[] = [];
+      for await (const event of Ollama_ToolCalling_Stream(
+        { prompt: "Weather in Paris?", model: model as any, tools: sampleTools },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0].textDelta).toBe("Checking ");
+      expect(textDeltas[1].textDelta).toBe("weather...");
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas.length).toBeGreaterThan(0);
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(Object.keys(finish.data.toolCalls)).toHaveLength(1);
+      expect((finish.data.toolCalls["call_0"] as any).name).toBe("get_weather");
+    });
+  });
+
   describe("error handling", () => {
     test("should throw when model name is missing", async () => {
       await expect(
@@ -247,7 +481,8 @@ describe("OllamaProvider", () => {
       expect(OLLAMA_TASKS).toHaveProperty("TextEmbeddingTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextRewriterTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextSummaryTask");
-      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(4);
+      expect(OLLAMA_TASKS).toHaveProperty("ToolCallingTask");
+      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(5);
     });
   });
 });

@@ -72,9 +72,13 @@ import type {
   TextSummaryTaskOutput,
   TextTranslationTaskInput,
   TextTranslationTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 
 let _transformersSdk: typeof import("@sroussey/transformers") | undefined;
@@ -1307,6 +1311,105 @@ function createStreamingTextStreamer(tokenizer: any, queue: StreamEventQueue<Str
   });
 }
 
+/**
+ * State machine that filters `<tool_call>…</tool_call>` markup out of a
+ * stream of text-delta tokens. Tokens that are clearly outside markup are
+ * flushed immediately; tokens that *might* be the start of a tag are held
+ * in a lookahead buffer until they can be disambiguated.
+ *
+ * This only handles the XML-tag pattern (Pattern 1 in parseToolCallsFromText).
+ * Bare-JSON tool calls (Pattern 2) cannot be reliably detected token-by-token
+ * and are still cleaned up via the post-hoc `parseToolCallsFromText` pass on
+ * the finish event.
+ */
+export function createToolCallMarkupFilter(emit: (text: string) => void) {
+  const OPEN_TAG = "<tool_call>";
+  const CLOSE_TAG = "</tool_call>";
+
+  /** "text" = normal output, "tag" = inside a tool_call block */
+  let state: "text" | "tag" = "text";
+  /** Buffered text that might be a partial tag prefix */
+  let pending = "";
+
+  function feed(token: string) {
+    if (state === "tag") {
+      // Inside a tool_call block — suppress everything until we see the close tag
+      pending += token;
+      const closeIdx = pending.indexOf(CLOSE_TAG);
+      if (closeIdx !== -1) {
+        // End of the tool_call block; resume normal output after the close tag
+        const afterClose = pending.slice(closeIdx + CLOSE_TAG.length);
+        pending = "";
+        state = "text";
+        if (afterClose.length > 0) {
+          feed(afterClose);
+        }
+      }
+      // else: still inside the tag block, keep suppressing
+      return;
+    }
+
+    // state === "text"
+    const combined = pending + token;
+
+    // Check for a complete open tag
+    const openIdx = combined.indexOf(OPEN_TAG);
+    if (openIdx !== -1) {
+      // Emit everything before the tag
+      const before = combined.slice(0, openIdx);
+      if (before.length > 0) {
+        emit(before);
+      }
+      // Switch to tag state; feed the remainder (after the open tag) back through
+      pending = "";
+      state = "tag";
+      const afterOpen = combined.slice(openIdx + OPEN_TAG.length);
+      if (afterOpen.length > 0) {
+        feed(afterOpen);
+      }
+      return;
+    }
+
+    // Check if the tail of `combined` could be the start of "<tool_call>"
+    // e.g. combined ends with "<", "<t", "<to", ..., "<tool_call"
+    let prefixLen = 0;
+    for (let len = Math.min(combined.length, OPEN_TAG.length - 1); len >= 1; len--) {
+      if (combined.endsWith(OPEN_TAG.slice(0, len))) {
+        prefixLen = len;
+        break;
+      }
+    }
+
+    if (prefixLen > 0) {
+      // The tail is ambiguous — hold it back, flush the rest
+      const safe = combined.slice(0, combined.length - prefixLen);
+      if (safe.length > 0) {
+        emit(safe);
+      }
+      pending = combined.slice(combined.length - prefixLen);
+    } else {
+      // No ambiguity — flush everything
+      if (combined.length > 0) {
+        emit(combined);
+      }
+      pending = "";
+    }
+  }
+
+  /** Flush any remaining buffered text (called when the stream ends). */
+  function flush() {
+    if (pending.length > 0 && state === "text") {
+      emit(pending);
+      pending = "";
+    }
+    // If state === "tag", the pending content is suppressed tool-call markup
+    pending = "";
+    state = "text";
+  }
+
+  return { feed, flush };
+}
+
 // ========================================================================
 // Streaming implementations (append mode)
 // ========================================================================
@@ -1483,6 +1586,336 @@ export const HFT_CountTokens_Reactive: AiProviderReactiveRunFn<
 };
 
 // ========================================================================
+// Tool calling implementations
+// ========================================================================
+
+function mapHFTTools(tools: ReadonlyArray<ToolDefinition>) {
+  return tools.map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+}
+
+/**
+ * Parse tool calls from model-generated text.
+ *
+ * Many instruct models (Qwen, Llama, Hermes, etc.) emit tool calls in one of
+ * these formats:
+ *
+ * 1. `<tool_call>{"name":"fn","arguments":{...}}</tool_call>` (Qwen/Hermes)
+ * 2. Plain JSON objects with a "name" + "arguments" key
+ * 3. `{"function":{"name":"fn","arguments":{...}}}`
+ *
+ * This function extracts all such tool calls from the raw response text
+ * and returns both the cleaned text (with tool-call markup removed) and
+ * the parsed ToolCall array.
+ */
+export function parseToolCallsFromText(responseText: string): {
+  text: string;
+  toolCalls: Record<string, unknown>;
+} {
+  const toolCalls: Record<string, unknown> = {};
+  let callIndex = 0;
+  let cleanedText = responseText;
+
+  // Pattern 1: <tool_call>...</tool_call> blocks (Qwen, Hermes, etc.)
+  const toolCallTagRegex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
+  let tagMatch;
+  while ((tagMatch = toolCallTagRegex.exec(responseText)) !== null) {
+    try {
+      const parsed = JSON.parse(tagMatch[1].trim());
+      const id = `call_${callIndex++}`;
+      toolCalls[id] = {
+        id,
+        name: parsed.name ?? parsed.function?.name ?? "",
+        input: (parsed.arguments ??
+          parsed.function?.arguments ??
+          parsed.parameters ??
+          {}) as Record<string, unknown>,
+      };
+    } catch {
+      // Not valid JSON inside the tag, skip
+    }
+  }
+
+  if (Object.keys(toolCalls).length > 0) {
+    // Remove tool_call tags from the text output
+    cleanedText = responseText.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
+    return { text: cleanedText, toolCalls };
+  }
+
+  // Pattern 2: Use a brace-balanced scanner to correctly handle nested JSON objects.
+  const jsonCandidates: Array<{ text: string; start: number; end: number }> = [];
+  (function collectBalancedJsonBlocks(source: string) {
+    const length = source.length;
+    let i = 0;
+    while (i < length) {
+      if (source[i] !== "{") {
+        i++;
+        continue;
+      }
+      let depth = 1;
+      let j = i + 1;
+      let inString = false;
+      let escape = false;
+      while (j < length && depth > 0) {
+        const ch = source[j];
+        if (inString) {
+          if (escape) {
+            escape = false;
+          } else if (ch === "\\") {
+            escape = true;
+          } else if (ch === '"') {
+            inString = false;
+          }
+        } else {
+          if (ch === '"') {
+            inString = true;
+          } else if (ch === "{") {
+            depth++;
+          } else if (ch === "}") {
+            depth--;
+          }
+        }
+        j++;
+      }
+      if (depth === 0) {
+        jsonCandidates.push({ text: source.slice(i, j), start: i, end: j });
+        i = j;
+      } else {
+        break;
+      }
+    }
+  })(responseText);
+
+  const matchedRanges: Array<{ start: number; end: number }> = [];
+  for (const candidate of jsonCandidates) {
+    try {
+      const parsed = JSON.parse(candidate.text);
+      if (parsed.name && (parsed.arguments !== undefined || parsed.parameters !== undefined)) {
+        const id = `call_${callIndex++}`;
+        toolCalls[id] = {
+          id,
+          name: parsed.name as string,
+          input: (parsed.arguments ?? parsed.parameters ?? {}) as Record<string, unknown>,
+        };
+        matchedRanges.push({ start: candidate.start, end: candidate.end });
+      } else if (parsed.function?.name) {
+        let functionArgs: unknown = parsed.function.arguments ?? {};
+        if (typeof functionArgs === "string") {
+          try {
+            functionArgs = JSON.parse(functionArgs);
+          } catch (innerError) {
+            console.warn("Failed to parse tool call function.arguments as JSON", innerError);
+            functionArgs = {};
+          }
+        }
+        const id = `call_${callIndex++}`;
+        toolCalls[id] = {
+          id,
+          name: parsed.function.name as string,
+          input: (functionArgs ?? {}) as Record<string, unknown>,
+        };
+        matchedRanges.push({ start: candidate.start, end: candidate.end });
+      }
+    } catch {
+      // Not valid JSON, skip
+    }
+  }
+
+  if (Object.keys(toolCalls).length > 0) {
+    // Remove only the matched JSON portions, preserving surrounding text
+    let result = "";
+    let lastIndex = 0;
+    for (const range of matchedRanges) {
+      result += responseText.slice(lastIndex, range.start);
+      lastIndex = range.end;
+    }
+    result += responseText.slice(lastIndex);
+    cleanedText = result.trim();
+  }
+
+  return { text: cleanedText, toolCalls };
+}
+
+/**
+ * Resolve the tools list and optionally mutate the messages array based on the toolChoice option.
+ * - "none": no tools
+ * - "required": all tools + adds a system instruction so the model must call a tool
+ * - specific name: filter to that tool (falls back to all tools if not found)
+ * - "auto" / undefined: all tools
+ */
+function resolveHFTToolsAndMessages(
+  input: ToolCallingTaskInput,
+  messages: Array<{ role: string; content: string }>
+): ReturnType<typeof mapHFTTools> | undefined {
+  if (input.toolChoice === "none") {
+    return undefined;
+  }
+
+  if (input.toolChoice === "required") {
+    const requiredInstruction =
+      "You must call at least one tool from the provided tool list when answering.";
+    if (messages.length > 0 && messages[0].role === "system") {
+      messages[0] = { ...messages[0], content: `${messages[0].content}\n\n${requiredInstruction}` };
+    } else {
+      messages.unshift({ role: "system", content: requiredInstruction });
+    }
+    return mapHFTTools(input.tools);
+  }
+
+  if (typeof input.toolChoice === "string" && input.toolChoice !== "auto") {
+    // Specific tool name: filter to that tool if it exists
+    const selectedTools = input.tools?.filter(
+      (tool: ToolDefinition) => tool.name === input.toolChoice
+    );
+    const toolsToMap = selectedTools && selectedTools.length > 0 ? selectedTools : input.tools;
+    return mapHFTTools(toolsToMap);
+  }
+
+  return mapHFTTools(input.tools);
+}
+
+export const HFT_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, model, onProgress, signal) => {
+  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const tools = resolveHFTToolsAndMessages(input, messages);
+
+  // Use the tokenizer's chat template to format the prompt with tool definitions
+  const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tools,
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+
+  let results = await generateText(prompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  });
+
+  if (!Array.isArray(results)) {
+    results = [results];
+  }
+
+  let responseText = (results[0] as TextGenerationOutput[number])?.generated_text;
+  if (Array.isArray(responseText)) {
+    responseText = responseText[responseText.length - 1]?.content;
+  }
+  responseText = (responseText ?? "").trim();
+
+  const { text, toolCalls } = parseToolCallsFromText(responseText);
+  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
+};
+
+export const HFT_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  const noopProgress = () => {};
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const tools = resolveHFTToolsAndMessages(input, messages);
+
+  const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tools,
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  // Two queues: the inner queue receives raw tokens from the TextStreamer,
+  // the outer queue receives filtered text-delta events (markup stripped).
+  const innerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
+  const outerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, innerQueue);
+
+  let fullText = "";
+  const filter = createToolCallMarkupFilter((text) => {
+    outerQueue.push({ type: "text-delta", port: "text", textDelta: text });
+  });
+
+  // Intercept raw text-delta events: accumulate the full text for post-hoc
+  // parsing and feed tokens through the markup filter before forwarding.
+  const originalPush = innerQueue.push;
+  innerQueue.push = (event: StreamEvent<ToolCallingTaskOutput>) => {
+    if (event.type === "text-delta" && "textDelta" in event) {
+      fullText += event.textDelta;
+      filter.feed(event.textDelta);
+    } else {
+      outerQueue.push(event);
+    }
+    // Still call originalPush so the inner queue's done/error mechanics work
+    originalPush(event);
+  };
+
+  const originalDone = innerQueue.done;
+  innerQueue.done = () => {
+    filter.flush();
+    outerQueue.done();
+    originalDone();
+  };
+
+  const originalError = innerQueue.error;
+  innerQueue.error = (e: Error) => {
+    filter.flush();
+    outerQueue.error(e);
+    originalError(e);
+  };
+
+  const pipelinePromise = generateText(prompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  }).then(
+    () => innerQueue.done(),
+    (err: Error) => innerQueue.error(err)
+  );
+
+  yield* outerQueue.iterable;
+  await pipelinePromise;
+
+  // Parse the accumulated (unfiltered) text for tool calls. The filter already
+  // stripped tag-based markup from text-delta events; this pass also handles
+  // bare-JSON tool calls and produces the canonical cleanedText for the finish event.
+  const { text: cleanedText, toolCalls } = parseToolCallsFromText(fullText);
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
+
+  if (Object.keys(validToolCalls).length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...validToolCalls } };
+  }
+
+  yield {
+    type: "finish",
+    data: { text: cleanedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -1511,6 +1944,7 @@ export const HFT_TASKS = {
   ImageEmbeddingTask: HFT_ImageEmbedding,
   ImageClassificationTask: HFT_ImageClassification,
   ObjectDetectionTask: HFT_ObjectDetection,
+  ToolCallingTask: HFT_ToolCalling,
 } as const;
 
 /**
@@ -1526,6 +1960,7 @@ export const HFT_STREAM_TASKS: Record<
   TextSummaryTask: HFT_TextSummary_Stream,
   TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
   TextTranslationTask: HFT_TextTranslation_Stream,
+  ToolCallingTask: HFT_ToolCalling_Stream,
 };
 
 export const HFT_REACTIVE_TASKS: Record<

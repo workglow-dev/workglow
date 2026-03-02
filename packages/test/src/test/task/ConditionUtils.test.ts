@@ -323,5 +323,4 @@ describe("ConditionUtils", () => {
       expect(getNestedValue({ items: arr }, "items")).toBe(arr);
     });
   });
-
 });

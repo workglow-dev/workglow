@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "include": ["src/**/*"],
-  "files": ["src/workglow.ts", "src/workglow_worker.ts", "src/lib.ts"],
+  "files": ["src/workglow.ts", "src/lib.ts"],
   "exclude": ["dist"],
   "compilerOptions": {
     "outDir": "dist",

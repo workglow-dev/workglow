@@ -20,9 +20,13 @@ import type {
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
+import { filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { LLAMACPP_DEFAULT_MODELS_DIR } from "./LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
@@ -528,6 +532,183 @@ export const LlamaCpp_CountTokens_Reactive: AiProviderReactiveRunFn<
 };
 
 // ========================================================================
+// ToolCallingTask (non-streaming)
+// ========================================================================
+
+/**
+ * Builds function definitions for node-llama-cpp from ToolDefinition inputs.
+ * Each function handler captures the call arguments and returns a simple
+ * acknowledgment, allowing us to collect tool calls without side-effects.
+ */
+function buildLlamaCppFunctions(
+  tools: ReadonlyArray<ToolDefinition>,
+  capturedCalls: Array<{ name: string; input: Record<string, unknown> }>
+) {
+  const { defineChatSessionFunction } = _sdk!;
+  const functions: Record<string, any> = {};
+  for (const tool of tools) {
+    const toolName = tool.name;
+    functions[toolName] = defineChatSessionFunction({
+      description: tool.description,
+      params: tool.inputSchema as any,
+      handler(params: any) {
+        capturedCalls.push({ name: toolName, input: (params ?? {}) as Record<string, unknown> });
+        return "OK";
+      },
+    } as any);
+  }
+  return functions;
+}
+
+export const LlamaCpp_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  LlamaCppModelConfig
+> = async (input, model, update_progress, signal) => {
+  if (!model) throw new Error("Model config is required for ToolCallingTask.");
+
+  await loadSdk();
+
+  update_progress(0, "Loading model");
+  const context = await getOrCreateTextContext(model);
+
+  const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+  const functions =
+    input.toolChoice === "none" ? undefined : buildLlamaCppFunctions(input.tools, capturedCalls);
+
+  update_progress(10, "Running tool calling");
+  const sequence = context.getSequence();
+  const { LlamaChatSession } = _sdk!;
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
+  });
+
+  try {
+    const text = await session.prompt(input.prompt, {
+      signal,
+      ...(functions && { functions }),
+      ...(input.temperature !== undefined && { temperature: input.temperature }),
+      ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
+    });
+
+    const toolCalls: Record<string, unknown> = {};
+    capturedCalls.forEach((call, index) => {
+      const id = `call_${index}`;
+      toolCalls[id] = { id, name: call.name, input: call.input };
+    });
+
+    update_progress(100, "Tool calling complete");
+    return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
+  } finally {
+    sequence.dispose();
+  }
+};
+
+// ========================================================================
+// ToolCallingTask (streaming)
+// ========================================================================
+
+export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  LlamaCppModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  if (!model) throw new Error("Model config is required for ToolCallingTask.");
+
+  await loadSdk();
+
+  const context = await getOrCreateTextContext(model);
+
+  const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+  const functions =
+    input.toolChoice === "none" ? undefined : buildLlamaCppFunctions(input.tools, capturedCalls);
+
+  const sequence = context.getSequence();
+  const { LlamaChatSession } = _sdk!;
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
+  });
+
+  const queue: string[] = [];
+  let isComplete = false;
+  let completionError: unknown;
+  let resolveWait: (() => void) | null = null;
+
+  const notifyWaiter = () => {
+    resolveWait?.();
+    resolveWait = null;
+  };
+
+  let accumulatedText = "";
+  const promptPromise = session
+    .prompt(input.prompt, {
+      signal,
+      ...(functions && { functions }),
+      onTextChunk: (chunk: string) => {
+        queue.push(chunk);
+        notifyWaiter();
+      },
+      ...(input.temperature !== undefined && { temperature: input.temperature }),
+      ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
+    })
+    .then(() => {
+      isComplete = true;
+      notifyWaiter();
+    })
+    .catch((err: unknown) => {
+      completionError = err;
+      isComplete = true;
+      notifyWaiter();
+    });
+
+  try {
+    while (true) {
+      while (queue.length > 0) {
+        const chunk = queue.shift()!;
+        accumulatedText += chunk;
+        yield { type: "text-delta", port: "text", textDelta: chunk };
+      }
+      if (isComplete) break;
+      await new Promise<void>((r) => {
+        resolveWait = r;
+      });
+    }
+    // Drain any remaining chunks after completion signal
+    while (queue.length > 0) {
+      const chunk = queue.shift()!;
+      accumulatedText += chunk;
+      yield { type: "text-delta", port: "text", textDelta: chunk };
+    }
+  } finally {
+    await promptPromise.catch(() => {});
+    sequence.dispose();
+  }
+
+  if (completionError) {
+    if (!signal.aborted) throw completionError;
+    return;
+  }
+
+  const toolCalls: Record<string, unknown> = {};
+  capturedCalls.forEach((call, index) => {
+    const id = `call_${index}`;
+    toolCalls[id] = { id, name: call.name, input: call.input };
+  });
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
+
+  if (Object.keys(validToolCalls).length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...validToolCalls } };
+  }
+
+  yield {
+    type: "finish",
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -539,6 +720,7 @@ export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppMo
   TextEmbeddingTask: LlamaCpp_TextEmbedding,
   TextRewriterTask: LlamaCpp_TextRewriter,
   TextSummaryTask: LlamaCpp_TextSummary,
+  ToolCallingTask: LlamaCpp_ToolCalling,
 };
 
 export const LLAMACPP_STREAM_TASKS: Record<
@@ -548,6 +730,7 @@ export const LLAMACPP_STREAM_TASKS: Record<
   TextGenerationTask: LlamaCpp_TextGeneration_Stream,
   TextRewriterTask: LlamaCpp_TextRewriter_Stream,
   TextSummaryTask: LlamaCpp_TextSummary_Stream,
+  ToolCallingTask: LlamaCpp_ToolCalling_Stream,
 };
 
 export const LLAMACPP_REACTIVE_TASKS: Record<

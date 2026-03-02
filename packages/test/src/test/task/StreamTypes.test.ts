@@ -274,7 +274,7 @@ describe("StreamTypes", () => {
       expect(getOutputStreamMode(schema)).toBe("replace");
     });
 
-    it("should throw when mixing 'append' and 'replace' on a single task", () => {
+    it("should return 'mixed' when mixing 'append' and 'replace' on a single task", () => {
       const schema: DataPortSchema = {
         type: "object",
         properties: {
@@ -282,7 +282,7 @@ describe("StreamTypes", () => {
           summary: { type: "string", "x-stream": "append" },
         },
       };
-      expect(() => getOutputStreamMode(schema)).toThrow("Mixed stream modes");
+      expect(getOutputStreamMode(schema)).toBe("mixed");
     });
 
     it("should return 'append' when multiple ports all use append", () => {
@@ -531,7 +531,7 @@ describe("StreamTypes", () => {
       expect(getOutputStreamMode(schema)).toBe("object");
     });
 
-    it("should throw when mixing object and append modes", () => {
+    it("should return 'mixed' when mixing object and append modes", () => {
       const schema: DataPortSchema = {
         type: "object",
         properties: {
@@ -539,7 +539,7 @@ describe("StreamTypes", () => {
           data: { type: "object", "x-stream": "object" },
         },
       };
-      expect(() => getOutputStreamMode(schema)).toThrow("Mixed stream modes");
+      expect(getOutputStreamMode(schema)).toBe("mixed");
     });
 
     it("isTaskStreamable should return true for object-streaming tasks", () => {

@@ -20,7 +20,11 @@ import type {
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
@@ -442,6 +446,196 @@ export const OpenAI_StructuredGeneration_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Tool calling implementations
+// ========================================================================
+
+function mapOpenAIToolChoice(
+  toolChoice: string | undefined
+): "auto" | "none" | "required" | { type: "function"; function: { name: string } } | undefined {
+  if (!toolChoice || toolChoice === "auto") return "auto";
+  if (toolChoice === "none") return "none";
+  if (toolChoice === "required") return "required";
+  return { type: "function", function: { name: toolChoice } };
+}
+
+export const OpenAI_ToolCalling: AiProviderRunFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  OpenAiModelConfig
+> = async (input, model, update_progress, signal) => {
+  update_progress(0, "Starting OpenAI tool calling");
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const tools = input.tools.map((t: ToolDefinition) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+
+  const messages: Array<{ role: "system" | "user"; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const toolChoice = mapOpenAIToolChoice(input.toolChoice);
+
+  const params: any = {
+    model: modelName,
+    messages,
+    max_completion_tokens: input.maxTokens,
+    temperature: input.temperature,
+  };
+
+  // "none" means still send tools but prevent selection
+  if (toolChoice !== undefined) {
+    params.tools = tools;
+    params.tool_choice = toolChoice;
+  }
+
+  const response = await client.chat.completions.create(params, { signal });
+
+  const text = response.choices[0]?.message?.content ?? "";
+  const toolCalls: Record<string, unknown> = {};
+  for (const tc of response.choices[0]?.message?.tool_calls ?? []) {
+    if (!("function" in tc)) continue;
+    const id = tc.id as string;
+    const name = tc.function.name as string;
+    let input: Record<string, unknown> = {};
+    const rawArgs = tc.function.arguments;
+    if (typeof rawArgs === "string") {
+      try {
+        input = JSON.parse(rawArgs) as Record<string, unknown>;
+      } catch {
+        try {
+          const partial = parsePartialJson(rawArgs);
+          if (partial && typeof partial === "object") {
+            input = partial as Record<string, unknown>;
+          }
+        } catch {
+          input = {};
+        }
+      }
+    }
+    toolCalls[id] = { id, name, input };
+  }
+
+  update_progress(100, "Completed OpenAI tool calling");
+  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
+};
+
+export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  OpenAiModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  const tools = input.tools.map((t: ToolDefinition) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+
+  const messages: Array<{ role: "system" | "user"; content: string }> = [];
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+  messages.push({ role: "user", content: input.prompt });
+
+  const toolChoice = mapOpenAIToolChoice(input.toolChoice);
+
+  const stream = await client.chat.completions.create(
+    {
+      model: modelName,
+      messages,
+      max_completion_tokens: input.maxTokens,
+      temperature: input.temperature,
+      stream: true,
+      ...(toolChoice !== undefined ? { tools, tool_choice: toolChoice } : {}),
+    },
+    { signal }
+  );
+
+  let accumulatedText = "";
+  // Track tool calls by index: { id, name, arguments (accumulated string) }
+  const toolCallAccumulator = new Map<number, { id: string; name: string; arguments: string }>();
+
+  for await (const chunk of stream) {
+    const choice = chunk.choices[0];
+    if (!choice) continue;
+
+    // Text content
+    const contentDelta = choice.delta?.content ?? "";
+    if (contentDelta) {
+      accumulatedText += contentDelta;
+      yield { type: "text-delta", port: "text", textDelta: contentDelta };
+    }
+
+    // Tool call deltas
+    const tcDeltas = (choice.delta as any)?.tool_calls;
+    if (Array.isArray(tcDeltas)) {
+      for (const tcDelta of tcDeltas) {
+        const idx = tcDelta.index as number;
+        if (!toolCallAccumulator.has(idx)) {
+          toolCallAccumulator.set(idx, {
+            id: tcDelta.id ?? "",
+            name: tcDelta.function?.name ?? "",
+            arguments: "",
+          });
+        }
+        const acc = toolCallAccumulator.get(idx)!;
+        if (tcDelta.id) acc.id = tcDelta.id;
+        if (tcDelta.function?.name) acc.name = tcDelta.function.name;
+        if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
+      }
+
+      // Yield progressive snapshot of all tool calls as Record keyed by id
+      const snapshotObject: Record<string, unknown> = {};
+      Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
+        let parsedInput: Record<string, unknown>;
+        try {
+          parsedInput = JSON.parse(tc.arguments);
+        } catch {
+          const partial = parsePartialJson(tc.arguments);
+          parsedInput = (partial as Record<string, unknown>) ?? {};
+        }
+        const key = tc.id || String(idx);
+        snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
+      });
+      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
+    }
+  }
+
+  // Build final tool calls as Record keyed by id
+  const toolCalls: Record<string, unknown> = {};
+  Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
+    let finalInput: Record<string, unknown>;
+    try {
+      finalInput = JSON.parse(tc.arguments);
+    } catch {
+      finalInput = (parsePartialJson(tc.arguments) as Record<string, unknown>) ?? {};
+    }
+    const key = tc.id || String(idx);
+    toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
+  });
+
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
+  yield {
+    type: "finish",
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -452,6 +646,7 @@ export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelC
   TextSummaryTask: OpenAI_TextSummary,
   CountTokensTask: OpenAI_CountTokens,
   StructuredGenerationTask: OpenAI_StructuredGeneration,
+  ToolCallingTask: OpenAI_ToolCalling,
 };
 
 export const OPENAI_STREAM_TASKS: Record<
@@ -462,6 +657,7 @@ export const OPENAI_STREAM_TASKS: Record<
   TextRewriterTask: OpenAI_TextRewriter_Stream,
   TextSummaryTask: OpenAI_TextSummary_Stream,
   StructuredGenerationTask: OpenAI_StructuredGeneration_Stream,
+  ToolCallingTask: OpenAI_ToolCalling_Stream,
 };
 
 export const OPENAI_REACTIVE_TASKS: Record<

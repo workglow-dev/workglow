@@ -62,7 +62,7 @@ export const symbols = {
   tick: "✔",
   info: "ℹ",
   warning: "⚠",
-  cross: "×",
+  cross: "✘",
   squareSmallFilled: "◼",
   pointer: "❯",
   arrowUp: "↑",
@@ -80,6 +80,17 @@ export const symbols = {
   arrowDashedLeft: "⇠",
   arrowDashedRight: "⇢",
 };
+
+export function formatDuration(startedAt: Date | undefined, completedAt: Date | undefined): string {
+  if (!startedAt) return "";
+  const end = completedAt ?? new Date();
+  const ms = end.getTime() - startedAt.getTime();
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  const mins = Math.floor(ms / 60_000);
+  const secs = Math.round((ms % 60_000) / 1000);
+  return `${mins}m${secs}s`;
+}
 
 const SPINNER_INTERVAL = 90;
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
