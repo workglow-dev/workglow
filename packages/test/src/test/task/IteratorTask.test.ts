@@ -993,7 +993,11 @@ describe("IteratorTask", () => {
         runtimeFlexible: [5, 6],
       } as TaskInput);
 
-      expect(analysis.arrayPorts.sort()).toEqual(["forceArray", "inferredArray", "runtimeFlexible"]);
+      expect(analysis.arrayPorts.sort()).toEqual([
+        "forceArray",
+        "inferredArray",
+        "runtimeFlexible",
+      ]);
       expect(analysis.scalarPorts).toContain("forceScalar");
 
       const first = analysis.getIterationInput(0);
@@ -1197,5 +1201,4 @@ describe("IteratorTask", () => {
       });
     });
   });
-
 });

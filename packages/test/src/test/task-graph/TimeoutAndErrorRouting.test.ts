@@ -333,7 +333,9 @@ describe("TimeoutAndErrorRouting", () => {
         const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
 
         graph.addTasks([failTask, recoveryTask]);
-        graph.addDataflow(new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS));
+        graph.addDataflow(
+          new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS)
+        );
 
         const runner = new TaskGraphRunner(graph);
         const results = await runner.runGraph();
@@ -351,7 +353,9 @@ describe("TimeoutAndErrorRouting", () => {
         const normalDownstream = new DoubleTask({ input: 0 }, { id: "normal" });
 
         graph.addTasks([failTask, recoveryTask, normalDownstream]);
-        graph.addDataflow(new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS));
+        graph.addDataflow(
+          new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS)
+        );
         graph.addDataflow(new Dataflow("fail", "output", "normal", "input"));
 
         const runner = new TaskGraphRunner(graph);
@@ -407,7 +411,9 @@ describe("TimeoutAndErrorRouting", () => {
         const downstream = new DoubleTask({}, { id: "downstream" });
 
         graph.addTasks([failTask, recoveryTask, downstream]);
-        graph.addDataflow(new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS));
+        graph.addDataflow(
+          new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS)
+        );
         graph.addDataflow(new Dataflow("recovery", "output", "downstream", "input"));
 
         const runner = new TaskGraphRunner(graph);
@@ -442,7 +448,9 @@ describe("TimeoutAndErrorRouting", () => {
         const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
 
         graph.addTasks([failTask, successTask, recoveryTask]);
-        graph.addDataflow(new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS));
+        graph.addDataflow(
+          new Dataflow("fail", DATAFLOW_ERROR_PORT, "recovery", DATAFLOW_ALL_PORTS)
+        );
 
         const runner = new TaskGraphRunner(graph);
         const results = await runner.runGraph();
@@ -531,7 +539,9 @@ describe("TimeoutAndErrorRouting", () => {
         workflow.onError(recoveryTask);
 
         const dataflows = workflow.graph.getTargetDataflows("fail");
-        const errorDataflows = dataflows.filter((df) => df.sourceTaskPortId === DATAFLOW_ERROR_PORT);
+        const errorDataflows = dataflows.filter(
+          (df) => df.sourceTaskPortId === DATAFLOW_ERROR_PORT
+        );
         expect(errorDataflows.length).toBe(1);
         expect(errorDataflows[0].targetTaskId).toBe("recovery");
         expect(errorDataflows[0].targetTaskPortId).toBe(DATAFLOW_ALL_PORTS);
@@ -581,5 +591,4 @@ describe("TimeoutAndErrorRouting", () => {
       });
     });
   });
-
 });

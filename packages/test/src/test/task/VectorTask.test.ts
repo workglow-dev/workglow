@@ -69,5 +69,4 @@ describe("VectorTask", () => {
       expect(Array.from(result.result)).toEqual([2, 6, 12]);
     });
   });
-
 });

@@ -2,7 +2,13 @@
 // previous fork: https://github.com/sroussey/typescript-graph
 // license: MIT
 
-import { Graph, NodeAlreadyExistsError, NodeDoesntExistError, serialize, setLogger } from "@workglow/util";
+import {
+  Graph,
+  NodeAlreadyExistsError,
+  NodeDoesntExistError,
+  serialize,
+  setLogger,
+} from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

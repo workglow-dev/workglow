@@ -154,10 +154,7 @@ describe("TextEmbeddingTask with real models", () => {
       ];
 
       const workflow = new Workflow();
-      workflow
-        .map()
-        .textEmbedding({ model: "onnx:Xenova/gte-small:q8" })
-        .endMap();
+      workflow.map().textEmbedding({ model: "onnx:Xenova/gte-small:q8" }).endMap();
 
       const result = (await workflow.run({ text: texts })) as {
         vector: readonly (Float32Array | number[])[];
@@ -174,10 +171,7 @@ describe("TextEmbeddingTask with real models", () => {
         expect(Array.isArray(vector) || vector instanceof Float32Array).toBe(true);
         expect(vector.length).toBe(384);
 
-        const vectorSum = Array.from(vector).reduce(
-          (sum, val) => sum + Math.abs(val as number),
-          0
-        );
+        const vectorSum = Array.from(vector).reduce((sum, val) => sum + Math.abs(val as number), 0);
         expect(vectorSum).toBeGreaterThan(0);
       }
 

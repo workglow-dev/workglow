@@ -13,6 +13,7 @@ import {
   Ollama_TextRewriter,
   Ollama_TextSummary,
   Ollama_ToolCalling,
+  Ollama_ToolCalling_Stream,
 } from "@workglow/ai-provider/ollama";
 import {
   getTaskQueueRegistry,
@@ -361,6 +362,89 @@ describe("OllamaProvider", () => {
       );
 
       expect((result.toolCalls["call_0"] as any).input).toEqual({ city: "New York" });
+    });
+
+    test("should filter out tool calls with unknown names", async () => {
+      mockChat.mockResolvedValue({
+        message: {
+          content: "",
+          tool_calls: [
+            {
+              function: {
+                name: "get_weather",
+                arguments: { city: "London" },
+              },
+            },
+            {
+              function: {
+                name: "unknown_tool",
+                arguments: { foo: "bar" },
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_ToolCalling(
+        { prompt: "test", model: model as any, tools: sampleTools },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(Object.keys(result.toolCalls)).toHaveLength(1);
+      expect((result.toolCalls["call_0"] as any).name).toBe("get_weather");
+    });
+
+    test("should stream text and tool calls", async () => {
+      const chunks = [
+        { message: { content: "Checking " } },
+        { message: { content: "weather..." } },
+        {
+          message: {
+            content: "",
+            tool_calls: [
+              {
+                function: {
+                  name: "get_weather",
+                  arguments: { city: "Paris" },
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      async function* fakeStream() {
+        for (const c of chunks) yield c;
+      }
+      const stream = fakeStream() as any;
+      stream.abort = () => {};
+      mockChat.mockResolvedValue(stream);
+
+      const model = makeModel("llama3.2");
+      const events: any[] = [];
+      for await (const event of Ollama_ToolCalling_Stream(
+        { prompt: "Weather in Paris?", model: model as any, tools: sampleTools },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0].textDelta).toBe("Checking ");
+      expect(textDeltas[1].textDelta).toBe("weather...");
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas.length).toBeGreaterThan(0);
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(Object.keys(finish.data.toolCalls)).toHaveLength(1);
+      expect((finish.data.toolCalls["call_0"] as any).name).toBe("get_weather");
     });
   });
 

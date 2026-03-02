@@ -195,4 +195,3 @@ export const createGraphFromGraphJSON = (
   }
   return subGraph;
 };
-

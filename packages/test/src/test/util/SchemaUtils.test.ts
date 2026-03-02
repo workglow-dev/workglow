@@ -5,7 +5,11 @@
  */
 
 import type { JsonSchema } from "@workglow/util";
-import { areObjectSchemasSemanticallyCompatible, areSemanticallyCompatible, setLogger } from "@workglow/util";
+import {
+  areObjectSchemasSemanticallyCompatible,
+  areSemanticallyCompatible,
+  setLogger,
+} from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

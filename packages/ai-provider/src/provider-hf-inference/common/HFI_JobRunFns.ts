@@ -20,8 +20,9 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
 
 let _sdk: typeof import("@huggingface/inference") | undefined;
@@ -303,14 +304,6 @@ export const HFI_TextSummary_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
-function buildHFIToolDescription(tool: ToolDefinition): string {
-  let desc = tool.description;
-  if (tool.outputSchema && typeof tool.outputSchema === "object") {
-    desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
-  }
-  return desc;
-}
-
 function mapHFIToolChoice(
   toolChoice: string | undefined
 ): "auto" | "none" | "required" | undefined {
@@ -335,7 +328,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
     type: "function" as const,
     function: {
       name: t.name,
-      description: buildHFIToolDescription(t),
+      description: buildToolDescription(t),
       parameters: t.inputSchema as any,
     },
   }));
@@ -365,6 +358,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
 
   const text = response.choices[0]?.message?.content ?? "";
   const toolCalls: Record<string, unknown> = {};
+  let callIndex = 0;
   ((response.choices[0]?.message as any)?.tool_calls ?? []).forEach((tc: any) => {
     let parsedInput: Record<string, unknown> = {};
     const rawArgs = tc.function?.arguments;
@@ -372,17 +366,19 @@ export const HFI_ToolCalling: AiProviderRunFn<
       try {
         parsedInput = JSON.parse(rawArgs);
       } catch {
-        parsedInput = {};
+        const partial = parsePartialJson(rawArgs);
+        parsedInput = (partial as Record<string, unknown>) ?? {};
       }
     } else if (rawArgs != null) {
       parsedInput = rawArgs as Record<string, unknown>;
     }
-    const id = (tc.id as string) ?? `call_${Math.random().toString(36).slice(2, 10)}`;
+    const id = (tc.id as string) ?? `call_${callIndex}`;
+    callIndex++;
     toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
   });
 
   update_progress(100, "Completed HF Inference tool calling");
-  return { text, toolCalls };
+  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
 };
 
 export const HFI_ToolCalling_Stream: AiProviderStreamFn<
@@ -398,7 +394,7 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
     type: "function" as const,
     function: {
       name: t.name,
-      description: buildHFIToolDescription(t),
+      description: buildToolDescription(t),
       parameters: t.inputSchema as any,
     },
   }));
@@ -462,7 +458,8 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
         try {
           parsedInput = JSON.parse(tc.arguments);
         } catch {
-          parsedInput = {};
+          const partial = parsePartialJson(tc.arguments);
+          parsedInput = (partial as Record<string, unknown>) ?? {};
         }
         const key = tc.id || String(idx);
         snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
@@ -477,15 +474,16 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
     try {
       finalInput = JSON.parse(tc.arguments);
     } catch {
-      finalInput = {};
+      finalInput = (parsePartialJson(tc.arguments) as Record<string, unknown>) ?? {};
     }
     const key = tc.id || String(idx);
     toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
   });
 
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
   yield {
     type: "finish",
-    data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput,
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
   };
 };
 

@@ -365,7 +365,12 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       await OpenAI_ToolCalling(
-        { prompt: "What is the weather?", tools: sampleTools, toolChoice: "auto", model: model as any },
+        {
+          prompt: "What is the weather?",
+          tools: sampleTools,
+          toolChoice: "auto",
+          model: model as any,
+        },
         model,
         noopProgress,
         abortSignal
@@ -385,7 +390,10 @@ describe("OpenAiProvider", () => {
             message: {
               content: "",
               tool_calls: [
-                { id: "call_1", function: { name: "get_weather", arguments: '{"location":"London"}' } },
+                {
+                  id: "call_1",
+                  function: { name: "get_weather", arguments: '{"location":"London"}' },
+                },
               ],
             },
           },
@@ -440,7 +448,9 @@ describe("OpenAiProvider", () => {
           choices: [
             {
               delta: {
-                tool_calls: [{ index: 0, id: "call_3", function: { name: "get_weather", arguments: "" } }],
+                tool_calls: [
+                  { index: 0, id: "call_3", function: { name: "get_weather", arguments: "" } },
+                ],
               },
               finish_reason: null,
             },
@@ -486,6 +496,33 @@ describe("OpenAiProvider", () => {
       const finish = events.find((e) => e.type === "finish");
       expect(finish).toBeDefined();
       expect(finish.data.toolCalls).toHaveProperty("call_3");
+    });
+
+    test("should filter out tool calls with unknown names", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                { id: "ok_1", function: { name: "get_weather", arguments: '{"location":"NYC"}' } },
+                { id: "bad_1", function: { name: "unknown_tool", arguments: '{"x":1}' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_ToolCalling(
+        { prompt: "test", tools: sampleTools, model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveProperty("ok_1");
+      expect(result.toolCalls).not.toHaveProperty("bad_1");
     });
   });
 

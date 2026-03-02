@@ -103,8 +103,7 @@ describe("IndexedDbVectorStorage", () => {
       } as const satisfies DataPortSchemaObject;
 
       expect(
-        () =>
-          new IndexedDbVectorStorage(`${dbName}_bad`, badSchema, ["id"] as const, [], 3)
+        () => new IndexedDbVectorStorage(`${dbName}_bad`, badSchema, ["id"] as const, [], 3)
       ).toThrow("Schema must have a property with type array and format TypedArray");
     });
 

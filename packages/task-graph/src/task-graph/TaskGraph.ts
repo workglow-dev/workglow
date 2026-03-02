@@ -8,10 +8,7 @@ import { DirectedAcyclicGraph, EventEmitter, ServiceRegistry, uuid4 } from "@wor
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
-import {
-  addBoundaryNodesToDependencyJson,
-  addBoundaryNodesToGraphJson,
-} from "./GraphSchemaUtils";
+import { addBoundaryNodesToDependencyJson, addBoundaryNodesToGraphJson } from "./GraphSchemaUtils";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction } from "./Conversions";

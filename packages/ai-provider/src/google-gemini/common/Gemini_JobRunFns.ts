@@ -25,6 +25,7 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
@@ -387,14 +388,6 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
-function buildGeminiToolDescription(tool: ToolDefinition): string {
-  let desc = tool.description;
-  if (tool.outputSchema && typeof tool.outputSchema === "object") {
-    desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
-  }
-  return desc;
-}
-
 function mapGeminiToolConfig(
   toolChoice: string | undefined
 ):
@@ -429,7 +422,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
 
   const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
     name: t.name,
-    description: buildGeminiToolDescription(t),
+    description: buildToolDescription(t),
     parameters: t.inputSchema as any,
   }));
 
@@ -471,7 +464,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   }
 
   update_progress(100, "Completed Gemini tool calling");
-  return { text: textParts.join(""), toolCalls };
+  return { text: textParts.join(""), toolCalls: filterValidToolCalls(toolCalls, input.tools) };
 };
 
 export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
@@ -484,7 +477,7 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
 
   const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
     name: t.name,
-    description: buildGeminiToolDescription(t),
+    description: buildToolDescription(t),
     parameters: t.inputSchema as any,
   }));
 
@@ -529,9 +522,10 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
     }
   }
 
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
   yield {
     type: "finish",
-    data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput,
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
   };
 };
 

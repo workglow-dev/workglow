@@ -19,7 +19,9 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { parsePartialJson } from "@workglow/util";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 
@@ -250,20 +252,12 @@ export const Ollama_TextSummary_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
-function buildOllamaToolDescription(tool: ToolDefinition): string {
-  let desc = tool.description;
-  if (tool.outputSchema && typeof tool.outputSchema === "object") {
-    desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
-  }
-  return desc;
-}
-
 function mapOllamaTools(tools: ReadonlyArray<ToolDefinition>) {
   return tools.map((t) => ({
     type: "function" as const,
     function: {
       name: t.name,
-      description: buildOllamaToolDescription(t),
+      description: buildToolDescription(t),
       parameters: t.inputSchema as any,
     },
   }));
@@ -305,7 +299,8 @@ export const Ollama_ToolCalling: AiProviderRunFn<
       try {
         parsedInput = JSON.parse(fnArgs);
       } catch {
-        parsedInput = {};
+        const partial = parsePartialJson(fnArgs);
+        parsedInput = (partial as Record<string, unknown>) ?? {};
       }
     } else if (fnArgs != null) {
       parsedInput = fnArgs as Record<string, unknown>;
@@ -315,7 +310,7 @@ export const Ollama_ToolCalling: AiProviderRunFn<
   });
 
   update_progress(100, "Completed Ollama tool calling");
-  return { text, toolCalls };
+  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
 };
 
 export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
@@ -369,7 +364,8 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
             try {
               parsedInput = JSON.parse(fnArgs);
             } catch {
-              parsedInput = {};
+              const partial = parsePartialJson(fnArgs);
+              parsedInput = (partial as Record<string, unknown>) ?? {};
             }
           } else if (fnArgs != null) {
             parsedInput = fnArgs as Record<string, unknown>;
@@ -381,9 +377,10 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
       }
     }
 
+    const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
     yield {
       type: "finish",
-      data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput,
+      data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
     };
   } finally {
     signal.removeEventListener("abort", onAbort);

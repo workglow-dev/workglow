@@ -195,5 +195,4 @@ describe("HierarchicalChunker", () => {
       expect(longTokens).toBeGreaterThan(shortTokens);
     });
   });
-
 });

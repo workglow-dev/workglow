@@ -276,7 +276,12 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       await Gemini_ToolCalling(
-        { prompt: "What is the weather?", tools: sampleTools, toolChoice: "auto", model: model as any },
+        {
+          prompt: "What is the weather?",
+          tools: sampleTools,
+          toolChoice: "auto",
+          model: model as any,
+        },
         model,
         noopProgress,
         abortSignal
@@ -364,6 +369,35 @@ describe("GoogleGeminiProvider", () => {
       const finish = events.find((e) => e.type === "finish");
       expect(finish).toBeDefined();
       expect(Object.keys(finish.data.toolCalls as Record<string, unknown>)).toHaveLength(1);
+    });
+
+    test("should filter out tool calls with unknown names", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  { functionCall: { name: "get_weather", args: { location: "NYC" } } },
+                  { functionCall: { name: "unknown_tool", args: { x: 1 } } },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      const model = makeModel("gemini-2.0-flash");
+      const result = await Gemini_ToolCalling(
+        { prompt: "test", tools: sampleTools, model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const keys = Object.keys(result.toolCalls as Record<string, unknown>);
+      expect(keys).toHaveLength(1);
+      expect((result.toolCalls as any)[keys[0]].name).toBe("get_weather");
     });
   });
 

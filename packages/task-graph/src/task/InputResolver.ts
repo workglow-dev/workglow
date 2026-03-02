@@ -146,7 +146,12 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
     }
 
     // Phase 2: Recurse into object values if the schema defines nested properties
-    if (value !== null && value !== undefined && typeof value === "object" && !Array.isArray(value)) {
+    if (
+      value !== null &&
+      value !== undefined &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
       const objectSchema = getObjectSchema(propSchema);
       if (objectSchema) {
         resolved[key] = await resolveSchemaInputs(

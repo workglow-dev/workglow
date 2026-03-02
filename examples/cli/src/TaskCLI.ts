@@ -9,6 +9,7 @@ import {
   getGlobalModelRepository,
   registerAiTasks,
   type ModelConfig,
+  type ToolDefinition,
 } from "@workglow/ai";
 import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
 import { JsonTaskItem, registerBaseTasks, TaskGraph, Workflow } from "@workglow/task-graph";
@@ -366,6 +367,76 @@ export function AddBaseCommands(program: Command) {
         await writeOutput(result, options.outFile, "json");
       } catch (error) {
         console.error("Error running rewriter task:", error);
+      }
+    });
+
+  program
+    .command("tool-calling")
+    .description("Send a prompt with tool definitions to a model")
+    .argument("<prompt>", "prompt to send to the model")
+    .option("--out-file <path>", "output file (or use stdout)")
+    .option("--model <name>", "model to use")
+    .option("--model-provider <provider>", "model provider")
+    .option("--model-path <path>", "model path or URI")
+    .option("--model-dtype <dtype>", "model dtype (default: auto)")
+    .option("--model-pipeline <pipeline>", "override inferred pipeline type")
+    .option("--tools <json>", "tool definitions as JSON array")
+    .option("--tools-file <path>", "read tool definitions from a JSON file")
+    .option(
+      "--tool-choice <choice>",
+      'tool selection: "auto", "none", "required", or a tool name',
+      "auto"
+    )
+    .option("--system-prompt <prompt>", "system instructions for the model")
+    .option("--max-tokens <number>", "maximum number of tokens to generate")
+    .option("--temperature <number>", "sampling temperature")
+    .action(async (prompt: string, options) => {
+      let model: string | ModelConfig;
+
+      if (options.model || options.modelProvider) {
+        model = await resolveModelFromOptions("tool-calling", options, program);
+      } else {
+        const foundModel = (
+          await getGlobalModelRepository().findModelsByTask("ToolCallingTask")
+        )?.map((m) => m.model_id)?.[0];
+
+        if (!foundModel) {
+          program.error(
+            "No tool-calling model found. Please specify --model or model provider options."
+          );
+        }
+        model = foundModel;
+      }
+
+      let tools: ToolDefinition[];
+      if (options.toolsFile) {
+        const raw = await readFile(options.toolsFile, "utf-8");
+        tools = JSON.parse(raw);
+      } else if (options.tools) {
+        tools = JSON.parse(options.tools);
+      } else {
+        program.error("Either --tools or --tools-file must be provided");
+      }
+
+      const taskInput: any = { model, prompt, tools, toolChoice: options.toolChoice };
+      if (options.systemPrompt) {
+        taskInput.systemPrompt = options.systemPrompt;
+      }
+      if (options.maxTokens) {
+        taskInput.maxTokens = parseInt(options.maxTokens, 10);
+      }
+      if (options.temperature) {
+        taskInput.temperature = parseFloat(options.temperature);
+      }
+
+      const workflow = new Workflow();
+      workflow.toolCalling(taskInput);
+      try {
+        const graphResult = await runTasks(workflow);
+        const result = Array.isArray(graphResult) ? graphResult[0]?.data : graphResult;
+        await writeOutput(result, options.outFile, "json");
+      } catch (error) {
+        console.error("Error running tool calling task:", error);
       }
     });
 

@@ -22,6 +22,7 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
@@ -362,14 +363,6 @@ export const Anthropic_StructuredGeneration_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
-function buildToolDescription(tool: ToolDefinition): string {
-  let desc = tool.description;
-  if (tool.outputSchema && typeof tool.outputSchema === "object") {
-    desc += `\n\nReturns: ${JSON.stringify(tool.outputSchema)}`;
-  }
-  return desc;
-}
-
 function mapAnthropicToolChoice(
   toolChoice: string | undefined
 ): { type: "auto" } | { type: "any" } | { type: "tool"; name: string } | undefined {
@@ -433,7 +426,7 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
     });
 
   update_progress(100, "Completed Anthropic tool calling");
-  return { text, toolCalls };
+  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
 };
 
 export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
@@ -533,9 +526,10 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
     }
   }
 
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
   yield {
     type: "finish",
-    data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput,
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
   };
 };
 

@@ -283,7 +283,12 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       await Anthropic_ToolCalling(
-        { prompt: "What is the weather?", tools: sampleTools, toolChoice: "auto", model: model as any },
+        {
+          prompt: "What is the weather?",
+          tools: sampleTools,
+          toolChoice: "auto",
+          model: model as any,
+        },
         model,
         noopProgress,
         abortSignal
@@ -368,6 +373,26 @@ describe("AnthropicProvider", () => {
       expect(finish).toBeDefined();
       expect(finish.data.toolCalls).toHaveProperty("tu_2");
       expect((finish.data.toolCalls as any)["tu_2"].name).toBe("get_weather");
+    });
+
+    test("should filter out tool calls with unknown names", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [
+          { type: "tool_use", id: "tu_ok", name: "get_weather", input: { location: "NYC" } },
+          { type: "tool_use", id: "tu_bad", name: "unknown_tool", input: { x: 1 } },
+        ],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_ToolCalling(
+        { prompt: "test", tools: sampleTools, model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.toolCalls).toHaveProperty("tu_ok");
+      expect(result.toolCalls).not.toHaveProperty("tu_bad");
     });
   });
 

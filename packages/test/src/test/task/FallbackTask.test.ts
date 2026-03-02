@@ -249,7 +249,9 @@ describe("FallbackTask", () => {
       subGraph.addTask(new FailingAlternativeTask({ value: 0 }, { id: "alt2" }));
       task.subGraph = subGraph;
 
-      await expect(task.run({ value: 1 } as TaskInput)).rejects.toThrow("All 2 alternatives failed");
+      await expect(task.run({ value: 1 } as TaskInput)).rejects.toThrow(
+        "All 2 alternatives failed"
+      );
       expect(task.status).toBe(TaskStatus.FAILED);
     });
 
@@ -527,5 +529,4 @@ describe("FallbackTask", () => {
       await expect(task.run({ value: 1 } as TaskInput)).rejects.toThrow("[timeout]");
     });
   });
-
 });

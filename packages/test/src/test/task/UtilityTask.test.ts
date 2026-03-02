@@ -198,5 +198,4 @@ describe("UtilityTask", () => {
       expect(result.matches).toEqual(["Hello", "HELLO", "hello"]);
     });
   });
-
 });

@@ -12,11 +12,12 @@ import type { DataPortSchema, JsonSchema } from "@workglow/util";
  * - `append`: Each chunk is a delta (e.g., a new token).
  * - `replace`: Each chunk is a corrected/revised snapshot of the complete output so far.
  * - `object`: Each chunk is a progressively more complete partial object snapshot.
+ * - `mixed`: Multiple ports use different stream modes (e.g., append + object).
  *
  * Declared per-port via the `x-stream` schema extension property.
  * Absent `x-stream` = `"none"`.
  */
-export type StreamMode = "none" | "append" | "replace" | "object";
+export type StreamMode = "none" | "append" | "replace" | "object" | "mixed";
 
 /**
  * Append mode: delta chunk (consumer accumulates).
@@ -127,8 +128,7 @@ export function getStreamingPorts(
 
 /**
  * Returns the dominant output stream mode for a task by inspecting its output schema.
- * All streaming ports must use the same mode -- mixing `append` and `replace` on
- * a single task is not supported and will throw.
+ * Returns `"mixed"` when ports use different modes (e.g., append + object).
  * Returns `"none"` if no output port declares streaming.
  */
 export function getOutputStreamMode(outputSchema: DataPortSchema): StreamMode {
@@ -138,10 +138,7 @@ export function getOutputStreamMode(outputSchema: DataPortSchema): StreamMode {
   const mode = ports[0].mode;
   for (let i = 1; i < ports.length; i++) {
     if (ports[i].mode !== mode) {
-      throw new Error(
-        `Mixed stream modes on a single task are not supported: ` +
-          `port "${ports[0].port}" is "${mode}" but port "${ports[i].port}" is "${ports[i].mode}"`
-      );
+      return "mixed";
     }
   }
   return mode;

@@ -26,6 +26,7 @@ import type {
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
+import { filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { LLAMACPP_DEFAULT_MODELS_DIR } from "./LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
@@ -598,7 +599,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     });
 
     update_progress(100, "Tool calling complete");
-    return { text, toolCalls };
+    return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
   } finally {
     sequence.dispose();
   }
@@ -695,12 +696,16 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
     const id = `call_${index}`;
     toolCalls[id] = { id, name: call.name, input: call.input };
   });
+  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
 
-  if (Object.keys(toolCalls).length > 0) {
-    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
+  if (Object.keys(validToolCalls).length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...validToolCalls } };
   }
 
-  yield { type: "finish", data: { text: accumulatedText, toolCalls } as ToolCallingTaskOutput };
+  yield {
+    type: "finish",
+    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+  };
 };
 
 // ========================================================================
