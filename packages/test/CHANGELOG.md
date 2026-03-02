@@ -1,5 +1,15 @@
 # @workglow/test
 
+## 0.0.106
+
+### Features
+
+- add tool-calling command to CLI for sending prompts with tool definitionsl; improved toolcall
+
+### Bug Fixes
+
+- replace fixed sleep with poll loop in rate-limiter test to eliminate flakiness
+
 ## 0.0.105
 
 ### Patch Changes

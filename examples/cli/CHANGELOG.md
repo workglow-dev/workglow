@@ -1,5 +1,12 @@
 # @workglow/cli
 
+## 0.0.106
+
+### Features
+
+- add tool-calling command to CLI for sending prompts with tool definitionsl; improved toolcall
+- improve ui of cli; default cli to worker
+
 ## 0.0.105
 
 ### Patch Changes

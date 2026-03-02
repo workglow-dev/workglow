@@ -1,5 +1,11 @@
 # @workglow/ai
 
+## 0.0.106
+
+### Features
+
+- add tool-calling command to CLI for sending prompts with tool definitionsl; improved toolcall
+
 ## 0.0.105
 
 ### Patch Changes

@@ -1,5 +1,7 @@
 # workglow
 
+## 0.0.106
+
 ## 0.0.105
 
 ### Patch Changes
