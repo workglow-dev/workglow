@@ -45,16 +45,10 @@
       "cache": false
     },
     "watch": {
-      "dependsOn": [
-        "build-package"
-      ],
       "persistent": true,
       "cache": false
     },
     "watch-types": {
-      "dependsOn": [
-        "build-package"
-      ],
       "persistent": true,
       "cache": false
     }
