@@ -1,8 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    "build-clean": {
+      "cache": false
+    },
     "build-package": {
       "dependsOn": [
+        "build-clean",
         "^build-package"
       ],
       "outputs": [
@@ -15,6 +19,7 @@
     },
     "build-types": {
       "dependsOn": [
+        "build-clean",
         "^build-types"
       ],
       "outputs": [
@@ -25,7 +30,9 @@
     },
     "build-example": {
       "dependsOn": [
+        "build-clean",
         "build-package",
+        "^build-package",
         "^build-example"
       ],
       "outputs": [
@@ -38,10 +45,16 @@
       "cache": false
     },
     "watch": {
+      "dependsOn": [
+        "build-package"
+      ],
       "persistent": true,
       "cache": false
     },
     "watch-types": {
+      "dependsOn": [
+        "build-package"
+      ],
       "persistent": true,
       "cache": false
     }

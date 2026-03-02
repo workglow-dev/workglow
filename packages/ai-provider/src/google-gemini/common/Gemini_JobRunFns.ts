@@ -11,6 +11,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   StructuredGenerationTaskInput,
   StructuredGenerationTaskOutput,
   TextEmbeddingTaskInput,
@@ -589,11 +591,33 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const Gemini_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  GeminiModelConfig
+> = async (input) => {
+  return {
+    model: input.model,
+    is_local: false,
+    is_remote: true,
+    supports_browser: true,
+    supports_node: true,
+    is_cached: false,
+    is_loaded: false,
+    file_sizes: null,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>> = {
   CountTokensTask: Gemini_CountTokens,
+  ModelInfoTask: Gemini_ModelInfo,
   TextGenerationTask: Gemini_TextGeneration,
   TextEmbeddingTask: Gemini_TextEmbedding,
   TextRewriterTask: Gemini_TextRewriter,

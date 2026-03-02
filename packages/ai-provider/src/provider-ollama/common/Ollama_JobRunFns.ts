@@ -7,6 +7,8 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -380,10 +382,57 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const Ollama_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  OllamaModelConfig
+> = async (input, model) => {
+  const client = await getClient(model);
+  const modelName = getModelName(model);
+
+  let is_cached = false;
+  let is_loaded = false;
+  let file_sizes: Record<string, number> | null = null;
+
+  try {
+    const showResponse = await client.show({ model: modelName });
+    is_cached = true;
+    const size = (showResponse as any).size as number | undefined;
+    if (size != null) {
+      file_sizes = { model: size };
+    }
+  } catch {
+    // Model not available on server
+  }
+
+  try {
+    const psResponse = await client.ps();
+    is_loaded = psResponse.models.some((m: any) => m.name === modelName);
+  } catch {
+    // ps() not available or failed
+  }
+
+  return {
+    model: input.model,
+    is_local: true,
+    is_remote: false,
+    supports_browser: true,
+    supports_node: true,
+    is_cached,
+    is_loaded,
+    file_sizes,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const OLLAMA_TASKS: Record<string, AiProviderRunFn<any, any, OllamaModelConfig>> = {
+  ModelInfoTask: Ollama_ModelInfo,
   TextGenerationTask: Ollama_TextGeneration,
   TextEmbeddingTask: Ollama_TextEmbedding,
   TextRewriterTask: Ollama_TextRewriter,

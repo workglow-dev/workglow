@@ -8,6 +8,8 @@ import type { InferenceProviderOrPolicy } from "@huggingface/inference";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -480,10 +482,32 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const HFI_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  HfInferenceModelConfig
+> = async (input) => {
+  return {
+    model: input.model,
+    is_local: false,
+    is_remote: true,
+    supports_browser: true,
+    supports_node: true,
+    is_cached: false,
+    is_loaded: false,
+    file_sizes: null,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const HFI_TASKS: Record<string, AiProviderRunFn<any, any, HfInferenceModelConfig>> = {
+  ModelInfoTask: HFI_ModelInfo,
   TextGenerationTask: HFI_TextGeneration,
   TextEmbeddingTask: HFI_TextEmbedding,
   TextRewriterTask: HFI_TextRewriter,

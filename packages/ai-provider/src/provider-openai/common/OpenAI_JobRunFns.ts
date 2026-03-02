@@ -10,6 +10,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   StructuredGenerationTaskInput,
   StructuredGenerationTaskOutput,
   TextEmbeddingTaskInput,
@@ -628,11 +630,33 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const OpenAI_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  OpenAiModelConfig
+> = async (input) => {
+  return {
+    model: input.model,
+    is_local: false,
+    is_remote: true,
+    supports_browser: true,
+    supports_node: true,
+    is_cached: false,
+    is_loaded: false,
+    file_sizes: null,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>> = {
   TextGenerationTask: OpenAI_TextGeneration,
+  ModelInfoTask: OpenAI_ModelInfo,
   TextEmbeddingTask: OpenAI_TextEmbedding,
   TextRewriterTask: OpenAI_TextRewriter,
   TextSummaryTask: OpenAI_TextSummary,

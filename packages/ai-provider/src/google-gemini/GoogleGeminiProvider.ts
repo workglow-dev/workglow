@@ -38,9 +38,12 @@ import type { GeminiModelConfig } from "./common/Gemini_ModelSchema";
  */
 export class GoogleGeminiProvider extends AiProvider<GeminiModelConfig> {
   readonly name = GOOGLE_GEMINI;
+  readonly isLocal = false;
+  readonly supportsBrowser = true;
 
   readonly taskTypes = [
     "CountTokensTask",
+    "ModelInfoTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",

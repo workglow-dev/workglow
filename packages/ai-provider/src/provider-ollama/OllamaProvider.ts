@@ -41,8 +41,11 @@ import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
  */
 export class OllamaProvider extends AiProvider<OllamaModelConfig> {
   readonly name = OLLAMA;
+  readonly isLocal = true;
+  readonly supportsBrowser = true;
 
   readonly taskTypes = [
+    "ModelInfoTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",

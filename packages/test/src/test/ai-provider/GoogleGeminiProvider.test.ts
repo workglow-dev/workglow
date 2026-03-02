@@ -85,6 +85,7 @@ describe("GoogleGeminiProvider", () => {
       expect(provider.name).toBe(GOOGLE_GEMINI);
       expect(provider.supportedTaskTypes).toEqual([
         "CountTokensTask",
+        "ModelInfoTask",
         "TextGenerationTask",
         "TextEmbeddingTask",
         "TextRewriterTask",
@@ -108,7 +109,7 @@ describe("GoogleGeminiProvider", () => {
       const provider = new GoogleGeminiProvider(GEMINI_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(7);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(8);
     });
   });
 
@@ -410,7 +411,8 @@ describe("GoogleGeminiProvider", () => {
       expect(GEMINI_TASKS).toHaveProperty("TextSummaryTask");
       expect(GEMINI_TASKS).toHaveProperty("StructuredGenerationTask");
       expect(GEMINI_TASKS).toHaveProperty("ToolCallingTask");
-      expect(Object.keys(GEMINI_TASKS)).toHaveLength(7);
+      expect(GEMINI_TASKS).toHaveProperty("ModelInfoTask");
+      expect(Object.keys(GEMINI_TASKS)).toHaveLength(8);
     });
   });
 });

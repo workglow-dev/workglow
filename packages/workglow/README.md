@@ -63,7 +63,7 @@ import { ANTHROPIC_TASKS } from "workglow/anthropic";
 // Google Gemini (requires: @google/generative-ai)
 import { GEMINI_TASKS } from "workglow/google-gemini";
 
-// HuggingFace Transformers (requires: @sroussey/transformers)
+// HuggingFace Transformers (requires: @huggingface/transformers)
 import { HFT_TASKS } from "workglow/hf-transformers";
 
 // Ollama (requires: ollama)
@@ -84,7 +84,7 @@ Install only the providers and backends you need:
 # AI Provider SDKs
 bun add @anthropic-ai/sdk        # For Anthropic
 bun add @google/generative-ai    # For Google Gemini
-bun add @sroussey/transformers   # For HuggingFace Transformers ONNX
+bun add @huggingface/transformers   # For HuggingFace Transformers ONNX
 bun add ollama                   # For Ollama
 bun add openai                   # For OpenAI
 
