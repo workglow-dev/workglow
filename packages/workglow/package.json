@@ -83,7 +83,7 @@
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
-    "@sroussey/transformers": "catalog:",
+    "@huggingface/transformers": "catalog:",
     "@mediapipe/tasks-text": "catalog:",
     "@mediapipe/tasks-vision": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
@@ -99,7 +99,7 @@
     "@supabase/supabase-js": "catalog:"
   },
   "peerDependenciesMeta": {
-    "@sroussey/transformers": {
+    "@huggingface/transformers": {
       "optional": true
     },
     "@mediapipe/tasks-text": {

@@ -14,8 +14,10 @@ import type {
   ImageFeatureExtractionPipeline,
   ImageSegmentationPipeline,
   ImageToTextPipeline,
+  Message,
   ObjectDetectionPipeline,
   PretrainedModelOptions,
+  ProgressInfo,
   QuestionAnsweringPipeline,
   RawImage,
   SummarizationOutput,
@@ -31,7 +33,7 @@ import type {
   ZeroShotClassificationPipeline,
   ZeroShotImageClassificationPipeline,
   ZeroShotObjectDetectionPipeline,
-} from "@sroussey/transformers";
+} from "@huggingface/transformers";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -81,15 +83,15 @@ import type {
 import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 
-let _transformersSdk: typeof import("@sroussey/transformers") | undefined;
+let _transformersSdk: typeof import("@huggingface/transformers") | undefined;
 async function loadTransformersSDK() {
   if (!_transformersSdk) {
     try {
-      _transformersSdk = await import("@sroussey/transformers");
+      _transformersSdk = await import("@huggingface/transformers");
       _transformersSdk.env.fetch = abortableFetch as typeof fetch;
     } catch {
       throw new Error(
-        "@sroussey/transformers is required for HuggingFace Transformers tasks. Install it with: bun add @sroussey/transformers"
+        "@huggingface/transformers is required for HuggingFace Transformers tasks. Install it with: bun add @huggingface/transformers"
       );
     }
   }
@@ -97,7 +99,6 @@ async function loadTransformersSDK() {
 }
 
 import { getLogger, TypedArray } from "@workglow/util";
-import { CallbackStatus } from "./HFT_CallbackStatus";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 
@@ -292,7 +293,7 @@ const doGetPipeline = async (
   }
 
   // Create a callback status object for progress tracking
-  const progressCallback = (status: CallbackStatus) => {
+  const progressCallback = (status: ProgressInfo) => {
     // Check if operation has been aborted before processing progress
     if (abortSignal?.aborted) {
       return; // Don't process progress for aborted operations
@@ -856,11 +857,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
   if (!Array.isArray(results)) {
     results = [results];
   }
-  let text = (results[0] as TextGenerationOutput[number])?.generated_text;
-
-  if (Array.isArray(text)) {
-    text = text[text.length - 1]?.content;
-  }
+  const text = extractGeneratedText((results[0] as TextGenerationOutput[number])?.generated_text);
   logger.timeEnd(timerLabel, { outputLength: text?.length });
   return {
     text,
@@ -918,10 +915,7 @@ export const HFT_TextRewriter: AiProviderRunFn<
     results = [results];
   }
 
-  let text = (results[0] as TextGenerationOutput[number])?.generated_text;
-  if (Array.isArray(text)) {
-    text = text[text.length - 1]?.content;
-  }
+  const text = extractGeneratedText((results[0] as TextGenerationOutput[number])?.generated_text);
 
   if (text === promptedText) {
     throw new Error("Rewriter failed to generate new text");
@@ -1226,6 +1220,21 @@ function createTextStreamer(
       updateProgress(progress, "Generating", { text, progress });
     },
   });
+}
+
+function extractGeneratedText(generatedText: string | Message[] | undefined): string {
+  if (generatedText == null) return "";
+  if (typeof generatedText === "string") return generatedText;
+  const lastMessage = generatedText[generatedText.length - 1];
+  if (!lastMessage) return "";
+  const content = lastMessage.content;
+  if (typeof content === "string") return content;
+  for (const part of content) {
+    if (part.type === "text" && "text" in part) {
+      return (part as { type: "text"; text: string }).text;
+    }
+  }
+  return "";
 }
 
 // ========================================================================
@@ -1815,11 +1824,9 @@ export const HFT_ToolCalling: AiProviderRunFn<
     results = [results];
   }
 
-  let responseText = (results[0] as TextGenerationOutput[number])?.generated_text;
-  if (Array.isArray(responseText)) {
-    responseText = responseText[responseText.length - 1]?.content;
-  }
-  responseText = (responseText ?? "").trim();
+  const responseText = extractGeneratedText(
+    (results[0] as TextGenerationOutput[number])?.generated_text
+  ).trim();
 
   const { text, toolCalls } = parseToolCallsFromText(responseText);
   return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
@@ -1927,6 +1934,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
 export const HFT_TASKS = {
   DownloadModelTask: HFT_Download,
   UnloadModelTask: HFT_Unload,
+  ModelInfoTask: HFT_ModelInfo,
   CountTokensTask: HFT_CountTokens,
   TextEmbeddingTask: HFT_TextEmbedding,
   TextGenerationTask: HFT_TextGeneration,

@@ -39,7 +39,7 @@
     "@mediapipe/tasks-vision": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
     "@mediapipe/tasks-genai": "catalog:",
-    "@sroussey/transformers": "catalog:",
+    "@huggingface/transformers": "catalog:",
     "tiktoken": "catalog:",
     "openai": "catalog:",
     "ollama": "catalog:",

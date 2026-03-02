@@ -17,10 +17,10 @@ import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
 /**
  * AI provider for HuggingFace Transformers ONNX models.
  *
- * Supports text, vision, and multimodal tasks via the @sroussey/transformers library.
+ * Supports text, vision, and multimodal tasks via the @huggingface/transformers library.
  *
  * Task run functions are injected via the constructor so that the heavy
- * `@sroussey/transformers` library is only imported where actually needed
+ * `@huggingface/transformers` library is only imported where actually needed
  * (inline mode, worker server), not on the main thread in worker mode.
  *
  * @example
@@ -76,7 +76,7 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
 
   protected override async onInitialize(options: AiProviderRegisterOptions): Promise<void> {
     if (options.mode === "inline") {
-      const { env } = await import("@sroussey/transformers");
+      const { env } = await import("@huggingface/transformers");
       // @ts-ignore -- backends.onnx.wasm.proxy is not fully typed
       env.backends.onnx.wasm.proxy = true;
     }

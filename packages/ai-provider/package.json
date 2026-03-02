@@ -77,7 +77,7 @@
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*",
-    "@sroussey/transformers": "catalog:",
+    "@huggingface/transformers": "catalog:",
     "@mediapipe/tasks-text": "catalog:",
     "@mediapipe/tasks-vision": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
@@ -124,7 +124,7 @@
     "ollama": {
       "optional": true
     },
-    "@sroussey/transformers": {
+    "@huggingface/transformers": {
       "optional": true
     },
     "@mediapipe/tasks-text": {
@@ -151,7 +151,7 @@
     "@mediapipe/tasks-genai": "catalog:",
     "@mediapipe/tasks-text": "catalog:",
     "@mediapipe/tasks-vision": "catalog:",
-    "@sroussey/transformers": "catalog:",
+    "@huggingface/transformers": "catalog:",
     "@workglow/ai": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",

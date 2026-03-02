@@ -30,7 +30,7 @@ Depending on which providers you use, you may need to install additional peer de
 
 ```bash
 # For HuggingFace Transformers support
-npm install @sroussey/transformers
+npm install @huggingface/transformers
 
 # For MediaPipe support
 npm install @mediapipe/tasks-text @mediapipe/tasks-vision @mediapipe/tasks-audio @mediapipe/tasks-genai
