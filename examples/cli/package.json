@@ -14,8 +14,7 @@
     "build-js-worker-hft": "bun build --target=node --packages=external --outdir ./dist ./src/worker_hft.ts",
     "build-lib": "bun build --target=bun --packages=external --outdir ./dist ./src/lib.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/lib.js';pkg.exports['.'].types='./dist/lib.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": "./dist/workglow.js",
   "files": [

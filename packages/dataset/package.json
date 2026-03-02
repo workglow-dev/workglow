@@ -16,8 +16,7 @@
     "build-bun": "bun build --splitting --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "bun test",
-    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+    "test": "bun test"
   },
   "peerDependencies": {
     "@workglow/storage": "workspace:*",

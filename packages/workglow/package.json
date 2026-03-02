@@ -16,8 +16,7 @@
     "build-bun": "bun build --splitting --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "bun test",
-    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';['anthropic','google-gemini','hf-transformers','ollama','openai'].forEach(p=>{const k='./'+p;if(!pkg.exports[k])pkg.exports[k]={};pkg.exports[k].browser='./dist/'+p+'.browser.js';pkg.exports[k].bun='./dist/'+p+'.bun.js';pkg.exports[k].types='./dist/'+p+'.d.ts'});const t=pkg.exports['./tf-mediapipe'];if(!t)pkg.exports['./tf-mediapipe']={};pkg.exports['./tf-mediapipe'].browser='./dist/tf-mediapipe.js';pkg.exports['./tf-mediapipe'].types='./dist/tf-mediapipe.d.ts';delete pkg.exports['./tf-mediapipe'].bun;require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+    "test": "bun test"
   },
   "exports": {
     ".": {
