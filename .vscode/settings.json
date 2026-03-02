@@ -1,4 +1,6 @@
 {
+  "terminal.integrated.tabs.defaultColor": "terminal.ansiMagenta",
+  "terminal.integrated.tabs.defaultIcon": "arrow-both",
   "editor.tabSize": 2,
   "editor.detectIndentation": false,
   "editor.stickyTabStops": true,
