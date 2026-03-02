@@ -181,7 +181,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // Create git tags for successfully published packages
+  // Verify successfully published packages have a single consistent version
   if (successes.length > 0) {
     const versions = Array.from(new Set(successes.map((success) => success.version)));
 
@@ -195,7 +195,7 @@ async function main(): Promise<void> {
     const version = versions[0];
 
     if (!version) {
-      console.error("Unable to determine version for git tagging");
+      console.error("Unable to determine version for successfully published packages");
       process.exit(1);
     }
   }
