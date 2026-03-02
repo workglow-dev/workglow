@@ -78,7 +78,7 @@ import type {
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 
 let _transformersSdk: typeof import("@sroussey/transformers") | undefined;
@@ -1787,11 +1787,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 
@@ -1833,11 +1829,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 

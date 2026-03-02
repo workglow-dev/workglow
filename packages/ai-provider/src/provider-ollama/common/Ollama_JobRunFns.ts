@@ -19,7 +19,7 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { parsePartialJson } from "@workglow/util";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
@@ -272,11 +272,7 @@ export const Ollama_ToolCalling: AiProviderRunFn<
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toTextFlatMessages(input);
 
   const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
 
@@ -321,11 +317,7 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toTextFlatMessages(input);
 
   const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
 

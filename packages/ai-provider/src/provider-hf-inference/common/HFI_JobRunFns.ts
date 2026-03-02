@@ -20,7 +20,7 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toOpenAIMessages } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
@@ -333,11 +333,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toOpenAIMessages(input);
 
   const toolChoice = mapHFIToolChoice(input.toolChoice);
 
@@ -399,11 +395,7 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toOpenAIMessages(input);
 
   const toolChoice = mapHFIToolChoice(input.toolChoice);
 

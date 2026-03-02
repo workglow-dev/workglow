@@ -363,6 +363,45 @@ export const Anthropic_StructuredGeneration_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
+/**
+ * Build Anthropic-format messages from the task input.
+ * When `input.messages` is present (multi-turn agent loop), converts the
+ * provider-agnostic ChatMessage format to Anthropic's message format.
+ * Otherwise falls back to a single user message from `input.prompt`.
+ */
+function buildAnthropicMessages(input: ToolCallingTaskInput): any[] {
+  const inputMessages = input.messages;
+  if (!inputMessages || inputMessages.length === 0) {
+    return [{ role: "user", content: input.prompt }];
+  }
+
+  const messages: any[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "user") {
+      messages.push({ role: "user", content: msg.content });
+    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      const blocks = msg.content.map((block: any) => {
+        if (block.type === "text") return { type: "text", text: block.text };
+        if (block.type === "tool_use") {
+          return { type: "tool_use", id: block.id, name: block.name, input: block.input };
+        }
+        return block;
+      });
+      messages.push({ role: "assistant", content: blocks });
+    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+      // Anthropic expects tool results as role: "user" with tool_result content blocks
+      const blocks = msg.content.map((block: any) => ({
+        type: "tool_result",
+        tool_use_id: block.tool_use_id,
+        content: block.content,
+        ...(block.is_error && { is_error: true }),
+      }));
+      messages.push({ role: "user", content: blocks });
+    }
+  }
+  return messages;
+}
+
 function mapAnthropicToolChoice(
   toolChoice: string | undefined
 ): { type: "auto" } | { type: "any" } | { type: "tool"; name: string } | undefined {
@@ -389,9 +428,11 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
 
   const toolChoice = mapAnthropicToolChoice(input.toolChoice);
 
+  const messages = buildAnthropicMessages(input);
+
   const params: any = {
     model: modelName,
-    messages: [{ role: "user", content: input.prompt }],
+    messages,
     max_tokens: getMaxTokens(input, model),
     temperature: input.temperature,
   };
@@ -445,9 +486,11 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
 
   const toolChoice = mapAnthropicToolChoice(input.toolChoice);
 
+  const messages = buildAnthropicMessages(input);
+
   const params: any = {
     model: modelName,
-    messages: [{ role: "user", content: input.prompt }],
+    messages,
     max_tokens: getMaxTokens(input, model),
     temperature: input.temperature,
   };

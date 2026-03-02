@@ -24,7 +24,7 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toOpenAIMessages } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
@@ -476,11 +476,7 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toOpenAIMessages(input) as any[];
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 
@@ -545,11 +541,7 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt });
+  const messages = toOpenAIMessages(input) as any[];
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 

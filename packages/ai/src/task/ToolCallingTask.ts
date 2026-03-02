@@ -196,6 +196,21 @@ export const ToolCallingInputSchema = {
       title: "System Prompt",
       description: "Optional system instructions for the model",
     },
+    messages: {
+      type: "array",
+      title: "Messages",
+      description:
+        "Full conversation history for multi-turn interactions. When provided, used instead of prompt to construct the messages array sent to the provider.",
+      items: {
+        type: "object",
+        properties: {
+          role: { type: "string", enum: ["user", "assistant", "tool"] },
+          content: {},
+        },
+        required: ["role", "content"],
+        additionalProperties: true,
+      },
+    },
     tools: {
       type: "array",
       title: "Tools",
@@ -250,7 +265,20 @@ export const ToolCallingOutputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type ToolCallingTaskInput = FromSchema<typeof ToolCallingInputSchema>;
+type ToolCallingTaskInputBase = FromSchema<typeof ToolCallingInputSchema>;
+
+/**
+ * Input for ToolCallingTask. Extends the schema-derived base with the
+ * `messages` field typed explicitly (the loose `content: {}` in the
+ * schema prevents `FromSchema` from producing a useful type).
+ */
+export type ToolCallingTaskInput = ToolCallingTaskInputBase & {
+  readonly messages?: ReadonlyArray<{
+    readonly role: "user" | "assistant" | "tool";
+    readonly content: unknown;
+  }>;
+};
+
 export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
 
 // ========================================================================
