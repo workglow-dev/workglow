@@ -12,7 +12,7 @@
         "@types/node": "^24.1.0",
         "@typescript-eslint/eslint-plugin": "^8.56.1",
         "@typescript-eslint/parser": "^8.56.1",
-        "bunset": "^1.0.4",
+        "bunset": "1.0.5",
         "concurrently": "^9.2.1",
         "eslint": "^9.39.2",
         "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -28,7 +28,7 @@
     },
     "examples/cli": {
       "name": "@workglow/cli",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "bin": "./dist/workglow.js",
       "dependencies": {
         "@anthropic-ai/sdk": "catalog:",
@@ -103,7 +103,7 @@
     },
     "packages/ai": {
       "name": "@workglow/ai",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@workglow/dataset": "workspace:*",
         "@workglow/job-queue": "workspace:*",
@@ -121,7 +121,7 @@
     },
     "packages/ai-provider": {
       "name": "@workglow/ai-provider",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@anthropic-ai/sdk": "catalog:",
         "@google/generative-ai": "catalog:",
@@ -177,7 +177,7 @@
     },
     "packages/dataset": {
       "name": "@workglow/dataset",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
@@ -189,7 +189,7 @@
     },
     "packages/debug": {
       "name": "@workglow/debug",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "dependencies": {
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
@@ -197,7 +197,7 @@
     },
     "packages/job-queue": {
       "name": "@workglow/job-queue",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
@@ -209,7 +209,7 @@
     },
     "packages/sqlite": {
       "name": "@workglow/sqlite",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@types/better-sqlite3": "^7.6.13",
       },
@@ -220,7 +220,7 @@
     },
     "packages/storage": {
       "name": "@workglow/storage",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@supabase/supabase-js": "catalog:",
         "@types/pg": "^8.16.0",
@@ -238,7 +238,7 @@
     },
     "packages/task-graph": {
       "name": "@workglow/task-graph",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
@@ -252,7 +252,7 @@
     },
     "packages/tasks": {
       "name": "@workglow/tasks",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "dependencies": {
         "papaparse": "^5.5.3",
       },
@@ -272,7 +272,7 @@
     },
     "packages/test": {
       "name": "@workglow/test",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "devDependencies": {
         "@anthropic-ai/sdk": "catalog:",
         "@electric-sql/pglite": "^0.3.15",
@@ -313,7 +313,7 @@
     },
     "packages/util": {
       "name": "@workglow/util",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "dependencies": {
         "@sroussey/json-schema-library": "^10.5.3",
         "@sroussey/json-schema-to-ts": "3.1.4",
@@ -327,7 +327,7 @@
     },
     "packages/workglow": {
       "name": "workglow",
-      "version": "0.0.106",
+      "version": "0.0.107",
       "dependencies": {
         "@workglow/ai": "workspace:*",
         "@workglow/ai-provider": "workspace:*",
@@ -1009,7 +1009,7 @@
 
     "bun-types": ["bun-types@1.3.9", "", { "dependencies": { "@types/node": "*" } }, "sha512-+UBWWOakIP4Tswh0Bt0QD0alpTY8cb5hvgiYeWCMet9YukHbzuruIEeXC2D7nMJPB12kbh8C7XJykSexEqGKJg=="],
 
-    "bunset": ["bunset@1.0.4", "", { "peerDependencies": { "typescript": "^5" }, "bin": { "bunset": "src/index.ts" } }, "sha512-PN2WLmVxemewwRGJCmGsuI+86fXuOZQ9t9dmQE5JtDMPWJ2pb/9aw4z/QvF2WN+SnERoXmHRl3onU5N9yZlWpg=="],
+    "bunset": ["bunset@1.0.5", "", { "peerDependencies": { "typescript": "^5" }, "bin": { "bunset": "src/index.ts" } }, "sha512-oNAnpYhkdsToIa2WjGR4L1tOb7IIPiboPeKnd1zM/s0Yf9clMXxdZ9ndqr9iF/y6G8sw49hcNm7LcI8tE/PHYw=="],
 
     "bytes": ["bytes@3.1.2", "", {}, "sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg=="],
 

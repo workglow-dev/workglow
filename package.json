@@ -25,7 +25,7 @@
     "test:vitest": "bun scripts/test.ts vitest",
     "bunset": "bunset && bun install && git push",
     "publish-all": "bun ./scripts/bunsrc-workspace.ts dist && bun run build && bun run test && bun run bunset && bun run publish-login && bun run publish-workspaces",
-    "publish-login": "bun login",
+    "publish-login": "npm login",
     "publish-workspaces": "bun ./scripts/publish-workspaces.ts"
   },
   "dependencies": {
@@ -55,7 +55,7 @@
     "@types/node": "^24.1.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
-    "bunset": "^1.0.4",
+    "bunset": "1.0.5",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
