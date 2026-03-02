@@ -6,7 +6,7 @@
 
 import { ITaskGraph } from "@workglow/task-graph";
 import React from "react";
-import { Box, Text } from "ink";
+import { Box } from "ink";
 import TaskGraphUI from "./TaskGraphUI";
 
 type AppProps = {
@@ -15,13 +15,8 @@ type AppProps = {
 
 const App: React.FC<AppProps> = ({ graph }) => {
   return (
-    <Box flexDirection="column" height="100%" flexGrow={1}>
-      <Box height={1}>
-        <Text bold>Workglow Task Graph Runner</Text>
-      </Box>
-      <Box flexDirection="column" flexGrow={1} overflow="hidden">
-        <TaskGraphUI graph={graph} />
-      </Box>
+    <Box flexDirection="column" paddingTop={1}>
+      <TaskGraphUI graph={graph} />
     </Box>
   );
 };

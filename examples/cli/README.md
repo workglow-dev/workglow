@@ -132,7 +132,6 @@ src/
 ├── TaskGraphToUI.ts       # Terminal UI components
 ├── components/            # Reusable CLI components
 ├── lib.ts                 # Library exports
-├── workglow_worker.ts       # Background worker
 └── worker_hft.ts          # HuggingFace worker
 ```
 
