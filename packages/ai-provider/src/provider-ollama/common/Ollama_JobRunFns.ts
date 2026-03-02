@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -21,7 +22,6 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
@@ -65,7 +65,12 @@ export const Ollama_TextGeneration: AiProviderRunFn<
     const prompts = input.prompt as string[];
     const results: string[] = [];
     for (const item of prompts) {
-      const r = await Ollama_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Ollama_TextGeneration(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -317,7 +322,12 @@ export const Ollama_ToolCalling: AiProviderRunFn<
     const texts: string[] = [];
     const toolCallsList: Record<string, unknown>[] = [];
     for (const item of prompts) {
-      const r = await Ollama_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Ollama_ToolCalling(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       texts.push(r.text as string);
       toolCallsList.push(r.toolCalls as Record<string, unknown>);
     }
@@ -328,11 +338,7 @@ export const Ollama_ToolCalling: AiProviderRunFn<
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
 
@@ -377,11 +383,7 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
 

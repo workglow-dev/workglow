@@ -208,6 +208,21 @@ export const ToolCallingInputSchema = {
       title: "System Prompt",
       description: "Optional system instructions for the model",
     },
+    messages: {
+      type: "array",
+      title: "Messages",
+      description:
+        "Full conversation history for multi-turn interactions. When provided, used instead of prompt to construct the messages array sent to the provider.",
+      items: {
+        type: "object",
+        properties: {
+          role: { type: "string", enum: ["user", "assistant", "tool"] },
+          content: {},
+        },
+        required: ["role", "content"],
+        additionalProperties: true,
+      },
+    },
     tools: {
       type: "array",
       format: "tasks",
@@ -275,10 +290,19 @@ export const ToolCallingOutputSchema = {
  * references and inline tool definitions, but the input resolver converts all
  * strings to {@link ToolDefinition} objects before execution. The `tools` field
  * is therefore narrowed to `ToolDefinition[]` here.
+ *
+ * Extends the schema-derived base with the
+ * `messages` field typed explicitly (the loose `content: {}` in the
+ * schema prevents `FromSchema` from producing a useful type).
  */
 export type ToolCallingTaskInput = Omit<FromSchema<typeof ToolCallingInputSchema>, "tools"> & {
   readonly tools: ToolDefinition[];
+  readonly messages?: ReadonlyArray<{
+    readonly role: "user" | "assistant" | "tool";
+    readonly content: unknown;
+  }>;
 };
+
 export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
 
 // ========================================================================

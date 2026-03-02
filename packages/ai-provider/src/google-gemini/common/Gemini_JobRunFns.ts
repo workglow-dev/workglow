@@ -5,6 +5,7 @@
  */
 
 import type { FunctionCallingMode, TaskType } from "@google/generative-ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -27,7 +28,6 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
@@ -89,7 +89,12 @@ export const Gemini_TextGeneration: AiProviderRunFn<
     const prompts = input.prompt as string[];
     const results: string[] = [];
     for (const item of prompts) {
-      const r = await Gemini_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Gemini_TextGeneration(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -442,6 +447,63 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
+/**
+ * Build Gemini-format contents from the task input.
+ * When `input.messages` is present (multi-turn agent loop), converts the
+ * provider-agnostic ChatMessage format to Gemini's Content format.
+ * Otherwise falls back to a single user content from `input.prompt`.
+ */
+function buildGeminiContents(input: ToolCallingTaskInput): any[] {
+  const inputMessages = input.messages;
+  if (!inputMessages || inputMessages.length === 0) {
+    return [{ role: "user", parts: [{ text: input.prompt }] }];
+  }
+
+  // Build a lookup from tool_use_id -> tool name for functionResponse mapping
+  const toolUseNames = new Map<string, string>();
+  for (const msg of inputMessages) {
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (block.type === "tool_use") {
+          toolUseNames.set(block.id, block.name);
+        }
+      }
+    }
+  }
+
+  const contents: any[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "user") {
+      contents.push({ role: "user", parts: [{ text: msg.content }] });
+    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      const parts: any[] = [];
+      for (const block of msg.content) {
+        if (block.type === "text" && block.text) {
+          parts.push({ text: block.text });
+        } else if (block.type === "tool_use") {
+          parts.push({ functionCall: { name: block.name, args: block.input } });
+        }
+      }
+      if (parts.length > 0) {
+        contents.push({ role: "model", parts });
+      }
+    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+      const parts = msg.content.map((block: any) => {
+        const name = toolUseNames.get(block.tool_use_id) ?? "unknown";
+        let response: Record<string, unknown>;
+        try {
+          response = JSON.parse(block.content);
+        } catch {
+          response = { result: block.content };
+        }
+        return { functionResponse: { name, response } };
+      });
+      contents.push({ role: "user", parts });
+    }
+  }
+  return contents;
+}
+
 function mapGeminiToolConfig(
   toolChoice: string | undefined
 ):
@@ -478,7 +540,12 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     const texts: string[] = [];
     const toolCallsList: Record<string, unknown>[] = [];
     for (const item of prompts) {
-      const r = await Gemini_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Gemini_ToolCalling(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       texts.push(r.text as string);
       toolCallsList.push(r.toolCalls as Record<string, unknown>);
     }
@@ -508,9 +575,9 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     },
   });
 
-  const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
-  });
+  const contents = buildGeminiContents(input);
+
+  const result = await genModel.generateContent({ contents });
 
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
 
@@ -563,10 +630,9 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
     },
   });
 
-  const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.prompt as string }] }] },
-    { signal }
-  );
+  const contents = buildGeminiContents(input);
+
+  const result = await genModel.generateContentStream({ contents }, { signal });
 
   let accumulatedText = "";
   const toolCalls: Record<string, unknown> = {};

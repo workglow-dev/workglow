@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { filterValidToolCalls } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -12,6 +13,8 @@ import type {
   CountTokensTaskOutput,
   DownloadModelTaskRunInput,
   DownloadModelTaskRunOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -23,12 +26,9 @@ import type {
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
-  ModelInfoTaskInput,
-  ModelInfoTaskOutput,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
-import { filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import { LLAMACPP_DEFAULT_MODELS_DIR } from "./LlamaCpp_Constants";
@@ -302,7 +302,12 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
     const prompts = input.prompt as string[];
     const results: string[] = [];
     for (const item of prompts) {
-      const r = await LlamaCpp_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await LlamaCpp_TextGeneration(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -408,7 +413,12 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
     const texts = input.text as string[];
     const results: string[] = [];
     for (const item of texts) {
-      const r = await LlamaCpp_TextRewriter({ ...input, text: item }, model, update_progress, signal);
+      const r = await LlamaCpp_TextRewriter(
+        { ...input, text: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -423,7 +433,10 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
 
   update_progress(10, "Rewriting text");
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt as string });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    systemPrompt: input.prompt as string,
+  });
   try {
     const text = await session.prompt(input.text as string, { signal });
     update_progress(100, "Text rewriting complete");
@@ -448,7 +461,10 @@ export const LlamaCpp_TextRewriter_Stream: AiProviderStreamFn<
 
   const context = await getOrCreateTextContext(model);
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt as string });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    systemPrompt: input.prompt as string,
+  });
   try {
     yield* streamFromSession<TextRewriterTaskOutput>((onTextChunk) => {
       return session.prompt(input.text as string, { signal, onTextChunk });
@@ -474,7 +490,12 @@ export const LlamaCpp_TextSummary: AiProviderRunFn<
     const texts = input.text as string[];
     const results: string[] = [];
     for (const item of texts) {
-      const r = await LlamaCpp_TextSummary({ ...input, text: item }, model, update_progress, signal);
+      const r = await LlamaCpp_TextSummary(
+        { ...input, text: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -591,6 +612,38 @@ export const LlamaCpp_CountTokens_Reactive: AiProviderReactiveRunFn<
 // ========================================================================
 
 /**
+ * Build a prompt string from the task input.
+ * When `input.messages` is present (multi-turn agent loop), concatenates
+ * the conversation history into a single prompt string since LlamaCpp
+ * uses a session-based approach that doesn't support external message arrays.
+ */
+function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
+  const inputMessages = input.messages;
+  if (!inputMessages || inputMessages.length === 0) {
+    return input.prompt;
+  }
+
+  // Concatenate messages into a single prompt for the session
+  const parts: string[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "user") {
+      parts.push(`User: ${msg.content}`);
+    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      const text = msg.content
+        .filter((b: any) => b.type === "text")
+        .map((b: any) => b.text)
+        .join("");
+      if (text) parts.push(`Assistant: ${text}`);
+    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        parts.push(`Tool Result: ${block.content}`);
+      }
+    }
+  }
+  return parts.join("\n\n");
+}
+
+/**
  * Builds function definitions for node-llama-cpp from ToolDefinition inputs.
  * Each function handler captures the call arguments and returns a simple
  * acknowledgment, allowing us to collect tool calls without side-effects.
@@ -628,7 +681,12 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     const texts: string[] = [];
     const toolCallsList: Record<string, unknown>[] = [];
     for (const item of prompts) {
-      const r = await LlamaCpp_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await LlamaCpp_ToolCalling(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       texts.push(r.text as string);
       toolCallsList.push(r.toolCalls as Record<string, unknown>);
     }
@@ -649,13 +707,14 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   update_progress(10, "Running tool calling");
   const sequence = context.getSequence();
   const { LlamaChatSession } = _sdk!;
+  const promptText = buildLlamaCppPrompt(input);
   const session = new LlamaChatSession({
     contextSequence: sequence,
     ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
   });
 
   try {
-    const text = await session.prompt(input.prompt as string, {
+    const text = await session.prompt(promptText, {
       signal,
       ...(functions && { functions }),
       ...(input.temperature !== undefined && { temperature: input.temperature }),
@@ -696,6 +755,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   const sequence = context.getSequence();
   const { LlamaChatSession } = _sdk!;
+  const promptText = buildLlamaCppPrompt(input);
   const session = new LlamaChatSession({
     contextSequence: sequence,
     ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
@@ -713,7 +773,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   let accumulatedText = "";
   const promptPromise = session
-    .prompt(input.prompt as string, {
+    .prompt(promptText, {
       signal,
       ...(functions && { functions }),
       onTextChunk: (chunk: string) => {

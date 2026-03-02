@@ -34,6 +34,7 @@ import type {
   ZeroShotImageClassificationPipeline,
   ZeroShotObjectDetectionPipeline,
 } from "@huggingface/transformers";
+import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -82,7 +83,6 @@ import type {
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 
 let _transformersSdk: typeof import("@huggingface/transformers") | undefined;
@@ -1835,54 +1835,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
 
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
-  if (isArrayInput) {
-    const prompts = input.prompt as string[];
-    const texts: string[] = [];
-    const allToolCalls: Record<string, unknown>[] = [];
-
-    for (const promptText of prompts) {
-      const messages: Array<{ role: string; content: string }> = [];
-      if (input.systemPrompt) {
-        messages.push({ role: "system", content: input.systemPrompt as string });
-      }
-      messages.push({ role: "user", content: promptText });
-
-      const singleInput = { ...input, prompt: promptText } as ToolCallingTaskInput;
-      const tools = resolveHFTToolsAndMessages(singleInput, messages);
-
-      const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
-        tools,
-        tokenize: false,
-        add_generation_prompt: true,
-      }) as string;
-
-      let results = await generateText(prompt, {
-        max_new_tokens: input.maxTokens ?? 1024,
-        temperature: input.temperature ?? undefined,
-        return_full_text: false,
-      });
-
-      if (!Array.isArray(results)) {
-        results = [results];
-      }
-
-      const responseText = extractGeneratedText(
-        (results[0] as TextGenerationOutput[number])?.generated_text
-      ).trim();
-
-      const parsed = parseToolCallsFromText(responseText);
-      texts.push(parsed.text);
-      allToolCalls.push(filterValidToolCalls(parsed.toolCalls, input.tools));
-    }
-
-    return { text: texts, toolCalls: allToolCalls };
-  }
-
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 
@@ -1922,11 +1875,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 
