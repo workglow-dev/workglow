@@ -5,7 +5,7 @@
  */
 
 import type { InferenceProviderOrPolicy } from "@huggingface/inference";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toOpenAIMessages } from "@workglow/ai";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -394,11 +394,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toOpenAIMessages(input);
 
   const toolChoice = mapHFIToolChoice(input.toolChoice);
 
@@ -460,11 +456,7 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toOpenAIMessages(input);
 
   const toolChoice = mapHFIToolChoice(input.toolChoice);
 
