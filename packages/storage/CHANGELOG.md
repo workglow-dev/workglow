@@ -1,5 +1,7 @@
 # @workglow/storage
 
+## 0.0.107
+
 ## 0.0.106
 
 ### Features

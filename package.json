@@ -25,7 +25,7 @@
     "test:vitest": "bun scripts/test.ts vitest",
     "bunset": "bunset && bun install && git push",
     "publish-all": "bun ./scripts/bunsrc-workspace.ts dist && bun run build && bun run test && bun run bunset && bun run publish-login && bun run publish-workspaces",
-    "publish-login": "npm login",
+    "publish-login": "bun login",
     "publish-workspaces": "bun ./scripts/publish-workspaces.ts"
   },
   "dependencies": {

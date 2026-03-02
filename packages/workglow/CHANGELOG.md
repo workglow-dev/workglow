@@ -1,5 +1,11 @@
 # workglow
 
+## 0.0.107
+
+### Bug Fixes
+
+- enhance HuggingFace Transformers provider with streaming and reactive tasks support
+
 ## 0.0.106
 
 ## 0.0.105
