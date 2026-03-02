@@ -71,14 +71,16 @@ export function buildToolSources(options: {
         sources.push({
           type: "function",
           definition,
-          execute,
+          run: execute,
         } satisfies FunctionToolSource);
       } else {
         const { execute: _, ...definition } = tool;
         sources.push({
           type: "function",
           definition,
-          execute: async () => ({ error: `No executor registered for tool "${tool.name}"` }),
+          run: async () => {
+            throw new Error(`No executor registered for tool "${tool.name}"`);
+          },
         } satisfies FunctionToolSource);
       }
     }
@@ -192,7 +194,7 @@ export async function executeToolCall(
         break;
       }
       case "function": {
-        output = await source.execute(effectiveCall.input);
+        output = await source.run(effectiveCall.input);
         break;
       }
     }
@@ -264,7 +266,9 @@ export async function executeToolCalls(
 
   const workers = Array.from({ length: concurrency }, async () => {
     while (true) {
-      if (context.signal.aborted) return;
+      if (context.signal.aborted) {
+        throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      }
 
       const position = cursor;
       cursor += 1;

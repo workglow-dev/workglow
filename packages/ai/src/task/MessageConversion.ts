@@ -67,30 +67,44 @@ export function toOpenAIMessages(input: ToolCallingTaskInput): OpenAICompatMessa
 
   for (const msg of inputMessages) {
     if (msg.role === "user") {
-      messages.push({ role: "user", content: msg.content as string });
-    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
-      const textParts = msg.content
-        .filter((b: Record<string, unknown>) => b.type === "text")
-        .map((b: Record<string, unknown>) => b.text as string)
-        .join("");
-      const toolCalls = msg.content
-        .filter((b: Record<string, unknown>) => b.type === "tool_use")
-        .map((b: Record<string, unknown>) => ({
-          id: b.id as string,
-          type: "function" as const,
-          function: {
-            name: b.name as string,
-            arguments: JSON.stringify(b.input),
-          },
-        }));
-      const entry: OpenAICompatMessage = {
-        role: "assistant",
-        content: textParts.length > 0 ? textParts : null,
-      };
-      if (toolCalls.length > 0) {
-        entry.tool_calls = toolCalls;
+      let content: string;
+      if (typeof msg.content === "string") {
+        content = msg.content;
+      } else {
+        try {
+          content = JSON.stringify(msg.content);
+        } catch {
+          content = String(msg.content);
+        }
       }
-      messages.push(entry);
+      messages.push({ role: "user", content });
+    } else if (msg.role === "assistant") {
+      if (typeof msg.content === "string") {
+        messages.push({ role: "assistant", content: msg.content.length > 0 ? msg.content : null });
+      } else if (Array.isArray(msg.content)) {
+        const textParts = msg.content
+          .filter((b: Record<string, unknown>) => b.type === "text")
+          .map((b: Record<string, unknown>) => b.text as string)
+          .join("");
+        const toolCalls = msg.content
+          .filter((b: Record<string, unknown>) => b.type === "tool_use")
+          .map((b: Record<string, unknown>) => ({
+            id: b.id as string,
+            type: "function" as const,
+            function: {
+              name: b.name as string,
+              arguments: JSON.stringify(b.input),
+            },
+          }));
+        const entry: OpenAICompatMessage = {
+          role: "assistant",
+          content: textParts.length > 0 ? textParts : null,
+        };
+        if (toolCalls.length > 0) {
+          entry.tool_calls = toolCalls;
+        }
+        messages.push(entry);
+      }
     } else if (msg.role === "tool" && Array.isArray(msg.content)) {
       for (const block of msg.content) {
         const b = block as Record<string, unknown>;
@@ -139,14 +153,30 @@ export function toTextFlatMessages(input: ToolCallingTaskInput): TextFlatMessage
 
   for (const msg of inputMessages) {
     if (msg.role === "user") {
-      messages.push({ role: "user", content: msg.content as string });
-    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
-      const text = msg.content
-        .filter((b: Record<string, unknown>) => b.type === "text")
-        .map((b: Record<string, unknown>) => b.text as string)
-        .join("");
-      if (text) {
-        messages.push({ role: "assistant", content: text });
+      let content = "";
+      if (typeof msg.content === "string") {
+        content = msg.content;
+      } else if (msg.content != null) {
+        try {
+          content = JSON.stringify(msg.content);
+        } catch {
+          content = String(msg.content);
+        }
+      }
+      messages.push({ role: "user", content });
+    } else if (msg.role === "assistant") {
+      if (typeof msg.content === "string") {
+        if (msg.content) {
+          messages.push({ role: "assistant", content: msg.content });
+        }
+      } else if (Array.isArray(msg.content)) {
+        const text = msg.content
+          .filter((b: Record<string, unknown>) => b.type === "text")
+          .map((b: Record<string, unknown>) => b.text as string)
+          .join("");
+        if (text) {
+          messages.push({ role: "assistant", content: text });
+        }
       }
     } else if (msg.role === "tool" && Array.isArray(msg.content)) {
       for (const block of msg.content) {
