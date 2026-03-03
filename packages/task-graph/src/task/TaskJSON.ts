@@ -125,8 +125,21 @@ const createSingleTaskFromJSON = (
 };
 
 /**
- * Creates a task instance from a JSON task item configuration
- * Validates required fields and resolves task type from registry
+ * Creates a task instance from a JSON task item configuration.
+ * Validates required fields and resolves the task constructor by type name.
+ *
+ * @param item - The JSON task item containing the task `type`, `id`, optional `config`,
+ *   `defaults`, `dependencies`, and `subtasks`.
+ * @param registry - Optional service registry for dependency-injection-based constructor
+ *   lookup. When provided, task constructors are resolved from the registry's
+ *   `TASK_CONSTRUCTORS` binding (if present); otherwise falls back to the global
+ *   `TaskRegistry`. Omit to use the global registry.
+ * @returns A fully constructed task instance, with its `subGraph` populated when
+ *   `subtasks` are present.
+ * @throws {TaskJSONError} If `id` or `type` are missing, if `defaults` is an array,
+ *   or if the task type is not found in the resolved constructors map.
+ * @throws {TaskConfigurationError} If `subtasks` are provided for a task that is not
+ *   a `GraphAsTask`.
  */
 export const createTaskFromDependencyJSON = (item: JsonTaskItem, registry?: ServiceRegistry) => {
   const task = createSingleTaskFromJSON(item, registry);
@@ -140,8 +153,18 @@ export const createTaskFromDependencyJSON = (item: JsonTaskItem, registry?: Serv
 };
 
 /**
- * Creates a task graph from an array of JSON task items
- * Recursively processes subtasks for compound tasks
+ * Creates a `TaskGraph` from an array of JSON dependency-style task items.
+ * Recursively processes `subtasks` for compound (`GraphAsTask`) tasks.
+ *
+ * @param jsonItems - Array of JSON task items to convert into a task graph.
+ * @param registry - Optional service registry for dependency-injection-based constructor
+ *   lookup. When provided, task constructors are resolved from the registry's
+ *   `TASK_CONSTRUCTORS` binding (if present); otherwise falls back to the global
+ *   `TaskRegistry`. Omit to use the global registry.
+ * @returns A new `TaskGraph` containing all tasks built from `jsonItems`.
+ * @throws {TaskJSONError} If any task item has missing/invalid required fields or an
+ *   unregistered task type.
+ * @throws {TaskConfigurationError} If `subtasks` are specified for a non-`GraphAsTask`.
  */
 export const createGraphFromDependencyJSON = (
   jsonItems: JsonTaskItem[],
@@ -155,10 +178,19 @@ export const createGraphFromDependencyJSON = (
 };
 
 /**
- * Creates a task instance from a task graph item JSON representation
- * @param item The JSON representation of the task
- * @returns A new task instance
- * @throws Error if required fields are missing or invalid
+ * Creates a task instance from a task graph item JSON representation.
+ *
+ * @param item - The JSON representation of the task, including its `type`, `id`,
+ *   optional `config`, `defaults`, `subgraph`, and `merge` strategy.
+ * @param registry - Optional service registry for dependency-injection-based constructor
+ *   lookup. When provided, task constructors are resolved from the registry's
+ *   `TASK_CONSTRUCTORS` binding (if present); otherwise falls back to the global
+ *   `TaskRegistry`. Omit to use the global registry.
+ * @returns A new task instance, with its `subGraph` populated when `subgraph` is present.
+ * @throws {TaskJSONError} If required fields are missing or the task type is not found
+ *   in the resolved constructors map.
+ * @throws {TaskConfigurationError} If a `subgraph` is provided for a task that is not
+ *   a `GraphAsTask`.
  */
 export const createTaskFromGraphJSON = (item: TaskGraphItemJson, registry?: ServiceRegistry) => {
   const task = createSingleTaskFromJSON(item, registry);
@@ -172,9 +204,19 @@ export const createTaskFromGraphJSON = (item: TaskGraphItemJson, registry?: Serv
 };
 
 /**
- * Creates a TaskGraph instance from its JSON representation
- * @param graphJsonObj The JSON representation of the task graph
- * @returns A new TaskGraph instance with all tasks and data flows
+ * Creates a `TaskGraph` instance from its JSON representation.
+ * Reconstructs all tasks and the data flows between them.
+ *
+ * @param graphJsonObj - The JSON representation of the task graph, containing
+ *   `tasks` (array of `TaskGraphItemJson`) and `dataflows` (array of `DataflowJson`).
+ * @param registry - Optional service registry for dependency-injection-based constructor
+ *   lookup. When provided, task constructors are resolved from the registry's
+ *   `TASK_CONSTRUCTORS` binding (if present); otherwise falls back to the global
+ *   `TaskRegistry`. Omit to use the global registry.
+ * @returns A new `TaskGraph` instance with all tasks and data flows restored.
+ * @throws {TaskJSONError} If any task item has missing/invalid required fields or an
+ *   unregistered task type.
+ * @throws {TaskConfigurationError} If a `subgraph` is specified for a non-`GraphAsTask`.
  */
 export const createGraphFromGraphJSON = (
   graphJsonObj: TaskGraphJson,
