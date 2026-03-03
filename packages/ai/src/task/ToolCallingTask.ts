@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, getTaskConstructors, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  getTaskConstructors,
+  JobQueueTaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema, getLogger, JsonSchema, ServiceRegistry } from "@workglow/util";
 import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -18,19 +23,19 @@ import { StreamingAiTask } from "./base/StreamingAiTask";
  * Can be created manually or generated from TaskRegistry entries via {@link taskTypesToTools}.
  */
 export interface ToolDefinition {
-  readonly name: string;
-  readonly description: string;
-  readonly inputSchema: JsonSchema;
-  readonly outputSchema?: JsonSchema;
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+  outputSchema?: JsonSchema;
 }
 
 /**
  * A tool call returned by the LLM, requesting invocation of a specific tool.
  */
 export interface ToolCall {
-  readonly id: string;
-  readonly name: string;
-  readonly input: Record<string, unknown>;
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
 }
 
 /**
@@ -261,7 +266,17 @@ export const ToolCallingOutputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type ToolCallingTaskInput = FromSchema<typeof ToolCallingInputSchema>;
+/**
+ * Runtime input type for ToolCallingTask.
+ *
+ * The schema uses `oneOf: [string, object]` so the UI can accept both task-name
+ * references and inline tool definitions, but the input resolver converts all
+ * strings to {@link ToolDefinition} objects before execution. The `tools` field
+ * is therefore narrowed to `ToolDefinition[]` here.
+ */
+export type ToolCallingTaskInput = Omit<FromSchema<typeof ToolCallingInputSchema>, "tools"> & {
+  readonly tools: ToolDefinition[];
+};
 export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
 
 // ========================================================================

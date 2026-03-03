@@ -25,7 +25,7 @@ import {
   parseToolCallsFromText,
 } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -255,7 +255,7 @@ describe("ToolCallingTask with HFT models", () => {
       name: "get_weather",
       description: "Get the current weather for a city",
       inputSchema: {
-        type: "object" as const,
+        type: "object",
         properties: {
           location: {
             type: "string",
@@ -263,7 +263,7 @@ describe("ToolCallingTask with HFT models", () => {
           },
         },
         required: ["location"],
-      },
+      } as const satisfies JsonSchema,
     },
   ];
 
@@ -355,7 +355,7 @@ describe("ToolCallingTask with HFT models", () => {
         name: "search",
         description: "Search the web for information",
         inputSchema: {
-          type: "object" as const,
+          type: "object",
           properties: {
             query: {
               type: "string",
@@ -363,7 +363,7 @@ describe("ToolCallingTask with HFT models", () => {
             },
           },
           required: ["query"],
-        },
+        } as const satisfies JsonSchema,
       },
     ];
 
