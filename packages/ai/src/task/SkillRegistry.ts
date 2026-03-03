@@ -50,22 +50,6 @@ export function setGlobalTaskConstructors(map: Map<string, AnyTaskConstructor>):
 }
 
 /**
- * Registers a single task constructor into the global task constructors map.
- * @param type The task type name
- * @param ctor The task constructor
- */
-export function registerTaskConstructor(type: string, ctor: AnyTaskConstructor): void {
-  getGlobalTaskConstructors().set(type, ctor);
-}
-
-/**
- * Clears all entries from the global task constructors map.
- */
-export function clearTaskConstructors(): void {
-  getGlobalTaskConstructors().clear();
-}
-
-/**
  * Gets the task constructors map from the given registry,
  * falling back to the global TaskRegistry.
  */
