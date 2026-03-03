@@ -107,7 +107,7 @@ function collectFiles(dirs: string[], kinds: readonly Kind[]): string[] {
 }
 
 async function runBunTest(files: string[]): Promise<number> {
-  const proc = Bun.spawn(["bun", "test", ...files], {
+  const proc = Bun.spawn(["bun", "test", "--run", ...files], {
     cwd: ROOT,
     stdio: ["inherit", "inherit", "inherit"],
   });
@@ -185,12 +185,16 @@ console.log(
 
 // ── Execute ───────────────────────────────────────────────────────────────────
 
+if (!vitestOnly && !bunOnly) {
+  const [bunCode, vitestCode] = await Promise.all([runBunTest(files), runVitest(files)]);
+  if (bunCode !== 0) process.exit(bunCode);
+  process.exit(vitestCode);
+}
+
 if (!vitestOnly) {
-  const code = await runBunTest(files);
-  if (code !== 0) process.exit(code);
+  process.exit(await runBunTest(files));
 }
 
 if (!bunOnly) {
-  const code = await runVitest(files);
-  process.exit(code);
+  process.exit(await runVitest(files));
 }
