@@ -225,6 +225,10 @@ export class TaskGraphRunner {
   /**
    * Runs the task graph in a reactive manner
    * @param input Optional input to pass to root tasks (tasks with no incoming dataflows)
+   * @param config Optional configuration for the reactive run. Supports overriding the
+   *   ServiceRegistry (`registry`), providing an output cache (`outputCache`), passing an
+   *   abort signal (`parentSignal`), and controlling whether streaming leaf task outputs are
+   *   accumulated into the return value (`accumulateLeafOutputs`).
    * @returns A promise that resolves when all tasks are complete
    * @throws TaskConfigurationError if the graph is already running reactively
    */
