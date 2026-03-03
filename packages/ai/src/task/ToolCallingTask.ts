@@ -121,7 +121,9 @@ export function taskTypesToTools(
   return taskNames.map((name) => {
     const ctor = constructors.get(name);
     if (!ctor) {
-      throw new Error(`taskTypesToTools: Unknown task type "${name}" — not found in TaskRegistry`);
+      throw new Error(
+        `taskTypesToTools: Unknown task type "${name}" — not found in task constructors registry (ServiceRegistry: ${registry ? "custom" : "default"})`
+      );
     }
     return {
       name: ctor.type,
