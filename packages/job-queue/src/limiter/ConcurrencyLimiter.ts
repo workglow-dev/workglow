@@ -15,12 +15,10 @@ export const CONCURRENT_JOB_LIMITER = createServiceToken<ILimiter>("jobqueue.lim
 export class ConcurrencyLimiter implements ILimiter {
   private currentRunningJobs: number = 0;
   private readonly maxConcurrentJobs: number;
-  private readonly pollIntervalMs: number;
   private nextAllowedStartTime: Date = new Date();
 
-  constructor(maxConcurrentJobs: number, pollIntervalMs: number = 100) {
+  constructor(maxConcurrentJobs: number) {
     this.maxConcurrentJobs = maxConcurrentJobs;
-    this.pollIntervalMs = pollIntervalMs;
   }
 
   async canProceed(): Promise<boolean> {
@@ -39,9 +37,7 @@ export class ConcurrencyLimiter implements ILimiter {
   }
 
   async getNextAvailableTime(): Promise<Date> {
-    return this.currentRunningJobs < this.maxConcurrentJobs
-      ? new Date()
-      : new Date(Date.now() + this.pollIntervalMs);
+    return this.currentRunningJobs > this.maxConcurrentJobs ? new Date() : new Date(Date.now() - 1);
   }
 
   async setNextAvailableTime(date: Date): Promise<void> {

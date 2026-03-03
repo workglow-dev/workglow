@@ -330,6 +330,9 @@ export class JobQueueServer<
       if (this.deleteAfterCompletionMs === 0) {
         await this.storage.delete(jobId);
       }
+
+      // A concurrency slot freed up — wake idle workers
+      this.notifyWorkers();
     });
 
     worker.on("job_error", async (jobId, error, errorCode) => {
@@ -341,6 +344,9 @@ export class JobQueueServer<
       if (this.deleteAfterFailureMs === 0) {
         await this.storage.delete(jobId);
       }
+
+      // A concurrency slot freed up — wake idle workers
+      this.notifyWorkers();
     });
 
     worker.on("job_disabled", async (jobId) => {
@@ -352,6 +358,9 @@ export class JobQueueServer<
       if (this.deleteAfterDisabledMs === 0) {
         await this.storage.delete(jobId);
       }
+
+      // A concurrency slot freed up — wake idle workers
+      this.notifyWorkers();
     });
 
     worker.on("job_retry", (jobId, runAfter) => {

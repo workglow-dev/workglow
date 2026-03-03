@@ -5,8 +5,8 @@
  */
 
 import { createServiceToken, globalServiceRegistry } from "../di/ServiceRegistry";
-import { ConsoleLogger } from "./ConsoleLogger";
 import type { LogLevel } from "./ConsoleLogger";
+import { ConsoleLogger } from "./ConsoleLogger";
 import type { ILogger } from "./ILogger";
 import { NullLogger } from "./NullLogger";
 

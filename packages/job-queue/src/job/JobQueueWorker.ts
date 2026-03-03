@@ -232,43 +232,49 @@ export class JobQueueWorker<
   /**
    * Main job processing loop.
    *
-   * When no jobs are available the worker sleeps until either:
-   * - {@link notify} is called (e.g. because the server saw a new job inserted), or
-   * - the poll-interval timeout expires (fallback for storages without push events).
+   * Runs as a tight `while` loop (no recursive `setTimeout`) so that
+   * back-to-back jobs are picked up with minimal inter-job latency.
    *
-   * This eliminates unnecessary polling when the queue is empty while still
-   * reacting instantly to new work.
+   * When no jobs are available the worker sleeps until either:
+   * - {@link notify} is called (e.g. because the server saw a new job inserted
+   *   or a running job completed and freed a concurrency slot), or
+   * - the poll-interval timeout expires (fallback for storages without push
+   *   events).
    */
   protected async processJobs(): Promise<void> {
-    if (!this.running) {
-      return;
-    }
+    while (this.running) {
+      try {
+        // Check for aborting jobs
+        await this.checkForAbortingJobs();
 
-    try {
-      // Check for aborting jobs
-      await this.checkForAbortingJobs();
+        const canProceed = await this.limiter.canProceed();
+        if (canProceed) {
+          const job = await this.next();
+          if (job) {
+            // Don't await - process in background to allow concurrent jobs.
+            // The loop will re-check canProceed on the next iteration; if the
+            // limiter is at capacity it will wait for a notify (fired by the
+            // server when a job completes and frees a slot).
+            this.processSingleJob(job);
+            continue;
+          }
+        }
 
-      const canProceed = await this.limiter.canProceed();
-      if (canProceed) {
-        const job = await this.next();
-        if (job) {
-          // Don't await - process in background to allow concurrent jobs
-          this.processSingleJob(job);
-        } else {
-          // No work available — sleep until notified or until the next
-          // deferred job becomes ready, whichever comes first.
+        // Either no jobs available or limiter is at capacity — wait for
+        // something to change before re-checking.
+        if (canProceed) {
+          // Queue is empty — sleep until notified of new work or until
+          // the next deferred job becomes ready.
           const delay = await this.getIdleDelay();
           await this.waitForWakeOrTimeout(delay);
+        } else {
+          // At capacity — wait until notified (a job completes and frees a
+          // slot) or the poll interval expires as a fallback.
+          await this.waitForWakeOrTimeout(this.pollIntervalMs);
         }
-      } else {
-        // Limiter blocked — back off for one poll interval
+      } catch {
+        // Don't let transient errors kill the loop
         await sleep(this.pollIntervalMs);
-      }
-    } finally {
-      if (this.running) {
-        // Delay is managed by waitForWakeOrTimeout when idle, so reschedule
-        // immediately here to keep the loop responsive.
-        setTimeout(() => this.processJobs(), 0);
       }
     }
   }
