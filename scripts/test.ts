@@ -189,12 +189,8 @@ if (!vitestOnly && !bunOnly) {
   const [bunCode, vitestCode] = await Promise.all([runBunTest(files), runVitest(files)]);
   if (bunCode !== 0) process.exit(bunCode);
   process.exit(vitestCode);
-}
-
-if (!vitestOnly) {
+} else if (!vitestOnly) {
   process.exit(await runBunTest(files));
-}
-
-if (!bunOnly) {
+} else if (!bunOnly) {
   process.exit(await runVitest(files));
 }
