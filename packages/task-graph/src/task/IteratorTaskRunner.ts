@@ -179,7 +179,7 @@ export class IteratorTaskRunner<
     const clone = new TaskGraph();
     for (const task of graph.getTasks()) {
       const ctor = task.constructor as ITaskConstructor<any, any, any>;
-      const newTask = new ctor(task.defaults, task.config);
+      const newTask = new ctor(task.defaults, task.config, task.runConfig);
       if (task.hasChildren()) {
         newTask.subGraph = this.cloneGraph(task.subGraph);
       }
