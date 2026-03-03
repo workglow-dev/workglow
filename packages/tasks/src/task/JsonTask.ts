@@ -88,14 +88,14 @@ export class JsonTask<
       "dataflows" in data &&
       Array.isArray((data as TaskGraphJson).dataflows)
     ) {
-      this.subGraph = createGraphFromGraphJSON(data as TaskGraphJson);
+      this.subGraph = createGraphFromGraphJSON(data as TaskGraphJson, this.runConfig?.registry);
       super.regenerateGraph();
       return;
     }
 
     // Dependency format: array of JsonTaskItem (or single item)
     let jsonItems: JsonTaskItem[] = Array.isArray(data) ? data : [data as JsonTaskItem];
-    this.subGraph = createGraphFromDependencyJSON(jsonItems);
+    this.subGraph = createGraphFromDependencyJSON(jsonItems, this.runConfig?.registry);
 
     for (const item of jsonItems) {
       if (!item.dependencies) continue;

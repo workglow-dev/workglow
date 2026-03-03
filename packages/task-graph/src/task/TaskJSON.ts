@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ServiceRegistry } from "@workglow/util";
 import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
-import { TaskRegistry } from "../task/TaskRegistry";
+import { getTaskConstructors } from "../task/TaskRegistry";
 import { ConditionalTaskConfig } from "./ConditionalTask";
 import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
 import { IteratorTaskConfig } from "./IteratorTask";
@@ -17,7 +18,6 @@ import { MapTaskConfig } from "./MapTask";
 import { ReduceTaskConfig } from "./ReduceTask";
 import { TaskConfig, TaskInput } from "./TaskTypes";
 import { WhileTaskConfig } from "./WhileTask";
-import type { ITaskConstructor } from "./ITask";
 
 // ========================================================================
 // JSON Serialization Types
@@ -104,14 +104,15 @@ export interface TaskGraphJsonOptions {
 
 const createSingleTaskFromJSON = (
   item: JsonTaskItem | TaskGraphItemJson,
-  taskRegistry?: Map<string, ITaskConstructor<any, any, any>>
+  registry?: ServiceRegistry
 ) => {
   if (!item.id) throw new TaskJSONError("Task id required");
   if (!item.type) throw new TaskJSONError("Task type required");
   if (item.defaults && Array.isArray(item.defaults))
     throw new TaskJSONError("Task defaults must be an object");
 
-  const taskClass = taskRegistry?.get(item.type) ?? TaskRegistry.all.get(item.type);
+  const constructors = getTaskConstructors(registry);
+  const taskClass = constructors.get(item.type);
   if (!taskClass)
     throw new TaskJSONError(`Task type ${item.type} not found, perhaps not registered?`);
 
@@ -127,13 +128,13 @@ const createSingleTaskFromJSON = (
  * Creates a task instance from a JSON task item configuration
  * Validates required fields and resolves task type from registry
  */
-export const createTaskFromDependencyJSON = (item: JsonTaskItem) => {
-  const task = createSingleTaskFromJSON(item);
+export const createTaskFromDependencyJSON = (item: JsonTaskItem, registry?: ServiceRegistry) => {
+  const task = createSingleTaskFromJSON(item, registry);
   if (item.subtasks && item.subtasks.length > 0) {
     if (!(task instanceof GraphAsTask)) {
       throw new TaskConfigurationError("Subgraph is only supported for CompoundTasks");
     }
-    task.subGraph = createGraphFromDependencyJSON(item.subtasks);
+    task.subGraph = createGraphFromDependencyJSON(item.subtasks, registry);
   }
   return task;
 };
@@ -142,10 +143,13 @@ export const createTaskFromDependencyJSON = (item: JsonTaskItem) => {
  * Creates a task graph from an array of JSON task items
  * Recursively processes subtasks for compound tasks
  */
-export const createGraphFromDependencyJSON = (jsonItems: JsonTaskItem[]) => {
+export const createGraphFromDependencyJSON = (
+  jsonItems: JsonTaskItem[],
+  registry?: ServiceRegistry
+) => {
   const subGraph = new TaskGraph();
   for (const subitem of jsonItems) {
-    subGraph.addTask(createTaskFromDependencyJSON(subitem));
+    subGraph.addTask(createTaskFromDependencyJSON(subitem, registry));
   }
   return subGraph;
 };
@@ -156,16 +160,13 @@ export const createGraphFromDependencyJSON = (jsonItems: JsonTaskItem[]) => {
  * @returns A new task instance
  * @throws Error if required fields are missing or invalid
  */
-export const createTaskFromGraphJSON = (
-  item: TaskGraphItemJson,
-  taskRegistry?: Map<string, ITaskConstructor<any, any, any>>
-) => {
-  const task = createSingleTaskFromJSON(item, taskRegistry);
+export const createTaskFromGraphJSON = (item: TaskGraphItemJson, registry?: ServiceRegistry) => {
+  const task = createSingleTaskFromJSON(item, registry);
   if (item.subgraph) {
     if (!(task instanceof GraphAsTask)) {
       throw new TaskConfigurationError("Subgraph is only supported for GraphAsTask");
     }
-    task.subGraph = createGraphFromGraphJSON(item.subgraph, taskRegistry);
+    task.subGraph = createGraphFromGraphJSON(item.subgraph, registry);
   }
   return task;
 };
@@ -177,11 +178,11 @@ export const createTaskFromGraphJSON = (
  */
 export const createGraphFromGraphJSON = (
   graphJsonObj: TaskGraphJson,
-  taskRegistry?: Map<string, ITaskConstructor<any, any, any>>
+  registry?: ServiceRegistry
 ) => {
   const subGraph = new TaskGraph();
   for (const subitem of graphJsonObj.tasks) {
-    subGraph.addTask(createTaskFromGraphJSON(subitem, taskRegistry));
+    subGraph.addTask(createTaskFromGraphJSON(subitem, registry));
   }
   for (const subitem of graphJsonObj.dataflows) {
     subGraph.addDataflow(

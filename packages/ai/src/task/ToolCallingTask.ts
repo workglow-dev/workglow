@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, TaskRegistry, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema, getLogger, JsonSchema } from "@workglow/util";
+import { CreateWorkflow, getTaskConstructors, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { DataPortSchema, FromSchema, getLogger, JsonSchema, ServiceRegistry } from "@workglow/util";
 import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 
@@ -97,19 +97,24 @@ export function filterValidToolCalls(
 // ========================================================================
 
 /**
- * Converts an allow-list of task type names from the {@link TaskRegistry}
- * into {@link ToolDefinition} objects suitable for the ToolCallingTask input.
+ * Converts an allow-list of task type names into {@link ToolDefinition} objects
+ * suitable for the ToolCallingTask input.
  *
  * Each task's `type`, `description`, `inputSchema()`, and `outputSchema()`
  * are used to build the tool definition.
  *
- * @param taskNames - Array of task type names registered in TaskRegistry
+ * @param taskNames - Array of task type names registered in the task constructors
+ * @param registry - Optional service registry for DI-based lookups
  * @returns Array of ToolDefinition objects
  * @throws Error if a task name is not found in the registry
  */
-export function taskTypesToTools(taskNames: ReadonlyArray<string>): ToolDefinition[] {
+export function taskTypesToTools(
+  taskNames: ReadonlyArray<string>,
+  registry?: ServiceRegistry
+): ToolDefinition[] {
+  const constructors = getTaskConstructors(registry);
   return taskNames.map((name) => {
-    const ctor = TaskRegistry.all.get(name);
+    const ctor = constructors.get(name);
     if (!ctor) {
       throw new Error(`taskTypesToTools: Unknown task type "${name}" — not found in TaskRegistry`);
     }
@@ -126,7 +131,7 @@ export function taskTypesToTools(taskNames: ReadonlyArray<string>): ToolDefiniti
 // Schemas
 // ========================================================================
 
-const ToolDefinitionSchema = {
+export const ToolDefinitionSchema = {
   type: "object",
   properties: {
     name: {

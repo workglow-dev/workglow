@@ -130,7 +130,6 @@ export * from "./ObjectDetectionTask";
 export * from "./PoseLandmarkerTask";
 export * from "./QueryExpanderTask";
 export * from "./RerankerTask";
-export * from "./SkillRegistry";
 export * from "./StructuralParserTask";
 export * from "./StructuredGenerationTask";
 export * from "./TextChunkerTask";
