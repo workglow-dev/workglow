@@ -1,5 +1,17 @@
 # @workglow/job-queue
 
+## 0.0.110
+
+### Features
+
+- add build-js and watch-js scripts across packages
+- enhance job processing and worker notification in JobQueueServer and JobQueueWorker
+- replace worker polling with event-driven wake/sleep mechanism
+
+### Bug Fixes
+
+- ensure type safety for input and output schemas across AI tasks
+
 ## 0.0.109
 
 ## 0.0.108

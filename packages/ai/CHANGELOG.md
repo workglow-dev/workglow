@@ -1,5 +1,16 @@
 # @workglow/ai
 
+## 0.0.110
+
+### Features
+
+- add build-js and watch-js scripts across packages
+- add detail property to ModelInfoTask and enhance HFT_ModelInfo processing
+
+### Bug Fixes
+
+- ensure type safety for input and output schemas across AI tasks
+
 ## 0.0.109
 
 ### Features
