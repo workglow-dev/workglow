@@ -210,12 +210,12 @@ export const ToolCallingInputSchema = {
     },
     tools: {
       type: "array",
-      format: "skills",
+      format: "tasks",
       title: "Tools",
       description: "Tool definitions available for the model to call",
       items: {
         oneOf: [
-          { type: "string", format: "skills", description: "Task type name" },
+          { type: "string", format: "tasks", description: "Task type name" },
           ToolDefinitionSchema,
         ],
       },

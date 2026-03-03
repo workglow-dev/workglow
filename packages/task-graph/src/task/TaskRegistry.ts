@@ -54,7 +54,7 @@ export const TaskRegistry = {
 };
 
 // ========================================================================
-// DI-based access (migrated from SkillRegistry)
+// DI-based access
 // ========================================================================
 
 /**
@@ -99,13 +99,13 @@ export function getTaskConstructors(registry?: ServiceRegistry): Map<string, Any
 }
 
 // ========================================================================
-// Skills resolver (migrated from SkillRegistry)
+// Tasks resolver
 // ========================================================================
 
 /**
  * Resolves a task type name to a tool definition object via the task constructor registry.
  *
- * Used by the input resolver system for `format: "skills"` properties.
+ * Used by the input resolver system for `format: "tasks"` properties.
  * Converts lightweight string IDs (stored by the property editor) into full
  * tool definition objects at runtime.
  *
@@ -114,7 +114,7 @@ export function getTaskConstructors(registry?: ServiceRegistry): Map<string, Any
  * @param registry - Service registry for context-specific lookups
  * @returns Tool definition object, or undefined if the task type is not found
  */
-function resolveSkillFromRegistry(
+function resolveTaskFromRegistry(
   id: string,
   _format: string,
   registry: ServiceRegistry
@@ -130,5 +130,5 @@ function resolveSkillFromRegistry(
   };
 }
 
-// Register the skills resolver for format: "skills"
-registerInputResolver("skills", resolveSkillFromRegistry);
+// Register the tasks resolver for format: "tasks"
+registerInputResolver("tasks", resolveTaskFromRegistry);
