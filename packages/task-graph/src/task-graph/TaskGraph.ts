@@ -8,11 +8,11 @@ import { DirectedAcyclicGraph, EventEmitter, ServiceRegistry, uuid4 } from "@wor
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
-import { addBoundaryNodesToDependencyJson, addBoundaryNodesToGraphJson } from "./GraphSchemaUtils";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction } from "./Conversions";
 import { Dataflow, type DataflowIdType } from "./Dataflow";
+import { addBoundaryNodesToDependencyJson, addBoundaryNodesToGraphJson } from "./GraphSchemaUtils";
 import type { ITaskGraph } from "./ITaskGraph";
 import {
   EventTaskGraphToDagMapping,
@@ -113,6 +113,7 @@ export class TaskGraph implements ITaskGraph {
       outputCache: config?.outputCache || this.outputCache,
       parentSignal: config?.parentSignal || undefined,
       accumulateLeafOutputs: config?.accumulateLeafOutputs,
+      registry: config?.registry,
     });
   }
 
@@ -122,9 +123,10 @@ export class TaskGraph implements ITaskGraph {
    * @throws TaskError if any tasks have failed
    */
   public runReactive<Output extends TaskOutput>(
-    input: TaskInput = {} as TaskInput
+    input: TaskInput = {} as TaskInput,
+    config: TaskGraphRunConfig = {}
   ): Promise<GraphResultArray<Output>> {
-    return this.runner.runGraphReactive<Output>(input);
+    return this.runner.runGraphReactive<Output>(input, config);
   }
 
   /**

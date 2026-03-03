@@ -229,9 +229,10 @@ export class TaskGraphRunner {
    * @throws TaskConfigurationError if the graph is already running reactively
    */
   public async runGraphReactive<Output extends TaskOutput>(
-    input: TaskInput = {} as TaskInput
+    input: TaskInput = {} as TaskInput,
+    config?: TaskGraphRunConfig
   ): Promise<GraphResultArray<Output>> {
-    await this.handleStartReactive();
+    await this.handleStartReactive(config);
 
     const results: GraphResultArray<Output> = [];
     try {
@@ -950,10 +951,17 @@ export class TaskGraphRunner {
     this.graph.emit("start");
   }
 
-  protected async handleStartReactive(): Promise<void> {
+  protected async handleStartReactive(config?: TaskGraphRunConfig): Promise<void> {
     if (this.reactiveRunning) {
       throw new TaskConfigurationError("Graph is already running reactively");
     }
+
+    // Use explicit registry if provided; otherwise keep the existing one
+    // (which is either globalServiceRegistry by default, or whatever handleStart set).
+    if (config?.registry !== undefined) {
+      this.registry = config.registry;
+    }
+
     this.reactiveScheduler.reset();
     this.reactiveRunning = true;
   }

@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -198,9 +198,15 @@ export const ToolCallingInputSchema = {
     },
     tools: {
       type: "array",
+      format: "skills",
       title: "Tools",
       description: "Tool definitions available for the model to call",
-      items: ToolDefinitionSchema,
+      items: {
+        oneOf: [
+          { type: "string", format: "skills", description: "Task type name" },
+          ToolDefinitionSchema,
+        ],
+      },
     },
     toolChoice: {
       type: "string",

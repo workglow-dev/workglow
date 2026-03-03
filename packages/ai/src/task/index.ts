@@ -42,8 +42,8 @@ import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask
 import { TextQuestionAnswerTask } from "./TextQuestionAnswerTask";
 import { TextRewriterTask } from "./TextRewriterTask";
 import { TextSummaryTask } from "./TextSummaryTask";
-import { ToolCallingTask } from "./ToolCallingTask";
 import { TextTranslationTask } from "./TextTranslationTask";
+import { ToolCallingTask } from "./ToolCallingTask";
 import { TopicSegmenterTask } from "./TopicSegmenterTask";
 import { UnloadModelTask } from "./UnloadModelTask";
 import { VectorQuantizeTask } from "./VectorQuantizeTask";
@@ -130,6 +130,7 @@ export * from "./ObjectDetectionTask";
 export * from "./PoseLandmarkerTask";
 export * from "./QueryExpanderTask";
 export * from "./RerankerTask";
+export * from "./SkillRegistry";
 export * from "./StructuralParserTask";
 export * from "./StructuredGenerationTask";
 export * from "./TextChunkerTask";
