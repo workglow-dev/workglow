@@ -2018,6 +2018,7 @@ export const HFT_ModelInfo: AiProviderRunFn<
   const timerLabel = `hft:ModelInfo:${model?.provider_config.model_path}`;
   logger.time(timerLabel, { model: model?.provider_config.model_path });
 
+  const detail = input.detail;
   const is_loaded = pipelines.has(getPipelineCacheKey(model!));
 
   const { pipeline: pipelineType, model_path, dtype, device } = model!.provider_config;
@@ -2026,11 +2027,20 @@ export const HFT_ModelInfo: AiProviderRunFn<
     ...(dtype ? { dtype } : {}),
     ...(device ? { device: device as any } : {}),
   });
+  logger.error("cacheStatus", cacheStatus);
   const is_cached = is_loaded || cacheStatus.allCached;
 
-  // Get file sizes via metadata for all files the pipeline needs
+  // Build file_sizes based on requested detail level
   let file_sizes: Record<string, number> | null = null;
-  if (cacheStatus.files.length > 0) {
+  if (detail === "files" && cacheStatus.files.length > 0) {
+    // Return file names with zero sizes (no network calls)
+    const sizes: Record<string, number> = {};
+    for (const { file } of cacheStatus.files) {
+      sizes[file] = 0;
+    }
+    file_sizes = sizes;
+  } else if (detail === "files_with_metadata" && cacheStatus.files.length > 0) {
+    // Full metadata fetch per file (N network calls)
     const sizes: Record<string, number> = {};
     await Promise.all(
       cacheStatus.files.map(async ({ file }) => {

@@ -15,6 +15,11 @@ const ModelInfoInputSchema = {
   type: "object",
   properties: {
     model: modelSchema,
+    detail: {
+      type: "string",
+      enum: ["cached_status", "files", "files_with_metadata"],
+      default: "files_with_metadata",
+    },
   },
   required: ["model"],
   additionalProperties: false,
