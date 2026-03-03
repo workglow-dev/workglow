@@ -21,6 +21,11 @@ export function createSupabaseMockClient(): SupabaseClient {
 
   // Create a minimal SupabaseClient-compatible object
   const mockClient = {
+    // Remove a realtime channel (cleanup)
+    removeChannel: (_channel: any) => {
+      // Mock removeChannel - no-op
+    },
+
     // Realtime channel method for subscriptions
     channel: (name: string) => {
       return {
@@ -128,44 +133,56 @@ export function createSupabaseMockClient(): SupabaseClient {
         },
 
         insert: (data: any) => {
+          const executeInsert = async () => {
+            try {
+              const isArray = Array.isArray(data);
+              const records = isArray ? data : [data];
+
+              if (records.length === 0) {
+                return { data: null, error: new Error("No data to insert") };
+              }
+
+              const keys = Object.keys(records[0]);
+              const values = records
+                .map(
+                  (record) =>
+                    `(${keys
+                      .map((k) => {
+                        const val = record[k];
+                        if (val === null || val === undefined) return "NULL";
+                        if (typeof val === "object")
+                          return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+                        if (typeof val === "string") return `'${val.replace(/'/g, "''")}'`;
+                        return String(val);
+                      })
+                      .join(",")})`
+                )
+                .join(",");
+
+              const query = `INSERT INTO "${queryBuilder._table}" (${keys.map((k) => `"${k}"`).join(",")}) VALUES ${values} RETURNING *`;
+              const result = await pglite.query(query);
+
+              return { data: result.rows[0], error: null };
+            } catch (error: any) {
+              return { data: null, error };
+            }
+          };
+
           return {
             select: () => {
               return {
                 single: async () => {
-                  try {
-                    const isArray = Array.isArray(data);
-                    const records = isArray ? data : [data];
-
-                    if (records.length === 0) {
-                      return { data: null, error: new Error("No data to insert") };
-                    }
-
-                    const keys = Object.keys(records[0]);
-                    const values = records
-                      .map(
-                        (record) =>
-                          `(${keys
-                            .map((k) => {
-                              const val = record[k];
-                              if (val === null || val === undefined) return "NULL";
-                              if (typeof val === "object")
-                                return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
-                              if (typeof val === "string") return `'${val.replace(/'/g, "''")}'`;
-                              return String(val);
-                            })
-                            .join(",")})`
-                      )
-                      .join(",");
-
-                    const query = `INSERT INTO "${queryBuilder._table}" (${keys.map((k) => `"${k}"`).join(",")}) VALUES ${values} RETURNING *`;
-                    const result = await pglite.query(query);
-
-                    return { data: result.rows[0], error: null };
-                  } catch (error: any) {
-                    return { data: null, error };
-                  }
+                  return executeInsert();
                 },
               };
+            },
+            then: async (resolve: any, reject: any) => {
+              try {
+                const result = await executeInsert();
+                resolve(result);
+              } catch (error) {
+                reject?.(error);
+              }
             },
           };
         },
