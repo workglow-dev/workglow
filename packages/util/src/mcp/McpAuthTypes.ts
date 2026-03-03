@@ -148,53 +148,95 @@ export const mcpAuthConfigSchema = {
 } as const satisfies DataPortSchemaObject["properties"];
 
 /**
+ * Runtime type guard for McpAuthType.
+ */
+function isMcpAuthType(value: unknown): value is McpAuthType {
+  return (
+    typeof value === "string" && (mcpAuthTypes as readonly string[]).includes(value)
+  );
+}
+
+function asNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+/**
  * Constructs a typed McpAuthConfig from flat schema properties.
  * Used by `createMcpClient()` to normalize the config.
+ * Returns `undefined` if required fields for the selected auth type are missing.
  */
 export function buildAuthConfig(flat: Record<string, unknown>): McpAuthConfig | undefined {
-  const authType = flat.auth_type as McpAuthType | undefined;
-  if (!authType || authType === "none") return undefined;
+  const rawAuthType = flat.auth_type;
+
+  if (!isMcpAuthType(rawAuthType) || rawAuthType === "none") {
+    return undefined;
+  }
+
+  const authType: McpAuthType = rawAuthType;
 
   switch (authType) {
-    case "bearer":
-      return {
-        type: "bearer",
-        token: flat.auth_token as string,
-      };
-    case "client_credentials":
+    case "bearer": {
+      const token = asNonEmptyString(flat.auth_token);
+      if (!token) return undefined;
+      return { type: "bearer", token };
+    }
+    case "client_credentials": {
+      const client_id = asNonEmptyString(flat.auth_client_id);
+      const client_secret = asNonEmptyString(flat.auth_client_secret);
+      if (!client_id || !client_secret) return undefined;
       return {
         type: "client_credentials",
-        client_id: flat.auth_client_id as string,
-        client_secret: flat.auth_client_secret as string,
-        client_name: flat.auth_client_name as string | undefined,
-        scope: flat.auth_scope as string | undefined,
+        client_id,
+        client_secret,
+        client_name: asNonEmptyString(flat.auth_client_name),
+        scope: asNonEmptyString(flat.auth_scope),
       };
-    case "private_key_jwt":
+    }
+    case "private_key_jwt": {
+      const client_id = asNonEmptyString(flat.auth_client_id);
+      const private_key = asNonEmptyString(flat.auth_private_key);
+      const algorithm = asNonEmptyString(flat.auth_algorithm);
+      if (!client_id || !private_key || !algorithm) return undefined;
       return {
         type: "private_key_jwt",
-        client_id: flat.auth_client_id as string,
-        private_key: flat.auth_private_key as string,
-        algorithm: flat.auth_algorithm as string,
-        client_name: flat.auth_client_name as string | undefined,
-        jwt_lifetime_seconds: flat.auth_jwt_lifetime_seconds as number | undefined,
-        scope: flat.auth_scope as string | undefined,
+        client_id,
+        private_key,
+        algorithm,
+        client_name: asNonEmptyString(flat.auth_client_name),
+        jwt_lifetime_seconds: asNumber(flat.auth_jwt_lifetime_seconds),
+        scope: asNonEmptyString(flat.auth_scope),
       };
-    case "static_private_key_jwt":
+    }
+    case "static_private_key_jwt": {
+      const client_id = asNonEmptyString(flat.auth_client_id);
+      const jwt_bearer_assertion = asNonEmptyString(flat.auth_jwt_bearer_assertion);
+      if (!client_id || !jwt_bearer_assertion) return undefined;
       return {
         type: "static_private_key_jwt",
-        client_id: flat.auth_client_id as string,
-        jwt_bearer_assertion: flat.auth_jwt_bearer_assertion as string,
-        client_name: flat.auth_client_name as string | undefined,
-        scope: flat.auth_scope as string | undefined,
+        client_id,
+        jwt_bearer_assertion,
+        client_name: asNonEmptyString(flat.auth_client_name),
+        scope: asNonEmptyString(flat.auth_scope),
       };
-    case "authorization_code":
+    }
+    case "authorization_code": {
+      const client_id = asNonEmptyString(flat.auth_client_id);
+      const redirect_url = asNonEmptyString(flat.auth_redirect_url);
+      if (!client_id || !redirect_url) return undefined;
       return {
         type: "authorization_code",
-        client_id: flat.auth_client_id as string,
-        client_secret: flat.auth_client_secret as string | undefined,
-        redirect_url: flat.auth_redirect_url as string,
-        scope: flat.auth_scope as string | undefined,
+        client_id,
+        client_secret: asNonEmptyString(flat.auth_client_secret),
+        redirect_url,
+        scope: asNonEmptyString(flat.auth_scope),
       };
+    }
     default:
       return undefined;
   }

@@ -20,6 +20,9 @@ import type { McpAuthConfig } from "./McpAuthTypes";
 import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 import { getLogger } from "../logging/LoggerRegistry";
 
+/** MCP protocol version sent on every request; matches SDK's initialize payload so servers that require the header on all requests accept the connection. */
+const MCP_PROTOCOL_VERSION_HEADER = "2025-11-25";
+
 export const mcpTransportTypes = ["stdio", "sse", "streamable-http"] as const;
 
 export const mcpServerConfigSchema = {
@@ -89,9 +92,11 @@ export async function createMcpClient(
       ? createAuthProvider(auth, config.server_url ?? "", getGlobalCredentialStore())
       : undefined;
 
-  // Build request headers for bearer auth
-  const bearerHeaders: Record<string, string> =
-    auth?.type === "bearer" ? { Authorization: `Bearer ${auth.token}` } : {};
+  // Build request headers, merging MCP protocol version with optional bearer auth
+  const headers: Record<string, string> = {
+    "MCP-Protocol-Version": MCP_PROTOCOL_VERSION_HEADER,
+    ...(auth?.type === "bearer" ? { Authorization: `Bearer ${auth.token}` } : {}),
+  };
 
   switch (config.transport) {
     case "stdio":
@@ -109,20 +114,16 @@ export async function createMcpClient(
       break;
     case "sse": {
       // SSEClientTransport is deprecated but still needed for legacy servers
-      const requestInit =
-        Object.keys(bearerHeaders).length > 0 ? { headers: bearerHeaders } : undefined;
       transport = new SSEClientTransport(new URL(config.server_url!), {
         authProvider,
-        requestInit,
+        requestInit: { headers },
       });
       break;
     }
     case "streamable-http": {
-      const requestInit =
-        Object.keys(bearerHeaders).length > 0 ? { headers: bearerHeaders } : undefined;
       transport = new StreamableHTTPClientTransport(new URL(config.server_url!), {
         authProvider,
-        requestInit,
+        requestInit: { headers },
       });
       break;
     }
