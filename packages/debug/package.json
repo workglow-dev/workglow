@@ -6,9 +6,11 @@
   "description": "Debug utilities for Workglow, including Chrome DevTools custom formatters for task graphs and workflows.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
+    "watch-js": "bun run watch-browser",
     "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "concurrently -c 'auto' -n 'browser,types' 'bun run build-browser' 'bun run build-types'",
+    "build-js": "bun run build-browser",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",

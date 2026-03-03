@@ -17,6 +17,16 @@
         "tsconfig.tsbuildinfo"
       ]
     },
+    "build-js": {
+      "dependsOn": [
+        "build-clean",
+        "^build-js"
+      ],
+      "outputs": [
+        "dist/**/*.js",
+        "dist/**/*.js.map"
+      ]
+    },
     "build-types": {
       "dependsOn": [
         "build-clean",
@@ -45,6 +55,10 @@
       "cache": false
     },
     "watch": {
+      "persistent": true,
+      "cache": false
+    },
+    "watch-js": {
       "persistent": true,
       "cache": false
     },

@@ -10,10 +10,12 @@
   "scripts": {
     "build": "turbo run build-package build-example --force",
     "build:packages": "turbo run build-package --force",
+    "build:js": "turbo run build-js --force",
     "build:examples": "turbo run build-example --force",
     "build:types": "turbo run build-types --force",
     "clean": "rm -rf node_modules packages/*/node_modules packages/*/*tsbuildinfo packages/*/dist packages/*/src/**/*\\.d\\.ts packages/*/src/**/*\\.map examples/*/node_modules examples/*/dist examples/*/src/**/*\\.d\\.ts examples/*/src/**/*\\.map .turbo */*/.turbo",
     "watch": "turbo run build-package --force && turbo run watch --concurrency 15",
+    "watch:js": "turbo run build-package --force --ui=stream && turbo run watch-js --concurrency 15 --ui=stream",
     "watch-types": "turbo run watch-types --concurrency 15",
     "dev": "turbo run dev",
     "watch:packages": "concurrently --kill-others -c 'auto' -n sqlite,util,storage,job-queue,task-graph,tasks,ai,provider,test,workflow 'cd packages/sqlite && bun run watch' 'cd packages/util && bun run watch' 'cd packages/storage && bun run watch' 'cd packages/job-queue && bun run watch' 'cd packages/task-graph && bun run watch' 'cd packages/tasks && bun run watch' 'cd packages/ai && bun run watch' 'cd packages/ai-provider && bun run watch' 'cd packages/test && bun run watch' 'cd packages/workflow && bun run watch'",
