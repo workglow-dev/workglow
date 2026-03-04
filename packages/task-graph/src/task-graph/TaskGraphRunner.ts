@@ -26,7 +26,7 @@ import { Task } from "../task/Task";
 import { TaskAbortedError, TaskConfigurationError, TaskError } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
-import { TaskGraph, TaskGraphRunConfig } from "./TaskGraph";
+import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
 export type GraphSingleTaskResult<T> = {
@@ -234,7 +234,7 @@ export class TaskGraphRunner {
    */
   public async runGraphReactive<Output extends TaskOutput>(
     input: TaskInput = {} as TaskInput,
-    config?: TaskGraphRunConfig
+    config?: TaskGraphRunReactiveConfig
   ): Promise<GraphResultArray<Output>> {
     await this.handleStartReactive(config);
 
@@ -898,7 +898,7 @@ export class TaskGraphRunner {
     // Setup registry - create child from global if not provided
     if (config?.registry !== undefined) {
       this.registry = config.registry;
-    } else {
+    } else if (this.registry === undefined) {
       // Create a child container that inherits from global but allows overrides
       this.registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
     }

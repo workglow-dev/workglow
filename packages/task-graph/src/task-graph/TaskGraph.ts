@@ -50,6 +50,11 @@ export interface TaskGraphRunConfig {
   accumulateLeafOutputs?: boolean;
 }
 
+export interface TaskGraphRunReactiveConfig extends TaskGraphRunConfig {
+  /** Optional service registry to use for this task graph */
+  registry?: ServiceRegistry;
+}
+
 class TaskGraphDAG extends DirectedAcyclicGraph<
   ITask<any, any, any>,
   Dataflow,
