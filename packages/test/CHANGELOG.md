@@ -1,5 +1,11 @@
 # @workglow/test
 
+## 0.0.111
+
+### Features
+
+- implement MCP OAuth provider and authentication types (#266)
+
 ## 0.0.110
 
 ### Features
