@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { env } from "@sroussey/transformers";
+import { env } from "@huggingface/transformers";
 import { HFT_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider/hf-transformers";
 
 const onnx = env?.backends?.onnx;

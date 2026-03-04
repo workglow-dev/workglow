@@ -50,8 +50,8 @@ const db = new Sqlite.Database(":memory:");
 describe("HFTransformersBinding", () => {
   let logger = getTestingLogger();
   setLogger(logger);
-  beforeEach(() => {
-    setTaskQueueRegistry(null);
+  beforeEach(async () => {
+    await setTaskQueueRegistry(null);
   });
 
   describe("InMemoryJobQueue", () => {
@@ -68,7 +68,7 @@ describe("HFTransformersBinding", () => {
         {
           storage,
           queueName: HF_TRANSFORMERS_ONNX,
-          limiter: new ConcurrencyLimiter(1, 10),
+          limiter: new ConcurrencyLimiter(1),
           pollIntervalMs: 1,
         }
       );
@@ -210,7 +210,8 @@ describe("HFTransformersBinding", () => {
   });
 
   afterAll(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 });

@@ -5,7 +5,7 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
-import { OLLAMA, OllamaProvider } from "@workglow/ai-provider";
+import { OLLAMA, OllamaModelConfig, OllamaProvider } from "@workglow/ai-provider";
 import {
   OLLAMA_TASKS,
   Ollama_TextEmbedding,
@@ -20,7 +20,7 @@ import {
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -53,19 +53,21 @@ describe("OllamaProvider", () => {
   setLogger(logger);
   let registry: AiProviderRegistry;
 
-  beforeEach(() => {
-    setTaskQueueRegistry(new TaskQueueRegistry());
+  beforeEach(async () => {
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
     vi.clearAllMocks();
+    vi.spyOn(logger, "warn");
   });
 
-  afterEach(() => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
+  afterEach(async () => {
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
   });
 
-  afterAll(() => {
-    setTaskQueueRegistry(null);
+  afterAll(async () => {
+    await setTaskQueueRegistry(null);
   });
 
   describe("provider class", () => {
@@ -73,6 +75,7 @@ describe("OllamaProvider", () => {
       const provider = new OllamaProvider();
       expect(provider.name).toBe(OLLAMA);
       expect(provider.supportedTaskTypes).toEqual([
+        "ModelInfoTask",
         "TextGenerationTask",
         "TextEmbeddingTask",
         "TextRewriterTask",
@@ -96,7 +99,7 @@ describe("OllamaProvider", () => {
       const provider = new OllamaProvider(OLLAMA_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(5);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
     });
   });
 
@@ -229,7 +232,7 @@ describe("OllamaProvider", () => {
             city: { type: "string", description: "The city name" },
           },
           required: ["city"],
-        },
+        } as const satisfies JsonSchema,
       },
     ];
 
@@ -258,7 +261,7 @@ describe("OllamaProvider", () => {
 
       expect(result.text).toBe("");
       expect(Object.keys(result.toolCalls)).toHaveLength(1);
-      expect(result.toolCalls["call_0"]).toEqual({
+      expect((result.toolCalls as Record<string, unknown>)["call_0"]).toEqual({
         id: "call_0",
         name: "get_weather",
         input: { city: "San Francisco" },
@@ -361,7 +364,9 @@ describe("OllamaProvider", () => {
         abortSignal
       );
 
-      expect((result.toolCalls["call_0"] as any).input).toEqual({ city: "New York" });
+      expect(((result.toolCalls as Record<string, unknown>)["call_0"] as any).input).toEqual({
+        city: "New York",
+      });
     });
 
     test("should filter out tool calls with unknown names", async () => {
@@ -394,7 +399,9 @@ describe("OllamaProvider", () => {
       );
 
       expect(Object.keys(result.toolCalls)).toHaveLength(1);
-      expect((result.toolCalls["call_0"] as any).name).toBe("get_weather");
+      expect(((result.toolCalls as Record<string, unknown>)["call_0"] as any).name).toBe(
+        "get_weather"
+      );
     });
 
     test("should stream text and tool calls", async () => {
@@ -448,12 +455,111 @@ describe("OllamaProvider", () => {
     });
   });
 
+  describe("array input handling", () => {
+    test("Ollama_TextGeneration should process prompt arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({ message: { content: "Result A" } })
+        .mockResolvedValueOnce({ message: { content: "Result B" } });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_TextGeneration(
+        { prompt: ["prompt a", "prompt b"], model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ text: ["Result A", "Result B"] });
+      expect(mockChat).toHaveBeenCalledTimes(2);
+      expect(mockChat.mock.calls[0][0].messages[0].content).toBe("prompt a");
+      expect(mockChat.mock.calls[1][0].messages[0].content).toBe("prompt b");
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("array input received"));
+    });
+
+    test("Ollama_TextRewriter should process text arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({ message: { content: "Rewritten A" } })
+        .mockResolvedValueOnce({ message: { content: "Rewritten B" } });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_TextRewriter(
+        { text: ["text a", "text b"], prompt: "Make formal", model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ text: ["Rewritten A", "Rewritten B"] });
+      expect(mockChat).toHaveBeenCalledTimes(2);
+      expect(mockChat.mock.calls[0][0].messages[1].content).toBe("text a");
+      expect(mockChat.mock.calls[1][0].messages[1].content).toBe("text b");
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("array input received"));
+    });
+
+    test("Ollama_TextSummary should process text arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({ message: { content: "Summary A" } })
+        .mockResolvedValueOnce({ message: { content: "Summary B" } });
+
+      const model = makeModel("llama3.2");
+      const result = await Ollama_TextSummary(
+        { text: ["long text a", "long text b"], model: model as any },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result).toEqual({ text: ["Summary A", "Summary B"] });
+      expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    test("Ollama_ToolCalling should process prompt arrays sequentially", async () => {
+      mockChat
+        .mockResolvedValueOnce({
+          message: {
+            content: "text A",
+            tool_calls: [{ function: { name: "get_weather", arguments: { city: "SF" } } }],
+          },
+        })
+        .mockResolvedValueOnce({
+          message: {
+            content: "text B",
+            tool_calls: [{ function: { name: "get_weather", arguments: { city: "NY" } } }],
+          },
+        });
+
+      const model = makeModel("llama3.2");
+      const sampleTools = [
+        {
+          name: "get_weather",
+          description: "Get weather",
+          inputSchema: {
+            type: "object",
+            properties: { city: { type: "string" } },
+            required: ["city"],
+          } as const satisfies JsonSchema,
+        },
+      ];
+      const result = await Ollama_ToolCalling(
+        { prompt: ["weather SF", "weather NY"], model: model, tools: sampleTools },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["text A", "text B"]);
+      expect(Array.isArray(result.toolCalls)).toBe(true);
+      expect((result.toolCalls as Record<string, unknown>[]).length).toBe(2);
+      expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("error handling", () => {
     test("should throw when model name is missing", async () => {
       await expect(
         Ollama_TextGeneration(
           { prompt: "test", model: {} as any },
-          { provider_config: {} } as any,
+          { provider_config: {} } as OllamaModelConfig,
           noopProgress,
           abortSignal
         )
@@ -465,24 +571,20 @@ describe("OllamaProvider", () => {
 
       const model = makeModel("llama3.2");
       await expect(
-        Ollama_TextGeneration(
-          { prompt: "test", model: model as any },
-          model,
-          noopProgress,
-          abortSignal
-        )
+        Ollama_TextGeneration({ prompt: "test", model: model }, model, noopProgress, abortSignal)
       ).rejects.toThrow("Connection refused");
     });
   });
 
   describe("OLLAMA_TASKS", () => {
     test("should export all task run functions", () => {
+      expect(OLLAMA_TASKS).toHaveProperty("ModelInfoTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextGenerationTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextEmbeddingTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextRewriterTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextSummaryTask");
       expect(OLLAMA_TASKS).toHaveProperty("ToolCallingTask");
-      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(5);
+      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(6);
     });
   });
 });

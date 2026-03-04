@@ -1,5 +1,17 @@
 # @workglow/task-graph
 
+## 0.0.110
+
+### Features
+
+- add build-js and watch-js scripts across packages
+
+### Bug Fixes
+
+- ensure type safety for input and output schemas across AI tasks
+
+## 0.0.109
+
 ## 0.0.108
 
 ## 0.0.107

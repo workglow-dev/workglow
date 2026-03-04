@@ -1,5 +1,13 @@
 # @workglow/dataset
 
+## 0.0.110
+
+### Features
+
+- add build-js and watch-js scripts across packages
+
+## 0.0.109
+
 ## 0.0.108
 
 ## 0.0.107

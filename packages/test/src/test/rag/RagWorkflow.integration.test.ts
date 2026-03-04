@@ -94,7 +94,7 @@ describe("RAG Workflow End-to-End", () => {
 
   beforeAll(async () => {
     // Setup task queue and model repository
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(
@@ -126,8 +126,9 @@ describe("RAG Workflow End-to-End", () => {
   });
 
   afterAll(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   it("should ingest markdown documents with NER enrichment", async () => {

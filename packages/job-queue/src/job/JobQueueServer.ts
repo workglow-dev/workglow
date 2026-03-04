@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IQueueStorage, JobStatus, JobStorageFormat } from "@workglow/storage";
+import { IQueueStorage, JobStatus, JobStorageFormat, QueueChangePayload } from "@workglow/storage";
 import { EventEmitter } from "@workglow/util";
 import { ILimiter } from "../limiter/ILimiter";
 import { NullLimiter } from "../limiter/NullLimiter";
@@ -90,6 +90,7 @@ export class JobQueueServer<
 
   protected running = false;
   protected cleanupTimer: ReturnType<typeof setTimeout> | null = null;
+  protected storageUnsubscribe: (() => void) | null = null;
 
   protected stats: JobQueueStats = {
     totalJobs: 0,
@@ -130,6 +131,24 @@ export class JobQueueServer<
     // Fix stuck jobs from previous runs
     await this.fixupJobs();
 
+    // Subscribe to storage changes to wake idle workers when new work arrives.
+    // Best-effort: some storages (e.g. SQLite) don't support subscriptions,
+    // in which case workers fall back to poll-interval-based wakeups.
+    try {
+      this.storageUnsubscribe = this.storage.subscribeToChanges(
+        (change: QueueChangePayload<Input, Output>) => {
+          if (
+            change.type === "INSERT" ||
+            (change.type === "UPDATE" && change.new?.status === JobStatus.PENDING)
+          ) {
+            this.notifyWorkers();
+          }
+        }
+      );
+    } catch {
+      // Storage doesn't support change subscriptions — workers will poll
+    }
+
     // Start all workers
     await Promise.all(this.workers.map((worker) => worker.start()));
 
@@ -148,6 +167,12 @@ export class JobQueueServer<
     }
 
     this.running = false;
+
+    // Unsubscribe from storage changes
+    if (this.storageUnsubscribe) {
+      this.storageUnsubscribe();
+      this.storageUnsubscribe = null;
+    }
 
     // Stop cleanup loop
     if (this.cleanupTimer) {
@@ -236,6 +261,15 @@ export class JobQueueServer<
     this.clients.delete(client);
   }
 
+  /**
+   * Wake all idle workers so they check for new jobs immediately.
+   */
+  protected notifyWorkers(): void {
+    for (const worker of this.workers) {
+      worker.notify();
+    }
+  }
+
   // ========================================================================
   // Event handling
   // ========================================================================
@@ -296,6 +330,9 @@ export class JobQueueServer<
       if (this.deleteAfterCompletionMs === 0) {
         await this.storage.delete(jobId);
       }
+
+      // A concurrency slot freed up — wake idle workers
+      this.notifyWorkers();
     });
 
     worker.on("job_error", async (jobId, error, errorCode) => {
@@ -307,6 +344,9 @@ export class JobQueueServer<
       if (this.deleteAfterFailureMs === 0) {
         await this.storage.delete(jobId);
       }
+
+      // A concurrency slot freed up — wake idle workers
+      this.notifyWorkers();
     });
 
     worker.on("job_disabled", async (jobId) => {
@@ -318,6 +358,9 @@ export class JobQueueServer<
       if (this.deleteAfterDisabledMs === 0) {
         await this.storage.delete(jobId);
       }
+
+      // A concurrency slot freed up — wake idle workers
+      this.notifyWorkers();
     });
 
     worker.on("job_retry", (jobId, runAfter) => {

@@ -23,11 +23,14 @@ import type {
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
 import { filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { getLogger } from "@workglow/util";
 import { LLAMACPP_DEFAULT_MODELS_DIR } from "./LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 
@@ -292,6 +295,19 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "LlamaCpp_TextGeneration: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const results: string[] = [];
+    for (const item of prompts) {
+      const r = await LlamaCpp_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   if (!model) throw new Error("Model config is required for TextGenerationTask.");
 
   const { LlamaChatSession } = await loadSdk();
@@ -303,7 +319,7 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
   const sequence = context.getSequence();
   const session = new LlamaChatSession({ contextSequence: sequence });
   try {
-    const text = await session.prompt(input.prompt, {
+    const text = await session.prompt(input.prompt as string, {
       signal,
       ...(input.temperature !== undefined && { temperature: input.temperature }),
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
@@ -334,7 +350,7 @@ export const LlamaCpp_TextGeneration_Stream: AiProviderStreamFn<
   const session = new LlamaChatSession({ contextSequence: sequence });
   try {
     yield* streamFromSession<TextGenerationTaskOutput>((onTextChunk) => {
-      return session.prompt(input.prompt, {
+      return session.prompt(input.prompt as string, {
         signal,
         onTextChunk,
         ...(input.temperature !== undefined && { temperature: input.temperature }),
@@ -385,6 +401,19 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "LlamaCpp_TextRewriter: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await LlamaCpp_TextRewriter({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   if (!model) throw new Error("Model config is required for TextRewriterTask.");
 
   const { LlamaChatSession } = await loadSdk();
@@ -394,9 +423,9 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
 
   update_progress(10, "Rewriting text");
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt });
+  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt as string });
   try {
-    const text = await session.prompt(input.text, { signal });
+    const text = await session.prompt(input.text as string, { signal });
     update_progress(100, "Text rewriting complete");
     return { text };
   } finally {
@@ -419,10 +448,10 @@ export const LlamaCpp_TextRewriter_Stream: AiProviderStreamFn<
 
   const context = await getOrCreateTextContext(model);
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt });
+  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt as string });
   try {
     yield* streamFromSession<TextRewriterTaskOutput>((onTextChunk) => {
-      return session.prompt(input.text, { signal, onTextChunk });
+      return session.prompt(input.text as string, { signal, onTextChunk });
     }, signal);
   } finally {
     sequence.dispose();
@@ -438,6 +467,19 @@ export const LlamaCpp_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "LlamaCpp_TextSummary: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await LlamaCpp_TextSummary({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   if (!model) throw new Error("Model config is required for TextSummaryTask.");
 
   const { LlamaChatSession } = await loadSdk();
@@ -452,7 +494,7 @@ export const LlamaCpp_TextSummary: AiProviderRunFn<
     systemPrompt: "Summarize the following text concisely, preserving the key points.",
   });
   try {
-    const text = await session.prompt(input.text, { signal });
+    const text = await session.prompt(input.text as string, { signal });
     update_progress(100, "Summarization complete");
     return { text };
   } finally {
@@ -481,7 +523,7 @@ export const LlamaCpp_TextSummary_Stream: AiProviderStreamFn<
   });
   try {
     yield* streamFromSession<TextSummaryTaskOutput>((onTextChunk) => {
-      return session.prompt(input.text, { signal, onTextChunk });
+      return session.prompt(input.text as string, { signal, onTextChunk });
     }, signal);
   } finally {
     sequence.dispose();
@@ -517,9 +559,22 @@ export const LlamaCpp_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, onProgress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "LlamaCpp_CountTokens: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const counts: number[] = [];
+    for (const item of texts) {
+      const r = await LlamaCpp_CountTokens({ ...input, text: item }, model, onProgress, signal);
+      counts.push(r.count as number);
+    }
+    return { count: counts };
+  }
+
   const loadedModel = await getOrLoadModel(model!);
   // model.tokenizer is itself the tokenize function (Tokenizer = tokenize["tokenize"])
-  const tokens = loadedModel.tokenizer(input.text);
+  const tokens = loadedModel.tokenizer(input.text as string);
   return { count: tokens.length };
 };
 
@@ -565,6 +620,21 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "LlamaCpp_ToolCalling: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const texts: string[] = [];
+    const toolCallsList: Record<string, unknown>[] = [];
+    for (const item of prompts) {
+      const r = await LlamaCpp_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      texts.push(r.text as string);
+      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+    }
+    return { text: texts, toolCalls: toolCallsList };
+  }
+
   if (!model) throw new Error("Model config is required for ToolCallingTask.");
 
   await loadSdk();
@@ -585,7 +655,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   });
 
   try {
-    const text = await session.prompt(input.prompt, {
+    const text = await session.prompt(input.prompt as string, {
       signal,
       ...(functions && { functions }),
       ...(input.temperature !== undefined && { temperature: input.temperature }),
@@ -643,7 +713,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   let accumulatedText = "";
   const promptPromise = session
-    .prompt(input.prompt, {
+    .prompt(input.prompt as string, {
       signal,
       ...(functions && { functions }),
       onTextChunk: (chunk: string) => {
@@ -709,12 +779,56 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const LlamaCpp_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  LlamaCppModelConfig
+> = async (input, model) => {
+  if (!model) throw new Error("Model config is required for ModelInfoTask.");
+
+  const modelPath = getActualModelPath(model);
+  const is_loaded = models.has(modelPath);
+
+  let is_cached = is_loaded;
+  let file_sizes: Record<string, number> | null = null;
+
+  // Check if model file exists on disk
+  try {
+    const fs = await import("node:fs/promises");
+    const stat = await fs.stat(modelPath);
+    is_cached = true;
+    file_sizes = { model: stat.size };
+  } catch {
+    // File does not exist or fs not available
+    // Fall back to checking if the path is in resolvedPaths
+    if (resolvedPaths.has(getConfigKey(model))) {
+      is_cached = true;
+    }
+  }
+
+  return {
+    model: input.model,
+    is_local: true,
+    is_remote: false,
+    supports_browser: false,
+    supports_node: true,
+    is_cached,
+    is_loaded,
+    file_sizes,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppModelConfig>> = {
   DownloadModelTask: LlamaCpp_Download,
   UnloadModelTask: LlamaCpp_Unload,
+  ModelInfoTask: LlamaCpp_ModelInfo,
   CountTokensTask: LlamaCpp_CountTokens,
   TextGenerationTask: LlamaCpp_TextGeneration,
   TextEmbeddingTask: LlamaCpp_TextEmbedding,

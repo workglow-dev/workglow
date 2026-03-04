@@ -1,5 +1,15 @@
 # @workglow/util
 
+## 0.0.110
+
+### Features
+
+- add build-js and watch-js scripts across packages
+- add detail property to ModelInfoTask and enhance HFT_ModelInfo processing
+- enhance job processing and worker notification in JobQueueServer and JobQueueWorker
+
+## 0.0.109
+
 ## 0.0.108
 
 ### Features

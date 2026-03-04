@@ -20,7 +20,7 @@ import {
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -57,19 +57,20 @@ describe("AnthropicProvider", () => {
   setLogger(logger);
   let registry: AiProviderRegistry;
 
-  beforeEach(() => {
-    setTaskQueueRegistry(new TaskQueueRegistry());
+  beforeEach(async () => {
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
+  afterEach(async () => {
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
   });
 
-  afterAll(() => {
-    setTaskQueueRegistry(null);
+  afterAll(async () => {
+    await setTaskQueueRegistry(null);
   });
 
   describe("provider class", () => {
@@ -78,6 +79,7 @@ describe("AnthropicProvider", () => {
       expect(provider.name).toBe(ANTHROPIC);
       expect(provider.supportedTaskTypes).toEqual([
         "CountTokensTask",
+        "ModelInfoTask",
         "TextGenerationTask",
         "TextRewriterTask",
         "TextSummaryTask",
@@ -100,7 +102,7 @@ describe("AnthropicProvider", () => {
       const provider = new AnthropicProvider(ANTHROPIC_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(7);
     });
   });
 
@@ -112,7 +114,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       const result = await Anthropic_TextGeneration(
-        { prompt: "Say hello", model: model as any },
+        { prompt: "Say hello", model: model },
         model,
         noopProgress,
         abortSignal
@@ -131,7 +133,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       await Anthropic_TextGeneration(
-        { prompt: "test", model: model as any },
+        { prompt: "test", model: model },
         model,
         noopProgress,
         abortSignal
@@ -148,7 +150,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       await Anthropic_TextGeneration(
-        { prompt: "test", model: model as any, maxTokens: 500 },
+        { prompt: "test", model: model, maxTokens: 500 },
         model,
         noopProgress,
         abortSignal
@@ -165,7 +167,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       const result = await Anthropic_TextGeneration(
-        { prompt: "test", model: model as any },
+        { prompt: "test", model: model },
         model,
         noopProgress,
         abortSignal
@@ -183,7 +185,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       const result = await Anthropic_TextRewriter(
-        { text: "Original", prompt: "Make formal", model: model as any },
+        { text: "Original", prompt: "Make formal", model: model },
         model,
         noopProgress,
         abortSignal
@@ -204,7 +206,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       const result = await Anthropic_TextSummary(
-        { text: "Long text", model: model as any },
+        { text: "Long text", model: model },
         model,
         noopProgress,
         abortSignal
@@ -233,12 +235,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       await expect(
-        Anthropic_TextGeneration(
-          { prompt: "test", model: model as any },
-          model,
-          noopProgress,
-          abortSignal
-        )
+        Anthropic_TextGeneration({ prompt: "test", model: model }, model, noopProgress, abortSignal)
       ).rejects.toThrow("Overloaded");
     });
   });
@@ -249,7 +246,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       const result = await Anthropic_CountTokens(
-        { text: "Hello Claude", model: model as any },
+        { text: "Hello Claude", model: model },
         model,
         noopProgress,
         abortSignal
@@ -269,10 +266,10 @@ describe("AnthropicProvider", () => {
         name: "get_weather",
         description: "Get the weather for a location",
         inputSchema: {
-          type: "object" as const,
+          type: "object",
           properties: { location: { type: "string" } },
           required: ["location"],
-        },
+        } as const satisfies JsonSchema,
       },
     ];
 
@@ -287,7 +284,7 @@ describe("AnthropicProvider", () => {
           prompt: "What is the weather?",
           tools: sampleTools,
           toolChoice: "auto",
-          model: model as any,
+          model: model,
         },
         model,
         noopProgress,
@@ -310,7 +307,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       const result = await Anthropic_ToolCalling(
-        { prompt: "Weather in London?", tools: sampleTools, model: model as any },
+        { prompt: "Weather in London?", tools: sampleTools, model: model },
         model,
         noopProgress,
         abortSignal
@@ -354,7 +351,7 @@ describe("AnthropicProvider", () => {
       const model = makeModel("claude-sonnet-4-20250514");
       const events: any[] = [];
       for await (const event of Anthropic_ToolCalling_Stream(
-        { prompt: "Weather in Berlin?", tools: sampleTools, model: model as any },
+        { prompt: "Weather in Berlin?", tools: sampleTools, model: model },
         model,
         abortSignal
       )) {
@@ -385,7 +382,7 @@ describe("AnthropicProvider", () => {
 
       const model = makeModel("claude-sonnet-4-20250514");
       const result = await Anthropic_ToolCalling(
-        { prompt: "test", tools: sampleTools, model: model as any },
+        { prompt: "test", tools: sampleTools, model: model },
         model,
         noopProgress,
         abortSignal
@@ -399,13 +396,14 @@ describe("AnthropicProvider", () => {
   describe("ANTHROPIC_TASKS", () => {
     test("should export three task run functions (no embedding)", () => {
       expect(ANTHROPIC_TASKS).toHaveProperty("CountTokensTask");
+      expect(ANTHROPIC_TASKS).toHaveProperty("ModelInfoTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextGenerationTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextRewriterTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("TextSummaryTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("StructuredGenerationTask");
       expect(ANTHROPIC_TASKS).toHaveProperty("ToolCallingTask");
       expect(ANTHROPIC_TASKS).not.toHaveProperty("TextEmbeddingTask");
-      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(6);
+      expect(Object.keys(ANTHROPIC_TASKS)).toHaveLength(7);
     });
   });
 });

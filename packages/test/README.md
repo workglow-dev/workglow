@@ -43,14 +43,20 @@ await registerHuggingfaceLocalModels();
 await registerMediaPipeTfJsLocalModels();
 ```
 
-### Test Queue Setup
+### AI Provider Setup
 
 ```typescript
-import { register_HFT_InMemoryQueue, register_TFMP_InMemoryQueue } from "@workglow/test";
+import {
+  HFT_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_REACTIVE_TASKS,
+  HuggingFaceTransformersProvider,
+} from "@workglow/ai-provider";
 
-// Set up in-memory queues for testing
-await register_HFT_InMemoryQueue();
-await register_TFMP_InMemoryQueue();
+// Set up HuggingFace Transformers inline for testing
+await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
+  { mode: "inline" }
+);
 ```
 
 ## API Reference
@@ -66,8 +72,6 @@ await register_TFMP_InMemoryQueue();
 
 - `registerHuggingfaceLocalModels()` - Registers sample HuggingFace models
 - `registerMediaPipeTfJsLocalModels()` - Registers sample MediaPipe TensorFlow.js models
-- `register_HFT_InMemoryQueue()` - Sets up HuggingFace Transformers in-memory queue
-- `register_TFMP_InMemoryQueue()` - Sets up TensorFlow MediaPipe in-memory queue
 
 ## Dependencies
 

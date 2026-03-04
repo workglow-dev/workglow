@@ -1,5 +1,17 @@
 # @workglow/test
 
+## 0.0.110
+
+### Features
+
+- add build-js and watch-js scripts across packages
+
+## 0.0.109
+
+### Features
+
+- introduce ModelInfoTask and enhance AiProvider with local and browser support properties
+
 ## 0.0.107
 
 ### Bug Fixes

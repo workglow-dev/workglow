@@ -5,6 +5,7 @@
  */
 
 import { createServiceToken, globalServiceRegistry } from "../di";
+import { getLogger } from "../logging";
 
 export class WorkerManager {
   private workers: Map<string, Worker> = new Map();
@@ -75,17 +76,24 @@ export class WorkerManager {
         if (id !== requestId) return;
         if (type === "progress" && options?.onProgress) {
           options.onProgress(data.progress, data.message, data.details);
+          getLogger().debug(
+            `Worker ${workerName} function ${functionName} progress: ${data.progress}, `,
+            { data }
+          );
         } else if (type === "complete") {
           cleanup();
+          getLogger().debug(`Worker ${workerName} function ${functionName} complete.`, { data });
           resolve(data);
         } else if (type === "error") {
           cleanup();
+          getLogger().debug(`Worker ${workerName} function ${functionName} error.`, { data });
           reject(new Error(data));
         }
       };
 
       const handleAbort = () => {
         worker.postMessage({ id: requestId, type: "abort" });
+        getLogger().info(`Worker ${workerName} function ${functionName} aborted.`);
       };
 
       const cleanup = () => {
@@ -106,6 +114,7 @@ export class WorkerManager {
       // main thread always clones data going to workers to preserve its own references.
       const message = { id: requestId, type: "call", functionName, args };
       worker.postMessage(message);
+      getLogger().info(`Worker ${workerName} function ${functionName} called.`);
     });
   }
 
@@ -156,6 +165,7 @@ export class WorkerManager {
       const message = { id: requestId, type: "call", functionName, args, reactive: true };
       // Note: No transferables — same reasoning as callWorkerFunction above.
       worker.postMessage(message);
+      getLogger().info(`Worker ${workerName} reactive function ${functionName} called.`);
     });
   }
 
@@ -225,6 +235,7 @@ export class WorkerManager {
 
     const handleAbort = () => {
       worker.postMessage({ id: requestId, type: "abort" });
+      getLogger().info(`Worker ${workerName} stream function ${functionName} aborted.`);
     };
 
     const cleanup = () => {
@@ -246,6 +257,7 @@ export class WorkerManager {
     // Note: No transferables — same reasoning as callWorkerFunction above.
     const message = { id: requestId, type: "call", functionName, args, stream: true };
     worker.postMessage(message);
+    getLogger().info(`Worker ${workerName} stream function ${functionName} called.`);
 
     let completedNormally = false;
     try {
@@ -273,6 +285,7 @@ export class WorkerManager {
       // the worker to abort so it doesn't continue generating tokens.
       if (!completedNormally) {
         worker.postMessage({ id: requestId, type: "abort" });
+        getLogger().info(`Worker ${workerName} stream function ${functionName} aborted.`);
       }
       cleanup();
     }

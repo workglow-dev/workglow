@@ -22,8 +22,8 @@ import {
   TaskQueueRegistry,
   type StreamEvent,
 } from "@workglow/task-graph";
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
@@ -62,7 +62,7 @@ describe("Streaming Provider", () => {
 
     client.attach(server);
 
-    setTaskQueueRegistry(new TaskQueueRegistry());
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     const taskQueueRegistry = getTaskQueueRegistry();
     taskQueueRegistry.registerQueue({ server, client, storage });
     setAiProviderRegistry(new AiProviderRegistry());
@@ -76,8 +76,9 @@ describe("Streaming Provider", () => {
   });
 
   afterAll(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   describe("registerStreamFn", () => {

@@ -10,10 +10,12 @@
   "scripts": {
     "build": "turbo run build-package build-example --force",
     "build:packages": "turbo run build-package --force",
+    "build:js": "turbo run build-js --force",
     "build:examples": "turbo run build-example --force",
     "build:types": "turbo run build-types --force",
     "clean": "rm -rf node_modules packages/*/node_modules packages/*/*tsbuildinfo packages/*/dist packages/*/src/**/*\\.d\\.ts packages/*/src/**/*\\.map examples/*/node_modules examples/*/dist examples/*/src/**/*\\.d\\.ts examples/*/src/**/*\\.map .turbo */*/.turbo",
-    "watch": "turbo run watch --concurrency 15",
+    "watch": "turbo run build-package --force && turbo run watch --concurrency 15",
+    "watch:js": "turbo run build-package --force --ui=stream && turbo run watch-js --concurrency 15 --ui=stream",
     "watch-types": "turbo run watch-types --concurrency 15",
     "dev": "turbo run dev",
     "watch:packages": "concurrently --kill-others -c 'auto' -n sqlite,util,storage,job-queue,task-graph,tasks,ai,provider,test,workflow 'cd packages/sqlite && bun run watch' 'cd packages/util && bun run watch' 'cd packages/storage && bun run watch' 'cd packages/job-queue && bun run watch' 'cd packages/task-graph && bun run watch' 'cd packages/tasks && bun run watch' 'cd packages/ai && bun run watch' 'cd packages/ai-provider && bun run watch' 'cd packages/test && bun run watch' 'cd packages/workflow && bun run watch'",
@@ -32,7 +34,7 @@
     "caniuse-lite": "^1.0.30001774"
   },
   "catalog": {
-    "@sroussey/transformers": "4.0.0-next.7",
+    "@huggingface/transformers": "4.0.0-next.5",
     "@mediapipe/tasks-text": "^0.10.32",
     "@mediapipe/tasks-vision": "^0.10.32",
     "@mediapipe/tasks-audio": "^0.10.32",
@@ -55,6 +57,8 @@
     "@types/node": "^24.1.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "4.0.18",
     "bunset": "1.0.5",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.2",

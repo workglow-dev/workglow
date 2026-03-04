@@ -117,7 +117,11 @@ async function runBunTest(files: string[]): Promise<number> {
 async function runVitest(files: string[]): Promise<number> {
   // Pass relative paths from root as positional args — vitest treats them as name filters
   const relFiles = files.map((f) => relative(ROOT, f));
-  const proc = Bun.spawn(["npx", "vitest", "run", ...relFiles], {
+  const args = ["npx", "vitest", "run", ...relFiles];
+  if (process.env.CI) {
+    args.push("--coverage");
+  }
+  const proc = Bun.spawn(args, {
     cwd: ROOT,
     stdio: ["inherit", "inherit", "inherit"],
   });

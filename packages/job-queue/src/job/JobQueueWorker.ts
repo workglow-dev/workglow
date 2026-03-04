@@ -75,6 +75,13 @@ export class JobQueueWorker<
   protected running = false;
 
   /**
+   * Resolve function for the idle wait promise.
+   * When set, the worker is idle and waiting for either a notification or poll timeout.
+   */
+  private wakeResolve: (() => void) | null = null;
+  private wakeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
    * Abort controllers for active jobs
    */
   protected readonly activeJobAbortControllers: Map<unknown, AbortController> = new Map();
@@ -107,6 +114,21 @@ export class JobQueueWorker<
   }
 
   /**
+   * Wake the worker from idle sleep so it checks for jobs immediately.
+   * No-op if the worker is not currently idle.
+   */
+  public notify(): void {
+    if (this.wakeResolve) {
+      if (this.wakeTimer) {
+        clearTimeout(this.wakeTimer);
+        this.wakeTimer = null;
+      }
+      this.wakeResolve();
+      this.wakeResolve = null;
+    }
+  }
+
+  /**
    * Stop the worker and abort any active jobs
    */
   public async stop(): Promise<this> {
@@ -114,6 +136,9 @@ export class JobQueueWorker<
       return this;
     }
     this.running = false;
+
+    // Wake from idle sleep so the loop can exit
+    this.notify();
 
     // Wait for pending operations to settle
     const size = await this.storage.size(JobStatus.PROCESSING);
@@ -205,32 +230,93 @@ export class JobQueueWorker<
   }
 
   /**
-   * Main job processing loop
+   * Main job processing loop.
+   *
+   * Runs as a tight `while` loop (no recursive `setTimeout`) so that
+   * back-to-back jobs are picked up with minimal inter-job latency.
+   *
+   * When no jobs are available the worker sleeps until either:
+   * - {@link notify} is called (e.g. because the server saw a new job inserted
+   *   or a running job completed and freed a concurrency slot), or
+   * - the poll-interval timeout expires (fallback for storages without push
+   *   events).
    */
   protected async processJobs(): Promise<void> {
-    if (!this.running) {
-      return;
-    }
+    while (this.running) {
+      try {
+        // Check for aborting jobs
+        await this.checkForAbortingJobs();
 
-    try {
-      // Check for aborting jobs
-      await this.checkForAbortingJobs();
+        const canProceed = await this.limiter.canProceed();
+        if (canProceed) {
+          const job = await this.next();
+          if (job) {
+            // Don't await - process in background to allow concurrent jobs.
+            // The loop will re-check canProceed on the next iteration; if the
+            // limiter is at capacity it will wait for a notify (fired by the
+            // server when a job completes and frees a slot).
+            this.processSingleJob(job);
+            continue;
+          }
+        }
 
-      const canProceed = await this.limiter.canProceed();
-      if (canProceed) {
-        const job = await this.next();
-        if (job) {
-          // Don't await - process in background to allow concurrent jobs
-          this.processSingleJob(job);
+        // Either no jobs available or limiter is at capacity — wait for
+        // something to change before re-checking.
+        if (canProceed) {
+          // Queue is empty — sleep until notified of new work or until
+          // the next deferred job becomes ready.
+          const delay = await this.getIdleDelay();
+          await this.waitForWakeOrTimeout(delay);
         } else {
-          await sleep(this.pollIntervalMs);
+          // At capacity — wait until notified (a job completes and frees a
+          // slot) or the poll interval expires as a fallback.
+          await this.waitForWakeOrTimeout(this.pollIntervalMs);
+        }
+      } catch {
+        // Don't let transient errors kill the loop
+        await sleep(this.pollIntervalMs);
+      }
+    }
+  }
+
+  /**
+   * Determine how long to sleep when idle.
+   *
+   * If there are deferred jobs (status PENDING but `run_after` in the future),
+   * returns the time until the earliest one becomes ready, clamped to
+   * `pollIntervalMs`. Otherwise returns `pollIntervalMs`.
+   */
+  private async getIdleDelay(): Promise<number> {
+    try {
+      const pending = await this.storage.peek(JobStatus.PENDING, 1);
+      if (pending.length > 0 && pending[0].run_after) {
+        const delay = new Date(pending[0].run_after).getTime() - Date.now();
+        if (delay > 0) {
+          return Math.min(delay, this.pollIntervalMs);
         }
       }
-    } finally {
-      if (this.running) {
-        setTimeout(() => this.processJobs(), this.pollIntervalMs);
-      }
+    } catch {
+      // If peek fails, fall back to default
     }
+    return this.pollIntervalMs;
+  }
+
+  /**
+   * Wait for either a {@link notify} call or the given timeout,
+   * whichever comes first.
+   */
+  private waitForWakeOrTimeout(timeoutMs: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this.wakeTimer = setTimeout(() => {
+        this.wakeTimer = null;
+        this.wakeResolve = null;
+        resolve();
+      }, timeoutMs);
+
+      this.wakeResolve = () => {
+        resolve();
+      };
+    });
   }
 
   /**

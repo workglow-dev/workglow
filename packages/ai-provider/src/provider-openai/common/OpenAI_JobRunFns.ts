@@ -10,6 +10,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   StructuredGenerationTaskInput,
   StructuredGenerationTaskOutput,
   TextEmbeddingTaskInput,
@@ -82,6 +84,19 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "OpenAI_TextGeneration: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const results: string[] = [];
+    for (const item of prompts) {
+      const r = await OpenAI_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   const logger = getLogger();
   const timerLabel = `openai:TextGeneration:${model?.provider_config?.model_name}`;
   logger.time(timerLabel, { model: model?.provider_config?.model_name });
@@ -93,7 +108,7 @@ export const OpenAI_TextGeneration: AiProviderRunFn<
   const response = await client.chat.completions.create(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
+      messages: [{ role: "user", content: input.prompt as string }],
       max_completion_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
@@ -147,6 +162,19 @@ export const OpenAI_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "OpenAI_TextRewriter: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await OpenAI_TextRewriter({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   update_progress(0, "Starting OpenAI text rewriting");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -155,8 +183,8 @@ export const OpenAI_TextRewriter: AiProviderRunFn<
     {
       model: modelName,
       messages: [
-        { role: "system", content: input.prompt },
-        { role: "user", content: input.text },
+        { role: "system", content: input.prompt as string },
+        { role: "user", content: input.text as string },
       ],
     },
     { signal }
@@ -171,6 +199,19 @@ export const OpenAI_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "OpenAI_TextSummary: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await OpenAI_TextSummary({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   update_progress(0, "Starting OpenAI text summarization");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -180,7 +221,7 @@ export const OpenAI_TextSummary: AiProviderRunFn<
       model: modelName,
       messages: [
         { role: "system", content: "Summarize the following text concisely." },
-        { role: "user", content: input.text },
+        { role: "user", content: input.text as string },
       ],
     },
     { signal }
@@ -205,7 +246,7 @@ export const OpenAI_TextGeneration_Stream: AiProviderStreamFn<
   const stream = await client.chat.completions.create(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
+      messages: [{ role: "user", content: input.prompt as string }],
       max_completion_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
@@ -237,8 +278,8 @@ export const OpenAI_TextRewriter_Stream: AiProviderStreamFn<
     {
       model: modelName,
       messages: [
-        { role: "system", content: input.prompt },
-        { role: "user", content: input.text },
+        { role: "system", content: input.prompt as string },
+        { role: "user", content: input.text as string },
       ],
       stream: true,
     },
@@ -267,7 +308,7 @@ export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
       model: modelName,
       messages: [
         { role: "system", content: "Summarize the following text concisely." },
-        { role: "user", content: input.text },
+        { role: "user", content: input.text as string },
       ],
       stream: true,
     },
@@ -339,8 +380,21 @@ export const OpenAI_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   OpenAiModelConfig
 > = async (input, model) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "OpenAI_CountTokens: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const counts: number[] = [];
+    for (const item of texts) {
+      const r = await OpenAI_CountTokens({ ...input, text: item }, model, () => {}, new AbortController().signal);
+      counts.push(r.count as number);
+    }
+    return { count: counts };
+  }
+
   const enc = await getEncoder(getModelName(model));
-  const tokens = enc.encode(input.text);
+  const tokens = enc.encode(input.text as string);
   return { count: tokens.length };
 };
 
@@ -463,6 +517,21 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "OpenAI_ToolCalling: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const texts: string[] = [];
+    const toolCallsList: Record<string, unknown>[] = [];
+    for (const item of prompts) {
+      const r = await OpenAI_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      texts.push(r.text as string);
+      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+    }
+    return { text: texts, toolCalls: toolCallsList };
+  }
+
   update_progress(0, "Starting OpenAI tool calling");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -480,7 +549,7 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
   if (input.systemPrompt) {
     messages.push({ role: "system", content: input.systemPrompt });
   }
-  messages.push({ role: "user", content: input.prompt });
+  messages.push({ role: "user", content: input.prompt as string });
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 
@@ -549,7 +618,7 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
   if (input.systemPrompt) {
     messages.push({ role: "system", content: input.systemPrompt });
   }
-  messages.push({ role: "user", content: input.prompt });
+  messages.push({ role: "user", content: input.prompt as string });
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 
@@ -636,11 +705,33 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const OpenAI_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  OpenAiModelConfig
+> = async (input) => {
+  return {
+    model: input.model,
+    is_local: false,
+    is_remote: true,
+    supports_browser: true,
+    supports_node: true,
+    is_cached: false,
+    is_loaded: false,
+    file_sizes: null,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>> = {
   TextGenerationTask: OpenAI_TextGeneration,
+  ModelInfoTask: OpenAI_ModelInfo,
   TextEmbeddingTask: OpenAI_TextEmbedding,
   TextRewriterTask: OpenAI_TextRewriter,
   TextSummaryTask: OpenAI_TextSummary,

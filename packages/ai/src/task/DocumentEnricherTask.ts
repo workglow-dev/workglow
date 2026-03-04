@@ -146,11 +146,13 @@ export class DocumentEnricherTask extends Task<
             const result = await context
               .own(new TextNamedEntityRecognitionTask({ text, model: nerModel }))
               .run();
-            return result.entities.map((e) => ({
-              type: e.entity,
-              text: e.word,
-              score: e.score,
-            }));
+            return (result.entities as Array<{ entity: string; word: string; score: number }>).map(
+              (e) => ({
+                type: e.entity,
+                text: e.word,
+                score: e.score,
+              })
+            );
           }
         : undefined;
 
@@ -262,7 +264,7 @@ export class DocumentEnricherTask extends Task<
     model: ModelConfig
   ): Promise<string> {
     // TODO: Handle truncation of text if needed, based on model configuration
-    return (await context.own(new TextSummaryTask()).run({ text, model })).text;
+    return (await context.own(new TextSummaryTask()).run({ text, model })).text as string;
   }
 
   /**

@@ -1,23 +1,24 @@
 {
   "name": "workglow",
   "type": "module",
-  "version": "0.0.108",
+  "version": "0.0.110",
   "description": "Workglow meta-package: re-exports all @workglow/* packages for convenient single-import usage.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
+    "watch-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun'",
     "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts",
     "watch-node": "bun build --splitting --watch --no-clear-screen --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts",
     "watch-bun": "bun build --splitting --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
-    "build-package": "bun run build-clean && concurrently -c 'auto' -n 'browser,node,bun,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-types'",
-    "build-clean": "rm -fr dist/*",
+    "build-package": "concurrently -c 'auto' -n 'browser,node,bun,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-types'",
+    "build-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run build-browser' 'bun run build-node' 'bun run build-bun'",
+    "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts",
     "build-node": "bun build --splitting --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts",
     "build-bun": "bun build --splitting --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "bun test",
-    "prepare": "node -e \"const pkg=require('./package.json');pkg.exports['.'].bun='./dist/bun.js';pkg.exports['.'].types='./dist/types.d.ts';['anthropic','google-gemini','hf-transformers','ollama','openai'].forEach(p=>{const k='./'+p;if(!pkg.exports[k])pkg.exports[k]={};pkg.exports[k].browser='./dist/'+p+'.browser.js';pkg.exports[k].bun='./dist/'+p+'.bun.js';pkg.exports[k].types='./dist/'+p+'.d.ts'});const t=pkg.exports['./tf-mediapipe'];if(!t)pkg.exports['./tf-mediapipe']={};pkg.exports['./tf-mediapipe'].browser='./dist/tf-mediapipe.js';pkg.exports['./tf-mediapipe'].types='./dist/tf-mediapipe.d.ts';delete pkg.exports['./tf-mediapipe'].bun;require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))\""
+    "test": "bun test"
   },
   "exports": {
     ".": {
@@ -84,7 +85,7 @@
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
-    "@sroussey/transformers": "catalog:",
+    "@huggingface/transformers": "catalog:",
     "@mediapipe/tasks-text": "catalog:",
     "@mediapipe/tasks-vision": "catalog:",
     "@mediapipe/tasks-audio": "catalog:",
@@ -100,7 +101,7 @@
     "@supabase/supabase-js": "catalog:"
   },
   "peerDependenciesMeta": {
-    "@sroussey/transformers": {
+    "@huggingface/transformers": {
       "optional": true
     },
     "@mediapipe/tasks-text": {

@@ -5,8 +5,8 @@
  */
 
 import { createServiceToken, globalServiceRegistry } from "../di/ServiceRegistry";
-import { ConsoleLogger } from "./ConsoleLogger";
 import type { LogLevel } from "./ConsoleLogger";
+import { ConsoleLogger } from "./ConsoleLogger";
 import type { ILogger } from "./ILogger";
 import { NullLogger } from "./NullLogger";
 
@@ -27,7 +27,7 @@ function getEnv(name: string): string | undefined {
   if (typeof process !== "undefined" && process.env) {
     return process.env[name];
   }
-  return undefined;
+  return import.meta.env[name];
 }
 
 function isTruthy(value: string | undefined): boolean {
@@ -40,6 +40,12 @@ function createDefaultLogger(): ILogger {
     return new ConsoleLogger({
       level: levelEnv as LogLevel,
       timings: isTruthy(getEnv("LOGGER_TIMINGS")),
+    });
+  }
+  if (getEnv("DEV")) {
+    return new ConsoleLogger({
+      level: "debug" as LogLevel,
+      timings: true,
     });
   }
   return new NullLogger();

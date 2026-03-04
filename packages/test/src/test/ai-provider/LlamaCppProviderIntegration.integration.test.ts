@@ -30,8 +30,8 @@ import {
   LlamaCppProvider,
 } from "@workglow/ai-provider/llamacpp";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ========================================================================
@@ -83,7 +83,7 @@ describe("LlamaCpp Integration (real models, no mocks)", () => {
   let logger = getTestingLogger();
   setLogger(logger);
   beforeAll(async () => {
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
 
     await new LlamaCppProvider(LLAMACPP_TASKS, LLAMACPP_STREAM_TASKS).register({
@@ -97,8 +97,9 @@ describe("LlamaCpp Integration (real models, no mocks)", () => {
 
   afterAll(async () => {
     await disposeLlamaCppResources();
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   // ======================================================================
@@ -126,7 +127,7 @@ describe("LlamaCpp Integration (real models, no mocks)", () => {
 
       expect(storyResult.text).toBeDefined();
       expect(typeof storyResult.text).toBe("string");
-      expect(storyResult.text.trim().length).toBeGreaterThan(10);
+      expect((storyResult.text as string).trim().length).toBeGreaterThan(10);
     },
     10 * 60 * 1000 // 10 min: download (~85 MB) + inference
   );
@@ -184,15 +185,15 @@ describe("LlamaCpp Integration (real models, no mocks)", () => {
         temperature: 0.5,
       });
       const storyResult = (await storyWorkflow.run()) as TextGenerationTaskOutput;
-      const story = storyResult.text?.trim() ?? "";
+      const story = (storyResult.text as string)?.trim() ?? "";
 
       expect(story.length).toBeGreaterThan(5);
 
       // Split into sentences and embed each one
       const sentences = story
         .split(/(?<=[.!?])\s+/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0);
 
       const embedWorkflow = new Workflow();
       embedWorkflow.textEmbedding({

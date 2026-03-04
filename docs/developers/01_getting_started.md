@@ -48,9 +48,16 @@ After this, please read [Architecture](02_architecture.md) before attempting to 
 
 ```ts
 import { Workflow } from "@workglow/task-graph";
-import { register_HFT_InMemoryQueue } from "@workglow/test";
+import {
+  HFT_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_REACTIVE_TASKS,
+  HuggingFaceTransformersProvider,
+} from "@workglow/ai-provider";
 // config and start up
-register_HFT_InMemoryQueue();
+await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
+  { mode: "inline" }
+);
 
 const workflow = new Workflow();
 workflow
@@ -76,10 +83,17 @@ This is equivalent to creating the graph directly, with additional features like
 import { Dataflow, TaskGraph } from "@workglow/task-graph";
 import { DownloadModelTask, TextRewriterTask } from "@workglow/ai";
 import { DebugLogTask } from "@workglow/tasks";
-import { register_HFT_InMemoryQueue } from "@workglow/test";
+import {
+  HFT_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_REACTIVE_TASKS,
+  HuggingFaceTransformersProvider,
+} from "@workglow/ai-provider";
 
 // config and start up
-await register_HFT_InMemoryQueue();
+await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
+  { mode: "inline" }
+);
 
 // build and run graph
 const graph = new TaskGraph();
@@ -227,8 +241,42 @@ LLM providers have long running functions. These are handled by a Job Queue. The
 
 #### In memory:
 
-- **`register_HFT_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register({ mode: "inline" })`.
-- **`register_TFMP_InMemoryQueue`** (from `@workglow/test`) - Equivalent to `new TensorFlowMediaPipeProvider(TFMP_TASKS, TFMP_STREAM_TASKS, TFMP_REACTIVE_TASKS).register({ mode: "inline" })`.
+```ts
+import {
+  HFT_TASKS,
+  HFT_STREAM_TASKS,
+  HFT_REACTIVE_TASKS,
+  HuggingFaceTransformersProvider,
+} from "@workglow/ai-provider";
+await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
+  { mode: "inline" }
+);
+
+import {
+  TFMP_TASKS,
+  TFMP_STREAM_TASKS,
+  TFMP_REACTIVE_TASKS,
+  TensorFlowMediaPipeProvider,
+} from "@workglow/ai-provider";
+await new TensorFlowMediaPipeProvider(TFMP_TASKS, TFMP_STREAM_TASKS, TFMP_REACTIVE_TASKS).register({
+  mode: "inline",
+});
+```
+
+For browser apps, prefer **worker mode** to keep the main thread responsive:
+
+```ts
+// Main thread
+import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+await new HuggingFaceTransformersProvider().register({
+  mode: "worker",
+  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+});
+
+// worker_hft.ts
+import { HFT_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider/hf-transformers";
+HFT_WORKER_JOBRUN_REGISTER();
+```
 
 #### Using SQLite:
 

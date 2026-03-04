@@ -28,7 +28,7 @@ export async function createDefaultQueue(providerName: string, concurrency: numb
   const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
     storage,
     queueName: providerName,
-    limiter: new ConcurrencyLimiter(concurrency, 100),
+    limiter: new ConcurrencyLimiter(concurrency),
   });
 
   const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({

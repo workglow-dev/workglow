@@ -25,7 +25,7 @@ import {
   parseToolCallsFromText,
 } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -232,7 +232,7 @@ describe("ToolCallingTask with HFT models", () => {
   setLogger(logger);
 
   beforeAll(async () => {
-    setTaskQueueRegistry(null);
+    await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
     await new HuggingFaceTransformersProvider(
@@ -243,8 +243,9 @@ describe("ToolCallingTask with HFT models", () => {
   });
 
   afterAll(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   const MODEL_ID = "onnx:onnx-community/Qwen2.5-0.5B-Instruct:q4";
@@ -254,7 +255,7 @@ describe("ToolCallingTask with HFT models", () => {
       name: "get_weather",
       description: "Get the current weather for a city",
       inputSchema: {
-        type: "object" as const,
+        type: "object",
         properties: {
           location: {
             type: "string",
@@ -262,7 +263,7 @@ describe("ToolCallingTask with HFT models", () => {
           },
         },
         required: ["location"],
-      },
+      } as const satisfies JsonSchema,
     },
   ];
 
@@ -354,7 +355,7 @@ describe("ToolCallingTask with HFT models", () => {
         name: "search",
         description: "Search the web for information",
         inputSchema: {
-          type: "object" as const,
+          type: "object",
           properties: {
             query: {
               type: "string",
@@ -362,7 +363,7 @@ describe("ToolCallingTask with HFT models", () => {
             },
           },
           required: ["query"],
-        },
+        } as const satisfies JsonSchema,
       },
     ];
 

@@ -20,8 +20,8 @@ import {
   TaskOutput,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setLogger } from "@workglow/util";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
@@ -61,7 +61,7 @@ describe("AiProviderRegistry", () => {
 
     client.attach(server);
 
-    setTaskQueueRegistry(new TaskQueueRegistry());
+    await setTaskQueueRegistry(new TaskQueueRegistry());
     const taskQueueRegistry = getTaskQueueRegistry();
     taskQueueRegistry.registerQueue({ server, client, storage });
     setAiProviderRegistry(new AiProviderRegistry()); // Ensure we're using the test registry
@@ -75,8 +75,9 @@ describe("AiProviderRegistry", () => {
   });
 
   afterAll(async () => {
-    getTaskQueueRegistry().stopQueues().clearQueues();
-    setTaskQueueRegistry(null);
+    await getTaskQueueRegistry().stopQueues();
+    await getTaskQueueRegistry().clearQueues();
+    await setTaskQueueRegistry(null);
   });
 
   describe("registerRunFn", () => {

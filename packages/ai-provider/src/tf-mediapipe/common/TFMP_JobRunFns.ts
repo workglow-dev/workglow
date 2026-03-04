@@ -8,6 +8,8 @@ import type {
   AiProviderRunFn,
   DownloadModelTaskRunInput,
   DownloadModelTaskRunOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   FaceDetectorTaskInput,
   FaceDetectorTaskOutput,
   FaceLandmarkerTaskInput,
@@ -879,6 +881,30 @@ export const TFMP_PoseLandmarker: AiProviderRunFn<
   };
 };
 
+// ========================================================================
+// Model info
+// ========================================================================
+
+export const TFMP_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  TFMPModelConfig
+> = async (input, model) => {
+  const model_path = model!.provider_config.model_path;
+  const is_loaded = modelTaskCache.has(model_path);
+
+  return {
+    model: input.model,
+    is_local: true,
+    is_remote: false,
+    supports_browser: true,
+    supports_node: false,
+    is_cached: is_loaded,
+    is_loaded,
+    file_sizes: null,
+  };
+};
+
 /**
  * All TensorFlow MediaPipe task run functions, keyed by task type name.
  * Pass this to `new TensorFlowMediaPipeProvider(TFMP_TASKS)` when the
@@ -887,6 +913,7 @@ export const TFMP_PoseLandmarker: AiProviderRunFn<
 export const TFMP_TASKS = {
   DownloadModelTask: TFMP_Download,
   UnloadModelTask: TFMP_Unload,
+  ModelInfoTask: TFMP_ModelInfo,
   TextEmbeddingTask: TFMP_TextEmbedding,
   TextLanguageDetectionTask: TFMP_TextLanguageDetection,
   TextClassificationTask: TFMP_TextClassification,

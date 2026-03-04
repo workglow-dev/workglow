@@ -7,18 +7,18 @@
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
 import { AiTask } from "./base/AiTask";
-import { TypeModel } from "./base/AiTaskSchemas";
+import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 
 const modelSchema = TypeModel("model:TextClassificationTask");
 
 export const TextClassificationInputSchema = {
   type: "object",
   properties: {
-    text: {
+    text: TypeSingleOrArray({
       type: "string",
       title: "Text",
       description: "The text to classify",
-    },
+    }),
     candidateLabels: {
       type: "array",
       items: {
@@ -46,7 +46,7 @@ export const TextClassificationInputSchema = {
 export const TextClassificationOutputSchema = {
   type: "object",
   properties: {
-    categories: {
+    categories: TypeSingleOrArray({
       type: "array",
       items: {
         type: "object",
@@ -67,7 +67,7 @@ export const TextClassificationOutputSchema = {
       },
       title: "Categories",
       description: "The classification categories with their scores",
-    },
+    }),
   },
   required: ["categories"],
   additionalProperties: false,

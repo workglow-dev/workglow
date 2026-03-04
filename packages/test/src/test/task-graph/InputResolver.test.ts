@@ -271,6 +271,75 @@ describe("InputResolver", () => {
     });
   });
 
+  describe("mixed array resolution", () => {
+    test("should resolve string elements in a mixed array, passing non-string elements through", async () => {
+      registerInputResolver("skill", (id, _format, _registry) => {
+        return { name: id, type: "resolved-tool" };
+      });
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          tools: {
+            type: "array",
+            format: "skill",
+            items: {
+              oneOf: [
+                { type: "string", format: "skill" },
+                { type: "object", properties: { name: { type: "string" } } },
+              ],
+            },
+          },
+        },
+      };
+
+      const inlineToolDef = { name: "inline-tool", type: "inline" };
+      const input = { tools: ["tool-id-1", inlineToolDef, "tool-id-2"] };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.tools).toEqual([
+        { name: "tool-id-1", type: "resolved-tool" },
+        inlineToolDef,
+        { name: "tool-id-2", type: "resolved-tool" },
+      ]);
+
+      // Clean up
+      getInputResolvers().delete("skill");
+    });
+
+    test("should resolve all-string array as before", async () => {
+      registerInputResolver("skill2", (id, _format, _registry) => {
+        return { name: id, type: "resolved-tool" };
+      });
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          tools: {
+            type: "array",
+            format: "skill2",
+            items: { type: "string", format: "skill2" },
+          },
+        },
+      };
+
+      const input = { tools: ["tool-a", "tool-b"] };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.tools).toEqual([
+        { name: "tool-a", type: "resolved-tool" },
+        { name: "tool-b", type: "resolved-tool" },
+      ]);
+
+      // Clean up
+      getInputResolvers().delete("skill2");
+    });
+  });
+
   describe("registerInputResolver", () => {
     test("should register custom resolver", async () => {
       // Register a custom resolver for a test format

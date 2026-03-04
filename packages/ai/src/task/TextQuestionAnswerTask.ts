@@ -6,27 +6,27 @@
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util";
-import { TypeModel } from "./base/AiTaskSchemas";
+import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 
-const contextSchema = {
+const contextSchema = TypeSingleOrArray({
   type: "string",
   title: "Context",
   description: "The context of the question",
-} as const;
+});
 
-const questionSchema = {
+const questionSchema = TypeSingleOrArray({
   type: "string",
   title: "Question",
   description: "The question to answer",
-} as const;
+});
 
-const textSchema = {
+const textSchema = TypeSingleOrArray({
   type: "string",
   title: "Text",
   description: "The generated text",
   "x-stream": "append",
-} as const;
+});
 
 const modelSchema = TypeModel("model:TextQuestionAnswerTask");
 

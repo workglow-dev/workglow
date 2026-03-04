@@ -10,6 +10,8 @@ import type {
   AiProviderStreamFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   StructuredGenerationTaskInput,
   StructuredGenerationTaskOutput,
   TextGenerationTaskInput,
@@ -88,6 +90,19 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "Anthropic_TextGeneration: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const results: string[] = [];
+    for (const item of prompts) {
+      const r = await Anthropic_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   const logger = getLogger();
   const timerLabel = `anthropic:TextGeneration:${model?.provider_config?.model_name}`;
   logger.time(timerLabel, { model: model?.provider_config?.model_name });
@@ -99,7 +114,7 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
   const response = await client.messages.create(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
+      messages: [{ role: "user", content: input.prompt as string }],
       max_tokens: getMaxTokens(input, model),
       temperature: input.temperature,
       top_p: input.topP,
@@ -119,6 +134,19 @@ export const Anthropic_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "Anthropic_TextRewriter: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await Anthropic_TextRewriter({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   update_progress(0, "Starting Anthropic text rewriting");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -126,8 +154,8 @@ export const Anthropic_TextRewriter: AiProviderRunFn<
   const response = await client.messages.create(
     {
       model: modelName,
-      system: input.prompt,
-      messages: [{ role: "user", content: input.text }],
+      system: input.prompt as string,
+      messages: [{ role: "user", content: input.text as string }],
       max_tokens: getMaxTokens({}, model),
     },
     { signal }
@@ -144,6 +172,19 @@ export const Anthropic_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "Anthropic_TextSummary: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const results: string[] = [];
+    for (const item of texts) {
+      const r = await Anthropic_TextSummary({ ...input, text: item }, model, update_progress, signal);
+      results.push(r.text as string);
+    }
+    return { text: results };
+  }
+
   update_progress(0, "Starting Anthropic text summarization");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -152,7 +193,7 @@ export const Anthropic_TextSummary: AiProviderRunFn<
     {
       model: modelName,
       system: "Summarize the following text concisely.",
-      messages: [{ role: "user", content: input.text }],
+      messages: [{ role: "user", content: input.text as string }],
       max_tokens: getMaxTokens({}, model),
     },
     { signal }
@@ -179,7 +220,7 @@ export const Anthropic_TextGeneration_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
+      messages: [{ role: "user", content: input.prompt as string }],
       max_tokens: getMaxTokens(input, model),
       temperature: input.temperature,
       top_p: input.topP,
@@ -206,8 +247,8 @@ export const Anthropic_TextRewriter_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(
     {
       model: modelName,
-      system: input.prompt,
-      messages: [{ role: "user", content: input.text }],
+      system: input.prompt as string,
+      messages: [{ role: "user", content: input.text as string }],
       max_tokens: getMaxTokens({}, model),
     },
     { signal }
@@ -233,7 +274,7 @@ export const Anthropic_TextSummary_Stream: AiProviderStreamFn<
     {
       model: modelName,
       system: "Summarize the following text concisely.",
-      messages: [{ role: "user", content: input.text }],
+      messages: [{ role: "user", content: input.text as string }],
       max_tokens: getMaxTokens({}, model),
     },
     { signal }
@@ -252,10 +293,23 @@ export const Anthropic_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   AnthropicModelConfig
 > = async (input, model, onProgress, signal) => {
+  if (Array.isArray(input.text)) {
+    getLogger().warn(
+      "Anthropic_CountTokens: array input received; processing sequentially (no native batch support)"
+    );
+    const texts = input.text as string[];
+    const counts: number[] = [];
+    for (const item of texts) {
+      const r = await Anthropic_CountTokens({ ...input, text: item }, model, onProgress, signal);
+      counts.push(r.count as number);
+    }
+    return { count: counts };
+  }
+
   const client = await getClient(model);
   const result = await client.messages.countTokens({
     model: getModelName(model),
-    messages: [{ role: "user", content: input.text }],
+    messages: [{ role: "user", content: input.text as string }],
   });
   return { count: result.input_tokens };
 };
@@ -265,7 +319,7 @@ export const Anthropic_CountTokens_Reactive: AiProviderReactiveRunFn<
   CountTokensTaskOutput,
   AnthropicModelConfig
 > = async (input, _output, _model) => {
-  return { count: Math.ceil(input.text.length / 4) };
+  return { count: Math.ceil((input.text as string).length / 4) };
 };
 
 // ========================================================================
@@ -286,7 +340,7 @@ export const Anthropic_StructuredGeneration: AiProviderRunFn<
   const response = await client.messages.create(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
+      messages: [{ role: "user", content: input.prompt as string }],
       tools: [
         {
           name: "structured_output",
@@ -325,7 +379,7 @@ export const Anthropic_StructuredGeneration_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
+      messages: [{ role: "user", content: input.prompt as string }],
       tools: [
         {
           name: "structured_output",
@@ -377,6 +431,21 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
+  if (Array.isArray(input.prompt)) {
+    getLogger().warn(
+      "Anthropic_ToolCalling: array input received; processing sequentially (no native batch support)"
+    );
+    const prompts = input.prompt as string[];
+    const texts: string[] = [];
+    const toolCallsList: Record<string, unknown>[] = [];
+    for (const item of prompts) {
+      const r = await Anthropic_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      texts.push(r.text as string);
+      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+    }
+    return { text: texts, toolCalls: toolCallsList };
+  }
+
   update_progress(0, "Starting Anthropic tool calling");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -391,7 +460,7 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
 
   const params: any = {
     model: modelName,
-    messages: [{ role: "user", content: input.prompt }],
+    messages: [{ role: "user", content: input.prompt as string }],
     max_tokens: getMaxTokens(input, model),
     temperature: input.temperature,
   };
@@ -447,7 +516,7 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
 
   const params: any = {
     model: modelName,
-    messages: [{ role: "user", content: input.prompt }],
+    messages: [{ role: "user", content: input.prompt as string }],
     max_tokens: getMaxTokens(input, model),
     temperature: input.temperature,
   };
@@ -534,11 +603,33 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// Model info
+// ========================================================================
+
+export const Anthropic_ModelInfo: AiProviderRunFn<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  AnthropicModelConfig
+> = async (input) => {
+  return {
+    model: input.model,
+    is_local: false,
+    is_remote: true,
+    supports_browser: true,
+    supports_node: true,
+    is_cached: false,
+    is_loaded: false,
+    file_sizes: null,
+  };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
 export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>> = {
   CountTokensTask: Anthropic_CountTokens,
+  ModelInfoTask: Anthropic_ModelInfo,
   TextGenerationTask: Anthropic_TextGeneration,
   TextRewriterTask: Anthropic_TextRewriter,
   TextSummaryTask: Anthropic_TextSummary,

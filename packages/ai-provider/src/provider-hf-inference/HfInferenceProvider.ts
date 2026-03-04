@@ -42,8 +42,11 @@ import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
  */
 export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
   readonly name = HF_INFERENCE;
+  readonly isLocal = false;
+  readonly supportsBrowser = true;
 
   readonly taskTypes = [
+    "ModelInfoTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",

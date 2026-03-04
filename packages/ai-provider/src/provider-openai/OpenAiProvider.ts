@@ -42,6 +42,8 @@ import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
  */
 export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
   readonly name = OPENAI;
+  readonly isLocal = false;
+  readonly supportsBrowser = true;
 
   readonly taskTypes = [
     "TextGenerationTask",
@@ -49,6 +51,7 @@ export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "CountTokensTask",
+    "ModelInfoTask",
     "StructuredGenerationTask",
     "ToolCallingTask",
   ] as const;

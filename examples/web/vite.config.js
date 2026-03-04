@@ -18,15 +18,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          "huggingface-transformers": ["@sroussey/transformers"],
+          "huggingface-transformers": ["@huggingface/transformers"],
           workglow: [
             "@workglow/ai",
             "@workglow/ai-provider",
             "@workglow/job-queue",
             "@workglow/storage",
             "@workglow/task-graph",
+            "@workglow/debug",
+            "@workglow/dataset",
             "@workglow/tasks",
-            "@workglow/test",
             "@workglow/util",
             "@workglow/sqlite",
           ],

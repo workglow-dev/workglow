@@ -40,10 +40,13 @@ import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
  */
 export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
   readonly name = LOCAL_LLAMACPP;
+  readonly isLocal = true;
+  readonly supportsBrowser = false;
 
   readonly taskTypes = [
     "DownloadModelTask",
     "UnloadModelTask",
+    "ModelInfoTask",
     "CountTokensTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
