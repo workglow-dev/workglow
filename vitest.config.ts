@@ -21,7 +21,7 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, "**/*.e2e.test.ts"],
     coverage: {
       provider: "v8", // or 'istanbul'
-      reporter: ["text", "json-summary", "html"],
+      reporter: ["text", "json", "json-summary", "html"],
       exclude: [...configDefaults.exclude, "packages/test/**"],
     },
   },
