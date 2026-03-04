@@ -349,12 +349,11 @@ Quantized vectors reduce storage and can improve performance:
 The chunk vector repository works alongside `KnowledgeBase` for hierarchical document storage:
 
 ```typescript
-import { KnowledgeBase } from "@workglow/knowledge-base";
+import { KnowledgeBase, DocumentStorageSchema } from "@workglow/knowledge-base";
 import {
   InMemoryChunkVectorStorage,
   InMemoryTabularStorage,
 } from "@workglow/storage";
-import { DocumentStorageSchema } from "@workglow/storage";
 
 // Initialize storage backends
 const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, ["doc_id"]);

@@ -69,7 +69,7 @@ export async function createKnowledgeBase(
   );
 
   if (shouldRegister) {
-    registerKnowledgeBase(name, kb);
+    await registerKnowledgeBase(name, kb);
   }
 
   return kb;

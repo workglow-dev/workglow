@@ -46,7 +46,7 @@ const result = await workflow.run();
 | `@workglow/storage`     | Storage abstraction (IndexedDB, PostgreSQL, Supabase)           |
 | `@workglow/job-queue`   | Job queue management and task scheduling                        |
 | `@workglow/task-graph`  | DAG task graph construction and execution                       |
-| `@workglow/knowledge-base`     | Dataset and document management                                 |
+| `@workglow/knowledge-base`     | Knowledge base, document management, and RAG infrastructure     |
 | `@workglow/ai`          | Core AI functionality, tasks, and model management              |
 | `@workglow/ai-provider` | AI provider integrations (constants, schemas, provider classes) |
 | `@workglow/tasks`       | Pre-built utility tasks (arrays, scalars, vectors, etc.)        |

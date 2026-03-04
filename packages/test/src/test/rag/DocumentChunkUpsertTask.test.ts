@@ -142,7 +142,7 @@ describe("ChunkVectorUpsertTask", () => {
 
   test("should resolve knowledge base from string ID", async () => {
     // Register kb by ID
-    registerKnowledgeBase("test-upsert-kb", kb);
+    await registerKnowledgeBase("test-upsert-kb", kb);
 
     const vector = new Float32Array([0.1, 0.2, 0.3]);
     const metadata = { chunkId: "c1", doc_id: "doc1", text: "Test document", nodePath: [], depth: 0, source: "test.txt" };
