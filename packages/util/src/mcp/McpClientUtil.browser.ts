@@ -12,9 +12,10 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
-
-/** MCP protocol version sent on first request; matches SDK's initialize payload so servers that require the header on all requests accept the connection. */
-const MCP_PROTOCOL_VERSION_HEADER = "2025-11-25";
+import { getGlobalCredentialStore } from "../credentials/CredentialStoreRegistry";
+import { mcpAuthConfigSchema, buildAuthConfig } from "./McpAuthTypes";
+import type { McpAuthConfig } from "./McpAuthTypes";
+import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 
 export const mcpTransportTypes = ["streamable-http", "sse"] as const;
 
@@ -31,6 +32,7 @@ export const mcpServerConfigSchema = {
     title: "Server URL",
     description: "The URL of the MCP server (for streamable-http transport)",
   },
+  ...mcpAuthConfigSchema,
 } as const satisfies DataPortSchemaObject["properties"];
 
 export type McpTransportType = (typeof mcpTransportTypes)[number];
@@ -38,6 +40,9 @@ export type McpTransportType = (typeof mcpTransportTypes)[number];
 export interface McpServerConfig {
   transport: McpTransportType;
   server_url?: string;
+  auth?: McpAuthConfig;
+  // Flat auth properties from schema (used when config comes from JSON Schema forms)
+  auth_type?: string;
 }
 
 export async function createMcpClient(
@@ -46,21 +51,38 @@ export async function createMcpClient(
 ): Promise<{ client: Client; transport: Transport }> {
   let transport: Transport;
 
+  // Resolve auth config: prefer structured `auth` object, fall back to flat props
+  let auth: McpAuthConfig | undefined =
+    config.auth ?? buildAuthConfig({ ...config });
+
+  // Resolve credential store keys to actual secret values
+  if (auth && auth.type !== "none") {
+    auth = await resolveAuthSecrets(auth, getGlobalCredentialStore());
+  }
+
+  // Build auth provider for OAuth flows
+  const authProvider =
+    auth && auth.type !== "none" && auth.type !== "bearer"
+      ? createAuthProvider(auth, config.server_url ?? "", getGlobalCredentialStore())
+      : undefined;
+
+  // Build request headers (SDK sets MCP-Protocol-Version automatically)
+  const headers: Record<string, string> = {
+    ...(auth?.type === "bearer" ? { Authorization: `Bearer ${auth.token}` } : {}),
+  };
+  const requestInit = { headers };
+
   switch (config.transport) {
     case "sse": {
-      const requestInit = {
-        headers: { "MCP-Protocol-Version": MCP_PROTOCOL_VERSION_HEADER },
-      };
       transport = new SSEClientTransport(new URL(config.server_url!), {
+        authProvider,
         requestInit,
       });
       break;
     }
     case "streamable-http": {
-      const requestInit = {
-        headers: { "MCP-Protocol-Version": MCP_PROTOCOL_VERSION_HEADER },
-      };
       transport = new StreamableHTTPClientTransport(new URL(config.server_url!), {
+        authProvider,
         requestInit,
       });
       break;
