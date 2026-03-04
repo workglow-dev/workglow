@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
-import { InMemoryCredentialStore } from "@workglow/util";
-import { CredentialStoreOAuthProvider } from "@workglow/util";
-import type { OAuthTokens, OAuthClientMetadata } from "@modelcontextprotocol/sdk/shared/auth.js";
+import type { OAuthClientMetadata, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
+import { CredentialStoreOAuthProvider, InMemoryCredentialStore } from "@workglow/util";
+import { beforeEach, describe, expect, it } from "vitest";
 
 const TEST_SERVER_URL = "https://mcp.example.com/api";
 const OTHER_SERVER_URL = "https://other.example.com/api";
