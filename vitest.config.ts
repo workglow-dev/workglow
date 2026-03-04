@@ -15,8 +15,8 @@ export default defineConfig({
     },
   },
   test: {
-    maxConcurrency: 20,
-    maxWorkers: 20,
+    maxConcurrency: 1,
+    maxWorkers: 1,
     testTimeout: 15000, // 15 second global timeout (PgLite initialization can be slow)
     exclude: [...configDefaults.exclude, "**/*.e2e.test.ts"],
     coverage: {
