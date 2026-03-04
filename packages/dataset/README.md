@@ -104,8 +104,17 @@ await kb.upsertChunk({
   },
 });
 
-// 5. Search
-const results = await kb.similaritySearch(queryVector, { topK: 5 });
+// 5. Search (via task pipeline)
+import { Workflow } from "@workglow/task-graph";
+
+const result = await new Workflow()
+  .chunkRetrieval({
+    knowledgeBase: "my-kb",
+    query: "your search query",
+    model: "your-embedding-model",
+    topK: 5,
+  })
+  .run();
 ```
 
 ## Architecture
@@ -437,46 +446,102 @@ await task.run({ knowledgeBase: "my-kb" }); // Resolved from registry
 
 ### Ingestion Pipeline
 
+All ingestion steps are composable Tasks that auto-connect in a Workflow:
+
 ```
 Raw Text / Markdown
   │
-  ▼  StructuralParser.parseMarkdown()
+  ▼  StructuralParserTask
 DocumentRootNode (tree with character offsets)
   │
   ▼  DocumentEnricherTask (optional AI enrichment)
 DocumentRootNode (+ summaries, entities on nodes)
   │
-  ├──▶ kb.upsertDocument(doc)          → tabular storage
-  │
   ▼  HierarchicalChunkerTask
 ChunkRecord[] (flat chunks with nodePath linkage)
   │
-  ▼  EmbeddingTask (AI model)
+  ▼  TextEmbeddingTask (AI model)
 ChunkRecord[] + Float32Array[] (text → vectors)
   │
-  ▼  ChunkVectorUpsertTask
-  └──▶ kb.upsertChunksBulk(entities)   → vector storage
+  ▼  ChunkToVectorTask
+Vectors + metadata in vector store format
+  │
+  ▼  ChunkVectorUpsertTask → vector + tabular storage
+```
+
+Example using the Workflow API:
+
+```typescript
+import { Workflow } from "@workglow/task-graph";
+
+const result = await new Workflow()
+  .fileLoader({ url: `file://${filePath}`, format: "markdown" })
+  .structuralParser({ title: "My Document" })
+  .documentEnricher({ generateSummaries: true, extractEntities: true })
+  .hierarchicalChunker({ maxTokens: 512, overlap: 50 })
+  .textEmbedding({ model: "your-embedding-model" })
+  .chunkToVector()
+  .chunkVectorUpsert({ knowledgeBase: "my-kb" })
+  .run();
+
+console.log(result.count); // Number of vectors stored
 ```
 
 ### Retrieval Pipeline
 
+All retrieval steps are composable Tasks that auto-connect in a Workflow:
+
 ```
 User Query
   │
-  ▼  EmbeddingTask
-Query Vector (Float32Array)
+  ▼  QueryExpanderTask (optional — generates query variations)
+Expanded queries
   │
-  ▼  kb.similaritySearch() or kb.hybridSearch()
-ChunkSearchResult[] (chunks + scores)
+  ▼  ChunkRetrievalTask (embeds query + vector search)
+     or ChunkVectorHybridSearchTask (vector + full-text search)
+ChunkSearchResult[] (chunks, chunk_ids, scores, query)
   │
   ▼  HierarchyJoinTask (optional — enriches with ancestor context)
 Enriched chunks (+ parentSummaries, sectionTitles, entities)
+  │
+  ▼  RerankerTask (optional — cross-encoder reranking)
+Re-scored chunks
   │
   ▼  ContextBuilderTask
 Formatted context string for LLM prompt
   │
   ▼  LLM
 Answer
+```
+
+Example using the Workflow API:
+
+```typescript
+import { Workflow } from "@workglow/task-graph";
+
+const result = await new Workflow()
+  .chunkRetrieval({
+    knowledgeBase: "my-kb",
+    query: "What caused the Civil War?",
+    model: "your-embedding-model",
+    topK: 10,
+  })
+  .hierarchyJoin({
+    knowledgeBase: "my-kb",
+    includeParentSummaries: true,
+  })
+  .reranker({
+    method: "cross-encoder",
+    model: "your-reranker-model",
+    topK: 5,
+  })
+  .contextBuilder({
+    format: "numbered",
+    includeMetadata: false,
+  })
+  .run();
+
+console.log(result.context); // Formatted context ready for LLM
 ```
 
 ## API Reference

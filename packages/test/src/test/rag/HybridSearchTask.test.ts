@@ -71,7 +71,7 @@ describe("ChunkVectorHybridSearchTask", () => {
 
     expect(result.count).toBeGreaterThan(0);
     expect(result.chunks).toHaveLength(result.count);
-    expect(result.ids).toHaveLength(result.count);
+    expect(result.chunk_ids).toHaveLength(result.count);
     expect(result.metadata).toHaveLength(result.count);
     expect(result.scores).toHaveLength(result.count);
 

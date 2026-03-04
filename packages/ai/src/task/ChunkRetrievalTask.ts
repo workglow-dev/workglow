@@ -132,8 +132,19 @@ const outputSchema = {
       title: "Count",
       description: "Number of results returned",
     },
+    query: TypeSingleOrArray({
+      oneOf: [
+        { type: "string" },
+        TypedArraySchema({
+          title: "Query Vector",
+          description: "Pre-computed query vector",
+        }),
+      ],
+      title: "Query",
+      description: "The query used for retrieval (pass-through)",
+    }),
   },
-  required: ["chunks", "chunk_ids", "metadata", "scores", "count"],
+  required: ["chunks", "chunk_ids", "metadata", "scores", "count", "query"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -228,6 +239,7 @@ export class ChunkRetrievalTask extends Task<
       metadata: results.map((r) => r.metadata),
       scores: results.map((r) => r.score),
       count: results.length,
+      query,
     };
 
     if (returnVectors) {

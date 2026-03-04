@@ -24,9 +24,9 @@
  *   5. ChunkVectorHybridSearchTask - Combined vector + full-text search
  *   6. HierarchyJoinTask - Enrich results with document hierarchy context
  *
- * KNOWN GAPS (workflow auto-connect limitations):
- * - QueryExpander -> ChunkRetrieval: field name mismatch (`queries` vs `query`)
- * - ChunkRetrieval -> Reranker: `query` must be provided explicitly
+ * Auto-connect notes:
+ * - QueryExpander -> ChunkRetrieval: `query` auto-connects by name
+ * - ChunkRetrieval -> Reranker: `query` available via lookback
  *
  * Models Used:
  *   - Qwen3 Embedding 0.6B (1024D) for text embedding
@@ -293,15 +293,15 @@ describe("End-to-End RAG Pipeline", () => {
     const expanderResult = (await expanderWorkflow.run()) as QueryExpanderTaskOutput;
 
     expect(expanderResult).toBeDefined();
-    expect(expanderResult.queries).toBeDefined();
-    expect(Array.isArray(expanderResult.queries)).toBe(true);
-    expect(expanderResult.queries.length).toBeGreaterThan(1);
+    expect(expanderResult.query).toBeDefined();
+    expect(Array.isArray(expanderResult.query)).toBe(true);
+    expect(expanderResult.query.length).toBeGreaterThan(1);
     expect(expanderResult.originalQuery).toBe(query);
 
     logger.info(`\n  -> Retrieving chunks for each query variation:`);
     let totalChunksFound = 0;
 
-    for (const expandedQuery of expanderResult.queries.slice(0, 2)) {
+    for (const expandedQuery of expanderResult.query.slice(0, 2)) {
       const retrievalWorkflow = new Workflow()
         .chunkRetrieval({
           knowledgeBase: kbName,

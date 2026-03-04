@@ -38,7 +38,7 @@ describe("ChunkToVectorTask", () => {
     const result = (await new Workflow()
       .chunkToVector({
         chunks: chunkResult.chunks as ChunkRecord[],
-        vectors: mockVectors,
+        vector: mockVectors,
       })
       .run()) as ChunkToVectorTaskOutput;
 
@@ -88,10 +88,10 @@ describe("ChunkToVectorTask", () => {
       },
     ];
 
-    const vectors = [new Float32Array([1, 2, 3])]; // Only 1 vector for 2 chunks
+    const vector = [new Float32Array([1, 2, 3])]; // Only 1 vector for 2 chunks
 
     // Using workflow
-    await expect(new Workflow().chunkToVector({ chunks, vectors }).run()).rejects.toThrow(
+    await expect(new Workflow().chunkToVector({ chunks, vector }).run()).rejects.toThrow(
       "Mismatch"
     );
   });
@@ -109,10 +109,10 @@ describe("ChunkToVectorTask", () => {
       },
     ];
 
-    const vectors = [new Float32Array([1, 2, 3])];
+    const vector = [new Float32Array([1, 2, 3])];
 
     const result = (await new Workflow()
-      .chunkToVector({ chunks, vectors })
+      .chunkToVector({ chunks, vector })
       .run()) as ChunkToVectorTaskOutput;
 
     const metadata = result.metadata as Array<{

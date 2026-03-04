@@ -84,10 +84,10 @@ const outputSchema = {
       title: "Text Chunks",
       description: "Retrieved text chunks",
     },
-    ids: {
+    chunk_ids: {
       type: "array",
       items: { type: "string" },
-      title: "IDs",
+      title: "Chunk IDs",
       description: "IDs of retrieved chunks",
     },
     metadata: {
@@ -120,8 +120,13 @@ const outputSchema = {
       title: "Count",
       description: "Number of results returned",
     },
+    query: {
+      type: "string",
+      title: "Query",
+      description: "The text query used for search (pass-through)",
+    },
   },
-  required: ["chunks", "ids", "metadata", "scores", "count"],
+  required: ["chunks", "chunk_ids", "metadata", "scores", "count", "query"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -193,10 +198,11 @@ export class ChunkVectorHybridSearchTask extends Task<
 
     const output: HybridSearchTaskOutput = {
       chunks,
-      ids: results.map((r) => r.chunk_id),
+      chunk_ids: results.map((r) => r.chunk_id),
       metadata: results.map((r) => r.metadata),
       scores: results.map((r) => r.score),
       count: results.length,
+      query: queryText,
     };
 
     if (returnVectors) {

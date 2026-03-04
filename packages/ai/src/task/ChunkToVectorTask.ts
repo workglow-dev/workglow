@@ -38,7 +38,7 @@ const inputSchema = {
       title: "Chunks",
       description: "Array of chunk records",
     },
-    vectors: {
+    vector: {
       type: "array",
       items: TypedArraySchema({
         title: "Vector",
@@ -48,7 +48,7 @@ const inputSchema = {
       description: "Embeddings from TextEmbeddingTask",
     },
   },
-  required: ["chunks", "vectors"],
+  required: ["chunks", "vector"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -121,16 +121,16 @@ export class ChunkToVectorTask extends Task<
     input: ChunkToVectorTaskInput,
     context: IExecuteContext
   ): Promise<ChunkToVectorTaskOutput> {
-    const { chunks, vectors, doc_title } = input;
+    const { chunks, vector, doc_title } = input;
 
     const chunkArray = chunks as ChunkRecord[];
 
-    if (!chunkArray || !vectors) {
+    if (!chunkArray || !vector) {
       throw new Error("Both chunks and vector are required");
     }
 
-    if (chunkArray.length !== vectors.length) {
-      throw new Error(`Mismatch: ${chunkArray.length} chunks but ${vectors.length} vectors`);
+    if (chunkArray.length !== vector.length) {
+      throw new Error(`Mismatch: ${chunkArray.length} chunks but ${vector.length} vectors`);
     }
 
     const ids: string[] = [];
@@ -158,7 +158,7 @@ export class ChunkToVectorTask extends Task<
 
     return {
       ids,
-      vectors,
+      vectors: vector,
       metadata,
       texts,
     };
