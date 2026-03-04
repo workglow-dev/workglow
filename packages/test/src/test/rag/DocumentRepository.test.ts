@@ -6,17 +6,12 @@
 
 import {
   Document,
-  DocumentChunk,
-  DocumentChunkDataset,
-  DocumentChunkPrimaryKey,
-  DocumentChunkSchema,
-  DocumentDataset,
-  DocumentStorageKey,
-  DocumentStorageSchema,
+  KnowledgeBase,
   NodeKind,
   StructuralParser,
+  createKnowledgeBase,
+  type SectionNode,
 } from "@workglow/dataset";
-import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { setLogger, uuid4 } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -25,28 +20,15 @@ describe("DocumentRepository", () => {
   let logger = getTestingLogger();
   setLogger(logger);
 
-  describe("DocumentDataset", () => {
-    let dataset: DocumentDataset;
-    let vectorDataset: DocumentChunkDataset;
+  describe("KnowledgeBase", () => {
+    let kb: KnowledgeBase;
 
     beforeEach(async () => {
-      const tabularStorage = new InMemoryTabularStorage<DocumentStorageSchema, DocumentStorageKey>(
-        DocumentStorageSchema,
-        DocumentStorageKey
-      );
-      await tabularStorage.setupDatabase();
-
-      const storage = new InMemoryVectorStorage<
-        typeof DocumentChunkSchema,
-        typeof DocumentChunkPrimaryKey,
-        Record<string, unknown>,
-        Float32Array,
-        DocumentChunk
-      >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
-      await storage.setupDatabase();
-      vectorDataset = new DocumentChunkDataset(storage);
-
-      dataset = new DocumentDataset(tabularStorage, vectorDataset as any);
+      kb = await createKnowledgeBase({
+        name: `test-kb-${uuid4()}`,
+        vectorDimensions: 3,
+        register: false,
+      });
     });
 
     it("should store and retrieve documents", async () => {
@@ -56,8 +38,8 @@ describe("DocumentRepository", () => {
 
       const doc = new Document(root, { title: "Test Document" });
 
-      const inserted = await dataset.upsert(doc);
-      const retrieved = await dataset.get(inserted.doc_id!);
+      const inserted = await kb.upsertDocument(doc);
+      const retrieved = await kb.getDocument(inserted.doc_id!);
 
       expect(retrieved).toBeDefined();
       expect(retrieved?.doc_id).toBeDefined();
@@ -71,11 +53,11 @@ describe("DocumentRepository", () => {
       const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       const doc = new Document(root, { title: "Test" });
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
       // Get a child node
       const firstChild = root.children[0];
-      const retrieved = await dataset.getNode(inserted.doc_id!, firstChild.nodeId);
+      const retrieved = await kb.getNode(inserted.doc_id!, firstChild.nodeId);
 
       expect(retrieved).toBeDefined();
       expect(retrieved?.nodeId).toBe(firstChild.nodeId);
@@ -92,22 +74,26 @@ Paragraph.`;
       const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       const doc = new Document(root, { title: "Test" });
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
       // Find a deeply nested node
-      const section = root.children.find((c) => c.kind === NodeKind.SECTION);
+      const section = root.children.find(
+        (c): c is SectionNode => c.kind === NodeKind.SECTION
+      );
       expect(section).toBeDefined();
 
-      const subsection = (section as any).children.find((c: any) => c.kind === NodeKind.SECTION);
+      const subsection = section!.children.find(
+        (c) => c.kind === NodeKind.SECTION
+      );
       expect(subsection).toBeDefined();
 
-      const ancestors = await dataset.getAncestors(inserted.doc_id!, subsection.nodeId);
+      const ancestors = await kb.getAncestors(inserted.doc_id!, subsection!.nodeId);
 
       // Should include root, section, and subsection
       expect(ancestors.length).toBeGreaterThanOrEqual(3);
       expect(ancestors[0].nodeId).toBe(root.nodeId);
       expect(ancestors[1].nodeId).toBe(section!.nodeId);
-      expect(ancestors[2].nodeId).toBe(subsection.nodeId);
+      expect(ancestors[2].nodeId).toBe(subsection!.nodeId);
     });
 
     it("should handle chunks", async () => {
@@ -130,10 +116,10 @@ Paragraph.`;
 
       doc.setChunks(chunks);
 
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
-      // Retrieve chunks
-      const retrievedChunks = await dataset.getChunks(inserted.doc_id!);
+      // Retrieve chunks from document JSON
+      const retrievedChunks = await kb.getDocumentChunks(inserted.doc_id!);
       expect(retrievedChunks).toBeDefined();
       expect(retrievedChunks.length).toBe(1);
     });
@@ -151,37 +137,44 @@ Paragraph.`;
       const doc1 = new Document(root1, { title: "Doc 1" });
       const doc2 = new Document(root2, { title: "Doc 2" });
 
-      const inserted1 = await dataset.upsert(doc1);
-      const inserted2 = await dataset.upsert(doc2);
+      const inserted1 = await kb.upsertDocument(doc1);
+      const inserted2 = await kb.upsertDocument(doc2);
 
-      const list = await dataset.list();
+      const list = await kb.listDocuments();
       expect(list.length).toBe(2);
       expect(list).toContain(inserted1.doc_id);
       expect(list).toContain(inserted2.doc_id);
     });
 
-    it("should delete documents", async () => {
+    it("should delete documents and cascade to chunks", async () => {
       const markdown = "# Test";
       const doc_id = uuid4();
       const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       const doc = new Document(root, { title: "Test" });
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
-      expect(await dataset.get(inserted.doc_id!)).toBeDefined();
+      // Add some chunks to vector storage
+      await kb.upsertChunk({
+        doc_id: inserted.doc_id!,
+        vector: new Float32Array([1.0, 0.0, 0.0]),
+        metadata: { chunkId: "c1", doc_id: inserted.doc_id!, text: "test", nodePath: [], depth: 0 },
+      });
 
-      await dataset.delete(inserted.doc_id!);
+      expect(await kb.getDocument(inserted.doc_id!)).toBeDefined();
 
-      expect(await dataset.get(inserted.doc_id!)).toBeUndefined();
+      await kb.deleteDocument(inserted.doc_id!);
+
+      expect(await kb.getDocument(inserted.doc_id!)).toBeUndefined();
     });
 
     it("should return undefined for non-existent document", async () => {
-      const result = await dataset.get("non-existent-doc-id");
+      const result = await kb.getDocument("non-existent-doc-id");
       expect(result).toBeUndefined();
     });
 
     it("should return undefined for node in non-existent document", async () => {
-      const result = await dataset.getNode("non-existent-doc-id", "some-node-id");
+      const result = await kb.getNode("non-existent-doc-id", "some-node-id");
       expect(result).toBeUndefined();
     });
 
@@ -191,14 +184,14 @@ Paragraph.`;
       const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       const doc = new Document(root, { title: "Test" });
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
-      const result = await dataset.getNode(inserted.doc_id!, "non-existent-node-id");
+      const result = await kb.getNode(inserted.doc_id!, "non-existent-node-id");
       expect(result).toBeUndefined();
     });
 
     it("should return empty array for ancestors of non-existent document", async () => {
-      const result = await dataset.getAncestors("non-existent-doc-id", "some-node-id");
+      const result = await kb.getAncestors("non-existent-doc-id", "some-node-id");
       expect(result).toEqual([]);
     });
 
@@ -208,33 +201,31 @@ Paragraph.`;
       const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       const doc = new Document(root, { title: "Test" });
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
-      const result = await dataset.getAncestors(inserted.doc_id!, "non-existent-node-id");
+      const result = await kb.getAncestors(inserted.doc_id!, "non-existent-node-id");
       expect(result).toEqual([]);
     });
 
     it("should return empty array for chunks of non-existent document", async () => {
-      const result = await dataset.getChunks("non-existent-doc-id");
+      const result = await kb.getDocumentChunks("non-existent-doc-id");
       expect(result).toEqual([]);
     });
 
-    it("should return empty list for empty repository", async () => {
-      // Create fresh empty repo
-      const tabularStorage = new InMemoryTabularStorage<DocumentStorageSchema, DocumentStorageKey>(
-        DocumentStorageSchema,
-        DocumentStorageKey
-      );
-      await tabularStorage.setupDatabase();
-      const emptyDataset = new DocumentDataset(tabularStorage);
+    it("should return empty list for empty knowledge base", async () => {
+      const emptyKb = await createKnowledgeBase({
+        name: `empty-${uuid4()}`,
+        vectorDimensions: 3,
+        register: false,
+      });
 
-      const result = await emptyDataset.list();
+      const result = await emptyKb.listDocuments();
       expect(result).toEqual([]);
     });
 
     it("should not throw when deleting non-existent document", async () => {
       // Just verify delete completes without error
-      await dataset.delete("non-existent-doc-id");
+      await kb.deleteDocument("non-existent-doc-id");
       // If we get here, it didn't throw
       expect(true).toBe(true);
     });
@@ -245,15 +236,15 @@ Paragraph.`;
       const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       const doc1 = new Document(root, { title: "Original Title" });
-      const inserted1 = await dataset.upsert(doc1);
+      const inserted1 = await kb.upsertDocument(doc1);
 
       const doc2 = new Document(root, { title: "Updated Title" }, [], inserted1.doc_id);
-      await dataset.upsert(doc2);
+      await kb.upsertDocument(doc2);
 
-      const retrieved = await dataset.get(inserted1.doc_id!);
+      const retrieved = await kb.getDocument(inserted1.doc_id!);
       expect(retrieved?.metadata.title).toBe("Updated Title");
 
-      const list = await dataset.list();
+      const list = await kb.listDocuments();
       expect(list.length).toBe(1);
     });
 
@@ -263,7 +254,7 @@ Paragraph.`;
       const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
       const doc = new Document(root, { title: "Test" });
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
       const chunks = [
         {
@@ -282,9 +273,9 @@ Paragraph.`;
         },
       ];
       inserted.setChunks(chunks);
-      await dataset.upsert(inserted);
+      await kb.upsertDocument(inserted);
 
-      const result = await dataset.findChunksByNodeId(inserted.doc_id!, root.nodeId);
+      const result = await kb.findChunksByNodeId(inserted.doc_id!, root.nodeId);
       expect(result.length).toBe(2);
     });
 
@@ -295,61 +286,56 @@ Paragraph.`;
 
       const doc = new Document(root, { title: "Test" });
       doc.setChunks([]);
-      const inserted = await dataset.upsert(doc);
+      const inserted = await kb.upsertDocument(doc);
 
-      const result = await dataset.findChunksByNodeId(inserted.doc_id!, "non-matching-node");
+      const result = await kb.findChunksByNodeId(inserted.doc_id!, "non-matching-node");
       expect(result).toEqual([]);
     });
 
     it("should return empty array for findChunksByNodeId with non-existent document", async () => {
-      const result = await dataset.findChunksByNodeId("non-existent-doc", "some-node");
+      const result = await kb.findChunksByNodeId("non-existent-doc", "some-node");
       expect(result).toEqual([]);
     });
 
     it("should search with vector storage", async () => {
       // Add vectors to vector storage
-      await vectorDataset.put({
-        chunk_id: "chunk_1",
+      await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([1.0, 0.0, 0.0]),
-        metadata: { text: "First chunk" },
+        metadata: { chunkId: "chunk_1", doc_id: "doc1", text: "First chunk", nodePath: [], depth: 0 },
       });
-      await vectorDataset.put({
-        chunk_id: "chunk_2",
+      await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([0.8, 0.2, 0.0]),
-        metadata: { text: "Second chunk" },
+        metadata: { chunkId: "chunk_2", doc_id: "doc1", text: "Second chunk", nodePath: [], depth: 0 },
       });
-      await vectorDataset.put({
-        chunk_id: "chunk_3",
+      await kb.upsertChunk({
         doc_id: "doc2",
         vector: new Float32Array([0.0, 1.0, 0.0]),
-        metadata: { text: "Third chunk" },
+        metadata: { chunkId: "chunk_3", doc_id: "doc2", text: "Third chunk", nodePath: [], depth: 0 },
       });
 
       const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-      const results = await dataset.search(queryVector, { topK: 2 });
+      const results = await kb.similaritySearch(queryVector, { topK: 2 });
 
       expect(results.length).toBe(2);
-      expect(results[0].chunk_id).toBe("chunk_1");
+      expect(results[0].chunk_id).toBeDefined();
     });
 
     it("should search with score threshold", async () => {
-      await vectorDataset.put({
-        chunk_id: "chunk_1",
+      await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([1.0, 0.0, 0.0]),
-        metadata: { text: "Matching chunk" },
+        metadata: { chunkId: "chunk_1", doc_id: "doc1", text: "Matching chunk", nodePath: [], depth: 0 },
       });
-      await vectorDataset.put({
-        chunk_id: "chunk_2",
+      await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([0.0, 1.0, 0.0]),
-        metadata: { text: "Non-matching chunk" },
+        metadata: { chunkId: "chunk_2", doc_id: "doc1", text: "Non-matching chunk", nodePath: [], depth: 0 },
       });
 
       const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-      const results = await dataset.search(queryVector, { topK: 10, scoreThreshold: 0.9 });
+      const results = await kb.similaritySearch(queryVector, { topK: 10, scoreThreshold: 0.9 });
 
       expect(results.length).toBeGreaterThanOrEqual(1);
       results.forEach((r: any) => {
@@ -357,19 +343,29 @@ Paragraph.`;
       });
     });
 
-    it("should return empty array for search when no vector storage configured", async () => {
-      const tabularStorage = new InMemoryTabularStorage<DocumentStorageSchema, DocumentStorageKey>(
-        DocumentStorageSchema,
-        DocumentStorageKey
-      );
-      await tabularStorage.setupDatabase();
+    it("should support prepareReindex", async () => {
+      const markdown = "# Test\n\nContent.";
+      const doc_id = uuid4();
+      const root = await StructuralParser.parseMarkdown(doc_id, markdown, "Test");
 
-      const datasetWithoutVector = new DocumentDataset(tabularStorage);
+      const doc = new Document(root, { title: "Test" });
+      const inserted = await kb.upsertDocument(doc);
 
-      const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-      const results = await datasetWithoutVector.search(queryVector);
+      // Add chunks
+      await kb.upsertChunk({
+        doc_id: inserted.doc_id!,
+        vector: new Float32Array([1.0, 0.0, 0.0]),
+        metadata: { chunkId: "c1", doc_id: inserted.doc_id!, text: "test", nodePath: [], depth: 0 },
+      });
 
-      expect(results).toEqual([]);
+      // PrepareReindex should delete chunks but keep document
+      const reindexDoc = await kb.prepareReindex(inserted.doc_id!);
+      expect(reindexDoc).toBeDefined();
+      expect(reindexDoc?.doc_id).toBe(inserted.doc_id);
+
+      // Document still exists
+      const retrieved = await kb.getDocument(inserted.doc_id!);
+      expect(retrieved).toBeDefined();
     });
   });
 

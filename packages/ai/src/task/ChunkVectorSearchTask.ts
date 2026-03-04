@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
+import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -22,9 +22,9 @@ import {
 const inputSchema = {
   type: "object",
   properties: {
-    dataset: TypeDocumentChunkDataset({
-      title: "Vector Repository",
-      description: "The vector repository instance to search in",
+    knowledgeBase: TypeKnowledgeBase({
+      title: "Knowledge Base",
+      description: "The knowledge base instance to search in",
     }),
     query: TypedArraySchema({
       title: "Query Vector",
@@ -51,7 +51,7 @@ const inputSchema = {
       default: 0,
     },
   },
-  required: ["dataset", "query"],
+  required: ["knowledgeBase", "query"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -103,7 +103,7 @@ export type VectorStoreSearchTaskInput = FromSchema<typeof inputSchema, TypedArr
 export type VectorStoreSearchTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
 
 /**
- * Task for searching similar vectors in a document chunk dataset.
+ * Task for searching similar vectors in a knowledge base.
  * Returns top-K most similar vectors with their metadata and scores.
  */
 export class ChunkVectorSearchTask extends Task<
@@ -114,7 +114,7 @@ export class ChunkVectorSearchTask extends Task<
   public static type = "ChunkVectorSearchTask";
   public static category = "Vector Store";
   public static title = "Vector Store Search";
-  public static description = "Search for similar vectors in a document chunk dataset";
+  public static description = "Search for similar vectors in a knowledge base";
   public static cacheable = true;
 
   public static inputSchema(): DataPortSchema {
@@ -129,11 +129,11 @@ export class ChunkVectorSearchTask extends Task<
     input: VectorStoreSearchTaskInput,
     context: IExecuteContext
   ): Promise<VectorStoreSearchTaskOutput> {
-    const { dataset, query, topK = 10, filter, scoreThreshold = 0 } = input;
+    const { knowledgeBase, query, topK = 10, filter, scoreThreshold = 0 } = input;
 
-    const repo = dataset as DocumentChunkDataset;
+    const kb = knowledgeBase as KnowledgeBase;
 
-    const results = await repo.similaritySearch(query, {
+    const results = await kb.similaritySearch(query, {
       topK,
       filter,
       scoreThreshold,

@@ -4,16 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./util/DatasetSchema";
+// New unified types
+export * from "./chunk/ChunkSchema";
+export * from "./chunk/ChunkVectorStorageSchema";
+export * from "./knowledge-base/KnowledgeBase";
+export * from "./knowledge-base/KnowledgeBaseRegistry";
+export * from "./knowledge-base/createKnowledgeBase";
 
+// Core document types (unchanged)
+export * from "./util/DatasetSchema";
 export * from "./document/Document";
-export * from "./document/DocumentDataset";
-export * from "./document/DocumentDatasetRegistry";
 export * from "./document/DocumentNode";
 export * from "./document/DocumentSchema";
 export * from "./document/DocumentStorageSchema";
 export * from "./document/StructuralParser";
-
-export * from "./document-chunk/DocumentChunkDataset";
-export * from "./document-chunk/DocumentChunkDatasetRegistry";
-export * from "./document-chunk/DocumentChunkSchema";

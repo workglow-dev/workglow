@@ -1,1132 +1,668 @@
-# @workglow/storage
+# @workglow/dataset
 
-Modular storage solutions for Workglow.AI platform with multiple backend implementations. Provides consistent interfaces for key-value storage, tabular data storage, and job queue persistence.
+Document management, hierarchical chunking, and knowledge base infrastructure for RAG pipelines.
 
-- [Quick Start](#quick-start)
+- [Overview](#overview)
 - [Installation](#installation)
-- [Core Concepts](#core-concepts)
-  - [Type Safety](#type-safety)
-  - [Environment Compatibility](#environment-compatibility)
-  - [Import Patterns](#import-patterns)
-- [Storage Types](#storage-types)
-  - [Key-Value Storage](#key-value-storage)
-    - [Basic Usage](#basic-usage)
-    - [Environment-Specific Examples](#environment-specific-examples)
-    - [Bulk Operations](#bulk-operations)
-    - [Event Handling](#event-handling)
-  - [Tabular Storage](#tabular-storage)
-    - [Schema Definition](#schema-definition)
-    - [CRUD Operations](#crud-operations)
-    - [Bulk Operations](#bulk-operations-1)
-    - [Searching and Filtering](#searching-and-filtering)
-    - [Environment-Specific Tabular Storage](#environment-specific-tabular-storage)
-  - [Queue Storage](#queue-storage)
-    - [Basic Job Queue Operations](#basic-job-queue-operations)
-    - [Job Management](#job-management)
-- [Environment-Specific Usage](#environment-specific-usage)
-  - [Browser Environment](#browser-environment)
-  - [Node.js Environment](#nodejs-environment)
-  - [Bun Environment](#bun-environment)
-- [Advanced Features](#advanced-features)
-  - [Repository Registry](#repository-registry)
-  - [Event-Driven Architecture](#event-driven-architecture)
-  - [Compound Primary Keys](#compound-primary-keys)
-  - [Custom File Layout (KV on filesystem)](#custom-file-layout-kv-on-filesystem)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Documents](#documents)
+  - [Document Tree Structure](#document-tree-structure)
+  - [Parsing](#parsing)
+  - [Node Enrichment](#node-enrichment)
+- [Chunks](#chunks)
+  - [ChunkRecord](#chunkrecord)
+  - [Chunk Vector Storage](#chunk-vector-storage)
+- [KnowledgeBase](#knowledgebase)
+  - [Creating a KnowledgeBase](#creating-a-knowledgebase)
+  - [Document CRUD](#document-crud)
+  - [Chunk Operations](#chunk-operations)
+  - [Search](#search)
+  - [Tree Traversal](#tree-traversal)
+  - [Lifecycle Management](#lifecycle-management)
+  - [Registry](#registry)
+- [Data Flow](#data-flow)
+  - [Ingestion Pipeline](#ingestion-pipeline)
+  - [Retrieval Pipeline](#retrieval-pipeline)
 - [API Reference](#api-reference)
-  - [IKvStorage\<Key, Value\>](#ikvrepositorykey-value)
-  - [ITabularStorage\<Schema, PrimaryKeyNames\>](#itabularrepositoryschema-primarykeynames)
-  - [IQueueStorage\<Input, Output\>](#iqueuestorageinput-output)
-- [Examples](#examples)
-  - [User Management System](#user-management-system)
-  - [Configuration Management](#configuration-management)
-- [Testing](#testing)
-  - [Writing Tests for Your Storage Usage](#writing-tests-for-your-storage-usage)
+  - [Document](#document)
+  - [KnowledgeBase](#knowledgebase-1)
+  - [createKnowledgeBase](#createknowledgebase)
+  - [StructuralParser](#structuralparser)
+  - [Type Helpers](#type-helpers)
 - [License](#license)
 
-## Quick Start
+## Overview
 
-```typescript
-// Key-Value Storage (simple data)
-import { InMemoryKvStorage } from "@workglow/storage";
+This package provides the data layer for RAG (Retrieval-Augmented Generation) workflows. It ties together three concerns:
 
-const kvStore = new InMemoryKvStorage<string, { name: string; age: number }>();
-await kvStore.put("user:123", { name: "Alice", age: 30 });
-const kvUser = await kvStore.get("user:123"); // { name: "Alice", age: 30 }
+1. **Documents** — hierarchical tree representation of parsed text (sections, paragraphs, sentences)
+2. **Chunks** — flat records derived from the document tree, each tracking its position via node paths
+3. **KnowledgeBase** — unified interface that owns both document storage (tabular) and chunk storage (vector), with cascading lifecycle management
+
 ```
-
-```typescript
-// Tabular Storage (structured data with schemas)
-import { InMemoryTabularStorage } from "@workglow/storage";
-import { JsonSchema } from "@workglow/util";
-
-const userSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    name: { type: "string" },
-    email: { type: "string" },
-    age: { type: "number" },
-  },
-  required: ["id", "name", "email", "age"],
-  additionalProperties: false,
-} as const satisfies JsonSchema;
-
-const userRepo = new InMemoryTabularStorage<typeof userSchema, ["id"]>(
-  userSchema,
-  ["id"], // primary key
-  ["email"] // additional indexes
-);
-
-await userRepo.put({ id: "123", name: "Alice", email: "alice@example.com", age: 30 });
-const user = await userRepo.get({ id: "123" });
+  Markdown / Plain Text
+         │
+         ▼
+  ┌──────────────┐
+  │   Document   │  Hierarchical tree (sections, paragraphs)
+  │  (tabular)   │  Stored as serialized JSON
+  └──────┬───────┘
+         │  chunking
+         ▼
+  ┌──────────────┐
+  │   Chunks     │  Flat records with tree linkage (nodePath, depth)
+  │  (vector)    │  Stored with embedding vectors
+  └──────┬───────┘
+         │  search
+         ▼
+  ┌──────────────┐
+  │   Results    │  Ranked by similarity score
+  └──────────────┘
 ```
 
 ## Installation
 
 ```bash
-# Using bun (recommended)
-bun install @workglow/storage
-
-# Using npm
-npm install @workglow/storage
-
-# Using yarn
-yarn add @workglow/storage
+bun install @workglow/dataset
 ```
 
-## Core Concepts
+Peer dependencies: `@workglow/storage`, `@workglow/util`.
 
-### Type Safety
-
-All storage implementations are fully typed using TypeScript and JSON Schema for runtime validation:
+## Quick Start
 
 ```typescript
-import { JsonSchema, FromSchema } from "@workglow/util";
+import {
+  createKnowledgeBase,
+  Document,
+  StructuralParser,
+} from "@workglow/dataset";
 
-// Define your data structure
-const ProductSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    name: { type: "string" },
-    price: { type: "number" },
-    category: { type: "string" },
-    inStock: { type: "boolean" },
-  },
-  required: ["id", "name", "price", "category", "inStock"],
-  additionalProperties: false,
-} as const satisfies JsonSchema;
-
-// TypeScript automatically infers:
-// Entity = FromSchema<typeof ProductSchema>
-// PrimaryKey = { id: string }
-```
-
-### Environment Compatibility
-
-| Storage Type | Node.js | Bun | Browser | Persistence |
-| ------------ | ------- | --- | ------- | ----------- |
-| InMemory     | ✅      | ✅  | ✅      | ❌          |
-| IndexedDB    | ❌      | ❌  | ✅      | ✅          |
-| SQLite       | ✅      | ✅  | ❌      | ✅          |
-| PostgreSQL   | ✅      | ✅  | ❌      | ✅          |
-| Supabase     | ✅      | ✅  | ✅      | ✅          |
-| FileSystem   | ✅      | ✅  | ❌      | ✅          |
-
-### Import Patterns
-
-The package uses conditional exports, so importing from `@workglow/storage` automatically selects the right build for your runtime (browser, Node.js, or Bun).
-
-```typescript
-// Import from the top-level package; it resolves to the correct target per environment
-import { InMemoryKvStorage, SqliteTabularStorage } from "@workglow/storage";
-```
-
-## Storage Types
-
-### Key-Value Storage
-
-Simple key-value storage for unstructured or semi-structured data.
-
-#### Basic Usage
-
-```typescript
-import { InMemoryKvStorage, FsFolderJsonKvRepository } from "@workglow/storage";
-
-// In-memory (for testing/caching)
-const cache = new InMemoryKvStorage<string, any>();
-await cache.put("config", { theme: "dark", language: "en" });
-
-// File-based JSON (persistent)
-const settings = new FsFolderJsonKvRepository("./data/settings");
-await settings.put("user:preferences", { notifications: true });
-```
-
-#### Environment-Specific Examples
-
-```typescript
-// Browser (using IndexedDB)
-import { IndexedDbKvRepository } from "@workglow/storage";
-const browserStore = new IndexedDbKvRepository("my-app-storage");
-
-// Node.js/Bun (using SQLite)
-import { SqliteKvRepository } from "@workglow/storage";
-// Pass a file path or a Database instance (see @workglow/sqlite)
-const sqliteStore = new SqliteKvRepository("./data.db", "config_table");
-
-// PostgreSQL (Node.js/Bun)
-import { PostgresKvRepository } from "@workglow/storage";
-import { Pool } from "pg";
-const pool = new Pool({ connectionString: "postgresql://..." });
-const pgStore = new PostgresKvRepository(pool, "settings");
-
-// Supabase (Node.js/Bun)
-import { SupabaseKvRepository } from "@workglow/storage";
-import { createClient } from "@supabase/supabase-js";
-const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
-const supabaseStore = new SupabaseKvRepository(supabase, "settings");
-```
-
-#### Bulk Operations
-
-```typescript
-const store = new InMemoryKvStorage<string, { name: string; score: number }>();
-
-// Bulk insert
-await store.putBulk([
-  { key: "player1", value: { name: "Alice", score: 100 } },
-  { key: "player2", value: { name: "Bob", score: 85 } },
-]);
-
-// Get all data
-const allPlayers = await store.getAll();
-// Result: [{ key: "player1", value: { name: "Alice", score: 100 } }, ...]
-
-// Get size
-const count = await store.size(); // 2
-```
-
-#### Event Handling
-
-```typescript
-const store = new InMemoryKvStorage<string, any>();
-
-// Listen to storage events
-store.on("put", (key, value) => {
-  console.log(`Stored: ${key} = ${JSON.stringify(value)}`);
+// 1. Create a knowledge base
+const kb = await createKnowledgeBase({
+  name: "my-kb",
+  vectorDimensions: 384,
 });
 
-store.on("get", (key, value) => {
-  console.log(`Retrieved: ${key} = ${value ? "found" : "not found"}`);
+// 2. Parse a document
+const root = await StructuralParser.parseMarkdown("doc1", markdown, "My Doc");
+const doc = new Document(root, { title: "My Doc" });
+
+// 3. Store the document
+const inserted = await kb.upsertDocument(doc);
+
+// 4. Store chunk embeddings
+await kb.upsertChunk({
+  doc_id: inserted.doc_id!,
+  vector: new Float32Array([0.1, 0.2, ...]),
+  metadata: {
+    chunkId: "chunk_1",
+    doc_id: inserted.doc_id!,
+    text: "The chunk text...",
+    nodePath: [root.nodeId, sectionNodeId],
+    depth: 2,
+  },
 });
 
-await store.put("test", { data: "example" }); // Triggers 'put' event
-await store.get("test"); // Triggers 'get' event
+// 5. Search (via task pipeline)
+import { Workflow } from "@workglow/task-graph";
+
+const result = await new Workflow()
+  .chunkRetrieval({
+    knowledgeBase: "my-kb",
+    query: "your search query",
+    model: "your-embedding-model",
+    topK: 5,
+  })
+  .run();
 ```
 
-### Tabular Storage
+## Architecture
 
-Structured storage with schemas, primary keys, and indexing for complex data relationships.
+The package is organized around three layers:
 
-#### Schema Definition
-
-```typescript
-import { JsonSchema } from "@workglow/util";
-import { InMemoryTabularStorage } from "@workglow/storage";
-
-// Define your entity schema
-const UserSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    email: { type: "string" },
-    name: { type: "string" },
-    age: { type: "number" },
-    department: { type: "string" },
-    createdAt: { type: "string" },
-  },
-  required: ["id", "email", "name", "age", "department", "createdAt"],
-  additionalProperties: false,
-} as const satisfies JsonSchema;
-
-// Create repository with primary key and indexes
-const userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
-  UserSchema,
-  ["id"], // Primary key (can be compound: ["dept", "id"])
-  ["email", "department", ["department", "age"]] // Indexes for fast lookups
-);
+```
+┌───────────────────────────────────────────────────┐
+│                 KnowledgeBase                     │
+│  Unified API for documents + chunks + search      │
+├────────────────────┬──────────────────────────────┤
+│  DocumentTabular   │      ChunkVector             │
+│  Storage           │      Storage                 │
+│  (ITabularStorage) │      (IVectorStorage)        │
+│                    │                              │
+│  Stores serialized │  Stores embeddings +         │
+│  document trees    │  ChunkRecord metadata        │
+└────────────────────┴──────────────────────────────┘
 ```
 
-#### CRUD Operations
+**Storage backends** are pluggable via the `@workglow/storage` interfaces. The `createKnowledgeBase` factory defaults to in-memory storage; production deployments can use SQLite, PostgreSQL, or any other `ITabularStorage` / `IVectorStorage` implementation.
 
-```typescript
-// Create
-await userRepo.put({
-  id: "user_123",
-  email: "alice@company.com",
-  name: "Alice Johnson",
-  age: 28,
-  department: "Engineering",
-  createdAt: new Date().toISOString(),
-});
+## Documents
 
-// Read by primary key
-const user = await userRepo.get({ id: "user_123" });
+### Document Tree Structure
 
-// Update (put with same primary key)
-await userRepo.put({
-  ...user!,
-  age: 29, // Birthday!
-});
+Documents are represented as a hierarchical tree using a **discriminated union** of node types:
 
-// Delete
-await userRepo.delete({ id: "user_123" });
+```
+DocumentRootNode (kind: "document")
+├── SectionNode (kind: "section", level: 1)
+│   ├── ParagraphNode (kind: "paragraph")
+│   ├── ParagraphNode (kind: "paragraph")
+│   └── SectionNode (kind: "section", level: 2)
+│       └── ParagraphNode (kind: "paragraph")
+├── SectionNode (kind: "section", level: 1)
+│   └── ParagraphNode (kind: "paragraph")
+└── ParagraphNode (kind: "paragraph")
 ```
 
-#### Bulk Operations
+**Node types:**
+
+| Type               | Kind          | Has Children | Description                                       |
+| ------------------ | ------------- | ------------ | ------------------------------------------------- |
+| `DocumentRootNode` | `"document"`  | yes          | Root of the tree, has `title`                     |
+| `SectionNode`      | `"section"`   | yes          | From headers (level 1-6), has `title` and `level` |
+| `ParagraphNode`    | `"paragraph"` | no           | Prose content                                     |
+| `SentenceNode`     | `"sentence"`  | no           | Fine-grained segmentation                         |
+| `TopicNode`        | `"topic"`     | yes          | From topic segmentation algorithms                |
+
+All nodes share a base set of fields:
 
 ```typescript
-// Bulk insert
-await userRepo.putBulk([
-  {
-    id: "1",
-    email: "alice@co.com",
-    name: "Alice",
-    age: 28,
-    department: "Engineering",
-    createdAt: "2024-01-01",
-  },
-  {
-    id: "2",
-    email: "bob@co.com",
-    name: "Bob",
-    age: 32,
-    department: "Sales",
-    createdAt: "2024-01-02",
-  },
-  {
-    id: "3",
-    email: "carol@co.com",
-    name: "Carol",
-    age: 26,
-    department: "Engineering",
-    createdAt: "2024-01-03",
-  },
-]);
-
-// Get all records
-const allUsers = await userRepo.getAll();
-
-// Get repository size
-const userCount = await userRepo.size();
-```
-
-#### Searching and Filtering
-
-```typescript
-// Search by partial match (uses indexes when available)
-const engineeringUsers = await userRepo.search({ department: "Engineering" });
-const adultUsers = await userRepo.search({ age: 25 }); // Exact match
-
-// Delete by search criteria (supports multiple columns)
-await userRepo.deleteSearch({ department: "Sales" }); // Equality
-await userRepo.deleteSearch({ age: { value: 65, operator: ">=" } }); // Delete users 65 and older
-
-// Multiple criteria (AND logic)
-await userRepo.deleteSearch({
-  department: "Sales",
-  age: { value: 30, operator: "<" },
-}); // Delete young Sales employees
-```
-
-#### Environment-Specific Tabular Storage
-
-```typescript
-// SQLite (Node.js/Bun)
-import { SqliteTabularStorage } from "@workglow/storage";
-
-const sqliteUsers = new SqliteTabularStorage<typeof UserSchema, ["id"]>(
-  "./users.db",
-  "users",
-  UserSchema,
-  ["id"],
-  ["email"]
-);
-
-// PostgreSQL (Node.js/Bun)
-import { PostgresTabularStorage } from "@workglow/storage";
-import { Pool } from "pg";
-
-const pool = new Pool({ connectionString: "postgresql://..." });
-const pgUsers = new PostgresTabularStorage<typeof UserSchema, ["id"]>(
-  pool,
-  "users",
-  UserSchema,
-  ["id"],
-  ["email"]
-);
-
-// Supabase (Node.js/Bun)
-import { SupabaseTabularStorage } from "@workglow/storage";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
-const supabaseUsers = new SupabaseTabularStorage<typeof UserSchema, ["id"]>(
-  supabase,
-  "users",
-  UserSchema,
-  ["id"],
-  ["email"]
-);
-
-// IndexedDB (Browser)
-import { IndexedDbTabularStorage } from "@workglow/storage";
-const browserUsers = new IndexedDbTabularStorage<typeof UserSchema, ["id"]>(
-  "users",
-  UserSchema,
-  ["id"],
-  ["email"]
-);
-
-// File-based (Node.js/Bun)
-import { FsFolderTabularStorage } from "@workglow/storage";
-const fileUsers = new FsFolderTabularStorage<typeof UserSchema, ["id"]>(
-  "./data/users",
-  UserSchema,
-  ["id"],
-  ["email"]
-);
-```
-
-### Queue Storage
-
-Persistent job queue storage for background processing and task management.
-
-> **Note**: Queue storage is primarily used internally by the job queue system. Direct usage is for advanced scenarios.
-
-#### Basic Job Queue Operations
-
-```typescript
-import { InMemoryQueueStorage, JobStatus } from "@workglow/storage";
-
-// Define job input/output types
-type ProcessingInput = { text: string; options: any };
-type ProcessingOutput = { result: string; metadata: any };
-
-const jobQueue = new InMemoryQueueStorage<ProcessingInput, ProcessingOutput>();
-
-// Add job to queue
-const jobId = await jobQueue.add({
-  input: { text: "Hello world", options: { uppercase: true } },
-  run_after: null, // Run immediately
-  max_retries: 3,
-});
-
-// Get next job for processing
-const job = await jobQueue.next();
-if (job) {
-  // Process the job...
-  const result = { result: "HELLO WORLD", metadata: { processed: true } };
-
-  // Mark as complete
-  await jobQueue.complete({
-    ...job,
-    output: result,
-    status: JobStatus.COMPLETED,
-  });
+interface DocumentNodeBase {
+  readonly nodeId: string; // Unique identifier (UUID)
+  readonly kind: NodeKind; // Discriminator
+  readonly range: NodeRange; // { startOffset, endOffset } in source text
+  readonly text: string; // Text content
+  readonly enrichment?: NodeEnrichment; // Optional summary, entities, keywords
 }
 ```
 
-#### Job Management
+Use the `NodeKind` constants for comparisons:
 
 ```typescript
-// Check queue status
-const pendingCount = await jobQueue.size(JobStatus.PENDING);
-const processingCount = await jobQueue.size(JobStatus.PROCESSING);
+import { NodeKind } from "@workglow/dataset";
 
-// Peek at jobs without removing them
-const nextJobs = await jobQueue.peek(JobStatus.PENDING, 5);
-
-// Progress tracking
-await jobQueue.saveProgress(jobId, 50, "Processing...", { step: 1 });
-
-// Handle job failures
-await jobQueue.abort(jobId);
-
-// Cleanup old completed jobs
-await jobQueue.deleteJobsByStatusAndAge(JobStatus.COMPLETED, 24 * 60 * 60 * 1000); // 24 hours
+if (node.kind === NodeKind.SECTION) {
+  console.log(node.title, node.level, node.children.length);
+}
 ```
 
-## Environment-Specific Usage
+### Parsing
 
-### Browser Environment
+`StructuralParser` converts raw text into a `DocumentRootNode`:
 
 ```typescript
-import {
-  IndexedDbKvRepository,
-  IndexedDbTabularStorage,
-  IndexedDbQueueStorage,
-  SupabaseKvRepository,
-  SupabaseTabularStorage,
-  SupabaseQueueStorage,
-} from "@workglow/storage";
-import { createClient } from "@supabase/supabase-js";
+import { StructuralParser } from "@workglow/dataset";
 
-// Local browser storage with IndexedDB
-const settings = new IndexedDbKvRepository("app-settings");
-const userData = new IndexedDbTabularStorage("users", UserSchema, ["id"]);
-const jobQueue = new IndexedDbQueueStorage<any, any>("background-jobs");
+// Markdown — detects headers, creates nested sections
+const root = await StructuralParser.parseMarkdown(docId, markdownText, "Title");
 
-// Or use Supabase for cloud storage from the browser
-const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
-const cloudSettings = new SupabaseKvRepository(supabase, "app-settings");
-const cloudUserData = new SupabaseTabularStorage(supabase, "users", UserSchema, ["id"]);
-const cloudJobQueue = new SupabaseQueueStorage(supabase, "background-jobs");
+// Plain text — splits on blank lines into paragraphs
+const root = await StructuralParser.parsePlainText(docId, plainText, "Title");
+
+// Auto-detect format
+const root = await StructuralParser.parse(docId, text, "Title");
 ```
 
-### Node.js Environment
+The parser:
+
+- Converts markdown headers (`#` through `######`) into nested `SectionNode`s
+- Groups text between headers as `ParagraphNode` children
+- Tracks character offsets (`startOffset`, `endOffset`) for every node
+- Assigns a unique `nodeId` to each node
+
+### Node Enrichment
+
+Nodes can carry optional enrichment data populated by AI tasks:
 
 ```typescript
-import {
-  SqliteKvRepository,
-  PostgresTabularStorage,
-  FsFolderJsonKvRepository,
-} from "@workglow/storage";
-
-// Mix and match storage backends
-const cache = new FsFolderJsonKvRepository("./cache");
-const users = new PostgresTabularStorage(pool, "users", UserSchema, ["id"]);
+interface NodeEnrichment {
+  summary?: string; // AI-generated summary
+  entities?: Entity[]; // Named entities (text, type, confidence score)
+  keywords?: string[]; // Extracted keywords
+}
 ```
 
-### Bun Environment
+Enrichment is set on nodes during the ingestion pipeline (e.g., by `DocumentEnricherTask`) and propagated to chunks during hierarchy join.
+
+## Chunks
+
+### ChunkRecord
+
+A `ChunkRecord` is a flat, self-contained unit of text with full context about its position in the document tree:
 
 ```typescript
-// Bun has access to all implementations
-import {
-  SqliteTabularStorage,
-  FsFolderJsonKvRepository,
-  PostgresQueueStorage,
-  SupabaseTabularStorage,
-} from "@workglow/storage";
+interface ChunkRecord {
+  // Identity
+  chunkId: string; // Unique chunk identifier
+  doc_id: string; // Parent document ID
 
-import { Database } from "bun:sqlite";
-import { createClient } from "@supabase/supabase-js";
+  // Content
+  text: string; // The text to embed and search
 
-const db = new Database("./app.db");
-const data = new SqliteTabularStorage(db, "items", ItemSchema, ["id"]);
+  // Tree linkage
+  nodePath: string[]; // Node IDs from root to leaf
+  depth: number; // Depth in the document tree
 
-// Or use Supabase for cloud storage
-const supabase = createClient("https://your-project.supabase.co", "your-anon-key");
-const cloudData = new SupabaseTabularStorage(supabase, "items", ItemSchema, ["id"]);
+  // Optional fields
+  leafNodeId?: string; // Leaf node this chunk belongs to
+  summary?: string; // Chunk-level summary
+  entities?: Entity[]; // Named entities
+  parentSummaries?: string[]; // Summaries from ancestor nodes
+  sectionTitles?: string[]; // Titles of ancestor sections
+  doc_title?: string; // Document title
+}
 ```
 
-## Advanced Features
+The `nodePath` and `depth` fields enable **hierarchy-aware retrieval**: given a search result, you can walk back up the document tree to get section titles, parent summaries, or sibling chunks for additional context.
 
-### Repository Registry
+### Chunk Vector Storage
 
-Repositories can be registered globally by ID, allowing tasks to reference them by name rather than passing direct instances. This is useful for configuring repositories once at application startup and referencing them throughout your task graphs.
-
-#### Registering Repositories
+Chunks are stored in vector storage as `ChunkVectorEntity`:
 
 ```typescript
-import {
-  registerTabularStorage,
-  getTabularStorage,
-  InMemoryTabularStorage,
-} from "@workglow/storage";
+interface ChunkVectorEntity {
+  chunk_id: string; // Primary key (auto-generated UUID)
+  doc_id: string; // For filtering by document
+  vector: TypedArray; // Embedding (Float32Array, etc.)
+  metadata: ChunkRecord; // Full chunk record
+}
+```
 
-// Define your schema
-const userSchema = {
+The `metadata` field holds the complete `ChunkRecord`, so search results carry all the context needed for hierarchy-aware retrieval without additional lookups.
+
+## KnowledgeBase
+
+`KnowledgeBase` is the central class that ties document storage and vector storage together.
+
+### Creating a KnowledgeBase
+
+**Factory function (recommended):**
+
+```typescript
+import { createKnowledgeBase } from "@workglow/dataset";
+
+const kb = await createKnowledgeBase({
+  name: "my-kb", // Identifier
+  vectorDimensions: 384, // Must match your embedding model
+  backend: "in-memory", // Currently only "in-memory"
+  vectorType: Float32Array, // Default: Float32Array
+  register: true, // Register globally (default: true)
+});
+```
+
+**Direct construction (custom storage backends):**
+
+```typescript
+import { KnowledgeBase } from "@workglow/dataset";
+
+const kb = new KnowledgeBase(
+  "my-kb",
+  myDocumentTabularStorage, // ITabularStorage implementation
+  myChunkVectorStorage // IVectorStorage implementation
+);
+```
+
+### Document CRUD
+
+```typescript
+// Upsert — auto-generates doc_id if not set
+const doc = new Document(root, { title: "My Document" });
+const inserted = await kb.upsertDocument(doc);
+console.log(inserted.doc_id); // auto-generated UUID
+
+// Get by ID
+const retrieved = await kb.getDocument(inserted.doc_id!);
+
+// List all document IDs
+const docIds = await kb.listDocuments();
+
+// Delete — cascades to all chunks in vector storage
+await kb.deleteDocument(inserted.doc_id!);
+```
+
+### Chunk Operations
+
+```typescript
+// Upsert a single chunk
+const entity = await kb.upsertChunk({
+  doc_id: "doc1",
+  vector: new Float32Array([0.1, 0.2, 0.3]),
+  metadata: {
+    chunkId: "chunk_1",
+    doc_id: "doc1",
+    text: "Some text...",
+    nodePath: ["root", "section1"],
+    depth: 2,
+  },
+});
+
+// Upsert in bulk
+const entities = await kb.upsertChunksBulk(chunkArray);
+
+// Get a specific chunk
+const chunk = await kb.getChunk("chunk_id_here");
+
+// Get all chunks for a document
+const docChunks = await kb.getChunksForDocument("doc1");
+
+// Delete all chunks for a document (without deleting the document)
+await kb.deleteChunksForDocument("doc1");
+```
+
+### Search
+
+**Similarity search** — vector-only:
+
+```typescript
+const results = await kb.similaritySearch(queryVector, {
+  topK: 10, // Max results (default varies by backend)
+  scoreThreshold: 0.7, // Minimum similarity score
+  filter: { doc_id: "doc1" }, // Metadata filter
+});
+
+// Each result: ChunkVectorEntity & { score: number }
+for (const result of results) {
+  console.log(result.chunk_id, result.score, result.metadata.text);
+}
+```
+
+**Hybrid search** — combines vector similarity with full-text search. Requires a storage backend that supports it (e.g., PostgreSQL with pgvector). Returns an empty array if unsupported.
+
+```typescript
+const results = await kb.hybridSearch(queryVector, {
+  textQuery: "machine learning",
+  topK: 10,
+  vectorWeight: 0.7, // 0-1, balance between vector and text
+  scoreThreshold: 0.5,
+  filter: { doc_id: "doc1" },
+});
+```
+
+### Tree Traversal
+
+Navigate the document tree stored in the knowledge base:
+
+```typescript
+// Get a specific node by ID
+const node = await kb.getNode("doc1", nodeId);
+
+// Get ancestors from root to target (useful for building context)
+const ancestors = await kb.getAncestors("doc1", leafNodeId);
+// Returns: [rootNode, sectionNode, subsectionNode, targetNode]
+
+// Get chunks stored in the document JSON (not vector storage)
+const chunks = await kb.getDocumentChunks("doc1");
+
+// Find chunks whose nodePath contains a given node ID
+const related = await kb.findChunksByNodeId("doc1", sectionNodeId);
+```
+
+### Lifecycle Management
+
+```typescript
+// Prepare for re-indexing: delete chunks but keep the document
+const doc = await kb.prepareReindex("doc1");
+// doc is returned so you can re-chunk and re-embed
+
+// Initialize storage backends
+await kb.setupDatabase();
+
+// Tear down
+kb.destroy();
+```
+
+### Registry
+
+Knowledge bases can be registered globally by name, allowing tasks to reference them by string ID:
+
+```typescript
+import { registerKnowledgeBase, getKnowledgeBase, TypeKnowledgeBase } from "@workglow/dataset";
+
+// Register
+registerKnowledgeBase("my-kb", kb);
+
+// Retrieve
+const retrieved = getKnowledgeBase("my-kb");
+
+// In task schemas — accepts either a string ID or a KnowledgeBase instance
+const inputSchema = {
   type: "object",
   properties: {
-    id: { type: "string" },
-    name: { type: "string" },
-    email: { type: "string" },
+    knowledgeBase: TypeKnowledgeBase({
+      title: "Knowledge Base",
+      description: "The KB to search",
+    }),
   },
-  required: ["id", "name", "email"],
-  additionalProperties: false,
+  required: ["knowledgeBase"],
 } as const;
 
-// Create and register a repository
-const userRepo = new InMemoryTabularStorage(userSchema, ["id"] as const);
-registerTabularStorage("users", userRepo);
-
-// Later, retrieve the repository by ID
-const repo = getTabularStorage("users");
+// Both work:
+await task.run({ knowledgeBase: kb }); // Direct instance
+await task.run({ knowledgeBase: "my-kb" }); // Resolved from registry
 ```
 
-#### Using Repositories in Tasks
+## Data Flow
 
-When using repositories with tasks, you can pass either the repository ID or a direct instance. The TaskRunner automatically resolves string IDs using the registry.
+### Ingestion Pipeline
 
-```typescript
-import { TypeTabularStorage } from "@workglow/storage";
+All ingestion steps are composable Tasks that auto-connect in a Workflow:
 
-// In your task's input schema, use TypeTabularStorage
-static inputSchema() {
-  return {
-    type: "object",
-    properties: {
-      dataSource: TypeTabularStorage({
-        title: "User Repository",
-        description: "Repository containing user records",
-      }),
-    },
-    required: ["dataSource"],
-  };
-}
-
-// Both approaches work:
-await task.run({ dataSource: "users" });           // Resolved from registry
-await task.run({ dataSource: userRepoInstance }); // Direct instance
+```
+Raw Text / Markdown
+  │
+  ▼  StructuralParserTask
+DocumentRootNode (tree with character offsets)
+  │
+  ▼  DocumentEnricherTask (optional AI enrichment)
+DocumentRootNode (+ summaries, entities on nodes)
+  │
+  ▼  HierarchicalChunkerTask
+ChunkRecord[] (flat chunks with nodePath linkage)
+  │
+  ▼  TextEmbeddingTask (AI model)
+ChunkRecord[] + Float32Array[] (text → vectors)
+  │
+  ▼  ChunkToVectorTask
+Vectors + metadata in vector store format
+  │
+  ▼  ChunkVectorUpsertTask → vector + tabular storage
 ```
 
-#### Schema Helper Functions
-
-The package provides schema helper functions for defining repository inputs with proper format annotations:
+Example using the Workflow API:
 
 ```typescript
-import {
-  TypeTabularStorage,
-  TypeVectorRepository,
-  TypeDocumentRepository,
-} from "@workglow/storage";
+import { Workflow } from "@workglow/task-graph";
 
-// Tabular repository (format: "storage:tabular")
-const tabularSchema = TypeTabularStorage({
-  title: "Data Source",
-  description: "Tabular data storage",
-});
+const result = await new Workflow()
+  .fileLoader({ url: `file://${filePath}`, format: "markdown" })
+  .structuralParser({ title: "My Document" })
+  .documentEnricher({ generateSummaries: true, extractEntities: true })
+  .hierarchicalChunker({ maxTokens: 512, overlap: 50 })
+  .textEmbedding({ model: "your-embedding-model" })
+  .chunkToVector()
+  .chunkVectorUpsert({ knowledgeBase: "my-kb" })
+  .run();
 
-// Vector repository (format: "dataset:document-chunk")
-const vectorSchema = TypeVectorRepository({
-  title: "Embeddings Store",
-  description: "Vector embeddings dataset",
-});
-
-// Document repository (format: "dataset:document")
-const docSchema = TypeDocumentRepository({
-  title: "Document Store",
-  description: "Document storage dataset",
-});
+console.log(result.count); // Number of vectors stored
 ```
 
-### Event-Driven Architecture
+### Retrieval Pipeline
 
-All storage implementations support event emission for monitoring and reactive programming:
+All retrieval steps are composable Tasks that auto-connect in a Workflow:
 
-```typescript
-const store = new InMemoryTabularStorage(UserSchema, ["id"]);
-
-// Monitor all operations
-store.on("put", (entity) => console.log("User created/updated:", entity));
-store.on("delete", (key) => console.log("User deleted:", key));
-store.on("get", (key, entity) => console.log("User accessed:", entity ? "found" : "not found"));
-
-// Wait for specific events
-const [entity] = await store.waitOn("put"); // Waits for next put operation
+```
+User Query
+  │
+  ▼  QueryExpanderTask (optional — generates query variations)
+Expanded queries
+  │
+  ▼  ChunkRetrievalTask (embeds query + vector search)
+     or ChunkVectorHybridSearchTask (vector + full-text search)
+ChunkSearchResult[] (chunks, chunk_ids, scores, query)
+  │
+  ▼  HierarchyJoinTask (optional — enriches with ancestor context)
+Enriched chunks (+ parentSummaries, sectionTitles, entities)
+  │
+  ▼  RerankerTask (optional — cross-encoder reranking)
+Re-scored chunks
+  │
+  ▼  ContextBuilderTask
+Formatted context string for LLM prompt
+  │
+  ▼  LLM
+Answer
 ```
 
-### Compound Primary Keys
+Example using the Workflow API:
 
 ```typescript
-import { JsonSchema } from "@workglow/util";
+import { Workflow } from "@workglow/task-graph";
 
-const OrderLineSchema = {
-  type: "object",
-  properties: {
-    orderId: { type: "string" },
-    lineNumber: { type: "number" },
-    productId: { type: "string" },
-    quantity: { type: "number" },
-    price: { type: "number" },
-  },
-  required: ["orderId", "lineNumber", "productId", "quantity", "price"],
-  additionalProperties: false,
-} as const satisfies JsonSchema;
+const result = await new Workflow()
+  .chunkRetrieval({
+    knowledgeBase: "my-kb",
+    query: "What caused the Civil War?",
+    model: "your-embedding-model",
+    topK: 10,
+  })
+  .hierarchyJoin({
+    knowledgeBase: "my-kb",
+    includeParentSummaries: true,
+  })
+  .reranker({
+    method: "cross-encoder",
+    model: "your-reranker-model",
+    topK: 5,
+  })
+  .contextBuilder({
+    format: "numbered",
+    includeMetadata: false,
+  })
+  .run();
 
-const orderLines = new InMemoryTabularStorage<typeof OrderLineSchema, ["orderId", "lineNumber"]>(
-  OrderLineSchema,
-  ["orderId", "lineNumber"], // Compound primary key
-  ["productId"] // Additional index
-);
-
-// Use compound keys
-await orderLines.put({
-  orderId: "ORD-123",
-  lineNumber: 1,
-  productId: "PROD-A",
-  quantity: 2,
-  price: 19.99,
-});
-const line = await orderLines.get({ orderId: "ORD-123", lineNumber: 1 });
-```
-
-### Custom File Layout (KV on filesystem)
-
-```typescript
-import { FsFolderKvRepository } from "@workglow/storage";
-import { JsonSchema } from "@workglow/util";
-
-// Control how keys map to file paths and value encoding via schemas
-const keySchema = { type: "string" } as const satisfies JsonSchema;
-const valueSchema = { type: "string" } as const satisfies JsonSchema;
-
-const files = new FsFolderKvRepository<string, string>(
-  "./data/files",
-  (key) => `${key}.txt`,
-  keySchema,
-  valueSchema
-);
-
-await files.put("note-1", "Hello world");
+console.log(result.context); // Formatted context ready for LLM
 ```
 
 ## API Reference
 
-### IKvStorage<Key, Value>
-
-Core interface for key-value storage:
+### Document
 
 ```typescript
-interface IKvStorage<Key, Value> {
-  // Core operations
-  put(key: Key, value: Value): Promise<void>;
-  putBulk(items: Array<{ key: Key; value: Value }>): Promise<void>;
-  get(key: Key): Promise<Value | undefined>;
-  delete(key: Key): Promise<void>;
-  getAll(): Promise<Array<{ key: Key; value: Value }> | undefined>;
-  deleteAll(): Promise<void>;
-  size(): Promise<number>;
+class Document {
+  readonly doc_id?: string;
+  readonly root: DocumentRootNode;
+  readonly metadata: DocumentMetadata;
 
-  // Event handling
-  on(event: "put" | "get" | "getAll" | "delete" | "deleteall", callback: Function): void;
-  off(event: string, callback: Function): void;
-  once(event: string, callback: Function): void;
-  waitOn(event: string): Promise<any[]>;
-  emit(event: string, ...args: any[]): void;
-}
-```
-
-### ITabularStorage<Schema, PrimaryKeyNames>
-
-Core interface for tabular storage:
-
-```typescript
-interface ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, Value> {
-  // Core operations
-  put(entity: Entity): Promise<void>;
-  putBulk(entities: Entity[]): Promise<void>;
-  get(key: PrimaryKey): Promise<Entity | undefined>;
-  delete(key: PrimaryKey | Entity): Promise<void>;
-  getAll(): Promise<Entity[] | undefined>;
-  deleteAll(): Promise<void>;
-  size(): Promise<number>;
-
-  // Search operations
-  search(criteria: Partial<Entity>): Promise<Entity[] | undefined>;
-  deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void>;
-
-  // Event handling
-  on(event: "put" | "get" | "search" | "delete" | "clearall", callback: Function): void;
-  off(event: string, callback: Function): void;
-  once(event: string, callback: Function): void;
-  waitOn(event: string): Promise<any[]>;
-  emit(event: string, ...args: any[]): void;
-}
-```
-
-#### DeleteSearchCriteria<Entity>
-
-The `deleteSearch` method accepts a criteria object that supports multiple columns with optional comparison operators:
-
-```typescript
-// Type definitions
-type SearchOperator = "=" | "<" | "<=" | ">" | ">=";
-
-interface SearchCondition<T> {
-  readonly value: T;
-  readonly operator: SearchOperator;
-}
-
-type DeleteSearchCriteria<Entity> = {
-  readonly [K in keyof Entity]?: Entity[K] | SearchCondition<Entity[K]>;
-};
-
-// Usage examples
-// Equality match (direct value)
-await repo.deleteSearch({ category: "electronics" });
-
-// With comparison operator
-await repo.deleteSearch({ createdAt: { value: date, operator: "<" } });
-
-// Multiple criteria (AND logic)
-await repo.deleteSearch({
-  category: "electronics",
-  value: { value: 100, operator: ">=" },
-});
-```
-
-### IQueueStorage<Input, Output>
-
-Core interface for job queue storage:
-
-```typescript
-interface IQueueStorage<Input, Output> {
-  add(job: JobStorageFormat<Input, Output>): Promise<unknown>;
-  get(id: unknown): Promise<JobStorageFormat<Input, Output> | undefined>;
-  next(): Promise<JobStorageFormat<Input, Output> | undefined>;
-  complete(job: JobStorageFormat<Input, Output>): Promise<void>;
-  peek(status?: JobStatus, num?: number): Promise<JobStorageFormat<Input, Output>[]>;
-  size(status?: JobStatus): Promise<number>;
-  abort(id: unknown): Promise<void>;
-  saveProgress(id: unknown, progress: number, message: string, details: any): Promise<void>;
-  deleteAll(): Promise<void>;
-  getByRunId(runId: string): Promise<Array<JobStorageFormat<Input, Output>>>;
-  outputForInput(input: Input): Promise<Output | null>;
-  delete(id: unknown): Promise<void>;
-  deleteJobsByStatusAndAge(status: JobStatus, olderThanMs: number): Promise<void>;
-}
-```
-
-## Examples
-
-### User Management System
-
-```typescript
-import { JsonSchema, FromSchema } from "@workglow/util";
-import { InMemoryTabularStorage, InMemoryKvStorage } from "@workglow/storage";
-
-// User profile with tabular storage
-const UserSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    username: { type: "string" },
-    email: { type: "string" },
-    firstName: { type: "string" },
-    lastName: { type: "string" },
-    role: {
-      type: "string",
-      enum: ["admin", "user", "guest"],
-    },
-    createdAt: { type: "string" },
-    lastLoginAt: { type: "string" },
-  },
-  required: ["id", "username", "email", "firstName", "lastName", "role", "createdAt"],
-  additionalProperties: false,
-} as const satisfies JsonSchema;
-
-const userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(
-  UserSchema,
-  ["id"],
-  ["email", "username"]
-);
-
-// User sessions with KV storage
-const sessionStore = new InMemoryKvStorage<string, { userId: string; expiresAt: string }>();
-
-// User management class
-class UserManager {
   constructor(
-    private userRepo: typeof userRepo,
-    private sessionStore: typeof sessionStore
-  ) {}
+    root: DocumentRootNode,
+    metadata: DocumentMetadata,
+    chunks?: ChunkRecord[],
+    doc_id?: string
+  );
 
-  async createUser(userData: Omit<FromSchema<typeof UserSchema>, "id" | "createdAt">) {
-    const user = {
-      ...userData,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    await this.userRepo.put(user);
-    return user;
-  }
-
-  async loginUser(email: string): Promise<string> {
-    const users = await this.userRepo.search({ email });
-    if (!users?.length) throw new Error("User not found");
-
-    const sessionId = crypto.randomUUID();
-    await this.sessionStore.put(sessionId, {
-      userId: users[0].id,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    });
-
-    // Update last login
-    await this.userRepo.put({
-      ...users[0],
-      lastLoginAt: new Date().toISOString(),
-    });
-
-    return sessionId;
-  }
-
-  async getSessionUser(sessionId: string) {
-    const session = await this.sessionStore.get(sessionId);
-    if (!session || new Date(session.expiresAt) < new Date()) {
-      return null;
-    }
-    return this.userRepo.get({ id: session.userId });
-  }
+  setDocId(id: string): void;
+  setChunks(chunks: ChunkRecord[]): void;
+  getChunks(): ChunkRecord[];
+  findChunksByNodeId(nodeId: string): ChunkRecord[];
+  toJSON(): object;
+  static fromJSON(json: string, doc_id?: string): Document;
 }
 ```
 
-### Configuration Management
+### KnowledgeBase
 
 ```typescript
-// Application settings with typed configuration
-type AppConfig = {
-  database: {
-    host: string;
-    port: number;
-    name: string;
-  };
-  features: {
-    enableNewUI: boolean;
-    maxUploadSize: number;
-  };
-  integrations: {
-    stripe: { apiKey: string; webhook: string };
-    sendgrid: { apiKey: string };
-  };
-};
+class KnowledgeBase {
+  readonly name: string;
 
-const configStore = new FsFolderJsonKvRepository<string, AppConfig>("./config");
+  constructor(
+    name: string,
+    documentStorage: DocumentTabularStorage,
+    chunkStorage: ChunkVectorStorage
+  );
 
-class ConfigManager {
-  private cache = new Map<string, AppConfig>();
+  // Documents
+  upsertDocument(document: Document): Promise<Document>;
+  getDocument(doc_id: string): Promise<Document | undefined>;
+  deleteDocument(doc_id: string): Promise<void>;
+  listDocuments(): Promise<string[]>;
 
-  constructor(private store: typeof configStore) {
-    // Listen for config changes
-    store.on("put", (key, value) => {
-      this.cache.set(key, value);
-      console.log(`Configuration updated: ${key}`);
-    });
-  }
+  // Tree traversal
+  getNode(doc_id: string, nodeId: string): Promise<DocumentNode | undefined>;
+  getAncestors(doc_id: string, nodeId: string): Promise<DocumentNode[]>;
 
-  async getConfig(environment: string): Promise<AppConfig> {
-    if (this.cache.has(environment)) {
-      return this.cache.get(environment)!;
-    }
+  // Chunks
+  upsertChunk(chunk: InsertChunkVectorEntity): Promise<ChunkVectorEntity>;
+  upsertChunksBulk(chunks: InsertChunkVectorEntity[]): Promise<ChunkVectorEntity[]>;
+  getChunk(chunk_id: string): Promise<ChunkVectorEntity | undefined>;
+  getChunksForDocument(doc_id: string): Promise<ChunkVectorEntity[]>;
+  deleteChunksForDocument(doc_id: string): Promise<void>;
 
-    const config = await this.store.get(environment);
-    if (!config) throw new Error(`No configuration for environment: ${environment}`);
+  // Search
+  similaritySearch(
+    query: TypedArray,
+    options?: VectorSearchOptions<ChunkRecord>
+  ): Promise<ChunkSearchResult[]>;
+  hybridSearch(
+    query: TypedArray,
+    options: HybridSearchOptions<ChunkRecord>
+  ): Promise<ChunkSearchResult[]>;
 
-    this.cache.set(environment, config);
-    return config;
-  }
+  // Lifecycle
+  prepareReindex(doc_id: string): Promise<Document | undefined>;
+  setupDatabase(): Promise<void>;
+  destroy(): void;
 
-  async updateConfig(environment: string, updates: Partial<AppConfig>) {
-    const current = await this.getConfig(environment);
-    const updated = { ...current, ...updates };
-    await this.store.put(environment, updated);
-  }
+  // Accessors
+  put(chunk: InsertChunkVectorEntity): Promise<ChunkVectorEntity>;
+  putBulk(chunks: InsertChunkVectorEntity[]): Promise<ChunkVectorEntity[]>;
+  getAllChunks(): Promise<ChunkVectorEntity[] | undefined>;
+  chunkCount(): Promise<number>;
+  clearChunks(): Promise<void>;
+  getVectorDimensions(): number;
+  getDocumentChunks(doc_id: string): Promise<ChunkRecord[]>;
+  findChunksByNodeId(doc_id: string, nodeId: string): Promise<ChunkRecord[]>;
 }
 ```
 
-### Supabase Integration Example
+### createKnowledgeBase
 
 ```typescript
-import { createClient } from "@supabase/supabase-js";
-import { JsonSchema } from "@workglow/util";
-import {
-  SupabaseTabularStorage,
-  SupabaseKvRepository,
-  SupabaseQueueStorage,
-} from "@workglow/storage";
+function createKnowledgeBase(options: CreateKnowledgeBaseOptions): Promise<KnowledgeBase>;
 
-// Initialize Supabase client
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
-
-// Define schemas
-const ProductSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    name: { type: "string" },
-    price: { type: "number" },
-    category: { type: "string" },
-    stock: { type: "number", minimum: 0 },
-    createdAt: { type: "string", format: "date-time" },
-  },
-  required: ["id", "name", "price", "category", "stock", "createdAt"],
-  additionalProperties: false,
-} as const satisfies JsonSchema;
-
-const OrderSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    customerId: { type: "string" },
-    productId: { type: "string" },
-    quantity: { type: "number", minimum: 1 },
-    status: {
-      type: "string",
-      enum: ["pending", "processing", "completed", "cancelled"],
-    },
-    createdAt: { type: "string", format: "date-time" },
-  },
-  required: ["id", "customerId", "productId", "quantity", "status", "createdAt"],
-  additionalProperties: false,
-} as const satisfies JsonSchema;
-
-// Create repositories
-const products = new SupabaseTabularStorage<typeof ProductSchema, ["id"]>(
-  supabase,
-  "products",
-  ProductSchema,
-  ["id"],
-  ["category", "name"] // Indexed columns for fast searching
-);
-
-const orders = new SupabaseTabularStorage<typeof OrderSchema, ["id"]>(
-  supabase,
-  "orders",
-  OrderSchema,
-  ["id"],
-  ["customerId", "status", ["customerId", "status"]] // Compound index
-);
-
-// Use KV for caching
-const cache = new SupabaseKvRepository(supabase, "cache");
-
-// Use queue for background processing
-type EmailJob = { to: string; subject: string; body: string };
-const emailQueue = new SupabaseQueueStorage<EmailJob, void>(supabase, "emails");
-
-// Example usage
-async function createOrder(customerId: string, productId: string, quantity: number) {
-  // Check product availability
-  const product = await products.get({ id: productId });
-  if (!product || product.stock < quantity) {
-    throw new Error("Insufficient stock");
-  }
-
-  // Create order
-  const order = {
-    id: crypto.randomUUID(),
-    customerId,
-    productId,
-    quantity,
-    status: "pending" as const,
-    createdAt: new Date().toISOString(),
-  };
-  await orders.put(order);
-
-  // Update stock
-  await products.put({
-    ...product,
-    stock: product.stock - quantity,
-  });
-
-  // Queue email notification
-  await emailQueue.add({
-    input: {
-      to: customerId,
-      subject: "Order Confirmation",
-      body: `Your order ${order.id} has been confirmed!`,
-    },
-    run_after: null,
-    max_retries: 3,
-  });
-
-  return order;
-}
-
-// Get customer's orders
-async function getCustomerOrders(customerId: string) {
-  return await orders.search({ customerId });
-}
-
-// Get orders by status
-async function getOrdersByStatus(status: string) {
-  return await orders.search({ status });
+interface CreateKnowledgeBaseOptions {
+  readonly name: string;
+  readonly vectorDimensions: number;
+  readonly backend?: "in-memory";
+  readonly vectorType?: { new (array: number[]): TypedArray };
+  readonly register?: boolean; // Default: true
 }
 ```
 
-**Important Note**
-The implementations assume you have an exec_sql RPC function in your Supabase database for table creation, or that you've created the tables through Supabase migrations. For production use, it's recommended to:
-
-- Create tables using Supabase migrations rather than runtime table creation
-- Set up proper Row Level Security (RLS) policies in Supabase
-- Use service role keys for server-side operations that need elevated permissions
-
-## Testing
-
-The package includes comprehensive test suites for all storage implementations:
-
-```bash
-# Run all tests
-bun test
-
-# Run specific test suites
-bun test --grep "KvRepository"
-bun test --grep "TabularStorage"
-bun test --grep "QueueStorage"
-
-# Test specific environments
-bun test --grep "InMemory"    # Cross-platform tests
-bun test --grep "IndexedDb"   # Browser tests
-bun test --grep "Sqlite"      # Native tests
-```
-
-### Writing Tests for Your Storage Usage
+### StructuralParser
 
 ```typescript
-import { describe, test, expect, beforeEach } from "vitest";
-import { InMemoryTabularStorage } from "@workglow/storage";
+class StructuralParser {
+  static parseMarkdown(doc_id: string, text: string, title: string): Promise<DocumentRootNode>;
+  static parsePlainText(doc_id: string, text: string, title: string): Promise<DocumentRootNode>;
+  static parse(
+    doc_id: string,
+    text: string,
+    title: string,
+    format?: string
+  ): Promise<DocumentRootNode>;
+}
+```
 
-describe("UserRepository", () => {
-  let userRepo: InMemoryTabularStorage<typeof UserSchema, ["id"]>;
+### Type Helpers
 
-  beforeEach(() => {
-    userRepo = new InMemoryTabularStorage<typeof UserSchema, ["id"]>(UserSchema, ["id"], ["email"]);
-  });
+```typescript
+// Schema helper for task inputs that accept a KnowledgeBase ID or instance
+function TypeKnowledgeBase<O>(options?: O): JsonSchema;
 
-  test("should create and retrieve user", async () => {
-    const user = {
-      id: "test-123",
-      email: "test@example.com",
-      name: "Test User",
-      age: 25,
-      department: "Engineering",
-      createdAt: new Date().toISOString(),
-    };
-
-    await userRepo.put(user);
-    const retrieved = await userRepo.get({ id: "test-123" });
-
-    expect(retrieved).toEqual(user);
-  });
-
-  test("should find users by department", async () => {
-    const users = [
-      {
-        id: "1",
-        email: "alice@co.com",
-        name: "Alice",
-        age: 28,
-        department: "Engineering",
-        createdAt: "2024-01-01",
-      },
-      {
-        id: "2",
-        email: "bob@co.com",
-        name: "Bob",
-        age: 32,
-        department: "Sales",
-        createdAt: "2024-01-02",
-      },
-    ];
-
-    await userRepo.putBulk(users);
-    const engineers = await userRepo.search({ department: "Engineering" });
-
-    expect(engineers).toHaveLength(1);
-    expect(engineers![0].name).toBe("Alice");
-  });
-});
+// Schema helper for tabular storage inputs
+function TypeTabularStorage<O>(options?: O): JsonSchema;
 ```
 
 ## License

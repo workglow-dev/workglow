@@ -10,26 +10,6 @@
  * This test demonstrates a complete RAG pipeline using the Workflow API
  * in a way that's compatible with visual node editors.
  *
- * Node Editor Mapping:
- * ====================
- * Each workflow step below represents a node in a visual editor with
- * dataflow connections between them:
- *
- * 1. Document Ingestion Pipeline (per file):
- *    FileLoader → StructuralParser → DocumentEnricher → HierarchicalChunker
- *    → [Array Processing] → TextEmbedding (multiple) → ChunkToVector → VectorStoreUpsert
- *
- *    Note: The array processing step (embedding multiple chunks) would use:
- *    - A "Map" control node in the visual editor
- *    - Or an ArrayTask wrapper that replicates TextEmbedding nodes
- *    - Or a batch TextEmbedding node that accepts arrays
- *
- * 2. Semantic Search Pipeline:
- *    Query (input) → ChunkRetrievalTask → Results (output)
- *
- * 3. Question Answering Pipeline:
- *    Question → ChunkRetrievalTask → ContextBuilder → TextQuestionAnswerTask → Answer
- *
  * Models Used:
  *    - Xenova/all-MiniLM-L6-v2 (Text Embedding - 384D)
  *    - onnx-community/NeuroBERT-NER-ONNX (Named Entity Recognition)
@@ -53,16 +33,10 @@ import {
   HFT_TASKS,
 } from "@workglow/ai-provider/hf-transformers";
 import {
-  DocumentChunk,
-  DocumentChunkDataset,
-  DocumentChunkPrimaryKey,
-  DocumentChunkSchema,
-  DocumentDataset,
-  DocumentStorageKey,
-  DocumentStorageSchema,
-  registerDocumentChunkDataset,
+  createKnowledgeBase,
+  KnowledgeBase,
+  registerKnowledgeBase,
 } from "@workglow/dataset";
-import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { readdirSync } from "fs";
@@ -74,16 +48,8 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 
 describe("RAG Workflow End-to-End", () => {
-  let storage: InMemoryVectorStorage<
-    typeof DocumentChunkSchema,
-    typeof DocumentChunkPrimaryKey,
-    Record<string, unknown>,
-    Float32Array,
-    DocumentChunk
-  >;
-  let vectorDataset: DocumentChunkDataset;
-  let docRepo: DocumentDataset;
-  const vectorRepoName = "rag-test-vector-repo";
+  let kb: KnowledgeBase;
+  const kbName = "rag-test-kb";
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
@@ -105,24 +71,11 @@ describe("RAG Workflow End-to-End", () => {
 
     await registerHuggingfaceLocalModels();
 
-    // Setup repositories
-    storage = new InMemoryVectorStorage<
-      typeof DocumentChunkSchema,
-      typeof DocumentChunkPrimaryKey,
-      Record<string, unknown>,
-      Float32Array,
-      DocumentChunk
-    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
-    await storage.setupDatabase();
-    vectorDataset = new DocumentChunkDataset(storage);
-
-    // Register vector dataset for use in workflows
-    registerDocumentChunkDataset(vectorRepoName, vectorDataset);
-
-    const tabularRepo = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
-    await tabularRepo.setupDatabase();
-
-    docRepo = new DocumentDataset(tabularRepo, storage);
+    // Create unified KnowledgeBase
+    kb = await createKnowledgeBase({
+      name: kbName,
+      vectorDimensions: 384,
+    });
   });
 
   afterAll(async () => {
@@ -168,30 +121,29 @@ describe("RAG Workflow End-to-End", () => {
           model: embeddingModel,
         })
         .chunkVectorUpsert({
-          dataset: vectorRepoName,
+          knowledgeBase: kbName,
         });
 
       const result = (await ingestionWorkflow.run()) as VectorStoreUpsertTaskOutput;
 
-      logger.info(`  → Stored ${result.count} vectors`);
+      logger.info(`  -> Stored ${result.count} vectors`);
       totalVectors += result.count;
     }
 
     // Verify vectors were stored
     expect(totalVectors).toBeGreaterThan(0);
-    logger.info(`Total vectors in repository: ${totalVectors}`);
-  }, 360000); // 3 minute timeout for model downloads
+    logger.info(`Total vectors in knowledge base: ${totalVectors}`);
+  }, 360000);
 
   it("should search for relevant content", async () => {
     const query = "What is retrieval augmented generation?";
 
     logger.info(`\nSearching for: "${query}"`);
 
-    // Create search workflow
     const searchWorkflow = new Workflow();
 
     searchWorkflow.chunkRetrieval({
-      dataset: vectorRepoName,
+      knowledgeBase: kbName,
       query,
       model: embeddingModel,
       topK: 5,
@@ -200,7 +152,6 @@ describe("RAG Workflow End-to-End", () => {
 
     const searchResult = (await searchWorkflow.run()) as ChunkRetrievalTaskOutput;
 
-    // Verify search results
     expect(searchResult.chunks).toBeDefined();
     expect(Array.isArray(searchResult.chunks)).toBe(true);
     expect(searchResult.chunks.length).toBeGreaterThan(0);
@@ -208,18 +159,13 @@ describe("RAG Workflow End-to-End", () => {
     expect(searchResult.scores).toBeDefined();
     expect(searchResult.scores!.length).toBe(searchResult.chunks.length);
 
-    logger.info(`Found ${searchResult.chunks.length} relevant chunks:`);
-    for (let i = 0; i < searchResult.chunks.length; i++) {
-      const chunk = searchResult.chunks[i];
-      const score = searchResult.scores![i];
-      logger.info(`  ${i + 1}. Score: ${score.toFixed(3)} - ${chunk.substring(0, 80)}...`);
-    }
+    logger.info(`Found ${searchResult.chunks.length} relevant chunks`);
 
     // Verify scores are in descending order
     for (let i = 1; i < searchResult.scores!.length; i++) {
       expect(searchResult.scores![i]).toBeLessThanOrEqual(searchResult.scores![i - 1]);
     }
-  }, 60000); // 1 minute timeout
+  }, 60000);
 
   it("should answer questions using retrieved context", async () => {
     const question = "What is RAG?";
@@ -227,7 +173,7 @@ describe("RAG Workflow End-to-End", () => {
     logger.info(`\nAnswering question: "${question}"`);
 
     const retrievalResult = await chunkRetrieval({
-      dataset: vectorRepoName,
+      knowledgeBase: kbName,
       query: question,
       model: embeddingModel,
       topK: 3,
@@ -238,15 +184,10 @@ describe("RAG Workflow End-to-End", () => {
 
     if (retrievalResult.chunks.length === 0) {
       logger.info("No relevant chunks found, skipping QA");
-      return; // Skip QA if no relevant context found
+      return;
     }
 
-    logger.info(`Retrieved ${retrievalResult.chunks.length} context chunks`);
-
-    // Step 2: Build context from retrieved chunks
     const context = retrievalResult.chunks.join("\n\n");
-
-    logger.info(`Context length: ${context.length} characters`);
 
     const answer = await textQuestionAnswer({
       context,
@@ -254,23 +195,21 @@ describe("RAG Workflow End-to-End", () => {
       model: qaModel,
     });
 
-    // Verify answer shape (model may return empty for some context/question pairs)
     expect(answer.text).toBeDefined();
     expect(typeof answer.text).toBe("string");
     if (answer.text.length > 0) {
       logger.info(`\nAnswer: ${answer.text}`);
     }
-  }, 60000); // 1 minute timeout
+  }, 60000);
 
   it("should handle complex multi-step RAG pipeline", async () => {
     const question = "How does vector search work?";
 
     logger.info(`\nComplex RAG pipeline for: "${question}"`);
 
-    // Step 1: Retrieve context
     const retrievalWorkflow = new Workflow();
     retrievalWorkflow.chunkRetrieval({
-      dataset: vectorRepoName,
+      knowledgeBase: kbName,
       query: question,
       model: embeddingModel,
       topK: 3,
@@ -284,7 +223,6 @@ describe("RAG Workflow End-to-End", () => {
       return;
     }
 
-    // Step 2: Answer question with retrieved context
     const context = retrievalResult.chunks.join("\n\n");
     const qaWorkflow = new Workflow();
     qaWorkflow.textQuestionAnswer({
@@ -297,8 +235,5 @@ describe("RAG Workflow End-to-End", () => {
 
     expect(result.text).toBeDefined();
     expect(typeof result.text).toBe("string");
-    if (result.text.length > 0) {
-      logger.info(`Answer: ${result.text}`);
-    }
-  }, 60000); // 1 minute timeout
+  }, 60000);
 });

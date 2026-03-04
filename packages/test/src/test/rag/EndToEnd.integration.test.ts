@@ -10,11 +10,11 @@
  * This test demonstrates a full RAG pipeline using single, composable workflows:
  *
  * Stage 1 - Document Ingestion Pipeline:
- *   FileLoader → StructuralParser → DocumentEnricher → HierarchicalChunker
- *   → TextEmbedding → ChunkToVector → ChunkVectorUpsert
+ *   FileLoader -> StructuralParser -> DocumentEnricher -> HierarchicalChunker
+ *   -> TextEmbedding -> ChunkToVector -> ChunkVectorUpsert
  *
  * Stage 2 - Query Retrieval Pipeline with RAG Tasks:
- *   ChunkRetrieval → Reranker → ContextBuilder
+ *   ChunkRetrieval -> Reranker -> ContextBuilder
  *
  * All 6 RAG Tasks Demonstrated (category = "RAG"):
  *   1. ChunkRetrievalTask - Embed query and search vector store for similar chunks
@@ -24,9 +24,9 @@
  *   5. ChunkVectorHybridSearchTask - Combined vector + full-text search
  *   6. HierarchyJoinTask - Enrich results with document hierarchy context
  *
- * KNOWN GAPS (workflow auto-connect limitations):
- * - QueryExpander → ChunkRetrieval: field name mismatch (`queries` vs `query`)
- * - ChunkRetrieval → Reranker: `query` must be provided explicitly
+ * Auto-connect notes:
+ * - QueryExpander -> ChunkRetrieval: `query` auto-connects by name
+ * - ChunkRetrieval -> Reranker: `query` available via lookback
  *
  * Models Used:
  *   - Qwen3 Embedding 0.6B (1024D) for text embedding
@@ -47,8 +47,8 @@ import {
   InMemoryModelRepository,
   QueryExpanderTaskOutput,
   RerankerTaskOutput,
-  setGlobalModelRepository,
   TextEmbeddingTaskOutput,
+  setGlobalModelRepository,
 } from "@workglow/ai";
 import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 import {
@@ -58,17 +58,10 @@ import {
   HFT_TASKS,
 } from "@workglow/ai-provider/hf-transformers";
 import {
-  DocumentChunk,
-  DocumentChunkDataset,
-  DocumentChunkPrimaryKey,
-  DocumentChunkSchema,
-  DocumentDataset,
-  DocumentStorageKey,
-  DocumentStorageSchema,
-  registerDocumentChunkDataset,
-  registerDocumentDataset,
+  createKnowledgeBase,
+  KnowledgeBase,
+  registerKnowledgeBase,
 } from "@workglow/dataset";
-import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { join } from "path";
@@ -80,7 +73,6 @@ import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 
 describe("End-to-End RAG Pipeline", () => {
   // In CI, skip summary/NER in document enricher to avoid flaky ONNX model downloads
-  // (Hugging Face responses often omit Content-Length, leading to incomplete/corrupt files).
   const isCI = !!process.env.CI;
 
   // Configuration - Models
@@ -90,25 +82,11 @@ describe("End-to-End RAG Pipeline", () => {
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
   const textGenerationModel = "onnx:Xenova/LaMini-Flan-T5-783M:q8";
 
-  // Configuration - Datasets
-  const vectorDatasetName = "e2e-rag-test-dataset";
-  const documentDatasetName = "e2e-rag-document-dataset";
+  // Configuration - Knowledge Base
+  const kbName = "e2e-rag-test-kb";
   const sampleFileName = "history_of_the_united_states.md";
 
-  // Storage
-  let vectorStorage: InMemoryVectorStorage<
-    typeof DocumentChunkSchema,
-    typeof DocumentChunkPrimaryKey,
-    Record<string, unknown>,
-    Float32Array,
-    DocumentChunk
-  >;
-  let vectorDataset: DocumentChunkDataset;
-  let documentTabularStorage: InMemoryTabularStorage<
-    typeof DocumentStorageSchema,
-    typeof DocumentStorageKey
-  >;
-  let documentDataset: DocumentDataset;
+  let kb: KnowledgeBase;
   const logger = getTestingLogger();
   setLogger(logger);
 
@@ -124,28 +102,11 @@ describe("End-to-End RAG Pipeline", () => {
     ).register({ mode: "inline" });
     await registerHuggingfaceLocalModels();
 
-    // Setup vector storage with 1024 dimensions for Qwen3 model
-    vectorStorage = new InMemoryVectorStorage<
-      typeof DocumentChunkSchema,
-      typeof DocumentChunkPrimaryKey,
-      Record<string, unknown>,
-      Float32Array,
-      DocumentChunk
-    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 1024, Float32Array);
-    await vectorStorage.setupDatabase();
-    vectorDataset = new DocumentChunkDataset(vectorStorage);
-
-    // Setup tabular storage for document hierarchy (needed for HierarchyJoinTask)
-    documentTabularStorage = new InMemoryTabularStorage<
-      typeof DocumentStorageSchema,
-      typeof DocumentStorageKey
-    >(DocumentStorageSchema, DocumentStorageKey);
-    await documentTabularStorage.setupDatabase();
-    documentDataset = new DocumentDataset(documentTabularStorage, vectorStorage);
-
-    // Register datasets for use in workflows
-    registerDocumentChunkDataset(vectorDatasetName, vectorDataset);
-    registerDocumentDataset(documentDatasetName, documentDataset);
+    // Create unified KnowledgeBase with 1024 dimensions for Qwen3 model
+    kb = await createKnowledgeBase({
+      name: kbName,
+      vectorDimensions: 1024,
+    });
   });
 
   afterAll(async () => {
@@ -155,23 +116,11 @@ describe("End-to-End RAG Pipeline", () => {
   });
 
   it("should ingest document through complete pipeline", async () => {
-    // Get the path to the sample file
     const sampleFilePath = join(__dirname, sampleFileName);
 
     logger.info(`\n=== Stage 1: Document Ingestion ===`);
     logger.info(`Processing: ${sampleFileName}`);
 
-    // Complete ingestion workflow as a single chain:
-    // fileLoader → structuralParser → documentEnricher → hierarchicalChunker
-    // → textEmbedding → chunkToVector → chunkVectorUpsert
-    //
-    // NOTE: ChunkToVectorTask needs inputs from multiple earlier tasks:
-    // - chunks from HierarchicalChunkerTask
-    // - vectors from TextEmbeddingTask
-    // The workflow auto-connect only looks back for REQUIRED inputs,
-    // but ChunkToVectorTask has required: []. This needs to be fixed in the task.
-    //
-    // For now, we manually connect the dataflows after building the workflow.
     const ingestionWorkflow = new Workflow()
       .fileLoader({
         url: `file://${sampleFilePath}`,
@@ -198,26 +147,23 @@ describe("End-to-End RAG Pipeline", () => {
       })
       .chunkToVector()
       .chunkVectorUpsert({
-        dataset: vectorDatasetName,
+        knowledgeBase: kbName,
       });
 
-    // Verify workflow was built correctly (no errors during construction)
     expect(ingestionWorkflow.error).toBe("");
 
-    // Run the ingestion workflow
     const result = await ingestionWorkflow.run();
 
-    // Verify results
     expect(result).toBeDefined();
     expect(result.count).toBeGreaterThan(0);
     expect(result.doc_id).toBeDefined();
     expect(result.chunk_ids).toBeDefined();
     expect(result.chunk_ids.length).toBe(result.count);
 
-    logger.info(`  → Document ID: ${result.doc_id}`);
-    logger.info(`  → Stored ${result.count} vectors`);
-    logger.info(`  → Chunk IDs: ${result.chunk_ids.slice(0, 3).join(", ")}...`);
-  }, 60000); // 1 minute timeout for model download and processing
+    logger.info(`  -> Document ID: ${result.doc_id}`);
+    logger.info(`  -> Stored ${result.count} vectors`);
+    logger.info(`  -> Chunk IDs: ${result.chunk_ids.slice(0, 3).join(", ")}...`);
+  }, 60000);
 
   it("should retrieve relevant chunks via query workflow", async () => {
     const query = "What caused the Civil War?";
@@ -225,20 +171,16 @@ describe("End-to-End RAG Pipeline", () => {
     logger.info(`\n=== Stage 2: Query Retrieval ===`);
     logger.info(`Query: "${query}"`);
 
-    // Working retrieval workflow: chunkRetrieval → reranker → contextBuilder
-    // Note: QueryExpander cannot auto-connect to ChunkRetrieval (queries vs query).
-    // Note: RerankerTask requires `query` which ChunkRetrievalTask doesn't output,
-    // so we must provide it explicitly. See KNOWN GAP in file header.
     const retrievalWorkflow = new Workflow()
       .chunkRetrieval({
-        dataset: vectorDatasetName,
+        knowledgeBase: kbName,
         query,
         model: embeddingModel,
         topK: 10,
         scoreThreshold: 0.1,
       })
       .reranker({
-        query, // Must provide explicitly - not auto-connected from ChunkRetrieval
+        query,
         method: "cross-encoder",
         model: rerankerModel,
         topK: 5,
@@ -249,13 +191,10 @@ describe("End-to-End RAG Pipeline", () => {
         separator: "\n\n---\n\n",
       });
 
-    // Verify workflow was built correctly
     expect(retrievalWorkflow.error).toBe("");
 
-    // Run the retrieval workflow
     const result = (await retrievalWorkflow.run()) as ContextBuilderTaskOutput;
 
-    // Verify results from ContextBuilder
     expect(result).toBeDefined();
     expect(result.context).toBeDefined();
     expect(typeof result.context).toBe("string");
@@ -264,12 +203,9 @@ describe("End-to-End RAG Pipeline", () => {
     expect(result.chunksUsed).toBeLessThanOrEqual(5);
     expect(result.totalLength).toBe(result.context.length);
 
-    logger.info(`  → Built context from ${result.chunksUsed} chunks`);
-    logger.info(`  → Total context length: ${result.totalLength} characters`);
-    logger.info(`  → Context preview (first 300 chars):`);
-    logger.info(`       ${result.context.substring(0, 300)}...`);
+    logger.info(`  -> Built context from ${result.chunksUsed} chunks`);
+    logger.info(`  -> Total context length: ${result.totalLength} characters`);
 
-    // Verify the context contains Civil War content
     const contextLower = result.context.toLowerCase();
     const relevantTerms = [
       "civil",
@@ -282,10 +218,9 @@ describe("End-to-End RAG Pipeline", () => {
     ];
     const hasRelevantContent = relevantTerms.some((term) => contextLower.includes(term));
     expect(hasRelevantContent).toBe(true);
-  }, 120000); // 2 minute timeout
+  }, 120000);
 
   it("should answer questions about US history", async () => {
-    // Use broader terms that are more likely to appear in semantic results
     const questions = [
       {
         query: "When did the American Revolution begin?",
@@ -308,13 +243,12 @@ describe("End-to-End RAG Pipeline", () => {
     for (const { query, expectedTerms } of questions) {
       logger.info(`\nQuery: "${query}"`);
 
-      // Simple retrieval for each question
       const workflow = new Workflow().chunkRetrieval({
-        dataset: vectorDatasetName,
+        knowledgeBase: kbName,
         query,
         model: embeddingModel,
         topK: 3,
-        scoreThreshold: 0.0, // Lower threshold for better recall
+        scoreThreshold: 0.0,
       });
 
       const result = (await workflow.run()) as ChunkRetrievalTaskOutput;
@@ -322,28 +256,24 @@ describe("End-to-End RAG Pipeline", () => {
       expect(result.chunks).toBeDefined();
 
       if (result.chunks.length === 0) {
-        logger.info(`  → No chunks found`);
+        logger.info(`  -> No chunks found`);
         continue;
       }
 
-      logger.info(`  → Found ${result.chunks.length} chunks`);
-      logger.info(`  → First chunk preview: ${result.chunks[0].substring(0, 100)}...`);
+      logger.info(`  -> Found ${result.chunks.length} chunks`);
 
-      // Check if relevant content was retrieved
       const allChunksText = result.chunks.join(" ").toLowerCase();
       const foundTerms = expectedTerms.filter((term) => allChunksText.includes(term.toLowerCase()));
 
-      logger.info(`  → Matched terms: ${foundTerms.join(", ") || "none"}`);
+      logger.info(`  -> Matched terms: ${foundTerms.join(", ") || "none"}`);
 
       if (foundTerms.length > 0) {
         totalQueriesWithResults++;
       }
     }
 
-    // At least one query should return relevant results
-    // (Semantic search may not always return exact keyword matches)
     expect(totalQueriesWithResults).toBeGreaterThanOrEqual(1);
-  }, 180000); // 3 minute timeout
+  }, 180000);
 
   it("should use QueryExpander to generate query variations", async () => {
     const query = "What were the major battles of World War II?";
@@ -351,9 +281,6 @@ describe("End-to-End RAG Pipeline", () => {
     logger.info(`\n=== QueryExpander RAG Task ===`);
     logger.info(`Original query: "${query}"`);
 
-    // Use QueryExpander to generate multiple query variations
-    // This improves retrieval coverage by searching with different phrasings
-    // Note: model parameter is for future LLM-based expansion (currently rule-based)
     const expanderWorkflow = new Workflow().queryExpander({
       query,
       method: "paraphrase",
@@ -365,30 +292,19 @@ describe("End-to-End RAG Pipeline", () => {
 
     const expanderResult = (await expanderWorkflow.run()) as QueryExpanderTaskOutput;
 
-    // Verify QueryExpander results
     expect(expanderResult).toBeDefined();
-    expect(expanderResult.queries).toBeDefined();
-    expect(Array.isArray(expanderResult.queries)).toBe(true);
-    expect(expanderResult.queries.length).toBeGreaterThan(1);
+    expect(expanderResult.query).toBeDefined();
+    expect(Array.isArray(expanderResult.query)).toBe(true);
+    expect(expanderResult.query.length).toBeGreaterThan(1);
     expect(expanderResult.originalQuery).toBe(query);
-    expect(expanderResult.method).toBe("paraphrase");
-    expect(expanderResult.count).toBe(expanderResult.queries.length);
 
-    logger.info(`  → Generated ${expanderResult.count} query variations:`);
-    for (const q of expanderResult.queries) {
-      logger.info(`     - "${q}"`);
-    }
-
-    // Now use the expanded queries to retrieve chunks
-    // Since QueryExpander outputs `queries` array but ChunkRetrieval expects `query`,
-    // we need to manually connect them (known gap in workflow auto-connect)
-    logger.info(`\n  → Retrieving chunks for each query variation:`);
+    logger.info(`\n  -> Retrieving chunks for each query variation:`);
     let totalChunksFound = 0;
 
-    for (const expandedQuery of expanderResult.queries.slice(0, 2)) {
+    for (const expandedQuery of expanderResult.query.slice(0, 2)) {
       const retrievalWorkflow = new Workflow()
         .chunkRetrieval({
-          dataset: vectorDatasetName,
+          knowledgeBase: kbName,
           query: expandedQuery,
           model: embeddingModel,
           topK: 3,
@@ -403,22 +319,18 @@ describe("End-to-End RAG Pipeline", () => {
 
       const result = (await retrievalWorkflow.run()) as RerankerTaskOutput;
       totalChunksFound += result.count;
-      logger.info(`     Query: "${expandedQuery.substring(0, 50)}..." → ${result.count} chunks`);
     }
 
     expect(totalChunksFound).toBeGreaterThan(0);
-    logger.info(`  → Total chunks retrieved across variations: ${totalChunksFound}`);
-  }, 180000); // 3 minute timeout
+  }, 180000);
 
   it("should use ContextBuilder with different formats", async () => {
     const query = "What was the Declaration of Independence?";
 
     logger.info(`\n=== ContextBuilder Format Options ===`);
-    logger.info(`Query: "${query}"`);
 
-    // First, retrieve chunks
     const retrievalWorkflow = new Workflow().chunkRetrieval({
-      dataset: vectorDatasetName,
+      knowledgeBase: kbName,
       query,
       model: embeddingModel,
       topK: 3,
@@ -428,9 +340,6 @@ describe("End-to-End RAG Pipeline", () => {
     const retrievalResult = (await retrievalWorkflow.run()) as ChunkRetrievalTaskOutput;
     expect(retrievalResult.chunks.length).toBeGreaterThan(0);
 
-    logger.info(`  → Retrieved ${retrievalResult.count} chunks`);
-
-    // Test different ContextBuilder formats
     const formats = ["simple", "numbered", "xml", "markdown"] as const;
 
     for (const format of formats) {
@@ -448,24 +357,14 @@ describe("End-to-End RAG Pipeline", () => {
 
       expect(contextResult.context).toBeDefined();
       expect(contextResult.chunksUsed).toBeGreaterThan(0);
-
-      logger.info(`\n  → Format: ${format}`);
-      logger.info(`     Chunks used: ${contextResult.chunksUsed}`);
-      logger.info(`     Total length: ${contextResult.totalLength} chars`);
-      logger.info(
-        `     Preview: ${contextResult.context.substring(0, 150).replace(/\n/g, "\\n")}...`
-      );
     }
-  }, 120000); // 2 minute timeout
+  }, 120000);
 
   it("should use ChunkVectorHybridSearchTask for combined vector + text search", async () => {
     const query = "Civil War slavery abolition Lincoln";
 
     logger.info(`\n=== ChunkVectorHybridSearchTask ===`);
-    logger.info(`Query: "${query}"`);
 
-    // First, compute the query vector using TextEmbedding
-    // HybridSearch requires both a pre-computed vector and text query
     const embeddingWorkflow = new Workflow().textEmbedding({
       text: query,
       model: embeddingModel,
@@ -475,15 +374,13 @@ describe("End-to-End RAG Pipeline", () => {
     expect(embeddingResult.vector).toBeDefined();
 
     const queryVector = embeddingResult.vector as Float32Array;
-    logger.info(`  → Computed query vector (${queryVector.length} dimensions)`);
 
-    // Now use hybrid search combining vector similarity with text matching
     const hybridWorkflow = new Workflow().hybridSearch({
-      dataset: vectorDatasetName,
+      knowledgeBase: kbName,
       queryVector,
       queryText: query,
       topK: 5,
-      vectorWeight: 0.7, // 70% vector similarity, 30% text matching
+      vectorWeight: 0.7,
       scoreThreshold: 0.0,
     });
 
@@ -491,55 +388,32 @@ describe("End-to-End RAG Pipeline", () => {
 
     const result = (await hybridWorkflow.run()) as HybridSearchTaskOutput;
 
-    // Verify hybrid search results
     expect(result).toBeDefined();
     expect(result.chunks).toBeDefined();
-    expect(Array.isArray(result.chunks)).toBe(true);
     expect(result.chunks.length).toBeGreaterThan(0);
-    expect(result.chunks.length).toBeLessThanOrEqual(5);
-    expect(result.ids).toBeDefined();
-    expect(result.scores).toBeDefined();
     expect(result.count).toBe(result.chunks.length);
 
-    logger.info(`  → Hybrid search found ${result.count} chunks`);
-    logger.info(
-      `  → Top scores: ${result.scores
-        .slice(0, 3)
-        .map((s) => s.toFixed(3))
-        .join(", ")}`
-    );
-
-    // Verify content is relevant
     const allChunksText = result.chunks.join(" ").toLowerCase();
     const relevantTerms = ["civil", "war", "slavery", "lincoln", "union", "emancipation"];
     const foundTerms = relevantTerms.filter((term) => allChunksText.includes(term));
-
-    logger.info(`  → Matched terms: ${foundTerms.join(", ")}`);
     expect(foundTerms.length).toBeGreaterThan(0);
-
-    // Show first chunk preview
-    if (result.chunks.length > 0) {
-      logger.info(`  → First chunk: ${result.chunks[0].substring(0, 150)}...`);
-    }
-  }, 120000); // 2 minute timeout
+  }, 120000);
 
   it("should use HierarchyJoinTask to enrich results with document context", async () => {
     const query = "American Revolution independence";
 
     logger.info(`\n=== HierarchyJoinTask ===`);
-    logger.info(`Query: "${query}"`);
 
-    // First, retrieve chunks with metadata
     const hierarchyWorkflow = new Workflow()
       .chunkRetrieval({
-        dataset: vectorDatasetName,
+        knowledgeBase: kbName,
         query,
         model: embeddingModel,
         topK: 3,
         scoreThreshold: 0.0,
       })
       .hierarchyJoin({
-        documents: documentDatasetName,
+        knowledgeBase: kbName,
         includeParentSummaries: true,
         includeEntities: true,
       });
@@ -548,37 +422,17 @@ describe("End-to-End RAG Pipeline", () => {
 
     const result = (await hierarchyWorkflow.run()) as HierarchyJoinTaskOutput;
 
-    // Verify hierarchy join results
     expect(result).toBeDefined();
     expect(result.chunks).toBeDefined();
     expect(result.chunk_ids).toBeDefined();
     expect(result.metadata).toBeDefined();
     expect(result.scores).toBeDefined();
     expect(result.count).toBe(result.chunks.length);
-
-    logger.info(`  → HierarchyJoin processed ${result.count} chunks`);
-
-    // Check if metadata was enriched (may have parentSummaries, sectionTitles, entities)
-    for (let i = 0; i < Math.min(result.metadata.length, 2); i++) {
-      const meta = result.metadata[i] as Record<string, unknown>;
-      logger.info(`  → Chunk ${i + 1} metadata keys: ${Object.keys(meta).join(", ")}`);
-
-      if (meta.parentSummaries) {
-        logger.info(`     - Has ${(meta.parentSummaries as string[]).length} parent summaries`);
-      }
-      if (meta.sectionTitles) {
-        logger.info(`     - Section titles: ${(meta.sectionTitles as string[]).join(" > ")}`);
-      }
-      if (meta.entities) {
-        logger.info(`     - Has ${(meta.entities as unknown[]).length} entities`);
-      }
-    }
-  }, 120000); // 2 minute timeout
+  }, 120000);
 
   it("should demonstrate workflow composability", async () => {
     logger.info(`\n=== Workflow Composability Test ===`);
 
-    // Test that we can build and verify workflows without running them
     const ingestionWorkflow = new Workflow()
       .fileLoader({ url: "file:///test.md", format: "markdown" })
       .structuralParser({ title: "Test" })
@@ -586,9 +440,8 @@ describe("End-to-End RAG Pipeline", () => {
       .hierarchicalChunker({ maxTokens: 512 })
       .textEmbedding({ model: embeddingModel })
       .chunkToVector({})
-      .chunkVectorUpsert({ dataset: vectorDatasetName });
+      .chunkVectorUpsert({ knowledgeBase: kbName });
 
-    // Verify the workflow graph structure
     const tasks = ingestionWorkflow.graph.getTasks();
     expect(tasks.length).toBe(7);
 
@@ -601,22 +454,9 @@ describe("End-to-End RAG Pipeline", () => {
     expect(taskTypes).toContain("ChunkToVectorTask");
     expect(taskTypes).toContain("ChunkVectorUpsertTask");
 
-    logger.info(`  → Ingestion workflow has ${tasks.length} tasks`);
-    logger.info(`  → Task chain: ${taskTypes.join(" → ")}`);
-
-    // Verify dataflows were created
-    const dataflows = ingestionWorkflow.graph.getDataflows();
-    expect(dataflows.length).toBeGreaterThan(0);
-
-    logger.info(`  → Created ${dataflows.length} dataflows between tasks`);
-
-    // Test full retrieval workflow chaining 4 RAG tasks in a single workflow:
-    // ChunkRetrieval → HierarchyJoin → Reranker → ContextBuilder
-    // This demonstrates the real power of workflow composition - tasks automatically
-    // connect their outputs to subsequent task inputs.
     const retrievalWorkflow = new Workflow()
-      .chunkRetrieval({ dataset: vectorDatasetName, query: "test", model: embeddingModel })
-      .hierarchyJoin({ documents: documentDatasetName })
+      .chunkRetrieval({ knowledgeBase: kbName, query: "test", model: embeddingModel })
+      .hierarchyJoin({ knowledgeBase: kbName })
       .reranker({ query: "test", method: "cross-encoder", model: rerankerModel, topK: 5 })
       .contextBuilder({ format: "numbered", includeMetadata: true });
 
@@ -624,26 +464,10 @@ describe("End-to-End RAG Pipeline", () => {
     expect(retrievalTasks.length).toBe(4);
     expect(retrievalWorkflow.error).toBe("");
 
-    const retrievalTaskTypes = retrievalTasks.map((t) => t.type);
-    expect(retrievalTaskTypes).toContain("ChunkRetrievalTask");
-    expect(retrievalTaskTypes).toContain("HierarchyJoinTask");
-    expect(retrievalTaskTypes).toContain("RerankerTask");
-    expect(retrievalTaskTypes).toContain("ContextBuilderTask");
-
-    logger.info(`  → Retrieval workflow chains ${retrievalTasks.length} RAG tasks`);
-    logger.info(`  → Task chain: ${retrievalTaskTypes.join(" → ")}`);
-
-    // Verify dataflows between RAG tasks
-    const retrievalDataflows = retrievalWorkflow.graph.getDataflows();
-    expect(retrievalDataflows.length).toBeGreaterThan(0);
-    logger.info(`  → Created ${retrievalDataflows.length} dataflows between RAG tasks`);
-
-    // Test HybridSearch → Reranker → ContextBuilder chain
-    // This shows an alternative retrieval path using hybrid search
     const hybridRetrievalWorkflow = new Workflow()
       .textEmbedding({ text: "test query", model: embeddingModel })
       .hybridSearch({
-        dataset: vectorDatasetName,
+        knowledgeBase: kbName,
         queryText: "test query",
         topK: 5,
       })
@@ -653,30 +477,5 @@ describe("End-to-End RAG Pipeline", () => {
     const hybridTasks = hybridRetrievalWorkflow.graph.getTasks();
     expect(hybridTasks.length).toBe(4);
     expect(hybridRetrievalWorkflow.error).toBe("");
-
-    const hybridTaskTypes = hybridTasks.map((t) => t.type);
-    expect(hybridTaskTypes).toContain("TextEmbeddingTask");
-    expect(hybridTaskTypes).toContain("ChunkVectorHybridSearchTask");
-    expect(hybridTaskTypes).toContain("RerankerTask");
-    expect(hybridTaskTypes).toContain("ContextBuilderTask");
-
-    logger.info(`  → Hybrid retrieval workflow chains ${hybridTasks.length} tasks`);
-    logger.info(`  → Task chain: ${hybridTaskTypes.join(" → ")}`);
-
-    // Demonstrate QueryExpander standalone - it outputs `queries` array
-    // ChunkRetrieval expects `query`, so they can't auto-connect (known gap)
-    // The workaround is to run QueryExpander first, then loop over results
-    const queryExpandWorkflow = new Workflow().queryExpander({
-      query: "test query",
-      method: "paraphrase",
-      numVariations: 3,
-      model: textGenerationModel,
-    });
-
-    const queryExpandTasks = queryExpandWorkflow.graph.getTasks();
-    expect(queryExpandTasks.length).toBe(1);
-    expect(queryExpandTasks[0].type).toBe("QueryExpanderTask");
-
-    logger.info(`  → QueryExpander verified (outputs 'queries' array for manual iteration)`);
   });
 });

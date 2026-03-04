@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ChunkNode, DocumentMetadata, DocumentNode } from "./DocumentSchema";
+import type { ChunkRecord } from "../chunk/ChunkSchema";
+import type { DocumentMetadata, DocumentNode } from "./DocumentSchema";
 
 /**
  * Document represents a hierarchical document with chunks
@@ -18,12 +19,12 @@ export class Document {
   public doc_id: string | undefined;
   public readonly metadata: DocumentMetadata;
   public readonly root: DocumentNode;
-  private chunks: ChunkNode[];
+  private chunks: ChunkRecord[];
 
   constructor(
     root: DocumentNode,
     metadata: DocumentMetadata,
-    chunks: ChunkNode[] = [],
+    chunks: ChunkRecord[] = [],
     doc_id?: string
   ) {
     this.doc_id = doc_id;
@@ -35,14 +36,14 @@ export class Document {
   /**
    * Set chunks for the document
    */
-  setChunks(chunks: ChunkNode[]): void {
+  setChunks(chunks: ChunkRecord[]): void {
     this.chunks = chunks;
   }
 
   /**
    * Get all chunks
    */
-  getChunks(): ChunkNode[] {
+  getChunks(): ChunkRecord[] {
     return this.chunks;
   }
 
@@ -56,7 +57,7 @@ export class Document {
   /**
    * Find chunks by nodeId
    */
-  findChunksByNodeId(nodeId: string): ChunkNode[] {
+  findChunksByNodeId(nodeId: string): ChunkRecord[] {
     return this.chunks.filter((chunk) => chunk.nodePath.includes(nodeId));
   }
 
@@ -66,7 +67,7 @@ export class Document {
   toJSON(): {
     metadata: DocumentMetadata;
     root: DocumentNode;
-    chunks: ChunkNode[];
+    chunks: ChunkRecord[];
   } {
     return {
       metadata: this.metadata,

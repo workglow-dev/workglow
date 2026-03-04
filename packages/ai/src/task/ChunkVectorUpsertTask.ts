@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
+import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -23,9 +23,9 @@ import { TypeSingleOrArray } from "./base/AiTaskSchemas";
 const inputSchema = {
   type: "object",
   properties: {
-    dataset: TypeDocumentChunkDataset({
-      title: "Document Chunk Vector Repository",
-      description: "The document chunk vector repository instance to store vectors in",
+    knowledgeBase: TypeKnowledgeBase({
+      title: "Knowledge Base",
+      description: "The knowledge base instance to store vectors in",
     }),
     doc_id: {
       type: "string",
@@ -45,7 +45,7 @@ const inputSchema = {
       additionalProperties: true,
     }),
   },
-  required: ["dataset", "doc_id", "vectors", "metadata"],
+  required: ["knowledgeBase", "doc_id", "vectors", "metadata"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -80,7 +80,7 @@ export type VectorStoreUpsertTaskInput = FromSchema<
 export type VectorStoreUpsertTaskOutput = FromSchema<typeof outputSchema>;
 
 /**
- * Task for upserting (insert or update) vectors into a vector repository.
+ * Task for upserting (insert or update) vectors into a knowledge base.
  * Supports both single and bulk operations.
  */
 export class ChunkVectorUpsertTask extends Task<
@@ -91,7 +91,7 @@ export class ChunkVectorUpsertTask extends Task<
   public static type = "ChunkVectorUpsertTask";
   public static category = "Vector Store";
   public static title = "Add to Vector Store";
-  public static description = "Store vector embeddings with metadata in a document chunk dataset";
+  public static description = "Store vector embeddings with metadata in a knowledge base";
   public static cacheable = false; // Has side effects
 
   public static inputSchema(): DataPortSchema {
@@ -106,7 +106,7 @@ export class ChunkVectorUpsertTask extends Task<
     input: VectorStoreUpsertTaskInput,
     context: IExecuteContext
   ): Promise<VectorStoreUpsertTaskOutput> {
-    const { dataset, doc_id, vectors, metadata } = input;
+    const { knowledgeBase, doc_id, vectors, metadata } = input;
 
     // Normalize inputs to arrays
     const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
@@ -114,7 +114,7 @@ export class ChunkVectorUpsertTask extends Task<
       ? metadata
       : Array(vectorArray.length).fill(metadata);
 
-    const repo = dataset as DocumentChunkDataset;
+    const kb = knowledgeBase as KnowledgeBase;
 
     await context.updateProgress(1, "Upserting vectors");
 
@@ -131,7 +131,7 @@ export class ChunkVectorUpsertTask extends Task<
           metadata: metadataItem,
         };
       });
-      const results = await repo.putBulk(entities);
+      const results = await kb.upsertChunksBulk(entities);
       const chunk_ids = results.map((r) => r.chunk_id);
       return {
         doc_id,
@@ -141,7 +141,7 @@ export class ChunkVectorUpsertTask extends Task<
     } else if (vectorArray.length === 1) {
       // Single upsert
       const metadataItem = metadataArray[0];
-      const result = await repo.put({
+      const result = await kb.upsertChunk({
         doc_id,
         vector: vectorArray[0],
         metadata: metadataItem,

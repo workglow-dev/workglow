@@ -5,11 +5,11 @@
  */
 
 import {
-  ChunkNodeSchema,
+  ChunkRecordSchema,
   estimateTokens,
   getChildren,
   hasChildren,
-  type ChunkNode,
+  type ChunkRecord,
   type DocumentNode,
   type TokenBudget,
 } from "@workglow/dataset";
@@ -85,9 +85,9 @@ const outputSchema = {
     },
     chunks: {
       type: "array",
-      items: ChunkNodeSchema(),
+      items: ChunkRecordSchema(),
       title: "Chunks",
-      description: "Array of chunk nodes",
+      description: "Array of chunk records",
     },
     text: {
       type: "array",
@@ -174,7 +174,7 @@ export class HierarchicalChunkerTask extends Task<
       };
     }
 
-    const chunks: ChunkNode[] = [];
+    const chunks: ChunkRecord[] = [];
 
     if (strategy === "hierarchical") {
       await this.chunkHierarchically(root, [], doc_id, tokenBudget, chunks, countFn);
@@ -197,7 +197,7 @@ export class HierarchicalChunkerTask extends Task<
     nodePath: string[],
     doc_id: string,
     tokenBudget: TokenBudget,
-    chunks: ChunkNode[],
+    chunks: ChunkRecord[],
     countFn: (text: string) => Promise<number>
   ): Promise<void> {
     const currentPath = [...nodePath, node.nodeId];
@@ -231,7 +231,7 @@ export class HierarchicalChunkerTask extends Task<
     nodePath: string[],
     doc_id: string,
     tokenBudget: TokenBudget,
-    chunks: ChunkNode[],
+    chunks: ChunkRecord[],
     leafNodeId: string,
     countFn: (text: string) => Promise<number>
   ): Promise<void> {
@@ -312,7 +312,7 @@ export class HierarchicalChunkerTask extends Task<
     root: DocumentNode,
     doc_id: string,
     tokenBudget: TokenBudget,
-    chunks: ChunkNode[],
+    chunks: ChunkRecord[],
     countFn: (text: string) => Promise<number>
   ): Promise<void> {
     const allText = this.collectAllText(root);

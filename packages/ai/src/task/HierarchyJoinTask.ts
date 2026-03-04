@@ -5,11 +5,10 @@
  */
 
 import {
-  ChunkMetadataArraySchema,
-  EnrichedChunkMetadataArraySchema,
-  TypeDocumentDataset,
-  type ChunkMetadata,
-  type DocumentDataset,
+  ChunkRecordArraySchema,
+  TypeKnowledgeBase,
+  type ChunkRecord,
+  type KnowledgeBase,
 } from "@workglow/dataset";
 import {
   CreateWorkflow,
@@ -23,9 +22,9 @@ import { DataPortSchema, FromSchema } from "@workglow/util";
 const inputSchema = {
   type: "object",
   properties: {
-    documents: TypeDocumentDataset({
-      title: "Documents",
-      description: "The documents dataset to query for hierarchy",
+    knowledgeBase: TypeKnowledgeBase({
+      title: "Knowledge Base",
+      description: "The knowledge base to query for hierarchy",
     }),
     chunks: {
       type: "array",
@@ -39,7 +38,7 @@ const inputSchema = {
       title: "Chunk IDs",
       description: "IDs of retrieved chunks",
     },
-    metadata: ChunkMetadataArraySchema,
+    metadata: ChunkRecordArraySchema,
     scores: {
       type: "array",
       items: { type: "number" },
@@ -59,7 +58,7 @@ const inputSchema = {
       default: true,
     },
   },
-  required: ["documents", "chunks", "chunk_ids", "metadata", "scores"],
+  required: ["knowledgeBase", "chunks", "chunk_ids", "metadata", "scores"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -78,7 +77,7 @@ const outputSchema = {
       title: "Chunk IDs",
       description: "IDs of retrieved chunks",
     },
-    metadata: EnrichedChunkMetadataArraySchema,
+    metadata: ChunkRecordArraySchema,
     scores: {
       type: "array",
       items: { type: "number" },
@@ -100,7 +99,7 @@ export type HierarchyJoinTaskOutput = FromSchema<typeof outputSchema>;
 
 /**
  * Task for enriching search results with hierarchy information
- * Joins chunk IDs back to document repository to get parent summaries and entities
+ * Joins chunk IDs back to knowledge base to get parent summaries and entities
  */
 export class HierarchyJoinTask extends Task<
   HierarchyJoinTaskInput,
@@ -126,7 +125,7 @@ export class HierarchyJoinTask extends Task<
     context: IExecuteContext
   ): Promise<HierarchyJoinTaskOutput> {
     const {
-      documents,
+      knowledgeBase,
       chunks,
       chunk_ids,
       metadata,
@@ -135,36 +134,31 @@ export class HierarchyJoinTask extends Task<
       includeEntities = true,
     } = input;
 
-    const repo = documents as DocumentDataset;
-    const enrichedMetadata: any[] = [];
+    const kb = knowledgeBase as KnowledgeBase;
+    const enrichedMetadata: ChunkRecord[] = [];
 
     for (let i = 0; i < chunk_ids.length; i++) {
       const chunkId = chunk_ids[i];
-      const originalMetadata: ChunkMetadata | undefined = metadata[i];
+      const originalMetadata: ChunkRecord | undefined = metadata[i] as ChunkRecord | undefined;
 
       if (!originalMetadata) {
-        // Skip if metadata is missing
-        enrichedMetadata.push({} as ChunkMetadata);
+        enrichedMetadata.push({} as ChunkRecord);
         continue;
       }
 
-      // Extract doc_id and nodeId from metadata
       const doc_id = originalMetadata.doc_id;
       const leafNodeId = originalMetadata.leafNodeId;
 
       if (!doc_id || !leafNodeId) {
-        // Can't enrich without IDs
         enrichedMetadata.push(originalMetadata);
         continue;
       }
 
       try {
-        // Get ancestors from document repository
-        const ancestors = await repo.getAncestors(doc_id, leafNodeId);
+        const ancestors = await kb.getAncestors(doc_id, leafNodeId);
 
-        const enriched: any = { ...originalMetadata };
+        const enriched: ChunkRecord = { ...originalMetadata };
 
-        // Add parent summaries
         if (includeParentSummaries && ancestors.length > 0) {
           const parentSummaries: string[] = [];
           const sectionTitles: string[] = [];
@@ -173,8 +167,8 @@ export class HierarchyJoinTask extends Task<
             if (ancestor.enrichment?.summary) {
               parentSummaries.push(ancestor.enrichment.summary);
             }
-            if (ancestor.kind === "section" && (ancestor as any).title) {
-              sectionTitles.push((ancestor as any).title);
+            if (ancestor.kind === "section" && "title" in ancestor) {
+              sectionTitles.push(ancestor.title as string);
             }
           }
 
@@ -186,9 +180,8 @@ export class HierarchyJoinTask extends Task<
           }
         }
 
-        // Add entities (rolled up from ancestors)
         if (includeEntities && ancestors.length > 0) {
-          const allEntities: any[] = [];
+          const allEntities: Array<{ text: string; type: string; score: number }> = [];
 
           for (const ancestor of ancestors) {
             if (ancestor.enrichment?.entities) {
@@ -196,8 +189,10 @@ export class HierarchyJoinTask extends Task<
             }
           }
 
-          // Deduplicate entities
-          const uniqueEntities = new Map<string, any>();
+          const uniqueEntities = new Map<
+            string,
+            { text: string; type: string; score: number }
+          >();
           for (const entity of allEntities) {
             const existing = uniqueEntities.get(entity.text);
             if (!existing || entity.score > existing.score) {
@@ -212,7 +207,6 @@ export class HierarchyJoinTask extends Task<
 
         enrichedMetadata.push(enriched);
       } catch (error) {
-        // If join fails, keep original metadata
         console.error(`Failed to join hierarchy for chunk ${chunkId}:`, error);
         enrichedMetadata.push(originalMetadata);
       }

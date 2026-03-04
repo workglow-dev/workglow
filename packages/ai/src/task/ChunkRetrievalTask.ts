@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentChunk, DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
+import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -22,13 +22,14 @@ import {
 } from "@workglow/util";
 import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { TextEmbeddingTask } from "./TextEmbeddingTask";
+import type { ChunkSearchResult } from "@workglow/dataset";
 
 const inputSchema = {
   type: "object",
   properties: {
-    dataset: TypeDocumentChunkDataset({
-      title: "Document Chunk Vector Repository",
-      description: "The document chunk vector repository instance to search in",
+    knowledgeBase: TypeKnowledgeBase({
+      title: "Knowledge Base",
+      description: "The knowledge base instance to search in",
     }),
     query: TypeSingleOrArray({
       oneOf: [
@@ -73,14 +74,14 @@ const inputSchema = {
       default: false,
     },
   },
-  required: ["dataset", "query"],
+  required: ["knowledgeBase", "query"],
   if: {
     properties: {
       query: { type: "string" },
     },
   },
   then: {
-    required: ["dataset", "query", "model"],
+    required: ["knowledgeBase", "query", "model"],
   },
   else: {},
   additionalProperties: false,
@@ -131,8 +132,19 @@ const outputSchema = {
       title: "Count",
       description: "Number of results returned",
     },
+    query: TypeSingleOrArray({
+      oneOf: [
+        { type: "string" },
+        TypedArraySchema({
+          title: "Query Vector",
+          description: "Pre-computed query vector",
+        }),
+      ],
+      title: "Query",
+      description: "The query used for retrieval (pass-through)",
+    }),
   },
-  required: ["chunks", "chunk_ids", "metadata", "scores", "count"],
+  required: ["chunks", "chunk_ids", "metadata", "scores", "count", "query"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -167,7 +179,7 @@ export class ChunkRetrievalTask extends Task<
     context: IExecuteContext
   ): Promise<ChunkRetrievalTaskOutput> {
     const {
-      dataset,
+      knowledgeBase,
       query,
       topK = 5,
       filter,
@@ -176,8 +188,7 @@ export class ChunkRetrievalTask extends Task<
       returnVectors = false,
     } = input;
 
-    // Repository is resolved by input resolver system before execution
-    const repo = dataset as DocumentChunkDataset;
+    const kb = knowledgeBase as KnowledgeBase;
 
     // Determine query vector
     let queryVectors: TypedArray[];
@@ -186,7 +197,6 @@ export class ChunkRetrievalTask extends Task<
       typeof query === "string" ||
       (Array.isArray(query) && query.every((q) => typeof q === "string"))
     ) {
-      // If query is a string or array of strings, model must be provided (enforced by schema)
       if (!model) {
         throw new Error(
           "Model is required when query is a string. Please provide a model with format 'model:TextEmbeddingTask'."
@@ -198,20 +208,18 @@ export class ChunkRetrievalTask extends Task<
         ? embeddingResult.vector
         : [embeddingResult.vector];
     } else if (isTypedArray(query) || (Array.isArray(query) && query.every(isTypedArray))) {
-      // Query is already a vector
       queryVectors = Array.isArray(query) ? query : [query];
     } else {
       throw new Error("Query must be a string, array of strings, or TypedArray");
     }
 
-    // Convert to Float32Array for repository search (TODO: Check if repo expects Float32Array by default)
     const searchVectors = queryVectors.map((v) =>
       v instanceof Float32Array ? v : new Float32Array(v)
     );
 
-    const results: Array<DocumentChunk & { score: number }> = [];
+    const results: ChunkSearchResult[] = [];
     for (const searchVector of searchVectors) {
-      const res = await repo.similaritySearch(searchVector, {
+      const res = await kb.similaritySearch(searchVector, {
         topK,
         filter,
         scoreThreshold,
@@ -219,11 +227,10 @@ export class ChunkRetrievalTask extends Task<
       results.push(...res);
     }
 
-    // Extract text chunks from metadata
-    // Assumes metadata has a 'text' or 'content' field
+    // Extract text chunks from typed metadata
     const chunks = results.map((r) => {
-      const meta = r.metadata as any;
-      return meta.text || meta.content || meta.chunk || JSON.stringify(meta);
+      const meta = r.metadata as ChunkRecord;
+      return meta.text || JSON.stringify(meta);
     });
 
     const output: ChunkRetrievalTaskOutput = {
@@ -232,6 +239,7 @@ export class ChunkRetrievalTask extends Task<
       metadata: results.map((r) => r.metadata),
       scores: results.map((r) => r.score),
       count: results.length,
+      query,
     };
 
     if (returnVectors) {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentChunkDataset, TypeDocumentChunkDataset } from "@workglow/dataset";
+import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -22,10 +22,10 @@ import {
 const inputSchema = {
   type: "object",
   properties: {
-    dataset: TypeDocumentChunkDataset({
-      title: "Document Chunk Vector Repository",
+    knowledgeBase: TypeKnowledgeBase({
+      title: "Knowledge Base",
       description:
-        "The document chunk vector repository instance to search in (must support hybridSearch)",
+        "The knowledge base instance to search in (must support hybridSearch)",
     }),
     queryVector: TypedArraySchema({
       title: "Query Vector",
@@ -71,7 +71,7 @@ const inputSchema = {
       default: false,
     },
   },
-  required: ["dataset", "queryVector", "queryText"],
+  required: ["knowledgeBase", "queryVector", "queryText"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -84,10 +84,10 @@ const outputSchema = {
       title: "Text Chunks",
       description: "Retrieved text chunks",
     },
-    ids: {
+    chunk_ids: {
       type: "array",
       items: { type: "string" },
-      title: "IDs",
+      title: "Chunk IDs",
       description: "IDs of retrieved chunks",
     },
     metadata: {
@@ -120,8 +120,13 @@ const outputSchema = {
       title: "Count",
       description: "Number of results returned",
     },
+    query: {
+      type: "string",
+      title: "Query",
+      description: "The text query used for search (pass-through)",
+    },
   },
-  required: ["chunks", "ids", "metadata", "scores", "count"],
+  required: ["chunks", "chunk_ids", "metadata", "scores", "count", "query"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -130,7 +135,7 @@ export type HybridSearchTaskOutput = FromSchema<typeof outputSchema, TypedArrayS
 
 /**
  * Task for hybrid search combining vector similarity and full-text search.
- * Requires a document chunk vector repository that supports hybridSearch (e.g., Postgres with pgvector).
+ * Requires a knowledge base that supports hybridSearch (e.g., Postgres with pgvector).
  *
  * Hybrid search improves retrieval by combining:
  * - Semantic similarity (vector search) - understands meaning
@@ -160,7 +165,7 @@ export class ChunkVectorHybridSearchTask extends Task<
     context: IExecuteContext
   ): Promise<HybridSearchTaskOutput> {
     const {
-      dataset,
+      knowledgeBase,
       queryVector,
       queryText,
       topK = 10,
@@ -170,20 +175,14 @@ export class ChunkVectorHybridSearchTask extends Task<
       returnVectors = false,
     } = input;
 
-    // Repository is resolved by input resolver system before execution
-    const repo = dataset as DocumentChunkDataset;
+    const kb = knowledgeBase as KnowledgeBase;
 
-    // Check if repository supports hybrid search
-    if (!repo.hybridSearch) {
-      throw new Error("Dataset does not support hybrid search.");
-    }
-
-    // Convert to Float32Array for repository search (repo expects Float32Array by default)
+    // Convert to Float32Array for search
     const searchVector =
       queryVector instanceof Float32Array ? queryVector : new Float32Array(queryVector);
 
     // Perform hybrid search
-    const results = await repo.hybridSearch(searchVector, {
+    const results = await kb.hybridSearch(searchVector, {
       textQuery: queryText,
       topK,
       filter,
@@ -191,18 +190,19 @@ export class ChunkVectorHybridSearchTask extends Task<
       vectorWeight,
     });
 
-    // Extract text chunks from metadata
+    // Extract text chunks from typed metadata
     const chunks = results.map((r) => {
-      const meta = r.metadata as Record<string, string>;
-      return meta.text || meta.content || meta.chunk || JSON.stringify(meta);
+      const meta = r.metadata as ChunkRecord;
+      return meta.text || JSON.stringify(meta);
     });
 
     const output: HybridSearchTaskOutput = {
       chunks,
-      ids: results.map((r) => r.chunk_id),
+      chunk_ids: results.map((r) => r.chunk_id),
       metadata: results.map((r) => r.metadata),
       scores: results.map((r) => r.score),
       count: results.length,
+      query: queryText,
     };
 
     if (returnVectors) {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { NodeKind, StructuralParser } from "@workglow/dataset";
+import { NodeKind, StructuralParser, type SectionNode } from "@workglow/dataset";
 import { describe, expect, it } from "vitest";
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -83,19 +83,19 @@ Deep content.`;
 
       // Find first section (Level 1)
       const level1 = root.children.find(
-        (c) => c.kind === NodeKind.SECTION && (c as any).level === 1
+        (c): c is SectionNode => c.kind === NodeKind.SECTION && c.level === 1
       );
       expect(level1).toBeDefined();
 
       // It should have children including level 2
-      const level2 = (level1 as any).children.find(
-        (c: any) => c.kind === NodeKind.SECTION && c.level === 2
+      const level2 = level1!.children.find(
+        (c): c is SectionNode => c.kind === NodeKind.SECTION && c.level === 2
       );
       expect(level2).toBeDefined();
 
       // Level 2 should have level 3
-      const level3 = (level2 as any).children.find(
-        (c: any) => c.kind === NodeKind.SECTION && c.level === 3
+      const level3 = level2!.children.find(
+        (c): c is SectionNode => c.kind === NodeKind.SECTION && c.level === 3
       );
       expect(level3).toBeDefined();
     });

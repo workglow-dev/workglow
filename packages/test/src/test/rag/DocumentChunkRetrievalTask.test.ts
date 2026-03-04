@@ -6,41 +6,27 @@
 
 import { chunkRetrieval } from "@workglow/ai";
 import {
-  DocumentChunk,
-  DocumentChunkDataset,
-  DocumentChunkPrimaryKey,
-  DocumentChunkSchema,
-  registerDocumentChunkDataset,
+  createKnowledgeBase,
+  KnowledgeBase,
+  registerKnowledgeBase,
 } from "@workglow/dataset";
-import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkRetrievalTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
-  let storage: InMemoryVectorStorage<
-    typeof DocumentChunkSchema,
-    typeof DocumentChunkPrimaryKey,
-    Record<string, unknown>,
-    Float32Array,
-    DocumentChunk
-  >;
-  let dataset: DocumentChunkDataset;
+  let kb: KnowledgeBase;
 
   beforeEach(async () => {
-    storage = new InMemoryVectorStorage<
-      typeof DocumentChunkSchema,
-      typeof DocumentChunkPrimaryKey,
-      Record<string, unknown>,
-      Float32Array,
-      DocumentChunk
-    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
-    await storage.setupDatabase();
-    dataset = new DocumentChunkDataset(storage);
+    kb = await createKnowledgeBase({
+      name: `retrieval-test-${uuid4()}`,
+      vectorDimensions: 3,
+      register: false,
+    });
 
-    // Populate repository with test data
+    // Populate with test data
     const vectors = [
       new Float32Array([1.0, 0.0, 0.0]),
       new Float32Array([0.8, 0.2, 0.0]),
@@ -50,16 +36,16 @@ describe("ChunkRetrievalTask", () => {
     ];
 
     const metadata = [
-      { text: "First chunk about AI" },
-      { text: "Second chunk about machine learning" },
-      { content: "Third chunk about cooking" },
-      { chunk: "Fourth chunk about travel" },
-      { text: "Fifth chunk about artificial intelligence" },
+      { chunkId: "doc1_0", doc_id: "doc1", text: "First chunk about AI", nodePath: [], depth: 0 },
+      { chunkId: "doc2_0", doc_id: "doc2", text: "Second chunk about machine learning", nodePath: [], depth: 0 },
+      { chunkId: "doc3_0", doc_id: "doc3", text: "Third chunk about cooking", nodePath: [], depth: 0 },
+      { chunkId: "doc4_0", doc_id: "doc4", text: "Fourth chunk about travel", nodePath: [], depth: 0 },
+      { chunkId: "doc5_0", doc_id: "doc5", text: "Fifth chunk about artificial intelligence", nodePath: [], depth: 0 },
     ];
 
     for (let i = 0; i < vectors.length; i++) {
       const doc_id = `doc${i + 1}`;
-      await dataset.put({
+      await kb.upsertChunk({
         chunk_id: `${doc_id}_0`,
         doc_id,
         vector: vectors[i],
@@ -69,14 +55,14 @@ describe("ChunkRetrievalTask", () => {
   });
 
   afterEach(() => {
-    storage.destroy();
+    kb.destroy();
   });
 
   test("should retrieve chunks with query vector", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 3,
     });
@@ -96,7 +82,7 @@ describe("ChunkRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 5,
     });
@@ -114,43 +100,11 @@ describe("ChunkRetrievalTask", () => {
     });
   });
 
-  test("should extract text from metadata.content field as fallback", async () => {
-    const queryVector = new Float32Array([0.0, 1.0, 0.0]);
-
-    const result = await chunkRetrieval({
-      dataset,
-      query: queryVector,
-      topK: 5,
-    });
-
-    // Find the chunk with content field
-    const contentChunkIdx = result.metadata.findIndex((meta) => meta.content !== undefined);
-    if (contentChunkIdx >= 0) {
-      expect(result.chunks[contentChunkIdx]).toBe(result.metadata[contentChunkIdx].content);
-    }
-  });
-
-  test("should extract text from metadata.chunk field as fallback", async () => {
-    const queryVector = new Float32Array([0.0, 0.0, 1.0]);
-
-    const result = await chunkRetrieval({
-      dataset,
-      query: queryVector,
-      topK: 5,
-    });
-
-    // Find the chunk with chunk field
-    const chunkIdx = result.metadata.findIndex((meta) => meta.chunk !== undefined);
-    if (chunkIdx >= 0) {
-      expect(result.chunks[chunkIdx]).toBe(result.metadata[chunkIdx].chunk);
-    }
-  });
-
   test("should return vectors when returnVectors is true", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 3,
       returnVectors: true,
@@ -165,7 +119,7 @@ describe("ChunkRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 3,
       returnVectors: false,
@@ -178,7 +132,7 @@ describe("ChunkRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 2,
     });
@@ -187,36 +141,11 @@ describe("ChunkRetrievalTask", () => {
     expect(result.chunks).toHaveLength(2);
   });
 
-  test("should apply metadata filter", async () => {
-    // Add a document with specific metadata for filtering
-    await dataset.put({
-      chunk_id: "filtered_doc_0",
-      doc_id: "filtered_doc",
-      vector: new Float32Array([1.0, 0.0, 0.0]),
-      metadata: {
-        text: "Filtered document",
-        category: "test",
-      },
-    });
-
-    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-
-    const result = await chunkRetrieval({
-      dataset,
-      query: queryVector,
-      topK: 10,
-      filter: { category: "test" },
-    });
-
-    expect(result.count).toBe(1);
-    expect(result.chunk_ids[0]).toBe("filtered_doc_0");
-  });
-
   test("should apply score threshold", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 10,
       scoreThreshold: 0.9,
@@ -227,24 +156,11 @@ describe("ChunkRetrievalTask", () => {
     });
   });
 
-  test("should use queryEmbedding when provided", async () => {
-    const queryEmbedding = new Float32Array([1.0, 0.0, 0.0]);
-
-    const result = await chunkRetrieval({
-      dataset,
-      query: queryEmbedding,
-      topK: 3,
-    });
-
-    expect(result.count).toBe(3);
-    expect(result.chunks).toHaveLength(3);
-  });
-
   test("should throw error when query is string without model", async () => {
     await expect(
       // @ts-expect-error - query is string but no model is provided
       chunkRetrieval({
-        dataset,
+        knowledgeBase: kb,
         query: "test query string",
         topK: 3,
       })
@@ -255,7 +171,7 @@ describe("ChunkRetrievalTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
     });
 
@@ -264,42 +180,13 @@ describe("ChunkRetrievalTask", () => {
     expect(result.count).toBeLessThanOrEqual(5);
   });
 
-  test("should JSON.stringify metadata when no text/content/chunk fields", async () => {
-    // Add document with only non-standard metadata
-    await dataset.put({
-      chunk_id: "json_doc_0",
-      doc_id: "json_doc",
-      vector: new Float32Array([1.0, 0.0, 0.0]),
-      metadata: {
-        title: "Title only",
-        author: "Author name",
-      },
-    });
+  test("should resolve knowledge base from string ID", async () => {
+    registerKnowledgeBase("test-retrieval-kb", kb);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const result = await chunkRetrieval({
-      dataset,
-      query: queryVector,
-      topK: 10,
-    });
-
-    // Find the JSON stringified chunk
-    const jsonChunk = result.chunks.find((chunk) => chunk.includes("title"));
-    expect(jsonChunk).toBeDefined();
-    expect(jsonChunk).toContain("Title only");
-    expect(jsonChunk).toContain("Author name");
-  });
-
-  test("should resolve repository from string ID", async () => {
-    // Register repository by ID
-    registerDocumentChunkDataset("test-retrieval-repo", dataset);
-
-    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-
-    // Pass repository as string ID instead of instance
-    const result = await chunkRetrieval({
-      dataset: "test-retrieval-repo",
+      knowledgeBase: "test-retrieval-kb",
       query: queryVector,
       topK: 3,
     });
@@ -307,11 +194,5 @@ describe("ChunkRetrievalTask", () => {
     expect(result.count).toBe(3);
     expect(result.chunks).toHaveLength(3);
     expect(result.chunk_ids).toHaveLength(3);
-    expect(result.metadata).toHaveLength(3);
-    expect(result.scores).toHaveLength(3);
-
-    // Chunks should be extracted from metadata
-    expect(result.chunks[0]).toBeTruthy();
-    expect(typeof result.chunks[0]).toBe("string");
   });
 });

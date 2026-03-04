@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ChunkNodeSchema, type ChunkNode } from "@workglow/dataset";
+import { ChunkRecordSchema, type ChunkRecord } from "@workglow/dataset";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -34,11 +34,11 @@ const inputSchema = {
     },
     chunks: {
       type: "array",
-      items: ChunkNodeSchema(),
+      items: ChunkRecordSchema(),
       title: "Chunks",
-      description: "Array of chunk nodes",
+      description: "Array of chunk records",
     },
-    vectors: {
+    vector: {
       type: "array",
       items: TypedArraySchema({
         title: "Vector",
@@ -48,7 +48,7 @@ const inputSchema = {
       description: "Embeddings from TextEmbeddingTask",
     },
   },
-  required: ["chunks", "vectors"],
+  required: ["chunks", "vector"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -95,8 +95,8 @@ export type ChunkToVectorTaskInput = FromSchema<typeof inputSchema, TypedArraySc
 export type ChunkToVectorTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
 
 /**
- * Task to transform chunk nodes and embeddings into vector store format
- * Bridges HierarchicalChunker + TextEmbedding → VectorStoreUpsert
+ * Task to transform chunk records and embeddings into vector store format
+ * Bridges HierarchicalChunker + TextEmbedding -> VectorStoreUpsert
  */
 export class ChunkToVectorTask extends Task<
   ChunkToVectorTaskInput,
@@ -121,20 +121,20 @@ export class ChunkToVectorTask extends Task<
     input: ChunkToVectorTaskInput,
     context: IExecuteContext
   ): Promise<ChunkToVectorTaskOutput> {
-    const { chunks, vectors, doc_title } = input;
+    const { chunks, vector, doc_title } = input;
 
-    const chunkArray = chunks as ChunkNode[];
+    const chunkArray = chunks as ChunkRecord[];
 
-    if (!chunkArray || !vectors) {
+    if (!chunkArray || !vector) {
       throw new Error("Both chunks and vector are required");
     }
 
-    if (chunkArray.length !== vectors.length) {
-      throw new Error(`Mismatch: ${chunkArray.length} chunks but ${vectors.length} vectors`);
+    if (chunkArray.length !== vector.length) {
+      throw new Error(`Mismatch: ${chunkArray.length} chunks but ${vector.length} vectors`);
     }
 
     const ids: string[] = [];
-    const metadata: any[] = [];
+    const metadata: ChunkRecord[] = [];
     const texts: string[] = [];
 
     for (let i = 0; i < chunkArray.length; i++) {
@@ -151,14 +151,14 @@ export class ChunkToVectorTask extends Task<
         text: chunk.text,
         nodePath: chunk.nodePath,
         ...(doc_title ? { doc_title } : {}),
-        // Include enrichment if present
-        ...(chunk.enrichment || {}),
+        ...(chunk.summary ? { summary: chunk.summary } : {}),
+        ...(chunk.entities ? { entities: chunk.entities } : {}),
       });
     }
 
     return {
       ids,
-      vectors,
+      vectors: vector,
       metadata,
       texts,
     };

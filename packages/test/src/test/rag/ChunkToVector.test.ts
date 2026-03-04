@@ -6,7 +6,7 @@
 
 import "@workglow/ai"; // Trigger Workflow prototype extensions
 import type { ChunkToVectorTaskOutput, HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { type ChunkNode, StructuralParser } from "@workglow/dataset";
+import { type ChunkRecord, StructuralParser } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
 import { uuid4, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
@@ -37,8 +37,8 @@ describe("ChunkToVectorTask", () => {
     // Transform to vector store format using workflow
     const result = (await new Workflow()
       .chunkToVector({
-        chunks: chunkResult.chunks as ChunkNode[],
-        vectors: mockVectors,
+        chunks: chunkResult.chunks as ChunkRecord[],
+        vector: mockVectors,
       })
       .run()) as ChunkToVectorTaskOutput;
 
@@ -88,10 +88,10 @@ describe("ChunkToVectorTask", () => {
       },
     ];
 
-    const vectors = [new Float32Array([1, 2, 3])]; // Only 1 vector for 2 chunks
+    const vector = [new Float32Array([1, 2, 3])]; // Only 1 vector for 2 chunks
 
     // Using workflow
-    await expect(new Workflow().chunkToVector({ chunks, vectors }).run()).rejects.toThrow(
+    await expect(new Workflow().chunkToVector({ chunks, vector }).run()).rejects.toThrow(
       "Mismatch"
     );
   });
@@ -104,17 +104,15 @@ describe("ChunkToVectorTask", () => {
         text: "Test",
         nodePath: ["node_1"],
         depth: 1,
-        enrichment: {
-          summary: "Test summary",
-          entities: [{ text: "Entity", type: "TEST", score: 0.9 }],
-        },
+        summary: "Test summary",
+        entities: [{ text: "Entity", type: "TEST", score: 0.9 }],
       },
     ];
 
-    const vectors = [new Float32Array([1, 2, 3])];
+    const vector = [new Float32Array([1, 2, 3])];
 
     const result = (await new Workflow()
-      .chunkToVector({ chunks, vectors })
+      .chunkToVector({ chunks, vector })
       .run()) as ChunkToVectorTaskOutput;
 
     const metadata = result.metadata as Array<{

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, FromSchema, JsonSchema } from "@workglow/util";
+import type { DataPortSchema, FromSchema } from "@workglow/util";
 
 /**
  * Node kind discriminator for hierarchical document structure
@@ -358,7 +358,7 @@ export type DocumentNode =
   | TopicNode;
 
 // =============================================================================
-// Token Budget and Chunk Schemas
+// Token Budget
 // =============================================================================
 
 /**
@@ -389,217 +389,9 @@ export const TokenBudgetSchema = {
 
 export type TokenBudget = FromSchema<typeof TokenBudgetSchema>;
 
-/**
- * Schema for chunk enrichment
- */
-export const ChunkEnrichmentSchema = {
-  type: "object",
-  properties: {
-    summary: {
-      type: "string",
-      title: "Summary",
-      description: "Summary of the chunk content",
-    },
-    entities: {
-      type: "array",
-      items: EntitySchema,
-      title: "Entities",
-      description: "Named entities extracted from the chunk",
-    },
-  },
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
-
-export type ChunkEnrichment = FromSchema<typeof ChunkEnrichmentSchema>;
-
-/**
- * Schema for chunk node (output of HierarchicalChunker)
- */
-export const ChunkNodeSchema = () =>
-  ({
-    type: "object",
-    properties: {
-      chunkId: {
-        type: "string",
-        title: "Chunk ID",
-        description: "Unique identifier for this chunk",
-      },
-      doc_id: {
-        type: "string",
-        title: "Document ID",
-        description: "ID of the parent document",
-      },
-      text: {
-        type: "string",
-        title: "Text",
-        description: "Text content of the chunk",
-      },
-      nodePath: {
-        type: "array",
-        items: { type: "string" },
-        title: "Node Path",
-        description: "Node IDs from root to leaf",
-      },
-      depth: {
-        type: "integer",
-        title: "Depth",
-        description: "Depth in the document tree",
-      },
-      enrichment: ChunkEnrichmentSchema,
-    },
-    required: ["chunkId", "doc_id", "text", "nodePath", "depth"],
-    additionalProperties: false,
-  }) as const satisfies DataPortSchema;
-
-export type ChunkNode = FromSchema<ReturnType<typeof ChunkNodeSchema>>;
-
 // =============================================================================
-// Chunk Metadata Schemas (for vector store)
+// Document Metadata
 // =============================================================================
-
-/**
- * Schema for chunk metadata stored in vector database
- * This is the metadata output from ChunkToVectorTask
- */
-export const ChunkMetadataSchema = {
-  type: "object",
-  properties: {
-    doc_id: {
-      type: "string",
-      title: "Document ID",
-      description: "ID of the parent document",
-    },
-    chunkId: {
-      type: "string",
-      title: "Chunk ID",
-      description: "Unique identifier for this chunk",
-    },
-    leafNodeId: {
-      type: "string",
-      title: "Leaf Node ID",
-      description: "ID of the leaf node this chunk belongs to",
-    },
-    depth: {
-      type: "integer",
-      title: "Depth",
-      description: "Depth in the document tree",
-    },
-    text: {
-      type: "string",
-      title: "Text",
-      description: "Text content of the chunk",
-    },
-    nodePath: {
-      type: "array",
-      items: { type: "string" },
-      title: "Node Path",
-      description: "Node IDs from root to leaf",
-    },
-    summary: {
-      type: "string",
-      title: "Summary",
-      description: "Summary of the chunk content",
-    },
-    entities: {
-      type: "array",
-      items: EntitySchema,
-      title: "Entities",
-      description: "Named entities extracted from the chunk",
-    },
-  },
-  required: ["doc_id", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
-  additionalProperties: true,
-} as const satisfies DataPortSchema;
-
-export type ChunkMetadata = FromSchema<typeof ChunkMetadataSchema>;
-
-/**
- * Schema for chunk metadata array (for use in task schemas)
- */
-export const ChunkMetadataArraySchema = {
-  type: "array",
-  items: ChunkMetadataSchema,
-  title: "Chunk Metadata",
-  description: "Metadata for each chunk",
-} as const satisfies JsonSchema;
-
-/**
- * Schema for enriched chunk metadata (after HierarchyJoinTask)
- * Extends ChunkMetadata with hierarchy information from document repository
- */
-export const EnrichedChunkMetadataSchema = {
-  type: "object",
-  properties: {
-    doc_id: {
-      type: "string",
-      title: "Document ID",
-      description: "ID of the parent document",
-    },
-    chunkId: {
-      type: "string",
-      title: "Chunk ID",
-      description: "Unique identifier for this chunk",
-    },
-    leafNodeId: {
-      type: "string",
-      title: "Leaf Node ID",
-      description: "ID of the leaf node this chunk belongs to",
-    },
-    depth: {
-      type: "integer",
-      title: "Depth",
-      description: "Depth in the document tree",
-    },
-    text: {
-      type: "string",
-      title: "Text",
-      description: "Text content of the chunk",
-    },
-    nodePath: {
-      type: "array",
-      items: { type: "string" },
-      title: "Node Path",
-      description: "Node IDs from root to leaf",
-    },
-    summary: {
-      type: "string",
-      title: "Summary",
-      description: "Summary of the chunk content",
-    },
-    entities: {
-      type: "array",
-      items: EntitySchema,
-      title: "Entities",
-      description: "Named entities (rolled up from hierarchy)",
-    },
-    parentSummaries: {
-      type: "array",
-      items: { type: "string" },
-      title: "Parent Summaries",
-      description: "Summaries from ancestor nodes",
-    },
-    sectionTitles: {
-      type: "array",
-      items: { type: "string" },
-      title: "Section Titles",
-      description: "Titles of ancestor section nodes",
-    },
-  },
-  required: ["doc_id", "chunkId", "leafNodeId", "depth", "text", "nodePath"],
-  additionalProperties: true,
-} as const satisfies DataPortSchema;
-
-export type EnrichedChunkMetadata = FromSchema<typeof EnrichedChunkMetadataSchema>;
-
-/**
- * Schema for enriched chunk metadata array (for use in task schemas)
- */
-export const EnrichedChunkMetadataArraySchema = {
-  type: "array",
-  items: EnrichedChunkMetadataSchema,
-  title: "Enriched Metadata",
-  description: "Metadata enriched with hierarchy information",
-} as const satisfies JsonSchema;
 
 /**
  * Schema for document metadata

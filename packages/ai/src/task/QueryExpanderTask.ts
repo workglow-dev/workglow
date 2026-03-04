@@ -58,7 +58,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    queries: {
+    query: {
       type: "array",
       items: { type: "string" },
       title: "Expanded Queries",
@@ -80,7 +80,7 @@ const outputSchema = {
       description: "Number of queries generated",
     },
   },
-  required: ["queries", "originalQuery", "method", "count"],
+  required: ["query", "originalQuery", "method", "count"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -143,7 +143,7 @@ export class QueryExpanderTask extends Task<
     }
 
     return {
-      queries,
+      query: queries,
       originalQuery: query,
       method,
       count: queries.length,
