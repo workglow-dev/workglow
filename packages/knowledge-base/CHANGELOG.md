@@ -1,4 +1,4 @@
-# @workglow/dataset
+# @workglow/knowledge-base
 
 ## 0.0.114
 

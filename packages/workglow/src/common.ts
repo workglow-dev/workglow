@@ -8,7 +8,7 @@ import "./logging";
 
 export * from "@workglow/ai";
 export * from "@workglow/ai-provider";
-export * from "@workglow/dataset";
+export * from "@workglow/knowledge-base";
 export * from "@workglow/job-queue";
 export * from "@workglow/sqlite";
 export * from "@workglow/storage";

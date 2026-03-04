@@ -7,12 +7,6 @@
 import type { JsonSchema } from "@workglow/util";
 
 /**
- * Semantic format types for dataset schema annotations.
- * These are used by the InputResolver to determine how to resolve string IDs.
- */
-export type DatasetSemantic = "dataset:tabular" | "dataset:knowledge-base";
-
-/**
  * Creates a JSON schema for a tabular dataset input.
  * The schema accepts either a string ID (resolved from registry) or a direct dataset instance.
  */
@@ -38,7 +32,7 @@ export function TypeKnowledgeBase<O extends Record<string, unknown> = {}>(option
     title: "Knowledge Base",
     description: "Knowledge base ID or instance",
     ...options,
-    format: "dataset:knowledge-base" as const,
+    format: "knowledge-base" as const,
     anyOf: [
       { type: "string" as const, title: "Knowledge Base ID" },
       { title: "Knowledge Base Instance", additionalProperties: true },

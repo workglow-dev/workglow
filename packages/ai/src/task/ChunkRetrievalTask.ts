@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/dataset";
+import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -22,7 +22,7 @@ import {
 } from "@workglow/util";
 import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { TextEmbeddingTask } from "./TextEmbeddingTask";
-import type { ChunkSearchResult } from "@workglow/dataset";
+import type { ChunkSearchResult } from "@workglow/knowledge-base";
 
 const inputSchema = {
   type: "object",

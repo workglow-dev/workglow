@@ -37,7 +37,7 @@
   "peerDependencies": {
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
-    "@workglow/dataset": "workspace:*",
+    "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
@@ -56,7 +56,7 @@
     "@workglow/ai-provider": {
       "optional": false
     },
-    "@workglow/dataset": {
+    "@workglow/knowledge-base": {
       "optional": false
     },
     "@workglow/job-queue": {
@@ -90,7 +90,7 @@
     "@types/pg": "^8.18.0",
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
-    "@workglow/dataset": "workspace:*",
+    "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/sqlite": "workspace:*",
     "@workglow/storage": "workspace:*",

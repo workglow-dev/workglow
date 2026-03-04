@@ -12,7 +12,7 @@ import {
   type ChunkRecord,
   type DocumentNode,
   type TokenBudget,
-} from "@workglow/dataset";
+} from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteContext,

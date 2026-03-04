@@ -8,6 +8,9 @@
 export * from "./chunk/ChunkSchema";
 export * from "./chunk/ChunkVectorStorageSchema";
 export * from "./knowledge-base/KnowledgeBase";
+export * from "./knowledge-base/KnowledgeBaseSchema";
+export * from "./knowledge-base/KnowledgeBaseRepository";
+export * from "./knowledge-base/InMemoryKnowledgeBaseRepository";
 export * from "./knowledge-base/KnowledgeBaseRegistry";
 export * from "./knowledge-base/createKnowledgeBase";
 

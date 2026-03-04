@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/dataset";
+import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteContext,
@@ -127,7 +127,7 @@ export class ChunkVectorSearchTask extends Task<
 
   async execute(
     input: VectorStoreSearchTaskInput,
-    context: IExecuteContext
+    _context: IExecuteContext
   ): Promise<VectorStoreSearchTaskOutput> {
     const { knowledgeBase, query, topK = 10, filter, scoreThreshold = 0 } = input;
 

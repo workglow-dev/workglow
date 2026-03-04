@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TypeTabularStorage } from "@workglow/dataset";
+import { TypeTabularStorage } from "@workglow/knowledge-base";
 import {
   AnyTabularStorage,
   getGlobalTabularRepositories,

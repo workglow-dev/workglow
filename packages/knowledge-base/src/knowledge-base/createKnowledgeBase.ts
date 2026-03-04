@@ -18,6 +18,8 @@ export interface CreateKnowledgeBaseOptions {
   readonly vectorDimensions: number;
   readonly vectorType?: { new (array: number[]): TypedArray };
   readonly register?: boolean;
+  readonly title?: string;
+  readonly description?: string;
 }
 
 /**
@@ -39,6 +41,8 @@ export async function createKnowledgeBase(
     vectorDimensions,
     vectorType = Float32Array,
     register: shouldRegister = true,
+    title,
+    description,
   } = options;
 
   const tabularStorage = new InMemoryTabularStorage(
@@ -59,7 +63,9 @@ export async function createKnowledgeBase(
   const kb = new KnowledgeBase(
     name,
     tabularStorage as unknown as DocumentTabularStorage,
-    vectorStorage as unknown as ChunkVectorStorage
+    vectorStorage as unknown as ChunkVectorStorage,
+    title,
+    description
   );
 
   if (shouldRegister) {

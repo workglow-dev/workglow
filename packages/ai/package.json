@@ -37,14 +37,14 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@workglow/dataset": "workspace:*",
+    "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*"
   },
   "peerDependenciesMeta": {
-    "@workglow/dataset": {
+    "@workglow/knowledge-base": {
       "optional": false
     },
     "@workglow/job-queue": {
@@ -61,7 +61,7 @@
     }
   },
   "devDependencies": {
-    "@workglow/dataset": "workspace:*",
+    "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",

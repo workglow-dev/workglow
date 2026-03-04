@@ -293,7 +293,7 @@ Register and retrieve chunk vector repositories globally:
 
 ```typescript
 import { getChunkVectorRepository, getGlobalChunkVectorRepositories } from "@workglow/storage";
-import { registerChunkVectorRepository, getGlobalChunkVectorRepositories } from "@workglow/dataset";
+import { registerChunkVectorRepository, getGlobalChunkVectorRepositories } from "@workglow/knowledge-base";
 
 // Register a repository
 registerChunkVectorRepository("my-chunks", repo);
@@ -344,13 +344,13 @@ Quantized vectors reduce storage and can improve performance:
 - **Cons:** Requires PostgreSQL server and pgvector extension
 - **Setup:** `CREATE EXTENSION vector;`
 
-## Integration with DocumentDataset
+## Integration with KnowledgeBase
 
-The chunk vector repository works alongside `DocumentDataset` for hierarchical document storage:
+The chunk vector repository works alongside `KnowledgeBase` for hierarchical document storage:
 
 ```typescript
+import { KnowledgeBase } from "@workglow/knowledge-base";
 import {
-  DocumentDataset,
   InMemoryChunkVectorStorage,
   InMemoryTabularStorage,
 } from "@workglow/storage";
@@ -363,14 +363,14 @@ await tabularStorage.setupDatabase();
 const vectorStorage = new InMemoryChunkVectorStorage(384);
 await vectorStorage.setupDatabase();
 
-// Create document dataset with both storages
-const docDataset = new DocumentDataset(tabularStorage, vectorStorage);
+// Create knowledge base with both storages
+const kb = new KnowledgeBase("my-kb", tabularStorage, vectorStorage, "My KB", "Description");
 
 // Store document structure in tabular, chunks in vector
-await docDataset.upsert(document);
+await kb.upsertDocument(document);
 
 // Search chunks by vector similarity
-const results = await docDataset.search(queryVector, { topK: 5 });
+const results = await kb.similaritySearch(queryVector, { topK: 5 });
 ```
 
 ### Chunk Metadata for Hierarchical Documents

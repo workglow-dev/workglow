@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ChunkRecord, DocumentNode } from "@workglow/dataset";
-import { Document, NodeKind } from "@workglow/dataset";
+import type { ChunkRecord, DocumentNode } from "@workglow/knowledge-base";
+import { Document, NodeKind } from "@workglow/knowledge-base";
 import { describe, expect, test } from "vitest";
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";

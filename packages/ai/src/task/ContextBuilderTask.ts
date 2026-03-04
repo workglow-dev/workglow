@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { estimateTokens } from "@workglow/dataset";
+import { estimateTokens } from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteReactiveContext,

@@ -26,7 +26,7 @@ export default defineConfig({
             "@workglow/storage",
             "@workglow/task-graph",
             "@workglow/debug",
-            "@workglow/dataset",
+            "@workglow/knowledge-base",
             "@workglow/tasks",
             "@workglow/util",
             "@workglow/sqlite",

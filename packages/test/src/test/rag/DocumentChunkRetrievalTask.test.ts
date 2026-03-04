@@ -9,7 +9,7 @@ import {
   createKnowledgeBase,
   KnowledgeBase,
   registerKnowledgeBase,
-} from "@workglow/dataset";
+} from "@workglow/knowledge-base";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { setLogger, uuid4 } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";

@@ -445,7 +445,7 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 ```typescript
 import { Workflow } from "@workglow/task-graph";
-import { createKnowledgeBase } from "@workglow/dataset";
+import { createKnowledgeBase } from "@workglow/knowledge-base";
 
 // Create a KnowledgeBase (auto-registers globally as "my-kb")
 const kb = await createKnowledgeBase({

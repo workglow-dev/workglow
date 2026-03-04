@@ -22,21 +22,26 @@ import type {
 } from "../document/DocumentStorageSchema";
 
 /**
- * Unified KnowledgeBase that owns both document and vector storage.
- * Replaces DocumentDataset and DocumentChunkDataset with a single cohesive class
- * that provides lifecycle management and cascading deletes.
+ * Unified KnowledgeBase that owns both document and vector storage,
+ * providing lifecycle management and cascading deletes.
  */
 export class KnowledgeBase {
   readonly name: string;
+  readonly title: string;
+  readonly description: string;
   private tabularStorage: DocumentTabularStorage;
   private chunkStorage: ChunkVectorStorage;
 
   constructor(
     name: string,
     documentStorage: DocumentTabularStorage,
-    chunkStorage: ChunkVectorStorage
+    chunkStorage: ChunkVectorStorage,
+    title?: string,
+    description?: string
   ) {
     this.name = name;
+    this.title = title ?? name;
+    this.description = description ?? "";
     this.tabularStorage = documentStorage;
     this.chunkStorage = chunkStorage;
   }
