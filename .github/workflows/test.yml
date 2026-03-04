@@ -14,7 +14,6 @@ env:
   CI: "true"
   DO_NOT_TRACK: "1"
   TURBO_TELEMETRY_DISABLED: "1"
-  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
   build:
@@ -31,3 +30,5 @@ jobs:
       - run: bun i
       - run: bun run build
       - run: bun run test
+      - name: Report Coverage
+        uses: davelosert/vitest-coverage-report-action@v2

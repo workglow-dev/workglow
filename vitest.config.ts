@@ -15,9 +15,14 @@ export default defineConfig({
     },
   },
   test: {
-    maxConcurrency: 1,
-    maxWorkers: 1,
+    maxConcurrency: 20,
+    maxWorkers: 20,
     testTimeout: 15000, // 15 second global timeout (PgLite initialization can be slow)
     exclude: [...configDefaults.exclude, "**/*.e2e.test.ts"],
+    coverage: {
+      provider: "v8", // or 'istanbul'
+      reporter: ["text", "json-summary", "html"],
+      exclude: [...configDefaults.exclude, "packages/test/**"],
+    },
   },
 });
