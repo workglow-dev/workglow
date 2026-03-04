@@ -134,10 +134,12 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
           value = await resolver(value, format, config.registry);
           resolved[key] = value;
         }
-        // Handle arrays of strings - iterate and resolve each element
-        else if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+        // Handle arrays - resolve string elements and pass through non-string elements unchanged
+        else if (Array.isArray(value) && value.some((item) => typeof item === "string")) {
           const results = await Promise.all(
-            (value as string[]).map((item) => resolver(item, format, config.registry))
+            value.map((item) =>
+              typeof item === "string" ? resolver(item, format, config.registry) : item
+            )
           );
           value = results.filter((result) => result !== undefined);
           resolved[key] = value;

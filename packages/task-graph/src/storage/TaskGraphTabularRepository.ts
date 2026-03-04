@@ -5,7 +5,7 @@
  */
 
 import type { BaseTabularStorage } from "@workglow/storage";
-import { DataPortSchemaObject } from "@workglow/util";
+import { DataPortSchemaObject, type ServiceRegistry } from "@workglow/util";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { createGraphFromGraphJSON } from "../task/TaskJSON";
 import { TaskGraphRepository } from "./TaskGraphRepository";
@@ -30,6 +30,7 @@ export type TaskGraphRepositoryStorage = BaseTabularStorage<
 >;
 type TaskGraphRepositoryOptions = {
   tabularRepository: TaskGraphRepositoryStorage;
+  registry?: ServiceRegistry;
 };
 
 /**
@@ -48,12 +49,18 @@ export class TaskGraphTabularRepository extends TaskGraphRepository {
   tabularRepository: TaskGraphRepositoryStorage;
 
   /**
+   * Optional service registry for DI-based task constructor lookups
+   */
+  readonly registry: ServiceRegistry | undefined;
+
+  /**
    * Constructor for the TaskGraphRepository
    * @param options The options for the repository
    */
-  constructor({ tabularRepository }: TaskGraphRepositoryOptions) {
+  constructor({ tabularRepository, registry }: TaskGraphRepositoryOptions) {
     super();
     this.tabularRepository = tabularRepository;
+    this.registry = registry;
   }
 
   /**
@@ -89,7 +96,7 @@ export class TaskGraphTabularRepository extends TaskGraphRepository {
       return undefined;
     }
     const jsonObj = JSON.parse(value);
-    const graph = createGraphFromGraphJSON(jsonObj);
+    const graph = createGraphFromGraphJSON(jsonObj, this.registry);
 
     this.emit("graph_retrieved", key);
     return graph;

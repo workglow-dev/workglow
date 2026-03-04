@@ -160,7 +160,8 @@ export abstract class ArrayTask<
       const { id, title, ...rest } = this.config;
       const task = new (this.constructor as any)(
         { ...this.defaults, ...this.runInputData, ...combination },
-        { ...rest, id: `${id}_${uuid4()}` }
+        { ...rest, id: `${id}_${uuid4()}` },
+        this.runConfig
       );
       return task;
     });

@@ -5,7 +5,7 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
-import { OLLAMA, OllamaProvider } from "@workglow/ai-provider";
+import { OLLAMA, OllamaModelConfig, OllamaProvider } from "@workglow/ai-provider";
 import {
   OLLAMA_TASKS,
   Ollama_TextEmbedding,
@@ -20,7 +20,7 @@ import {
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -232,7 +232,7 @@ describe("OllamaProvider", () => {
             city: { type: "string", description: "The city name" },
           },
           required: ["city"],
-        },
+        } as const satisfies JsonSchema,
       },
     ];
 
@@ -537,11 +537,11 @@ describe("OllamaProvider", () => {
             type: "object",
             properties: { city: { type: "string" } },
             required: ["city"],
-          },
+          } as const satisfies JsonSchema,
         },
       ];
       const result = await Ollama_ToolCalling(
-        { prompt: ["weather SF", "weather NY"], model: model as any, tools: sampleTools },
+        { prompt: ["weather SF", "weather NY"], model: model, tools: sampleTools },
         model,
         noopProgress,
         abortSignal
@@ -559,7 +559,7 @@ describe("OllamaProvider", () => {
       await expect(
         Ollama_TextGeneration(
           { prompt: "test", model: {} as any },
-          { provider_config: {} } as any,
+          { provider_config: {} } as OllamaModelConfig,
           noopProgress,
           abortSignal
         )
@@ -571,12 +571,7 @@ describe("OllamaProvider", () => {
 
       const model = makeModel("llama3.2");
       await expect(
-        Ollama_TextGeneration(
-          { prompt: "test", model: model as any },
-          model,
-          noopProgress,
-          abortSignal
-        )
+        Ollama_TextGeneration({ prompt: "test", model: model }, model, noopProgress, abortSignal)
       ).rejects.toThrow("Connection refused");
     });
   });

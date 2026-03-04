@@ -26,7 +26,7 @@ import { Task } from "../task/Task";
 import { TaskAbortedError, TaskConfigurationError, TaskError } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
-import { TaskGraph, TaskGraphRunConfig } from "./TaskGraph";
+import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
 export type GraphSingleTaskResult<T> = {
@@ -225,13 +225,18 @@ export class TaskGraphRunner {
   /**
    * Runs the task graph in a reactive manner
    * @param input Optional input to pass to root tasks (tasks with no incoming dataflows)
+   * @param config Optional configuration for the reactive run. Supports overriding the
+   *   ServiceRegistry (`registry`), providing an output cache (`outputCache`), passing an
+   *   abort signal (`parentSignal`), and controlling whether streaming leaf task outputs are
+   *   accumulated into the return value (`accumulateLeafOutputs`).
    * @returns A promise that resolves when all tasks are complete
    * @throws TaskConfigurationError if the graph is already running reactively
    */
   public async runGraphReactive<Output extends TaskOutput>(
-    input: TaskInput = {} as TaskInput
+    input: TaskInput = {} as TaskInput,
+    config?: TaskGraphRunReactiveConfig
   ): Promise<GraphResultArray<Output>> {
-    await this.handleStartReactive();
+    await this.handleStartReactive(config);
 
     const results: GraphResultArray<Output> = [];
     try {
@@ -893,7 +898,7 @@ export class TaskGraphRunner {
     // Setup registry - create child from global if not provided
     if (config?.registry !== undefined) {
       this.registry = config.registry;
-    } else {
+    } else if (this.registry === undefined) {
       // Create a child container that inherits from global but allows overrides
       this.registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
     }
@@ -950,10 +955,17 @@ export class TaskGraphRunner {
     this.graph.emit("start");
   }
 
-  protected async handleStartReactive(): Promise<void> {
+  protected async handleStartReactive(config?: TaskGraphRunConfig): Promise<void> {
     if (this.reactiveRunning) {
       throw new TaskConfigurationError("Graph is already running reactively");
     }
+
+    // Use explicit registry if provided; otherwise keep the existing one
+    // (which is either globalServiceRegistry by default, or whatever handleStart set).
+    if (config?.registry !== undefined) {
+      this.registry = config.registry;
+    }
+
     this.reactiveScheduler.reset();
     this.reactiveRunning = true;
   }

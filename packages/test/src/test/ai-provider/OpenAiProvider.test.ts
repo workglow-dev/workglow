@@ -5,7 +5,7 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
-import { OPENAI, OpenAiProvider } from "@workglow/ai-provider";
+import { OPENAI, OpenAiModelConfig, OpenAiProvider } from "@workglow/ai-provider";
 import {
   OPENAI_TASKS,
   OpenAI_CountTokens,
@@ -22,7 +22,7 @@ import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,
 } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -133,7 +133,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_TextGeneration(
-        { prompt: "Say hello", model: model as any },
+        { prompt: "Say hello", model: model },
         model,
         noopProgress,
         abortSignal
@@ -155,7 +155,7 @@ describe("OpenAiProvider", () => {
       await OpenAI_TextGeneration(
         {
           prompt: "test",
-          model: model as any,
+          model: model,
           maxTokens: 100,
           temperature: 0.5,
           topP: 0.9,
@@ -182,7 +182,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_TextGeneration(
-        { prompt: "test", model: model as any },
+        { prompt: "test", model: model },
         model,
         noopProgress,
         abortSignal
@@ -200,7 +200,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("text-embedding-3-small");
       const result = await OpenAI_TextEmbedding(
-        { text: "hello", model: model as any },
+        { text: "hello", model: model },
         model,
         noopProgress,
         abortSignal
@@ -221,7 +221,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("text-embedding-3-small");
       const result = await OpenAI_TextEmbedding(
-        { text: ["hello", "world"], model: model as any },
+        { text: ["hello", "world"], model: model },
         model,
         noopProgress,
         abortSignal
@@ -242,7 +242,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_TextRewriter(
-        { text: "Original text", prompt: "Make it formal", model: model as any },
+        { text: "Original text", prompt: "Make it formal", model: model },
         model,
         noopProgress,
         abortSignal
@@ -265,7 +265,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_TextSummary(
-        { text: "Long text here", model: model as any },
+        { text: "Long text here", model: model },
         model,
         noopProgress,
         abortSignal
@@ -283,7 +283,7 @@ describe("OpenAiProvider", () => {
       await expect(
         OpenAI_TextGeneration(
           { prompt: "test", model: {} as any },
-          { provider_config: { model_name: "gpt-4o" } } as any,
+          { provider_config: { model_name: "gpt-4o" }, provider: OPENAI } as OpenAiModelConfig,
           noopProgress,
           abortSignal
         )
@@ -294,7 +294,7 @@ describe("OpenAiProvider", () => {
       await expect(
         OpenAI_TextGeneration(
           { prompt: "test", model: {} as any },
-          { provider_config: { api_key: "key" } } as any,
+          { provider_config: { api_key: "key" }, provider: OPENAI } as any,
           noopProgress,
           abortSignal
         )
@@ -306,12 +306,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       await expect(
-        OpenAI_TextGeneration(
-          { prompt: "test", model: model as any },
-          model,
-          noopProgress,
-          abortSignal
-        )
+        OpenAI_TextGeneration({ prompt: "test", model: model }, model, noopProgress, abortSignal)
       ).rejects.toThrow("Rate limit exceeded");
     });
   });
@@ -322,7 +317,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_CountTokens(
-        { text: "Hello world", model: model as any },
+        { text: "Hello world", model: model },
         model,
         noopProgress,
         abortSignal
@@ -337,7 +332,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("unknown-model");
       const result = await OpenAI_CountTokens(
-        { text: "Hi", model: model as any },
+        { text: "Hi", model: model },
         model,
         noopProgress,
         abortSignal
@@ -353,10 +348,10 @@ describe("OpenAiProvider", () => {
         name: "get_weather",
         description: "Get the weather for a location",
         inputSchema: {
-          type: "object" as const,
+          type: "object",
           properties: { location: { type: "string" } },
           required: ["location"],
-        },
+        } as const satisfies JsonSchema,
       },
     ];
 
@@ -371,7 +366,7 @@ describe("OpenAiProvider", () => {
           prompt: "What is the weather?",
           tools: sampleTools,
           toolChoice: "auto",
-          model: model as any,
+          model: model,
         },
         model,
         noopProgress,
@@ -404,7 +399,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_ToolCalling(
-        { prompt: "What is the weather in London?", tools: sampleTools, model: model as any },
+        { prompt: "What is the weather in London?", tools: sampleTools, model: model },
         model,
         noopProgress,
         abortSignal
@@ -434,7 +429,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_ToolCalling(
-        { prompt: "test", tools: sampleTools, model: model as any },
+        { prompt: "test", tools: sampleTools, model: model },
         model,
         noopProgress,
         abortSignal
@@ -479,7 +474,7 @@ describe("OpenAiProvider", () => {
       const model = makeModel("gpt-4o");
       const events: any[] = [];
       for await (const event of OpenAI_ToolCalling_Stream(
-        { prompt: "Weather in Paris?", tools: sampleTools, model: model as any },
+        { prompt: "Weather in Paris?", tools: sampleTools, model: model },
         model,
         abortSignal
       )) {
@@ -517,7 +512,7 @@ describe("OpenAiProvider", () => {
 
       const model = makeModel("gpt-4o");
       const result = await OpenAI_ToolCalling(
-        { prompt: "test", tools: sampleTools, model: model as any },
+        { prompt: "test", tools: sampleTools, model: model },
         model,
         noopProgress,
         abortSignal

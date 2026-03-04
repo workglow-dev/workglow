@@ -21,7 +21,7 @@ import {
   setTaskQueueRegistry,
   TaskQueueRegistry,
 } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -122,7 +122,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       const result = await Gemini_TextGeneration(
-        { prompt: "Say hello", model: model as any },
+        { prompt: "Say hello", model: model },
         model,
         noopProgress,
         abortSignal
@@ -141,7 +141,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("text-embedding-004");
       const result = await Gemini_TextEmbedding(
-        { text: "hello", model: model as any },
+        { text: "hello", model: model },
         model,
         noopProgress,
         abortSignal
@@ -162,7 +162,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("text-embedding-004");
       const result = await Gemini_TextEmbedding(
-        { text: ["hello", "world"], model: model as any },
+        { text: ["hello", "world"], model: model },
         model,
         noopProgress,
         abortSignal
@@ -183,7 +183,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       const result = await Gemini_TextRewriter(
-        { text: "Original", prompt: "Make formal", model: model as any },
+        { text: "Original", prompt: "Make formal", model: model },
         model,
         noopProgress,
         abortSignal
@@ -201,7 +201,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       const result = await Gemini_TextSummary(
-        { text: "Long text", model: model as any },
+        { text: "Long text", model: model },
         model,
         noopProgress,
         abortSignal
@@ -228,12 +228,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       await expect(
-        Gemini_TextGeneration(
-          { prompt: "test", model: model as any },
-          model,
-          noopProgress,
-          abortSignal
-        )
+        Gemini_TextGeneration({ prompt: "test", model: model }, model, noopProgress, abortSignal)
       ).rejects.toThrow("Quota exceeded");
     });
   });
@@ -244,7 +239,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       const result = await Gemini_CountTokens(
-        { text: "Hello Gemini", model: model as any },
+        { text: "Hello Gemini", model: model },
         model,
         noopProgress,
         abortSignal
@@ -262,10 +257,10 @@ describe("GoogleGeminiProvider", () => {
         name: "get_weather",
         description: "Get the weather for a location",
         inputSchema: {
-          type: "object" as const,
+          type: "object",
           properties: { location: { type: "string" } },
           required: ["location"],
-        },
+        } as const satisfies JsonSchema,
       },
     ];
 
@@ -282,7 +277,7 @@ describe("GoogleGeminiProvider", () => {
           prompt: "What is the weather?",
           tools: sampleTools,
           toolChoice: "auto",
-          model: model as any,
+          model: model,
         },
         model,
         noopProgress,
@@ -314,7 +309,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       const result = await Gemini_ToolCalling(
-        { prompt: "Weather in Tokyo?", tools: sampleTools, model: model as any },
+        { prompt: "Weather in Tokyo?", tools: sampleTools, model: model },
         model,
         noopProgress,
         abortSignal
@@ -351,7 +346,7 @@ describe("GoogleGeminiProvider", () => {
       const model = makeModel("gemini-2.0-flash");
       const events: any[] = [];
       for await (const event of Gemini_ToolCalling_Stream(
-        { prompt: "Weather in Sydney?", tools: sampleTools, model: model as any },
+        { prompt: "Weather in Sydney?", tools: sampleTools, model: model },
         model,
         abortSignal
       )) {
@@ -391,7 +386,7 @@ describe("GoogleGeminiProvider", () => {
 
       const model = makeModel("gemini-2.0-flash");
       const result = await Gemini_ToolCalling(
-        { prompt: "test", tools: sampleTools, model: model as any },
+        { prompt: "test", tools: sampleTools, model: model },
         model,
         noopProgress,
         abortSignal
