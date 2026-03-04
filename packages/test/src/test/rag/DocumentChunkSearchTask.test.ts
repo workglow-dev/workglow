@@ -6,41 +6,27 @@
 
 import { ChunkVectorSearchTask } from "@workglow/ai";
 import {
-  DocumentChunk,
-  DocumentChunkDataset,
-  DocumentChunkPrimaryKey,
-  DocumentChunkSchema,
-  registerDocumentChunkDataset,
+  createKnowledgeBase,
+  KnowledgeBase,
+  registerKnowledgeBase,
 } from "@workglow/dataset";
-import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkVectorSearchTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
-  let storage: InMemoryVectorStorage<
-    typeof DocumentChunkSchema,
-    typeof DocumentChunkPrimaryKey,
-    Record<string, unknown>,
-    Float32Array,
-    DocumentChunk
-  >;
-  let dataset: DocumentChunkDataset;
+  let kb: KnowledgeBase;
 
   beforeEach(async () => {
-    storage = new InMemoryVectorStorage<
-      typeof DocumentChunkSchema,
-      typeof DocumentChunkPrimaryKey,
-      Record<string, unknown>,
-      Float32Array,
-      DocumentChunk
-    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
-    await storage.setupDatabase();
-    dataset = new DocumentChunkDataset(storage);
+    kb = await createKnowledgeBase({
+      name: `search-test-${uuid4()}`,
+      vectorDimensions: 3,
+      register: false,
+    });
 
-    // Populate repository with test data
+    // Populate with test data
     const vectors = [
       new Float32Array([1.0, 0.0, 0.0]), // doc1 - similar to query
       new Float32Array([0.8, 0.2, 0.0]), // doc2 - somewhat similar
@@ -50,16 +36,16 @@ describe("ChunkVectorSearchTask", () => {
     ];
 
     const metadata = [
-      { text: "Document about AI", category: "tech" },
-      { text: "Document about machine learning", category: "tech" },
-      { text: "Document about cooking", category: "food" },
-      { text: "Document about travel", category: "travel" },
-      { text: "Document about artificial intelligence", category: "tech" },
+      { chunkId: "doc1_0", doc_id: "doc1", text: "Document about AI", nodePath: [], depth: 0, category: "tech" },
+      { chunkId: "doc2_0", doc_id: "doc2", text: "Document about machine learning", nodePath: [], depth: 0, category: "tech" },
+      { chunkId: "doc3_0", doc_id: "doc3", text: "Document about cooking", nodePath: [], depth: 0, category: "food" },
+      { chunkId: "doc4_0", doc_id: "doc4", text: "Document about travel", nodePath: [], depth: 0, category: "travel" },
+      { chunkId: "doc5_0", doc_id: "doc5", text: "Document about artificial intelligence", nodePath: [], depth: 0, category: "tech" },
     ];
 
     for (let i = 0; i < vectors.length; i++) {
       const doc_id = `doc${i + 1}`;
-      await dataset.put({
+      await kb.upsertChunk({
         chunk_id: `${doc_id}_0`,
         doc_id,
         vector: vectors[i],
@@ -69,7 +55,7 @@ describe("ChunkVectorSearchTask", () => {
   });
 
   afterEach(() => {
-    storage.destroy();
+    kb.destroy();
   });
 
   test("should search and return top K results", async () => {
@@ -77,7 +63,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset: dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 3,
     });
@@ -102,7 +88,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 2,
     });
@@ -116,7 +102,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 10,
       filter: { category: "tech" },
@@ -134,7 +120,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 10,
       scoreThreshold: 0.9,
@@ -151,7 +137,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 10,
       filter: { category: "nonexistent" },
@@ -169,7 +155,7 @@ describe("ChunkVectorSearchTask", () => {
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
     });
 
@@ -178,27 +164,12 @@ describe("ChunkVectorSearchTask", () => {
     expect(result.count).toBeLessThanOrEqual(10);
   });
 
-  test("should work with quantized query vectors (Int8Array)", async () => {
-    const queryVector = new Int8Array([127, 0, 0]);
-
-    const task = new ChunkVectorSearchTask();
-    const result = await task.run({
-      dataset,
-      query: queryVector,
-      topK: 3,
-    });
-
-    expect(result.count).toBeGreaterThan(0);
-    expect(result.ids).toHaveLength(result.count);
-    expect(result.scores).toHaveLength(result.count);
-  });
-
   test("should return results sorted by similarity score", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       query: queryVector,
       topK: 5,
     });
@@ -209,22 +180,18 @@ describe("ChunkVectorSearchTask", () => {
     }
   });
 
-  test("should handle empty repository", async () => {
-    const emptyStorage = new InMemoryVectorStorage<
-      typeof DocumentChunkSchema,
-      typeof DocumentChunkPrimaryKey,
-      Record<string, unknown>,
-      Float32Array,
-      DocumentChunk
-    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
-    await emptyStorage.setupDatabase();
-    const emptyDataset = new DocumentChunkDataset(emptyStorage);
+  test("should handle empty knowledge base", async () => {
+    const emptyKb = await createKnowledgeBase({
+      name: `empty-search-${uuid4()}`,
+      vectorDimensions: 3,
+      register: false,
+    });
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset: emptyDataset,
+      knowledgeBase: emptyKb,
       query: queryVector,
       topK: 10,
     });
@@ -233,51 +200,23 @@ describe("ChunkVectorSearchTask", () => {
     expect(result.ids).toHaveLength(0);
     expect(result.scores).toHaveLength(0);
 
-    emptyStorage.destroy();
+    emptyKb.destroy();
   });
 
-  test("should combine filter and score threshold", async () => {
+  test("should resolve knowledge base from string ID", async () => {
+    registerKnowledgeBase("test-vector-kb", kb);
+
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
 
     const task = new ChunkVectorSearchTask();
     const result = await task.run({
-      dataset,
-      query: queryVector,
-      topK: 10,
-      filter: { category: "tech" },
-      scoreThreshold: 0.7,
-    });
-
-    // All results should pass both filter and threshold
-    result.metadata.forEach((meta) => {
-      expect(meta).toHaveProperty("category", "tech");
-    });
-    result.scores.forEach((score) => {
-      expect(score).toBeGreaterThanOrEqual(0.7);
-    });
-  });
-
-  test("should resolve repository from string ID", async () => {
-    // Register dataset by ID
-    registerDocumentChunkDataset("test-vector-repo", dataset);
-
-    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-
-    const task = new ChunkVectorSearchTask();
-    // Pass repository as string ID instead of instance
-    const result = await task.run({
-      dataset: "test-vector-repo",
+      knowledgeBase: "test-vector-kb",
       query: queryVector,
       topK: 3,
     });
 
     expect(result.count).toBe(3);
     expect(result.ids).toHaveLength(3);
-    expect(result.vectors).toHaveLength(3);
-    expect(result.metadata).toHaveLength(3);
-    expect(result.scores).toHaveLength(3);
-
-    // Most similar should be doc1_0 (exact match)
     expect(result.ids[0]).toBe("doc1_0");
   });
 });

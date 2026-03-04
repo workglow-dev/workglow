@@ -6,7 +6,7 @@
 
 import "@workglow/ai"; // Trigger Workflow prototype extensions
 import type { ChunkToVectorTaskOutput, HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { type ChunkNode, StructuralParser } from "@workglow/dataset";
+import { type ChunkRecord, StructuralParser } from "@workglow/dataset";
 import { Workflow } from "@workglow/task-graph";
 import { uuid4, setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
@@ -37,7 +37,7 @@ describe("ChunkToVectorTask", () => {
     // Transform to vector store format using workflow
     const result = (await new Workflow()
       .chunkToVector({
-        chunks: chunkResult.chunks as ChunkNode[],
+        chunks: chunkResult.chunks as ChunkRecord[],
         vectors: mockVectors,
       })
       .run()) as ChunkToVectorTaskOutput;
@@ -104,10 +104,8 @@ describe("ChunkToVectorTask", () => {
         text: "Test",
         nodePath: ["node_1"],
         depth: 1,
-        enrichment: {
-          summary: "Test summary",
-          entities: [{ text: "Entity", type: "TEST", score: 0.9 }],
-        },
+        summary: "Test summary",
+        entities: [{ text: "Entity", type: "TEST", score: 0.9 }],
       },
     ];
 

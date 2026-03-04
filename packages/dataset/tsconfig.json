@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/common.ts", "src/common-server.ts", "src/*/**/*"],
+  "include": ["src/common.ts", "src/common-server.ts", "src/compat.ts", "src/*/**/*"],
   "files": ["./src/types.ts"],
   "exclude": ["dist"],
   "compilerOptions": {

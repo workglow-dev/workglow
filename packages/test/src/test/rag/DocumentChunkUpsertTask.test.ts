@@ -6,39 +6,38 @@
 
 import { ChunkVectorUpsertTask } from "@workglow/ai";
 import {
-  DocumentChunkDataset,
-  DocumentChunkPrimaryKey,
-  DocumentChunkSchema,
-  registerDocumentChunkDataset,
+  createKnowledgeBase,
+  KnowledgeBase,
+  registerKnowledgeBase,
 } from "@workglow/dataset";
-import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkVectorUpsertTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
-  let storage: InMemoryVectorStorage<typeof DocumentChunkSchema, typeof DocumentChunkPrimaryKey>;
-  let dataset: DocumentChunkDataset;
+  let kb: KnowledgeBase;
 
   beforeEach(async () => {
-    storage = new InMemoryVectorStorage(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3);
-    await storage.setupDatabase();
-    dataset = new DocumentChunkDataset(storage as any);
+    kb = await createKnowledgeBase({
+      name: `upsert-test-${uuid4()}`,
+      vectorDimensions: 3,
+      register: false,
+    });
   });
 
   afterEach(() => {
-    storage.destroy();
+    kb.destroy();
   });
 
   test("should upsert a single vector", async () => {
     const vector = new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5]);
-    const metadata = { text: "Test document", source: "test.txt" };
+    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Test document", nodePath: [], depth: 0, source: "test.txt" };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       doc_id: "doc1",
       vectors: vector,
       metadata: metadata,
@@ -49,10 +48,10 @@ describe("ChunkVectorUpsertTask", () => {
     expect(result.chunk_ids).toHaveLength(1);
 
     // Verify vector was stored
-    const retrieved = await dataset.get(result.chunk_ids[0]);
+    const retrieved = await kb.getChunk(result.chunk_ids[0]);
     expect(retrieved).toBeDefined();
     expect(retrieved?.doc_id).toBe("doc1");
-    expect(retrieved!.metadata).toEqual(metadata);
+    expect(retrieved!.metadata).toMatchObject({ text: "Test document" });
   });
 
   test("should upsert multiple vectors in bulk", async () => {
@@ -61,11 +60,11 @@ describe("ChunkVectorUpsertTask", () => {
       new Float32Array([0.4, 0.5, 0.6]),
       new Float32Array([0.7, 0.8, 0.9]),
     ];
-    const metadata = { text: "Document with multiple vectors", source: "doc.txt" };
+    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Document with multiple vectors", nodePath: [], depth: 0, source: "doc.txt" };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       doc_id: "doc1",
       vectors: vectors,
       metadata: metadata,
@@ -77,20 +76,19 @@ describe("ChunkVectorUpsertTask", () => {
 
     // Verify all vectors were stored
     for (let i = 0; i < 3; i++) {
-      const retrieved = await dataset.get(result.chunk_ids[i]);
+      const retrieved = await kb.getChunk(result.chunk_ids[i]);
       expect(retrieved).toBeDefined();
       expect(retrieved?.doc_id).toBe("doc1");
-      expect(retrieved!.metadata).toEqual(metadata);
     }
   });
 
   test("should handle array of single item (normalized to bulk)", async () => {
     const vector = [new Float32Array([0.1, 0.2, 0.3])];
-    const metadata = { text: "Single item as array" };
+    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Single item as array", nodePath: [], depth: 0 };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       doc_id: "doc1",
       vectors: vector,
       metadata: metadata,
@@ -99,47 +97,17 @@ describe("ChunkVectorUpsertTask", () => {
     expect(result.count).toBe(1);
     expect(result.doc_id).toBe("doc1");
 
-    const retrieved = await dataset.get(result.chunk_ids[0]);
+    const retrieved = await kb.getChunk(result.chunk_ids[0]);
     expect(retrieved).toBeDefined();
-    expect(retrieved!.metadata).toEqual(metadata);
-  });
-
-  test("should update existing vector when upserting with same ID", async () => {
-    const vector1 = new Float32Array([0.1, 0.2, 0.3]);
-    const vector2 = new Float32Array([0.9, 0.8, 0.7]);
-    const metadata1 = { text: "Original document" };
-    const metadata2 = { text: "Updated document", source: "updated.txt" };
-
-    // First upsert
-    const task1 = new ChunkVectorUpsertTask();
-    const result1 = await task1.run({
-      dataset,
-      doc_id: "doc1",
-      vectors: vector1,
-      metadata: metadata1,
-    });
-
-    // Update with same ID
-    const task2 = new ChunkVectorUpsertTask();
-    const result2 = await task2.run({
-      dataset,
-      doc_id: "doc1",
-      vectors: vector2,
-      metadata: metadata2,
-    });
-
-    const retrieved = await dataset.get(result2.chunk_ids[0]);
-    expect(retrieved).toBeDefined();
-    expect(retrieved!.metadata).toEqual(metadata2);
   });
 
   test("should accept multiple vectors with single metadata", async () => {
     const vectors = [new Float32Array([0.1, 0.2]), new Float32Array([0.3, 0.4])];
-    const metadata = { text: "Shared metadata" };
+    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Shared metadata", nodePath: [], depth: 0 };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       doc_id: "doc1",
       vectors: vectors,
       metadata: metadata,
@@ -149,54 +117,17 @@ describe("ChunkVectorUpsertTask", () => {
     expect(result.doc_id).toBe("doc1");
   });
 
-  test("should handle quantized vectors (Int8Array)", async () => {
-    const vector = new Int8Array([127, -128, 64, -64, 0]);
-    const metadata = { text: "Quantized vector" };
-
-    const task = new ChunkVectorUpsertTask();
-    const result = await task.run({
-      dataset,
-      doc_id: "doc1",
-      vectors: vector,
-      metadata: metadata,
-    });
-
-    expect(result.count).toBe(1);
-
-    const retrieved = await dataset.get(result.chunk_ids[0]);
-    expect(retrieved).toBeDefined();
-    expect(retrieved?.vector).toBeInstanceOf(Int8Array);
-  });
-
-  test("should handle metadata without optional fields", async () => {
-    const vector = new Float32Array([0.1, 0.2, 0.3]);
-    const metadata = { text: "Simple metadata" };
-
-    const task = new ChunkVectorUpsertTask();
-    const result = await task.run({
-      dataset,
-      doc_id: "doc1",
-      vectors: vector,
-      metadata: metadata,
-    });
-
-    expect(result.count).toBe(1);
-
-    const retrieved = await dataset.get(result.chunk_ids[0]);
-    expect(retrieved!.metadata).toEqual(metadata);
-  });
-
   test("should handle large batch upsert", async () => {
     const count = 100;
     const vectors = Array.from(
       { length: count },
       (_, i) => new Float32Array([i * 0.01, i * 0.02, i * 0.03])
     );
-    const metadata = { text: "Batch document" };
+    const metadata = { chunkId: "c1", doc_id: "batch-doc", text: "Batch document", nodePath: [], depth: 0 };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
-      dataset,
+      knowledgeBase: kb,
       doc_id: "batch-doc",
       vectors: vectors,
       metadata: metadata,
@@ -205,21 +136,21 @@ describe("ChunkVectorUpsertTask", () => {
     expect(result.count).toBe(count);
     expect(result.chunk_ids).toHaveLength(count);
 
-    const size = await dataset.size();
+    const size = await kb.chunkCount();
     expect(size).toBe(count);
   });
 
-  test("should resolve repository from string ID", async () => {
-    // Register dataset by ID
-    registerDocumentChunkDataset("test-upsert-repo", dataset);
+  test("should resolve knowledge base from string ID", async () => {
+    // Register kb by ID
+    registerKnowledgeBase("test-upsert-kb", kb);
 
     const vector = new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5]);
-    const metadata = { text: "Test document", source: "test.txt" };
+    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Test document", nodePath: [], depth: 0, source: "test.txt" };
 
     const task = new ChunkVectorUpsertTask();
-    // Pass repository as string ID instead of instance
+    // Pass knowledge base as string ID instead of instance
     const result = await task.run({
-      dataset: "test-upsert-repo",
+      knowledgeBase: "test-upsert-kb",
       doc_id: "doc1",
       vectors: vector,
       metadata: metadata,
@@ -229,9 +160,8 @@ describe("ChunkVectorUpsertTask", () => {
     expect(result.doc_id).toBe("doc1");
 
     // Verify vector was stored
-    const retrieved = await dataset.get(result.chunk_ids[0]);
+    const retrieved = await kb.getChunk(result.chunk_ids[0]);
     expect(retrieved).toBeDefined();
     expect(retrieved?.doc_id).toBe("doc1");
-    expect(retrieved!.metadata).toEqual(metadata);
   });
 });

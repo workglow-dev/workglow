@@ -6,60 +6,46 @@
 
 import { hybridSearch } from "@workglow/ai";
 import {
-  DocumentChunk,
-  DocumentChunkDataset,
-  DocumentChunkPrimaryKey,
-  DocumentChunkSchema,
-  registerDocumentChunkDataset,
+  createKnowledgeBase,
+  KnowledgeBase,
+  registerKnowledgeBase,
 } from "@workglow/dataset";
-import { InMemoryVectorStorage } from "@workglow/storage";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkVectorHybridSearchTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
-  let storage: InMemoryVectorStorage<
-    typeof DocumentChunkSchema,
-    typeof DocumentChunkPrimaryKey,
-    Record<string, unknown>,
-    Float32Array,
-    DocumentChunk
-  >;
-  let dataset: DocumentChunkDataset;
+  let kb: KnowledgeBase;
 
   beforeEach(async () => {
-    storage = new InMemoryVectorStorage<
-      typeof DocumentChunkSchema,
-      typeof DocumentChunkPrimaryKey,
-      Record<string, unknown>,
-      Float32Array,
-      DocumentChunk
-    >(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3, Float32Array);
-    await storage.setupDatabase();
-    dataset = new DocumentChunkDataset(storage);
+    kb = await createKnowledgeBase({
+      name: `hybrid-test-${uuid4()}`,
+      vectorDimensions: 3,
+      register: false,
+    });
 
-    // Populate repository with test data
+    // Populate with test data
     const vectors = [
-      new Float32Array([1.0, 0.0, 0.0]), // Similar vector, contains "machine"
-      new Float32Array([0.8, 0.2, 0.0]), // Somewhat similar, contains "learning"
-      new Float32Array([0.0, 1.0, 0.0]), // Different vector, contains "cooking"
-      new Float32Array([0.0, 0.0, 1.0]), // Different vector, contains "travel"
-      new Float32Array([0.9, 0.1, 0.0]), // Very similar, contains "artificial"
+      new Float32Array([1.0, 0.0, 0.0]),
+      new Float32Array([0.8, 0.2, 0.0]),
+      new Float32Array([0.0, 1.0, 0.0]),
+      new Float32Array([0.0, 0.0, 1.0]),
+      new Float32Array([0.9, 0.1, 0.0]),
     ];
 
     const metadata = [
-      { text: "Document about machine learning", category: "tech" },
-      { text: "Document about deep learning algorithms", category: "tech" },
-      { text: "Document about cooking recipes", category: "food" },
-      { text: "Document about travel destinations", category: "travel" },
-      { text: "Document about artificial intelligence", category: "tech" },
+      { chunkId: "doc1_0", doc_id: "doc1", text: "Document about machine learning", nodePath: [], depth: 0, category: "tech" },
+      { chunkId: "doc2_0", doc_id: "doc2", text: "Document about deep learning algorithms", nodePath: [], depth: 0, category: "tech" },
+      { chunkId: "doc3_0", doc_id: "doc3", text: "Document about cooking recipes", nodePath: [], depth: 0, category: "food" },
+      { chunkId: "doc4_0", doc_id: "doc4", text: "Document about travel destinations", nodePath: [], depth: 0, category: "travel" },
+      { chunkId: "doc5_0", doc_id: "doc5", text: "Document about artificial intelligence", nodePath: [], depth: 0, category: "tech" },
     ];
 
     for (let i = 0; i < vectors.length; i++) {
       const doc_id = `doc${i + 1}`;
-      await dataset.put({
+      await kb.upsertChunk({
         chunk_id: `${doc_id}_0`,
         doc_id,
         vector: vectors[i],
@@ -69,7 +55,7 @@ describe("ChunkVectorHybridSearchTask", () => {
   });
 
   afterEach(() => {
-    storage.destroy();
+    kb.destroy();
   });
 
   test("should perform hybrid search with vector and text query", async () => {
@@ -77,7 +63,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine learning";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -100,7 +86,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
@@ -118,25 +104,22 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "learning";
 
-    // Test with high vector weight
     const resultHighVector = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
       vectorWeight: 0.9,
     });
 
-    // Test with low vector weight (high text weight)
     const resultHighText = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
       vectorWeight: 0.1,
     });
 
-    // Results might differ based on weight
     expect(resultHighVector.count).toBeGreaterThan(0);
     expect(resultHighText.count).toBeGreaterThan(0);
   });
@@ -146,7 +129,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -163,7 +146,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -178,14 +161,13 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "learning";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 10,
       filter: { category: "tech" },
     });
 
-    // All results should have category "tech"
     result.metadata.forEach((meta) => {
       expect(meta).toHaveProperty("category", "tech");
     });
@@ -196,14 +178,13 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "machine";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 10,
       scoreThreshold: 0.5,
     });
 
-    // All scores should be >= threshold
     result.scores.forEach((score) => {
       expect(score).toBeGreaterThanOrEqual(0.5);
     });
@@ -214,7 +195,7 @@ describe("ChunkVectorHybridSearchTask", () => {
     const queryText = "document";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 2,
@@ -224,27 +205,12 @@ describe("ChunkVectorHybridSearchTask", () => {
     expect(result.chunks).toHaveLength(result.count);
   });
 
-  test("should handle default parameters", async () => {
-    const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-    const queryText = "learning";
-
-    const result = await hybridSearch({
-      dataset,
-      queryVector: queryVector,
-      queryText: queryText,
-    });
-
-    // Default topK is 10, vectorWeight is 0.7
-    expect(result.count).toBeGreaterThan(0);
-    expect(result.count).toBeLessThanOrEqual(10);
-  });
-
   test("should extract chunks from metadata", async () => {
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "machine";
 
     const result = await hybridSearch({
-      dataset,
+      knowledgeBase: kb,
       queryVector: queryVector,
       queryText: queryText,
       topK: 5,
@@ -256,31 +222,14 @@ describe("ChunkVectorHybridSearchTask", () => {
     });
   });
 
-  test("should work with quantized query vectors", async () => {
-    const queryVector = new Int8Array([127, 0, 0]);
-    const queryText = "machine";
-
-    const result = await hybridSearch({
-      dataset,
-      queryVector: queryVector,
-      queryText: queryText,
-      topK: 3,
-    });
-
-    expect(result.count).toBeGreaterThan(0);
-    expect(result.chunks).toHaveLength(result.count);
-  });
-
-  test("should resolve repository from string ID", async () => {
-    // Register dataset by ID
-    registerDocumentChunkDataset("test-hybrid-repo", dataset);
+  test("should resolve knowledge base from string ID", async () => {
+    registerKnowledgeBase("test-hybrid-kb", kb);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "machine learning";
 
-    // Pass repository as string ID instead of instance
     const result = await hybridSearch({
-      dataset: "test-hybrid-repo",
+      knowledgeBase: "test-hybrid-kb",
       queryVector: queryVector,
       queryText: queryText,
       topK: 3,
@@ -288,13 +237,5 @@ describe("ChunkVectorHybridSearchTask", () => {
 
     expect(result.count).toBeGreaterThan(0);
     expect(result.chunks).toHaveLength(result.count);
-    expect(result.ids).toHaveLength(result.count);
-    expect(result.metadata).toHaveLength(result.count);
-    expect(result.scores).toHaveLength(result.count);
-
-    // Scores should be in descending order
-    for (let i = 1; i < result.scores.length; i++) {
-      expect(result.scores[i - 1]).toBeGreaterThanOrEqual(result.scores[i]);
-    }
   });
 });

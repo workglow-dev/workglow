@@ -5,9 +5,8 @@
  */
 
 import { HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { ChunkNode, DocumentChunkPrimaryKey, DocumentChunkSchema } from "@workglow/dataset";
+import { ChunkRecord } from "@workglow/dataset";
 import { uuid4, setLogger } from "@workglow/util";
-import { InMemoryVectorStorage } from "@workglow/storage";
 import { Workflow } from "@workglow/task-graph";
 import { beforeAll, describe, expect, it } from "vitest";
 import { registerTasks } from "../../binding/RegisterTasks";
@@ -21,9 +20,6 @@ describe("Complete chainable workflow", () => {
   });
 
   it("should chain from parsing to storage without loops", async () => {
-    const storage = new InMemoryVectorStorage(DocumentChunkSchema, DocumentChunkPrimaryKey, [], 3);
-    await storage.setupDatabase();
-
     const markdown = `# Test Document
 
 ## Section 1
@@ -34,7 +30,7 @@ This is the first section with some content.
 
 This is the second section with more content.`;
 
-    // Parse → Enrich → Chunk
+    // Parse -> Enrich -> Chunk
     const result = await new Workflow()
       .structuralParser({
         text: markdown,
@@ -86,14 +82,13 @@ This is the second section with more content.`;
     expect(result.text).toBeDefined();
 
     // doc_id should flow through the chain to all chunks
-    // PropertyArrayGraphResult makes chunks potentially an array of arrays
     const chunks = (
       Array.isArray(result.chunks) && result.chunks.length > 0
         ? Array.isArray(result.chunks[0])
           ? result.chunks.flat()
           : result.chunks
         : []
-    ) as ChunkNode[];
+    ) as ChunkRecord[];
     for (const chunk of chunks) {
       expect(chunk.doc_id).toBe(result.doc_id);
     }
