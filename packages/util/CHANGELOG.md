@@ -1,5 +1,11 @@
 # @workglow/util
 
+## 0.0.114
+
+### Updated Dependencies
+
+- `@sroussey/json-schema-library`: ^11.0.0
+
 ## 0.0.113
 
 ## 0.0.111

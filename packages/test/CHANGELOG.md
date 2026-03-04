@@ -1,5 +1,11 @@
 # @workglow/test
 
+## 0.0.114
+
+### Updated Dependencies
+
+- `@types/pg`: ^8.18.0
+
 ## 0.0.113
 
 ## 0.0.112

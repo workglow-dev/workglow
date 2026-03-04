@@ -1,5 +1,14 @@
 # @workglow/web
 
+## 0.0.114
+
+### Updated Dependencies
+
+- `@uiw/codemirror-theme-vscode`: ^4.25.7
+- `@uiw/react-codemirror`: ^4.25.7
+- `react-icons`: ^5.6.0
+- `postcss`: 8.5.8
+
 ## 0.0.113
 
 ## 0.0.108
