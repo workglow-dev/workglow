@@ -74,7 +74,7 @@ describe("RAG Workflow End-to-End", () => {
     // Create unified KnowledgeBase
     kb = await createKnowledgeBase({
       name: kbName,
-      vectorDimensions: 3,
+      vectorDimensions: 384,
     });
   });
 
