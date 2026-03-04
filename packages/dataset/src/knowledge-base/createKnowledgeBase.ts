@@ -16,7 +16,6 @@ import { registerKnowledgeBase } from "./KnowledgeBaseRegistry";
 export interface CreateKnowledgeBaseOptions {
   readonly name: string;
   readonly vectorDimensions: number;
-  readonly backend?: "in-memory";
   readonly vectorType?: { new (array: number[]): TypedArray };
   readonly register?: boolean;
 }
@@ -29,7 +28,6 @@ export interface CreateKnowledgeBaseOptions {
  * const kb = await createKnowledgeBase({
  *   name: "my-kb",
  *   vectorDimensions: 1024,
- *   backend: "in-memory",
  * });
  * ```
  */

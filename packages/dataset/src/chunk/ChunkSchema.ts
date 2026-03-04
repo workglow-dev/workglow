@@ -76,7 +76,7 @@ export const ChunkRecordSchema = () =>
       },
     },
     required: ["chunkId", "doc_id", "text", "nodePath", "depth"],
-    additionalProperties: false,
+    additionalProperties: true,
   }) as const satisfies DataPortSchema;
 
 export type ChunkRecord = FromSchema<ReturnType<typeof ChunkRecordSchema>>;
