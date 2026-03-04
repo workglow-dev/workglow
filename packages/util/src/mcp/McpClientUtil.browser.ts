@@ -17,9 +17,6 @@ import { mcpAuthConfigSchema, buildAuthConfig } from "./McpAuthTypes";
 import type { McpAuthConfig } from "./McpAuthTypes";
 import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 
-/** MCP protocol version sent on first request; matches SDK's initialize payload so servers that require the header on all requests accept the connection. */
-const MCP_PROTOCOL_VERSION_HEADER = "2025-11-25";
-
 export const mcpTransportTypes = ["streamable-http", "sse"] as const;
 
 export const mcpServerConfigSchema = {
@@ -69,9 +66,8 @@ export async function createMcpClient(
       ? createAuthProvider(auth, config.server_url ?? "", getGlobalCredentialStore())
       : undefined;
 
-  // Build request headers, merging MCP protocol version with optional bearer auth
+  // Build request headers (SDK sets MCP-Protocol-Version automatically)
   const headers: Record<string, string> = {
-    "MCP-Protocol-Version": MCP_PROTOCOL_VERSION_HEADER,
     ...(auth?.type === "bearer" ? { Authorization: `Bearer ${auth.token}` } : {}),
   };
   const requestInit = { headers };
