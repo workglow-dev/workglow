@@ -290,10 +290,13 @@ Tasks chain together through compatible input/output schemas:
 
 ```typescript
 import { Workflow } from "@workglow/task-graph";
-import { InMemoryVectorRepository } from "@workglow/storage";
+import { createKnowledgeBase } from "@workglow/dataset";
 
-const vectorRepo = new InMemoryVectorRepository();
-await vectorRepo.setupDatabase();
+// Create a KnowledgeBase (auto-registers globally as "my-kb")
+const kb = await createKnowledgeBase({
+  name: "my-kb",
+  vectorDimensions: 384,
+});
 
 // Document ingestion pipeline
 await new Workflow()
@@ -315,8 +318,8 @@ await new Workflow()
     model: "Xenova/all-MiniLM-L6-v2",
   })
   .chunkToVector()
-  .vectorStoreUpsert({
-    dataset: vectorDataset,
+  .chunkVectorUpsert({
+    knowledgeBase: "my-kb",
   })
   .run();
 ```
@@ -325,12 +328,10 @@ await new Workflow()
 
 ```typescript
 const answer = await new Workflow()
-  .textEmbedding({
-    text: query,
+  .chunkRetrieval({
+    knowledgeBase: "my-kb",
+    query,
     model: "Xenova/all-MiniLM-L6-v2",
-  })
-  .vectorStoreSearch({
-    dataset: vectorDataset,
     topK: 10,
   })
   .reranker({
@@ -384,6 +385,6 @@ Each task passes through what the next task needs:
 | `hierarchicalChunker` | `doc_id`                 | `chunks`, `text[]`, `count`           |
 | `textEmbedding`       | (implicit)               | `vector[]`                            |
 | `chunkToVector`       | -                        | `ids[]`, `vectors[]`, `metadata[]`    |
-| `vectorStoreUpsert`   | -                        | `count`, `ids`                        |
+| `chunkVectorUpsert`   | -                        | `count`, `ids`                        |
 
 This design eliminates the need for external loops - the entire pipeline chains together naturally.

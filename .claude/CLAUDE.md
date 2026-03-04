@@ -37,7 +37,7 @@ job-queue                             (scheduling, rate-limiting)
     ↓
 task-graph                            (core DAG pipeline engine)
     ↓
-dataset, tasks                        (document/vector datasets, utility tasks)
+dataset, tasks                        (KnowledgeBase, documents, chunks; utility tasks)
     ↓
 ai                                    (AI task base classes, model registry)
     ↓
@@ -118,7 +118,7 @@ Required static properties: `type`, `category`, `title`, `description`, `cacheab
 - `runReactive()` → `executeReactive()` — lightweight, UI previews only, keeps PENDING, must be <1ms
 - Lifecycle: `PENDING → PROCESSING → COMPLETED | FAILED | ABORTED`
 
-**Schema conventions**: JSON Schema objects. Properties can have `format` annotations for runtime type resolution: `format: "model"`, `format: "model:EmbeddingTask"`, `format: "storage:tabular"`. Properties with `x-ui-manual: true` are user-added ports.
+**Schema conventions**: JSON Schema objects. Properties can have `format` annotations for runtime type resolution: `format: "model"`, `format: "model:EmbeddingTask"`, `format: "storage:tabular"`, `format: "dataset:knowledge-base"`. Properties with `x-ui-manual: true` are user-added ports.
 
 **TaskRegistry** — global class registry: `TaskRegistry.registerTask(MyTask)`.
 
@@ -132,6 +132,21 @@ Event-driven: storages emit `put`, `get`, `delete`, `deleteAll`.
 
 Auto-generated PKs: `x-auto-generated: true` in schema — integers auto-increment, strings get UUID.
 
+### `@workglow/dataset` — knowledge base & documents
+
+`KnowledgeBase` — unified class owning both document storage (tabular) and chunk storage (vector). Replaces the old `DocumentDataset` + `DocumentChunkDataset` split.
+
+- `createKnowledgeBase({ name, vectorDimensions })` — factory (in-memory, auto-registers)
+- `registerKnowledgeBase(id, kb)` / `getKnowledgeBase(id)` / `getGlobalKnowledgeBases()` — global registry
+- `TypeKnowledgeBase()` — JSON Schema helper for task inputs (format `"dataset:knowledge-base"`)
+- `Document` — wraps a `DocumentRootNode` tree + metadata
+- `ChunkRecord` — flat chunk with tree linkage (`nodePath`, `depth`)
+- `ChunkVectorStorageSchema` / `ChunkVectorPrimaryKey` — vector storage schema for chunks
+
+Key methods: `kb.upsertDocument()`, `kb.upsertChunk()`, `kb.similaritySearch()`, `kb.clearChunks()`, `kb.getAllChunks()`, `kb.putBulk()`, `kb.deleteDocument()` (cascades to chunks).
+
+RAG tasks reference knowledge bases by string ID (resolved from registry at runtime): `ChunkVectorUpsertTask({ knowledgeBase: "my-kb" })`, `ChunkRetrievalTask({ knowledgeBase: "my-kb" })`.
+
 ### `@workglow/ai` — AI task framework
 
 Abstract AI task classes (`AiTask`, `StreamingAiTask`, `AiVisionTask`) extending `JobQueueTask` for rate-limiting.
@@ -139,6 +154,8 @@ Abstract AI task classes (`AiTask`, `StreamingAiTask`, `AiVisionTask`) extending
 Model system: `ModelRepository`, `ModelRegistry`, `AiProviderRegistry`.
 
 Task categories: text generation/embedding/summary/translation/rewriting/classification, image classification/embedding/segmentation, RAG (chunking, vector search, retrieval, reranking), vision/pose detection.
+
+RAG tasks: `ChunkToVectorTask` (input: `vector` + `chunks` → output: `vectors`), `ChunkVectorUpsertTask` (input: `knowledgeBase` + `vectors`), `ChunkRetrievalTask` (input: `knowledgeBase` + `query` + `model`), `ChunkVectorSearchTask`, `ChunkVectorHybridSearchTask`, `HierarchyJoinTask`.
 
 ### `@workglow/ai-provider` — provider implementations
 

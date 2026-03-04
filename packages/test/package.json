@@ -87,7 +87,7 @@
     "@google/generative-ai": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "@huggingface/transformers": "catalog:",
-    "@types/pg": "^8.16.0",
+    "@types/pg": "^8.18.0",
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
     "@workglow/dataset": "workspace:*",

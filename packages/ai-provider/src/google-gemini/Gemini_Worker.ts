@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
+import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
 import {
   GEMINI_REACTIVE_TASKS,
   GEMINI_STREAM_TASKS,
@@ -20,5 +20,5 @@ export function GEMINI_WORKER_JOBRUN_REGISTER() {
     GEMINI_REACTIVE_TASKS
   ).registerOnWorkerServer(workerServer);
   workerServer.sendReady();
-  console.log("GEMINI_WORKER_JOBRUN registered");
+  getLogger().info("GEMINI_WORKER_JOBRUN registered");
 }

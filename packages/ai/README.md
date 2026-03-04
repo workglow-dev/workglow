@@ -425,8 +425,8 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 | Task                    | Description                              |
 | ----------------------- | ---------------------------------------- |
-| `ChunkToVectorTask`     | Transforms chunks to vector store format |
-| `ChunkVectorUpsertTask` | Stores vectors in a repository           |
+| `ChunkToVectorTask`     | Transforms chunks to vector store format (input: `vector` + `chunks`, output: `vectors`) |
+| `ChunkVectorUpsertTask` | Stores vectors in a KnowledgeBase (input: `knowledgeBase` + `vectors`) |
 | `ChunkVectorSearchTask` | Searches vectors by similarity           |
 | `VectorQuantizeTask`    | Quantizes vectors for storage efficiency |
 
@@ -445,10 +445,13 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 ```typescript
 import { Workflow } from "@workglow/task-graph";
-import { InMemoryVectorRepository } from "@workglow/storage";
+import { createKnowledgeBase } from "@workglow/dataset";
 
-const vectorRepo = new InMemoryVectorRepository();
-await vectorRepo.setupDatabase();
+// Create a KnowledgeBase (auto-registers globally as "my-kb")
+const kb = await createKnowledgeBase({
+  name: "my-kb",
+  vectorDimensions: 384, // must match your embedding model
+});
 
 // Document ingestion - fully chainable, no loops required
 await new Workflow()
@@ -470,25 +473,18 @@ await new Workflow()
     model: "Xenova/all-MiniLM-L6-v2",
   })
   .chunkToVector()
-  .vectorStoreUpsert({
-    repository: vectorRepo,
+  .chunkVectorUpsert({
+    knowledgeBase: "my-kb",
   })
   .run();
 
-// Query pipeline
-const answer = await new Workflow()
-  .queryExpander({
+// Query pipeline — ChunkRetrievalTask handles embedding + vector search end-to-end
+const result = await new Workflow()
+  .chunkRetrieval({
+    knowledgeBase: "my-kb",
     query: "What is transfer learning?",
-    method: "multi-query",
-    numVariations: 3,
-  })
-  .textEmbedding({
     model: "Xenova/all-MiniLM-L6-v2",
-  })
-  .vectorStoreSearch({
-    repository: vectorRepo,
     topK: 10,
-    scoreThreshold: 0.5,
   })
   .reranker({
     query: "What is transfer learning?",
@@ -537,7 +533,7 @@ Each task passes through what the next task needs:
 | `hierarchicalChunker` | `doc_id`                 | `chunks`, `text[]`, `count`           |
 | `textEmbedding`       | (implicit)               | `vector[]`                            |
 | `chunkToVector`       | -                        | `ids[]`, `vectors[]`, `metadata[]`    |
-| `vectorStoreUpsert`   | -                        | `count`, `ids`                        |
+| `chunkVectorUpsert`   | -                        | `count`, `ids`                        |
 
 This design eliminates the need for external loops - the entire pipeline chains together naturally.
 

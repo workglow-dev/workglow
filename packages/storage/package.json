@@ -38,7 +38,7 @@
     "@workglow/sqlite": "workspace:*",
     "@workglow/util": "workspace:*",
     "pg": "catalog:",
-    "@types/pg": "^8.16.0",
+    "@types/pg": "^8.18.0",
     "@supabase/supabase-js": "catalog:",
     "fake-indexeddb": "^6.2.4"
   },
