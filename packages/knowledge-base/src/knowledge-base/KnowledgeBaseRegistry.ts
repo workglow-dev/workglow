@@ -71,7 +71,7 @@ export function setGlobalKnowledgeBaseRepository(repository: KnowledgeBaseReposi
  * Registers a knowledge base globally by ID.
  * Adds to both the live Map and the persistent repository.
  */
-export function registerKnowledgeBase(id: string, kb: KnowledgeBase): void {
+export async function registerKnowledgeBase(id: string, kb: KnowledgeBase): Promise<void> {
   const kbs = getGlobalKnowledgeBases();
   kbs.set(id, kb);
 
@@ -88,7 +88,7 @@ export function registerKnowledgeBase(id: string, kb: KnowledgeBase): void {
     updated_at: now,
   };
   const repo = getGlobalKnowledgeBaseRepository();
-  repo.addKnowledgeBase(record);
+  await repo.addKnowledgeBase(record);
 }
 
 /**

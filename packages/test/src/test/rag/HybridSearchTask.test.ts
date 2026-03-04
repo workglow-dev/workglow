@@ -223,7 +223,7 @@ describe("ChunkVectorHybridSearchTask", () => {
   });
 
   test("should resolve knowledge base from string ID", async () => {
-    registerKnowledgeBase("test-hybrid-kb", kb);
+    await registerKnowledgeBase("test-hybrid-kb", kb);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "machine learning";

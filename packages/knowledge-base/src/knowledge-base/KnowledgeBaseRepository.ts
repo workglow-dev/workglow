@@ -136,9 +136,9 @@ export class KnowledgeBaseRepository {
   /**
    * Enumerates all knowledge base records
    */
-  async enumerateAll(): Promise<KnowledgeBaseRecord[] | undefined> {
+  async enumerateAll(): Promise<KnowledgeBaseRecord[]> {
     const records = await this.storage.getAll();
-    if (!records || records.length === 0) return undefined;
+    if (!records || records.length === 0) return [];
     return records;
   }
 
