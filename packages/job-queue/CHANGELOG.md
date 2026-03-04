@@ -1,5 +1,7 @@
 # @workglow/job-queue
 
+## 0.0.113
+
 ## 0.0.110
 
 ### Features
