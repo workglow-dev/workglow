@@ -290,7 +290,7 @@ Tasks chain together through compatible input/output schemas:
 
 ```typescript
 import { Workflow } from "@workglow/task-graph";
-import { createKnowledgeBase } from "@workglow/dataset";
+import { createKnowledgeBase } from "@workglow/knowledge-base";
 
 // Create a KnowledgeBase (auto-registers globally as "my-kb")
 const kb = await createKnowledgeBase({

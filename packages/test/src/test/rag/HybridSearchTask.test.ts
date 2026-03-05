@@ -9,7 +9,7 @@ import {
   createKnowledgeBase,
   KnowledgeBase,
   registerKnowledgeBase,
-} from "@workglow/dataset";
+} from "@workglow/knowledge-base";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { setLogger, uuid4 } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -223,7 +223,7 @@ describe("ChunkVectorHybridSearchTask", () => {
   });
 
   test("should resolve knowledge base from string ID", async () => {
-    registerKnowledgeBase("test-hybrid-kb", kb);
+    await registerKnowledgeBase("test-hybrid-kb", kb);
 
     const queryVector = new Float32Array([1.0, 0.0, 0.0]);
     const queryText = "machine learning";

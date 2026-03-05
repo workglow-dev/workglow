@@ -5,7 +5,7 @@
  */
 
 import { HierarchicalChunkerTaskOutput } from "@workglow/ai";
-import { ChunkRecord } from "@workglow/dataset";
+import { ChunkRecord } from "@workglow/knowledge-base";
 import { uuid4, setLogger } from "@workglow/util";
 import { Workflow } from "@workglow/task-graph";
 import { beforeAll, describe, expect, it } from "vitest";

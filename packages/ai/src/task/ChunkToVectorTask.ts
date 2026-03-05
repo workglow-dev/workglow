@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ChunkRecordSchema, type ChunkRecord } from "@workglow/dataset";
+import { ChunkRecordSchema, type ChunkRecord } from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteContext,

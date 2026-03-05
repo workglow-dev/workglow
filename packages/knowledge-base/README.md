@@ -1,4 +1,4 @@
-# @workglow/dataset
+# @workglow/knowledge-base
 
 Document management, hierarchical chunking, and knowledge base infrastructure for RAG pipelines.
 
@@ -64,7 +64,7 @@ This package provides the data layer for RAG (Retrieval-Augmented Generation) wo
 ## Installation
 
 ```bash
-bun install @workglow/dataset
+bun install @workglow/knowledge-base
 ```
 
 Peer dependencies: `@workglow/storage`, `@workglow/util`.
@@ -76,7 +76,7 @@ import {
   createKnowledgeBase,
   Document,
   StructuralParser,
-} from "@workglow/dataset";
+} from "@workglow/knowledge-base";
 
 // 1. Create a knowledge base
 const kb = await createKnowledgeBase({
@@ -180,7 +180,7 @@ interface DocumentNodeBase {
 Use the `NodeKind` constants for comparisons:
 
 ```typescript
-import { NodeKind } from "@workglow/dataset";
+import { NodeKind } from "@workglow/knowledge-base";
 
 if (node.kind === NodeKind.SECTION) {
   console.log(node.title, node.level, node.children.length);
@@ -192,7 +192,7 @@ if (node.kind === NodeKind.SECTION) {
 `StructuralParser` converts raw text into a `DocumentRootNode`:
 
 ```typescript
-import { StructuralParser } from "@workglow/dataset";
+import { StructuralParser } from "@workglow/knowledge-base";
 
 // Markdown — detects headers, creates nested sections
 const root = await StructuralParser.parseMarkdown(docId, markdownText, "Title");
@@ -280,7 +280,7 @@ The `metadata` field holds the complete `ChunkRecord`, so search results carry a
 **Factory function (recommended):**
 
 ```typescript
-import { createKnowledgeBase } from "@workglow/dataset";
+import { createKnowledgeBase } from "@workglow/knowledge-base";
 
 const kb = await createKnowledgeBase({
   name: "my-kb", // Identifier
@@ -294,7 +294,7 @@ const kb = await createKnowledgeBase({
 **Direct construction (custom storage backends):**
 
 ```typescript
-import { KnowledgeBase } from "@workglow/dataset";
+import { KnowledgeBase } from "@workglow/knowledge-base";
 
 const kb = new KnowledgeBase(
   "my-kb",
@@ -417,7 +417,7 @@ kb.destroy();
 Knowledge bases can be registered globally by name, allowing tasks to reference them by string ID:
 
 ```typescript
-import { registerKnowledgeBase, getKnowledgeBase, TypeKnowledgeBase } from "@workglow/dataset";
+import { registerKnowledgeBase, getKnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
 
 // Register
 registerKnowledgeBase("my-kb", kb);

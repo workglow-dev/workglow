@@ -9,7 +9,7 @@ import {
   TypeKnowledgeBase,
   type ChunkRecord,
   type KnowledgeBase,
-} from "@workglow/dataset";
+} from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteContext,

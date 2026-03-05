@@ -1,5 +1,5 @@
 {
-  "name": "@workglow/dataset",
+  "name": "@workglow/knowledge-base",
   "type": "module",
   "version": "0.0.114",
   "description": "Dataset package for Workglow.",

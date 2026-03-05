@@ -118,7 +118,7 @@ Required static properties: `type`, `category`, `title`, `description`, `cacheab
 - `runReactive()` → `executeReactive()` — lightweight, UI previews only, keeps PENDING, must be <1ms
 - Lifecycle: `PENDING → PROCESSING → COMPLETED | FAILED | ABORTED`
 
-**Schema conventions**: JSON Schema objects. Properties can have `format` annotations for runtime type resolution: `format: "model"`, `format: "model:EmbeddingTask"`, `format: "storage:tabular"`, `format: "dataset:knowledge-base"`. Properties with `x-ui-manual: true` are user-added ports.
+**Schema conventions**: JSON Schema objects. Properties can have `format` annotations for runtime type resolution: `format: "model"`, `format: "model:EmbeddingTask"`, `format: "storage:tabular"`, `format: "knowledge-base"`. Properties with `x-ui-manual: true` are user-added ports.
 
 **TaskRegistry** — global class registry: `TaskRegistry.registerTask(MyTask)`.
 
@@ -132,13 +132,13 @@ Event-driven: storages emit `put`, `get`, `delete`, `deleteAll`.
 
 Auto-generated PKs: `x-auto-generated: true` in schema — integers auto-increment, strings get UUID.
 
-### `@workglow/dataset` — knowledge base & documents
+### `@workglow/knowledge-base` — knowledge base & documents
 
-`KnowledgeBase` — unified class owning both document storage (tabular) and chunk storage (vector). Replaces the old `DocumentDataset` + `DocumentChunkDataset` split.
+`KnowledgeBase` — unified class owning both document storage (tabular) and chunk storage (vector).
 
 - `createKnowledgeBase({ name, vectorDimensions })` — factory (in-memory, auto-registers)
 - `registerKnowledgeBase(id, kb)` / `getKnowledgeBase(id)` / `getGlobalKnowledgeBases()` — global registry
-- `TypeKnowledgeBase()` — JSON Schema helper for task inputs (format `"dataset:knowledge-base"`)
+- `TypeKnowledgeBase()` — JSON Schema helper for task inputs (format `"knowledge-base"`)
 - `Document` — wraps a `DocumentRootNode` tree + metadata
 - `ChunkRecord` — flat chunk with tree linkage (`nodePath`, `depth`)
 - `ChunkVectorStorageSchema` / `ChunkVectorPrimaryKey` — vector storage schema for chunks

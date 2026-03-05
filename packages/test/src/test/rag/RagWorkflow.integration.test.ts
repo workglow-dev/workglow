@@ -36,7 +36,7 @@ import {
   createKnowledgeBase,
   KnowledgeBase,
   registerKnowledgeBase,
-} from "@workglow/dataset";
+} from "@workglow/knowledge-base";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { readdirSync } from "fs";

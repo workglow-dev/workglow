@@ -73,7 +73,7 @@
   "dependencies": {
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
-    "@workglow/dataset": "workspace:*",
+    "@workglow/knowledge-base": "workspace:*",
     "@workglow/debug": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/sqlite": "workspace:*",

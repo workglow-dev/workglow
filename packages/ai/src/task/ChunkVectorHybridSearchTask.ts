@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/dataset";
+import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteContext,
