@@ -10,7 +10,6 @@ import { getLogger } from "@workglow/util";
 import type {
   AgentHooks,
   FunctionToolSource,
-  McpToolSource,
   RegistryToolSource,
   ToolResult,
   ToolSource,
@@ -19,55 +18,44 @@ import { findToolSource } from "./AgentTypes";
 import type { ToolCall, ToolDefinition } from "./ToolCallingTask";
 import { taskTypesToTools } from "./ToolCallingTask";
 
-/**
- * Minimal config shape expected by McpToolCallTask's constructor.
- * Defined here to avoid coupling to the full McpToolCallTaskConfig type
- * while still providing type safety over `as any`.
- */
-interface McpToolCallConfig {
-  readonly transport: string;
-  readonly server_url?: string;
-  readonly command?: string;
-  readonly args?: readonly string[];
-  readonly env?: Readonly<Record<string, string>>;
-  readonly tool_name: string;
-}
-
 // ========================================================================
 // Tool source resolution
 // ========================================================================
 
 /**
- * Builds an array of ToolSources from the various input sources:
- * - `taskTools`: names of registered task types to expose as tools
- * - `tools`: pre-built ToolDefinition objects with optional custom executors
- * - `mcpServers`: MCP server configs with pre-discovered tools
+ * Builds an array of {@link ToolSource} entries from a unified tools list.
+ *
+ * Each entry is either:
+ * - A **string** — resolved from the TaskRegistry via {@link taskTypesToTools}.
+ * - A **{@link ToolDefinition}** object — dispatched based on its shape:
+ *   - Has `execute` function → {@link FunctionToolSource}
+ *   - Has a backing task in the TaskRegistry (looked up by `name`) →
+ *     {@link RegistryToolSource} with optional `config` passed through
+ *   - Otherwise → {@link FunctionToolSource} that throws on invocation
+ *
+ * This mirrors the model resolution pattern: strings are convenient
+ * shorthand, objects give full control (including `config` for
+ * configurable tasks like `McpToolCallTask` or `JavaScriptTask`).
  */
-export function buildToolSources(options: {
-  taskTools?: ReadonlyArray<string>;
-  tools?: ReadonlyArray<
-    ToolDefinition & {
-      execute?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
-    }
-  >;
-  mcpServers?: ReadonlyArray<{
-    transport: string;
-    server_url?: string;
-    command?: string;
-    args?: ReadonlyArray<string>;
-    env?: Readonly<Record<string, string>>;
-    tools?: ReadonlyArray<{
-      name: string;
-      description: string;
-      inputSchema: Record<string, unknown>;
-    }>;
-  }>;
-}): ToolSource[] {
+export function buildToolSources(
+  tools?: ReadonlyArray<string | ToolDefinition>
+): ToolSource[] {
+  if (!tools || tools.length === 0) return [];
+
   const sources: ToolSource[] = [];
 
-  // Registry-based tools
-  if (options.taskTools && options.taskTools.length > 0) {
-    const definitions = taskTypesToTools(options.taskTools);
+  // Collect string entries for batch resolution
+  const stringEntries: { index: number; name: string }[] = [];
+  for (let i = 0; i < tools.length; i++) {
+    const tool = tools[i];
+    if (typeof tool === "string") {
+      stringEntries.push({ index: i, name: tool });
+    }
+  }
+
+  // Resolve all string entries via TaskRegistry in one batch
+  if (stringEntries.length > 0) {
+    const definitions = taskTypesToTools(stringEntries.map((e) => e.name));
     for (const def of definitions) {
       const { taskType, ...definition } = def;
       sources.push({
@@ -78,18 +66,33 @@ export function buildToolSources(options: {
     }
   }
 
-  // User-provided tools (with optional custom executors)
-  if (options.tools) {
-    for (const tool of options.tools) {
-      if (tool.execute) {
-        const { execute, ...definition } = tool;
+  // Process object entries
+  for (const tool of tools) {
+    if (typeof tool === "string") continue;
+
+    if (tool.execute) {
+      // Tool with a custom executor function
+      const { execute, configSchema: _cs, config: _c, ...definition } = tool;
+      sources.push({
+        type: "function",
+        definition,
+        run: execute,
+      } satisfies FunctionToolSource);
+    } else {
+      // Check if the tool name matches a registered task type
+      const ctor = TaskRegistry.all.get(tool.name);
+      if (ctor) {
+        // Registry-backed tool — config is passed through for task instantiation
+        const { execute: _e, configSchema: _cs, config: _c, ...definition } = tool;
         sources.push({
-          type: "function",
+          type: "registry",
           definition,
-          run: execute,
-        } satisfies FunctionToolSource);
+          taskType: tool.name,
+          config: tool.config,
+        } satisfies RegistryToolSource);
       } else {
-        const { execute: _, ...definition } = tool;
+        // No executor and not in registry — create a stub that throws
+        const { execute: _e, configSchema: _cs, config: _c, ...definition } = tool;
         sources.push({
           type: "function",
           definition,
@@ -97,31 +100,6 @@ export function buildToolSources(options: {
             throw new Error(`No executor registered for tool "${tool.name}"`);
           },
         } satisfies FunctionToolSource);
-      }
-    }
-  }
-
-  // MCP server tools (pre-discovered)
-  if (options.mcpServers) {
-    for (const server of options.mcpServers) {
-      if (server.tools) {
-        for (const tool of server.tools) {
-          sources.push({
-            type: "mcp",
-            definition: {
-              name: tool.name,
-              description: tool.description,
-              inputSchema: tool.inputSchema,
-            },
-            mcpConfig: {
-              transport: server.transport,
-              server_url: server.server_url,
-              command: server.command,
-              args: server.args,
-              env: server.env,
-            },
-          } satisfies McpToolSource);
-        }
       }
     }
   }
@@ -181,29 +159,9 @@ export async function executeToolCall(
         if (!ctor) {
           throw new Error(`Task type "${source.taskType}" not found in TaskRegistry`);
         }
-        const task = context.own(new ctor(effectiveCall.input, {} as any));
+        const taskConfig = source.config ?? {};
+        const task = context.own(new ctor(effectiveCall.input, taskConfig as any));
         output = (await task.run(effectiveCall.input)) ?? {};
-        break;
-      }
-      case "mcp": {
-        const McpToolCallTask = TaskRegistry.all.get("McpToolCallTask");
-        if (!McpToolCallTask) {
-          throw new Error(
-            "McpToolCallTask not found in TaskRegistry — ensure @workglow/tasks is registered"
-          );
-        }
-        const mcpConfig: McpToolCallConfig = {
-          transport: source.mcpConfig.transport,
-          server_url: source.mcpConfig.server_url,
-          command: source.mcpConfig.command,
-          args: source.mcpConfig.args,
-          env: source.mcpConfig.env,
-          tool_name: effectiveCall.name,
-        };
-        const mcpTask = context.own(
-          new McpToolCallTask({}, mcpConfig as unknown as Record<string, unknown>)
-        );
-        output = (await mcpTask.run(effectiveCall.input)) ?? {};
         break;
       }
       case "function": {

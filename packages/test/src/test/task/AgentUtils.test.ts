@@ -13,7 +13,6 @@ import {
 import type {
   AgentHooks,
   FunctionToolSource,
-  McpToolSource,
   RegistryToolSource,
   ToolResult,
   ToolSource,
@@ -80,8 +79,8 @@ describe("buildToolSources", () => {
     TaskRegistry.all.delete("TestEchoTask");
   });
 
-  test("should build registry tool sources from taskTools", () => {
-    const sources = buildToolSources({ taskTools: ["TestEchoTask"] });
+  test("should build registry tool sources from string task names", () => {
+    const sources = buildToolSources(["TestEchoTask"]);
 
     expect(sources).toHaveLength(1);
     expect(sources[0].type).toBe("registry");
@@ -93,16 +92,14 @@ describe("buildToolSources", () => {
 
   test("should build function tool sources from tools with executors", () => {
     const executor = vi.fn().mockResolvedValue({ output: "done" });
-    const sources = buildToolSources({
-      tools: [
-        {
-          name: "my_tool",
-          description: "A custom tool",
-          inputSchema: { type: "object", properties: {} },
-          execute: executor,
-        },
-      ],
-    });
+    const sources = buildToolSources([
+      {
+        name: "my_tool",
+        description: "A custom tool",
+        inputSchema: { type: "object", properties: {} },
+        execute: executor,
+      },
+    ]);
 
     expect(sources).toHaveLength(1);
     expect(sources[0].type).toBe("function");
@@ -112,87 +109,59 @@ describe("buildToolSources", () => {
   });
 
   test("should build function tool sources without executors (throws on run)", async () => {
-    const sources = buildToolSources({
-      tools: [
-        {
-          name: "no_exec_tool",
-          description: "Tool without executor",
-          inputSchema: { type: "object", properties: {} },
-        },
-      ],
-    });
+    const sources = buildToolSources([
+      {
+        name: "no_exec_tool",
+        description: "Tool without executor",
+        inputSchema: { type: "object", properties: {} },
+      },
+    ]);
 
     expect(sources).toHaveLength(1);
     const fnSource = sources[0] as FunctionToolSource;
     await expect(fnSource.run({})).rejects.toThrow('No executor registered for tool "no_exec_tool"');
   });
 
-  test("should build MCP tool sources from mcpServers", () => {
-    const sources = buildToolSources({
-      mcpServers: [
-        {
-          transport: "stdio",
-          command: "my-server",
-          tools: [
-            {
-              name: "mcp_tool",
-              description: "An MCP tool",
-              inputSchema: { type: "object" },
-            },
-          ],
-        },
-      ],
-    });
+  test("should build registry tool source from ToolDefinition with config when task is registered", () => {
+    const sources = buildToolSources([
+      {
+        name: "TestEchoTask",
+        description: "Configured echo",
+        inputSchema: { type: "object", properties: {} },
+        config: { someOption: true },
+      },
+    ]);
 
     expect(sources).toHaveLength(1);
-    expect(sources[0].type).toBe("mcp");
-    const mcpSource = sources[0] as McpToolSource;
-    expect(mcpSource.definition.name).toBe("mcp_tool");
-    expect(mcpSource.mcpConfig.transport).toBe("stdio");
-    expect(mcpSource.mcpConfig.command).toBe("my-server");
+    expect(sources[0].type).toBe("registry");
+    const registrySource = sources[0] as RegistryToolSource;
+    expect(registrySource.taskType).toBe("TestEchoTask");
+    expect(registrySource.config).toEqual({ someOption: true });
   });
 
-  test("should combine all source types", () => {
-    const sources = buildToolSources({
-      taskTools: ["TestEchoTask"],
-      tools: [
-        {
-          name: "fn_tool",
-          description: "Function tool",
-          inputSchema: { type: "object", properties: {} },
-          execute: async () => ({}),
-        },
-      ],
-      mcpServers: [
-        {
-          transport: "sse",
-          server_url: "http://localhost:3000",
-          tools: [
-            {
-              name: "mcp_tool",
-              description: "MCP tool",
-              inputSchema: { type: "object" },
-            },
-          ],
-        },
-      ],
-    });
+  test("should combine string and object tool entries", () => {
+    const sources = buildToolSources([
+      "TestEchoTask",
+      {
+        name: "fn_tool",
+        description: "Function tool",
+        inputSchema: { type: "object", properties: {} },
+        execute: async () => ({}),
+      },
+    ]);
 
-    expect(sources).toHaveLength(3);
+    expect(sources).toHaveLength(2);
     expect(sources[0].type).toBe("registry");
     expect(sources[1].type).toBe("function");
-    expect(sources[2].type).toBe("mcp");
   });
 
-  test("should return empty array when no sources provided", () => {
-    const sources = buildToolSources({});
+  test("should return empty array when no tools provided", () => {
+    const sources = buildToolSources(undefined);
     expect(sources).toHaveLength(0);
   });
 
-  test("should skip MCP servers without tools", () => {
-    const sources = buildToolSources({
-      mcpServers: [{ transport: "stdio", command: "server" }],
-    });
+  test("should return empty array for empty tools array", () => {
+    const sources = buildToolSources([]);
     expect(sources).toHaveLength(0);
   });
 });

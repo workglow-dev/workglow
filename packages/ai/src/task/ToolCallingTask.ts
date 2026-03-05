@@ -21,12 +21,28 @@ import { StreamingAiTask } from "./base/StreamingAiTask";
 /**
  * A tool definition that can be passed to an LLM for tool calling.
  * Can be created manually or generated from TaskRegistry entries via {@link taskTypesToTools}.
+ *
+ * The `name` is used both as the tool name presented to the LLM and as a
+ * lookup key for the backing Task in the TaskRegistry. When a tool is
+ * backed by a configurable task (e.g. `McpToolCallTask`, `JavaScriptTask`),
+ * `configSchema` describes what configuration the task accepts and `config`
+ * provides the concrete values. The LLM never sees `configSchema` or
+ * `config` — they are setup-time concerns used when instantiating the task.
  */
 export interface ToolDefinition {
   name: string;
   description: string;
   inputSchema: JsonSchema;
   outputSchema?: JsonSchema;
+  /** JSON Schema describing the task's configuration options. */
+  configSchema?: JsonSchema;
+  /** Concrete configuration values matching {@link configSchema}. */
+  config?: Record<string, unknown>;
+  /**
+   * Optional custom executor function. When provided, the tool is executed
+   * by calling this function directly instead of instantiating a Task.
+   */
+  execute?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -131,11 +147,16 @@ export function taskTypesToTools(
         `taskTypesToTools: Unknown task type "${name}" — not found in task constructors registry (ServiceRegistry: ${registry ? "custom" : "default"})`
       );
     }
+    const configSchema =
+      "configSchema" in ctor && typeof (ctor as any).configSchema === "function"
+        ? (ctor as any).configSchema()
+        : undefined;
     return {
       name: ctor.type,
       description: (ctor as any).description ?? "",
       inputSchema: ctor.inputSchema(),
       outputSchema: ctor.outputSchema(),
+      ...(configSchema ? { configSchema } : {}),
       taskType: name,
     };
   });
@@ -170,9 +191,22 @@ export const ToolDefinitionSchema = {
       description: "JSON Schema describing what the tool returns",
       additionalProperties: true,
     },
+    configSchema: {
+      type: "object",
+      title: "Config Schema",
+      description:
+        "JSON Schema describing the task's configuration options (not sent to the LLM)",
+      additionalProperties: true,
+    },
+    config: {
+      type: "object",
+      title: "Config",
+      description: "Concrete configuration values for the backing task (not sent to the LLM)",
+      additionalProperties: true,
+    },
   },
   required: ["name", "description", "inputSchema"],
-  additionalProperties: false,
+  additionalProperties: true,
 } as const;
 
 const ToolCallSchema = {
