@@ -20,7 +20,8 @@ import type {
 } from "@workglow/ai";
 import type { ToolCall } from "@workglow/ai";
 import { Task, TaskRegistry } from "@workglow/task-graph";
-import type { DataPortSchema, IExecuteContext } from "@workglow/util";
+import type { IExecuteContext } from "@workglow/task-graph";
+import type { DataPortSchema } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 // ========================================================================

@@ -620,7 +620,7 @@ export const LlamaCpp_CountTokens_Reactive: AiProviderReactiveRunFn<
 function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
   const inputMessages = input.messages;
   if (!inputMessages || inputMessages.length === 0) {
-    return input.prompt;
+    return Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
   }
 
   // Concatenate messages into a single prompt for the session

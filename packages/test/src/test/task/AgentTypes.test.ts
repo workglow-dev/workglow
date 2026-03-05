@@ -92,7 +92,10 @@ describe("toolMessage", () => {
     ];
     const msg = toolMessage(results);
 
-    expect(msg.content[0].is_error).toBe(true);
+    expect(msg.role).toBe("tool");
+    if (msg.role === "tool") {
+      expect(msg.content[0].is_error).toBe(true);
+    }
   });
 
   test("should handle multiple results", () => {
@@ -102,9 +105,12 @@ describe("toolMessage", () => {
     ];
     const msg = toolMessage(results);
 
-    expect(msg.content).toHaveLength(2);
-    expect(msg.content[0].tool_use_id).toBe("tc_1");
-    expect(msg.content[1].tool_use_id).toBe("tc_2");
+    expect(msg.role).toBe("tool");
+    if (msg.role === "tool") {
+      expect(msg.content).toHaveLength(2);
+      expect(msg.content[0].tool_use_id).toBe("tc_1");
+      expect(msg.content[1].tool_use_id).toBe("tc_2");
+    }
   });
 });
 
