@@ -15,7 +15,7 @@ import {
 export async function registerHuggingfaceLocalModels(): Promise<void> {
   const onnxModels: HfTransformersOnnxModelRecord[] = [
     {
-      model_id: "onnx:Xenova/all-MiniLM-L6-v2:q8",
+      model_id: "onnx:Xenova/all-MiniLM-L6-v2:q4f16",
       title: "All MiniLM L6 V2 384D",
       description: "Xenova/all-MiniLM-L6-v2",
       tasks: ["TextEmbeddingTask"],
@@ -24,6 +24,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
         pipeline: "feature-extraction",
         model_path: "Xenova/all-MiniLM-L6-v2",
         native_dimensions: 384,
+        dtype: "q4f16",
       },
       metadata: {},
     },

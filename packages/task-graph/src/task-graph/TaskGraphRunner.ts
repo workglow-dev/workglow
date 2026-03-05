@@ -201,6 +201,7 @@ export class TaskGraphRunner {
       }
     } catch (err) {
       error = err as Error;
+      getLogger().error("Error running graph", { error });
     }
     // Wait for all tasks to complete since we did not await runAsync()/this.runTaskWithProvenance()
     await Promise.allSettled(Array.from(this.inProgressTasks.values()));
@@ -949,7 +950,7 @@ export class TaskGraphRunner {
     this.failedTaskErrors.clear();
 
     const logger = getLogger();
-    logger.group(this.timerLabel, { graph: this.graph });
+    // logger.group(this.timerLabel, { graph: this.graph });
     logger.time(this.timerLabel);
 
     this.graph.emit("start");

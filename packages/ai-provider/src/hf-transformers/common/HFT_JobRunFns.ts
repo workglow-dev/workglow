@@ -34,6 +34,7 @@ import type {
   ZeroShotImageClassificationPipeline,
   ZeroShotObjectDetectionPipeline,
 } from "@huggingface/transformers";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -82,7 +83,6 @@ import type {
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 
 let _transformersSdk: typeof import("@huggingface/transformers") | undefined;
@@ -459,7 +459,8 @@ export const HFT_TextEmbedding: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const logger = getLogger();
-  const timerLabel = `hft:TextEmbedding:${model?.provider_config.model_path}`;
+  const uuid = crypto.randomUUID();
+  const timerLabel = `hft:TextEmbedding:${model?.provider_config.model_path}:${uuid}`;
   logger.time(timerLabel, { model: model?.provider_config.model_path });
 
   const generateEmbedding: FeatureExtractionPipeline = await getPipeline(
@@ -2013,6 +2014,20 @@ export const HFT_ModelInfo: AiProviderRunFn<
   ModelInfoTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model) => {
+  if (self.location.href.startsWith("http://localhost:")) {
+    console.error("HFT_ModelInfo SKIPPING on localhost", { input, model });
+    return {
+      model: input.model,
+      is_local: true,
+      is_remote: false,
+      supports_browser: true,
+      supports_node: true,
+      is_cached: false,
+      is_loaded: true,
+      file_sizes: {},
+    };
+  }
+
   const logger = getLogger();
   const { ModelRegistry } = await loadTransformersSDK();
   const timerLabel = `hft:ModelInfo:${model?.provider_config.model_path}`;

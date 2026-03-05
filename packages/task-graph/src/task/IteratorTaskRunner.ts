@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { uuid4 } from "@workglow/util";
 import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
@@ -177,9 +178,13 @@ export class IteratorTaskRunner<
    */
   private cloneGraph(graph: TaskGraph): TaskGraph {
     const clone = new TaskGraph();
+    const idMap = new Map<unknown, string>();
     for (const task of graph.getTasks()) {
       const ctor = task.constructor as ITaskConstructor<any, any, any>;
-      const newTask = new ctor(task.defaults, task.config, task.runConfig);
+      const newId = uuid4();
+      idMap.set(task.config.id, newId);
+      const clonedConfig = { ...task.config, id: newId };
+      const newTask = new ctor(task.defaults, clonedConfig, task.runConfig);
       if (task.hasChildren()) {
         newTask.subGraph = this.cloneGraph(task.subGraph);
       }
@@ -187,7 +192,12 @@ export class IteratorTaskRunner<
     }
     for (const df of graph.getDataflows()) {
       clone.addDataflow(
-        new Dataflow(df.sourceTaskId, df.sourceTaskPortId, df.targetTaskId, df.targetTaskPortId)
+        new Dataflow(
+          idMap.get(df.sourceTaskId) ?? df.sourceTaskId,
+          df.sourceTaskPortId,
+          idMap.get(df.targetTaskId) ?? df.targetTaskId,
+          df.targetTaskPortId
+        )
       );
     }
     return clone;

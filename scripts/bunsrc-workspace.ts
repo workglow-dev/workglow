@@ -3,16 +3,28 @@
 import { $ } from "bun";
 import { findWorkspaces } from "./lib/util";
 
-async function updateExports(
-  workspacePath: string,
-  findReplace: Record<string, string>
-): Promise<null> {
+function toSource(exports: string): string {
+  return exports
+    .replace(/("types":\s*")\.\/dist\/([^"]+)\.d\.ts"/g, `$1./src/$2.ts"`)
+    .replace(
+      /("(?:import|bun|node|browser|module|react-native)":\s*")\.\/dist\/([^"]+)\.js"/g,
+      `$1./src/$2.ts"`
+    );
+}
+
+function toDist(exports: string): string {
+  return exports
+    .replace(/("types":\s*")\.\/src\/([^"]+)\.ts"/g, `$1./dist/$2.d.ts"`)
+    .replace(
+      /("(?:import|bun|node|browser|module|react-native)":\s*")\.\/src\/([^"]+)\.ts"/g,
+      `$1./dist/$2.js"`
+    );
+}
+
+async function updateExports(workspacePath: string, mode: "source" | "dist"): Promise<null> {
   const exports = (await $`bun --cwd=${workspacePath} pm pkg get exports`.quiet()).text();
   if (exports != "{}") {
-    var newExports = exports;
-    for (const [find, replace] of Object.entries(findReplace)) {
-      newExports = newExports.replaceAll(find, replace);
-    }
+    const newExports = mode === "source" ? toSource(exports) : toDist(exports);
     if (newExports != exports) {
       console.log(`Updating exports for ${workspacePath}`);
       await $`bun --cwd=${workspacePath} pm pkg set exports=${newExports} --json`;
@@ -20,23 +32,6 @@ async function updateExports(
   }
   return null;
 }
-
-const bunUseSource = {
-  [`"bun": "./dist/bun.js"`]: `"bun": "./src/bun.ts"`,
-  [`"bun": "./dist/index.js"`]: `"bun": "./src/index.ts"`,
-  [`"bun": "./dist/browser.js"`]: `"bun": "./src/browser.ts"`,
-  [`"import": "./dist/bun.js"`]: `"import": "./src/bun.ts"`,
-  [`"types": "./dist/types.d.ts"`]: `"types": "./src/types.ts"`,
-  [`"types": "./dist/bun.d.ts"`]: `"types": "./src/bun.ts"`,
-};
-const bunUseDist = {
-  [`"bun": "./src/bun.ts"`]: `"bun": "./dist/bun.js"`,
-  [`"bun": "./src/index.ts"`]: `"bun": "./dist/index.js"`,
-  [`"bun": "./src/browser.ts"`]: `"bun": "./dist/browser.js"`,
-  [`"import": "./src/bun.ts"`]: `"import": "./dist/bun.js"`,
-  [`"types": "./src/types.ts"`]: `"types": "./dist/types.d.ts"`,
-  [`"types": "./src/bun.ts"`]: `"types": "./dist/bun.d.ts"`,
-};
 
 async function main(): Promise<void> {
   // Parse command line arguments
@@ -55,14 +50,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const findReplace = mode === "source" ? bunUseSource : bunUseDist;
   console.log(`Using ${mode} exports`);
 
   const workspaces = await findWorkspaces();
   console.log(`Found ${workspaces.length} workspaces`);
 
   for (const workspace of workspaces) {
-    const error = await updateExports(workspace, findReplace);
+    await updateExports(workspace, mode);
   }
 
   console.log(`\nChanging exports to ${mode} mode completed successfully`);
