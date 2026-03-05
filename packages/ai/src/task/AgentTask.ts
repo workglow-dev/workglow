@@ -262,7 +262,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
     const hooks = this.config.hooks;
     const maxConcurrency = this.config.maxConcurrency ?? 5;
 
-    const toolSources = this.resolveToolSources(input);
+    const toolSources = this.resolveToolSources(input, context);
     const toolDefs = this.resolveToolDefs(toolSources, input.stopTool);
 
     const messages: ChatMessage[] = [userMessage(input.prompt)];
@@ -362,8 +362,8 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
   // Helpers
   // ====================================================================
 
-  private resolveToolSources(input: AgentTaskInput): ToolSource[] {
-    return buildToolSources(input.tools);
+  private resolveToolSources(input: AgentTaskInput, context: IExecuteContext): ToolSource[] {
+    return buildToolSources(input.tools, context.registry);
   }
 
   /**

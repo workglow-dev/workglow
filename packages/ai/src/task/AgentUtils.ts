@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TaskRegistry } from "@workglow/task-graph";
+import { getTaskConstructors } from "@workglow/task-graph";
 import type { IExecuteContext } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
+import type { ServiceRegistry } from "@workglow/util";
 import type {
   AgentHooks,
   FunctionToolSource,
@@ -15,7 +16,7 @@ import type {
   ToolSource,
 } from "./AgentTypes";
 import { findToolSource } from "./AgentTypes";
-import type { ToolCall, ToolDefinition } from "./ToolCallingTask";
+import type { ToolCall, ToolDefinition, ToolDefinitionWithTaskType } from "./ToolCallingTask";
 import { taskTypesToTools } from "./ToolCallingTask";
 
 // ========================================================================
@@ -29,48 +30,50 @@ import { taskTypesToTools } from "./ToolCallingTask";
  * - A **string** — resolved from the TaskRegistry via {@link taskTypesToTools}.
  * - A **{@link ToolDefinition}** object — dispatched based on its shape:
  *   - Has `execute` function → {@link FunctionToolSource}
- *   - Has a backing task in the TaskRegistry (looked up by `name`) →
+ *   - Has a backing task in the task constructors (looked up by `name`) →
  *     {@link RegistryToolSource} with optional `config` passed through
  *   - Otherwise → {@link FunctionToolSource} that throws on invocation
  *
  * This mirrors the model resolution pattern: strings are convenient
  * shorthand, objects give full control (including `config` for
  * configurable tasks like `McpToolCallTask` or `JavaScriptTask`).
+ *
+ * The original order of entries in `tools` is preserved in the returned
+ * sources array. An optional `registry` can be provided to use a
+ * DI-scoped constructor map instead of the global TaskRegistry.
  */
 export function buildToolSources(
-  tools?: ReadonlyArray<string | ToolDefinition>
+  tools?: ReadonlyArray<string | ToolDefinition>,
+  registry?: ServiceRegistry
 ): ToolSource[] {
   if (!tools || tools.length === 0) return [];
 
+  // Pre-resolve all string names in one batch for efficiency, keyed by task type name.
+  // Resolved eagerly so individual emits below remain O(1) lookups.
+  const stringNames = tools.filter((t): t is string => typeof t === "string");
+  const resolvedDefs = new Map<string, ToolDefinitionWithTaskType>(
+    taskTypesToTools(stringNames, registry).map((d) => [d.taskType, d])
+  );
+
+  // Task constructors map for DI-scoped lookups on object entries
+  const constructors = getTaskConstructors(registry);
+
   const sources: ToolSource[] = [];
 
-  // Collect string entries for batch resolution
-  const stringEntries: { index: number; name: string }[] = [];
-  for (let i = 0; i < tools.length; i++) {
-    const tool = tools[i];
-    if (typeof tool === "string") {
-      stringEntries.push({ index: i, name: tool });
-    }
-  }
-
-  // Resolve all string entries via TaskRegistry in one batch
-  if (stringEntries.length > 0) {
-    const definitions = taskTypesToTools(stringEntries.map((e) => e.name));
-    for (const def of definitions) {
-      const { taskType, ...definition } = def;
-      sources.push({
-        type: "registry",
-        definition,
-        taskType,
-      } satisfies RegistryToolSource);
-    }
-  }
-
-  // Process object entries
+  // Emit sources in the original tools array order
   for (const tool of tools) {
-    if (typeof tool === "string") continue;
-
-    if (tool.execute) {
+    if (typeof tool === "string") {
+      // String entries are resolved via the batch lookup above
+      const def = resolvedDefs.get(tool);
+      if (def) {
+        const { taskType, ...definition } = def;
+        sources.push({
+          type: "registry",
+          definition,
+          taskType,
+        } satisfies RegistryToolSource);
+      }
+    } else if (tool.execute) {
       // Tool with a custom executor function
       const { execute, configSchema: _cs, config: _c, ...definition } = tool;
       sources.push({
@@ -79,8 +82,8 @@ export function buildToolSources(
         run: execute,
       } satisfies FunctionToolSource);
     } else {
-      // Check if the tool name matches a registered task type
-      const ctor = TaskRegistry.all.get(tool.name);
+      // Check if the tool name matches a registered task type via scoped registry
+      const ctor = constructors.get(tool.name);
       if (ctor) {
         // Registry-backed tool — config is passed through for task instantiation
         const { execute: _e, configSchema: _cs, config: _c, ...definition } = tool;
@@ -155,7 +158,7 @@ export async function executeToolCall(
 
     switch (source.type) {
       case "registry": {
-        const ctor = TaskRegistry.all.get(source.taskType);
+        const ctor = getTaskConstructors(context.registry).get(source.taskType);
         if (!ctor) {
           throw new Error(`Task type "${source.taskType}" not found in TaskRegistry`);
         }

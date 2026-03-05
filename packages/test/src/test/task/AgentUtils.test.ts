@@ -128,7 +128,7 @@ describe("buildToolSources", () => {
         name: "TestEchoTask",
         description: "Configured echo",
         inputSchema: { type: "object", properties: {} },
-        config: { someOption: true },
+        config: { title: "configured" },
       },
     ]);
 
@@ -136,10 +136,10 @@ describe("buildToolSources", () => {
     expect(sources[0].type).toBe("registry");
     const registrySource = sources[0] as RegistryToolSource;
     expect(registrySource.taskType).toBe("TestEchoTask");
-    expect(registrySource.config).toEqual({ someOption: true });
+    expect(registrySource.config).toEqual({ title: "configured" });
   });
 
-  test("should combine string and object tool entries", () => {
+  test("should combine string and object tool entries preserving original order", () => {
     const sources = buildToolSources([
       "TestEchoTask",
       {
@@ -153,6 +153,22 @@ describe("buildToolSources", () => {
     expect(sources).toHaveLength(2);
     expect(sources[0].type).toBe("registry");
     expect(sources[1].type).toBe("function");
+  });
+
+  test("should preserve order when object entry comes before string entry", () => {
+    const sources = buildToolSources([
+      {
+        name: "fn_tool",
+        description: "Function tool",
+        inputSchema: { type: "object", properties: {} },
+        execute: async () => ({}),
+      },
+      "TestEchoTask",
+    ]);
+
+    expect(sources).toHaveLength(2);
+    expect(sources[0].type).toBe("function");
+    expect(sources[1].type).toBe("registry");
   });
 
   test("should return empty array when no tools provided", () => {
