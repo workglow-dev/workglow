@@ -59,9 +59,11 @@ export function toOpenAIMessages(input: ToolCallingTaskInput): OpenAICompatMessa
     messages.push({ role: "system", content: input.systemPrompt });
   }
 
+  const prompt = Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
+
   const inputMessages = getInputMessages(input);
   if (!inputMessages) {
-    messages.push({ role: "user", content: input.prompt });
+    messages.push({ role: "user", content: prompt });
     return messages;
   }
 
@@ -145,9 +147,11 @@ export function toTextFlatMessages(input: ToolCallingTaskInput): TextFlatMessage
     messages.push({ role: "system", content: input.systemPrompt });
   }
 
+  const prompt = Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
+
   const inputMessages = getInputMessages(input);
   if (!inputMessages) {
-    messages.push({ role: "user", content: input.prompt });
+    messages.push({ role: "user", content: prompt });
     return messages;
   }
 
