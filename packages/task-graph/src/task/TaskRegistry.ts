@@ -118,15 +118,26 @@ function resolveTaskFromRegistry(
   id: string,
   _format: string,
   registry: ServiceRegistry
-): { name: string; description: string; inputSchema: unknown; outputSchema: unknown } | undefined {
+): {
+  name: string;
+  description: string;
+  inputSchema: unknown;
+  outputSchema: unknown;
+  configSchema?: unknown;
+} | undefined {
   const constructors = getTaskConstructors(registry);
   const ctor = constructors.get(id);
   if (!ctor) return undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ctorAny = ctor as any;
+  const configSchema =
+    typeof ctorAny.configSchema === "function" ? ctorAny.configSchema() : undefined;
   return {
     name: ctor.type,
     description: (ctor as { description?: string }).description ?? "",
     inputSchema: ctor.inputSchema(),
     outputSchema: ctor.outputSchema(),
+    ...(configSchema ? { configSchema } : {}),
   };
 }
 

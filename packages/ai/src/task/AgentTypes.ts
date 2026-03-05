@@ -59,27 +59,17 @@ export type ChatMessage =
 // ========================================================================
 
 /**
- * A tool from the TaskRegistry that can be instantiated and run.
+ * A tool backed by a Task in the TaskRegistry. Instantiated and run via
+ * `TaskRegistry.all.get(taskType)`. Optional `config` is passed to the
+ * task constructor for configurable tasks (e.g. `McpToolCallTask`,
+ * `JavaScriptTask`).
  */
 export interface RegistryToolSource {
   readonly type: "registry";
   readonly definition: ToolDefinition;
   readonly taskType: string;
-}
-
-/**
- * A tool from an MCP server that is dispatched via McpToolCallTask.
- */
-export interface McpToolSource {
-  readonly type: "mcp";
-  readonly definition: ToolDefinition;
-  readonly mcpConfig: {
-    readonly transport: string;
-    readonly server_url?: string;
-    readonly command?: string;
-    readonly args?: ReadonlyArray<string>;
-    readonly env?: Readonly<Record<string, string>>;
-  };
+  /** Configuration values passed to the task constructor. */
+  readonly config?: Record<string, unknown>;
 }
 
 /**
@@ -91,7 +81,7 @@ export interface FunctionToolSource {
   readonly run: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
-export type ToolSource = RegistryToolSource | McpToolSource | FunctionToolSource;
+export type ToolSource = RegistryToolSource | FunctionToolSource;
 
 // ========================================================================
 // Tool execution result

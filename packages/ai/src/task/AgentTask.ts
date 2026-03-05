@@ -20,6 +20,7 @@ import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { ToolCallingTask } from "./ToolCallingTask";
 import type { ToolCall, ToolCallingTaskInput, ToolDefinition } from "./ToolCallingTask";
+import { ToolDefinitionSchema } from "./ToolCallingTask";
 
 // ========================================================================
 // Config
@@ -40,30 +41,25 @@ export interface AgentTaskConfig extends TaskConfig {
  * Input for the AgentTask. The JSON Schema ({@link AgentInputSchema}) is
  * used for runtime validation and UI; this interface is the TypeScript
  * source of truth.
+ *
+ * Tools follow the same resolution pattern as `model`: each entry is
+ * either a **string** (task type name resolved from the TaskRegistry) or
+ * a full **{@link ToolDefinition}** object. Configurable tasks (e.g.
+ * `McpToolCallTask`, `JavaScriptTask`) can be pre-configured via the
+ * `config` field on the definition — the LLM never sees this config.
  */
 export interface AgentTaskInput {
   readonly [key: string]: unknown;
   readonly model: string;
   readonly prompt: string;
   readonly systemPrompt?: string;
-  readonly tools?: ReadonlyArray<
-    ToolDefinition & {
-      execute?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
-    }
-  >;
-  readonly taskTools?: ReadonlyArray<string>;
-  readonly mcpServers?: ReadonlyArray<{
-    readonly transport: string;
-    readonly server_url?: string;
-    readonly command?: string;
-    readonly args?: ReadonlyArray<string>;
-    readonly env?: Readonly<Record<string, string>>;
-    readonly tools?: ReadonlyArray<{
-      readonly name: string;
-      readonly description: string;
-      readonly inputSchema: Record<string, unknown>;
-    }>;
-  }>;
+  /**
+   * Tools available to the agent. Each entry is either:
+   * - A **string** — resolved from the TaskRegistry by name (like `model`).
+   * - A **{@link ToolDefinition}** — inline definition with optional `config`
+   *   for configurable tasks and optional `execute` for custom function tools.
+   */
+  readonly tools?: ReadonlyArray<string | ToolDefinition>;
   readonly maxIterations?: number;
   readonly maxTokens?: number;
   readonly temperature?: number;
@@ -114,33 +110,15 @@ export const AgentInputSchema = {
     },
     tools: {
       type: "array",
+      format: "tasks",
       title: "Tools",
-      description: "Tool definitions with optional custom executors",
+      description:
+        "Tools available to the agent. Each entry is a task type name (string, resolved from TaskRegistry) or a full ToolDefinition object with optional config for configurable tasks.",
       items: {
-        type: "object",
-        properties: {
-          name: { type: "string" },
-          description: { type: "string" },
-          inputSchema: { type: "object", additionalProperties: true },
-          outputSchema: { type: "object", additionalProperties: true },
-        },
-        required: ["name", "description", "inputSchema"],
-        additionalProperties: true,
-      },
-    },
-    taskTools: {
-      type: "array",
-      title: "Task Tools",
-      description: "Names of registered task types to expose as tools",
-      items: { type: "string" },
-    },
-    mcpServers: {
-      type: "array",
-      title: "MCP Servers",
-      description: "MCP server configurations with pre-discovered tools",
-      items: {
-        type: "object",
-        additionalProperties: true,
+        oneOf: [
+          { type: "string", format: "tasks", description: "Task type name" },
+          ToolDefinitionSchema,
+        ],
       },
     },
     stopTool: {
@@ -284,7 +262,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
     const hooks = this.config.hooks;
     const maxConcurrency = this.config.maxConcurrency ?? 5;
 
-    const toolSources = this.resolveToolSources(input);
+    const toolSources = this.resolveToolSources(input, context);
     const toolDefs = this.resolveToolDefs(toolSources, input.stopTool);
 
     const messages: ChatMessage[] = [userMessage(input.prompt)];
@@ -384,12 +362,8 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
   // Helpers
   // ====================================================================
 
-  private resolveToolSources(input: AgentTaskInput): ToolSource[] {
-    return buildToolSources({
-      taskTools: input.taskTools,
-      tools: input.tools,
-      mcpServers: input.mcpServers,
-    });
+  private resolveToolSources(input: AgentTaskInput, context: IExecuteContext): ToolSource[] {
+    return buildToolSources(input.tools, context.registry);
   }
 
   /**
