@@ -1836,6 +1836,50 @@ export const HFT_ToolCalling: AiProviderRunFn<
 
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
+  if (isArrayInput) {
+    const prompts = input.prompt as Array<(typeof input)["prompt"] extends Array<infer T> ? T : unknown>;
+    const outputs: ToolCallingTaskOutput[] = [];
+
+    for (const singlePrompt of prompts) {
+      const singleInput = { ...input, prompt: singlePrompt } as ToolCallingTaskInput;
+      const messages = toTextFlatMessages(singleInput);
+
+      const tools = resolveHFTToolsAndMessages(singleInput, messages);
+
+      // Use the tokenizer's chat template to format the prompt with tool definitions
+      const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+        tools,
+        tokenize: false,
+        add_generation_prompt: true,
+      }) as string;
+
+      const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+
+      let results = await generateText(prompt, {
+        max_new_tokens: input.maxTokens ?? 1024,
+        temperature: input.temperature ?? undefined,
+        return_full_text: false,
+        streamer,
+      });
+
+      if (!Array.isArray(results)) {
+        results = [results];
+      }
+
+      const responseText = extractGeneratedText(
+        (results[0] as TextGenerationOutput[number])?.generated_text
+      ).trim();
+
+      const { text, toolCalls } = parseToolCallsFromText(responseText);
+      outputs.push({ text, toolCalls: filterValidToolCalls(toolCalls, singleInput.tools) });
+    }
+
+    // When input.prompt is an array, return an array of outputs (TypeSingleOrArray behavior).
+    // The outer framework is responsible for interpreting this correctly.
+    // Cast to any to satisfy the AiProviderRunFn generic, which allows TypeSingleOrArray.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return outputs as any;
+  }
   const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);
