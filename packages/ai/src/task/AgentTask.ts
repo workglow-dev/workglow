@@ -12,14 +12,14 @@ import {
   type StreamEvent,
   type TaskConfig,
 } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
 import { getLogger } from "@workglow/util";
-import type { AgentHooks, ChatMessage, ToolSource } from "./AgentTypes";
+import type { DataPortSchema } from "@workglow/util";
 import { assistantMessage, toolMessage, toolSourceDefinitions, userMessage } from "./AgentTypes";
+import type { AgentHooks, ChatMessage, ToolSource } from "./AgentTypes";
 import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";
 import { TypeModel } from "./base/AiTaskSchemas";
-import type { ToolCall, ToolCallingTaskInput, ToolDefinition } from "./ToolCallingTask";
 import { ToolCallingTask } from "./ToolCallingTask";
+import type { ToolCall, ToolCallingTaskInput, ToolDefinition } from "./ToolCallingTask";
 
 // ========================================================================
 // Config
@@ -236,12 +236,12 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
     "Multi-turn agentic loop that calls an LLM with tools, executes tool calls, and iterates until done";
   public static cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
-    return AgentInputSchema as DataPortSchema;
+  public static inputSchema() {
+    return AgentInputSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
-    return AgentOutputSchema as DataPortSchema;
+  public static outputSchema() {
+    return AgentOutputSchema;
   }
 
   // ====================================================================
