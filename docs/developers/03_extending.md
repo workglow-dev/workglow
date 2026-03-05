@@ -7,9 +7,20 @@ This document covers how to write your own tasks. For a more practical guide to 
   - [Define Inputs and Outputs](#define-inputs-and-outputs)
   - [Register the Task](#register-the-task)
 - [Schema Format Annotations](#schema-format-annotations)
+  - [Built-in Format Annotations](#built-in-format-annotations)
+  - [Example: Using Format Annotations](#example-using-format-annotations)
+  - [Creating Custom Format Resolvers](#creating-custom-format-resolvers)
 - [Job Queues and LLM tasks](#job-queues-and-llm-tasks)
 - [Write a new Compound Task](#write-a-new-compound-task)
 - [Reactive Task UIs](#reactive-task-uis)
+- [AI and RAG Tasks](#ai-and-rag-tasks)
+  - [Document Processing Tasks](#document-processing-tasks)
+  - [Vector and Embedding Tasks](#vector-and-embedding-tasks)
+  - [Retrieval and Generation Tasks](#retrieval-and-generation-tasks)
+  - [Chainable RAG Pipeline Example](#chainable-rag-pipeline-example)
+  - [Retrieval Pipeline Example](#retrieval-pipeline-example)
+  - [Hierarchical Document Structure](#hierarchical-document-structure)
+  - [Task Data Flow](#task-data-flow)
 
 ## Write a new Task
 
@@ -138,13 +149,14 @@ When defining task input schemas, you can use `format` annotations to enable aut
 
 The system supports several format annotations out of the box:
 
-| Format                         | Description                         | Helper Function               |
-| ------------------------------ | ----------------------------------- | ----------------------------- |
-| `model`                        | Any AI model configuration          | `TypeModel()`                 |
-| `model:TaskName`               | Model compatible with specific task | —                             |
-| `storage:tabular`              | Tabular data dataset                | `TypeTabularStorage()`        |
-| `dataset:document-node-vector` | Vector storage dataset              | `TypeChunkVectorRepository()` |
-| `dataset:document`             | Document dataset                    | `TypeDocumentRepository()`    |
+| Format                            | Description                         | Helper Function               |
+| --------------------------------- | ----------------------------------- | ----------------------------- |
+| `model`                           | Any AI model configuration          | `TypeModel()`                 |
+| `model:TaskName`                  | Model compatible with specific task | —                             |
+| `storage:tabular`                 | Tabular data storage                | `TypeTabularStorage()`        |
+| `knowledge-base`                  | Knowledge base instance             | `TypeKnowledgeBase()`         |
+| `credential`                      | Credential from credential store    | —                             |
+| `tasks`                           | Task class from task registry       | —                             |
 
 ### Example: Using Format Annotations
 

@@ -10,10 +10,11 @@ import {
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
-import type { KnowledgeBase } from "./KnowledgeBase";
 import { InMemoryKnowledgeBaseRepository } from "./InMemoryKnowledgeBaseRepository";
+import type { KnowledgeBase } from "./KnowledgeBase";
 import { KnowledgeBaseRepository } from "./KnowledgeBaseRepository";
 import { knowledgeBaseTableNames, type KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
+import { SHARED_CHUNK_TABLE, SHARED_DOCUMENT_TABLE } from "./SharedTableSchemas";
 
 /**
  * Service token for the knowledge base registry
@@ -25,8 +26,9 @@ export const KNOWLEDGE_BASES =
 /**
  * Service token for the knowledge base repository
  */
-export const KNOWLEDGE_BASE_REPOSITORY =
-  createServiceToken<KnowledgeBaseRepository>("knowledge-base.repository");
+export const KNOWLEDGE_BASE_REPOSITORY = createServiceToken<KnowledgeBaseRepository>(
+  "knowledge-base.repository"
+);
 
 // Register default factory for live KB map if not already registered
 if (!globalServiceRegistry.has(KNOWLEDGE_BASES)) {
@@ -67,16 +69,29 @@ export function setGlobalKnowledgeBaseRepository(repository: KnowledgeBaseReposi
   globalServiceRegistry.registerInstance(KNOWLEDGE_BASE_REPOSITORY, repository);
 }
 
+export interface RegisterKnowledgeBaseOptions {
+  /** When true, record uses shared table names instead of per-KB table names. */
+  readonly sharedTables?: boolean;
+}
+
 /**
  * Registers a knowledge base globally by ID.
  * Adds to both the live Map and the persistent repository.
  */
-export async function registerKnowledgeBase(id: string, kb: KnowledgeBase): Promise<void> {
+
+export async function registerKnowledgeBase(
+  id: string,
+  kb: KnowledgeBase,
+  options?: RegisterKnowledgeBaseOptions
+): Promise<void> {
   const kbs = getGlobalKnowledgeBases();
   kbs.set(id, kb);
 
   const now = new Date().toISOString();
-  const tableNames = knowledgeBaseTableNames(id);
+  const useShared = options?.sharedTables === true;
+  const tableNames = useShared
+    ? { documentTable: SHARED_DOCUMENT_TABLE, chunkTable: SHARED_CHUNK_TABLE }
+    : knowledgeBaseTableNames(id);
   const record: KnowledgeBaseRecord = {
     kb_id: id,
     title: kb.title,

@@ -121,7 +121,6 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
     // Phase 1: Resolve format-annotated string values
     const format = getSchemaFormat(propSchema);
     if (format) {
-      // Try full format first (e.g., "dataset:document-chunk"), then fall back to prefix (e.g., "dataset")
       let resolver = resolvers.get(format);
       if (!resolver) {
         const prefix = getFormatPrefix(format);

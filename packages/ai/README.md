@@ -453,6 +453,11 @@ const kb = await createKnowledgeBase({
   vectorDimensions: 384, // must match your embedding model
 });
 
+// Or use shared-table mode for multi-tenant scenarios — see @workglow/knowledge-base docs
+// const scopedDocs = new ScopedTabularStorage(sharedDocStorage, "my-kb");
+// const scopedChunks = new ScopedVectorStorage(sharedChunkStorage, "my-kb");
+// const kb = new KnowledgeBase("my-kb", scopedDocs, scopedChunks);
+
 // Document ingestion - fully chainable, no loops required
 await new Workflow()
   .structuralParser({
@@ -596,13 +601,14 @@ This resolution is handled by the input resolver system, which inspects schema `
 
 ### Supported Format Annotations
 
-| Format                            | Description                              | Resolver                   |
-| --------------------------------- | ---------------------------------------- | -------------------------- |
-| `model`                           | Any AI model configuration               | ModelRepository            |
-| `model:TaskName`                  | Model compatible with specific task type | ModelRepository            |
-| `repository:tabular`              | Tabular data repository                  | TabularStorageRegistry     |
-| `repository:document-node-vector` | Vector storage repository                | VectorRepositoryRegistry   |
-| `repository:document`             | Document repository                      | DocumentRepositoryRegistry |
+| Format             | Description                              | Resolver                   |
+| ------------------ | ---------------------------------------- | -------------------------- |
+| `model`            | Any AI model configuration               | ModelRepository            |
+| `model:TaskName`   | Model compatible with specific task type | ModelRepository            |
+| `storage:tabular`  | Tabular data storage                     | TabularStorageRegistry     |
+| `knowledge-base`   | Knowledge base instance                  | KnowledgeBaseRegistry      |
+| `credential`       | Credential from credential store         | CredentialStoreRegistry    |
+| `tasks`            | Task class from task registry            | TaskRegistry               |
 
 ### Custom Model Validation
 
