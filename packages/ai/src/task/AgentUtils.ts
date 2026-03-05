@@ -19,6 +19,20 @@ import { findToolSource } from "./AgentTypes";
 import type { ToolCall, ToolDefinition } from "./ToolCallingTask";
 import { taskTypesToTools } from "./ToolCallingTask";
 
+/**
+ * Minimal config shape expected by McpToolCallTask's constructor.
+ * Defined here to avoid coupling to the full McpToolCallTaskConfig type
+ * while still providing type safety over `as any`.
+ */
+interface McpToolCallConfig {
+  readonly transport: string;
+  readonly server_url?: string;
+  readonly command?: string;
+  readonly args?: readonly string[];
+  readonly env?: Readonly<Record<string, string>>;
+  readonly tool_name: string;
+}
+
 // ========================================================================
 // Tool source resolution
 // ========================================================================
@@ -54,11 +68,12 @@ export function buildToolSources(options: {
   // Registry-based tools
   if (options.taskTools && options.taskTools.length > 0) {
     const definitions = taskTypesToTools(options.taskTools);
-    for (let i = 0; i < definitions.length; i++) {
+    for (const def of definitions) {
+      const { taskType, ...definition } = def;
       sources.push({
         type: "registry",
-        definition: definitions[i],
-        taskType: options.taskTools[i],
+        definition,
+        taskType,
       } satisfies RegistryToolSource);
     }
   }
@@ -177,18 +192,16 @@ export async function executeToolCall(
             "McpToolCallTask not found in TaskRegistry — ensure @workglow/tasks is registered"
           );
         }
+        const mcpConfig: McpToolCallConfig = {
+          transport: source.mcpConfig.transport,
+          server_url: source.mcpConfig.server_url,
+          command: source.mcpConfig.command,
+          args: source.mcpConfig.args,
+          env: source.mcpConfig.env,
+          tool_name: effectiveCall.name,
+        };
         const mcpTask = context.own(
-          new McpToolCallTask(
-            {},
-            {
-              transport: source.mcpConfig.transport,
-              server_url: source.mcpConfig.server_url,
-              command: source.mcpConfig.command,
-              args: source.mcpConfig.args as string[] | undefined,
-              env: source.mcpConfig.env as Record<string, string> | undefined,
-              tool_name: effectiveCall.name,
-            } as any
-          )
+          new McpToolCallTask({}, mcpConfig as unknown as Record<string, unknown>)
         );
         output = (await mcpTask.run(effectiveCall.input)) ?? {};
         break;

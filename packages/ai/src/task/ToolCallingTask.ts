@@ -101,22 +101,28 @@ export function filterValidToolCalls(
 // Utility: convert TaskRegistry entries to tool definitions
 // ========================================================================
 
+export interface ToolDefinitionWithTaskType extends ToolDefinition {
+  /** The task type name this definition was generated from. */
+  readonly taskType: string;
+}
+
 /**
- * Converts an allow-list of task type names into {@link ToolDefinition} objects
- * suitable for the ToolCallingTask input.
+ * Converts an allow-list of task type names into {@link ToolDefinitionWithTaskType} objects
+ * suitable for the ToolCallingTask input. Each entry carries the originating
+ * `taskType` so callers don't need to rely on index correspondence.
  *
  * Each task's `type`, `description`, `inputSchema()`, and `outputSchema()`
  * are used to build the tool definition.
  *
  * @param taskNames - Array of task type names registered in the task constructors
  * @param registry - Optional service registry for DI-based lookups
- * @returns Array of ToolDefinition objects
+ * @returns Array of ToolDefinitionWithTaskType objects
  * @throws Error if a task name is not found in the registry
  */
 export function taskTypesToTools(
   taskNames: ReadonlyArray<string>,
   registry?: ServiceRegistry
-): ToolDefinition[] {
+): ToolDefinitionWithTaskType[] {
   const constructors = getTaskConstructors(registry);
   return taskNames.map((name) => {
     const ctor = constructors.get(name);
@@ -130,6 +136,7 @@ export function taskTypesToTools(
       description: (ctor as any).description ?? "",
       inputSchema: ctor.inputSchema(),
       outputSchema: ctor.outputSchema(),
+      taskType: name,
     };
   });
 }

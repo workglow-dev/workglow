@@ -189,7 +189,7 @@ describe("taskTypesToTools", () => {
     TaskRegistry.all.delete("TestConcatTask");
   });
 
-  test("should convert registered tasks to tool definitions", () => {
+  test("should convert registered tasks to tool definitions with taskType", () => {
     const tools = taskTypesToTools(["TestAddTask", "TestConcatTask"]);
 
     expect(tools).toHaveLength(2);
@@ -198,11 +198,13 @@ describe("taskTypesToTools", () => {
     expect(tools[0].description).toBe("Adds two numbers together");
     expect(tools[0].inputSchema).toEqual(TestAddTask.inputSchema());
     expect(tools[0].outputSchema).toEqual(TestAddTask.outputSchema());
+    expect(tools[0].taskType).toBe("TestAddTask");
 
     expect(tools[1].name).toBe("TestConcatTask");
     expect(tools[1].description).toBe("Concatenates text with a suffix");
     expect(tools[1].inputSchema).toEqual(TestConcatTask.inputSchema());
     expect(tools[1].outputSchema).toEqual(TestConcatTask.outputSchema());
+    expect(tools[1].taskType).toBe("TestConcatTask");
   });
 
   test("should return a single tool when given one name", () => {
