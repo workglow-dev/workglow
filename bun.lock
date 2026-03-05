@@ -14,7 +14,7 @@
         "@typescript-eslint/parser": "^8.56.1",
         "@vitest/coverage-v8": "^4.0.18",
         "@vitest/ui": "4.0.18",
-        "bunset": "^1.0.9",
+        "bunset": "1.0.10",
         "concurrently": "^9.2.1",
         "eslint": "^9.39.2",
         "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -1024,7 +1024,7 @@
 
     "bun-types": ["bun-types@1.3.10", "", { "dependencies": { "@types/node": "*" } }, "sha512-tcpfCCl6XWo6nCVnpcVrxQ+9AYN1iqMIzgrSKYMB/fjLtV2eyAVEg7AxQJuCq/26R6HpKWykQXuSOq/21RYcbg=="],
 
-    "bunset": ["bunset@1.0.9", "", { "peerDependencies": { "typescript": "^5" }, "bin": { "bunset": "src/index.ts" } }, "sha512-RfIKwJ55U7fBjVSP9+FtNz7/uPZVqtpaZms1rWNDBLviRvT39y0u5VDcl1Wg/TZVl+ghMKg1UteZtuwEFAyhdQ=="],
+    "bunset": ["bunset@1.0.10", "", { "peerDependencies": { "typescript": "^5" }, "bin": { "bunset": "src/index.ts" } }, "sha512-xJ8uQZw3NG+Njhi87Q3ecwtGAupseS1JKFM5FOFd32kfhqcHopEKhJjwz5WHgz/CQuZFhWOgFW/hxkHuytxQSQ=="],
 
     "bytes": ["bytes@3.1.2", "", {}, "sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg=="],
 
