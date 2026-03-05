@@ -1,3 +1,0 @@
-[install]
-# Explicitly set the linker to isolated
-linker = "isolated"

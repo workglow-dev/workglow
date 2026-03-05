@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { spawn } from "child_process";
 import { existsSync } from "fs";
@@ -90,8 +90,8 @@ async function checkAndPublishWorkspace(workspacePath: string): Promise<{
   try {
     console.log("Publishing", workspacePath);
     output = await runCommand(
-      "bun",
-      ["publish", "--access", access, "--no-color", "--tolerate-republish"],
+      "npm",
+      ["publish", "--access", access, "--no-color"],
       workspacePath
     );
   } catch (err) {

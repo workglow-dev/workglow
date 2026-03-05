@@ -8,4 +8,4 @@ export * from "./common";
 export * from "./compress/compress.node";
 export * from "./mcp/McpClientUtil.node";
 export * from "./media/image.browser";
-export * from "./worker/Worker.bun";
+export * from "./worker/Worker.node";

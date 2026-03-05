@@ -5,26 +5,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```sh
-bun run build              # Full build (all packages + examples, via Turbo)
-bun run build:packages     # Build packages only
-bun run build:types        # Build type declarations only
-bun run watch              # Watch mode (Turbo, concurrency 15)
-bun run dev                # Turbo dev mode
+pnpm run build              # Full build (all packages + examples, via Turbo)
+pnpm run build:packages     # Build packages only
+pnpm run build:types        # Build type declarations only
+pnpm run watch              # Watch mode (Turbo, concurrency 15)
+pnpm run dev                # Turbo dev mode
 
-bun run test               # All tests (bun test + vitest)
-bun run test:bun           # Bun native tests only
-bun run test:vitest        # Vitest tests only
-bun test <testfilename>    # Run a specific test file
+pnpm run test               # All tests (vitest)
+pnpm run test:ui            # Vitest UI mode
+npx vitest run <pattern>    # Run a specific test file
 
-bun run format             # ESLint fix + Prettier write
-bun run clean              # Remove dist, node_modules, .turbo, tsbuildinfo
+pnpm run format             # ESLint fix + Prettier write
+pnpm run clean              # Remove dist, node_modules, .turbo, tsbuildinfo
 ```
 
 Some tests are gated by env vars: `RUN_ALL_TESTS=1`, `RUN_QUEUE_TESTS=1`, `AGENT=1`.
 
 ## Monorepo structure
 
-Bun workspaces + Turborepo. All packages live in `packages/`. Build order is managed by Turbo's dependency graph (`turbo.json`).
+pnpm workspaces + Turborepo. All packages live in `packages/`. Build order is managed by Turbo's dependency graph (`turbo.json`).
 
 ### Dependency graph
 
@@ -50,16 +49,17 @@ debug                                 (Chrome DevTools formatters)
 
 ### Per-package build
 
-Each package builds three runtime targets via `bun build --splitting --target=X`:
+Each package builds two runtime targets via Vite library mode (`vite build`):
 
 - `src/browser.ts` → `dist/browser.js`
 - `src/node.ts` → `dist/node.js`
-- `src/bun.ts` → `dist/bun.js`
-- `src/common.ts` — shared exports re-exported by all three
+- `src/common.ts` — shared exports re-exported by both
 
-Types built with `tsc` (composite + incremental). Conditional exports in `package.json` resolve automatically per runtime.
+Types built with `vite-plugin-dts` (using tsc under the hood). Conditional exports in `package.json` resolve automatically per runtime.
 
-Exception: `ai-provider` builds per-provider sub-paths (`./anthropic`, `./openai`, `./google-gemini`, etc.) instead of browser/node/bun.
+Exception: `ai-provider` builds per-provider sub-paths (`./anthropic`, `./openai`, `./google-gemini`, etc.) instead of browser/node.
+
+Shared Vite config: `vite.lib.ts` at root provides `createLibConfig()` used by all package `vite.config.ts` files.
 
 ## Code style
 
@@ -73,7 +73,7 @@ Exception: `ai-provider` builds per-provider sub-paths (`./anthropic`, `./openai
 - **Discriminated unions** over bags of optionals
 - **Declare return types** on top-level module functions (exception: JSX components)
 - **`import type`** for type-only imports; prefer top-level `import type { T }` over inline `import { type T }`
-- **Never import from** files named `index`, `node`, `bun`, `browser`, `common` — import from the specific module
+- **Never import from** files named `index`, `node`, `browser`, `common` — import from the specific module
 - **`any` in generics is OK** when TS can't match runtime logic to types; outside generics, use `any` sparingly — default to `unknown`
 - **Interface prefix**: `I` for public interfaces (`ITask`, `IKvStorage`, `IWorkflow`)
 - **Concise JSDoc** only when behavior isn't self-evident; use `@link`; no comments for obvious code
@@ -182,7 +182,7 @@ Pre-built tasks: `InputTask`, `OutputTask`, `LambdaTask`, `DelayTask`, `FetchUrl
 
 ## Testing patterns
 
-Tests live primarily in `packages/test/src/test/`. Both `bun test` and `vitest` are used.
+Tests live primarily in `packages/test/src/test/`. Vitest is used exclusively.
 
 ```ts
 import { describe, expect, it, beforeEach } from "vitest";

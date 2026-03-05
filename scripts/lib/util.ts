@@ -1,11 +1,6 @@
-import { Glob } from "bun";
 import { existsSync } from "fs";
-import { readFile, stat } from "fs/promises";
-import { join } from "path";
-
-interface RootPackageJson {
-  workspaces: string[];
-}
+import { readFile, readdir, stat } from "fs/promises";
+import { join, resolve } from "path";
 
 interface PackageJson {
   publishConfig?: {
@@ -16,38 +11,27 @@ interface PackageJson {
 export async function findWorkspaces(): Promise<string[]> {
   const workspaces: string[] = [];
 
-  // Read root package.json
-  const rootPackageJson = JSON.parse(
-    (await readFile("./package.json", "utf-8")).toString()
-  ) as RootPackageJson;
+  // Read workspace dirs from pnpm-workspace.yaml patterns
+  const workspaceDirs = ["packages", "examples"];
 
-  // Process each workspace pattern
-  for (const pattern of rootPackageJson.workspaces) {
-    try {
-      const globber = new Glob(pattern);
-      for await (const match of globber.scan({ absolute: true, onlyFiles: false })) {
-        try {
-          const stats = await stat(match);
-          if (stats.isDirectory()) {
-            const packageJsonPath = join(match, "package.json");
-            if (existsSync(packageJsonPath)) {
-              const packageJson = JSON.parse(
-                (await readFile(packageJsonPath, "utf-8")).toString()
-              ) as PackageJson;
-              if (packageJson.publishConfig?.access === "public") {
-                workspaces.push(match);
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`Error processing workspace pattern ${pattern}:`, error);
-          process.exit(1);
-        }
+  for (const dir of workspaceDirs) {
+    const dirPath = resolve(dir);
+    if (!existsSync(dirPath)) continue;
+
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const packageJsonPath = join(dirPath, entry.name, "package.json");
+      if (!existsSync(packageJsonPath)) continue;
+
+      const packageJson = JSON.parse(
+        await readFile(packageJsonPath, "utf-8")
+      ) as PackageJson;
+      if (packageJson.publishConfig?.access === "public") {
+        workspaces.push(join(dirPath, entry.name));
       }
-    } catch (error) {
-      console.error(`Error processing workspace pattern ${pattern}:`, error);
-      process.exit(1);
     }
   }
+
   return workspaces;
 }

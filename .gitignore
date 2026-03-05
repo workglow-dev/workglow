@@ -13,5 +13,4 @@ packages/cli-sec/
 .env.*
 sec-data/
 sec-db/
-.npmrc
 models/

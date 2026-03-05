@@ -5,59 +5,47 @@
   "version": "0.0.115",
   "description": "AI provider integrations for Workglow, supporting OpenAI, Hugging Face Transformers, MediaPipe, and GGML models.",
   "scripts": {
-    "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-js": "concurrently -c 'auto' -n 'code,browser' 'bun run watch-code' 'bun run watch-browser'",
-    "watch-code": "bun build --splitting --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-hf-inference/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
-    "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
+    "watch": "concurrently -c 'auto' 'npm:watch-*'",
+    "watch-js": "SKIP_DTS=1 vite build --watch",
     "watch-types": "tsc --watch --preserveWatchOutput",
-    "build-package": "concurrently -c 'auto' -n 'code,browser,types' 'bun run build-code' 'bun run build-browser' 'bun run build-types'",
-    "build-js": "concurrently -c 'auto' -n 'code,browser' 'bun run build-code' 'bun run build-browser'",
+    "build-package": "vite build",
+    "build-js": "SKIP_DTS=1 vite build",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
-    "build-code": "bun build --splitting --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-hf-inference/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
-    "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "bun test"
+    "test": "vitest run"
   },
   "exports": {
     ".": {
-      "bun": "./dist/index.js",
       "types": "./dist/types.d.ts",
       "import": "./dist/index.js"
     },
     "./anthropic": {
-      "bun": "./dist/anthropic/index.js",
       "types": "./dist/anthropic/index.d.ts",
       "import": "./dist/anthropic/index.js"
     },
     "./google-gemini": {
-      "bun": "./dist/google-gemini/index.js",
       "types": "./dist/google-gemini/index.d.ts",
       "import": "./dist/google-gemini/index.js"
     },
     "./hf-transformers": {
-      "bun": "./dist/hf-transformers/index.js",
       "types": "./dist/hf-transformers/index.d.ts",
       "import": "./dist/hf-transformers/index.js"
     },
     "./llamacpp": {
-      "bun": "./dist/provider-llamacpp/index.js",
       "types": "./dist/provider-llamacpp/index.d.ts",
       "import": "./dist/provider-llamacpp/index.js"
     },
     "./ollama": {
       "browser": "./dist/provider-ollama/index.browser.js",
-      "bun": "./dist/provider-ollama/index.js",
       "types": "./dist/provider-ollama/index.d.ts",
       "import": "./dist/provider-ollama/index.js"
     },
     "./openai": {
-      "bun": "./dist/provider-openai/index.js",
       "types": "./dist/provider-openai/index.d.ts",
       "import": "./dist/provider-openai/index.js"
     },
     "./hf-inference": {
-      "bun": "./dist/provider-hf-inference/index.js",
       "types": "./dist/provider-hf-inference/index.d.ts",
       "import": "./dist/provider-hf-inference/index.js"
     },

@@ -18,7 +18,7 @@
     "outDir": "./dist",
     "incremental": true,
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-    "types": ["@types/bun"]
+    "types": ["node"]
   },
   "exclude": ["dist", "node_modules"]
 }
