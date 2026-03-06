@@ -4,5 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./common";
-export * from "./knowledge-base/createSqliteKnowledgeBase";
+declare module "@sqliteai/sqlite-vector" {
+  export function getExtensionPath(): string;
+}
