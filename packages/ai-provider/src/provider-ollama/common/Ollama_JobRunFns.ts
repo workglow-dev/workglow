@@ -27,16 +27,18 @@ import { getLogger, parsePartialJson } from "@workglow/util";
 import { OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 
-let _sdk: typeof import("ollama") | undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _OllamaClass: (new (config: { host: string }) => any) | undefined;
 async function loadOllamaSDK() {
-  if (!_sdk) {
+  if (!_OllamaClass) {
     try {
-      _sdk = await import("ollama");
+      const sdk = await import("ollama");
+      _OllamaClass = sdk.Ollama;
     } catch {
       throw new Error("ollama is required for Ollama tasks. Install it with: bun add ollama");
     }
   }
-  return _sdk.Ollama;
+  return _OllamaClass;
 }
 
 async function getClient(model: OllamaModelConfig | undefined) {
@@ -116,7 +118,7 @@ export const Ollama_TextEmbedding: AiProviderRunFn<
 
   if (Array.isArray(input.text)) {
     return {
-      vector: response.embeddings.map((e) => new Float32Array(e)),
+      vector: response.embeddings.map((e: number[]) => new Float32Array(e)),
     };
   }
   return { vector: new Float32Array(response.embeddings[0]) };

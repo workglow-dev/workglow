@@ -459,7 +459,8 @@ export const HFT_TextEmbedding: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const logger = getLogger();
-  const timerLabel = `hft:TextEmbedding:${model?.provider_config.model_path}`;
+  const uuid = crypto.randomUUID();
+  const timerLabel = `hft:TextEmbedding:${model?.provider_config.model_path}:${uuid}`;
   logger.time(timerLabel, { model: model?.provider_config.model_path });
 
   const generateEmbedding: FeatureExtractionPipeline = await getPipeline(
@@ -1836,7 +1837,9 @@ export const HFT_ToolCalling: AiProviderRunFn<
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
   if (isArrayInput) {
-    const prompts = input.prompt as Array<(typeof input)["prompt"] extends Array<infer T> ? T : unknown>;
+    const prompts = input.prompt as Array<
+      (typeof input)["prompt"] extends Array<infer T> ? T : unknown
+    >;
     const outputs: ToolCallingTaskOutput[] = [];
 
     for (const singlePrompt of prompts) {
@@ -2006,6 +2009,20 @@ export const HFT_ModelInfo: AiProviderRunFn<
   ModelInfoTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model) => {
+  if (self.location.href.startsWith("http://localhost:")) {
+    console.error("HFT_ModelInfo SKIPPING on localhost", { input, model });
+    return {
+      model: input.model,
+      is_local: true,
+      is_remote: false,
+      supports_browser: true,
+      supports_node: true,
+      is_cached: false,
+      is_loaded: true,
+      file_sizes: {},
+    };
+  }
+
   const logger = getLogger();
   const { ModelRegistry } = await loadTransformersSDK();
   const timerLabel = `hft:ModelInfo:${model?.provider_config.model_path}`;

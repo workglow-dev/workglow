@@ -11,8 +11,8 @@
  * in a way that's compatible with visual node editors.
  *
  * Models Used:
- *    - Xenova/all-MiniLM-L6-v2 (Text Embedding - 384D)
- *    - onnx-community/NeuroBERT-NER-ONNX (Named Entity Recognition)
+ *    - Xenova/all-MiniLM-L6-v2:q4f16 (Text Embedding - 384D)
+ *    - onnx-community/NeuroBERT-NER-ONNX:q8 (Named Entity Recognition)
  *    - Xenova/distilbert-base-uncased-distilled-squad (Question Answering)
  */
 
@@ -32,11 +32,7 @@ import {
   HFT_STREAM_TASKS,
   HFT_TASKS,
 } from "@workglow/ai-provider/hf-transformers";
-import {
-  createKnowledgeBase,
-  KnowledgeBase,
-  registerKnowledgeBase,
-} from "@workglow/knowledge-base";
+import { createKnowledgeBase, KnowledgeBase } from "@workglow/knowledge-base";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { readdirSync } from "fs";
@@ -50,7 +46,7 @@ import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 describe("RAG Workflow End-to-End", () => {
   let kb: KnowledgeBase;
   const kbName = "rag-test-kb";
-  const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
+  const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q4f16";
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
   const qaModel = "onnx:onnx-community/ModernBERT-finetuned-squad-ONNX";
