@@ -79,7 +79,7 @@ describe("TaskGraph", () => {
 
       // Run a task to trigger status changes
       const task1 = graph.getTask("task1")!;
-      await task1.run({ registry });
+      await task1.run({}, { registry });
 
       expect(statusChanges.length).toBeGreaterThan(0);
       expect(statusChanges.some((change) => change.taskId === "task1")).toBe(true);
@@ -100,7 +100,7 @@ describe("TaskGraph", () => {
       graph.addTask(newTask);
 
       // Run the newly added task
-      await newTask.run({ registry });
+      await newTask.run({}, { registry });
 
       expect(statusChanges.some((change) => change.taskId === "newTask")).toBe(true);
       expect(statusChanges.some((change) => change.status === TaskStatus.COMPLETED)).toBe(true);
@@ -137,14 +137,14 @@ describe("TaskGraph", () => {
       });
 
       // Run a task
-      await graph.getTask("task1")!.run({ registry });
+      await graph.getTask("task1")!.run({}, { registry });
       const initialCount = statusChanges.length;
 
       // Unsubscribe
       unsubscribe();
 
       // Run another task - should not trigger callback
-      await graph.getTask("task2")!.run({ registry });
+      await graph.getTask("task2")!.run({}, { registry });
 
       expect(statusChanges.length).toBe(initialCount);
     });
