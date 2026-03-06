@@ -14,6 +14,7 @@ export * from "./task-graph/TaskGraphEvents";
 export * from "./task-graph/TaskGraphRunner";
 
 export * from "./task-graph/Conversions";
+export * from "./task-graph/GraphToWorkflowCode";
 export * from "./task-graph/IWorkflow";
 export * from "./task-graph/Workflow";
 
