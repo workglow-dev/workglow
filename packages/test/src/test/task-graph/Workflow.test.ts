@@ -22,7 +22,7 @@ import {
   VectorSubtractTask,
   VectorSumTask,
 } from "@workglow/tasks";
-import { getLogger, NullLogger, setLogger, sleep } from "@workglow/util";
+import { Container, getLogger, NullLogger, ServiceRegistry, setLogger, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   NumberTask,
@@ -42,9 +42,14 @@ describe("Workflow", () => {
   let logger = getTestingLogger();
   setLogger(logger);
   let workflow: Workflow;
+  let registry: ServiceRegistry;
   let savedLogger: ReturnType<typeof getLogger>;
 
   beforeEach(() => {
+    // Create an isolated registry for each test
+    const container = new Container();
+    registry = new ServiceRegistry(container);
+
     workflow = new Workflow();
     savedLogger = getLogger();
     setLogger(new NullLogger());
@@ -108,7 +113,7 @@ describe("Workflow", () => {
       workflow = workflow.testSimple({ input: "test" });
 
       const startSpy = spyOn(workflow.events, "emit");
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       expect(startSpy).toHaveBeenCalledWith("start");
       expect(startSpy).toHaveBeenCalledWith("complete");
@@ -119,7 +124,7 @@ describe("Workflow", () => {
       workflow = workflow.testSimple();
 
       const startSpy = spyOn(workflow.events, "emit");
-      const result = await workflow.run({ input: "custom-input" });
+      const result = await workflow.run({ input: "custom-input" }, { registry });
 
       expect(startSpy).toHaveBeenCalledWith("start");
       expect(startSpy).toHaveBeenCalledWith("complete");
@@ -132,7 +137,7 @@ describe("Workflow", () => {
       const errorSpy = spyOn(workflow.events, "emit");
 
       try {
-        await workflow.run();
+        await workflow.run({}, { registry });
         expect(false).toBe(true); // should not get here
       } catch (error) {
         expect(error).toBeInstanceOf(TaskError);
@@ -145,7 +150,7 @@ describe("Workflow", () => {
     it("should abort a running task graph", async () => {
       workflow = workflow.longRunning();
 
-      const runPromise = workflow.run();
+      const runPromise = workflow.run({}, { registry });
       await sleep(1);
       workflow.abort();
 
@@ -254,7 +259,7 @@ describe("Workflow", () => {
 
       const compoundTask = workflow.graph.getTasks()[0];
       expect(compoundTask.subGraph?.getTasks()).toHaveLength(2);
-      const result = await compoundTask.run();
+      const result = await compoundTask.run({}, { registry });
       expect(result).toEqual({ output: ["processed-test1", "processed-test2"] });
     });
   });
@@ -787,7 +792,7 @@ describe("Workflow", () => {
     it("should run scalar add chain and return correct result", async () => {
       workflow = workflow.scalarAdd({ a: 1, b: 2 }).add({ a: 3, b: 4 });
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       // PROPERTY_ARRAY merges: first task result 3, second task result 7
       expect(result).toEqual({ result: [3, 7] });
@@ -798,7 +803,7 @@ describe("Workflow", () => {
     it("should run sum() as first task and return sum of values", async () => {
       workflow = workflow.sum({ values: [1, 2, 3, 4] });
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       // Single task: merge returns output as-is, so result.result is the number
       expect((result as { result: number }).result).toBe(10);
@@ -807,7 +812,7 @@ describe("Workflow", () => {
     it("should run multiply() as first task and return product", async () => {
       workflow = workflow.multiply({ a: 3, b: 7 });
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       expect((result as { result: number }).result).toBe(21);
     });
@@ -815,7 +820,7 @@ describe("Workflow", () => {
     it("should run divide() as first task and return quotient", async () => {
       workflow = workflow.divide({ a: 20, b: 4 });
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       expect((result as { result: number }).result).toBe(5);
     });
@@ -823,7 +828,7 @@ describe("Workflow", () => {
     it("should run subtract() as first task and return difference", async () => {
       workflow = workflow.subtract({ a: 10, b: 3 });
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       expect((result as { result: number }).result).toBe(7);
     });
@@ -831,7 +836,7 @@ describe("Workflow", () => {
     it("should run chained add then multiply and return correct result", async () => {
       workflow = workflow.add({ a: 1, b: 2 }).multiply({ a: 3, b: 1 }); // 3 then 3*1=3
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       const resultArr = (result as { result?: number[] }).result!;
       expect(resultArr).toEqual([3, 3]);
@@ -841,7 +846,7 @@ describe("Workflow", () => {
     it("should run chained sum then subtract and return correct result", async () => {
       workflow = workflow.sum({ values: [5, 5] }).subtract({ a: 20, b: 5 }); // 10 then 20-5=15
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       const resultArr = (result as { result?: number[] }).result!;
       expect(resultArr).toEqual([10, 15]);
@@ -855,7 +860,7 @@ describe("Workflow", () => {
           vectors: [new Float32Array([1, 2, 3]), new Float32Array([4, 5, 6])],
         });
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       // Linear chain: single leaf output. Parent vector [1,1,1] is auto-connected, so we sum
       // [1,1,1] + [1,2,3] + [4,5,6] = [6, 8, 10]
@@ -868,7 +873,7 @@ describe("Workflow", () => {
       // receives that single vector (auto-connected to "vectors"); sum of one vector is that vector.
       workflow = workflow.vectorOutputOnly({ size: 2 }).sum();
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       // Linear chain: single leaf output
       const vec = (result as { result: Float32Array }).result;
@@ -886,7 +891,7 @@ describe("Workflow", () => {
     it("should run sum(vectors: [...]) as first task and return the vector", async () => {
       workflow = workflow.sum({ vectors: [new Float32Array([1, 2, 3])] });
 
-      const result = await workflow.run();
+      const result = await workflow.run({}, { registry });
 
       const vec = (result as { result: Float32Array }).result;
       expect(Array.from(vec)).toEqual([1, 2, 3]);
@@ -1026,7 +1031,7 @@ describe("Workflow", () => {
       expect(workflow.error).toBe("");
       expect(workflow.graph.getTasks()).toHaveLength(3);
 
-      const result = await workflow.run({ input: "hello" });
+      const result = await workflow.run({ input: "hello" }, { registry });
       expect(result).toEqual({ output: "processed-hello" });
     });
 
@@ -1034,7 +1039,7 @@ describe("Workflow", () => {
       workflow = workflow.input().testSimple();
 
       expect(workflow.error).toBe("");
-      const result = await workflow.run({ input: "world" });
+      const result = await workflow.run({ input: "world" }, { registry });
       expect(result).toEqual({ output: "processed-world" });
     });
 

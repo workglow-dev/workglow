@@ -10,23 +10,59 @@ import {
   createTaskFromGraphJSON,
   Dataflow,
   GraphAsTask,
+  TASK_CONSTRUCTORS,
   TaskGraph,
   TaskRegistry,
 } from "@workglow/task-graph";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, beforeEach, afterEach } from "vitest";
 
 import { DoubleToResultTask, TestGraphAsTask, TestTaskWithDefaults } from "./TestTasks";
-import { setLogger } from "@workglow/util";
+import { Container, ServiceRegistry, setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-// Register test tasks
+// Register test tasks in the global registry (needed for toJSON serialization)
 TaskRegistry.registerTask(DoubleToResultTask);
 TaskRegistry.registerTask(TestTaskWithDefaults);
 TaskRegistry.registerTask(TestGraphAsTask);
 
+/**
+ * Creates an isolated ServiceRegistry with only the specified task constructors.
+ * Used to verify that JSON deserialization uses the passed registry, not the global one.
+ */
+function createTestRegistry(
+  tasks: Array<{ type: string; new (...args: any[]): any }>
+): ServiceRegistry {
+  const container = new Container();
+  const registry = new ServiceRegistry(container);
+  const constructors = new Map<string, any>();
+  for (const task of tasks) {
+    constructors.set(task.type, task);
+  }
+  registry.registerInstance(TASK_CONSTRUCTORS, constructors);
+  return registry;
+}
+
 describe("TaskJSON", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  let registry: ServiceRegistry;
+  let savedGlobalConstructors: Map<string, any>;
+
+  beforeEach(() => {
+    // Create an isolated registry with test tasks
+    registry = createTestRegistry([DoubleToResultTask, TestTaskWithDefaults, TestGraphAsTask]);
+    // Save and blank the global task constructors to ensure tests use the local registry
+    savedGlobalConstructors = new Map(TaskRegistry.all);
+    TaskRegistry.all.clear();
+  });
+
+  afterEach(() => {
+    // Restore global task constructors
+    for (const [key, value] of savedGlobalConstructors) {
+      TaskRegistry.all.set(key, value);
+    }
+  });
   describe("Task.toJSON()", () => {
     test("should serialize a simple task to JSON", () => {
       const task = new DoubleToResultTask({ value: 42 }, { id: "task1", title: "My Task" });
@@ -110,7 +146,7 @@ describe("TaskJSON", () => {
         config: { title: "My Task" },
       };
 
-      const task = createTaskFromGraphJSON(json);
+      const task = createTaskFromGraphJSON(json, registry);
 
       expect(task.id).toBe("task1");
       expect(task.type).toBe("DoubleToResultTask");
@@ -126,7 +162,7 @@ describe("TaskJSON", () => {
         config: {},
       };
 
-      const task = createTaskFromGraphJSON(json);
+      const task = createTaskFromGraphJSON(json, registry);
 
       expect(task.defaults).toEqual({ value: 10, multiplier: 5 });
     });
@@ -139,7 +175,7 @@ describe("TaskJSON", () => {
         config: { extras: { metadata: { key: "value" } } },
       };
 
-      const task = createTaskFromGraphJSON(json);
+      const task = createTaskFromGraphJSON(json, registry);
 
       expect(task.config.extras).toEqual({ metadata: { key: "value" } });
     });
@@ -152,7 +188,9 @@ describe("TaskJSON", () => {
         config: {},
       };
 
-      expect(() => createTaskFromGraphJSON(json)).toThrow("Task type NonExistentTask not found");
+      expect(() => createTaskFromGraphJSON(json, registry)).toThrow(
+        "Task type NonExistentTask not found"
+      );
     });
 
     test("should throw error if id is missing", () => {
@@ -161,7 +199,7 @@ describe("TaskJSON", () => {
         defaults: { value: 10 },
       } as unknown as TaskGraphItemJson;
 
-      expect(() => createTaskFromGraphJSON(json)).toThrow("Task id required");
+      expect(() => createTaskFromGraphJSON(json, registry)).toThrow("Task id required");
     });
 
     test("should throw error if type is missing", () => {
@@ -170,7 +208,21 @@ describe("TaskJSON", () => {
         defaults: { value: 10 },
       } as unknown as TaskGraphItemJson;
 
-      expect(() => createTaskFromGraphJSON(json)).toThrow("Task type required");
+      expect(() => createTaskFromGraphJSON(json, registry)).toThrow("Task type required");
+    });
+
+    test("should fail without registry when global constructors are cleared", () => {
+      const json: TaskGraphItemJson = {
+        id: "task1",
+        type: "DoubleToResultTask",
+        defaults: { value: 42 },
+        config: {},
+      };
+
+      // Without passing registry, it falls back to global TaskRegistry which is cleared
+      expect(() => createTaskFromGraphJSON(json)).toThrow(
+        "Task type DoubleToResultTask not found"
+      );
     });
   });
 
@@ -201,7 +253,7 @@ describe("TaskJSON", () => {
         ],
       };
 
-      const graph = createGraphFromGraphJSON(json);
+      const graph = createGraphFromGraphJSON(json, registry);
 
       const tasks = graph.getTasks();
       expect(tasks).toHaveLength(2);
@@ -244,7 +296,7 @@ describe("TaskJSON", () => {
         dataflows: [],
       };
 
-      const graph = createGraphFromGraphJSON(json);
+      const graph = createGraphFromGraphJSON(json, registry);
 
       const tasks = graph.getTasks();
       expect(tasks).toHaveLength(1);
@@ -268,7 +320,7 @@ describe("TaskJSON", () => {
       originalGraph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
 
       const json = originalGraph.toJSON();
-      const restoredGraph = createGraphFromGraphJSON(json);
+      const restoredGraph = createGraphFromGraphJSON(json, registry);
 
       const originalTasks = originalGraph.getTasks();
       const restoredTasks = restoredGraph.getTasks();
@@ -300,7 +352,7 @@ describe("TaskJSON", () => {
       originalGraph.addTask(task1);
 
       const json = originalGraph.toJSON();
-      const restoredGraph = createGraphFromGraphJSON(json);
+      const restoredGraph = createGraphFromGraphJSON(json, registry);
 
       const restoredTask = restoredGraph.getTasks()[0];
       expect(restoredTask.defaults).toEqual({ value: 10, multiplier: 3 });
@@ -319,7 +371,7 @@ describe("TaskJSON", () => {
       originalGraph.addTask(parentTask);
 
       const json = originalGraph.toJSON();
-      const restoredGraph = createGraphFromGraphJSON(json);
+      const restoredGraph = createGraphFromGraphJSON(json, registry);
 
       const restoredParent = restoredGraph.getTasks()[0] as GraphAsTask<any, any>;
       expect(restoredParent.subGraph).toBeDefined();

@@ -5,9 +5,9 @@
  */
 
 import { Dataflow, serialGraph, TaskGraph, TaskStatus } from "@workglow/task-graph";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TestIOTask } from "../task/TestTasks";
-import { setLogger } from "@workglow/util";
+import { Container, ServiceRegistry, setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("TaskGraph", () => {
@@ -15,8 +15,13 @@ describe("TaskGraph", () => {
   setLogger(logger);
   let graph = new TaskGraph();
   let tasks: TestIOTask[];
+  let registry: ServiceRegistry;
 
   beforeEach(() => {
+    // Create an isolated registry for each test
+    const container = new Container();
+    registry = new ServiceRegistry(container);
+
     graph = new TaskGraph();
     tasks = [
       new TestIOTask({}, { id: "task1" }),
@@ -24,6 +29,8 @@ describe("TaskGraph", () => {
       new TestIOTask({}, { id: "task3" }),
     ];
   });
+
+  afterEach(() => {});
 
   it("should add nodes to the graph", () => {
     graph.addTasks(tasks);
@@ -72,7 +79,7 @@ describe("TaskGraph", () => {
 
       // Run a task to trigger status changes
       const task1 = graph.getTask("task1")!;
-      await task1.run();
+      await task1.run({ registry });
 
       expect(statusChanges.length).toBeGreaterThan(0);
       expect(statusChanges.some((change) => change.taskId === "task1")).toBe(true);
@@ -93,7 +100,7 @@ describe("TaskGraph", () => {
       graph.addTask(newTask);
 
       // Run the newly added task
-      await newTask.run();
+      await newTask.run({ registry });
 
       expect(statusChanges.some((change) => change.taskId === "newTask")).toBe(true);
       expect(statusChanges.some((change) => change.status === TaskStatus.COMPLETED)).toBe(true);
@@ -109,8 +116,8 @@ describe("TaskGraph", () => {
         statusChanges.push({ taskId, status });
       });
 
-      // Run multiple tasks
-      await graph.run({});
+      // Run multiple tasks via graph with explicit registry
+      await graph.run({}, { registry });
 
       const task1Changes = statusChanges.filter((change) => change.taskId === "task1");
       const task2Changes = statusChanges.filter((change) => change.taskId === "task2");
@@ -130,14 +137,14 @@ describe("TaskGraph", () => {
       });
 
       // Run a task
-      await graph.getTask("task1")!.run();
+      await graph.getTask("task1")!.run({ registry });
       const initialCount = statusChanges.length;
 
       // Unsubscribe
       unsubscribe();
 
       // Run another task - should not trigger callback
-      await graph.getTask("task2")!.run();
+      await graph.getTask("task2")!.run({ registry });
 
       expect(statusChanges.length).toBe(initialCount);
     });
