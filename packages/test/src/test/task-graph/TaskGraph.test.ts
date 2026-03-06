@@ -5,7 +5,7 @@
  */
 
 import { Dataflow, serialGraph, TaskGraph, TaskStatus } from "@workglow/task-graph";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { TestIOTask } from "../task/TestTasks";
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -29,8 +29,6 @@ describe("TaskGraph", () => {
       new TestIOTask({}, { id: "task3" }),
     ];
   });
-
-  afterEach(() => {});
 
   it("should add nodes to the graph", () => {
     graph.addTasks(tasks);
