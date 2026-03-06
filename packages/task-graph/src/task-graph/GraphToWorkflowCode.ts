@@ -260,7 +260,6 @@ function generateChainedInnerTasks(
       // Nested loop task - recurse
       const config = extractLoopConfig(task);
       const configStr = Object.keys(config).length > 0 ? formatValue(config) : "";
-      const nestedPrefix = indent.repeat(depth + 2);
 
       lines.push(`${innerPrefix}.${loopInfo.method}(${configStr})`);
 
@@ -280,7 +279,7 @@ function generateChainedInnerTasks(
         generateChainedInnerTasks(innerTasks, innerIncoming, innerOrder, indent, depth + 1, lines);
       }
 
-      lines.push(`${nestedPrefix}.${loopInfo.endMethod}()`);
+      lines.push(`${innerPrefix}.${loopInfo.endMethod}()`);
     } else {
       // Regular inner task - chained call
       const methodMap = getMethodNameMap();
@@ -408,9 +407,9 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
       if (rawConfig.conditionValue !== undefined) {
         config.conditionValue = rawConfig.conditionValue;
       }
-      // If there's a function condition but no serializable form, add a comment marker
+      // If there's a function condition but no serializable form, use a null placeholder
       if (rawConfig.condition && !rawConfig.conditionOperator) {
-        config.condition = "__CONDITION_FUNCTION__";
+        config.condition = null;
       }
       break;
     }
@@ -461,9 +460,6 @@ export function formatValue(value: unknown): string {
   if (value === undefined) return "undefined";
   if (value === null) return "null";
   if (typeof value === "string") {
-    if (value === "__CONDITION_FUNCTION__") {
-      return "/* condition function - not serializable */";
-    }
     return JSON.stringify(value);
   }
   if (typeof value === "number" || typeof value === "boolean") return String(value);
