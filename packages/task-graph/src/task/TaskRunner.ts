@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, globalServiceRegistry, ServiceRegistry } from "@workglow/util";
+import {
+  getLogger,
+  getTelemetryProvider,
+  globalServiceRegistry,
+  ServiceRegistry,
+  SpanStatusCode,
+  type ISpan,
+} from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs } from "./InputResolver";
@@ -92,6 +99,11 @@ export class TaskRunner<
   protected shouldAccumulate: boolean = true;
 
   /**
+   * Active telemetry span for the current task run.
+   */
+  protected telemetrySpan?: ISpan;
+
+  /**
    * Constructor for TaskRunner
    * @param task The task to run
    */
@@ -150,6 +162,7 @@ export class TaskRunner<
       if (this.task.cacheable) {
         outputs = (await this.outputCache?.getOutput(this.task.type, inputs)) as Output;
         if (outputs) {
+          this.telemetrySpan?.addEvent("workglow.task.cache_hit");
           if (isStreamable) {
             this.task.runOutputData = outputs;
             this.task.emit("stream_start");
@@ -464,6 +477,19 @@ export class TaskRunner<
 
     getLogger().time(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
 
+    // Start telemetry span
+    const telemetry = getTelemetryProvider();
+    if (telemetry.isEnabled) {
+      this.telemetrySpan = telemetry.startSpan("workglow.task.run", {
+        attributes: {
+          "workglow.task.type": this.task.type,
+          "workglow.task.id": String(this.task.config.id),
+          "workglow.task.cacheable": this.task.cacheable,
+          "workglow.task.title": this.task.title || undefined,
+        },
+      });
+    }
+
     this.task.emit("start");
     this.task.emit("status", this.task.status);
   }
@@ -500,6 +526,16 @@ export class TaskRunner<
     // Use the pending timeout error if the abort was triggered by a timeout
     this.task.error = this.pendingTimeoutError ?? new TaskAbortedError();
     this.pendingTimeoutError = undefined;
+
+    if (this.telemetrySpan) {
+      this.telemetrySpan.setStatus(SpanStatusCode.ERROR, "aborted");
+      this.telemetrySpan.addEvent("workglow.task.aborted", {
+        "workglow.task.error": this.task.error.message,
+      });
+      this.telemetrySpan.end();
+      this.telemetrySpan = undefined;
+    }
+
     this.task.emit("abort", this.task.error);
     this.task.emit("status", this.task.status);
   }
@@ -522,6 +558,12 @@ export class TaskRunner<
     this.task.progress = 100;
     this.task.status = TaskStatus.COMPLETED;
     this.abortController = undefined;
+
+    if (this.telemetrySpan) {
+      this.telemetrySpan.setStatus(SpanStatusCode.OK);
+      this.telemetrySpan.end();
+      this.telemetrySpan = undefined;
+    }
 
     this.task.emit("complete");
     this.task.emit("status", this.task.status);
@@ -566,6 +608,14 @@ export class TaskRunner<
     this.task.error =
       err instanceof TaskError ? err : new TaskFailedError(err?.message || "Task failed");
     this.abortController = undefined;
+
+    if (this.telemetrySpan) {
+      this.telemetrySpan.setStatus(SpanStatusCode.ERROR, this.task.error.message);
+      this.telemetrySpan.setAttributes({ "workglow.task.error": this.task.error.message });
+      this.telemetrySpan.end();
+      this.telemetrySpan = undefined;
+    }
+
     this.task.emit("error", this.task.error);
     this.task.emit("status", this.task.status);
   }
