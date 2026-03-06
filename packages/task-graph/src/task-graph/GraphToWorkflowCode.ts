@@ -132,7 +132,16 @@ function generateTaskChain(
 
     if (loopInfo) {
       // Loop task with builder pattern - generates chained calls
-      generateLoopTask(task, loopInfo, incomingDataflows, taskOrder, variableName, indent, depth, lines);
+      generateLoopTask(
+        task,
+        loopInfo,
+        incomingDataflows,
+        taskOrder,
+        variableName,
+        indent,
+        depth,
+        lines
+      );
     } else {
       // Regular task
       generateRegularTask(task, variableName, prefix, lines);
@@ -213,14 +222,7 @@ function generateLoopTask(
     }
 
     const innerOrder: TaskIdType[] = [];
-    generateChainedInnerTasks(
-      innerTasks,
-      innerIncoming,
-      innerOrder,
-      indent,
-      depth + 1,
-      lines
-    );
+    generateChainedInnerTasks(innerTasks, innerIncoming, innerOrder, indent, depth + 1, lines);
   }
 
   // End the chain: .endMap();

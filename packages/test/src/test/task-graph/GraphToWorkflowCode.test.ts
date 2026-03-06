@@ -49,10 +49,7 @@ function compareGraphStructure(
   const idToIndexA = new Map(jsonA.tasks.map((t, i) => [t.id, i]));
   const idToIndexB = new Map(jsonB.tasks.map((t, i) => [t.id, i]));
 
-  const normalizeDataflows = (
-    dfs: typeof jsonA.dataflows,
-    idToIndex: Map<unknown, number>
-  ) =>
+  const normalizeDataflows = (dfs: typeof jsonA.dataflows, idToIndex: Map<unknown, number>) =>
     dfs
       .map((df) => ({
         sourceIdx: idToIndex.get(df.sourceTaskId),
@@ -80,10 +77,7 @@ function compareGraphStructure(
  * The code is evaluated with `workflow` bound to a fresh Workflow instance.
  * Additional task classes can be passed as named bindings.
  */
-function rebuildFromCode(
-  code: string,
-  taskBindings: Record<string, unknown> = {}
-): Workflow {
+function rebuildFromCode(code: string, taskBindings: Record<string, unknown> = {}): Workflow {
   const rebuilt = new Workflow();
   const bindingNames = Object.keys(taskBindings);
   const bindingValues = Object.values(taskBindings);
@@ -213,7 +207,10 @@ describe("GraphToWorkflowCode", () => {
   describe("reduce task", () => {
     it("should generate reduce builder code", () => {
       const workflow = new Workflow();
-      workflow.reduce({ initialValue: { sum: 0 } }).addTask(AddToSumTask).endReduce();
+      workflow
+        .reduce({ initialValue: { sum: 0 } })
+        .addTask(AddToSumTask)
+        .endReduce();
 
       const code = graphToWorkflowCode(workflow.graph);
 
@@ -405,7 +402,10 @@ describe("GraphToWorkflowCode", () => {
 
     it("should round-trip a reduce workflow", () => {
       const original = new Workflow();
-      original.reduce({ initialValue: { sum: 0 } }).addTask(AddToSumTask).endReduce();
+      original
+        .reduce({ initialValue: { sum: 0 } })
+        .addTask(AddToSumTask)
+        .endReduce();
 
       const code = graphToWorkflowCode(original.graph, { includeDeclaration: false });
       const rebuilt = rebuildFromCode(code);
@@ -467,9 +467,7 @@ describe("GraphToWorkflowCode", () => {
       const rebuiltMap = rebuilt.graph.getTasks()[0] as MapTask;
       const origWhile = origMap.subGraph?.getTasks()[0] as WhileTask;
       const rebuiltWhile = rebuiltMap.subGraph?.getTasks()[0] as WhileTask;
-      expect(origWhile.subGraph?.getTasks().length).toBe(
-        rebuiltWhile.subGraph?.getTasks().length
-      );
+      expect(origWhile.subGraph?.getTasks().length).toBe(rebuiltWhile.subGraph?.getTasks().length);
     });
 
     it("should round-trip chained map then reduce", () => {
@@ -519,9 +517,7 @@ describe("GraphToWorkflowCode", () => {
 
       const rebuiltJson = rebuilt.toJSON({ withBoundaryNodes: false });
 
-      expect(rebuiltJson.tasks.map((t) => t.type)).toEqual(
-        originalJson.tasks.map((t) => t.type)
-      );
+      expect(rebuiltJson.tasks.map((t) => t.type)).toEqual(originalJson.tasks.map((t) => t.type));
     });
   });
 });
