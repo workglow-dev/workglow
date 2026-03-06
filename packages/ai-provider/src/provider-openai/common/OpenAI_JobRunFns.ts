@@ -31,16 +31,18 @@ import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 
-let _sdk: typeof import("openai") | undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _OpenAIClass: (new (config: any) => any) | undefined;
 async function loadOpenAISDK() {
-  if (!_sdk) {
+  if (!_OpenAIClass) {
     try {
-      _sdk = await import("openai");
+      const sdk = await import("openai");
+      _OpenAIClass = sdk.default;
     } catch {
       throw new Error("openai is required for OpenAI tasks. Install it with: bun add openai");
     }
   }
-  return _sdk.default;
+  return _OpenAIClass;
 }
 
 interface ResolvedProviderConfig {
