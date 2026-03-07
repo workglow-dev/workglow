@@ -62,6 +62,11 @@ export class SqliteTabularStorage<
   /** The SQLite database instance */
   private db: Sqlite.Database;
 
+  /** Protected accessor for subclasses that need direct database access */
+  protected get database(): Sqlite.Database {
+    return this.db;
+  }
+
   /**
    * Creates a new SQLite key-value repository
    * @param dbOrPath - Either a Database instance or a path to the SQLite database file

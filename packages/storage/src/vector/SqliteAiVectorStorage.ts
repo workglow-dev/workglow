@@ -67,6 +67,14 @@ function matchesFilter<Metadata>(metadata: Metadata, filter: Partial<Metadata>):
 }
 
 /**
+ * Escape a SQL identifier (table/column name) by doubling any backtick characters,
+ * then wrapping in backticks. This prevents SQL injection via identifier names.
+ */
+function escapeIdentifier(name: string): string {
+  return "`" + name.replace(/`/g, "``") + "`";
+}
+
+/**
  * SQLite vector storage implementation using the @sqliteai/sqlite-vector extension.
  * Provides native vector similarity search via SQLite virtual table functions
  * instead of in-memory brute-force search.
@@ -140,69 +148,44 @@ export class SqliteAiVectorStorage<
 
   /**
    * Load the sqlite-vector extension and initialize vector indexing on the vector column.
-   * Must be called before performing vector operations.
+   * Extension loading is best-effort: if unavailable, operations fall back to in-memory search.
    */
   async setupDatabase(): Promise<void> {
-    // Load the sqlite-vector extension if not already loaded
+    // Always create the table first via the parent class
+    await super.setupDatabase();
+
+    // Try to load the sqlite-vector extension if not already loaded
     if (!this.extensionLoaded) {
       try {
         // Try to load the extension - the caller may have already loaded it
         const { getExtensionPath } = await import("@sqliteai/sqlite-vector");
-        // Access the db through parent class by using a method that exposes it
-        this.loadExtension(getExtensionPath());
+        this.database.loadExtension(getExtensionPath());
         this.extensionLoaded = true;
-      } catch (e) {
-        // Extension might already be loaded, or caller loaded it manually
-        // Try to verify by calling vector_version()
+      } catch {
+        // Extension might already be loaded by the caller; verify with vector_version()
         try {
-          this.execSql("SELECT vector_version()");
+          this.database.exec("SELECT vector_version()");
           this.extensionLoaded = true;
         } catch {
-          throw new Error(
-            "Failed to load @sqliteai/sqlite-vector extension. " +
-              "Install it with: bun add @sqliteai/sqlite-vector. " +
-              `Original error: ${e}`
-          );
+          // Extension is unavailable; operations will fall back to in-memory search
         }
       }
     }
 
-    // Create the table via the parent class
-    await super.setupDatabase();
-
-    // Initialize the vector column for sqlite-vector indexing
-    const vectorCol = String(this.vectorPropertyName);
-    const vectorType = getVectorTypeOption(this.VectorType);
-    try {
-      this.execSql(
-        `SELECT vector_init('${this.table}', '${vectorCol}', 'dimension=${this.vectorDimensions},type=${vectorType},distance=COSINE')`
-      );
-    } catch {
-      // vector_init may fail if already initialized, that's OK
+    // Initialize the vector column for sqlite-vector indexing (only if extension is available)
+    if (this.extensionLoaded) {
+      const vectorCol = String(this.vectorPropertyName);
+      const vectorType = getVectorTypeOption(this.VectorType);
+      try {
+        this.database.prepare("SELECT vector_init(?, ?, ?)").run(
+          this.table,
+          vectorCol,
+          `dimension=${this.vectorDimensions},type=${vectorType},distance=COSINE`
+        );
+      } catch {
+        // vector_init may fail if already initialized, that's OK
+      }
     }
-  }
-
-  /**
-   * Execute raw SQL on the database instance
-   */
-  private execSql(sql: string): void {
-    const db = (this as any).db as Sqlite.Database;
-    db.exec(sql);
-  }
-
-  /**
-   * Load an extension into the SQLite database
-   */
-  private loadExtension(path: string): void {
-    const db = (this as any).db as Sqlite.Database;
-    db.loadExtension(path);
-  }
-
-  /**
-   * Get the underlying database instance for direct queries
-   */
-  private getDb(): Sqlite.Database {
-    return (this as any).db as Sqlite.Database;
   }
 
   /**
@@ -220,15 +203,17 @@ export class SqliteAiVectorStorage<
    */
   private decodeVector(raw: unknown): TypedArray {
     if (raw instanceof Uint8Array || (typeof Buffer !== "undefined" && raw instanceof Buffer)) {
-      // Binary BLOB from sqlite-vector - interpret as typed array
-      const buffer = raw instanceof Uint8Array ? raw.buffer : (raw as Buffer).buffer;
-      const byteOffset = raw instanceof Uint8Array ? raw.byteOffset : 0;
+      // Normalize to a Uint8Array view so we respect byteOffset/byteLength for Buffer as well.
+      const view =
+        raw instanceof Uint8Array
+          ? raw
+          : new Uint8Array((raw as Buffer).buffer, (raw as Buffer).byteOffset, (raw as Buffer).byteLength);
 
       if (this.VectorType === Float32Array || this.VectorType.name === "Float32Array") {
-        return new Float32Array(buffer, byteOffset, this.vectorDimensions) as TypedArray;
+        return new Float32Array(view.buffer, view.byteOffset, this.vectorDimensions) as TypedArray;
       }
       // For other types, read as float32 and convert
-      const f32 = new Float32Array(buffer, byteOffset, this.vectorDimensions);
+      const f32 = new Float32Array(view.buffer, view.byteOffset, this.vectorDimensions);
       return new this.VectorType(Array.from(f32));
     }
     if (typeof raw === "string") {
@@ -284,11 +269,15 @@ export class SqliteAiVectorStorage<
    * Override put to use sqlite-vector encoding for vector data.
    * Builds a custom INSERT OR REPLACE that wraps the vector column
    * with vector_as_fXX() to encode as a native vector BLOB.
+   * Falls back to base class put() if the extension is not available.
    */
   async put(entity: any): Promise<Entity> {
-    const db = this.getDb();
+    if (!this.extensionLoaded) {
+      return super.put(entity);
+    }
+
+    const db = this.database;
     const vectorCol = String(this.vectorPropertyName);
-    const vectorValue = (entity as any)[vectorCol];
 
     // Handle auto-generated keys (UUID generation)
     let entityToInsert = entity;
@@ -313,7 +302,6 @@ export class SqliteAiVectorStorage<
     // Primary key columns
     const pkColumns = this.primaryKeyColumns() as string[];
     for (const col of pkColumns) {
-      const autoGeneratedKeyName = (this as any).autoGeneratedKeyName;
       const autoGeneratedKeyStrategy = (this as any).autoGeneratedKeyStrategy;
       const isAutoKey = (this as any).isAutoGeneratedKey(col);
       if (isAutoKey && autoGeneratedKeyStrategy === "autoincrement") {
@@ -351,7 +339,7 @@ export class SqliteAiVectorStorage<
     const placeholderList = placeholders.join(", ");
 
     const sql = `
-      INSERT OR REPLACE INTO \`${this.table}\` (${columnList})
+      INSERT OR REPLACE INTO ${escapeIdentifier(this.table)} (${columnList})
       VALUES (${placeholderList})
       RETURNING *
     `;
@@ -385,10 +373,15 @@ export class SqliteAiVectorStorage<
   /**
    * Perform similarity search using sqlite-vector's vector_full_scan.
    * Uses native COSINE distance computation in SQLite rather than in-memory JS.
+   * Falls back to in-memory search if the extension is unavailable.
    */
   async similaritySearch(query: TypedArray, options: VectorSearchOptions<Metadata> = {}) {
+    if (!this.extensionLoaded) {
+      return this.searchFallback(query, options);
+    }
+
     const { topK = 10, filter, scoreThreshold = 0 } = options;
-    const db = this.getDb();
+    const db = this.database;
     const tableName = this.table;
     const vectorCol = String(this.vectorPropertyName);
     const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
@@ -403,12 +396,13 @@ export class SqliteAiVectorStorage<
         // When filtering, use streaming mode (no k parameter) so we can filter rows
         const sql = `
           SELECT t.*, v.distance
-          FROM \`${tableName}\` AS t
-          JOIN vector_full_scan('${tableName}', '${vectorCol}', ?) AS v
+          FROM ${escapeIdentifier(tableName)} AS t
+          JOIN vector_full_scan(?, ?, ?) AS v
           ON t.rowid = v.rowid
+          ORDER BY v.distance ASC
         `;
         const stmt = db.prepare(sql);
-        const rows = stmt.all(queryBlob.v) as Array<Record<string, unknown> & { distance: number }>;
+        const rows = stmt.all(tableName, vectorCol, queryBlob.v) as Array<Record<string, unknown> & { distance: number }>;
 
         const results: Array<Entity & { score: number }> = [];
         for (const row of rows) {
@@ -426,12 +420,10 @@ export class SqliteAiVectorStorage<
             entity[k] = this.sqlToJsValue(k, entity[k] as any);
           }
 
-          // Apply metadata filter
-          if (metadataCol) {
-            const metadata = entity[metadataCol] as Metadata;
-            if (filter && !matchesFilter(metadata, filter)) {
-              continue;
-            }
+          // Apply metadata filter (use empty object if no metadata column)
+          const metadata = (metadataCol ? (entity[metadataCol] as Metadata) : ({} as Metadata));
+          if (filter && !matchesFilter(metadata, filter)) {
+            continue;
           }
 
           results.push({ ...entity, score } as Entity & { score: number });
@@ -448,12 +440,13 @@ export class SqliteAiVectorStorage<
       // No filter - use top-k mode for efficiency
       const sql = `
         SELECT t.*, v.distance
-        FROM \`${tableName}\` AS t
-        JOIN vector_full_scan('${tableName}', '${vectorCol}', ?, ?) AS v
+        FROM ${escapeIdentifier(tableName)} AS t
+        JOIN vector_full_scan(?, ?, ?, ?) AS v
         ON t.rowid = v.rowid
+        ORDER BY v.distance ASC
       `;
       const stmt = db.prepare(sql);
-      const rows = stmt.all(queryBlob.v, topK) as Array<
+      const rows = stmt.all(tableName, vectorCol, queryBlob.v, topK) as Array<
         Record<string, unknown> & { distance: number }
       >;
 
@@ -485,6 +478,7 @@ export class SqliteAiVectorStorage<
   /**
    * Hybrid search combining vector similarity with text relevance.
    * Uses sqlite-vector for the vector component and keyword matching for text.
+   * Falls back to in-memory search if the extension is unavailable.
    */
   async hybridSearch(query: TypedArray, options: HybridSearchOptions<Metadata>) {
     const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
@@ -493,7 +487,11 @@ export class SqliteAiVectorStorage<
       return this.similaritySearch(query, { topK, filter, scoreThreshold });
     }
 
-    const db = this.getDb();
+    if (!this.extensionLoaded) {
+      return this.hybridSearchFallback(query, options);
+    }
+
+    const db = this.database;
     const tableName = this.table;
     const vectorCol = String(this.vectorPropertyName);
     const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
@@ -507,12 +505,13 @@ export class SqliteAiVectorStorage<
       // Use streaming mode for hybrid search to allow text scoring on all results
       const sql = `
         SELECT t.*, v.distance
-        FROM \`${tableName}\` AS t
-        JOIN vector_full_scan('${tableName}', '${vectorCol}', ?) AS v
+        FROM ${escapeIdentifier(tableName)} AS t
+        JOIN vector_full_scan(?, ?, ?) AS v
         ON t.rowid = v.rowid
+        ORDER BY v.distance ASC
       `;
       const stmt = db.prepare(sql);
-      const rows = stmt.all(queryBlob.v) as Array<
+      const rows = stmt.all(tableName, vectorCol, queryBlob.v) as Array<
         Record<string, unknown> & { distance: number }
       >;
 
