@@ -17,8 +17,48 @@ import {
   RetryableJobError,
 } from "@workglow/job-queue";
 import { IQueueStorage } from "@workglow/storage";
-import { BaseError, sleep, uuid4 } from "@workglow/util";
+import {
+  BaseError,
+  type ISpan,
+  type ITelemetryProvider,
+  NoopTelemetryProvider,
+  setTelemetryProvider,
+  sleep,
+  SpanStatusCode,
+  uuid4,
+} from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+class RecordingSpan implements ISpan {
+  public readonly attributes: Record<string, unknown> = {};
+  public status?: { code: number; message?: string };
+
+  public setAttributes(attributes: Record<string, unknown>): void {
+    Object.assign(this.attributes, attributes);
+  }
+
+  public addEvent(): void {}
+
+  public setStatus(code: number, message?: string): void {
+    this.status = { code, message };
+  }
+
+  public end(): void {}
+}
+
+class RecordingTelemetryProvider implements ITelemetryProvider {
+  public readonly isEnabled = true;
+  public readonly spans: RecordingSpan[] = [];
+
+  public startSpan(_name: string, options?: { attributes?: Record<string, unknown> }): ISpan {
+    const span = new RecordingSpan();
+    if (options?.attributes) {
+      span.setAttributes(options.attributes);
+    }
+    this.spans.push(span);
+    return span;
+  }
+}
 
 export interface TInput {
   readonly taskType?: string;
@@ -100,6 +140,7 @@ export function runGenericJobQueueTests(
   let queueName: string;
 
   beforeEach(async () => {
+    setTelemetryProvider(new NoopTelemetryProvider());
     queueName = `test-queue-${uuid4()}`;
     storage = storageFactory(queueName);
     await storage.setupDatabase();
@@ -129,6 +170,7 @@ export function runGenericJobQueueTests(
     if (storage) {
       await storage.deleteAll();
     }
+    setTelemetryProvider(new NoopTelemetryProvider());
   });
 
   describe("Basics", () => {
@@ -827,6 +869,30 @@ export function runGenericJobQueueTests(
       expect(failedJob?.error).toBe("Max retries reached");
 
       await server.stop();
+    });
+
+    it("should record the final failure reason in telemetry when retries are exhausted", async () => {
+      const telemetry = new RecordingTelemetryProvider();
+      setTelemetryProvider(telemetry);
+
+      const handle = await client.submit(
+        { taskType: "failing_retryable", data: "will-retry" },
+        { maxRetries: 2 }
+      );
+
+      try {
+        await server.start();
+        await handle.waitFor();
+      } catch {}
+
+      await sleep(10);
+
+      const span = telemetry.spans.at(-1);
+      expect(span?.status).toEqual({
+        code: SpanStatusCode.ERROR,
+        message: "Max retries reached",
+      });
+      expect(span?.attributes["workglow.job.error"]).toBe("Max retries reached");
     });
 
     it("should handle permanent failures without retrying", async () => {
