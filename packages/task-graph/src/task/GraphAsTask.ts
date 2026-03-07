@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util";
 import { compileSchema, SchemaNode } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util";
 import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
+import type { CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
@@ -322,3 +323,25 @@ export class GraphAsTask<
     return json;
   }
 }
+
+declare module "../task-graph/Workflow" {
+  interface Workflow {
+    /**
+     * Starts a group that wraps inner tasks in a GraphAsTask subgraph.
+     * Use .endGroup() to close the group and return to the parent workflow.
+     */
+    group: CreateLoopWorkflow<TaskInput, TaskOutput, GraphAsTaskConfig>;
+
+    /**
+     * Ends the group and returns to the parent workflow.
+     */
+    endGroup(): Workflow;
+  }
+}
+
+queueMicrotask(async () => {
+  const { CreateLoopWorkflow, CreateEndLoopWorkflow, Workflow } =
+    await import("../task-graph/Workflow");
+  Workflow.prototype.group = CreateLoopWorkflow(GraphAsTask);
+  Workflow.prototype.endGroup = CreateEndLoopWorkflow("endGroup");
+});

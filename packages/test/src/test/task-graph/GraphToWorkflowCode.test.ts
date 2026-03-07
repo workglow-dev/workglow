@@ -371,6 +371,58 @@ describe("GraphToWorkflowCode", () => {
     });
   });
 
+  describe("group task", () => {
+    it("should generate group builder code", () => {
+      const workflow = new Workflow();
+      workflow.group().addTask(TestSimpleTask, { input: "inner" }).endGroup();
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain(".group(");
+      expect(code).toContain("testSimple");
+      expect(code).toContain(".endGroup()");
+    });
+
+    it("should generate group with inner chain", () => {
+      const workflow = new Workflow();
+      workflow
+        .group()
+        .addTask(TestSimpleTask, { input: "first" })
+        .addTask(TestSimpleTask)
+        .endGroup();
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain(".group(");
+      const matches = code.match(/testSimple/g);
+      expect(matches).toHaveLength(2);
+      expect(code).toContain(".endGroup()");
+    });
+
+    it("should generate group with map inside", () => {
+      const workflow = new Workflow();
+      workflow.group().map().addTask(ProcessItemTask).endMap().endGroup();
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain(".group(");
+      expect(code).toContain(".map(");
+      expect(code).toContain(".endMap()");
+      expect(code).toContain(".endGroup()");
+    });
+
+    it("should round-trip a group workflow", () => {
+      const original = new Workflow();
+      original.group().addTask(TestSimpleTask, { input: "grouped" }).endGroup();
+
+      const code = graphToWorkflowCode(original.graph, { includeDeclaration: false });
+      const rebuilt = rebuildFromCode(code);
+
+      const { tasksMatch } = compareGraphStructure(original.graph, rebuilt.graph);
+      expect(tasksMatch).toBe(true);
+    });
+  });
+
   describe("round-trip: workflow -> graph -> code -> workflow -> graph comparison", () => {
     it("should round-trip a simple linear chain", () => {
       const original = new Workflow();

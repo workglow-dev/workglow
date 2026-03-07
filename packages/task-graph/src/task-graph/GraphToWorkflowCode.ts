@@ -51,6 +51,7 @@ const LOOP_TASK_TYPES: Record<string, { method: string; endMethod: string }> = {
   MapTask: { method: "map", endMethod: "endMap" },
   ReduceTask: { method: "reduce", endMethod: "endReduce" },
   WhileTask: { method: "while", endMethod: "endWhile" },
+  GraphAsTask: { method: "group", endMethod: "endGroup" },
 };
 
 /**
@@ -383,9 +384,6 @@ function extractTaskConfig(task: ITask): Record<string, unknown> {
   if (rawConfig.title && rawConfig.title !== staticTitle) config.title = rawConfig.title;
   if (rawConfig.description && rawConfig.description !== staticDescription)
     config.description = rawConfig.description;
-  if (rawConfig.extras && Object.keys(rawConfig.extras).length > 0) {
-    config.extras = rawConfig.extras;
-  }
   return config;
 }
 
@@ -397,6 +395,12 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
   const rawConfig = task.config as Record<string, unknown>;
 
   switch (task.type) {
+    case "GraphAsTask": {
+      if (rawConfig.compoundMerge !== undefined) {
+        config.compoundMerge = rawConfig.compoundMerge;
+      }
+      break;
+    }
     case "MapTask": {
       if (rawConfig.preserveOrder !== undefined && rawConfig.preserveOrder !== true) {
         config.preserveOrder = rawConfig.preserveOrder;
