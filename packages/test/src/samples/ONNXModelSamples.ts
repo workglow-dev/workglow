@@ -4,7 +4,7 @@ import { HF_TRANSFORMERS_ONNX, HfTransformersOnnxModelRecord } from "@workglow/a
 export async function registerHuggingfaceLocalModels(): Promise<void> {
   const onnxModels: HfTransformersOnnxModelRecord[] = [
     {
-      model_id: "onnx:Xenova/all-MiniLM-L6-v2:q4f16",
+      model_id: "onnx:Xenova/all-MiniLM-L6-v2:q8",
       title: "All MiniLM L6 V2 384D",
       description: "Xenova/all-MiniLM-L6-v2",
       tasks: ["TextEmbeddingTask"],
@@ -13,7 +13,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
         pipeline: "feature-extraction",
         model_path: "Xenova/all-MiniLM-L6-v2",
         native_dimensions: 384,
-        dtype: "q4f16",
+        dtype: "q8",
       },
       metadata: {},
     },
@@ -134,15 +134,15 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       metadata: {},
     },
     {
-      model_id: "onnx:Xenova/Phi-3-mini-4k-instruct:q4f16",
-      title: "Phi-3-mini-4k-instruct:q4f16",
-      description: "Xenova/Phi-3-mini-4k-instruct quantized to q4f16",
+      model_id: "onnx:Xenova/Phi-3-mini-4k-instruct:q8",
+      title: "Phi-3-mini-4k-instruct:q8",
+      description: "Xenova/Phi-3-mini-4k-instruct quantized to q8",
       tasks: ["TextGenerationTask"],
       provider: HF_TRANSFORMERS_ONNX,
       provider_config: {
         pipeline: "text-generation",
         model_path: "Xenova/Phi-3-mini-4k-instruct",
-        dtype: "q4f16",
+        dtype: "q8",
         use_external_data_format: true,
       },
       metadata: {},
