@@ -8,6 +8,7 @@
         "caniuse-lite": "^1.0.30001776",
       },
       "devDependencies": {
+        "@sqliteai/sqlite-vector": "^0.9.92",
         "@types/bun": "^1.3.10",
         "@types/node": "^24.1.0",
         "@typescript-eslint/eslint-plugin": "^8.56.1",
@@ -202,13 +203,18 @@
       "name": "@workglow/knowledge-base",
       "version": "0.0.115",
       "devDependencies": {
+        "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
       },
       "peerDependencies": {
+        "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/sqlite",
+      ],
     },
     "packages/sqlite": {
       "name": "@workglow/sqlite",
@@ -233,11 +239,15 @@
         "pg": "catalog:",
       },
       "peerDependencies": {
+        "@sqliteai/sqlite-vector": "^0.9.90",
         "@supabase/supabase-js": "catalog:",
         "@workglow/sqlite": "workspace:*",
         "@workglow/util": "workspace:*",
         "pg": "catalog:",
       },
+      "optionalPeers": [
+        "@sqliteai/sqlite-vector",
+      ],
     },
     "packages/task-graph": {
       "name": "@workglow/task-graph",
@@ -787,6 +797,22 @@
     "@sagold/json-query": ["@sagold/json-query@6.2.0", "", { "dependencies": { "@sagold/json-pointer": "^5.1.2", "ebnf": "^1.9.1" } }, "sha512-7bOIdUE6eHeoWtFm8TvHQHfTVSZuCs+3RpOKmZCDBIOrxpvF/rNFTeuvIyjHva/RR0yVS3kQtr+9TW72LQEZjA=="],
 
     "@sqlite.org/sqlite-wasm": ["@sqlite.org/sqlite-wasm@3.51.2-build6", "", {}, "sha512-5ibsgipkqcLINZ5qNSp5KfrtL6KwiNVtwBksNO6zhTghhLmEf3/u1sPoAkgH5RzuLpMw7zi50IWgkZ0WhfqpaA=="],
+
+    "@sqliteai/sqlite-vector": ["@sqliteai/sqlite-vector@0.9.92", "", { "optionalDependencies": { "@sqliteai/sqlite-vector-darwin-arm64": "0.9.92", "@sqliteai/sqlite-vector-darwin-x86_64": "0.9.92", "@sqliteai/sqlite-vector-linux-arm64": "0.9.92", "@sqliteai/sqlite-vector-linux-arm64-musl": "0.9.92", "@sqliteai/sqlite-vector-linux-x86_64": "0.9.92", "@sqliteai/sqlite-vector-linux-x86_64-musl": "0.9.92", "@sqliteai/sqlite-vector-win32-x86_64": "0.9.92" } }, "sha512-7XFKf7b5gjT3FyKBnFRwLpkWO4e54eioKOrO3pLxlrKA1cSwOfddotYZRwaq1YAWYycnghZQBqxSElZ49x3tmA=="],
+
+    "@sqliteai/sqlite-vector-darwin-arm64": ["@sqliteai/sqlite-vector-darwin-arm64@0.9.92", "", { "os": "darwin", "cpu": "arm64" }, "sha512-g0W2XBcXZ23FV9bFGHTIPeeQV8oZuVE1Ji+VOPb/2ImZsA0Qd+a0hEPN6k9NVBeD6ca8ymu4NpJfr68Tt9gHcg=="],
+
+    "@sqliteai/sqlite-vector-darwin-x86_64": ["@sqliteai/sqlite-vector-darwin-x86_64@0.9.92", "", { "os": "darwin", "cpu": [ "x64", "ia32", ] }, "sha512-AUGSEpqzpSzU2SZzPquYne3YrVXTfEVbp0kqHC0imDS8D0rJ9y5ddFY9szmbpTy8rf4nqzqkZTaAA9Jx+pzWtA=="],
+
+    "@sqliteai/sqlite-vector-linux-arm64": ["@sqliteai/sqlite-vector-linux-arm64@0.9.92", "", { "os": "linux", "cpu": "arm64" }, "sha512-pjus+JAq3cb99AQsnNBQ+g4ZgxJck5nIN8+o2Vswd0GCsGlK0QqZ/hQqKR5Z6jdu496ccEGf05prodR6wgqiKA=="],
+
+    "@sqliteai/sqlite-vector-linux-arm64-musl": ["@sqliteai/sqlite-vector-linux-arm64-musl@0.9.92", "", { "os": "linux", "cpu": "arm64" }, "sha512-jbxZpj9+trNmQTIxnSravpIpvQZE5kkFzmRdJUeUbYwAt9ZWPBHSvqV90ApIOMwrTkQSQgtIIFNAsqxnd7akbg=="],
+
+    "@sqliteai/sqlite-vector-linux-x86_64": ["@sqliteai/sqlite-vector-linux-x86_64@0.9.92", "", { "os": "linux", "cpu": [ "x64", "ia32", ] }, "sha512-MNCPDaFK4kpUGObmd8dF6Fmo3ZlJyECUJtghct4rhBHP0hJ8meyMcrtzecmcE+++YZ3pqJjgzhXXgQoiVRY03g=="],
+
+    "@sqliteai/sqlite-vector-linux-x86_64-musl": ["@sqliteai/sqlite-vector-linux-x86_64-musl@0.9.92", "", { "os": "linux", "cpu": [ "x64", "ia32", ] }, "sha512-UR7xQ6nlxTaiRFpv3QY9UB7E55ueMUaDjpNnpMoTkpRfooEENheOw/TK+OPlRvdNhDv8V+xPCfKJAL+S2vNfZg=="],
+
+    "@sqliteai/sqlite-vector-win32-x86_64": ["@sqliteai/sqlite-vector-win32-x86_64@0.9.92", "", { "os": "win32", "cpu": [ "x64", "ia32", ] }, "sha512-xPkY2FpxP2dUmes49b+HL2zo4THjFoxHqNVPbkk6K05xmVlO/NCqgmpj6gEMAOqCpvjNcnhb5jI7j84+QbrRHg=="],
 
     "@sroussey/json-schema-library": ["@sroussey/json-schema-library@11.0.0", "", { "dependencies": { "@sagold/json-pointer": "^7.2.1", "@sagold/json-query": "^6.2.0", "deepmerge": "^4.3.1", "fast-copy": "^4.0.2", "fast-deep-equal": "^3.1.3", "lodash": "^4.17.23", "smtp-address-parser": "^1.1.0", "uri-js": "^4.4.1", "valid-url": "^1.0.9" } }, "sha512-H71yaoc7R1YPQshzYWEilyKWxvv0wCPm3YtbrQxKB6WFE1IsYuyMrdsyXppIjoolySHtFay5MnMJsUyP6T3WSQ=="],
 

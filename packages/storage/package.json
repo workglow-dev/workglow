@@ -24,7 +24,8 @@
     "@workglow/sqlite": "workspace:*",
     "@workglow/util": "workspace:*",
     "pg": "catalog:",
-    "@supabase/supabase-js": "catalog:"
+    "@supabase/supabase-js": "catalog:",
+    "@sqliteai/sqlite-vector": "^0.9.90"
   },
   "peerDependenciesMeta": {
     "@workglow/sqlite": {
@@ -32,6 +33,9 @@
     },
     "@workglow/util": {
       "optional": false
+    },
+    "@sqliteai/sqlite-vector": {
+      "optional": true
     }
   },
   "devDependencies": {
