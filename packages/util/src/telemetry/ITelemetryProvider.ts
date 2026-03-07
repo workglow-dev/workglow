@@ -40,8 +40,6 @@ export interface ISpan {
 export interface SpanOptions {
   /** Attributes to set on the span at creation. */
   attributes?: SpanAttributes;
-  /** Optional parent span to nest under. */
-  parent?: ISpan;
 }
 
 /**

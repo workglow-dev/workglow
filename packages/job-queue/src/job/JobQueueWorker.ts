@@ -385,6 +385,7 @@ export class JobQueueWorker<
       }
     } catch (err: unknown) {
       const error = this.normalizeError(err);
+      let spanErrorMessage = error.message;
       if (error instanceof RetryableJobError) {
         const currentJob = await this.getJob(job.id);
         if (!currentJob) {
@@ -392,8 +393,9 @@ export class JobQueueWorker<
         }
 
         if (currentJob.runAttempts >= currentJob.maxRetries) {
-          await this.failJob(currentJob, new PermanentJobError("Max retries reached"));
-          span?.setStatus(SpanStatusCode.ERROR, "Max retries reached");
+          spanErrorMessage = "Max retries reached";
+          await this.failJob(currentJob, new PermanentJobError(spanErrorMessage));
+          span?.setStatus(SpanStatusCode.ERROR, spanErrorMessage);
         } else {
           await this.rescheduleJob(currentJob, error.retryDate);
           span?.addEvent("workglow.job.retry", {
@@ -405,7 +407,7 @@ export class JobQueueWorker<
         await this.failJob(job, error);
         span?.setStatus(SpanStatusCode.ERROR, error.message);
       }
-      span?.setAttributes({ "workglow.job.error": error.message });
+      span?.setAttributes({ "workglow.job.error": spanErrorMessage });
     } finally {
       span?.end();
       logger.timeEnd(timerLabel, { queue: this.queueName, jobId: job.id });
