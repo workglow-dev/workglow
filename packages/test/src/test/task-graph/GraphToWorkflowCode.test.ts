@@ -24,7 +24,6 @@ import {
   AddToSumTask,
   RefineTask,
   DoubleToResultTask as DoubleTask,
-  TextEmbeddingTask,
 } from "../task/TestTasks";
 import { getTestingLogger } from "../../binding/TestingLogger";
 // Import to register workflow prototype methods
