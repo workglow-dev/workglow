@@ -13,6 +13,7 @@ import type { DocumentTabularStorage } from "../document/DocumentStorageSchema";
 import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentStorageSchema";
 import { KnowledgeBase } from "./KnowledgeBase";
 import { registerKnowledgeBase } from "./KnowledgeBaseRegistry";
+import { knowledgeBaseTableNames } from "./KnowledgeBaseSchema";
 
 export interface CreateSqliteKnowledgeBaseOptions {
   readonly name: string;
@@ -56,9 +57,11 @@ export async function createSqliteKnowledgeBase(
     description,
   } = options;
 
+  const tableNames = knowledgeBaseTableNames(name);
+
   const tabularStorage = new SqliteTabularStorage(
     db,
-    `${name}_documents`,
+    tableNames.documentTable,
     DocumentStorageSchema,
     DocumentStorageKey
   );
@@ -66,7 +69,7 @@ export async function createSqliteKnowledgeBase(
 
   const vectorStorage = new SqliteAiVectorStorage(
     db,
-    `${name}_chunks`,
+    tableNames.chunkTable,
     ChunkVectorStorageSchema,
     ChunkVectorPrimaryKey,
     [],
