@@ -8,6 +8,7 @@ import {
   EventEmitter,
   getLogger,
   JsonSchema,
+  ServiceRegistry,
   uuid4,
   type DataPortSchema,
   type EventParameters,
@@ -22,7 +23,7 @@ import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/
 import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
 import { ensureTask, getLastTask, parallel, pipe, PipeFunction, Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
-import { IWorkflow } from "./IWorkflow";
+import { IWorkflow, WorkflowRunConfig } from "./IWorkflow";
 import { TaskGraph } from "./TaskGraph";
 import {
   CompoundMergeStrategy,
@@ -460,9 +461,13 @@ export class Workflow<
    * Runs the task graph
    *
    * @param input - The input to the task graph
+   * @param config - Optional configuration for the workflow run
    * @returns The output of the task graph
    */
-  public async run(input: Partial<Input> = {}): Promise<PropertyArrayGraphResult<Output>> {
+  public async run(
+    input: Partial<Input> = {},
+    config?: WorkflowRunConfig
+  ): Promise<PropertyArrayGraphResult<Output>> {
     // In loop builder mode, finalize template and delegate to parent
     if (this.isLoopBuilder) {
       this.finalizeTemplate();
@@ -471,7 +476,9 @@ export class Workflow<
         this._parentWorkflow!.autoConnectLoopTask(this._pendingLoopConnect);
         this._pendingLoopConnect = undefined;
       }
-      return this._parentWorkflow!.run(input as any) as Promise<PropertyArrayGraphResult<Output>>;
+      return this._parentWorkflow!.run(input as any, config) as Promise<
+        PropertyArrayGraphResult<Output>
+      >;
     }
 
     this.events.emit("start");
@@ -488,6 +495,7 @@ export class Workflow<
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
         outputCache: this._outputCache,
+        registry: config?.registry,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
         output,

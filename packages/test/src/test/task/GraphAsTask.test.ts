@@ -5,8 +5,8 @@
  */
 
 import { Dataflow, GraphAsTask, TaskGraph } from "@workglow/task-graph";
-import { DataPortSchema, setLogger } from "@workglow/util";
-import { describe, expect, it } from "vitest";
+import { Container, DataPortSchema, ServiceRegistry, setLogger } from "@workglow/util";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   GraphAsTask_ComputeTask,
@@ -23,6 +23,14 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 describe("GraphAsTask Dynamic Schema", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  let registry: ServiceRegistry;
+
+  beforeEach(() => {
+    // Create an isolated registry for each test
+    const container = new Container();
+    registry = new ServiceRegistry(container);
+  });
   describe("Input Schema Calculation", () => {
     it("should calculate input schema from unconnected inputs of starting nodes", () => {
       // Create a graph with TaskA -> TaskB
@@ -229,8 +237,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       expect(inputSchema.properties!["inputA2"]).toBeDefined();
       expect(outputSchema.properties!["outputB"]).toBeDefined();
 
-      // Execute the graph
-      const result = await graphAsTask.run({ inputA1: "hello", inputA2: 99 });
+      // Execute the graph with explicit registry
+      const result = await graphAsTask.run({ inputA1: "hello", inputA2: 99 }, { registry });
 
       // Verify the result
       expect(result).toBeDefined();
@@ -280,11 +288,14 @@ describe("GraphAsTask Dynamic Schema", () => {
       expect(outputSchema.properties!["outputC1"]).toBeDefined();
       expect(outputSchema.properties!["outputC2"]).toBeDefined();
 
-      // Execute (no inputC2 needed since TaskC is not a starting node)
-      const result = await graphAsTask.run({
-        inputA1: "begin",
-        inputA2: 5,
-      });
+      // Execute with explicit registry (no inputC2 needed since TaskC is not a starting node)
+      const result = await graphAsTask.run(
+        {
+          inputA1: "begin",
+          inputA2: 5,
+        },
+        { registry }
+      );
 
       // When there are multiple ending nodes, the compoundMerge strategy
       // collects outputs into arrays for each property
@@ -565,8 +576,8 @@ describe("GraphAsTask Dynamic Schema", () => {
         { id: "group", subGraph }
       );
 
-      // First run to initialize - verify the graph works
-      const runResult = await graphAsTask.run({ value: "initial" });
+      // First run to initialize - verify the graph works with explicit registry
+      const runResult = await graphAsTask.run({ value: "initial" }, { registry });
       expect(runResult.value).toBe("initial");
 
       // Verify the subgraph's InputTask received the input
