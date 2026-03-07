@@ -11,6 +11,7 @@ export * from "./tabular/InMemoryTabularStorage";
 export * from "./tabular/ITabularStorage";
 export * from "./tabular/StorageError";
 export * from "./tabular/TabularStorageRegistry";
+export * from "./tabular/TelemetryTabularStorage";
 
 export * from "./kv/IKvStorage";
 export * from "./kv/InMemoryKvStorage";
@@ -20,6 +21,7 @@ export * from "./kv/TelemetryKvStorage";
 
 export * from "./queue/InMemoryQueueStorage";
 export * from "./queue/IQueueStorage";
+export * from "./queue/TelemetryQueueStorage";
 
 export * from "./queue-limiter/InMemoryRateLimiterStorage";
 export * from "./queue-limiter/IRateLimiterStorage";
