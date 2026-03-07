@@ -403,7 +403,7 @@ export class TaskGraphRunner {
         const narrowed = await task.narrowInput({ ...results }, this.registry);
         dataflow.setPortData(narrowed);
       } else {
-        getLogger().warn("pushOutputFromNodeToEdges", {
+        getLogger().warn("pushOutputFromNodeToEdge not compatible, not setting port data", {
           dataflowId: dataflow.id,
           compatibility,
           resultsKeys: Object.keys(results),
