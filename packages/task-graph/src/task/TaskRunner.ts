@@ -5,7 +5,6 @@
  */
 
 import {
-  getLogger,
   getTelemetryProvider,
   globalServiceRegistry,
   ServiceRegistry,
@@ -111,13 +110,6 @@ export class TaskRunner<
     this.task = task;
     this.own = this.own.bind(this);
     this.handleProgress = this.handleProgress.bind(this);
-  }
-
-  /**
-   * Returns a label for timing this task's execution.
-   */
-  protected get timerLabel(): string {
-    return `task:${this.task.type}:${this.task.config.id}`;
   }
 
   // ========================================================================
@@ -475,8 +467,6 @@ export class TaskRunner<
       this.registry = config.registry;
     }
 
-    getLogger().time(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
-
     // Start telemetry span
     const telemetry = getTelemetryProvider();
     if (telemetry.isEnabled) {
@@ -520,7 +510,6 @@ export class TaskRunner<
   protected async handleAbort(): Promise<void> {
     if (this.task.status === TaskStatus.ABORTING) return;
     this.clearTimeoutTimer();
-    getLogger().timeEnd(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
     this.task.status = TaskStatus.ABORTING;
     this.task.progress = 100;
     // Use the pending timeout error if the abort was triggered by a timeout
@@ -551,8 +540,6 @@ export class TaskRunner<
     if (this.task.status === TaskStatus.COMPLETED) return;
     this.clearTimeoutTimer();
     this.pendingTimeoutError = undefined;
-
-    getLogger().timeEnd(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
 
     this.task.completedAt = new Date();
     this.task.progress = 100;
@@ -596,8 +583,6 @@ export class TaskRunner<
     if (this.task.status === TaskStatus.FAILED) return;
     this.clearTimeoutTimer();
     this.pendingTimeoutError = undefined;
-    getLogger().timeEnd(this.timerLabel, { taskType: this.task.type, taskId: this.task.config.id });
-
     if (this.task.hasChildren()) {
       this.task.subGraph!.abort();
     }

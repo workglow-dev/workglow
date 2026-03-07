@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export * from "./ConsoleTelemetryProvider";
 export * from "./ITelemetryProvider";
 export * from "./NoopTelemetryProvider";
 export * from "./OTelTelemetryProvider";

@@ -5,14 +5,7 @@
  */
 
 import { IQueueStorage, JobStatus, JobStorageFormat } from "@workglow/storage";
-import {
-  EventEmitter,
-  getLogger,
-  getTelemetryProvider,
-  sleep,
-  SpanStatusCode,
-  uuid4,
-} from "@workglow/util";
+import { EventEmitter, getTelemetryProvider, sleep, SpanStatusCode, uuid4 } from "@workglow/util";
 import { ILimiter } from "../limiter/ILimiter";
 import { NullLimiter } from "../limiter/NullLimiter";
 import { Job, JobClass } from "./Job";
@@ -348,9 +341,6 @@ export class JobQueueWorker<
     }
 
     const startTime = Date.now();
-    const timerLabel = `job:${job.id}`;
-    const logger = getLogger();
-    logger.time(timerLabel, { queue: this.queueName, jobId: job.id });
 
     // Start telemetry span for job processing
     const telemetry = getTelemetryProvider();
@@ -410,7 +400,6 @@ export class JobQueueWorker<
       span?.setAttributes({ "workglow.job.error": spanErrorMessage });
     } finally {
       span?.end();
-      logger.timeEnd(timerLabel, { queue: this.queueName, jobId: job.id });
       await this.limiter.recordJobCompletion();
     }
   }

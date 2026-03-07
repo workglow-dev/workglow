@@ -5,6 +5,7 @@
  */
 
 import { createServiceToken, globalServiceRegistry } from "../di/ServiceRegistry";
+import { ConsoleTelemetryProvider } from "./ConsoleTelemetryProvider";
 import type { ITelemetryProvider } from "./ITelemetryProvider";
 import { NoopTelemetryProvider } from "./NoopTelemetryProvider";
 
@@ -13,9 +14,30 @@ import { NoopTelemetryProvider } from "./NoopTelemetryProvider";
  */
 export const TELEMETRY_PROVIDER = createServiceToken<ITelemetryProvider>("telemetry");
 
-// Register the default no-op provider so callers never get undefined.
+function getEnv(name: string): string | undefined {
+  if (typeof process !== "undefined" && process.env) {
+    return process.env[name];
+  }
+  return import.meta.env[name];
+}
+
+function isTruthy(value: string | undefined): boolean {
+  return value !== undefined && value !== "" && value !== "0" && value !== "false";
+}
+
+function createDefaultTelemetryProvider(): ITelemetryProvider {
+  if (getEnv("TELEMETRY")?.toLowerCase() === "console") {
+    return new ConsoleTelemetryProvider();
+  }
+  if (isTruthy(getEnv("DEV"))) {
+    return new ConsoleTelemetryProvider();
+  }
+  return new NoopTelemetryProvider();
+}
+
+// Register the default provider based on environment configuration.
 if (!globalServiceRegistry.has(TELEMETRY_PROVIDER)) {
-  globalServiceRegistry.register(TELEMETRY_PROVIDER, () => new NoopTelemetryProvider(), true);
+  globalServiceRegistry.register(TELEMETRY_PROVIDER, createDefaultTelemetryProvider, true);
 }
 
 /**

@@ -130,13 +130,6 @@ export class TaskGraphRunner {
    */
   protected runId: string = "";
 
-  /**
-   * Returns a label for timing this graph's execution.
-   */
-  protected get timerLabel(): string {
-    return `graph:${this.runId}`;
-  }
-
   // ========================================================================
   // Public methods
   // ========================================================================
@@ -957,10 +950,6 @@ export class TaskGraphRunner {
     this.inProgressFunctions.clear();
     this.failedTaskErrors.clear();
 
-    const logger = getLogger();
-    // logger.group(this.timerLabel, { graph: this.graph });
-    logger.time(this.timerLabel);
-
     // Start telemetry span for the graph run
     const telemetry = getTelemetryProvider();
     if (telemetry.isEnabled) {
@@ -997,10 +986,6 @@ export class TaskGraphRunner {
   protected async handleComplete(): Promise<void> {
     this.running = false;
 
-    const logger = getLogger();
-    logger.timeEnd(this.timerLabel);
-    logger.groupEnd();
-
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.OK);
       this.telemetrySpan.end();
@@ -1027,10 +1012,6 @@ export class TaskGraphRunner {
     );
     this.running = false;
 
-    const logger = getLogger();
-    logger.timeEnd(this.timerLabel);
-    logger.groupEnd();
-
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.ERROR, error.message);
       this.telemetrySpan.setAttributes({ "workglow.graph.error": error.message });
@@ -1055,10 +1036,6 @@ export class TaskGraphRunner {
       }
     });
     this.running = false;
-
-    const logger = getLogger();
-    logger.timeEnd(this.timerLabel);
-    logger.groupEnd();
 
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.ERROR, "aborted");
