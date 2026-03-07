@@ -11,7 +11,7 @@
  * in a way that's compatible with visual node editors.
  *
  * Models Used:
- *    - Xenova/all-MiniLM-L6-v2:q4f16 (Text Embedding - 384D)
+ *    - Xenova/all-MiniLM-L6-v2:q8 (Text Embedding - 384D)
  *    - onnx-community/NeuroBERT-NER-ONNX:q8 (Named Entity Recognition)
  *    - Xenova/distilbert-base-uncased-distilled-squad (Question Answering)
  */
@@ -46,7 +46,7 @@ import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 describe("RAG Workflow End-to-End", () => {
   let kb: KnowledgeBase;
   const kbName = "rag-test-kb";
-  const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q4f16";
+  const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
   const qaModel = "onnx:onnx-community/ModernBERT-finetuned-squad-ONNX";
