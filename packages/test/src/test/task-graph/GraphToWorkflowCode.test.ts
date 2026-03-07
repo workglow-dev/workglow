@@ -5,29 +5,40 @@
  */
 
 import {
-  graphToWorkflowCode,
-  resetMethodNameCache,
-  Workflow,
-  TaskGraph,
   Dataflow,
+  graphToWorkflowCode,
   MapTask,
   ReduceTask,
+  resetMethodNameCache,
+  TaskGraph,
   WhileTask,
+  Workflow,
 } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
-import { describe, expect, it, beforeEach } from "vitest";
-import {
-  TestSimpleTask,
-  TestOutputTask,
-  TestInputTask,
-  ProcessItemTask,
-  AddToSumTask,
-  RefineTask,
-  DoubleToResultTask as DoubleTask,
-} from "../task/TestTasks";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
+import {
+  AddToSumTask,
+  DoubleToResultTask as DoubleTask,
+  ProcessItemTask,
+  RefineTask,
+  TestInputTask,
+  TestOutputTask,
+  TestSimpleTask,
+} from "../task/TestTasks";
 // Import to register workflow prototype methods
 import "../task/TestTasks";
+
+// Import to register RAG and pipeline workflow prototype methods (side-effect imports)
+import { registerAiTasks } from "@workglow/ai";
+import { registerBaseTasks } from "@workglow/task-graph";
+import { registerCommonTasks } from "@workglow/tasks";
+
+export const registerTasks = () => {
+  registerBaseTasks();
+  registerCommonTasks();
+  registerAiTasks();
+};
 
 /**
  * Helper: compare two graphs by their JSON serialization (without boundary nodes).
@@ -88,6 +99,10 @@ function rebuildFromCode(code: string, taskBindings: Record<string, unknown> = {
 describe("GraphToWorkflowCode", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  beforeAll(() => {
+    registerTasks();
+  });
 
   beforeEach(() => {
     resetMethodNameCache();
@@ -517,6 +532,248 @@ describe("GraphToWorkflowCode", () => {
       const rebuiltJson = rebuilt.toJSON({ withBoundaryNodes: false });
 
       expect(rebuiltJson.tasks.map((t) => t.type)).toEqual(originalJson.tasks.map((t) => t.type));
+    });
+  });
+
+  describe("RAG pipeline workflows", () => {
+    const embeddingModel = "onnx:Qwen3-Embedding-0.6B:auto";
+    const rerankerModel = "onnx:Xenova/bge-reranker-base:q8";
+    const summaryModel = "onnx:Falconsai/text_summarization:fp32";
+    const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
+    const textGenerationModel = "onnx:Xenova/LaMini-Flan-T5-783M:q8";
+    const kbName = "test-kb";
+
+    it("should generate code for document ingestion pipeline", () => {
+      const workflow = new Workflow()
+        .input({ url: ["file:///test.md", "file:///test2.md"] })
+        .map()
+        .fileLoader({
+          format: "markdown",
+        })
+        .structuralParser({
+          title: "Test Document",
+          format: "markdown",
+          sourceUri: "/test.md",
+        })
+        .documentEnricher({
+          generateSummaries: true,
+          summaryModel,
+          extractEntities: true,
+          nerModel,
+        })
+        .hierarchicalChunker({
+          maxTokens: 512,
+          overlap: 50,
+          strategy: "hierarchical",
+        })
+        .textEmbedding({
+          model: embeddingModel,
+        })
+        .chunkToVector()
+        .chunkVectorUpsert({
+          knowledgeBase: kbName,
+        })
+        .endMap();
+
+      expect(workflow.error).toBe("");
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain("fileLoader");
+      expect(code).toContain("structuralParser");
+      expect(code).toContain("documentEnricher");
+      expect(code).toContain("hierarchicalChunker");
+      expect(code).toContain("textEmbedding");
+      expect(code).toContain("chunkToVector");
+      expect(code).toContain("chunkVectorUpsert");
+
+      expect(code).toContain('"markdown"');
+      expect(code).toContain('"Test Document"');
+      expect(code).toContain(`"${summaryModel}"`);
+      expect(code).toContain(`"${nerModel}"`);
+      expect(code).toContain(`"${embeddingModel}"`);
+      expect(code).toContain(`"${kbName}"`);
+      expect(code).toContain("512");
+      expect(code).toContain("50");
+    });
+
+    it("should generate code for query retrieval pipeline", () => {
+      const workflow = new Workflow()
+        .chunkRetrieval({
+          knowledgeBase: kbName,
+          query: "What caused the Civil War?",
+          model: embeddingModel,
+          topK: 10,
+          scoreThreshold: 0.1,
+        })
+        .reranker({
+          query: "What caused the Civil War?",
+          method: "cross-encoder",
+          model: rerankerModel,
+          topK: 5,
+        })
+        .contextBuilder({
+          format: "numbered",
+          includeMetadata: false,
+          separator: "\n\n---\n\n",
+        });
+
+      expect(workflow.error).toBe("");
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain("chunkRetrieval");
+      expect(code).toContain("reranker");
+      expect(code).toContain("contextBuilder");
+      expect(code).toContain('"What caused the Civil War?"');
+      expect(code).toContain(`"${rerankerModel}"`);
+      expect(code).toContain('"cross-encoder"');
+      expect(code).toContain('"numbered"');
+    });
+
+    it("should generate code for hierarchy join pipeline", () => {
+      const workflow = new Workflow()
+        .chunkRetrieval({
+          knowledgeBase: kbName,
+          query: "American Revolution",
+          model: embeddingModel,
+          topK: 3,
+          scoreThreshold: 0.0,
+        })
+        .hierarchyJoin({
+          knowledgeBase: kbName,
+          includeParentSummaries: true,
+          includeEntities: true,
+        });
+
+      expect(workflow.error).toBe("");
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain("chunkRetrieval");
+      expect(code).toContain("hierarchyJoin");
+      expect(code).toContain(`"${kbName}"`);
+      expect(code).toContain("includeParentSummaries: true");
+      expect(code).toContain("includeEntities: true");
+    });
+
+    it("should generate code for hybrid retrieval pipeline", () => {
+      const workflow = new Workflow()
+        .textEmbedding({
+          text: "test query",
+          model: embeddingModel,
+        })
+        .hybridSearch({
+          knowledgeBase: kbName,
+          queryText: "test query",
+          topK: 5,
+        })
+        .reranker({
+          query: "test query",
+          method: "cross-encoder",
+          model: rerankerModel,
+          topK: 3,
+        })
+        .contextBuilder({
+          format: "markdown",
+        });
+
+      expect(workflow.error).toBe("");
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain("textEmbedding");
+      expect(code).toContain("hybridSearch");
+      expect(code).toContain("reranker");
+      expect(code).toContain("contextBuilder");
+      expect(code).toContain('"test query"');
+      expect(code).toContain('"markdown"');
+    });
+
+    it("should generate code for query expander workflow", () => {
+      const workflow = new Workflow().queryExpander({
+        query: "What were the major battles?",
+        method: "paraphrase",
+        numVariations: 3,
+        model: textGenerationModel,
+      });
+
+      expect(workflow.error).toBe("");
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain("queryExpander");
+      expect(code).toContain('"What were the major battles?"');
+      expect(code).toContain('"paraphrase"');
+      expect(code).toContain("numVariations: 3");
+      expect(code).toContain(`"${textGenerationModel}"`);
+    });
+
+    it("should round-trip document ingestion pipeline", () => {
+      const original = new Workflow()
+        .fileLoader({ url: "file:///test.md", format: "markdown" })
+        .structuralParser({ title: "Test" })
+        .documentEnricher({})
+        .hierarchicalChunker({ maxTokens: 512 })
+        .textEmbedding({ model: embeddingModel })
+        .chunkToVector()
+        .chunkVectorUpsert({ knowledgeBase: kbName });
+
+      const code = graphToWorkflowCode(original.graph, { includeDeclaration: false });
+      const rebuilt = rebuildFromCode(code);
+
+      const { tasksMatch } = compareGraphStructure(original.graph, rebuilt.graph);
+      expect(tasksMatch).toBe(true);
+      expect(rebuilt.graph.getTasks()).toHaveLength(7);
+      expect(rebuilt.graph.getDataflows().length).toBeGreaterThan(0);
+    });
+
+    it("should round-trip query retrieval pipeline", () => {
+      const original = new Workflow()
+        .chunkRetrieval({
+          knowledgeBase: kbName,
+          query: "test",
+          model: embeddingModel,
+        })
+        .hierarchyJoin({ knowledgeBase: kbName })
+        .reranker({
+          query: "test",
+          method: "cross-encoder",
+          model: rerankerModel,
+          topK: 5,
+        })
+        .contextBuilder({ format: "numbered", includeMetadata: true });
+
+      const code = graphToWorkflowCode(original.graph, { includeDeclaration: false });
+      const rebuilt = rebuildFromCode(code);
+
+      const { tasksMatch, dataflowsMatch } = compareGraphStructure(original.graph, rebuilt.graph);
+      expect(tasksMatch).toBe(true);
+      expect(dataflowsMatch).toBe(true);
+    });
+
+    it("should round-trip hybrid retrieval pipeline", () => {
+      const original = new Workflow()
+        .textEmbedding({ text: "test query", model: embeddingModel })
+        .hybridSearch({
+          knowledgeBase: kbName,
+          queryText: "test query",
+          topK: 5,
+        })
+        .reranker({
+          query: "test query",
+          method: "cross-encoder",
+          model: rerankerModel,
+          topK: 3,
+        })
+        .contextBuilder({ format: "markdown" });
+
+      const code = graphToWorkflowCode(original.graph, { includeDeclaration: false });
+      const rebuilt = rebuildFromCode(code);
+
+      const { tasksMatch, dataflowsMatch } = compareGraphStructure(original.graph, rebuilt.graph);
+      expect(tasksMatch).toBe(true);
+      expect(dataflowsMatch).toBe(true);
     });
   });
 });

@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import type { ITask } from "../task/ITask";
+import type { TaskIdType } from "../task/TaskTypes";
+import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import type { TaskGraph } from "./TaskGraph";
 import { Workflow } from "./Workflow";
-import type { TaskIdType } from "../task/TaskTypes";
 
 /**
  * Options controlling the generated workflow code.
@@ -103,6 +103,19 @@ export function graphToWorkflowCode(
 /**
  * Generates the workflow code for a sequence of tasks, using chained method calls.
  *
+ * The variable name is always on its own line, with tasks chained below:
+ * ```
+ * workflow
+ *   .task1(args)
+ *   .task2(args)
+ *   .task3(args);
+ * ```
+ *
+ * Single tasks that fit on one line are collapsed:
+ * ```
+ * workflow.task1(args);
+ * ```
+ *
  * For loop tasks, inner tasks are indented and chained on the loop builder.
  * The `.end*()` call returns to the parent workflow, so subsequent tasks
  * continue chaining on the parent variable.
@@ -116,7 +129,13 @@ function generateTaskChain(
   depth: number,
   lines: string[]
 ): void {
+  if (tasks.length === 0) return;
+
   const prefix = indent.repeat(depth);
+  const chainIndent = indent.repeat(depth + 1);
+
+  // Generate all chain lines into a temporary buffer
+  const chainLines: string[] = [];
 
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i];
@@ -125,52 +144,55 @@ function generateTaskChain(
     // Check for rename() calls needed before this task
     const renames = computeRenames(task, incomingDataflows, taskOrder);
     for (const rename of renames) {
-      lines.push(
-        `${prefix}${variableName}.rename(${formatValue(rename.source)}, ${formatValue(rename.target)});`
+      chainLines.push(
+        `${chainIndent}.rename(${formatValue(rename.source)}, ${formatValue(rename.target)})`
       );
     }
 
     if (loopInfo) {
-      // Loop task with builder pattern - generates chained calls
-      generateLoopTask(
-        task,
-        loopInfo,
-        incomingDataflows,
-        taskOrder,
-        variableName,
-        indent,
-        depth,
-        lines
-      );
+      generateLoopTask(task, loopInfo, incomingDataflows, taskOrder, indent, depth, chainLines);
     } else {
-      // Regular task
-      generateRegularTask(task, variableName, prefix, lines);
+      generateRegularTask(task, chainIndent, chainLines);
     }
 
     taskOrder.push(task.id);
   }
+
+  // Try to collapse single-call chains onto one line
+  if (chainLines.length === 1 && !chainLines[0].includes("\n")) {
+    const call = chainLines[0].trimStart();
+    const oneLine = `${prefix}${variableName}${call}`;
+    if (oneLine.length < 80) {
+      lines.push(`${oneLine};`);
+      return;
+    }
+  }
+
+  // Multi-line: variable on its own line, then chained calls
+  lines.push(`${prefix}${variableName}`);
+  for (const line of chainLines) {
+    lines.push(line);
+  }
+  lines[lines.length - 1] += ";";
 }
 
 /**
- * Generates code for a regular (non-loop) task.
+ * Generates code for a regular (non-loop) task as a chained `.method(args)` call.
  */
-function generateRegularTask(
-  task: ITask,
-  variableName: string,
-  prefix: string,
-  lines: string[]
-): void {
+function generateRegularTask(task: ITask, chainIndent: string, lines: string[]): void {
   const methodMap = getMethodNameMap();
   const methodName = methodMap.get(task.type);
   const defaults = task.defaults;
   const config = extractTaskConfig(task);
 
   if (methodName) {
-    const args = buildMethodArgs(defaults, config);
-    lines.push(`${prefix}${variableName}.${methodName}(${args});`);
+    const colOffset = chainIndent.length + `.${methodName}(`.length;
+    const args = buildMethodArgs(defaults, config, chainIndent, colOffset);
+    lines.push(`${chainIndent}.${methodName}(${args})`);
   } else {
-    const args = buildAddTaskArgs(task.type, defaults, config);
-    lines.push(`${prefix}${variableName}.addTask(${args});`);
+    const colOffset = chainIndent.length + ".addTask(".length;
+    const args = buildAddTaskArgs(task.type, defaults, config, chainIndent, colOffset);
+    lines.push(`${chainIndent}.addTask(${args})`);
   }
 }
 
@@ -194,19 +216,17 @@ function generateLoopTask(
   loopInfo: { method: string; endMethod: string },
   incomingDataflows: Map<TaskIdType, ReturnType<TaskGraph["getDataflows"]>>,
   taskOrder: TaskIdType[],
-  variableName: string,
   indent: string,
   depth: number,
   lines: string[]
 ): void {
-  const prefix = indent.repeat(depth);
-  const innerPrefix = indent.repeat(depth + 1);
+  const chainIndent = indent.repeat(depth + 1);
   const config = extractLoopConfig(task);
-  const configStr = Object.keys(config).length > 0 ? formatValue(config) : "";
+  const loopColOffset = chainIndent.length + `.${loopInfo.method}(`.length;
+  const configStr =
+    Object.keys(config).length > 0 ? formatValue(config, chainIndent, loopColOffset) : "";
 
-  // Start the chain: workflow\n  .map(config)
-  lines.push(`${prefix}${variableName}`);
-  lines.push(`${innerPrefix}.${loopInfo.method}(${configStr})`);
+  lines.push(`${chainIndent}.${loopInfo.method}(${configStr})`);
 
   // Generate inner tasks from subgraph as chained calls
   if (task.hasChildren()) {
@@ -225,8 +245,8 @@ function generateLoopTask(
     generateChainedInnerTasks(innerTasks, innerIncoming, innerOrder, indent, depth + 1, lines);
   }
 
-  // End the chain: .endMap();
-  lines.push(`${innerPrefix}.${loopInfo.endMethod}();`);
+  // End the loop (no semicolon - caller adds it to the last line of the full chain)
+  lines.push(`${chainIndent}.${loopInfo.endMethod}()`);
 }
 
 /**
@@ -259,7 +279,9 @@ function generateChainedInnerTasks(
     if (loopInfo) {
       // Nested loop task - recurse
       const config = extractLoopConfig(task);
-      const configStr = Object.keys(config).length > 0 ? formatValue(config) : "";
+      const nestedColOffset = innerPrefix.length + `.${loopInfo.method}(`.length;
+      const configStr =
+        Object.keys(config).length > 0 ? formatValue(config, innerPrefix, nestedColOffset) : "";
 
       lines.push(`${innerPrefix}.${loopInfo.method}(${configStr})`);
 
@@ -288,10 +310,12 @@ function generateChainedInnerTasks(
       const config = extractTaskConfig(task);
 
       if (methodName) {
-        const args = buildMethodArgs(defaults, config);
+        const colOffset = innerPrefix.length + `.${methodName}(`.length;
+        const args = buildMethodArgs(defaults, config, innerPrefix, colOffset);
         lines.push(`${innerPrefix}.${methodName}(${args})`);
       } else {
-        const args = buildAddTaskArgs(task.type, defaults, config);
+        const colOffset = innerPrefix.length + ".addTask(".length;
+        const args = buildAddTaskArgs(task.type, defaults, config, innerPrefix, colOffset);
         lines.push(`${innerPrefix}.addTask(${args})`);
       }
     }
@@ -349,12 +373,16 @@ function computeRenames(
 
 /**
  * Extracts non-default config properties from a task for regular tasks.
+ * Skips title/description when they match the static class defaults.
  */
 function extractTaskConfig(task: ITask): Record<string, unknown> {
   const config: Record<string, unknown> = {};
   const rawConfig = task.config;
-  if (rawConfig.title) config.title = rawConfig.title;
-  if (rawConfig.description) config.description = rawConfig.description;
+  const staticTitle = (task.constructor as any).title || "";
+  const staticDescription = (task.constructor as any).description || "";
+  if (rawConfig.title && rawConfig.title !== staticTitle) config.title = rawConfig.title;
+  if (rawConfig.description && rawConfig.description !== staticDescription)
+    config.description = rawConfig.description;
   if (rawConfig.extras && Object.keys(rawConfig.extras).length > 0) {
     config.extras = rawConfig.extras;
   }
@@ -423,15 +451,18 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
  */
 function buildMethodArgs(
   defaults: Record<string, unknown> | undefined,
-  config: Record<string, unknown>
+  config: Record<string, unknown>,
+  baseIndent: string = "",
+  columnOffset: number = 0
 ): string {
   const hasDefaults = defaults && Object.keys(defaults).length > 0;
   const hasConfig = Object.keys(config).length > 0;
 
   if (!hasDefaults && !hasConfig) return "";
-  if (hasDefaults && !hasConfig) return formatValue(defaults);
-  if (!hasDefaults && hasConfig) return `{}, ${formatValue(config)}`;
-  return `${formatValue(defaults)}, ${formatValue(config)}`;
+  if (hasDefaults && !hasConfig) return formatValue(defaults, baseIndent, columnOffset);
+  if (!hasDefaults && hasConfig) return `{}, ${formatValue(config, baseIndent, columnOffset + 4)}`;
+  const defaultsStr = formatValue(defaults, baseIndent, columnOffset);
+  return `${defaultsStr}, ${formatValue(config, baseIndent, columnOffset + defaultsStr.length + 2)}`;
 }
 
 /**
@@ -440,15 +471,21 @@ function buildMethodArgs(
 function buildAddTaskArgs(
   taskType: string,
   defaults: Record<string, unknown> | undefined,
-  config: Record<string, unknown>
+  config: Record<string, unknown>,
+  baseIndent: string = "",
+  columnOffset: number = 0
 ): string {
   const hasDefaults = defaults && Object.keys(defaults).length > 0;
   const hasConfig = Object.keys(config).length > 0;
+  const typeOffset = columnOffset + taskType.length + 2;
 
   if (!hasDefaults && !hasConfig) return taskType;
-  if (hasDefaults && !hasConfig) return `${taskType}, ${formatValue(defaults)}`;
-  if (!hasDefaults && hasConfig) return `${taskType}, {}, ${formatValue(config)}`;
-  return `${taskType}, ${formatValue(defaults)}, ${formatValue(config)}`;
+  if (hasDefaults && !hasConfig)
+    return `${taskType}, ${formatValue(defaults, baseIndent, typeOffset)}`;
+  if (!hasDefaults && hasConfig)
+    return `${taskType}, {}, ${formatValue(config, baseIndent, typeOffset + 4)}`;
+  const defaultsStr = formatValue(defaults, baseIndent, typeOffset);
+  return `${taskType}, ${defaultsStr}, ${formatValue(config, baseIndent, typeOffset + defaultsStr.length + 2)}`;
 }
 
 /**
@@ -456,7 +493,11 @@ function buildAddTaskArgs(
  * Handles objects, arrays, strings, numbers, booleans, undefined, null,
  * and special markers.
  */
-export function formatValue(value: unknown): string {
+export function formatValue(
+  value: unknown,
+  baseIndent: string = "",
+  columnOffset: number = 0
+): string {
   if (value === undefined) return "undefined";
   if (value === null) return "null";
   if (typeof value === "string") {
@@ -469,12 +510,13 @@ export function formatValue(value: unknown): string {
   if (value instanceof Float64Array) {
     return `new Float64Array([${Array.from(value).join(", ")}])`;
   }
+  const entryIndent = baseIndent + "  ";
   if (Array.isArray(value)) {
     if (value.length === 0) return "[]";
-    const items = value.map((v) => formatValue(v));
+    const items = value.map((v) => formatValue(v, entryIndent));
     const oneLine = `[${items.join(", ")}]`;
-    if (oneLine.length < 80) return oneLine;
-    return `[\n${items.map((item) => `  ${item}`).join(",\n")}\n]`;
+    if (columnOffset + oneLine.length < 80) return oneLine;
+    return `[\n${items.map((item) => `${entryIndent}${item}`).join(",\n")}\n${baseIndent}]`;
   }
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
@@ -482,11 +524,11 @@ export function formatValue(value: unknown): string {
     if (keys.length === 0) return "{}";
     const entries = keys.map((k) => {
       const formattedKey = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) ? k : JSON.stringify(k);
-      return `${formattedKey}: ${formatValue(obj[k])}`;
+      return `${formattedKey}: ${formatValue(obj[k], entryIndent)}`;
     });
     const oneLine = `{ ${entries.join(", ")} }`;
-    if (oneLine.length < 80) return oneLine;
-    return `{\n${entries.map((e) => `  ${e}`).join(",\n")}\n}`;
+    if (columnOffset + oneLine.length < 80) return oneLine;
+    return `{\n${entries.map((e) => `${entryIndent}${e}`).join(",\n")}\n${baseIndent}}`;
   }
   return String(value);
 }
