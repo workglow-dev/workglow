@@ -1,0 +1,103 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
+import { ConsoleTelemetryProvider, setTelemetryProvider } from "@workglow/util";
+import { InMemoryQueueStorage, TelemetryQueueStorage } from "@workglow/storage";
+
+describe("TelemetryQueueStorage", () => {
+  let inner: InMemoryQueueStorage<{ data: string }, { result: string }>;
+  let wrapped: TelemetryQueueStorage<{ data: string }, { result: string }>;
+  let startSpanSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    const provider = new ConsoleTelemetryProvider();
+    setTelemetryProvider(provider);
+    startSpanSpy = vi.spyOn(provider, "startSpan");
+
+    inner = new InMemoryQueueStorage("test-queue");
+    await inner.setupDatabase();
+    wrapped = new TelemetryQueueStorage("test-queue", inner);
+
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("should forward add and create a span", async () => {
+    const id = await wrapped.add({
+      input: { data: "test" },
+      run_after: null,
+      completed_at: null,
+    });
+    expect(id).toBeDefined();
+    expect(startSpanSpy).toHaveBeenCalledWith(
+      "workglow.storage.queue.add",
+      expect.objectContaining({
+        attributes: expect.objectContaining({ "workglow.storage.name": "test-queue" }),
+      })
+    );
+  });
+
+  it("should forward next and create a span", async () => {
+    await inner.add({
+      input: { data: "test" },
+      run_after: null,
+      completed_at: null,
+    });
+    const job = await wrapped.next("worker-1");
+    expect(job).toBeDefined();
+    expect(startSpanSpy).toHaveBeenCalledWith(
+      "workglow.storage.queue.next",
+      expect.anything()
+    );
+  });
+
+  it("should forward size and create a span", async () => {
+    const result = await wrapped.size();
+    expect(result).toBe(0);
+    expect(startSpanSpy).toHaveBeenCalledWith(
+      "workglow.storage.queue.size",
+      expect.anything()
+    );
+  });
+
+  it("should forward deleteAll and create a span", async () => {
+    await inner.add({
+      input: { data: "test" },
+      run_after: null,
+      completed_at: null,
+    });
+    await wrapped.deleteAll();
+    expect(await inner.size()).toBe(0);
+  });
+
+  it("should forward get and create a span", async () => {
+    const id = await inner.add({
+      input: { data: "test" },
+      run_after: null,
+      completed_at: null,
+    });
+    const job = await wrapped.get(id);
+    expect(job).toBeDefined();
+    expect(startSpanSpy).toHaveBeenCalledWith(
+      "workglow.storage.queue.get",
+      expect.anything()
+    );
+  });
+
+  it("should forward peek and create a span", async () => {
+    const jobs = await wrapped.peek();
+    expect(jobs).toEqual([]);
+    expect(startSpanSpy).toHaveBeenCalledWith(
+      "workglow.storage.queue.peek",
+      expect.anything()
+    );
+  });
+});
