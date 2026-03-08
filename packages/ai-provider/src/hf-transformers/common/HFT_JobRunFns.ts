@@ -1837,8 +1837,11 @@ export const HFT_ToolCalling: AiProviderRunFn<
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
   if (isArrayInput) {
-    const prompts = input.prompt as Array<(typeof input)["prompt"] extends Array<infer T> ? T : unknown>;
-    const outputs: ToolCallingTaskOutput[] = [];
+    const prompts = input.prompt as Array<
+      (typeof input)["prompt"] extends Array<infer T> ? T : unknown
+    >;
+    const texts: string[] = [];
+    const toolCallsList: Record<string, unknown>[] = [];
 
     for (const singlePrompt of prompts) {
       const singleInput = { ...input, prompt: singlePrompt } as ToolCallingTaskInput;
@@ -1871,18 +1874,13 @@ export const HFT_ToolCalling: AiProviderRunFn<
       ).trim();
 
       const { text, toolCalls } = parseToolCallsFromText(responseText);
-      outputs.push({ text, toolCalls: filterValidToolCalls(toolCalls, singleInput.tools) });
+      texts.push(text);
+      toolCallsList.push(filterValidToolCalls(toolCalls, singleInput.tools));
     }
 
     // When input.prompt is an array, return a single ToolCallingTaskOutput whose
     // `text` and `toolCalls` fields are arrays aligned by index (TypeSingleOrArray behavior).
-    const aggregatedOutput: ToolCallingTaskOutput = {
-      text: outputs.map((o) => o.text),
-      toolCalls: outputs.map((o) => o.toolCalls),
-    };
-    // Cast to any to satisfy the AiProviderRunFn generic, which allows TypeSingleOrArray.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return aggregatedOutput as any;
+    return { text: texts, toolCalls: toolCallsList };
   }
   const messages = toTextFlatMessages(input);
 
