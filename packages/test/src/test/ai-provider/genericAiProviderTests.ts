@@ -26,8 +26,8 @@ export interface AiProviderTestSetup {
   readonly textGenerationModel: string;
   /** Model ID to use for tool calling (may be same as above) */
   readonly toolCallingModel: string;
-  /** Model ID for structured generation (may be same) */
-  readonly structuredGenerationModel: string;
+  /** Model ID for structured generation (may be same). Omit to skip structured generation tests. */
+  readonly structuredGenerationModel?: string | undefined;
   /** Max tokens to request (keep small for fast tests) */
   readonly maxTokens: number;
   /** Timeout per test in ms */
@@ -257,7 +257,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
     // StructuredGeneration
     // ====================================================================
 
-    describe("StructuredGeneration", () => {
+    describe.skipIf(!setup.structuredGenerationModel)("StructuredGeneration", () => {
       it(
         "should generate output conforming to a JSON schema",
         async () => {
@@ -273,7 +273,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
           const workflow = new Workflow();
           workflow.structuredGeneration({
-            model: setup.structuredGenerationModel,
+            model: setup.structuredGenerationModel!,
             prompt:
               "Generate a JSON object with a person's name and age. Use name 'Alice' and age 30.",
             outputSchema,
