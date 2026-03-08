@@ -15,6 +15,8 @@ import type {
   DownloadModelTaskRunOutput,
   ModelInfoTaskInput,
   ModelInfoTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -30,7 +32,7 @@ import type {
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util";
 import { LLAMACPP_DEFAULT_MODELS_DIR } from "./LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 
@@ -839,6 +841,153 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 };
 
 // ========================================================================
+// StructuredGenerationTask
+// ========================================================================
+
+export const LlamaCpp_StructuredGeneration: AiProviderRunFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  LlamaCppModelConfig
+> = async (input, model, update_progress, signal) => {
+  if (!model) throw new Error("Model config is required for StructuredGenerationTask.");
+
+  await loadSdk();
+
+  update_progress(0, "Loading model");
+  const llama = await getLlamaInstance();
+  const context = await getOrCreateTextContext(model);
+
+  update_progress(10, "Running structured generation");
+  const grammar = await llama.createGrammarForJsonSchema(input.outputSchema as any);
+  const sequence = context.getSequence();
+  const { LlamaChatSession } = _sdk!;
+  const session = new LlamaChatSession({ contextSequence: sequence });
+
+  try {
+    const text = await session.prompt(input.prompt as string, {
+      signal,
+      grammar,
+      ...(input.temperature !== undefined && { temperature: input.temperature }),
+      ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
+    });
+
+    let object: Record<string, unknown>;
+    try {
+      object = JSON.parse(text);
+    } catch {
+      object = {};
+    }
+
+    update_progress(100, "Structured generation complete");
+    return { object };
+  } finally {
+    sequence.dispose();
+  }
+};
+
+// ========================================================================
+// StructuredGenerationTask (streaming)
+// ========================================================================
+
+export const LlamaCpp_StructuredGeneration_Stream: AiProviderStreamFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  LlamaCppModelConfig
+> = async function* (
+  input,
+  model,
+  signal
+): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
+  if (!model) throw new Error("Model config is required for StructuredGenerationTask.");
+
+  await loadSdk();
+
+  const llama = await getLlamaInstance();
+  const context = await getOrCreateTextContext(model);
+  const grammar = await llama.createGrammarForJsonSchema(input.outputSchema as any);
+
+  const sequence = context.getSequence();
+  const { LlamaChatSession } = _sdk!;
+  const session = new LlamaChatSession({ contextSequence: sequence });
+
+  const queue: string[] = [];
+  let isComplete = false;
+  let completionError: unknown;
+  let resolveWait: (() => void) | null = null;
+
+  const notifyWaiter = () => {
+    resolveWait?.();
+    resolveWait = null;
+  };
+
+  let accumulatedText = "";
+  const promptPromise = session
+    .prompt(input.prompt as string, {
+      signal,
+      grammar,
+      onTextChunk: (chunk: string) => {
+        queue.push(chunk);
+        notifyWaiter();
+      },
+      ...(input.temperature !== undefined && { temperature: input.temperature }),
+      ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
+    })
+    .then(() => {
+      isComplete = true;
+      notifyWaiter();
+    })
+    .catch((err: unknown) => {
+      completionError = err;
+      isComplete = true;
+      notifyWaiter();
+    });
+
+  try {
+    while (true) {
+      while (queue.length > 0) {
+        const chunk = queue.shift()!;
+        accumulatedText += chunk;
+        // Try to parse partial JSON and emit object-delta
+        const partial = parsePartialJson(accumulatedText);
+        if (partial !== undefined) {
+          yield {
+            type: "object-delta",
+            port: "object",
+            objectDelta: partial as Record<string, unknown>,
+          };
+        }
+      }
+      if (isComplete) break;
+      await new Promise<void>((r) => {
+        resolveWait = r;
+      });
+    }
+    // Drain remaining chunks
+    while (queue.length > 0) {
+      const chunk = queue.shift()!;
+      accumulatedText += chunk;
+    }
+  } finally {
+    await promptPromise.catch(() => {});
+    sequence.dispose();
+  }
+
+  if (completionError) {
+    if (signal.aborted) return;
+    throw completionError;
+  }
+
+  let finalObject: Record<string, unknown>;
+  try {
+    finalObject = JSON.parse(accumulatedText);
+  } catch {
+    finalObject = (parsePartialJson(accumulatedText) as Record<string, unknown>) ?? {};
+  }
+
+  yield { type: "finish", data: { object: finalObject } as StructuredGenerationTaskOutput };
+};
+
+// ========================================================================
 // Model info
 // ========================================================================
 
@@ -895,6 +1044,7 @@ export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppMo
   TextRewriterTask: LlamaCpp_TextRewriter,
   TextSummaryTask: LlamaCpp_TextSummary,
   ToolCallingTask: LlamaCpp_ToolCalling,
+  StructuredGenerationTask: LlamaCpp_StructuredGeneration,
 };
 
 export const LLAMACPP_STREAM_TASKS: Record<
@@ -905,6 +1055,7 @@ export const LLAMACPP_STREAM_TASKS: Record<
   TextRewriterTask: LlamaCpp_TextRewriter_Stream,
   TextSummaryTask: LlamaCpp_TextSummary_Stream,
   ToolCallingTask: LlamaCpp_ToolCalling_Stream,
+  StructuredGenerationTask: LlamaCpp_StructuredGeneration_Stream,
 };
 
 export const LLAMACPP_REACTIVE_TASKS: Record<

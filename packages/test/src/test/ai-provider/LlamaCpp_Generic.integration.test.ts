@@ -31,13 +31,15 @@ const MODEL_ID = "llamacpp:Qwen2.5-1.5B-Instruct:Q4_K_M";
 const model: LlamaCppModelRecord = {
   model_id: MODEL_ID,
   title: "Qwen2.5 1.5B Instruct",
-  description: "A 1.5B parameter instruction-following model with tool calling support, quantized Q4_K_M",
+  description:
+    "A 1.5B parameter instruction-following model with tool calling support, quantized Q4_K_M",
   tasks: [
     "DownloadModelTask",
     "TextGenerationTask",
     "TextRewriterTask",
     "TextSummaryTask",
     "ToolCallingTask",
+    "StructuredGenerationTask",
   ],
   provider: LOCAL_LLAMACPP,
   provider_config: {
@@ -83,6 +85,7 @@ runGenericAiProviderTests({
   },
   textGenerationModel: MODEL_ID,
   toolCallingModel: MODEL_ID,
+  structuredGenerationModel: MODEL_ID,
   maxTokens: 200,
   timeout: 10 * 60 * 1000, // 10 min: download (~85 MB) + inference
 });

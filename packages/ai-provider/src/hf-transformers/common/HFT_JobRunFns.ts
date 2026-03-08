@@ -77,6 +77,8 @@ import type {
   TextSummaryTaskOutput,
   TextTranslationTaskInput,
   TextTranslationTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
@@ -100,7 +102,7 @@ async function loadTransformersSDK() {
   return _transformersSdk;
 }
 
-import { getLogger, TypedArray } from "@workglow/util";
+import { getLogger, parsePartialJson, TypedArray } from "@workglow/util";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 
@@ -2088,6 +2090,138 @@ export const HFT_ModelInfo: AiProviderRunFn<
 };
 
 // ========================================================================
+// StructuredGenerationTask
+// ========================================================================
+
+function buildStructuredGenerationPrompt(input: StructuredGenerationTaskInput): string {
+  const schemaStr = JSON.stringify(input.outputSchema, null, 2);
+  return (
+    `${input.prompt}\n\n` +
+    `You MUST respond with ONLY a valid JSON object conforming to this JSON schema:\n${schemaStr}\n\n` +
+    `Output ONLY the JSON object, no other text.`
+  );
+}
+
+function extractJsonFromText(text: string): Record<string, unknown> {
+  // Try parsing directly first
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Try to extract JSON object from the text
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return (parsePartialJson(match[0]) as Record<string, unknown>) ?? {};
+      }
+    }
+    return {};
+  }
+}
+
+export const HFT_StructuredGeneration: AiProviderRunFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, model, onProgress, signal) => {
+  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
+
+  const prompt = buildStructuredGenerationPrompt(input);
+
+  const messages: Message[] = [{ role: "user", content: prompt }];
+
+  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+
+  let results = await generateText(formattedPrompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  });
+
+  if (!Array.isArray(results)) {
+    results = [results];
+  }
+
+  const responseText = extractGeneratedText(
+    (results[0] as TextGenerationOutput[number])?.generated_text
+  ).trim();
+
+  const object = extractJsonFromText(responseText);
+  return { object };
+};
+
+export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (
+  input,
+  model,
+  signal
+): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
+  const noopProgress = () => {};
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
+
+  const prompt = buildStructuredGenerationPrompt(input);
+
+  const messages: Message[] = [{ role: "user", content: prompt }];
+
+  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  const queue = createStreamEventQueue<StreamEvent<StructuredGenerationTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
+
+  let fullText = "";
+
+  const originalPush = queue.push;
+  queue.push = (event: StreamEvent<StructuredGenerationTaskOutput>) => {
+    if (event.type === "text-delta" && "textDelta" in event) {
+      fullText += (event as any).textDelta;
+      // Try to parse partial JSON and emit object-delta
+      const match = fullText.match(/\{[\s\S]*/);
+      if (match) {
+        const partial = parsePartialJson(match[0]);
+        if (partial !== undefined) {
+          originalPush({
+            type: "object-delta",
+            port: "object",
+            objectDelta: partial,
+          } as StreamEvent<StructuredGenerationTaskOutput>);
+          return;
+        }
+      }
+    }
+    originalPush(event);
+  };
+
+  const pipelinePromise = generateText(formattedPrompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  }).then(
+    () => queue.done(),
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+
+  const object = extractJsonFromText(fullText);
+  yield { type: "finish", data: { object } as StructuredGenerationTaskOutput };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -2118,6 +2252,7 @@ export const HFT_TASKS = {
   ImageClassificationTask: HFT_ImageClassification,
   ObjectDetectionTask: HFT_ObjectDetection,
   ToolCallingTask: HFT_ToolCalling,
+  StructuredGenerationTask: HFT_StructuredGeneration,
 } as const;
 
 /**
@@ -2134,6 +2269,7 @@ export const HFT_STREAM_TASKS: Record<
   TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
   TextTranslationTask: HFT_TextTranslation_Stream,
   ToolCallingTask: HFT_ToolCalling_Stream,
+  StructuredGenerationTask: HFT_StructuredGeneration_Stream,
 };
 
 export const HFT_REACTIVE_TASKS: Record<
