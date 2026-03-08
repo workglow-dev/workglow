@@ -35,9 +35,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-const RUN_ALL_TESTS = !!process.env.RUN_ALL_TESTS;
-
-describe.skipIf(!RUN_ALL_TESTS)("HFT array input/output support", () => {
+describe("HFT array input/output support", () => {
   const logger = getTestingLogger();
   setLogger(logger);
 
