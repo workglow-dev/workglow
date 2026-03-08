@@ -77,6 +77,23 @@ function getModelName(model: GeminiModelConfig | undefined): string {
   return name;
 }
 
+/**
+ * Recursively strip JSON Schema properties that the Gemini API does not support
+ * (e.g. `additionalProperties`). Returns a shallow-cloned schema without mutating the original.
+ */
+function sanitizeSchemaForGemini(schema: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "additionalProperties") continue;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      result[key] = sanitizeSchemaForGemini(value as Record<string, unknown>);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export const Gemini_TextGeneration: AiProviderRunFn<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
@@ -373,11 +390,13 @@ export const Gemini_StructuredGeneration: AiProviderRunFn<
 
   const schema = input.outputSchema ?? outputSchema;
 
+  const sanitizedSchema = sanitizeSchemaForGemini(schema as Record<string, unknown>);
+
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: schema as any,
+      responseSchema: sanitizedSchema as any,
       maxOutputTokens: input.maxTokens,
       temperature: input.temperature,
     },
@@ -407,11 +426,13 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
 
   const schema = input.outputSchema ?? outputSchema;
 
+  const sanitizedSchema = sanitizeSchemaForGemini(schema as Record<string, unknown>);
+
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: schema as any,
+      responseSchema: sanitizedSchema as any,
       maxOutputTokens: input.maxTokens,
       temperature: input.temperature,
     },
@@ -587,7 +608,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
     name: t.name,
     description: buildToolDescription(t),
-    parameters: t.inputSchema as any,
+    parameters: sanitizeSchemaForGemini(t.inputSchema as Record<string, unknown>) as any,
   }));
 
   const toolConfig = mapGeminiToolConfig(input.toolChoice);
@@ -642,7 +663,7 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
   const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
     name: t.name,
     description: buildToolDescription(t),
-    parameters: t.inputSchema as any,
+    parameters: sanitizeSchemaForGemini(t.inputSchema as Record<string, unknown>) as any,
   }));
 
   const toolConfig = mapGeminiToolConfig(input.toolChoice);

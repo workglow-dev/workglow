@@ -26,12 +26,12 @@ import { runGenericAiProviderTests } from "./genericAiProviderTests";
 
 const RUN = true;
 
-const MODEL_ID = "llamacpp:SmolLM2-135M-Instruct:Q4_K_M";
+const MODEL_ID = "llamacpp:Qwen2.5-1.5B-Instruct:Q4_K_M";
 
 const model: LlamaCppModelRecord = {
   model_id: MODEL_ID,
-  title: "SmolLM2 135M Instruct",
-  description: "A 135M parameter instruction-following model, quantized Q4_K_M (~85 MB)",
+  title: "Qwen2.5 1.5B Instruct",
+  description: "A 1.5B parameter instruction-following model with tool calling support, quantized Q4_K_M",
   tasks: [
     "DownloadModelTask",
     "TextGenerationTask",
@@ -41,10 +41,10 @@ const model: LlamaCppModelRecord = {
   ],
   provider: LOCAL_LLAMACPP,
   provider_config: {
-    model_path: "./models/SmolLM2-135M-Instruct-Q4_K_M.gguf",
-    model_url: "hf:bartowski/SmolLM2-135M-Instruct-GGUF:Q4_K_M",
+    model_path: "./models/hf_bartowski_Qwen2.5-1.5B-Instruct.Q4_K_M.gguf",
+    model_url: "hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M",
     models_dir: "./models",
-    context_size: 512,
+    context_size: 2048,
     flash_attention: false,
   },
   metadata: {},
@@ -83,6 +83,6 @@ runGenericAiProviderTests({
   },
   textGenerationModel: MODEL_ID,
   toolCallingModel: MODEL_ID,
-  maxTokens: 100,
+  maxTokens: 200,
   timeout: 10 * 60 * 1000, // 10 min: download (~85 MB) + inference
 });
