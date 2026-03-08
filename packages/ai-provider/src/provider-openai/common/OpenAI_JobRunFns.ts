@@ -264,15 +264,13 @@ export const OpenAI_TextGeneration_Stream: AiProviderStreamFn<
     { signal }
   );
 
-  let accumulatedText = "";
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      accumulatedText += delta;
       yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
-  yield { type: "finish", data: { text: accumulatedText } as TextGenerationTaskOutput };
+  yield { type: "finish", data: {} as TextGenerationTaskOutput };
 };
 
 export const OpenAI_TextRewriter_Stream: AiProviderStreamFn<
@@ -295,15 +293,13 @@ export const OpenAI_TextRewriter_Stream: AiProviderStreamFn<
     { signal }
   );
 
-  let accumulatedText = "";
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      accumulatedText += delta;
       yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
-  yield { type: "finish", data: { text: accumulatedText } as TextRewriterTaskOutput };
+  yield { type: "finish", data: {} as TextRewriterTaskOutput };
 };
 
 export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
@@ -326,15 +322,13 @@ export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
     { signal }
   );
 
-  let accumulatedText = "";
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      accumulatedText += delta;
       yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
-  yield { type: "finish", data: { text: accumulatedText } as TextSummaryTaskOutput };
+  yield { type: "finish", data: {} as TextSummaryTaskOutput };
 };
 
 // ========================================================================
