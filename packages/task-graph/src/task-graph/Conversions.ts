@@ -5,48 +5,19 @@
  */
 
 import type { DataPortSchema } from "@workglow/util";
-import { GraphAsTask } from "../task/GraphAsTask";
+import type { GraphAsTask } from "../task/GraphAsTask";
 import type { IExecuteContext, ITask } from "../task/ITask";
 import { Task } from "../task/Task";
 import type { DataPorts } from "../task/TaskTypes";
-import { Dataflow, DATAFLOW_ALL_PORTS } from "./Dataflow";
+import { DATAFLOW_ALL_PORTS } from "./Dataflow";
 import type { ITaskGraph } from "./ITaskGraph";
 import type { IWorkflow } from "./IWorkflow";
 import { TaskGraph } from "./TaskGraph";
-import { PROPERTY_ARRAY, type CompoundMergeStrategy } from "./TaskGraphRunner";
-import { Workflow } from "./Workflow";
 
-class ListeningGraphAsTask extends GraphAsTask<any, any> {
-  constructor(input: any, config: any) {
-    super(input, config);
-    this.subGraph.on("start", () => {
-      this.emit("start");
-    });
-    this.subGraph.on("complete", () => {
-      this.emit("complete");
-    });
-    this.subGraph.on("error", (e) => {
-      this.emit("error", e);
-    });
-  }
-}
+// ============================================================================
+// Types
+// ============================================================================
 
-class OwnGraphTask extends ListeningGraphAsTask {
-  public static readonly type = "Own[Graph]";
-}
-
-class OwnWorkflowTask extends ListeningGraphAsTask {
-  public static readonly type = "Own[Workflow]";
-}
-class GraphTask extends GraphAsTask {
-  public static readonly type = "Graph";
-}
-
-class WorkflowTask extends GraphAsTask {
-  public static readonly type = "Workflow";
-}
-
-// Update PipeFunction type to be more specific about input/output types
 export type PipeFunction<I extends DataPorts = any, O extends DataPorts = any> = (
   input: I,
   context: IExecuteContext
@@ -57,6 +28,66 @@ export type Taskish<A extends DataPorts = DataPorts, B extends DataPorts = DataP
   | ITask<A, B>
   | ITaskGraph
   | IWorkflow<A, B>;
+
+// ============================================================================
+// Wrapper classes (lazily initialized to avoid circular dependency with
+// GraphAsTask — which transitively imports Workflow which imports this file)
+// ============================================================================
+
+type GraphAsTaskConstructor = typeof GraphAsTask;
+
+let _OwnGraphTask: GraphAsTaskConstructor;
+let _OwnWorkflowTask: GraphAsTaskConstructor;
+let _GraphTask: GraphAsTaskConstructor;
+let _ConvWorkflowTask: GraphAsTaskConstructor;
+
+function getWrapperClasses() {
+  if (!_OwnGraphTask) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const GaT = (require("../task/GraphAsTask") as { GraphAsTask: GraphAsTaskConstructor })
+      .GraphAsTask;
+
+    class ListeningGraphAsTask extends GaT<any, any> {
+      constructor(input: any, config: any) {
+        super(input, config);
+        this.subGraph.on("start", () => {
+          this.emit("start");
+        });
+        this.subGraph.on("complete", () => {
+          this.emit("complete");
+        });
+        this.subGraph.on("error", (e) => {
+          this.emit("error", e);
+        });
+      }
+    }
+
+    class OwnGraphTask extends ListeningGraphAsTask {
+      public static readonly type = "Own[Graph]";
+    }
+
+    class OwnWorkflowTask extends ListeningGraphAsTask {
+      public static readonly type = "Own[Workflow]";
+    }
+
+    class GraphTask extends GaT {
+      public static readonly type = "Graph";
+    }
+
+    class ConvWorkflowTask extends GaT {
+      public static readonly type = "Workflow";
+    }
+
+    _OwnGraphTask = OwnGraphTask as unknown as GraphAsTaskConstructor;
+    _OwnWorkflowTask = OwnWorkflowTask as unknown as GraphAsTaskConstructor;
+    _GraphTask = GraphTask as unknown as GraphAsTaskConstructor;
+    _ConvWorkflowTask = ConvWorkflowTask as unknown as GraphAsTaskConstructor;
+  }
+}
+
+// ============================================================================
+// ensureTask — converts Taskish values into ITask instances
+// ============================================================================
 
 function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
   fn: PipeFunction<I, O>,
@@ -90,6 +121,22 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
   return new QuickTask({}, config);
 }
 
+/**
+ * Checks if a value implements the IWorkflow interface (has a `graph` property
+ * that is a TaskGraph and a `run` method). Used instead of `instanceof Workflow`
+ * to avoid a circular dependency with the Workflow module.
+ */
+function isWorkflowLike(arg: unknown): arg is IWorkflow {
+  return (
+    arg != null &&
+    typeof arg === "object" &&
+    "graph" in arg &&
+    arg.graph instanceof TaskGraph &&
+    "run" in arg &&
+    typeof arg.run === "function"
+  );
+}
+
 export function ensureTask<I extends DataPorts, O extends DataPorts>(
   arg: Taskish<I, O>,
   config: any = {}
@@ -98,122 +145,22 @@ export function ensureTask<I extends DataPorts, O extends DataPorts>(
     return arg;
   }
   if (arg instanceof TaskGraph) {
+    getWrapperClasses();
     const { isOwned, ...cleanConfig } = config;
     if (isOwned) {
-      return new OwnGraphTask({}, { ...cleanConfig, subGraph: arg });
+      return new _OwnGraphTask({}, { ...cleanConfig, subGraph: arg });
     } else {
-      return new GraphTask({}, { ...cleanConfig, subGraph: arg });
+      return new _GraphTask({}, { ...cleanConfig, subGraph: arg });
     }
   }
-  if (arg instanceof Workflow) {
+  if (isWorkflowLike(arg)) {
+    getWrapperClasses();
     const { isOwned, ...cleanConfig } = config;
     if (isOwned) {
-      return new OwnWorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
+      return new _OwnWorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
     } else {
-      return new WorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
+      return new _ConvWorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
     }
   }
   return convertPipeFunctionToTask(arg as PipeFunction<I, O>, config);
-}
-
-export function getLastTask(workflow: IWorkflow): ITask<any, any, any> | undefined {
-  const tasks = workflow.graph.getTasks();
-  return tasks.length > 0 ? tasks[tasks.length - 1] : undefined;
-}
-
-export function connect(
-  source: ITask<any, any, any>,
-  target: ITask<any, any, any>,
-  workflow: IWorkflow<any, any>
-): void {
-  workflow.graph.addDataflow(new Dataflow(source.id, "*", target.id, "*"));
-}
-
-export function pipe<A extends DataPorts, B extends DataPorts>(
-  [fn1]: [Taskish<A, B>],
-  workflow?: IWorkflow<A, B>
-): IWorkflow<A, B>;
-
-export function pipe<A extends DataPorts, B extends DataPorts, C extends DataPorts>(
-  [fn1, fn2]: [Taskish<A, B>, Taskish<B, C>],
-  workflow?: IWorkflow<A, C>
-): IWorkflow<A, C>;
-
-export function pipe<
-  A extends DataPorts,
-  B extends DataPorts,
-  C extends DataPorts,
-  D extends DataPorts,
->(
-  [fn1, fn2, fn3]: [Taskish<A, B>, Taskish<B, C>, Taskish<C, D>],
-  workflow?: IWorkflow<A, D>
-): IWorkflow<A, D>;
-
-export function pipe<
-  A extends DataPorts,
-  B extends DataPorts,
-  C extends DataPorts,
-  D extends DataPorts,
-  E extends DataPorts,
->(
-  [fn1, fn2, fn3, fn4]: [Taskish<A, B>, Taskish<B, C>, Taskish<C, D>, Taskish<D, E>],
-  workflow?: IWorkflow<A, E>
-): IWorkflow<A, E>;
-
-export function pipe<
-  A extends DataPorts,
-  B extends DataPorts,
-  C extends DataPorts,
-  D extends DataPorts,
-  E extends DataPorts,
-  F extends DataPorts,
->(
-  [fn1, fn2, fn3, fn4, fn5]: [
-    Taskish<A, B>,
-    Taskish<B, C>,
-    Taskish<C, D>,
-    Taskish<D, E>,
-    Taskish<E, F>,
-  ],
-  workflow?: IWorkflow<A, F>
-): IWorkflow<A, F>;
-
-export function pipe<I extends DataPorts, O extends DataPorts>(
-  args: Taskish<I, O>[],
-  workflow: IWorkflow<I, O> = new Workflow<I, O>()
-): IWorkflow<I, O> {
-  let previousTask = getLastTask(workflow);
-  const tasks = args.map((arg) => ensureTask(arg));
-  tasks.forEach((task) => {
-    workflow.graph.addTask(task);
-    if (previousTask) {
-      connect(previousTask, task, workflow);
-    }
-    previousTask = task;
-  });
-  return workflow;
-}
-
-export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = DataPorts>(
-  args: (PipeFunction<I, O> | ITask<I, O> | IWorkflow<I, O> | ITaskGraph)[],
-  mergeFn: CompoundMergeStrategy = PROPERTY_ARRAY,
-  workflow: IWorkflow<I, O> = new Workflow<I, O>()
-): IWorkflow<I, O> {
-  let previousTask = getLastTask(workflow);
-  const tasks = args.map((arg) => ensureTask(arg));
-  const input = {};
-  const config = {
-    compoundMerge: mergeFn,
-  };
-  const name = `‖${args.map((arg) => "𝑓").join("‖")}‖`;
-  class ParallelTask extends GraphAsTask<I, O> {
-    public static type = name;
-  }
-  const mergeTask = new ParallelTask(input, config);
-  mergeTask.subGraph!.addTasks(tasks);
-  workflow.graph.addTask(mergeTask);
-  if (previousTask) {
-    connect(previousTask, mergeTask, workflow);
-  }
-  return workflow;
 }
