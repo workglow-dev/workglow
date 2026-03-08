@@ -7,6 +7,7 @@
 import { InMemoryVectorStorage, TelemetryVectorStorage } from "@workglow/storage";
 import {
   ConsoleTelemetryProvider,
+  NoopTelemetryProvider,
   setTelemetryProvider,
   type DataPortSchemaObject,
 } from "@workglow/util";
@@ -44,6 +45,7 @@ describe("TelemetryVectorStorage", () => {
   });
 
   afterEach(() => {
+    setTelemetryProvider(new NoopTelemetryProvider());
     vi.restoreAllMocks();
   });
 

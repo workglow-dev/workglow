@@ -100,7 +100,7 @@ export class VectorSimilarityTask extends GraphAsTask<
   JobQueueTaskConfig
 > {
   static readonly type = "VectorSimilarityTask";
-  static readonly category = "Analysis";
+  static readonly category = "Vector";
   static readonly title = "Vector Similarity";
   public static description =
     "Compares vectors using similarity functions and returns top-K ranked results";

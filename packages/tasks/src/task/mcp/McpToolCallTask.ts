@@ -168,7 +168,16 @@ const fallbackInputSchema = {
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
-export type McpToolCallTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
+/** Base config from schema; inputSchema/outputSchema overridden to DataPortSchema so constructor accepts TaskConfig from registry. */
+type McpToolCallConfigFromSchema = Omit<
+  FromSchema<typeof configSchema>,
+  "inputSchema" | "outputSchema"
+>;
+export type McpToolCallTaskConfig = TaskConfig &
+  McpToolCallConfigFromSchema & {
+    inputSchema?: DataPortSchema;
+    outputSchema?: DataPortSchema;
+  };
 export type McpToolCallTaskInput = Record<string, unknown>;
 export type McpToolCallTaskOutput = Record<string, unknown>;
 

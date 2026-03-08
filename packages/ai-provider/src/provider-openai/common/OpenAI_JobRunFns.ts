@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toOpenAIMessages } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -562,11 +562,7 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toOpenAIMessages(input) as any[];
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 
@@ -631,11 +627,7 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toOpenAIMessages(input) as any[];
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 

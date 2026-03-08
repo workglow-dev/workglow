@@ -447,6 +447,91 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
+/**
+ * Build Gemini-format contents from the task input.
+ * When `input.messages` is present (multi-turn agent loop), converts the
+ * provider-agnostic ChatMessage format to Gemini's Content format.
+ * Otherwise falls back to a single user content from `input.prompt`.
+ */
+function buildGeminiContents(input: ToolCallingTaskInput): any[] {
+  const inputMessages = input.messages;
+  if (!inputMessages || inputMessages.length === 0) {
+    return [{ role: "user", parts: [{ text: input.prompt }] }];
+  }
+
+  // Build a lookup from tool_use_id -> tool name for functionResponse mapping
+  const toolUseNames = new Map<string, string>();
+  for (const msg of inputMessages) {
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (block.type === "tool_use") {
+          toolUseNames.set(block.id, block.name);
+        }
+      }
+    }
+  }
+
+  const contents: any[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "user") {
+      if (typeof msg.content === "string") {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      } else if (Array.isArray(msg.content)) {
+        const parts: any[] = [];
+        for (const block of msg.content) {
+          if (block.type === "text") {
+            parts.push({ text: block.text });
+          } else if (block.type === "image" || block.type === "audio") {
+            parts.push({ inlineData: { mimeType: block.mimeType, data: block.data } });
+          }
+        }
+        contents.push({ role: "user", parts });
+      } else {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      }
+    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      const parts: any[] = [];
+      for (const block of msg.content) {
+        if (block.type === "text" && block.text) {
+          parts.push({ text: block.text });
+        } else if (block.type === "tool_use") {
+          parts.push({ functionCall: { name: block.name, args: block.input } });
+        }
+      }
+      if (parts.length > 0) {
+        contents.push({ role: "model", parts });
+      }
+    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+      const parts = msg.content.map((block: any) => {
+        const name = toolUseNames.get(block.tool_use_id) ?? "unknown";
+        let response: Record<string, unknown>;
+        if (typeof block.content === "string") {
+          try {
+            response = JSON.parse(block.content);
+          } catch {
+            response = { result: block.content };
+          }
+        } else if (Array.isArray(block.content)) {
+          // Extract text from multi-part content; Gemini functionResponse only supports JSON
+          const textParts = (block.content as Array<Record<string, unknown>>)
+            .filter((b) => b.type === "text")
+            .map((b) => b.text as string);
+          try {
+            response = JSON.parse(textParts.join(""));
+          } catch {
+            response = { result: textParts.join("") };
+          }
+        } else {
+          response = {};
+        }
+        return { functionResponse: { name, response } };
+      });
+      contents.push({ role: "user", parts });
+    }
+  }
+  return contents;
+}
+
 function mapGeminiToolConfig(
   toolChoice: string | undefined
 ):
@@ -518,9 +603,9 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     },
   });
 
-  const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
-  });
+  const contents = buildGeminiContents(input);
+
+  const result = await genModel.generateContent({ contents });
 
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
 
@@ -573,10 +658,9 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
     },
   });
 
-  const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.prompt as string }] }] },
-    { signal }
-  );
+  const contents = buildGeminiContents(input);
+
+  const result = await genModel.generateContentStream({ contents }, { signal });
 
   let accumulatedText = "";
   const toolCalls: Record<string, unknown> = {};

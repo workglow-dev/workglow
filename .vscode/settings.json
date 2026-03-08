@@ -19,7 +19,8 @@
   "search.exclude": {
     "**/dist": true,
     "**/bun.lock": true,
-    "**/*.tsbuildinfo": true
+    "**/*.tsbuildinfo": true,
+    "**/node_modules": true
   },
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
