@@ -88,6 +88,13 @@ export interface IRunConfig {
   ) => Promise<void>;
 
   registry?: ServiceRegistry;
+
+  /**
+   * Parent abort signal to link to this task's abort controller.
+   * When the parent signal is aborted, this task will also be aborted.
+   * Set automatically by context.own() to propagate cancellation from parent to child tasks.
+   */
+  signal?: AbortSignal;
 }
 
 /**
