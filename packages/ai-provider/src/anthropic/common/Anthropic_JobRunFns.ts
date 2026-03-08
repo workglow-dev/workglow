@@ -438,6 +438,49 @@ export const Anthropic_StructuredGeneration_Stream: AiProviderStreamFn<
  * provider-agnostic ChatMessage format to Anthropic's message format.
  * Otherwise falls back to a single user message from `input.prompt`.
  */
+function mapUserContentToAnthropic(content: unknown): any {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return content;
+  const parts: any[] = [];
+  for (const block of content as Array<Record<string, unknown>>) {
+    if (block.type === "text") {
+      parts.push({ type: "text", text: block.text });
+    } else if (block.type === "image") {
+      parts.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: block.mimeType as string,
+          data: block.data as string,
+        },
+      });
+    }
+    // Audio is not natively supported by Anthropic — skip
+  }
+  return parts;
+}
+
+function mapToolResultContentToAnthropic(content: unknown): any {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return content;
+  const parts: any[] = [];
+  for (const block of content as Array<Record<string, unknown>>) {
+    if (block.type === "text") {
+      parts.push({ type: "text", text: block.text });
+    } else if (block.type === "image") {
+      parts.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: block.mimeType as string,
+          data: block.data as string,
+        },
+      });
+    }
+  }
+  return parts;
+}
+
 function buildAnthropicMessages(input: ToolCallingTaskInput): any[] {
   const inputMessages = input.messages;
   if (!inputMessages || inputMessages.length === 0) {
@@ -447,7 +490,7 @@ function buildAnthropicMessages(input: ToolCallingTaskInput): any[] {
   const messages: any[] = [];
   for (const msg of inputMessages) {
     if (msg.role === "user") {
-      messages.push({ role: "user", content: msg.content });
+      messages.push({ role: "user", content: mapUserContentToAnthropic(msg.content) });
     } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
       const blocks = msg.content.map((block: any) => {
         if (block.type === "text") return { type: "text", text: block.text };
@@ -462,7 +505,7 @@ function buildAnthropicMessages(input: ToolCallingTaskInput): any[] {
       const blocks = msg.content.map((block: any) => ({
         type: "tool_result",
         tool_use_id: block.tool_use_id,
-        content: block.content,
+        content: mapToolResultContentToAnthropic(block.content),
         ...(block.is_error && { is_error: true }),
       }));
       messages.push({ role: "user", content: blocks });

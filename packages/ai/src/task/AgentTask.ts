@@ -15,7 +15,7 @@ import {
 import { getLogger } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util";
 import { assistantMessage, toolMessage, toolSourceDefinitions, userMessage } from "./AgentTypes";
-import type { AgentHooks, ChatMessage, ToolSource } from "./AgentTypes";
+import type { AgentHooks, ChatMessage, ToolSource, UserContentBlock } from "./AgentTypes";
 import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { ToolCallingTask } from "./ToolCallingTask";
@@ -51,7 +51,7 @@ export interface AgentTaskConfig extends TaskConfig {
 export interface AgentTaskInput {
   readonly [key: string]: unknown;
   readonly model: string;
-  readonly prompt: string;
+  readonly prompt: string | ReadonlyArray<UserContentBlock>;
   readonly systemPrompt?: string;
   /**
    * Tools available to the agent. Each entry is either:
@@ -99,9 +99,23 @@ export const AgentInputSchema = {
   properties: {
     model: modelSchema,
     prompt: {
-      type: "string",
+      oneOf: [
+        { type: "string" },
+        {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["text", "image", "audio"] },
+            },
+            required: ["type"],
+            additionalProperties: true,
+          },
+        },
+      ],
       title: "Prompt",
-      description: "The user prompt to start the agent loop",
+      description:
+        "The user prompt to start the agent loop. Can be a string or an array of content blocks (text, image, audio).",
     },
     systemPrompt: {
       type: "string",
@@ -295,7 +309,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
       for await (const event of llmTask.executeStream(
         {
           model: input.model,
-          prompt: input.prompt,
+          prompt: input.prompt as ToolCallingTaskInput["prompt"],
           systemPrompt: input.systemPrompt,
           tools: toolDefs as ToolCallingTaskInput["tools"],
           messages: contextMessages as ToolCallingTaskInput["messages"],

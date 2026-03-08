@@ -474,7 +474,21 @@ function buildGeminiContents(input: ToolCallingTaskInput): any[] {
   const contents: any[] = [];
   for (const msg of inputMessages) {
     if (msg.role === "user") {
-      contents.push({ role: "user", parts: [{ text: msg.content }] });
+      if (typeof msg.content === "string") {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      } else if (Array.isArray(msg.content)) {
+        const parts: any[] = [];
+        for (const block of msg.content) {
+          if (block.type === "text") {
+            parts.push({ text: block.text });
+          } else if (block.type === "image" || block.type === "audio") {
+            parts.push({ inlineData: { mimeType: block.mimeType, data: block.data } });
+          }
+        }
+        contents.push({ role: "user", parts });
+      } else {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      }
     } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
       const parts: any[] = [];
       for (const block of msg.content) {
@@ -491,10 +505,24 @@ function buildGeminiContents(input: ToolCallingTaskInput): any[] {
       const parts = msg.content.map((block: any) => {
         const name = toolUseNames.get(block.tool_use_id) ?? "unknown";
         let response: Record<string, unknown>;
-        try {
-          response = JSON.parse(block.content);
-        } catch {
-          response = { result: block.content };
+        if (typeof block.content === "string") {
+          try {
+            response = JSON.parse(block.content);
+          } catch {
+            response = { result: block.content };
+          }
+        } else if (Array.isArray(block.content)) {
+          // Extract text from multi-part content; Gemini functionResponse only supports JSON
+          const textParts = (block.content as Array<Record<string, unknown>>)
+            .filter((b) => b.type === "text")
+            .map((b) => b.text as string);
+          try {
+            response = JSON.parse(textParts.join(""));
+          } catch {
+            response = { result: textParts.join("") };
+          }
+        } else {
+          response = {};
         }
         return { functionResponse: { name, response } };
       });
