@@ -20,8 +20,6 @@ bun run format             # ESLint fix + Prettier write
 bun run clean              # Remove dist, node_modules, .turbo, tsbuildinfo
 ```
 
-Some tests are gated by env vars: `RUN_ALL_TESTS=1`, `RUN_QUEUE_TESTS=1`, `AGENT=1`.
-
 ## Monorepo structure
 
 Bun workspaces + Turborepo. All packages live in `packages/`. Build order is managed by Turbo's dependency graph (`turbo.json`).
