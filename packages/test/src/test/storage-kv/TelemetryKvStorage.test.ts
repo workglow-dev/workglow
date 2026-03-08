@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import {
   ConsoleTelemetryProvider,
   setTelemetryProvider,
@@ -28,6 +28,10 @@ describe("TelemetryKvStorage", () => {
     // Suppress console output during tests
     vi.spyOn(console, "debug").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("should forward put and create a span", async () => {
