@@ -14,6 +14,7 @@ export default defineConfig({
       ),
     },
   },
+  envDir: __dirname,
   test: {
     maxConcurrency: 1,
     maxWorkers: 1,
