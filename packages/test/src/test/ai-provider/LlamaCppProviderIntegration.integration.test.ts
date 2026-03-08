@@ -11,7 +11,7 @@
  * so subsequent runs do not re-download.
  *
  * Models used (chosen for minimal size):
- *   - Text generation: SmolLM2 135M Instruct Q4_K_M  (~85 MB)
+ *   - Text generation: Qwen3.5 0.8B Q4_K_M            (~560 MB)
  *   - Embedding:       BGE Small EN v1.5 Q8_0         (~34 MB)
  */
 
@@ -38,17 +38,17 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 // Model definitions (tiny models suitable for testing)
 // ========================================================================
 
-const LLM_MODEL_ID = "llamacpp:SmolLM2-135M-Instruct:Q4_K_M";
-const LLM_MODEL_URL = "hf:bartowski/SmolLM2-135M-Instruct-GGUF:Q4_K_M";
+const LLM_MODEL_ID = "llamacpp:Qwen3.5-0.8B:Q4_K_M";
+const LLM_MODEL_URL = "hf:unsloth/Qwen3.5-0.8B-GGUF:Q4_K_M";
 
 const llmModel: LlamaCppModelRecord = {
   model_id: LLM_MODEL_ID,
-  title: "SmolLM2 135M Instruct",
-  description: "A 135M parameter instruction-following model, quantized Q4_K_M (~85 MB)",
+  title: "Qwen3.5 0.8B",
+  description: "A 0.8B parameter model from Qwen3.5, quantized Q4_K_M (~560 MB)",
   tasks: ["DownloadModelTask", "TextGenerationTask", "TextRewriterTask", "TextSummaryTask"],
   provider: LOCAL_LLAMACPP,
   provider_config: {
-    model_path: "./models/SmolLM2-135M-Instruct-Q4_K_M.gguf",
+    model_path: "./models/Qwen3.5-0.8B-Q4_K_M.gguf",
     model_url: LLM_MODEL_URL,
     models_dir: "./models",
     context_size: 512,
@@ -129,7 +129,7 @@ describe("LlamaCpp Integration (real models, no mocks)", () => {
       expect(typeof storyResult.text).toBe("string");
       expect((storyResult.text as string).trim().length).toBeGreaterThan(10);
     },
-    10 * 60 * 1000 // 10 min: download (~85 MB) + inference
+    10 * 60 * 1000 // 10 min: download (~560 MB) + inference
   );
 
   // ======================================================================
