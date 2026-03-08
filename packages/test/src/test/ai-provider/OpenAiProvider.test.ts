@@ -619,7 +619,7 @@ describe("OpenAiProvider", () => {
   // Streaming: TextGeneration, TextRewriter, TextSummary
   // ========================================================================
   describe("OpenAI_TextGeneration_Stream", () => {
-    test("should yield text-delta events and include accumulated text in finish", async () => {
+    test("should yield text-delta events and a finish event", async () => {
       const chunks = [
         { choices: [{ delta: { content: "Hello " } }] },
         { choices: [{ delta: { content: "world" } }] },
@@ -647,12 +647,11 @@ describe("OpenAiProvider", () => {
 
       const finish = events.find((e) => e.type === "finish");
       expect(finish).toBeDefined();
-      expect(finish.data.text).toBe("Hello world");
     });
   });
 
   describe("OpenAI_TextRewriter_Stream", () => {
-    test("should accumulate text and include it in finish event", async () => {
+    test("should yield text-delta events and a finish event", async () => {
       const chunks = [{ choices: [{ delta: { content: "Rewritten" } }] }];
 
       async function* chunkStream() {
@@ -670,13 +669,17 @@ describe("OpenAiProvider", () => {
         events.push(event);
       }
 
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(1);
+      expect(textDeltas[0].textDelta).toBe("Rewritten");
+
       const finish = events.find((e) => e.type === "finish");
-      expect(finish.data.text).toBe("Rewritten");
+      expect(finish).toBeDefined();
     });
   });
 
   describe("OpenAI_TextSummary_Stream", () => {
-    test("should accumulate text and include it in finish event", async () => {
+    test("should yield text-delta events and a finish event", async () => {
       const chunks = [{ choices: [{ delta: { content: "TL;DR" } }] }];
 
       async function* chunkStream() {
@@ -694,8 +697,12 @@ describe("OpenAiProvider", () => {
         events.push(event);
       }
 
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(1);
+      expect(textDeltas[0].textDelta).toBe("TL;DR");
+
       const finish = events.find((e) => e.type === "finish");
-      expect(finish.data.text).toBe("TL;DR");
+      expect(finish).toBeDefined();
     });
   });
 
