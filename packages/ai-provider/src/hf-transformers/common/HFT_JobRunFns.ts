@@ -1874,11 +1874,15 @@ export const HFT_ToolCalling: AiProviderRunFn<
       outputs.push({ text, toolCalls: filterValidToolCalls(toolCalls, singleInput.tools) });
     }
 
-    // When input.prompt is an array, return an array of outputs (TypeSingleOrArray behavior).
-    // The outer framework is responsible for interpreting this correctly.
+    // When input.prompt is an array, return a single ToolCallingTaskOutput whose
+    // `text` and `toolCalls` fields are arrays aligned by index (TypeSingleOrArray behavior).
+    const aggregatedOutput: ToolCallingTaskOutput = {
+      text: outputs.map((o) => o.text),
+      toolCalls: outputs.map((o) => o.toolCalls),
+    };
     // Cast to any to satisfy the AiProviderRunFn generic, which allows TypeSingleOrArray.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return outputs as any;
+    return aggregatedOutput as any;
   }
   const messages = toTextFlatMessages(input);
 
