@@ -9,10 +9,15 @@ import { OPENAI, OpenAiModelConfig, OpenAiProvider } from "@workglow/ai-provider
 import {
   OPENAI_TASKS,
   OpenAI_CountTokens,
+  OpenAI_StructuredGeneration,
+  OpenAI_StructuredGeneration_Stream,
   OpenAI_TextEmbedding,
   OpenAI_TextGeneration,
+  OpenAI_TextGeneration_Stream,
   OpenAI_TextRewriter,
+  OpenAI_TextRewriter_Stream,
   OpenAI_TextSummary,
+  OpenAI_TextSummary_Stream,
   OpenAI_ToolCalling,
   OpenAI_ToolCalling_Stream,
   _setTiktokenForTesting,
@@ -520,6 +525,465 @@ describe("OpenAiProvider", () => {
 
       expect(result.toolCalls).toHaveProperty("ok_1");
       expect(result.toolCalls).not.toHaveProperty("bad_1");
+    });
+  });
+
+  // ========================================================================
+  // Structured generation
+  // ========================================================================
+  describe("OpenAI_StructuredGeneration", () => {
+    test("should use json_schema response format", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: '{"name":"Alice"}' } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      const schema = {
+        type: "object",
+        properties: { name: { type: "string" } },
+        required: ["name"],
+      } as const;
+      const result = await OpenAI_StructuredGeneration(
+        { prompt: "Extract name", model: model, outputSchema: schema },
+        model,
+        noopProgress,
+        abortSignal,
+        schema
+      );
+
+      expect(result.object).toEqual({ name: "Alice" });
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.response_format.type).toBe("json_schema");
+      expect(params.response_format.json_schema.strict).toBe(true);
+    });
+
+    test("should prefer input outputSchema over outputSchema parameter", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: '{"x":1}' } }],
+      });
+
+      const inputSchema = { type: "object", properties: { x: { type: "number" } } } as const;
+      const fallbackSchema = {
+        type: "object",
+        properties: { y: { type: "number" } },
+      } as const;
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_StructuredGeneration(
+        { prompt: "test", model: model, outputSchema: inputSchema },
+        model,
+        noopProgress,
+        abortSignal,
+        fallbackSchema
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.response_format.json_schema.schema).toEqual(inputSchema);
+    });
+  });
+
+  describe("OpenAI_StructuredGeneration_Stream", () => {
+    test("should yield object-delta events and finish with final object", async () => {
+      const chunks = [
+        { choices: [{ delta: { content: '{"name":' } }] },
+        { choices: [{ delta: { content: '"Bob"}' } }] },
+      ];
+
+      async function* chunkStream() {
+        for (const c of chunks) yield c;
+      }
+      mockCreate.mockResolvedValue(chunkStream());
+
+      const model = makeModel("gpt-4o");
+      const schema = { type: "object", properties: { name: { type: "string" } } } as const;
+      const events: any[] = [];
+      for await (const event of OpenAI_StructuredGeneration_Stream(
+        { prompt: "Extract", model: model, outputSchema: schema },
+        model,
+        abortSignal,
+        schema
+      )) {
+        events.push(event);
+      }
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas.length).toBeGreaterThan(0);
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.object).toEqual({ name: "Bob" });
+    });
+  });
+
+  // ========================================================================
+  // Streaming: TextGeneration, TextRewriter, TextSummary
+  // ========================================================================
+  describe("OpenAI_TextGeneration_Stream", () => {
+    test("should yield text-delta events and include accumulated text in finish", async () => {
+      const chunks = [
+        { choices: [{ delta: { content: "Hello " } }] },
+        { choices: [{ delta: { content: "world" } }] },
+      ];
+
+      async function* chunkStream() {
+        for (const c of chunks) yield c;
+      }
+      mockCreate.mockResolvedValue(chunkStream());
+
+      const model = makeModel("gpt-4o");
+      const events: any[] = [];
+      for await (const event of OpenAI_TextGeneration_Stream(
+        { prompt: "Say hello", model: model },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0].textDelta).toBe("Hello ");
+      expect(textDeltas[1].textDelta).toBe("world");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.text).toBe("Hello world");
+    });
+  });
+
+  describe("OpenAI_TextRewriter_Stream", () => {
+    test("should accumulate text and include it in finish event", async () => {
+      const chunks = [{ choices: [{ delta: { content: "Rewritten" } }] }];
+
+      async function* chunkStream() {
+        for (const c of chunks) yield c;
+      }
+      mockCreate.mockResolvedValue(chunkStream());
+
+      const model = makeModel("gpt-4o");
+      const events: any[] = [];
+      for await (const event of OpenAI_TextRewriter_Stream(
+        { text: "Original", prompt: "Make formal", model: model },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish.data.text).toBe("Rewritten");
+    });
+  });
+
+  describe("OpenAI_TextSummary_Stream", () => {
+    test("should accumulate text and include it in finish event", async () => {
+      const chunks = [{ choices: [{ delta: { content: "TL;DR" } }] }];
+
+      async function* chunkStream() {
+        for (const c of chunks) yield c;
+      }
+      mockCreate.mockResolvedValue(chunkStream());
+
+      const model = makeModel("gpt-4o");
+      const events: any[] = [];
+      for await (const event of OpenAI_TextSummary_Stream(
+        { text: "Long text", model: model },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish.data.text).toBe("TL;DR");
+    });
+  });
+
+  // ========================================================================
+  // Multi-turn conversation (ToolCalling with messages)
+  // ========================================================================
+  describe("OpenAI_ToolCalling multi-turn", () => {
+    const sampleTools = [
+      {
+        name: "get_weather",
+        description: "Get the weather for a location",
+        inputSchema: {
+          type: "object",
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        } as const satisfies JsonSchema,
+      },
+    ];
+
+    test("should convert messages array into OpenAI format via toOpenAIMessages", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: "Sunny", tool_calls: [] } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_ToolCalling(
+        {
+          prompt: "What is the weather?",
+          tools: sampleTools,
+          model: model,
+          messages: [
+            { role: "user", content: "What is the weather in London?" },
+            {
+              role: "assistant",
+              content: [
+                { type: "text", text: "Let me check." },
+                {
+                  type: "tool_use",
+                  id: "call_1",
+                  name: "get_weather",
+                  input: { location: "London" },
+                },
+              ],
+            },
+            {
+              role: "tool",
+              content: [
+                { tool_use_id: "call_1", content: "Sunny, 22°C" },
+              ],
+            },
+          ],
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.messages.length).toBeGreaterThanOrEqual(3);
+    });
+
+    test("should handle toolChoice 'none' correctly", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: "No tools", tool_calls: [] } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_ToolCalling(
+        {
+          prompt: "test",
+          tools: sampleTools,
+          model: model,
+          toolChoice: "none",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.tool_choice).toBe("none");
+    });
+
+    test("should handle toolChoice 'required'", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                { id: "call_1", function: { name: "get_weather", arguments: '{"location":"NYC"}' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_ToolCalling(
+        {
+          prompt: "test",
+          tools: sampleTools,
+          model: model,
+          toolChoice: "required",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.tool_choice).toBe("required");
+    });
+
+    test("should map specific tool name to function choice", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                { id: "call_1", function: { name: "get_weather", arguments: '{"location":"NYC"}' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      const model = makeModel("gpt-4o");
+      await OpenAI_ToolCalling(
+        {
+          prompt: "test",
+          tools: sampleTools,
+          model: model,
+          toolChoice: "get_weather",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockCreate.mock.calls[0];
+      expect(params.tool_choice).toEqual({ type: "function", function: { name: "get_weather" } });
+    });
+  });
+
+  // ========================================================================
+  // Batch/array input
+  // ========================================================================
+  describe("batch input handling", () => {
+    test("should process array prompts sequentially for TextGeneration", async () => {
+      mockCreate
+        .mockResolvedValueOnce({ choices: [{ message: { content: "Reply 1" } }] })
+        .mockResolvedValueOnce({ choices: [{ message: { content: "Reply 2" } }] });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_TextGeneration(
+        { prompt: ["Prompt 1", "Prompt 2"], model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Reply 1", "Reply 2"]);
+      expect(mockCreate).toHaveBeenCalledTimes(2);
+    });
+
+    test("should process array texts sequentially for TextRewriter", async () => {
+      mockCreate
+        .mockResolvedValueOnce({ choices: [{ message: { content: "Formal 1" } }] })
+        .mockResolvedValueOnce({ choices: [{ message: { content: "Formal 2" } }] });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_TextRewriter(
+        { text: ["Casual 1", "Casual 2"], prompt: "Make formal", model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Formal 1", "Formal 2"]);
+    });
+
+    test("should process array texts sequentially for TextSummary", async () => {
+      mockCreate
+        .mockResolvedValueOnce({ choices: [{ message: { content: "Summary 1" } }] })
+        .mockResolvedValueOnce({ choices: [{ message: { content: "Summary 2" } }] });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_TextSummary(
+        { text: ["Long 1", "Long 2"], model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Summary 1", "Summary 2"]);
+    });
+
+    test("should process array texts sequentially for CountTokens", async () => {
+      mockTiktokenEncode
+        .mockReturnValueOnce([1, 2, 3])
+        .mockReturnValueOnce([1, 2, 3, 4, 5]);
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_CountTokens(
+        { text: ["Short", "Longer text here"], model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.count).toEqual([3, 5]);
+    });
+
+    test("should process array prompts sequentially for ToolCalling", async () => {
+      const sampleTools = [
+        {
+          name: "get_weather",
+          description: "Get weather",
+          inputSchema: {
+            type: "object",
+            properties: { location: { type: "string" } },
+            required: ["location"],
+          } as const satisfies JsonSchema,
+        },
+      ];
+
+      mockCreate
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: "Checking 1",
+                tool_calls: [
+                  { id: "c1", function: { name: "get_weather", arguments: '{"location":"NYC"}' } },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: "Checking 2",
+                tool_calls: [
+                  { id: "c2", function: { name: "get_weather", arguments: '{"location":"LA"}' } },
+                ],
+              },
+            },
+          ],
+        });
+
+      const model = makeModel("gpt-4o");
+      const result = await OpenAI_ToolCalling(
+        { prompt: ["Weather NYC?", "Weather LA?"], tools: sampleTools, model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Checking 1", "Checking 2"]);
+      expect(Array.isArray(result.toolCalls)).toBe(true);
+      expect((result.toolCalls as any[])).toHaveLength(2);
+    });
+  });
+
+  // ========================================================================
+  // Progress callback
+  // ========================================================================
+  describe("progress callback", () => {
+    test("should call progress at 0 and 100 for TextGeneration", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: "Hello" } }],
+      });
+
+      const model = makeModel("gpt-4o");
+      const progressCalls: number[] = [];
+      await OpenAI_TextGeneration(
+        { prompt: "test", model: model },
+        model,
+        (pct) => progressCalls.push(pct),
+        abortSignal
+      );
+
+      expect(progressCalls).toContain(0);
+      expect(progressCalls).toContain(100);
     });
   });
 
