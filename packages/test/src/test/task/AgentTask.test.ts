@@ -4,7 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AgentTask, assistantMessage, toolMessage, userMessage } from "@workglow/ai";
+import {
+  AgentTask,
+  assistantMessage,
+  audioBlock,
+  audioBlockFromDataUri,
+  imageBlock,
+  imageBlockFromDataUri,
+  toolMessage,
+  userMessage,
+} from "@workglow/ai";
 import type { ChatMessage } from "@workglow/ai";
 import { describe, expect, test } from "vitest";
 
@@ -72,6 +81,56 @@ describe("AgentTask.trimMessages", () => {
   test("should handle single message", () => {
     const result = trimMessages([initialUser], 5);
     expect(result).toHaveLength(1);
+  });
+});
+
+// ========================================================================
+// AgentTask static properties
+// ========================================================================
+
+// ========================================================================
+// Content block factory functions
+// ========================================================================
+
+describe("Content block factories", () => {
+  test("imageBlock should create an ImageContentBlock", () => {
+    const block = imageBlock("image/png", "base64data");
+    expect(block).toEqual({ type: "image", mimeType: "image/png", data: "base64data" });
+  });
+
+  test("audioBlock should create an AudioContentBlock", () => {
+    const block = audioBlock("audio/wav", "audiodata");
+    expect(block).toEqual({ type: "audio", mimeType: "audio/wav", data: "audiodata" });
+  });
+
+  test("imageBlockFromDataUri should parse data URI", () => {
+    const block = imageBlockFromDataUri("data:image/jpeg;base64,/9j/4AAQ");
+    expect(block.type).toBe("image");
+    expect(block.mimeType).toBe("image/jpeg");
+    expect(block.data).toBe("/9j/4AAQ");
+  });
+
+  test("audioBlockFromDataUri should parse data URI", () => {
+    const block = audioBlockFromDataUri("data:audio/mp3;base64,AAAA");
+    expect(block.type).toBe("audio");
+    expect(block.mimeType).toBe("audio/mp3");
+    expect(block.data).toBe("AAAA");
+  });
+
+  test("userMessage should accept string content", () => {
+    const msg = userMessage("Hello");
+    expect(msg).toEqual({ role: "user", content: "Hello" });
+  });
+
+  test("userMessage should accept array of content blocks", () => {
+    const blocks = [
+      { type: "text" as const, text: "What is this?" },
+      imageBlock("image/png", "data"),
+    ];
+    const msg = userMessage(blocks);
+    expect(msg.role).toBe("user");
+    expect(Array.isArray(msg.content)).toBe(true);
+    expect((msg.content as any[])).toHaveLength(2);
   });
 });
 
