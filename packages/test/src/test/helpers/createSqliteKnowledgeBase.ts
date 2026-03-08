@@ -4,16 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SqliteTabularStorage, SqliteAiVectorStorage } from "@workglow/storage";
-import type { TypedArray } from "@workglow/util";
+import {
+  ChunkVectorEntity,
+  ChunkVectorPrimaryKey,
+  ChunkVectorStorageSchema,
+  DocumentStorageKey,
+  DocumentStorageSchema,
+  KnowledgeBase,
+  knowledgeBaseTableNames,
+  registerKnowledgeBase,
+} from "@workglow/knowledge-base";
 import type { Sqlite } from "@workglow/sqlite";
-import type { ChunkVectorStorage } from "../chunk/ChunkVectorStorageSchema";
-import { ChunkVectorPrimaryKey, ChunkVectorStorageSchema } from "../chunk/ChunkVectorStorageSchema";
-import type { DocumentTabularStorage } from "../document/DocumentStorageSchema";
-import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentStorageSchema";
-import { KnowledgeBase } from "./KnowledgeBase";
-import { registerKnowledgeBase } from "./KnowledgeBaseRegistry";
-import { knowledgeBaseTableNames } from "./KnowledgeBaseSchema";
+import { SqliteAiVectorStorage, SqliteTabularStorage } from "@workglow/storage";
+import type { TypedArray } from "@workglow/util";
 
 export interface CreateSqliteKnowledgeBaseOptions {
   readonly name: string;
@@ -67,7 +70,13 @@ export async function createSqliteKnowledgeBase(
   );
   await tabularStorage.setupDatabase();
 
-  const vectorStorage = new SqliteAiVectorStorage(
+  const vectorStorage = new SqliteAiVectorStorage<
+    typeof ChunkVectorStorageSchema,
+    typeof ChunkVectorPrimaryKey,
+    Float32Array,
+    Record<string, unknown>,
+    ChunkVectorEntity
+  >(
     db,
     tableNames.chunkTable,
     ChunkVectorStorageSchema,
@@ -78,13 +87,7 @@ export async function createSqliteKnowledgeBase(
   );
   await vectorStorage.setupDatabase();
 
-  const kb = new KnowledgeBase(
-    name,
-    tabularStorage as unknown as DocumentTabularStorage,
-    vectorStorage as unknown as ChunkVectorStorage,
-    title,
-    description
-  );
+  const kb = new KnowledgeBase(name, tabularStorage, vectorStorage, title, description);
 
   if (shouldRegister) {
     await registerKnowledgeBase(name, kb);
