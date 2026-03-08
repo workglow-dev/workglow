@@ -132,6 +132,50 @@ describe("toOpenAIMessages", () => {
 
     expect(msgs[0].content).toBe('{"complex":true}');
   });
+
+  test("should convert user message with image content blocks to OpenAI format", () => {
+    const input = makeInput({
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is this?" },
+            { type: "image", mimeType: "image/png", data: "base64data" },
+          ],
+        },
+      ],
+    });
+    const msgs = toOpenAIMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].role).toBe("user");
+    expect(Array.isArray(msgs[0].content)).toBe(true);
+    const parts = msgs[0].content as any[];
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toEqual({ type: "text", text: "What is this?" });
+    expect(parts[1].type).toBe("image_url");
+    expect(parts[1].image_url.url).toContain("data:image/png;base64,base64data");
+  });
+
+  test("should convert user message with audio content blocks to OpenAI format", () => {
+    const input = makeInput({
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Transcribe this" },
+            { type: "audio", mimeType: "audio/wav", data: "audiodata" },
+          ],
+        },
+      ],
+    });
+    const msgs = toOpenAIMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    const parts = msgs[0].content as any[];
+    expect(parts).toHaveLength(2);
+    expect(parts[1].type).toBe("input_audio");
+  });
 });
 
 // ========================================================================
