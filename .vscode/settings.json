@@ -12,15 +12,12 @@
   "files.exclude": {
     // "**/dist": true,
     // "**/build": true,
-    "**/electron/release/**": true,
     "**/storybook-static": true,
     "**/*.tsbuildinfo": true,
     "**/node_modules": true
   },
   "search.exclude": {
     "**/dist": true,
-    "**/build": true,
-    "**/electron/release/**": true,
     "**/bun.lock": true,
     "**/*.tsbuildinfo": true,
     "**/node_modules": true
