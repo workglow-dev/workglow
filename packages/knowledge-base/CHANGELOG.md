@@ -1,5 +1,16 @@
 # @workglow/knowledge-base
 
+## 0.0.116
+
+### Features
+
+- add SqliteAiVectorStorage using @sqliteai/sqlite-vector extension (#291)
+
+### Refactors
+
+- clean up code formatting and imports across multiple files
+- remove baseUrl from tsconfig and update exports in common-server.ts
+
 ## 0.0.115
 
 ## 0.0.114
