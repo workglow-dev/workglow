@@ -24,7 +24,7 @@ import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 import { runGenericAiProviderTests } from "./genericAiProviderTests";
 
-const RUN = !!process.env.RUN_ALL_TESTS;
+const RUN = true;
 
 const MODEL_ID = "llamacpp:SmolLM2-135M-Instruct:Q4_K_M";
 

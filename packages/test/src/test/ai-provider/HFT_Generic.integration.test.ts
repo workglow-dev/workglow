@@ -27,7 +27,7 @@ import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 import { runGenericAiProviderTests } from "./genericAiProviderTests";
 
-const RUN = !!process.env.RUN_ALL_TESTS;
+const RUN = true;
 
 const MODEL_ID = "onnx:onnx-community/Qwen2.5-0.5B-Instruct:q4";
 
