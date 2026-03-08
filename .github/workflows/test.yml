@@ -53,6 +53,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: build-output
+          path: packages
       - run: bun run test:bun
 
   test-vitest:
@@ -72,6 +73,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: build-output
+          path: packages
       - run: bun run test:vitest
       - name: Report Coverage
         uses: davelosert/vitest-coverage-report-action@v2
