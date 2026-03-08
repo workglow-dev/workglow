@@ -23,7 +23,7 @@ import { runGenericAiProviderTests } from "./genericAiProviderTests";
 
 const RUN = !!process.env.GOOGLE_API_KEY || !!process.env.GEMINI_API_KEY;
 
-const MODEL_ID = "gemini:gemini-2.0-flash";
+const MODEL_ID = "gemini:gemini-2.5-flash";
 
 runGenericAiProviderTests({
   name: "Google Gemini",
@@ -41,8 +41,8 @@ runGenericAiProviderTests({
 
     await getGlobalModelRepository().addModel({
       model_id: MODEL_ID,
-      title: "Gemini 2.0 Flash",
-      description: "Google Gemini 2.0 Flash",
+      title: "Gemini 2.5 Flash",
+      description: "Google Gemini 2.5 Flash",
       tasks: [
         "TextGenerationTask",
         "TextRewriterTask",
@@ -51,7 +51,7 @@ runGenericAiProviderTests({
         "ToolCallingTask",
       ],
       provider: GOOGLE_GEMINI as typeof GOOGLE_GEMINI,
-      provider_config: { model_name: "gemini-2.0-flash" },
+      provider_config: { model_name: "gemini-2.5-flash" },
       metadata: {},
     });
   },
@@ -63,6 +63,6 @@ runGenericAiProviderTests({
   textGenerationModel: MODEL_ID,
   toolCallingModel: MODEL_ID,
   structuredGenerationModel: MODEL_ID,
-  maxTokens: 100,
+  maxTokens: 200,
   timeout: 30000,
 });
