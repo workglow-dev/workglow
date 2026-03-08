@@ -5,7 +5,12 @@
  */
 
 import { InMemoryKvStorage, TelemetryKvStorage } from "@workglow/storage";
-import { ConsoleTelemetryProvider, setTelemetryProvider, SpanStatusCode } from "@workglow/util";
+import {
+  ConsoleTelemetryProvider,
+  NoopTelemetryProvider,
+  setTelemetryProvider,
+  SpanStatusCode,
+} from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("TelemetryKvStorage", () => {
@@ -27,6 +32,7 @@ describe("TelemetryKvStorage", () => {
   });
 
   afterEach(() => {
+    setTelemetryProvider(new NoopTelemetryProvider());
     vi.restoreAllMocks();
   });
 

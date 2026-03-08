@@ -5,7 +5,7 @@
  */
 
 import { InMemoryQueueStorage, TelemetryQueueStorage } from "@workglow/storage";
-import { ConsoleTelemetryProvider, setTelemetryProvider } from "@workglow/util";
+import { ConsoleTelemetryProvider, NoopTelemetryProvider, setTelemetryProvider } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("TelemetryQueueStorage", () => {
@@ -27,6 +27,7 @@ describe("TelemetryQueueStorage", () => {
   });
 
   afterEach(() => {
+    setTelemetryProvider(new NoopTelemetryProvider());
     vi.restoreAllMocks();
   });
 
