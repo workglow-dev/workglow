@@ -243,12 +243,14 @@ export const Anthropic_TextGeneration_Stream: AiProviderStreamFn<
     { signal }
   );
 
+  let accumulatedText = "";
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      accumulatedText += event.delta.text;
       yield { type: "text-delta", port: "text", textDelta: event.delta.text };
     }
   }
-  yield { type: "finish", data: {} as TextGenerationTaskOutput };
+  yield { type: "finish", data: { text: accumulatedText } as TextGenerationTaskOutput };
 };
 
 export const Anthropic_TextRewriter_Stream: AiProviderStreamFn<
@@ -269,12 +271,14 @@ export const Anthropic_TextRewriter_Stream: AiProviderStreamFn<
     { signal }
   );
 
+  let accumulatedText = "";
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      accumulatedText += event.delta.text;
       yield { type: "text-delta", port: "text", textDelta: event.delta.text };
     }
   }
-  yield { type: "finish", data: {} as TextRewriterTaskOutput };
+  yield { type: "finish", data: { text: accumulatedText } as TextRewriterTaskOutput };
 };
 
 export const Anthropic_TextSummary_Stream: AiProviderStreamFn<
@@ -295,12 +299,14 @@ export const Anthropic_TextSummary_Stream: AiProviderStreamFn<
     { signal }
   );
 
+  let accumulatedText = "";
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      accumulatedText += event.delta.text;
       yield { type: "text-delta", port: "text", textDelta: event.delta.text };
     }
   }
-  yield { type: "finish", data: {} as TextSummaryTaskOutput };
+  yield { type: "finish", data: { text: accumulatedText } as TextSummaryTaskOutput };
 };
 
 export const Anthropic_CountTokens: AiProviderRunFn<

@@ -9,9 +9,14 @@ import { ANTHROPIC, AnthropicProvider } from "@workglow/ai-provider";
 import {
   Anthropic_CountTokens,
   ANTHROPIC_TASKS,
+  Anthropic_StructuredGeneration,
+  Anthropic_StructuredGeneration_Stream,
   Anthropic_TextGeneration,
+  Anthropic_TextGeneration_Stream,
   Anthropic_TextRewriter,
+  Anthropic_TextRewriter_Stream,
   Anthropic_TextSummary,
+  Anthropic_TextSummary_Stream,
   Anthropic_ToolCalling,
   Anthropic_ToolCalling_Stream,
 } from "@workglow/ai-provider/anthropic";
@@ -390,6 +395,481 @@ describe("AnthropicProvider", () => {
 
       expect(result.toolCalls).toHaveProperty("tu_ok");
       expect(result.toolCalls).not.toHaveProperty("tu_bad");
+    });
+  });
+
+  // ========================================================================
+  // Structured generation
+  // ========================================================================
+  describe("Anthropic_StructuredGeneration", () => {
+    test("should use tool_use trick to force structured output", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [
+          { type: "tool_use", id: "tu_1", name: "structured_output", input: { name: "Alice" } },
+        ],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const schema = {
+        type: "object",
+        properties: { name: { type: "string" } },
+        required: ["name"],
+      } as const;
+      const result = await Anthropic_StructuredGeneration(
+        { prompt: "Extract name", model: model, outputSchema: schema },
+        model,
+        noopProgress,
+        abortSignal,
+        schema
+      );
+
+      expect(result.object).toEqual({ name: "Alice" });
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.tools[0].name).toBe("structured_output");
+      expect(params.tool_choice).toEqual({ type: "tool", name: "structured_output" });
+    });
+
+    test("should return empty object when no tool_use block found", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "No structured output" }],
+      });
+
+      const schema = { type: "object", properties: {} } as const;
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_StructuredGeneration(
+        { prompt: "test", model: model, outputSchema: schema },
+        model,
+        noopProgress,
+        abortSignal,
+        schema
+      );
+
+      expect(result.object).toEqual({});
+    });
+  });
+
+  describe("Anthropic_StructuredGeneration_Stream", () => {
+    test("should yield object-delta events and a finish with final object", async () => {
+      const streamEvents = [
+        {
+          type: "content_block_start",
+          index: 0,
+          content_block: { type: "tool_use", id: "tu_1", name: "structured_output" },
+        },
+        {
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "input_json_delta", partial_json: '{"name":' },
+        },
+        {
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "input_json_delta", partial_json: '"Bob"}' },
+        },
+      ];
+
+      async function* fakeStream() {
+        for (const e of streamEvents) yield e;
+      }
+      mockMessagesStream.mockReturnValue(fakeStream());
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const schema = { type: "object", properties: { name: { type: "string" } } } as const;
+      const events: any[] = [];
+      for await (const event of Anthropic_StructuredGeneration_Stream(
+        { prompt: "Extract", model: model, outputSchema: schema },
+        model,
+        abortSignal,
+        schema
+      )) {
+        events.push(event);
+      }
+
+      const objectDeltas = events.filter((e) => e.type === "object-delta");
+      expect(objectDeltas.length).toBeGreaterThan(0);
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.object).toEqual({ name: "Bob" });
+    });
+  });
+
+  // ========================================================================
+  // Streaming: TextGeneration, TextRewriter, TextSummary
+  // ========================================================================
+  describe("Anthropic_TextGeneration_Stream", () => {
+    test("should yield text-delta events and include accumulated text in finish", async () => {
+      const streamEvents = [
+        { type: "content_block_delta", delta: { type: "text_delta", text: "Hello " } },
+        { type: "content_block_delta", delta: { type: "text_delta", text: "world" } },
+      ];
+
+      async function* fakeStream() {
+        for (const e of streamEvents) yield e;
+      }
+      mockMessagesStream.mockReturnValue(fakeStream());
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const events: any[] = [];
+      for await (const event of Anthropic_TextGeneration_Stream(
+        { prompt: "Say hello", model: model },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0].textDelta).toBe("Hello ");
+      expect(textDeltas[1].textDelta).toBe("world");
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+      expect(finish.data.text).toBe("Hello world");
+    });
+  });
+
+  describe("Anthropic_TextRewriter_Stream", () => {
+    test("should accumulate text and include it in finish event", async () => {
+      const streamEvents = [
+        { type: "content_block_delta", delta: { type: "text_delta", text: "Rewritten" } },
+      ];
+
+      async function* fakeStream() {
+        for (const e of streamEvents) yield e;
+      }
+      mockMessagesStream.mockReturnValue(fakeStream());
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const events: any[] = [];
+      for await (const event of Anthropic_TextRewriter_Stream(
+        { text: "Original", prompt: "Make formal", model: model },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish.data.text).toBe("Rewritten");
+    });
+  });
+
+  describe("Anthropic_TextSummary_Stream", () => {
+    test("should accumulate text and include it in finish event", async () => {
+      const streamEvents = [
+        { type: "content_block_delta", delta: { type: "text_delta", text: "TL;DR" } },
+      ];
+
+      async function* fakeStream() {
+        for (const e of streamEvents) yield e;
+      }
+      mockMessagesStream.mockReturnValue(fakeStream());
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const events: any[] = [];
+      for await (const event of Anthropic_TextSummary_Stream(
+        { text: "Long text", model: model },
+        model,
+        abortSignal
+      )) {
+        events.push(event);
+      }
+
+      const finish = events.find((e) => e.type === "finish");
+      expect(finish.data.text).toBe("TL;DR");
+    });
+  });
+
+  // ========================================================================
+  // Multi-turn conversation (ToolCalling with messages)
+  // ========================================================================
+  describe("Anthropic_ToolCalling multi-turn", () => {
+    const sampleTools = [
+      {
+        name: "get_weather",
+        description: "Get the weather for a location",
+        inputSchema: {
+          type: "object",
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        } as const satisfies JsonSchema,
+      },
+    ];
+
+    test("should convert messages array into Anthropic format", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "The weather is sunny" }],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        {
+          prompt: "What is the weather?",
+          tools: sampleTools,
+          model: model,
+          messages: [
+            { role: "user", content: "What is the weather in London?" },
+            {
+              role: "assistant",
+              content: [
+                { type: "text", text: "Let me check." },
+                {
+                  type: "tool_use",
+                  id: "tu_1",
+                  name: "get_weather",
+                  input: { location: "London" },
+                },
+              ],
+            },
+            {
+              role: "tool",
+              content: [
+                { tool_use_id: "tu_1", content: "Sunny, 22°C" },
+              ],
+            },
+          ],
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      // Should have 3 messages: user, assistant, user (tool_result)
+      expect(params.messages).toHaveLength(3);
+      expect(params.messages[0].role).toBe("user");
+      expect(params.messages[1].role).toBe("assistant");
+      // Anthropic sends tool results as role: "user"
+      expect(params.messages[2].role).toBe("user");
+      expect(params.messages[2].content[0].type).toBe("tool_result");
+    });
+
+    test("should send systemPrompt as top-level system param", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "Result" }],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        {
+          prompt: "test",
+          tools: sampleTools,
+          model: model,
+          systemPrompt: "You are a helpful assistant",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.system).toBe("You are a helpful assistant");
+    });
+
+    test("should handle toolChoice 'none' by omitting tools", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "No tools" }],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        {
+          prompt: "test",
+          tools: sampleTools,
+          model: model,
+          toolChoice: "none",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.tools).toBeUndefined();
+      expect(params.tool_choice).toBeUndefined();
+    });
+
+    test("should map toolChoice 'required' to Anthropic 'any'", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [
+          { type: "tool_use", id: "tu_1", name: "get_weather", input: { location: "NYC" } },
+        ],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        {
+          prompt: "test",
+          tools: sampleTools,
+          model: model,
+          toolChoice: "required",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.tool_choice).toEqual({ type: "any" });
+    });
+
+    test("should map specific tool name to Anthropic tool choice", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [
+          { type: "tool_use", id: "tu_1", name: "get_weather", input: { location: "NYC" } },
+        ],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      await Anthropic_ToolCalling(
+        {
+          prompt: "test",
+          tools: sampleTools,
+          model: model,
+          toolChoice: "get_weather",
+        },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      const [params] = mockMessagesCreate.mock.calls[0];
+      expect(params.tool_choice).toEqual({ type: "tool", name: "get_weather" });
+    });
+  });
+
+  // ========================================================================
+  // Batch/array input
+  // ========================================================================
+  describe("batch input handling", () => {
+    test("should process array prompts sequentially for TextGeneration", async () => {
+      mockMessagesCreate
+        .mockResolvedValueOnce({ content: [{ type: "text", text: "Reply 1" }] })
+        .mockResolvedValueOnce({ content: [{ type: "text", text: "Reply 2" }] });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_TextGeneration(
+        { prompt: ["Prompt 1", "Prompt 2"], model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Reply 1", "Reply 2"]);
+      expect(mockMessagesCreate).toHaveBeenCalledTimes(2);
+    });
+
+    test("should process array texts sequentially for TextRewriter", async () => {
+      mockMessagesCreate
+        .mockResolvedValueOnce({ content: [{ type: "text", text: "Formal 1" }] })
+        .mockResolvedValueOnce({ content: [{ type: "text", text: "Formal 2" }] });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_TextRewriter(
+        { text: ["Casual 1", "Casual 2"], prompt: "Make formal", model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Formal 1", "Formal 2"]);
+    });
+
+    test("should process array texts sequentially for TextSummary", async () => {
+      mockMessagesCreate
+        .mockResolvedValueOnce({ content: [{ type: "text", text: "Summary 1" }] })
+        .mockResolvedValueOnce({ content: [{ type: "text", text: "Summary 2" }] });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_TextSummary(
+        { text: ["Long 1", "Long 2"], model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Summary 1", "Summary 2"]);
+    });
+
+    test("should process array texts sequentially for CountTokens", async () => {
+      mockMessagesCountTokens
+        .mockResolvedValueOnce({ input_tokens: 5 })
+        .mockResolvedValueOnce({ input_tokens: 10 });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_CountTokens(
+        { text: ["Short", "Longer text here"], model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.count).toEqual([5, 10]);
+    });
+
+    test("should process array prompts sequentially for ToolCalling", async () => {
+      const sampleTools = [
+        {
+          name: "get_weather",
+          description: "Get weather",
+          inputSchema: {
+            type: "object",
+            properties: { location: { type: "string" } },
+            required: ["location"],
+          } as const satisfies JsonSchema,
+        },
+      ];
+
+      mockMessagesCreate
+        .mockResolvedValueOnce({
+          content: [
+            { type: "text", text: "Checking 1" },
+            { type: "tool_use", id: "tu_1", name: "get_weather", input: { location: "NYC" } },
+          ],
+        })
+        .mockResolvedValueOnce({
+          content: [
+            { type: "text", text: "Checking 2" },
+            { type: "tool_use", id: "tu_2", name: "get_weather", input: { location: "LA" } },
+          ],
+        });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const result = await Anthropic_ToolCalling(
+        { prompt: ["Weather NYC?", "Weather LA?"], tools: sampleTools, model: model },
+        model,
+        noopProgress,
+        abortSignal
+      );
+
+      expect(result.text).toEqual(["Checking 1", "Checking 2"]);
+      expect(Array.isArray(result.toolCalls)).toBe(true);
+      expect((result.toolCalls as any[])).toHaveLength(2);
+    });
+  });
+
+  // ========================================================================
+  // Progress callback
+  // ========================================================================
+  describe("progress callback", () => {
+    test("should call progress at 0 and 100 for TextGeneration", async () => {
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: "text", text: "Hello" }],
+      });
+
+      const model = makeModel("claude-sonnet-4-20250514");
+      const progressCalls: number[] = [];
+      await Anthropic_TextGeneration(
+        { prompt: "test", model: model },
+        model,
+        (pct) => progressCalls.push(pct),
+        abortSignal
+      );
+
+      expect(progressCalls).toContain(0);
+      expect(progressCalls).toContain(100);
     });
   });
 
