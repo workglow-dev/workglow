@@ -1,5 +1,28 @@
 # @workglow/task-graph
 
+## 0.0.116
+
+### Features
+
+- add opentelemetry tracing (#292)
+- add group and endGroup methods to Workflow for GraphAsTask support
+- add graphToWorkflowCode utility for converting TaskGraph to Workflow code
+
+### Bug Fixes
+
+- pass DI registry explicitly in tests, add registry support to Workflow.run() (#287)
+- update ONNX model ID and dtype across multiple files
+
+### Refactors
+
+- resolve circular dependency
+- clean up code formatting and imports across multiple files
+- streamline task configuration and code generation in GraphToWorkflowCode
+
+### Style
+
+- fix prettier formatting in GraphToWorkflowCode files
+
 ## 0.0.115
 
 ## 0.0.114

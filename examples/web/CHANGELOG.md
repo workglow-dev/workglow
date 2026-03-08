@@ -1,5 +1,11 @@
 # @workglow/web
 
+## 0.0.116
+
+### Bug Fixes
+
+- update ONNX model ID and dtype across multiple files
+
 ## 0.0.115
 
 ## 0.0.114

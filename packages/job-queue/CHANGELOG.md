@@ -1,5 +1,11 @@
 # @workglow/job-queue
 
+## 0.0.116
+
+### Features
+
+- add opentelemetry tracing (#292)
+
 ## 0.0.115
 
 ## 0.0.114

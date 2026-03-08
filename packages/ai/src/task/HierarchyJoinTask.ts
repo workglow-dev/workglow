@@ -189,10 +189,7 @@ export class HierarchyJoinTask extends Task<
             }
           }
 
-          const uniqueEntities = new Map<
-            string,
-            { text: string; type: string; score: number }
-          >();
+          const uniqueEntities = new Map<string, { text: string; type: string; score: number }>();
           for (const entity of allEntities) {
             const existing = uniqueEntities.get(entity.text);
             if (!existing || entity.score > existing.score) {

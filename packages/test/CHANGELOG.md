@@ -1,5 +1,30 @@
 # @workglow/test
 
+## 0.0.116
+
+### Features
+
+- add opentelemetry tracing (#292)
+- add SqliteAiVectorStorage using @sqliteai/sqlite-vector extension (#291)
+- add group and endGroup methods to Workflow for GraphAsTask support
+- add graphToWorkflowCode utility for converting TaskGraph to Workflow code
+
+### Bug Fixes
+
+- pass DI registry explicitly in tests, add registry support to Workflow.run() (#287)
+- update ONNX model configurations to use q8 quantization when on cpu as f16 not supported
+- update ONNX model ID and dtype across multiple files
+
+### Refactors
+
+- clean up code formatting and imports across multiple files
+- remove baseUrl from tsconfig and update exports in common-server.ts
+- streamline task configuration and code generation in GraphToWorkflowCode
+
+### Style
+
+- fix prettier formatting in GraphToWorkflowCode files
+
 ## 0.0.115
 
 ## 0.0.114

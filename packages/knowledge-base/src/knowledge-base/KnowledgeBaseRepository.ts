@@ -69,30 +69,21 @@ export class KnowledgeBaseRepository {
   /**
    * Registers an event listener for the specified event
    */
-  on<Event extends KnowledgeBaseEvents>(
-    name: Event,
-    fn: KnowledgeBaseEventListener<Event>
-  ) {
+  on<Event extends KnowledgeBaseEvents>(name: Event, fn: KnowledgeBaseEventListener<Event>) {
     this.events.on(name, fn);
   }
 
   /**
    * Removes an event listener for the specified event
    */
-  off<Event extends KnowledgeBaseEvents>(
-    name: Event,
-    fn: KnowledgeBaseEventListener<Event>
-  ) {
+  off<Event extends KnowledgeBaseEvents>(name: Event, fn: KnowledgeBaseEventListener<Event>) {
     this.events.off(name, fn);
   }
 
   /**
    * Adds an event listener that will only be called once
    */
-  once<Event extends KnowledgeBaseEvents>(
-    name: Event,
-    fn: KnowledgeBaseEventListener<Event>
-  ) {
+  once<Event extends KnowledgeBaseEvents>(name: Event, fn: KnowledgeBaseEventListener<Event>) {
     this.events.once(name, fn);
   }
 

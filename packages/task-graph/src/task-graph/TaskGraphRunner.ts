@@ -8,9 +8,12 @@ import {
   collectPropertyValues,
   ConvertAllToOptionalArray,
   getLogger,
+  getTelemetryProvider,
   globalServiceRegistry,
   ServiceRegistry,
+  SpanStatusCode,
   uuid4,
+  type ISpan,
 } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
@@ -100,6 +103,11 @@ export class TaskGraphRunner {
   protected failedTaskErrors: Map<unknown, TaskError> = new Map();
 
   /**
+   * Active telemetry span for the current graph run.
+   */
+  protected telemetrySpan?: ISpan;
+
+  /**
    * Constructor for TaskGraphRunner
    * @param graph The task graph to run
    * @param outputCache The task output repository to use for caching task outputs
@@ -121,13 +129,6 @@ export class TaskGraphRunner {
    * Unique ID for the current run, used for timing labels.
    */
   protected runId: string = "";
-
-  /**
-   * Returns a label for timing this graph's execution.
-   */
-  protected get timerLabel(): string {
-    return `graph:${this.runId}`;
-  }
 
   // ========================================================================
   // Public methods
@@ -949,9 +950,17 @@ export class TaskGraphRunner {
     this.inProgressFunctions.clear();
     this.failedTaskErrors.clear();
 
-    const logger = getLogger();
-    // logger.group(this.timerLabel, { graph: this.graph });
-    logger.time(this.timerLabel);
+    // Start telemetry span for the graph run
+    const telemetry = getTelemetryProvider();
+    if (telemetry.isEnabled) {
+      this.telemetrySpan = telemetry.startSpan("workglow.graph.run", {
+        attributes: {
+          "workglow.graph.run_id": this.runId,
+          "workglow.graph.task_count": this.graph.getTasks().length,
+          "workglow.graph.dataflow_count": this.graph.getDataflows().length,
+        },
+      });
+    }
 
     this.graph.emit("start");
   }
@@ -977,9 +986,11 @@ export class TaskGraphRunner {
   protected async handleComplete(): Promise<void> {
     this.running = false;
 
-    const logger = getLogger();
-    logger.timeEnd(this.timerLabel);
-    logger.groupEnd();
+    if (this.telemetrySpan) {
+      this.telemetrySpan.setStatus(SpanStatusCode.OK);
+      this.telemetrySpan.end();
+      this.telemetrySpan = undefined;
+    }
 
     this.graph.emit("complete");
   }
@@ -1001,9 +1012,12 @@ export class TaskGraphRunner {
     );
     this.running = false;
 
-    const logger = getLogger();
-    logger.timeEnd(this.timerLabel);
-    logger.groupEnd();
+    if (this.telemetrySpan) {
+      this.telemetrySpan.setStatus(SpanStatusCode.ERROR, error.message);
+      this.telemetrySpan.setAttributes({ "workglow.graph.error": error.message });
+      this.telemetrySpan.end();
+      this.telemetrySpan = undefined;
+    }
 
     this.graph.emit("error", error);
   }
@@ -1023,9 +1037,12 @@ export class TaskGraphRunner {
     });
     this.running = false;
 
-    const logger = getLogger();
-    logger.timeEnd(this.timerLabel);
-    logger.groupEnd();
+    if (this.telemetrySpan) {
+      this.telemetrySpan.setStatus(SpanStatusCode.ERROR, "aborted");
+      this.telemetrySpan.addEvent("workglow.graph.aborted");
+      this.telemetrySpan.end();
+      this.telemetrySpan = undefined;
+    }
 
     this.graph.emit("abort");
   }

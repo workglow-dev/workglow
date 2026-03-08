@@ -1,5 +1,12 @@
 # @workglow/cli
 
+## 0.0.116
+
+### Bug Fixes
+
+- update ONNX model configurations to use q8 quantization when on cpu as f16 not supported
+- update ONNX model ID and dtype across multiple files
+
 ## 0.0.115
 
 ## 0.0.114

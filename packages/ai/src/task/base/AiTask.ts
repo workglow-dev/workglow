@@ -55,15 +55,6 @@ export class AiTask<
    * @param config - Configuration object for the task
    */
   constructor(input: Partial<Input> = {}, config: Config = {} as Config) {
-    const modelLabel =
-      typeof input.model === "string"
-        ? input.model
-        : typeof input.model === "object" && input.model
-          ? input.model.model_id || input.model.title || input.model.provider
-          : undefined;
-    config.title ||= `${new.target.type || new.target.name}${
-      modelLabel ? " with model " + modelLabel : ""
-    }`;
     super(input, config);
     this.jobClass = AiJob as JobClass<AiJobInput<Input>, Output>;
   }

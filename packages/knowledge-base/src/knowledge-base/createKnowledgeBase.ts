@@ -6,10 +6,10 @@
 
 import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import type { TypedArray } from "@workglow/util";
-import type { ChunkVectorStorage } from "../chunk/ChunkVectorStorageSchema";
 import { ChunkVectorPrimaryKey, ChunkVectorStorageSchema } from "../chunk/ChunkVectorStorageSchema";
-import type { DocumentTabularStorage } from "../document/DocumentStorageSchema";
+import type { ChunkVectorStorage } from "../chunk/ChunkVectorStorageSchema";
 import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentStorageSchema";
+import type { DocumentTabularStorage } from "../document/DocumentStorageSchema";
 import { KnowledgeBase } from "./KnowledgeBase";
 import { registerKnowledgeBase } from "./KnowledgeBaseRegistry";
 
@@ -45,10 +45,7 @@ export async function createKnowledgeBase(
     description,
   } = options;
 
-  const tabularStorage = new InMemoryTabularStorage(
-    DocumentStorageSchema,
-    DocumentStorageKey
-  );
+  const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
   await tabularStorage.setupDatabase();
 
   const vectorStorage = new InMemoryVectorStorage(

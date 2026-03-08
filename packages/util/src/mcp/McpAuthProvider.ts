@@ -6,17 +6,24 @@
  * MCP OAuth provider adapter backed by ICredentialStore, and factory function.
  */
 
-import type { OAuthClientProvider, OAuthDiscoveryState } from "@modelcontextprotocol/sdk/client/auth.js";
-import type { OAuthClientMetadata, OAuthClientInformationMixed, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import type { AddClientAuthentication } from "@modelcontextprotocol/sdk/client/auth.js";
 import {
   ClientCredentialsProvider,
   PrivateKeyJwtProvider,
   StaticPrivateKeyJwtProvider,
   createPrivateKeyJwtAuth,
 } from "@modelcontextprotocol/sdk/client/auth-extensions.js";
-import type { ICredentialStore } from "../credentials/ICredentialStore";
+import type {
+  AddClientAuthentication,
+  OAuthClientProvider,
+  OAuthDiscoveryState,
+} from "@modelcontextprotocol/sdk/client/auth.js";
+import type {
+  OAuthClientInformationMixed,
+  OAuthClientMetadata,
+  OAuthTokens,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 import { getGlobalCredentialStore } from "../credentials/CredentialStoreRegistry";
+import type { ICredentialStore } from "../credentials/ICredentialStore";
 import type { McpAuthConfig } from "./McpAuthTypes";
 
 // ── Key helpers ────────────────────────────────────────────────────────
@@ -52,7 +59,9 @@ export class CredentialStoreOAuthProvider implements OAuthClientProvider {
   private readonly _initialClientInfo: OAuthClientInformationMixed | undefined;
 
   /** Optional override for grant-specific token request preparation. */
-  prepareTokenRequest?: (scope?: string) => URLSearchParams | Promise<URLSearchParams | undefined> | undefined;
+  prepareTokenRequest?: (
+    scope?: string
+  ) => URLSearchParams | Promise<URLSearchParams | undefined> | undefined;
 
   /** Optional override for custom client authentication on token requests. */
   addClientAuthentication?: AddClientAuthentication;
@@ -111,9 +120,7 @@ export class CredentialStoreOAuthProvider implements OAuthClientProvider {
 
   async saveTokens(tokens: OAuthTokens): Promise<void> {
     const expiresAt =
-      tokens.expires_in != null
-        ? new Date(Date.now() + tokens.expires_in * 1000)
-        : undefined;
+      tokens.expires_in != null ? new Date(Date.now() + tokens.expires_in * 1000) : undefined;
     await this.store.put(storeKey(this.serverUrl, "tokens"), JSON.stringify(tokens), {
       expiresAt,
     });
@@ -145,10 +152,7 @@ export class CredentialStoreOAuthProvider implements OAuthClientProvider {
   // ── Discovery state ────────────────────────────────────────────────
 
   async saveDiscoveryState(state: OAuthDiscoveryState): Promise<void> {
-    await this.store.put(
-      storeKey(this.serverUrl, "discovery"),
-      JSON.stringify(state)
-    );
+    await this.store.put(storeKey(this.serverUrl, "discovery"), JSON.stringify(state));
   }
 
   async discoveryState(): Promise<OAuthDiscoveryState | undefined> {
@@ -297,7 +301,10 @@ export function createAuthProvider(
 
       const assertion = auth.jwt_bearer_assertion;
       const addClientAuth: AddClientAuthentication = (_headers, params) => {
-        params.set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+        params.set(
+          "client_assertion_type",
+          "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        );
         params.set("client_assertion", assertion);
       };
 

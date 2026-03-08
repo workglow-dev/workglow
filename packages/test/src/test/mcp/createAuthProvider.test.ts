@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it } from "vitest";
 import {
   createAuthProvider,
   CredentialStoreOAuthProvider,
@@ -12,6 +11,7 @@ import {
   resolveAuthSecrets,
 } from "@workglow/util";
 import type { McpAuthConfig } from "@workglow/util";
+import { describe, expect, it } from "vitest";
 
 const SERVER_URL = "https://mcp.example.com/api";
 
@@ -25,10 +25,7 @@ describe("createAuthProvider", () => {
 
   describe("bearer", () => {
     it("returns undefined (handled at transport level)", () => {
-      const result = createAuthProvider(
-        { type: "bearer", token: "my-token" },
-        SERVER_URL
-      );
+      const result = createAuthProvider({ type: "bearer", token: "my-token" }, SERVER_URL);
       expect(result).toBeUndefined();
     });
   });
@@ -190,9 +187,9 @@ describe("resolveAuthSecrets", () => {
       algorithm: "RS256",
     };
     const resolved = await resolveAuthSecrets(config, store);
-    expect(
-      resolved.type === "private_key_jwt" && resolved.private_key
-    ).toBe("-----BEGIN PRIVATE KEY-----\n...");
+    expect(resolved.type === "private_key_jwt" && resolved.private_key).toBe(
+      "-----BEGIN PRIVATE KEY-----\n..."
+    );
   });
 
   it("resolves jwt_bearer_assertion for static_private_key_jwt", async () => {
@@ -205,8 +202,8 @@ describe("resolveAuthSecrets", () => {
       jwt_bearer_assertion: "jwt-key",
     };
     const resolved = await resolveAuthSecrets(config, store);
-    expect(
-      resolved.type === "static_private_key_jwt" && resolved.jwt_bearer_assertion
-    ).toBe("eyJhbGci...");
+    expect(resolved.type === "static_private_key_jwt" && resolved.jwt_bearer_assertion).toBe(
+      "eyJhbGci..."
+    );
   });
 });

@@ -5,7 +5,7 @@
  */
 
 import { IQueueStorage, JobStatus, JobStorageFormat } from "@workglow/storage";
-import { EventEmitter, getLogger, sleep, uuid4 } from "@workglow/util";
+import { EventEmitter, getTelemetryProvider, sleep, SpanStatusCode, uuid4 } from "@workglow/util";
 import { ILimiter } from "../limiter/ILimiter";
 import { NullLimiter } from "../limiter/NullLimiter";
 import { Job, JobClass } from "./Job";
@@ -341,9 +341,20 @@ export class JobQueueWorker<
     }
 
     const startTime = Date.now();
-    const timerLabel = `job:${job.id}`;
-    const logger = getLogger();
-    logger.time(timerLabel, { queue: this.queueName, jobId: job.id });
+
+    // Start telemetry span for job processing
+    const telemetry = getTelemetryProvider();
+    const span = telemetry.isEnabled
+      ? telemetry.startSpan("workglow.job.process", {
+          attributes: {
+            "workglow.job.id": String(job.id),
+            "workglow.job.queue": this.queueName,
+            "workglow.job.worker_id": this.workerId,
+            "workglow.job.run_attempt": job.runAttempts,
+            "workglow.job.max_retries": job.maxRetries,
+          },
+        })
+      : undefined;
 
     try {
       await this.validateJobState(job);
@@ -355,9 +366,16 @@ export class JobQueueWorker<
       const output = await this.executeJob(job, abortController.signal);
       await this.completeJob(job, output);
 
-      this.processingTimes.set(job.id, Date.now() - startTime);
+      const elapsed = Date.now() - startTime;
+      this.processingTimes.set(job.id, elapsed);
+
+      if (span) {
+        span.setAttributes({ "workglow.job.duration_ms": elapsed });
+        span.setStatus(SpanStatusCode.OK);
+      }
     } catch (err: unknown) {
       const error = this.normalizeError(err);
+      let spanErrorMessage = error.message;
       if (error instanceof RetryableJobError) {
         const currentJob = await this.getJob(job.id);
         if (!currentJob) {
@@ -365,15 +383,23 @@ export class JobQueueWorker<
         }
 
         if (currentJob.runAttempts >= currentJob.maxRetries) {
-          await this.failJob(currentJob, new PermanentJobError("Max retries reached"));
+          spanErrorMessage = "Max retries reached";
+          await this.failJob(currentJob, new PermanentJobError(spanErrorMessage));
+          span?.setStatus(SpanStatusCode.ERROR, spanErrorMessage);
         } else {
           await this.rescheduleJob(currentJob, error.retryDate);
+          span?.addEvent("workglow.job.retry", {
+            "workglow.job.run_attempt": currentJob.runAttempts,
+          });
+          span?.setStatus(SpanStatusCode.UNSET);
         }
       } else {
         await this.failJob(job, error);
+        span?.setStatus(SpanStatusCode.ERROR, error.message);
       }
+      span?.setAttributes({ "workglow.job.error": spanErrorMessage });
     } finally {
-      logger.timeEnd(timerLabel, { queue: this.queueName, jobId: job.id });
+      span?.end();
       await this.limiter.recordJobCompletion();
     }
   }

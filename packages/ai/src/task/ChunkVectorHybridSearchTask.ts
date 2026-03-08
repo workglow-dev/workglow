@@ -24,8 +24,7 @@ const inputSchema = {
   properties: {
     knowledgeBase: TypeKnowledgeBase({
       title: "Knowledge Base",
-      description:
-        "The knowledge base instance to search in (must support hybridSearch)",
+      description: "The knowledge base instance to search in (must support hybridSearch)",
     }),
     queryVector: TypedArraySchema({
       title: "Query Vector",

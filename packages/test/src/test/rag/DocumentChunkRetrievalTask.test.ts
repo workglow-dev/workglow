@@ -10,8 +10,8 @@ import {
   KnowledgeBase,
   registerKnowledgeBase,
 } from "@workglow/knowledge-base";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { setLogger, uuid4 } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkRetrievalTask", () => {
@@ -37,10 +37,34 @@ describe("ChunkRetrievalTask", () => {
 
     const metadata = [
       { chunkId: "doc1_0", doc_id: "doc1", text: "First chunk about AI", nodePath: [], depth: 0 },
-      { chunkId: "doc2_0", doc_id: "doc2", text: "Second chunk about machine learning", nodePath: [], depth: 0 },
-      { chunkId: "doc3_0", doc_id: "doc3", text: "Third chunk about cooking", nodePath: [], depth: 0 },
-      { chunkId: "doc4_0", doc_id: "doc4", text: "Fourth chunk about travel", nodePath: [], depth: 0 },
-      { chunkId: "doc5_0", doc_id: "doc5", text: "Fifth chunk about artificial intelligence", nodePath: [], depth: 0 },
+      {
+        chunkId: "doc2_0",
+        doc_id: "doc2",
+        text: "Second chunk about machine learning",
+        nodePath: [],
+        depth: 0,
+      },
+      {
+        chunkId: "doc3_0",
+        doc_id: "doc3",
+        text: "Third chunk about cooking",
+        nodePath: [],
+        depth: 0,
+      },
+      {
+        chunkId: "doc4_0",
+        doc_id: "doc4",
+        text: "Fourth chunk about travel",
+        nodePath: [],
+        depth: 0,
+      },
+      {
+        chunkId: "doc5_0",
+        doc_id: "doc5",
+        text: "Fifth chunk about artificial intelligence",
+        nodePath: [],
+        depth: 0,
+      },
     ];
 
     for (let i = 0; i < vectors.length; i++) {

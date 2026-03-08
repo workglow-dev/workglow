@@ -10,8 +10,8 @@ import {
   KnowledgeBase,
   registerKnowledgeBase,
 } from "@workglow/knowledge-base";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { setLogger, uuid4 } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkVectorSearchTask", () => {
@@ -36,11 +36,46 @@ describe("ChunkVectorSearchTask", () => {
     ];
 
     const metadata = [
-      { chunkId: "doc1_0", doc_id: "doc1", text: "Document about AI", nodePath: [], depth: 0, category: "tech" },
-      { chunkId: "doc2_0", doc_id: "doc2", text: "Document about machine learning", nodePath: [], depth: 0, category: "tech" },
-      { chunkId: "doc3_0", doc_id: "doc3", text: "Document about cooking", nodePath: [], depth: 0, category: "food" },
-      { chunkId: "doc4_0", doc_id: "doc4", text: "Document about travel", nodePath: [], depth: 0, category: "travel" },
-      { chunkId: "doc5_0", doc_id: "doc5", text: "Document about artificial intelligence", nodePath: [], depth: 0, category: "tech" },
+      {
+        chunkId: "doc1_0",
+        doc_id: "doc1",
+        text: "Document about AI",
+        nodePath: [],
+        depth: 0,
+        category: "tech",
+      },
+      {
+        chunkId: "doc2_0",
+        doc_id: "doc2",
+        text: "Document about machine learning",
+        nodePath: [],
+        depth: 0,
+        category: "tech",
+      },
+      {
+        chunkId: "doc3_0",
+        doc_id: "doc3",
+        text: "Document about cooking",
+        nodePath: [],
+        depth: 0,
+        category: "food",
+      },
+      {
+        chunkId: "doc4_0",
+        doc_id: "doc4",
+        text: "Document about travel",
+        nodePath: [],
+        depth: 0,
+        category: "travel",
+      },
+      {
+        chunkId: "doc5_0",
+        doc_id: "doc5",
+        text: "Document about artificial intelligence",
+        nodePath: [],
+        depth: 0,
+        category: "tech",
+      },
     ];
 
     for (let i = 0; i < vectors.length; i++) {

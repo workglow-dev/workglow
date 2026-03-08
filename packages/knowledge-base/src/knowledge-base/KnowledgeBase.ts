@@ -165,9 +165,7 @@ export class KnowledgeBase {
     for (let i = 1; i < path.length; i++) {
       const targetId = path[i];
       if ("children" in currentNode && Array.isArray(currentNode.children)) {
-        const found = currentNode.children.find(
-          (child: DocumentNode) => child.nodeId === targetId
-        );
+        const found = currentNode.children.find((child: DocumentNode) => child.nodeId === targetId);
         if (found) {
           currentNode = found;
           ancestors.push(currentNode);

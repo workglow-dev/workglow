@@ -919,8 +919,13 @@ export class Task<
       type: this.type,
       defaults: this.defaults,
       config: {
-        ...(this.config.title ? { title: this.config.title } : {}),
-        ...(this.config.description ? { description: this.config.description } : {}),
+        ...(this.config.title && this.config.title !== (this.constructor as typeof Task).title
+          ? { title: this.config.title }
+          : {}),
+        ...(this.config.description &&
+        this.config.description !== (this.constructor as typeof Task).description
+          ? { description: this.config.description }
+          : {}),
         ...(this.config.inputSchema ? { inputSchema: this.config.inputSchema } : {}),
         ...(this.config.outputSchema ? { outputSchema: this.config.outputSchema } : {}),
         ...(extras && Object.keys(extras).length ? { extras } : {}),

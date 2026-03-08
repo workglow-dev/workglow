@@ -10,8 +10,8 @@ import {
   KnowledgeBase,
   registerKnowledgeBase,
 } from "@workglow/knowledge-base";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { setLogger, uuid4 } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("ChunkVectorUpsertTask", () => {
@@ -33,7 +33,14 @@ describe("ChunkVectorUpsertTask", () => {
 
   test("should upsert a single vector", async () => {
     const vector = new Float32Array([0.1, 0.2, 0.3]);
-    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Test document", nodePath: [], depth: 0, source: "test.txt" };
+    const metadata = {
+      chunkId: "c1",
+      doc_id: "doc1",
+      text: "Test document",
+      nodePath: [],
+      depth: 0,
+      source: "test.txt",
+    };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
@@ -60,7 +67,14 @@ describe("ChunkVectorUpsertTask", () => {
       new Float32Array([0.4, 0.5, 0.6]),
       new Float32Array([0.7, 0.8, 0.9]),
     ];
-    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Document with multiple vectors", nodePath: [], depth: 0, source: "doc.txt" };
+    const metadata = {
+      chunkId: "c1",
+      doc_id: "doc1",
+      text: "Document with multiple vectors",
+      nodePath: [],
+      depth: 0,
+      source: "doc.txt",
+    };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
@@ -84,7 +98,13 @@ describe("ChunkVectorUpsertTask", () => {
 
   test("should handle array of single item (normalized to bulk)", async () => {
     const vector = [new Float32Array([0.1, 0.2, 0.3])];
-    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Single item as array", nodePath: [], depth: 0 };
+    const metadata = {
+      chunkId: "c1",
+      doc_id: "doc1",
+      text: "Single item as array",
+      nodePath: [],
+      depth: 0,
+    };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
@@ -103,7 +123,13 @@ describe("ChunkVectorUpsertTask", () => {
 
   test("should accept multiple vectors with single metadata", async () => {
     const vectors = [new Float32Array([0.1, 0.2, 0.3]), new Float32Array([0.3, 0.4, 0.5])];
-    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Shared metadata", nodePath: [], depth: 0 };
+    const metadata = {
+      chunkId: "c1",
+      doc_id: "doc1",
+      text: "Shared metadata",
+      nodePath: [],
+      depth: 0,
+    };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
@@ -123,7 +149,13 @@ describe("ChunkVectorUpsertTask", () => {
       { length: count },
       (_, i) => new Float32Array([i * 0.01, i * 0.02, i * 0.03])
     );
-    const metadata = { chunkId: "c1", doc_id: "batch-doc", text: "Batch document", nodePath: [], depth: 0 };
+    const metadata = {
+      chunkId: "c1",
+      doc_id: "batch-doc",
+      text: "Batch document",
+      nodePath: [],
+      depth: 0,
+    };
 
     const task = new ChunkVectorUpsertTask();
     const result = await task.run({
@@ -145,7 +177,14 @@ describe("ChunkVectorUpsertTask", () => {
     await registerKnowledgeBase("test-upsert-kb", kb);
 
     const vector = new Float32Array([0.1, 0.2, 0.3]);
-    const metadata = { chunkId: "c1", doc_id: "doc1", text: "Test document", nodePath: [], depth: 0, source: "test.txt" };
+    const metadata = {
+      chunkId: "c1",
+      doc_id: "doc1",
+      text: "Test document",
+      nodePath: [],
+      depth: 0,
+      source: "test.txt",
+    };
 
     const task = new ChunkVectorUpsertTask();
     // Pass knowledge base as string ID instead of instance

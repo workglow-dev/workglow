@@ -1,5 +1,13 @@
 # @workglow/ai
 
+## 0.0.116
+
+### Refactors
+
+- clean up code formatting and imports across multiple files
+- streamline task configuration and code generation in GraphToWorkflowCode
+- update type imports and SDK loading in AI provider modules
+
 ## 0.0.115
 
 ## 0.0.114

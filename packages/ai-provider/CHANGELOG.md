@@ -1,5 +1,16 @@
 # @workglow/ai-provider
 
+## 0.0.116
+
+### Bug Fixes
+
+- update ONNX model ID and dtype across multiple files
+
+### Refactors
+
+- clean up code formatting and imports across multiple files
+- update type imports and SDK loading in AI provider modules
+
 ## 0.0.115
 
 ## 0.0.114
