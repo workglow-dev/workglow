@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { filterValidToolCalls } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -12,6 +13,8 @@ import type {
   CountTokensTaskOutput,
   DownloadModelTaskRunInput,
   DownloadModelTaskRunOutput,
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -23,12 +26,9 @@ import type {
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
-  ModelInfoTaskInput,
-  ModelInfoTaskOutput,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
-import { filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import { LLAMACPP_DEFAULT_MODELS_DIR } from "./LlamaCpp_Constants";
@@ -302,7 +302,12 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
     const prompts = input.prompt as string[];
     const results: string[] = [];
     for (const item of prompts) {
-      const r = await LlamaCpp_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await LlamaCpp_TextGeneration(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -408,7 +413,12 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
     const texts = input.text as string[];
     const results: string[] = [];
     for (const item of texts) {
-      const r = await LlamaCpp_TextRewriter({ ...input, text: item }, model, update_progress, signal);
+      const r = await LlamaCpp_TextRewriter(
+        { ...input, text: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -423,7 +433,10 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
 
   update_progress(10, "Rewriting text");
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt as string });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    systemPrompt: input.prompt as string,
+  });
   try {
     const text = await session.prompt(input.text as string, { signal });
     update_progress(100, "Text rewriting complete");
@@ -448,7 +461,10 @@ export const LlamaCpp_TextRewriter_Stream: AiProviderStreamFn<
 
   const context = await getOrCreateTextContext(model);
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt: input.prompt as string });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    systemPrompt: input.prompt as string,
+  });
   try {
     yield* streamFromSession<TextRewriterTaskOutput>((onTextChunk) => {
       return session.prompt(input.text as string, { signal, onTextChunk });
@@ -474,7 +490,12 @@ export const LlamaCpp_TextSummary: AiProviderRunFn<
     const texts = input.text as string[];
     const results: string[] = [];
     for (const item of texts) {
-      const r = await LlamaCpp_TextSummary({ ...input, text: item }, model, update_progress, signal);
+      const r = await LlamaCpp_TextSummary(
+        { ...input, text: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -628,7 +649,12 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     const texts: string[] = [];
     const toolCallsList: Record<string, unknown>[] = [];
     for (const item of prompts) {
-      const r = await LlamaCpp_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await LlamaCpp_ToolCalling(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       texts.push(r.text as string);
       toolCallsList.push(r.toolCalls as Record<string, unknown>);
     }

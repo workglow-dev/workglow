@@ -5,6 +5,7 @@
  */
 
 import type { FunctionCallingMode, TaskType } from "@google/generative-ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -27,7 +28,6 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
@@ -89,7 +89,12 @@ export const Gemini_TextGeneration: AiProviderRunFn<
     const prompts = input.prompt as string[];
     const results: string[] = [];
     for (const item of prompts) {
-      const r = await Gemini_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Gemini_TextGeneration(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -478,7 +483,12 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     const texts: string[] = [];
     const toolCallsList: Record<string, unknown>[] = [];
     for (const item of prompts) {
-      const r = await Gemini_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Gemini_ToolCalling(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       texts.push(r.text as string);
       toolCallsList.push(r.toolCalls as Record<string, unknown>);
     }

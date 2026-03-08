@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import { ConsoleTelemetryProvider, setTelemetryProvider } from "@workglow/util";
 import { InMemoryQueueStorage, TelemetryQueueStorage } from "@workglow/storage";
+import { ConsoleTelemetryProvider, setTelemetryProvider } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("TelemetryQueueStorage", () => {
   let inner: InMemoryQueueStorage<{ data: string }, { result: string }>;
@@ -53,19 +53,13 @@ describe("TelemetryQueueStorage", () => {
     });
     const job = await wrapped.next("worker-1");
     expect(job).toBeDefined();
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.queue.next",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.queue.next", expect.anything());
   });
 
   it("should forward size and create a span", async () => {
     const result = await wrapped.size();
     expect(result).toBe(0);
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.queue.size",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.queue.size", expect.anything());
   });
 
   it("should forward deleteAll and create a span", async () => {
@@ -86,18 +80,12 @@ describe("TelemetryQueueStorage", () => {
     });
     const job = await wrapped.get(id);
     expect(job).toBeDefined();
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.queue.get",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.queue.get", expect.anything());
   });
 
   it("should forward peek and create a span", async () => {
     const jobs = await wrapped.peek();
     expect(jobs).toEqual([]);
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.queue.peek",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.queue.peek", expect.anything());
   });
 });

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { traced } from "../util/traced";
 import type {
   IQueueStorage,
   JobStatus,
@@ -11,7 +12,6 @@ import type {
   QueueChangePayload,
   QueueSubscribeOptions,
 } from "./IQueueStorage";
-import { traced } from "../util/traced";
 
 /**
  * Telemetry wrapper for any IQueueStorage implementation.
@@ -30,9 +30,7 @@ export class TelemetryQueueStorage<Input, Output> implements IQueueStorage<Input
     return traced("workglow.storage.queue.get", this.storageName, () => this.inner.get(id));
   }
   next(workerId: string): Promise<JobStorageFormat<Input, Output> | undefined> {
-    return traced("workglow.storage.queue.next", this.storageName, () =>
-      this.inner.next(workerId)
-    );
+    return traced("workglow.storage.queue.next", this.storageName, () => this.inner.next(workerId));
   }
   peek(status?: JobStatus, num?: number): Promise<Array<JobStorageFormat<Input, Output>>> {
     return traced("workglow.storage.queue.peek", this.storageName, () =>
@@ -40,9 +38,7 @@ export class TelemetryQueueStorage<Input, Output> implements IQueueStorage<Input
     );
   }
   size(status?: JobStatus): Promise<number> {
-    return traced("workglow.storage.queue.size", this.storageName, () =>
-      this.inner.size(status)
-    );
+    return traced("workglow.storage.queue.size", this.storageName, () => this.inner.size(status));
   }
   complete(job: JobStorageFormat<Input, Output>): Promise<void> {
     return traced("workglow.storage.queue.complete", this.storageName, () =>

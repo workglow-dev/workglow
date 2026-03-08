@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
+import { InMemoryTabularStorage, TelemetryTabularStorage } from "@workglow/storage";
 import {
   ConsoleTelemetryProvider,
   setTelemetryProvider,
   type DataPortSchemaObject,
 } from "@workglow/util";
-import { InMemoryTabularStorage, TelemetryTabularStorage } from "@workglow/storage";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const TestSchema = {
   type: "object",
@@ -60,10 +60,7 @@ describe("TelemetryTabularStorage", () => {
     const entity = await inner.put({ name: "Bob" });
     const result = await wrapped.get({ id: entity.id });
     expect(result?.name).toBe("Bob");
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.tabular.get",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.tabular.get", expect.anything());
   });
 
   it("should forward delete and create a span", async () => {
@@ -84,10 +81,7 @@ describe("TelemetryTabularStorage", () => {
     await inner.put({ name: "Bob" });
     const result = await wrapped.query({ name: "Alice" });
     expect(result).toHaveLength(1);
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.tabular.query",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.tabular.query", expect.anything());
   });
 
   it("should forward size and create a span", async () => {

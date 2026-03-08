@@ -4,13 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  ConsoleTelemetryProvider,
-  setTelemetryProvider,
-  SpanStatusCode,
-} from "@workglow/util";
 import { InMemoryKvStorage, TelemetryKvStorage } from "@workglow/storage";
+import { ConsoleTelemetryProvider, setTelemetryProvider, SpanStatusCode } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("TelemetryKvStorage", () => {
   let inner: InMemoryKvStorage;
@@ -49,59 +45,44 @@ describe("TelemetryKvStorage", () => {
     await inner.put("key1", "value1");
     const result = await wrapped.get("key1");
     expect(result).toBe("value1");
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.kv.get",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.kv.get", expect.anything());
   });
 
   it("should forward delete and create a span", async () => {
     await inner.put("key1", "value1");
     await wrapped.delete("key1");
     expect(await inner.get("key1")).toBeUndefined();
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.kv.delete",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.kv.delete", expect.anything());
   });
 
   it("should forward getAll and create a span", async () => {
     await inner.put("a", 1);
     const result = await wrapped.getAll();
     expect(result).toHaveLength(1);
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.kv.getAll",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.kv.getAll", expect.anything());
   });
 
   it("should forward deleteAll and create a span", async () => {
     await inner.put("a", 1);
     await wrapped.deleteAll();
     expect(await inner.size()).toBe(0);
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.kv.deleteAll",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.kv.deleteAll", expect.anything());
   });
 
   it("should forward size and create a span", async () => {
     await inner.put("a", 1);
     const result = await wrapped.size();
     expect(result).toBe(1);
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.kv.size",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.kv.size", expect.anything());
   });
 
   it("should forward putBulk and create a span", async () => {
-    await wrapped.putBulk([{ key: "a", value: 1 }, { key: "b", value: 2 }]);
+    await wrapped.putBulk([
+      { key: "a", value: 1 },
+      { key: "b", value: 2 },
+    ]);
     expect(await inner.size()).toBe(2);
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.kv.putBulk",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.kv.putBulk", expect.anything());
   });
 
   it("should set ERROR status on span when operation throws", async () => {

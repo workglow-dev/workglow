@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
+import { InMemoryVectorStorage, TelemetryVectorStorage } from "@workglow/storage";
 import {
   ConsoleTelemetryProvider,
   setTelemetryProvider,
   type DataPortSchemaObject,
 } from "@workglow/util";
-import { InMemoryVectorStorage, TelemetryVectorStorage } from "@workglow/storage";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const VectorSchema = {
   type: "object",
@@ -49,10 +49,7 @@ describe("TelemetryVectorStorage", () => {
 
   it("should forward put via inherited tabular wrapper and create a span", async () => {
     await wrapped.put({ vector: new Float32Array([1, 0, 0]), content: "hello" });
-    expect(startSpanSpy).toHaveBeenCalledWith(
-      "workglow.storage.tabular.put",
-      expect.anything()
-    );
+    expect(startSpanSpy).toHaveBeenCalledWith("workglow.storage.tabular.put", expect.anything());
   });
 
   it("should forward similaritySearch and create a span", async () => {

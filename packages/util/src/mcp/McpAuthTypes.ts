@@ -151,9 +151,7 @@ export const mcpAuthConfigSchema = {
  * Runtime type guard for McpAuthType.
  */
 function isMcpAuthType(value: unknown): value is McpAuthType {
-  return (
-    typeof value === "string" && (mcpAuthTypes as readonly string[]).includes(value)
-  );
+  return typeof value === "string" && (mcpAuthTypes as readonly string[]).includes(value);
 }
 
 function asNonEmptyString(value: unknown): string | undefined {

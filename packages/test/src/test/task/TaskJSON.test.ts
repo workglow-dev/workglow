@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
 import {
   createGraphFromGraphJSON,
   createTaskFromGraphJSON,
@@ -14,11 +13,12 @@ import {
   TaskGraph,
   TaskRegistry,
 } from "@workglow/task-graph";
-import { describe, expect, test, beforeEach, afterEach } from "vitest";
+import type { TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-import { DoubleToResultTask, TestGraphAsTask, TestTaskWithDefaults } from "./TestTasks";
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
+import { DoubleToResultTask, TestGraphAsTask, TestTaskWithDefaults } from "./TestTasks";
 
 // Register test tasks in the global registry (needed for toJSON serialization)
 TaskRegistry.registerTask(DoubleToResultTask);
@@ -220,9 +220,7 @@ describe("TaskJSON", () => {
       };
 
       // Without passing registry, it falls back to global TaskRegistry which is cleared
-      expect(() => createTaskFromGraphJSON(json)).toThrow(
-        "Task type DoubleToResultTask not found"
-      );
+      expect(() => createTaskFromGraphJSON(json)).toThrow("Task type DoubleToResultTask not found");
     });
   });
 

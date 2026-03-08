@@ -13,12 +13,12 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
 import { getGlobalCredentialStore } from "../credentials/CredentialStoreRegistry";
-import { mcpAuthConfigSchema, buildAuthConfig } from "./McpAuthTypes";
-import type { McpAuthConfig } from "./McpAuthTypes";
-import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
+import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
 import { getLogger } from "../logging/LoggerRegistry";
+import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
+import { buildAuthConfig, mcpAuthConfigSchema } from "./McpAuthTypes";
+import type { McpAuthConfig } from "./McpAuthTypes";
 
 export const mcpTransportTypes = ["stdio", "sse", "streamable-http"] as const;
 
@@ -75,8 +75,7 @@ export async function createMcpClient(
   let transport: Transport;
 
   // Resolve auth config: prefer structured `auth` object, fall back to flat props
-  let auth: McpAuthConfig | undefined =
-    config.auth ?? buildAuthConfig({ ...config });
+  let auth: McpAuthConfig | undefined = config.auth ?? buildAuthConfig({ ...config });
 
   // Resolve credential store keys to actual secret values
   if (auth && auth.type !== "none") {

@@ -5,13 +5,8 @@
  */
 
 import type { JSONValue } from "../tabular/ITabularStorage";
-import type {
-  IKvStorage,
-  KvEventListener,
-  KvEventName,
-  KvEventParameters,
-} from "./IKvStorage";
 import { traced } from "../util/traced";
+import type { IKvStorage, KvEventListener, KvEventName, KvEventParameters } from "./IKvStorage";
 
 /**
  * Telemetry wrapper for any IKvStorage implementation.
@@ -21,8 +16,7 @@ export class TelemetryKvStorage<
   Key extends string | number = string,
   Value extends any = any,
   Combined = { key: Key; value: Value },
-> implements IKvStorage<Key, Value, Combined>
-{
+> implements IKvStorage<Key, Value, Combined> {
   constructor(
     private readonly storageName: string,
     private readonly inner: IKvStorage<Key, Value, Combined>
@@ -32,9 +26,7 @@ export class TelemetryKvStorage<
     return traced("workglow.storage.kv.put", this.storageName, () => this.inner.put(key, value));
   }
   putBulk(items: Array<{ key: Key; value: Value }>): Promise<void> {
-    return traced("workglow.storage.kv.putBulk", this.storageName, () =>
-      this.inner.putBulk(items)
-    );
+    return traced("workglow.storage.kv.putBulk", this.storageName, () => this.inner.putBulk(items));
   }
   get(key: Key): Promise<Value | undefined> {
     return traced("workglow.storage.kv.get", this.storageName, () => this.inner.get(key));
@@ -46,9 +38,7 @@ export class TelemetryKvStorage<
     return traced("workglow.storage.kv.getAll", this.storageName, () => this.inner.getAll());
   }
   deleteAll(): Promise<void> {
-    return traced("workglow.storage.kv.deleteAll", this.storageName, () =>
-      this.inner.deleteAll()
-    );
+    return traced("workglow.storage.kv.deleteAll", this.storageName, () => this.inner.deleteAll());
   }
   size(): Promise<number> {
     return traced("workglow.storage.kv.size", this.storageName, () => this.inner.size());

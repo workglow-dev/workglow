@@ -77,14 +77,10 @@ Paragraph.`;
       const inserted = await kb.upsertDocument(doc);
 
       // Find a deeply nested node
-      const section = root.children.find(
-        (c): c is SectionNode => c.kind === NodeKind.SECTION
-      );
+      const section = root.children.find((c): c is SectionNode => c.kind === NodeKind.SECTION);
       expect(section).toBeDefined();
 
-      const subsection = section!.children.find(
-        (c) => c.kind === NodeKind.SECTION
-      );
+      const subsection = section!.children.find((c) => c.kind === NodeKind.SECTION);
       expect(subsection).toBeDefined();
 
       const ancestors = await kb.getAncestors(inserted.doc_id!, subsection!.nodeId);
@@ -302,17 +298,35 @@ Paragraph.`;
       await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([1.0, 0.0, 0.0]),
-        metadata: { chunkId: "chunk_1", doc_id: "doc1", text: "First chunk", nodePath: [], depth: 0 },
+        metadata: {
+          chunkId: "chunk_1",
+          doc_id: "doc1",
+          text: "First chunk",
+          nodePath: [],
+          depth: 0,
+        },
       });
       await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([0.8, 0.2, 0.0]),
-        metadata: { chunkId: "chunk_2", doc_id: "doc1", text: "Second chunk", nodePath: [], depth: 0 },
+        metadata: {
+          chunkId: "chunk_2",
+          doc_id: "doc1",
+          text: "Second chunk",
+          nodePath: [],
+          depth: 0,
+        },
       });
       await kb.upsertChunk({
         doc_id: "doc2",
         vector: new Float32Array([0.0, 1.0, 0.0]),
-        metadata: { chunkId: "chunk_3", doc_id: "doc2", text: "Third chunk", nodePath: [], depth: 0 },
+        metadata: {
+          chunkId: "chunk_3",
+          doc_id: "doc2",
+          text: "Third chunk",
+          nodePath: [],
+          depth: 0,
+        },
       });
 
       const queryVector = new Float32Array([1.0, 0.0, 0.0]);
@@ -326,12 +340,24 @@ Paragraph.`;
       await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([1.0, 0.0, 0.0]),
-        metadata: { chunkId: "chunk_1", doc_id: "doc1", text: "Matching chunk", nodePath: [], depth: 0 },
+        metadata: {
+          chunkId: "chunk_1",
+          doc_id: "doc1",
+          text: "Matching chunk",
+          nodePath: [],
+          depth: 0,
+        },
       });
       await kb.upsertChunk({
         doc_id: "doc1",
         vector: new Float32Array([0.0, 1.0, 0.0]),
-        metadata: { chunkId: "chunk_2", doc_id: "doc1", text: "Non-matching chunk", nodePath: [], depth: 0 },
+        metadata: {
+          chunkId: "chunk_2",
+          doc_id: "doc1",
+          text: "Non-matching chunk",
+          nodePath: [],
+          depth: 0,
+        },
       });
 
       const queryVector = new Float32Array([1.0, 0.0, 0.0]);

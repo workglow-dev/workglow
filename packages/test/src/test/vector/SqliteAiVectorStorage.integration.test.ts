@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SqliteAiVectorStorage } from "@workglow/storage";
-import type { DataPortSchemaObject } from "@workglow/util";
-import { setLogger } from "@workglow/util";
 import { Sqlite } from "@workglow/sqlite";
+import { SqliteAiVectorStorage } from "@workglow/storage";
+import { setLogger } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -117,8 +117,7 @@ describe.skipIf(!sqliteVectorAvailable)("SqliteAiVectorStorage", () => {
       } as const satisfies DataPortSchemaObject;
 
       expect(
-        () =>
-          new SqliteAiVectorStorage(db, "bad_vectors", badSchema, ["id"] as const, [], 3)
+        () => new SqliteAiVectorStorage(db, "bad_vectors", badSchema, ["id"] as const, [], 3)
       ).toThrow("Schema must have a property with type array and format TypedArray");
     });
 

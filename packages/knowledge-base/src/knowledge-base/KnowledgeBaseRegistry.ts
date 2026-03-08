@@ -10,8 +10,8 @@ import {
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
-import type { KnowledgeBase } from "./KnowledgeBase";
 import { InMemoryKnowledgeBaseRepository } from "./InMemoryKnowledgeBaseRepository";
+import type { KnowledgeBase } from "./KnowledgeBase";
 import { KnowledgeBaseRepository } from "./KnowledgeBaseRepository";
 import { knowledgeBaseTableNames, type KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
 
@@ -25,8 +25,9 @@ export const KNOWLEDGE_BASES =
 /**
  * Service token for the knowledge base repository
  */
-export const KNOWLEDGE_BASE_REPOSITORY =
-  createServiceToken<KnowledgeBaseRepository>("knowledge-base.repository");
+export const KNOWLEDGE_BASE_REPOSITORY = createServiceToken<KnowledgeBaseRepository>(
+  "knowledge-base.repository"
+);
 
 // Register default factory for live KB map if not already registered
 if (!globalServiceRegistry.has(KNOWLEDGE_BASES)) {

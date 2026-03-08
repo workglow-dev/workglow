@@ -5,6 +5,7 @@
  */
 
 import type { InferenceProviderOrPolicy } from "@huggingface/inference";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -22,7 +23,6 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
@@ -89,7 +89,12 @@ export const HFI_TextGeneration: AiProviderRunFn<
     const prompts = input.prompt as string[];
     const results: string[] = [];
     for (const item of prompts) {
-      const r = await HFI_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await HFI_TextGeneration(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };

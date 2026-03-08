@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { buildToolDescription, filterValidToolCalls, isAllowedToolName, taskTypesToTools } from "@workglow/ai";
+import {
+  buildToolDescription,
+  filterValidToolCalls,
+  isAllowedToolName,
+  taskTypesToTools,
+} from "@workglow/ai";
 import type { ToolDefinition } from "@workglow/ai";
 import { Task, TaskRegistry } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";

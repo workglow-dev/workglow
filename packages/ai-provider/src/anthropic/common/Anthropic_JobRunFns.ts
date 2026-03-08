@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -24,7 +25,6 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger, parsePartialJson } from "@workglow/util";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
@@ -97,7 +97,12 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
     const prompts = input.prompt as string[];
     const results: string[] = [];
     for (const item of prompts) {
-      const r = await Anthropic_TextGeneration({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Anthropic_TextGeneration(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -141,7 +146,12 @@ export const Anthropic_TextRewriter: AiProviderRunFn<
     const texts = input.text as string[];
     const results: string[] = [];
     for (const item of texts) {
-      const r = await Anthropic_TextRewriter({ ...input, text: item }, model, update_progress, signal);
+      const r = await Anthropic_TextRewriter(
+        { ...input, text: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -179,7 +189,12 @@ export const Anthropic_TextSummary: AiProviderRunFn<
     const texts = input.text as string[];
     const results: string[] = [];
     for (const item of texts) {
-      const r = await Anthropic_TextSummary({ ...input, text: item }, model, update_progress, signal);
+      const r = await Anthropic_TextSummary(
+        { ...input, text: item },
+        model,
+        update_progress,
+        signal
+      );
       results.push(r.text as string);
     }
     return { text: results };
@@ -439,7 +454,12 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
     const texts: string[] = [];
     const toolCallsList: Record<string, unknown>[] = [];
     for (const item of prompts) {
-      const r = await Anthropic_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
+      const r = await Anthropic_ToolCalling(
+        { ...input, prompt: item },
+        model,
+        update_progress,
+        signal
+      );
       texts.push(r.text as string);
       toolCallsList.push(r.toolCalls as Record<string, unknown>);
     }
