@@ -50,6 +50,20 @@ const weatherTool: ToolDefinition = {
   } as const satisfies JsonSchema,
 };
 
+const finishTool: ToolDefinition = {
+  name: "finish",
+  description:
+    "Call this tool when you have completed the task. Pass your final structured result as the input.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      answer: { type: "number", description: "The final answer" },
+    },
+    required: ["answer"],
+    additionalProperties: false,
+  } as const satisfies JsonSchema,
+};
+
 const calculateSumTool: ToolDefinition = {
   name: "calculate_sum",
   description:
@@ -254,6 +268,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
               age: { type: "number" },
             },
             required: ["name", "age"],
+            additionalProperties: false,
           } as const satisfies JsonSchema;
 
           const workflow = new Workflow();
@@ -316,7 +331,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             model: setup.toolCallingModel,
             prompt:
               "Compute 3 + 5 using the calculate_sum tool, then call the finish tool with the answer in a field called 'answer'.",
-            tools: [calculateSumTool],
+            tools: [calculateSumTool, finishTool],
             stopTool: "finish",
             maxIterations: 5,
             maxTokens: setup.maxTokens,
