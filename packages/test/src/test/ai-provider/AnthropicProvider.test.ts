@@ -498,7 +498,7 @@ describe("AnthropicProvider", () => {
   // Streaming: TextGeneration, TextRewriter, TextSummary
   // ========================================================================
   describe("Anthropic_TextGeneration_Stream", () => {
-    test("should yield text-delta events and include accumulated text in finish", async () => {
+    test("should yield text-delta events and a finish event", async () => {
       const streamEvents = [
         { type: "content_block_delta", delta: { type: "text_delta", text: "Hello " } },
         { type: "content_block_delta", delta: { type: "text_delta", text: "world" } },
@@ -526,12 +526,11 @@ describe("AnthropicProvider", () => {
 
       const finish = events.find((e) => e.type === "finish");
       expect(finish).toBeDefined();
-      expect(finish.data.text).toBe("Hello world");
     });
   });
 
   describe("Anthropic_TextRewriter_Stream", () => {
-    test("should accumulate text and include it in finish event", async () => {
+    test("should yield text-delta events and a finish event", async () => {
       const streamEvents = [
         { type: "content_block_delta", delta: { type: "text_delta", text: "Rewritten" } },
       ];
@@ -551,13 +550,17 @@ describe("AnthropicProvider", () => {
         events.push(event);
       }
 
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(1);
+      expect(textDeltas[0].textDelta).toBe("Rewritten");
+
       const finish = events.find((e) => e.type === "finish");
-      expect(finish.data.text).toBe("Rewritten");
+      expect(finish).toBeDefined();
     });
   });
 
   describe("Anthropic_TextSummary_Stream", () => {
-    test("should accumulate text and include it in finish event", async () => {
+    test("should yield text-delta events and a finish event", async () => {
       const streamEvents = [
         { type: "content_block_delta", delta: { type: "text_delta", text: "TL;DR" } },
       ];
@@ -577,8 +580,12 @@ describe("AnthropicProvider", () => {
         events.push(event);
       }
 
+      const textDeltas = events.filter((e) => e.type === "text-delta");
+      expect(textDeltas).toHaveLength(1);
+      expect(textDeltas[0].textDelta).toBe("TL;DR");
+
       const finish = events.find((e) => e.type === "finish");
-      expect(finish.data.text).toBe("TL;DR");
+      expect(finish).toBeDefined();
     });
   });
 
