@@ -11,31 +11,9 @@
  * Sections: graph, task, storage, queue, util, ai, provider, mcp, rag (default: all)
  */
 
-import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
-
-// Load .env.local so API keys are available for local test runs.
-// On CI these are injected directly into the environment.
-const envLocalPath = join(ROOT, ".env.local");
-if (existsSync(envLocalPath)) {
-  for (const line of readFileSync(envLocalPath, "utf-8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
-    // Strip surrounding quotes
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
-  }
-}
 const TEST_BASE = join(ROOT, "packages/test/src/test");
 
 const KNOWN_KINDS = ["unit", "integration", "end2end"] as const;
