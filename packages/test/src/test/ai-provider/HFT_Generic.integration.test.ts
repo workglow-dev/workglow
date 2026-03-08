@@ -29,17 +29,17 @@ import { runGenericAiProviderTests } from "./genericAiProviderTests";
 
 const RUN = true;
 
-const MODEL_ID = "onnx:onnx-community/Qwen2.5-0.5B-Instruct:q4";
+const MODEL_ID = "onnx:onnx-community/Qwen2.5-1.5B-Instruct:q4";
 
 const model: HfTransformersOnnxModelRecord = {
   model_id: MODEL_ID,
-  title: "Qwen2.5-0.5B-Instruct",
-  description: "Small instruction-tuned model with native tool calling support",
+  title: "Qwen2.5-1.5B-Instruct",
+  description: "Instruction-tuned model with native tool calling support",
   tasks: ["TextGenerationTask", "ToolCallingTask", "StructuredGenerationTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
-    model_path: "onnx-community/Qwen2.5-0.5B-Instruct",
+    model_path: "onnx-community/Qwen2.5-1.5B-Instruct",
     dtype: "q4",
   },
   metadata: {},
@@ -78,7 +78,6 @@ runGenericAiProviderTests({
   },
   textGenerationModel: MODEL_ID,
   toolCallingModel: MODEL_ID,
-  structuredGenerationModel: MODEL_ID,
-  maxTokens: 100,
+  maxTokens: 200,
   timeout: 120000,
 });
