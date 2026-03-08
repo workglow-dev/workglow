@@ -37,7 +37,7 @@ function getInputMessages(input: ToolCallingTaskInput): InputMessages | undefine
 
 export interface OpenAICompatMessage {
   role: string;
-  content: string | null;
+  content: string | null | Array<{ type: string; [key: string]: unknown }>;
   tool_calls?: Array<{
     id: string;
     type: "function";
@@ -69,17 +69,39 @@ export function toOpenAIMessages(input: ToolCallingTaskInput): OpenAICompatMessa
 
   for (const msg of inputMessages) {
     if (msg.role === "user") {
-      let content: string;
       if (typeof msg.content === "string") {
-        content = msg.content;
+        messages.push({ role: "user", content: msg.content });
+      } else if (
+        Array.isArray(msg.content) &&
+        msg.content.length > 0 &&
+        typeof (msg.content[0] as Record<string, unknown>)?.type === "string"
+      ) {
+        const parts: Array<{ type: string; [key: string]: unknown }> = [];
+        for (const block of msg.content) {
+          const b = block as Record<string, unknown>;
+          if (b.type === "text") {
+            parts.push({ type: "text", text: b.text as string });
+          } else if (b.type === "image") {
+            parts.push({
+              type: "image_url",
+              image_url: { url: `data:${b.mimeType};base64,${b.data}` },
+            });
+          } else if (b.type === "audio") {
+            const format = (b.mimeType as string).replace(/^audio\//, "");
+            parts.push({
+              type: "input_audio",
+              input_audio: { data: b.data as string, format },
+            });
+          }
+        }
+        messages.push({ role: "user", content: parts });
       } else {
         try {
-          content = JSON.stringify(msg.content);
+          messages.push({ role: "user", content: JSON.stringify(msg.content) });
         } catch {
-          content = String(msg.content);
+          messages.push({ role: "user", content: String(msg.content) });
         }
       }
-      messages.push({ role: "user", content });
     } else if (msg.role === "assistant") {
       if (typeof msg.content === "string") {
         messages.push({ role: "assistant", content: msg.content.length > 0 ? msg.content : null });
@@ -110,9 +132,28 @@ export function toOpenAIMessages(input: ToolCallingTaskInput): OpenAICompatMessa
     } else if (msg.role === "tool" && Array.isArray(msg.content)) {
       for (const block of msg.content) {
         const b = block as Record<string, unknown>;
+        let content: string | Array<{ type: string; [key: string]: unknown }>;
+        if (typeof b.content === "string") {
+          content = b.content;
+        } else if (Array.isArray(b.content)) {
+          const parts: Array<{ type: string; [key: string]: unknown }> = [];
+          for (const inner of b.content as Array<Record<string, unknown>>) {
+            if (inner.type === "text") {
+              parts.push({ type: "text", text: inner.text as string });
+            } else if (inner.type === "image") {
+              parts.push({
+                type: "image_url",
+                image_url: { url: `data:${inner.mimeType};base64,${inner.data}` },
+              });
+            }
+          }
+          content = parts;
+        } else {
+          content = "";
+        }
         messages.push({
           role: "tool",
-          content: (b.content as string) ?? "",
+          content,
           tool_call_id: b.tool_use_id as string,
         });
       }
@@ -160,6 +201,16 @@ export function toTextFlatMessages(input: ToolCallingTaskInput): TextFlatMessage
       let content = "";
       if (typeof msg.content === "string") {
         content = msg.content;
+      } else if (
+        Array.isArray(msg.content) &&
+        msg.content.length > 0 &&
+        typeof (msg.content[0] as Record<string, unknown>)?.type === "string"
+      ) {
+        // Extract only text blocks; media blocks are dropped in text-flat format
+        content = (msg.content as Array<Record<string, unknown>>)
+          .filter((b) => b.type === "text")
+          .map((b) => b.text as string)
+          .join("");
       } else if (msg.content != null) {
         try {
           content = JSON.stringify(msg.content);
@@ -185,10 +236,19 @@ export function toTextFlatMessages(input: ToolCallingTaskInput): TextFlatMessage
     } else if (msg.role === "tool" && Array.isArray(msg.content)) {
       for (const block of msg.content) {
         const b = block as Record<string, unknown>;
-        messages.push({
-          role: "tool",
-          content: (b.content as string) ?? "",
-        });
+        let content: string;
+        if (typeof b.content === "string") {
+          content = b.content;
+        } else if (Array.isArray(b.content)) {
+          // Extract only text blocks from multi-part tool results
+          content = (b.content as Array<Record<string, unknown>>)
+            .filter((inner) => inner.type === "text")
+            .map((inner) => inner.text as string)
+            .join("");
+        } else {
+          content = "";
+        }
+        messages.push({ role: "tool", content });
       }
     }
   }

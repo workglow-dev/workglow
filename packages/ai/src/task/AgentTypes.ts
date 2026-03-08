@@ -1,9 +1,10 @@
 /**
  * @license
- * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { parseDataUri } from "@workglow/util";
 import type { ToolCall, ToolDefinition } from "./ToolCallingTask";
 
 // ========================================================================
@@ -16,6 +17,24 @@ import type { ToolCall, ToolDefinition } from "./ToolCallingTask";
 export interface TextContentBlock {
   readonly type: "text";
   readonly text: string;
+}
+
+/**
+ * An image content block within a chat message.
+ */
+export interface ImageContentBlock {
+  readonly type: "image";
+  readonly mimeType: string; // e.g. "image/png", "image/jpeg", "image/webp", "image/gif"
+  readonly data: string; // raw base64 (no data-uri prefix)
+}
+
+/**
+ * An audio content block within a chat message.
+ */
+export interface AudioContentBlock {
+  readonly type: "audio";
+  readonly mimeType: string; // e.g. "audio/wav", "audio/mp3", "audio/ogg"
+  readonly data: string; // raw base64
 }
 
 /**
@@ -36,18 +55,29 @@ export interface ToolUseContentBlock {
 export interface ToolResultContentBlock {
   readonly type: "tool_result";
   readonly tool_use_id: string;
-  readonly content: string;
+  readonly content: string | ReadonlyArray<ToolResultInnerBlock>;
   readonly is_error?: boolean;
 }
 
-export type ContentBlock = TextContentBlock | ToolUseContentBlock | ToolResultContentBlock;
+/** Content blocks allowed in user messages */
+export type UserContentBlock = TextContentBlock | ImageContentBlock | AudioContentBlock;
+
+/** Content blocks allowed inside tool result content */
+export type ToolResultInnerBlock = TextContentBlock | ImageContentBlock | AudioContentBlock;
+
+export type ContentBlock =
+  | TextContentBlock
+  | ImageContentBlock
+  | AudioContentBlock
+  | ToolUseContentBlock
+  | ToolResultContentBlock;
 
 /**
  * Provider-agnostic chat message for multi-turn conversations.
  * Uses a discriminated union on `role` to enforce correct content types.
  */
 export type ChatMessage =
-  | { readonly role: "user"; readonly content: string }
+  | { readonly role: "user"; readonly content: string | ReadonlyArray<UserContentBlock> }
   | {
       readonly role: "assistant";
       readonly content: ReadonlyArray<TextContentBlock | ToolUseContentBlock>;
@@ -92,6 +122,8 @@ export interface ToolResult {
   readonly toolName: string;
   readonly output: Record<string, unknown>;
   readonly isError: boolean;
+  /** Optional media content blocks to include alongside the JSON output. */
+  readonly mediaContent?: ReadonlyArray<ToolResultInnerBlock>;
 }
 
 // ========================================================================
@@ -123,9 +155,7 @@ export type ToolErrorAction =
  * - `"continue"`: proceed with the next LLM call
  * - `"stop"`: end the agent loop and return current results
  */
-export type IterationAction =
-  | { readonly action: "continue" }
-  | { readonly action: "stop" };
+export type IterationAction = { readonly action: "continue" } | { readonly action: "stop" };
 
 /**
  * Lifecycle hooks for the AgentTask loop.
@@ -133,10 +163,7 @@ export type IterationAction =
  */
 export interface AgentHooks {
   /** Called before each tool call. Can approve, deny, or modify the call. */
-  readonly beforeToolCall?: (
-    call: ToolCall,
-    source: ToolSource
-  ) => Promise<ToolCallDecision>;
+  readonly beforeToolCall?: (call: ToolCall, source: ToolSource) => Promise<ToolCallDecision>;
 
   /** Called after each successful tool call. Can transform the result. */
   readonly afterToolCall?: (call: ToolCall, result: ToolResult) => Promise<ToolResult>;
@@ -156,23 +183,44 @@ export interface AgentHooks {
 }
 
 // ========================================================================
+// Factory functions for content blocks
+// ========================================================================
+
+export function imageBlock(mimeType: string, data: string): ImageContentBlock {
+  return { type: "image", mimeType, data };
+}
+
+export function audioBlock(mimeType: string, data: string): AudioContentBlock {
+  return { type: "audio", mimeType, data };
+}
+
+export function imageBlockFromDataUri(dataUri: string): ImageContentBlock {
+  const { mimeType, base64 } = parseDataUri(dataUri);
+  return { type: "image", mimeType, data: base64 };
+}
+
+export function audioBlockFromDataUri(dataUri: string): AudioContentBlock {
+  const { mimeType, base64 } = parseDataUri(dataUri);
+  return { type: "audio", mimeType, data: base64 };
+}
+
+// ========================================================================
 // Helpers for building ChatMessage arrays
 // ========================================================================
 
 /**
- * Creates a user message from a prompt string.
+ * Creates a user message from a prompt string or array of content blocks.
  */
-export function userMessage(prompt: string): ChatMessage {
+export function userMessage(
+  prompt: string | ReadonlyArray<UserContentBlock>
+): ChatMessage {
   return { role: "user", content: prompt };
 }
 
 /**
  * Creates an assistant message from text and optional tool calls.
  */
-export function assistantMessage(
-  text: string,
-  toolCalls?: Record<string, ToolCall>
-): ChatMessage {
+export function assistantMessage(text: string, toolCalls?: Record<string, ToolCall>): ChatMessage {
   const content: Array<TextContentBlock | ToolUseContentBlock> = [];
   if (text) {
     content.push({ type: "text", text });
@@ -192,16 +240,25 @@ export function assistantMessage(
 
 /**
  * Creates a tool message from an array of tool results.
+ * When a result has `mediaContent`, emits content as an array of blocks
+ * instead of a plain JSON string.
  */
 export function toolMessage(results: ReadonlyArray<ToolResult>): ChatMessage {
   return {
     role: "tool",
-    content: results.map((r) => ({
-      type: "tool_result" as const,
-      tool_use_id: r.toolCallId,
-      content: JSON.stringify(r.output),
-      is_error: r.isError || undefined,
-    })),
+    content: results.map((r) => {
+      const jsonText = JSON.stringify(r.output);
+      const content: string | ReadonlyArray<ToolResultInnerBlock> =
+        r.mediaContent && r.mediaContent.length > 0
+          ? [{ type: "text" as const, text: jsonText }, ...r.mediaContent]
+          : jsonText;
+      return {
+        type: "tool_result" as const,
+        tool_use_id: r.toolCallId,
+        content,
+        is_error: r.isError || undefined,
+      };
+    }),
   };
 }
 

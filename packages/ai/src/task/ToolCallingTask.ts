@@ -239,11 +239,31 @@ export const ToolCallingInputSchema = {
   type: "object",
   properties: {
     model: modelSchema,
-    prompt: TypeSingleOrArray({
-      type: "string",
+    prompt: {
+      oneOf: [
+        { type: "string", title: "Prompt", description: "The prompt to send to the model" },
+        {
+          type: "array",
+          title: "Prompt",
+          description: "The prompt as an array of strings or content blocks",
+          items: {
+            oneOf: [
+              { type: "string" },
+              {
+                type: "object",
+                properties: {
+                  type: { type: "string", enum: ["text", "image", "audio"] },
+                },
+                required: ["type"],
+                additionalProperties: true,
+              },
+            ],
+          },
+        },
+      ],
       title: "Prompt",
       description: "The prompt to send to the model",
-    }),
+    },
     systemPrompt: {
       type: "string",
       title: "System Prompt",
