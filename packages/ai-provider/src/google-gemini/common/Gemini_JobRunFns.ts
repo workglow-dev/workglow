@@ -46,6 +46,13 @@ async function loadGeminiSDK() {
   return _sdk.GoogleGenerativeAI;
 }
 
+/** @internal Override or reset cached SDK reference — for testing only. */
+export function _resetGeminiSDKForTesting(
+  override?: typeof import("@google/generative-ai") | undefined
+): void {
+  _sdk = override;
+}
+
 interface ResolvedProviderConfig {
   readonly credential_key?: string;
   readonly api_key?: string;
@@ -67,6 +74,27 @@ function getApiKey(model: GeminiModelConfig | undefined): string {
     );
   }
   return apiKey;
+}
+
+/**
+ * Safely extract text from a GenerateContentResult.
+ * Falls back to raw candidate extraction when `response.text()` is unavailable
+ * (e.g. due to SDK version incompatibilities with newer model response formats).
+ */
+function extractResponseText(result: { response: any }): string {
+  const response = result?.response;
+  if (typeof response?.text === "function") {
+    return response.text();
+  }
+  // Fallback: extract text directly from candidates
+  const parts = response?.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts)) {
+    return parts
+      .filter((p: any) => p.text)
+      .map((p: any) => p.text)
+      .join("");
+  }
+  return "";
 }
 
 function getModelName(model: GeminiModelConfig | undefined): string {
@@ -137,7 +165,7 @@ export const Gemini_TextGeneration: AiProviderRunFn<
     contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
   });
 
-  const text = result.response.text();
+  const text = extractResponseText(result);
   update_progress(100, "Completed Gemini text generation");
   logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
   return { text };
@@ -216,7 +244,7 @@ export const Gemini_TextRewriter: AiProviderRunFn<
     contents: [{ role: "user", parts: [{ text: input.text as string }] }],
   });
 
-  const text = result.response.text();
+  const text = extractResponseText(result);
   update_progress(100, "Completed Gemini text rewriting");
   return { text };
 };
@@ -251,7 +279,7 @@ export const Gemini_TextSummary: AiProviderRunFn<
     contents: [{ role: "user", parts: [{ text: input.text as string }] }],
   });
 
-  const text = result.response.text();
+  const text = extractResponseText(result);
   update_progress(100, "Completed Gemini text summarization");
   return { text };
 };
@@ -406,7 +434,7 @@ export const Gemini_StructuredGeneration: AiProviderRunFn<
     contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
   });
 
-  const text = result.response.text();
+  const text = extractResponseText(result);
   update_progress(100, "Completed Gemini structured generation");
   return { object: JSON.parse(text) };
 };

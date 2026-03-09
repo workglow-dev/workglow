@@ -21,6 +21,7 @@ import {
   OpenAI_ToolCalling,
   OpenAI_ToolCalling_Stream,
   _setTiktokenForTesting,
+  _resetOpenAISDKForTesting,
 } from "@workglow/ai-provider/openai";
 import {
   TaskQueueRegistry,
@@ -63,6 +64,7 @@ describe("OpenAiProvider", () => {
   let registry: AiProviderRegistry;
 
   beforeEach(async () => {
+    _resetOpenAISDKForTesting();
     await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
@@ -285,14 +287,20 @@ describe("OpenAiProvider", () => {
 
   describe("error handling", () => {
     test("should throw when API key is missing", async () => {
-      await expect(
-        OpenAI_TextGeneration(
-          { prompt: "test", model: {} as any },
-          { provider_config: { model_name: "gpt-4o" }, provider: OPENAI } as OpenAiModelConfig,
-          noopProgress,
-          abortSignal
-        )
-      ).rejects.toThrow(/Missing OpenAI API key/);
+      const savedKey = process.env.OPENAI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      try {
+        await expect(
+          OpenAI_TextGeneration(
+            { prompt: "test", model: {} as any },
+            { provider_config: { model_name: "gpt-4o" }, provider: OPENAI } as OpenAiModelConfig,
+            noopProgress,
+            abortSignal
+          )
+        ).rejects.toThrow(/Missing OpenAI API key/);
+      } finally {
+        if (savedKey !== undefined) process.env.OPENAI_API_KEY = savedKey;
+      }
     });
 
     test("should throw when model name is missing", async () => {

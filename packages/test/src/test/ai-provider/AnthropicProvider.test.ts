@@ -19,6 +19,7 @@ import {
   Anthropic_TextSummary_Stream,
   Anthropic_ToolCalling,
   Anthropic_ToolCalling_Stream,
+  _resetAnthropicSDKForTesting,
 } from "@workglow/ai-provider/anthropic";
 import {
   getTaskQueueRegistry,
@@ -63,6 +64,7 @@ describe("AnthropicProvider", () => {
   let registry: AiProviderRegistry;
 
   beforeEach(async () => {
+    _resetAnthropicSDKForTesting();
     await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
@@ -225,14 +227,20 @@ describe("AnthropicProvider", () => {
 
   describe("error handling", () => {
     test("should throw when API key is missing", async () => {
-      await expect(
-        Anthropic_TextGeneration(
-          { prompt: "test", model: {} as any },
-          { provider_config: { model_name: "claude-sonnet-4-20250514" } } as any,
-          noopProgress,
-          abortSignal
-        )
-      ).rejects.toThrow(/Missing Anthropic API key/);
+      const savedKey = process.env.ANTHROPIC_API_KEY;
+      delete process.env.ANTHROPIC_API_KEY;
+      try {
+        await expect(
+          Anthropic_TextGeneration(
+            { prompt: "test", model: {} as any },
+            { provider_config: { model_name: "claude-sonnet-4-20250514" } } as any,
+            noopProgress,
+            abortSignal
+          )
+        ).rejects.toThrow(/Missing Anthropic API key/);
+      } finally {
+        if (savedKey !== undefined) process.env.ANTHROPIC_API_KEY = savedKey;
+      }
     });
 
     test("should propagate SDK errors", async () => {

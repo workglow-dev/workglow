@@ -45,6 +45,11 @@ async function loadOpenAISDK() {
   return _OpenAIClass;
 }
 
+/** @internal Override or reset cached SDK class — for testing only. */
+export function _resetOpenAISDKForTesting(override?: (new (config: any) => any) | undefined): void {
+  _OpenAIClass = override;
+}
+
 interface ResolvedProviderConfig {
   readonly credential_key?: string;
   readonly api_key?: string;

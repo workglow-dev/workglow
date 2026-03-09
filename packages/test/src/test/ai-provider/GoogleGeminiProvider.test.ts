@@ -15,6 +15,7 @@ import {
   Gemini_TextSummary,
   Gemini_ToolCalling,
   Gemini_ToolCalling_Stream,
+  _resetGeminiSDKForTesting,
 } from "@workglow/ai-provider/google-gemini";
 import {
   getTaskQueueRegistry,
@@ -65,6 +66,7 @@ describe("GoogleGeminiProvider", () => {
   let registry: AiProviderRegistry;
 
   beforeEach(async () => {
+    _resetGeminiSDKForTesting();
     await setTaskQueueRegistry(new TaskQueueRegistry());
     setAiProviderRegistry(new AiProviderRegistry());
     registry = getAiProviderRegistry();
@@ -213,14 +215,23 @@ describe("GoogleGeminiProvider", () => {
 
   describe("error handling", () => {
     test("should throw when API key is missing", async () => {
-      await expect(
-        Gemini_TextGeneration(
-          { prompt: "test", model: {} as any },
-          { provider_config: { model_name: "gemini-2.0-flash" } } as any,
-          noopProgress,
-          abortSignal
-        )
-      ).rejects.toThrow(/Missing Google API key/);
+      const savedGoogleKey = process.env.GOOGLE_API_KEY;
+      const savedGeminiKey = process.env.GEMINI_API_KEY;
+      delete process.env.GOOGLE_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+      try {
+        await expect(
+          Gemini_TextGeneration(
+            { prompt: "test", model: {} as any },
+            { provider_config: { model_name: "gemini-2.0-flash" } } as any,
+            noopProgress,
+            abortSignal
+          )
+        ).rejects.toThrow(/Missing Google API key/);
+      } finally {
+        if (savedGoogleKey !== undefined) process.env.GOOGLE_API_KEY = savedGoogleKey;
+        if (savedGeminiKey !== undefined) process.env.GEMINI_API_KEY = savedGeminiKey;
+      }
     });
 
     test("should propagate SDK errors", async () => {
