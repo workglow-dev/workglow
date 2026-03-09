@@ -23,6 +23,7 @@
     "format": "eslint --fix && prettier \"{packages,examples}/*/src/**/*.{js,ts,tsx,json}\" --check --write",
     "build:release": "turbo run build-package",
     "test": "bun scripts/test.ts",
+    "test:affected": "bun scripts/affected-tests.ts",
     "test:bun": "bun scripts/test.ts bun",
     "test:vitest": "bun scripts/test.ts vitest",
     "bunset": "bunset --patch --all --push --commit --tag --sections=all",
