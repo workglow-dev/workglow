@@ -32,8 +32,8 @@ runGenericAiProviderTests({
   setup: async () => {
     // Inject the real SDK to bypass module mocks leaked from unit test files.
     // bun shares module cache across files and import("@google/generative-ai") returns the
-    // cached mock, so we load the real SDK via its resolved file path.
-    const realSDK = await import(require.resolve("@google/generative-ai"));
+    // cached mock, so we load the real SDK via its resolved file path using ESM-safe resolution.
+    const realSDK = await import(import.meta.resolve("@google/generative-ai"));
     _resetGeminiSDKForTesting(realSDK);
     const logger = getTestingLogger();
     setLogger(logger);
