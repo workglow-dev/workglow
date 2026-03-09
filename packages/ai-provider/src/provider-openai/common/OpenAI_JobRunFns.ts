@@ -45,11 +45,6 @@ async function loadOpenAISDK() {
   return _OpenAIClass;
 }
 
-/** @internal Override or reset cached SDK class — for testing only. */
-export function _resetOpenAISDKForTesting(override?: (new (config: any) => any) | undefined): void {
-  _OpenAIClass = override;
-}
-
 interface ResolvedProviderConfig {
   readonly credential_key?: string;
   readonly api_key?: string;
@@ -356,16 +351,6 @@ async function loadTiktoken() {
 
 // Cache encoders by model name to avoid repeated allocation overhead.
 const _encoderCache = new Map<string, ReturnType<typeof import("tiktoken").get_encoding>>();
-
-/**
- * @internal Test-only hook: inject a mock tiktoken module and clear the encoder cache.
- * Needed because `vi.mock("tiktoken")` cannot intercept the dynamic `import("tiktoken")`
- * that lives inside `loadTiktoken()` when running under vitest.
- */
-export function _setTiktokenForTesting(mod: typeof import("tiktoken") | undefined): void {
-  _tiktoken = mod;
-  _encoderCache.clear();
-}
 
 async function getEncoder(modelName: string) {
   const tiktoken = await loadTiktoken();

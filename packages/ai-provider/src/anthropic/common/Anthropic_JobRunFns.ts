@@ -43,13 +43,6 @@ async function loadAnthropicSDK() {
   return _sdk.default;
 }
 
-/** @internal Override or reset cached SDK reference — for testing only. */
-export function _resetAnthropicSDKForTesting(
-  override?: typeof import("@anthropic-ai/sdk") | undefined
-): void {
-  _sdk = override;
-}
-
 interface ResolvedProviderConfig {
   readonly credential_key?: string;
   readonly api_key?: string;

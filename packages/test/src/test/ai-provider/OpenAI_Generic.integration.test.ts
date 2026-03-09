@@ -14,7 +14,6 @@ import {
   OPENAI_REACTIVE_TASKS,
   OPENAI_STREAM_TASKS,
   OPENAI_TASKS,
-  _resetOpenAISDKForTesting,
 } from "@workglow/ai-provider/openai";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
@@ -30,11 +29,6 @@ runGenericAiProviderTests({
   name: "OpenAI",
   skip: !RUN,
   setup: async () => {
-    // Inject the real SDK to bypass module mocks leaked from unit test files.
-    // bun shares module cache across files and import("openai") returns the cached mock,
-    // so we load the real SDK via its resolved file path.
-    const realSDK = await import(require.resolve("openai"));
-    _resetOpenAISDKForTesting(realSDK.default);
     const logger = getTestingLogger();
     setLogger(logger);
     await setTaskQueueRegistry(null);

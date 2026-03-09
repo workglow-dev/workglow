@@ -14,7 +14,6 @@ import {
   GEMINI_REACTIVE_TASKS,
   GEMINI_STREAM_TASKS,
   GEMINI_TASKS,
-  _resetGeminiSDKForTesting,
 } from "@workglow/ai-provider/google-gemini";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
@@ -30,11 +29,6 @@ runGenericAiProviderTests({
   name: "Google Gemini",
   skip: !RUN,
   setup: async () => {
-    // Inject the real SDK to bypass module mocks leaked from unit test files.
-    // bun shares module cache across files and import("@google/generative-ai") returns the
-    // cached mock, so we load the real SDK via its resolved file path.
-    const realSDK = await import(require.resolve("@google/generative-ai"));
-    _resetGeminiSDKForTesting(realSDK);
     const logger = getTestingLogger();
     setLogger(logger);
     await setTaskQueueRegistry(null);
