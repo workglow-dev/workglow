@@ -91,7 +91,6 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     needs: [test-bun, test-vitest]
-    if: always()
 
     steps:
       - uses: geekyeggo/delete-artifact@v5
