@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "include": ["src/**/*"],
   "files": ["./src/types.ts"],
-  "exclude": ["dist"],
+  "exclude": ["dist", "node_modules"],
   "compilerOptions": {
     "composite": true,
     "outDir": "./dist",
