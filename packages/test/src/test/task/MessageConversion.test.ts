@@ -176,6 +176,66 @@ describe("toOpenAIMessages", () => {
     expect(parts).toHaveLength(2);
     expect(parts[1].type).toBe("input_audio");
   });
+
+  test("should join string array prompt with newlines when no messages", () => {
+    const input = makeInput({ prompt: ["Line one", "Line two"] as any });
+    const msgs = toOpenAIMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].content).toBe("Line one\nLine two");
+  });
+
+  test("should convert content block array prompt to OpenAI parts when no messages", () => {
+    const input = makeInput({
+      prompt: [
+        { type: "text", text: "Describe this image" },
+        { type: "image", mimeType: "image/png", data: "base64abc" },
+      ] as any,
+    });
+    const msgs = toOpenAIMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    expect(Array.isArray(msgs[0].content)).toBe(true);
+    const parts = msgs[0].content as any[];
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toEqual({ type: "text", text: "Describe this image" });
+    expect(parts[1].type).toBe("image_url");
+    expect(parts[1].image_url.url).toBe("data:image/png;base64,base64abc");
+  });
+
+  test("should convert audio content block in prompt to OpenAI input_audio when no messages", () => {
+    const input = makeInput({
+      prompt: [
+        { type: "text", text: "Transcribe" },
+        { type: "audio", mimeType: "audio/mp3", data: "audiobase64" },
+      ] as any,
+    });
+    const msgs = toOpenAIMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    const parts = msgs[0].content as any[];
+    expect(parts).toHaveLength(2);
+    expect(parts[1]).toEqual({
+      type: "input_audio",
+      input_audio: { data: "audiobase64", format: "mp3" },
+    });
+  });
+
+  test("should promote inline string items in mixed prompt array to text parts", () => {
+    const input = makeInput({
+      prompt: [
+        "Plain text",
+        { type: "image", mimeType: "image/jpeg", data: "imgdata" },
+      ] as any,
+    });
+    const msgs = toOpenAIMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    const parts = msgs[0].content as any[];
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toEqual({ type: "text", text: "Plain text" });
+    expect(parts[1].type).toBe("image_url");
+  });
 });
 
 // ========================================================================
@@ -275,5 +335,40 @@ describe("toTextFlatMessages", () => {
     const msgs = toTextFlatMessages(input);
 
     expect(msgs[0].content).toBe("[1,2,3]");
+  });
+
+  test("should join string array prompt with newlines when no messages", () => {
+    const input = makeInput({ prompt: ["First line", "Second line"] as any });
+    const msgs = toTextFlatMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].content).toBe("First line\nSecond line");
+  });
+
+  test("should extract only text blocks from content block array prompt, dropping media", () => {
+    const input = makeInput({
+      prompt: [
+        { type: "text", text: "Describe this" },
+        { type: "image", mimeType: "image/png", data: "base64data" },
+        { type: "text", text: "in detail" },
+      ] as any,
+    });
+    const msgs = toTextFlatMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].content).toBe("Describe this\nin detail");
+  });
+
+  test("should drop all media blocks from prompt array, returning empty string for media-only prompt", () => {
+    const input = makeInput({
+      prompt: [
+        { type: "image", mimeType: "image/png", data: "base64data" },
+        { type: "audio", mimeType: "audio/wav", data: "audiodata" },
+      ] as any,
+    });
+    const msgs = toTextFlatMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].content).toBe("");
   });
 });

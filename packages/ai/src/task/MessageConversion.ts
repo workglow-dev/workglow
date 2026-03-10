@@ -59,11 +59,37 @@ export function toOpenAIMessages(input: ToolCallingTaskInput): OpenAICompatMessa
     messages.push({ role: "system", content: input.systemPrompt });
   }
 
-  const prompt = Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
-
   const inputMessages = getInputMessages(input);
   if (!inputMessages) {
-    messages.push({ role: "user", content: prompt });
+    if (!Array.isArray(input.prompt)) {
+      messages.push({ role: "user", content: input.prompt });
+    } else if (input.prompt.every((item) => typeof item === "string")) {
+      messages.push({ role: "user", content: (input.prompt as string[]).join("\n") });
+    } else {
+      const parts: Array<{ type: string; [key: string]: unknown }> = [];
+      for (const item of input.prompt) {
+        if (typeof item === "string") {
+          parts.push({ type: "text", text: item });
+        } else {
+          const b = item as Record<string, unknown>;
+          if (b.type === "text") {
+            parts.push({ type: "text", text: b.text as string });
+          } else if (b.type === "image") {
+            parts.push({
+              type: "image_url",
+              image_url: { url: `data:${b.mimeType};base64,${b.data}` },
+            });
+          } else if (b.type === "audio") {
+            const format = (b.mimeType as string).replace(/^audio\//, "");
+            parts.push({
+              type: "input_audio",
+              input_audio: { data: b.data as string, format },
+            });
+          }
+        }
+      }
+      messages.push({ role: "user", content: parts });
+    }
     return messages;
   }
 
@@ -188,11 +214,23 @@ export function toTextFlatMessages(input: ToolCallingTaskInput): TextFlatMessage
     messages.push({ role: "system", content: input.systemPrompt });
   }
 
-  const prompt = Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
-
   const inputMessages = getInputMessages(input);
   if (!inputMessages) {
-    messages.push({ role: "user", content: prompt });
+    let promptContent: string;
+    if (!Array.isArray(input.prompt)) {
+      promptContent = input.prompt;
+    } else {
+      // Extract text content only; media blocks are dropped in text-flat format
+      promptContent = input.prompt
+        .map((item) => {
+          if (typeof item === "string") return item;
+          const b = item as Record<string, unknown>;
+          return b.type === "text" ? (b.text as string) : "";
+        })
+        .filter((s) => s !== "")
+        .join("\n");
+    }
+    messages.push({ role: "user", content: promptContent });
     return messages;
   }
 
