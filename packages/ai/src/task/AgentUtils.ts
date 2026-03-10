@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getTaskConstructors } from "@workglow/task-graph";
+import { DataPorts, getTaskConstructors } from "@workglow/task-graph";
 import type { IExecuteContext } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import type { ServiceRegistry } from "@workglow/util";
@@ -159,7 +159,7 @@ export async function executeToolCall(
   }
 
   try {
-    let output: Record<string, unknown>;
+    let output: DataPorts;
 
     switch (source.type) {
       case "registry": {
@@ -168,7 +168,7 @@ export async function executeToolCall(
           throw new Error(`Task type "${source.taskType}" not found in TaskRegistry`);
         }
         const taskConfig = source.config ?? {};
-        const task = context.own(new ctor(effectiveCall.input, taskConfig as any));
+        const task = context.own(new ctor({}, taskConfig));
         output = (await task.run(effectiveCall.input)) ?? {};
         break;
       }

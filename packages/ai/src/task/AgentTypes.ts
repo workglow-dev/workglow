@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { DataPorts } from "@workglow/task-graph";
 import { parseDataUri } from "@workglow/util";
 import type { ToolCall, ToolCalls, ToolDefinition } from "./ToolCallingTask";
 
@@ -99,7 +100,7 @@ export interface RegistryToolSource {
   readonly definition: ToolDefinition;
   readonly taskType: string;
   /** Configuration values passed to the task constructor. */
-  readonly config?: Record<string, unknown>;
+  readonly config?: DataPorts;
 }
 
 /**
@@ -108,7 +109,7 @@ export interface RegistryToolSource {
 export interface FunctionToolSource {
   readonly type: "function";
   readonly definition: ToolDefinition;
-  readonly run: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  readonly run: (input: DataPorts) => Promise<DataPorts>;
 }
 
 export type ToolSource = RegistryToolSource | FunctionToolSource;
@@ -120,7 +121,7 @@ export type ToolSource = RegistryToolSource | FunctionToolSource;
 export interface ToolResult {
   readonly toolCallId: string;
   readonly toolName: string;
-  readonly output: Record<string, unknown>;
+  readonly output: DataPorts;
   readonly isError: boolean;
   /** Optional media content blocks to include alongside the JSON output. */
   readonly mediaContent?: ReadonlyArray<ToolResultInnerBlock>;
