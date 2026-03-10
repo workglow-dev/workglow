@@ -54,6 +54,8 @@ export interface ToolCall {
   input: Record<string, unknown>;
 }
 
+export type ToolCalls = Array<ToolCall>;
+
 /**
  * Controls which tools the model may call.
  * - `"auto"` — model decides whether to call tools
@@ -91,26 +93,23 @@ export function isAllowedToolName(
 }
 
 /**
- * Filters a Record of tool calls, removing any whose name does not appear
- * in the provided tools list. Returns the filtered Record.
+ * Filters an array of tool calls, removing any whose name does not appear
+ * in the provided tools list. Returns the filtered array.
  */
 export function filterValidToolCalls(
-  toolCalls: Record<string, unknown>,
+  toolCalls: ToolCalls,
   allowedTools: ReadonlyArray<ToolDefinition>
-): Record<string, unknown> {
-  const filtered: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(toolCalls)) {
-    const tc = value as { name?: string };
+): ToolCalls {
+  return toolCalls.filter((tc) => {
     if (tc.name && isAllowedToolName(tc.name, allowedTools)) {
-      filtered[key] = value;
-    } else {
-      getLogger().warn(`Filtered out tool call with unknown name "${tc.name ?? "(missing)"}"`, {
-        callId: key,
-        toolName: tc.name,
-      });
+      return true;
     }
-  }
-  return filtered;
+    getLogger().warn(`Filtered out tool call with unknown name "${tc.name ?? "(missing)"}"`, {
+      callId: tc.id,
+      toolName: tc.name,
+    });
+    return false;
+  });
 }
 
 // ========================================================================

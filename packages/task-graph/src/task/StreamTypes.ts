@@ -38,7 +38,7 @@ export type StreamTextDelta = {
 export type StreamObjectDelta = {
   type: "object-delta";
   port: string;
-  objectDelta: Record<string, unknown>;
+  objectDelta: Record<string, unknown> | unknown[];
 };
 
 /**

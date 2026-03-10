@@ -323,7 +323,7 @@ export class TaskRunner<
 
     const accumulated = this.shouldAccumulate ? new Map<string, string>() : undefined;
     const accumulatedObjects = this.shouldAccumulate
-      ? new Map<string, Record<string, unknown>>()
+      ? new Map<string, Record<string, unknown> | unknown[]>()
       : undefined;
     let chunkCount = 0;
     let finalOutput: Output | undefined;

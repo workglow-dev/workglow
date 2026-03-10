@@ -27,6 +27,7 @@ import type {
   TextSummaryTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
@@ -681,7 +682,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await LlamaCpp_ToolCalling(
         { ...input, prompt: item },
@@ -690,9 +691,9 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
         signal
       );
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   if (!model) throw new Error("Model config is required for ToolCallingTask.");
@@ -723,10 +724,10 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
     });
 
-    const toolCalls: Record<string, unknown> = {};
+    const toolCalls: ToolCalls = [];
     capturedCalls.forEach((call, index) => {
       const id = `call_${index}`;
-      toolCalls[id] = { id, name: call.name, input: call.input };
+      toolCalls.push({ id, name: call.name, input: call.input });
     });
 
     update_progress(100, "Tool calling complete");
@@ -823,15 +824,15 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
     return;
   }
 
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   capturedCalls.forEach((call, index) => {
     const id = `call_${index}`;
-    toolCalls[id] = { id, name: call.name, input: call.input };
+    toolCalls.push({ id, name: call.name, input: call.input });
   });
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
 
-  if (Object.keys(validToolCalls).length > 0) {
-    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...validToolCalls } };
+  if (validToolCalls.length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: [...validToolCalls] };
   }
 
   yield {

@@ -26,6 +26,7 @@ import type {
   TextSummaryTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -590,7 +591,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await Gemini_ToolCalling(
         { ...input, prompt: item },
@@ -599,9 +600,9 @@ export const Gemini_ToolCalling: AiProviderRunFn<
         signal
       );
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   update_progress(0, "Starting Gemini tool calling");
@@ -634,7 +635,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
 
   const textParts: string[] = [];
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
 
   for (const part of parts) {
@@ -643,11 +644,11 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     }
     if ("functionCall" in part && part.functionCall) {
       const id = `call_${callIndex++}`;
-      toolCalls[id] = {
+      toolCalls.push({
         id,
         name: part.functionCall.name,
         input: (part.functionCall.args as Record<string, unknown>) ?? {},
-      };
+      });
     }
   }
 
@@ -687,7 +688,7 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
   const result = await genModel.generateContentStream({ contents }, { signal });
 
   let accumulatedText = "";
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
 
   for await (const chunk of result.stream) {
@@ -699,12 +700,12 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
       }
       if ("functionCall" in part && part.functionCall) {
         const id = `call_${callIndex++}`;
-        toolCalls[id] = {
+        toolCalls.push({
           id,
           name: part.functionCall.name,
           input: (part.functionCall.args as Record<string, unknown>) ?? {},
-        };
-        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
+        });
+        yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCalls] };
       }
     }
   }

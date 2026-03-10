@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ToolCallingTaskOutput } from "@workglow/ai";
+import type { ToolCall, ToolCallingTaskOutput } from "@workglow/ai";
 import {
   DownloadModelTask,
   getGlobalModelRepository,
@@ -40,9 +40,9 @@ describe("parseToolCallsFromText", () => {
     const result = parseToolCallsFromText(text);
 
     expect(result.text).toBe("I'll check the weather for you.");
-    expect(Object.keys(result.toolCalls)).toHaveLength(1);
+    expect(result.toolCalls).toHaveLength(1);
 
-    const call = result.toolCalls["call_0"] as any;
+    const call = result.toolCalls[0];
     expect(call.name).toBe("get_weather");
     expect(call.input).toEqual({ location: "NYC" });
   });
@@ -51,17 +51,17 @@ describe("parseToolCallsFromText", () => {
     const text = `<tool_call>{"name":"get_weather","arguments":{"location":"NYC"}}</tool_call>\n<tool_call>{"name":"get_weather","arguments":{"location":"London"}}</tool_call>`;
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(2);
-    expect((result.toolCalls["call_0"] as any).input.location).toBe("NYC");
-    expect((result.toolCalls["call_1"] as any).input.location).toBe("London");
+    expect(result.toolCalls).toHaveLength(2);
+    expect(result.toolCalls[0].input.location).toBe("NYC");
+    expect(result.toolCalls[1].input.location).toBe("London");
   });
 
   it("should parse bare JSON objects with name+arguments", () => {
     const text = `Here is the result: {"name":"search","arguments":{"query":"test"}}`;
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(1);
-    const call = result.toolCalls["call_0"] as any;
+    expect(result.toolCalls).toHaveLength(1);
+    const call = result.toolCalls[0];
     expect(call.name).toBe("search");
     expect(call.input).toEqual({ query: "test" });
     expect(result.text).toBe("Here is the result:");
@@ -71,8 +71,8 @@ describe("parseToolCallsFromText", () => {
     const text = `{"name":"search","parameters":{"query":"test"}}`;
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(1);
-    const call = result.toolCalls["call_0"] as any;
+    expect(result.toolCalls).toHaveLength(1);
+    const call = result.toolCalls[0];
     expect(call.name).toBe("search");
     expect(call.input).toEqual({ query: "test" });
   });
@@ -81,8 +81,8 @@ describe("parseToolCallsFromText", () => {
     const text = `{"function":{"name":"get_weather","arguments":{"location":"Paris"}}}`;
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(1);
-    const call = result.toolCalls["call_0"] as any;
+    expect(result.toolCalls).toHaveLength(1);
+    const call = result.toolCalls[0];
     expect(call.name).toBe("get_weather");
     expect(call.input).toEqual({ location: "Paris" });
   });
@@ -91,8 +91,8 @@ describe("parseToolCallsFromText", () => {
     const text = '{"function":{"name":"get_weather","arguments":"{\\"location\\":\\"Paris\\"}"}}';
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(1);
-    const call = result.toolCalls["call_0"] as any;
+    expect(result.toolCalls).toHaveLength(1);
+    const call = result.toolCalls[0];
     expect(call.name).toBe("get_weather");
     expect(call.input).toEqual({ location: "Paris" });
   });
@@ -101,8 +101,8 @@ describe("parseToolCallsFromText", () => {
     const text = `<tool_call>{"name":"create_event","arguments":{"title":"Meeting","details":{"time":"3pm","attendees":["Alice","Bob"]}}}</tool_call>`;
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(1);
-    const call = result.toolCalls["call_0"] as any;
+    expect(result.toolCalls).toHaveLength(1);
+    const call = result.toolCalls[0];
     expect(call.name).toBe("create_event");
     expect(call.input.title).toBe("Meeting");
     expect(call.input.details).toEqual({ time: "3pm", attendees: ["Alice", "Bob"] });
@@ -113,21 +113,21 @@ describe("parseToolCallsFromText", () => {
     const result = parseToolCallsFromText(text);
 
     expect(result.text).toBe("Just a normal response with no tool calls.");
-    expect(Object.keys(result.toolCalls)).toHaveLength(0);
+    expect(result.toolCalls).toHaveLength(0);
   });
 
   it("should handle invalid JSON inside <tool_call> tags gracefully", () => {
     const text = `<tool_call>not valid json</tool_call>`;
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(0);
+    expect(result.toolCalls).toHaveLength(0);
   });
 
   it("should not match JSON objects without name key", () => {
     const text = `Here is some data: {"value": 42, "label": "test"}`;
     const result = parseToolCallsFromText(text);
 
-    expect(Object.keys(result.toolCalls)).toHaveLength(0);
+    expect(result.toolCalls).toHaveLength(0);
     expect(result.text).toBe(`Here is some data: {"value": 42, "label": "test"}`);
   });
 });
@@ -315,7 +315,7 @@ describe("ToolCallingTask with HFT models", () => {
     expect(typeof result.toolCalls).toBe("object");
 
     // The model should call the weather tool for this prompt
-    const calls = Object.values(result.toolCalls) as Array<{
+    const calls = result.toolCalls as Array<{
       id: string;
       name: string;
       input: Record<string, unknown>;
@@ -345,7 +345,7 @@ describe("ToolCallingTask with HFT models", () => {
     expect(result).toBeDefined();
     expect(typeof result.text).toBe("string");
     expect(result.text.length).toBeGreaterThan(0);
-    expect(Object.keys(result.toolCalls)).toHaveLength(0);
+    expect(result.toolCalls).toHaveLength(0);
   }, 120000);
 
   it("should work with multiple tools", async () => {
@@ -382,7 +382,7 @@ describe("ToolCallingTask with HFT models", () => {
     expect(result.toolCalls).toBeDefined();
 
     // If there are tool calls, they should only reference known tools
-    for (const call of Object.values(result.toolCalls) as any[]) {
+    for (const call of result.toolCalls as ToolCall[]) {
       expect(["get_weather", "search"]).toContain(call.name);
     }
   }, 120000);

@@ -21,8 +21,10 @@ import type {
   TextRewriterTaskOutput,
   TextSummaryTaskInput,
   TextSummaryTaskOutput,
+  ToolCall,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -537,7 +539,7 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await Anthropic_ToolCalling(
         { ...input, prompt: item },
@@ -546,9 +548,9 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
         signal
       );
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   update_progress(0, "Starting Anthropic tool calling");
@@ -589,16 +591,15 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
     .map((b: any) => b.text)
     .join("");
 
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   response.content
     .filter((b: any) => b.type === "tool_use")
     .forEach((b: any) => {
-      const id = b.id as string;
-      toolCalls[id] = {
-        id,
+      toolCalls.push({
+        id: b.id as string,
         name: b.name as string,
         input: (b.input as Record<string, unknown>) ?? {},
-      };
+      });
     });
 
   update_progress(100, "Completed Anthropic tool calling");
@@ -644,7 +645,7 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   // Track content blocks by index
   const blockMeta = new Map<number, { type: string; id?: string; name?: string; json: string }>();
   let accumulatedText = "";
-  const toolCalls: Record<string, unknown> = {};
+  const toolCallMap = new Map<string, ToolCall>();
 
   for await (const event of stream) {
     if (event.type === "content_block_start") {
@@ -679,11 +680,12 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
             parsedInput = (partial as Record<string, unknown>) ?? {};
           }
           // Build current tool calls snapshot as Record keyed by id
-          const snapshotObject: Record<string, unknown> = {
-            ...toolCalls,
-            [meta.id ?? ""]: { id: meta.id ?? "", name: meta.name ?? "", input: parsedInput },
-          };
-          yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
+          toolCallMap.set(meta.id ?? "", {
+            id: meta.id ?? "",
+            name: meta.name ?? "",
+            input: parsedInput,
+          });
+          yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCallMap.values()] };
         }
       }
     } else if (event.type === "content_block_stop") {
@@ -697,14 +699,14 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
           finalInput = (parsePartialJson(meta.json) as Record<string, unknown>) ?? {};
         }
         const id = meta.id ?? "";
-        toolCalls[id] = { id, name: meta.name ?? "", input: finalInput };
-        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
+        toolCallMap.set(id, { id, name: meta.name ?? "", input: finalInput });
+        yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCallMap.values()] };
       }
       blockMeta.delete(index);
     }
   }
 
-  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
+  const validToolCalls = filterValidToolCalls([...toolCallMap.values()], input.tools);
   yield {
     type: "finish",
     data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,

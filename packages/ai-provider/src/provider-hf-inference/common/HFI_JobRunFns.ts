@@ -21,6 +21,7 @@ import type {
   TextSummaryTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -371,13 +372,13 @@ export const HFI_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await HFI_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   update_progress(0, "Starting HF Inference tool calling");
@@ -414,7 +415,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
   const response = await client.chatCompletion(params, { signal });
 
   const text = response.choices[0]?.message?.content ?? "";
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
   ((response.choices[0]?.message as any)?.tool_calls ?? []).forEach((tc: any) => {
     let parsedInput: Record<string, unknown> = {};
@@ -431,7 +432,7 @@ export const HFI_ToolCalling: AiProviderRunFn<
     }
     const id = (tc.id as string) ?? `call_${callIndex}`;
     callIndex++;
-    toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
+    toolCalls.push({ id, name: tc.function.name as string, input: parsedInput });
   });
 
   update_progress(100, "Completed HF Inference tool calling");
@@ -505,8 +506,8 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
         if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
       }
 
-      const snapshotObject: Record<string, unknown> = {};
-      Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
+      const snapshot: ToolCalls = [];
+      for (const [, tc] of toolCallAccumulator) {
         let parsedInput: Record<string, unknown>;
         try {
           parsedInput = JSON.parse(tc.arguments);
@@ -514,24 +515,22 @@ export const HFI_ToolCalling_Stream: AiProviderStreamFn<
           const partial = parsePartialJson(tc.arguments);
           parsedInput = (partial as Record<string, unknown>) ?? {};
         }
-        const key = tc.id || String(idx);
-        snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
-      });
-      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
+        snapshot.push({ id: tc.id, name: tc.name, input: parsedInput });
+      }
+      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot };
     }
   }
 
-  const toolCalls: Record<string, unknown> = {};
-  Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
+  const toolCalls: ToolCalls = [];
+  for (const [, tc] of toolCallAccumulator) {
     let finalInput: Record<string, unknown>;
     try {
       finalInput = JSON.parse(tc.arguments);
     } catch {
       finalInput = (parsePartialJson(tc.arguments) as Record<string, unknown>) ?? {};
     }
-    const key = tc.id || String(idx);
-    toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
-  });
+    toolCalls.push({ id: tc.id, name: tc.name, input: finalInput });
+  }
 
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
   yield {

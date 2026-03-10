@@ -5,6 +5,7 @@
  */
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
+import type { ToolCalls } from "@workglow/ai";
 import { OLLAMA, OllamaModelConfig, OllamaProvider } from "@workglow/ai-provider";
 import {
   OLLAMA_TASKS,
@@ -260,8 +261,9 @@ describe("OllamaProvider", () => {
       );
 
       expect(result.text).toBe("");
-      expect(Object.keys(result.toolCalls)).toHaveLength(1);
-      expect((result.toolCalls as Record<string, unknown>)["call_0"]).toEqual({
+      const calls = result.toolCalls as ToolCalls;
+      expect(calls.length).toBe(1);
+      expect(calls[0]).toEqual({
         id: "call_0",
         name: "get_weather",
         input: { city: "San Francisco" },
@@ -290,7 +292,7 @@ describe("OllamaProvider", () => {
       );
 
       expect(result.text).toBe("I can help with that! Let me check the weather.");
-      expect(Object.keys(result.toolCalls)).toHaveLength(0);
+      expect((result.toolCalls as ToolCalls).length).toBe(0);
     });
 
     test("should not send tools when toolChoice is none", async () => {
@@ -364,7 +366,7 @@ describe("OllamaProvider", () => {
         abortSignal
       );
 
-      expect(((result.toolCalls as Record<string, unknown>)["call_0"] as any).input).toEqual({
+      expect((result.toolCalls as ToolCalls)[0].input).toEqual({
         city: "New York",
       });
     });
@@ -398,10 +400,8 @@ describe("OllamaProvider", () => {
         abortSignal
       );
 
-      expect(Object.keys(result.toolCalls)).toHaveLength(1);
-      expect(((result.toolCalls as Record<string, unknown>)["call_0"] as any).name).toBe(
-        "get_weather"
-      );
+      expect((result.toolCalls as ToolCalls).length).toBe(1);
+      expect((result.toolCalls as ToolCalls)[0].name).toBe("get_weather");
     });
 
     test("should stream text and tool calls", async () => {
@@ -450,8 +450,9 @@ describe("OllamaProvider", () => {
 
       const finish = events.find((e) => e.type === "finish");
       expect(finish).toBeDefined();
-      expect(Object.keys(finish.data.toolCalls)).toHaveLength(1);
-      expect((finish.data.toolCalls["call_0"] as any).name).toBe("get_weather");
+      const finishCalls = finish.data.toolCalls as ToolCalls;
+      expect(finishCalls.length).toBe(1);
+      expect(finishCalls[0].name).toBe("get_weather");
     });
   });
 
@@ -549,7 +550,7 @@ describe("OllamaProvider", () => {
 
       expect(result.text).toEqual(["text A", "text B"]);
       expect(Array.isArray(result.toolCalls)).toBe(true);
-      expect((result.toolCalls as Record<string, unknown>[]).length).toBe(2);
+      expect((result.toolCalls as ToolCalls | ToolCalls[]).length).toBe(2);
       expect(mockChat).toHaveBeenCalledTimes(2);
     });
   });
