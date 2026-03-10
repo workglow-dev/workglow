@@ -34,7 +34,7 @@ import type {
   ZeroShotImageClassificationPipeline,
   ZeroShotObjectDetectionPipeline,
 } from "@huggingface/transformers";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -57,6 +57,8 @@ import type {
   ModelInfoTaskOutput,
   ObjectDetectionTaskInput,
   ObjectDetectionTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   TextClassificationTaskInput,
   TextClassificationTaskOutput,
   TextEmbeddingTaskInput,
@@ -79,6 +81,7 @@ import type {
   TextTranslationTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
@@ -100,7 +103,7 @@ async function loadTransformersSDK() {
   return _transformersSdk;
 }
 
-import { getLogger, TypedArray } from "@workglow/util";
+import { getLogger, parsePartialJson, TypedArray } from "@workglow/util";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 
@@ -1663,9 +1666,9 @@ function mapHFTTools(tools: ReadonlyArray<ToolDefinition>) {
  */
 export function parseToolCallsFromText(responseText: string): {
   text: string;
-  toolCalls: Record<string, unknown>;
+  toolCalls: ToolCalls;
 } {
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
   let cleanedText = responseText;
 
@@ -1676,20 +1679,20 @@ export function parseToolCallsFromText(responseText: string): {
     try {
       const parsed = JSON.parse(tagMatch[1].trim());
       const id = `call_${callIndex++}`;
-      toolCalls[id] = {
+      toolCalls.push({
         id,
         name: parsed.name ?? parsed.function?.name ?? "",
         input: (parsed.arguments ??
           parsed.function?.arguments ??
           parsed.parameters ??
           {}) as Record<string, unknown>,
-      };
+      });
     } catch {
       // Not valid JSON inside the tag, skip
     }
   }
 
-  if (Object.keys(toolCalls).length > 0) {
+  if (toolCalls.length > 0) {
     // Remove tool_call tags from the text output
     cleanedText = responseText.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
     return { text: cleanedText, toolCalls };
@@ -1745,11 +1748,11 @@ export function parseToolCallsFromText(responseText: string): {
       const parsed = JSON.parse(candidate.text);
       if (parsed.name && (parsed.arguments !== undefined || parsed.parameters !== undefined)) {
         const id = `call_${callIndex++}`;
-        toolCalls[id] = {
+        toolCalls.push({
           id,
           name: parsed.name as string,
           input: (parsed.arguments ?? parsed.parameters ?? {}) as Record<string, unknown>,
-        };
+        });
         matchedRanges.push({ start: candidate.start, end: candidate.end });
       } else if (parsed.function?.name) {
         let functionArgs: unknown = parsed.function.arguments ?? {};
@@ -1762,11 +1765,11 @@ export function parseToolCallsFromText(responseText: string): {
           }
         }
         const id = `call_${callIndex++}`;
-        toolCalls[id] = {
+        toolCalls.push({
           id,
           name: parsed.function.name as string,
           input: (functionArgs ?? {}) as Record<string, unknown>,
-        };
+        });
         matchedRanges.push({ start: candidate.start, end: candidate.end });
       }
     } catch {
@@ -1774,7 +1777,7 @@ export function parseToolCallsFromText(responseText: string): {
     }
   }
 
-  if (Object.keys(toolCalls).length > 0) {
+  if (toolCalls.length > 0) {
     // Remove only the matched JSON portions, preserving surrounding text
     let result = "";
     let lastIndex = 0;
@@ -1837,30 +1840,33 @@ export const HFT_ToolCalling: AiProviderRunFn<
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
   if (isArrayInput) {
-    const prompts = input.prompt as string[];
+    const prompts = input.prompt as Array<
+      (typeof input)["prompt"] extends Array<infer T> ? T : unknown
+    >;
     const texts: string[] = [];
-    const allToolCalls: Record<string, unknown>[] = [];
+    const toolCallsList: Array<{ id: string; input: { [x: string]: unknown }; name: string }[]> =
+      [];
 
-    for (const promptText of prompts) {
-      const messages: Array<{ role: string; content: string }> = [];
-      if (input.systemPrompt) {
-        messages.push({ role: "system", content: input.systemPrompt as string });
-      }
-      messages.push({ role: "user", content: promptText });
+    for (const singlePrompt of prompts) {
+      const singleInput = { ...input, prompt: singlePrompt } as ToolCallingTaskInput;
+      const messages = toTextFlatMessages(singleInput);
 
-      const singleInput = { ...input, prompt: promptText } as ToolCallingTaskInput;
       const tools = resolveHFTToolsAndMessages(singleInput, messages);
 
+      // Use the tokenizer's chat template to format the prompt with tool definitions
       const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
         tools,
         tokenize: false,
         add_generation_prompt: true,
       }) as string;
 
+      const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+
       let results = await generateText(prompt, {
         max_new_tokens: input.maxTokens ?? 1024,
         temperature: input.temperature ?? undefined,
         return_full_text: false,
+        streamer,
       });
 
       if (!Array.isArray(results)) {
@@ -1871,19 +1877,17 @@ export const HFT_ToolCalling: AiProviderRunFn<
         (results[0] as TextGenerationOutput[number])?.generated_text
       ).trim();
 
-      const parsed = parseToolCallsFromText(responseText);
-      texts.push(parsed.text);
-      allToolCalls.push(filterValidToolCalls(parsed.toolCalls, input.tools));
+      const { text, toolCalls } = parseToolCallsFromText(responseText);
+      texts.push(text);
+      toolCallsList.push(filterValidToolCalls(toolCalls, singleInput.tools));
     }
 
-    return { text: texts, toolCalls: allToolCalls };
+    // When input.prompt is an array, return a single ToolCallingTaskOutput whose
+    // `text` and `toolCalls` fields are arrays aligned by index (TypeSingleOrArray behavior).
+    // FromSchema does not express array-of-arrays for toolCalls, so we assert the batch shape.
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
-
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 
@@ -1912,7 +1916,10 @@ export const HFT_ToolCalling: AiProviderRunFn<
   ).trim();
 
   const { text, toolCalls } = parseToolCallsFromText(responseText);
-  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
+  return {
+    text,
+    toolCalls: filterValidToolCalls(toolCalls, input.tools),
+  };
 };
 
 export const HFT_ToolCalling_Stream: AiProviderStreamFn<
@@ -1923,11 +1930,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);
 
@@ -1995,8 +1998,8 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   const { text: cleanedText, toolCalls } = parseToolCallsFromText(fullText);
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
 
-  if (Object.keys(validToolCalls).length > 0) {
-    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...validToolCalls } };
+  if (validToolCalls.length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: [...validToolCalls] };
   }
 
   yield {
@@ -2014,20 +2017,6 @@ export const HFT_ModelInfo: AiProviderRunFn<
   ModelInfoTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model) => {
-  if (self.location.href.startsWith("http://localhost:")) {
-    console.error("HFT_ModelInfo SKIPPING on localhost", { input, model });
-    return {
-      model: input.model,
-      is_local: true,
-      is_remote: false,
-      supports_browser: true,
-      supports_node: true,
-      is_cached: false,
-      is_loaded: true,
-      file_sizes: {},
-    };
-  }
-
   const logger = getLogger();
   const { ModelRegistry } = await loadTransformersSDK();
   const timerLabel = `hft:ModelInfo:${model?.provider_config.model_path}`;
@@ -2038,7 +2027,7 @@ export const HFT_ModelInfo: AiProviderRunFn<
 
   const { pipeline: pipelineType, model_path, dtype, device } = model!.provider_config;
 
-  const cacheStatus = await ModelRegistry.is_pipeline_cached(pipelineType, model_path, {
+  const cacheStatus = await ModelRegistry.is_pipeline_cached_files(pipelineType, model_path, {
     ...(dtype ? { dtype } : {}),
   });
   logger.debug("is_pipeline_cached", {
@@ -2093,6 +2082,138 @@ export const HFT_ModelInfo: AiProviderRunFn<
 };
 
 // ========================================================================
+// StructuredGenerationTask
+// ========================================================================
+
+function buildStructuredGenerationPrompt(input: StructuredGenerationTaskInput): string {
+  const schemaStr = JSON.stringify(input.outputSchema, null, 2);
+  return (
+    `${input.prompt}\n\n` +
+    `You MUST respond with ONLY a valid JSON object conforming to this JSON schema:\n${schemaStr}\n\n` +
+    `Output ONLY the JSON object, no other text.`
+  );
+}
+
+function extractJsonFromText(text: string): Record<string, unknown> {
+  // Try parsing directly first
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Try to extract JSON object from the text
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return (parsePartialJson(match[0]) as Record<string, unknown>) ?? {};
+      }
+    }
+    return {};
+  }
+}
+
+export const HFT_StructuredGeneration: AiProviderRunFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async (input, model, onProgress, signal) => {
+  const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
+
+  const prompt = buildStructuredGenerationPrompt(input);
+
+  const messages: Message[] = [{ role: "user", content: prompt }];
+
+  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress);
+
+  let results = await generateText(formattedPrompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  });
+
+  if (!Array.isArray(results)) {
+    results = [results];
+  }
+
+  const responseText = extractGeneratedText(
+    (results[0] as TextGenerationOutput[number])?.generated_text
+  ).trim();
+
+  const object = extractJsonFromText(responseText);
+  return { object };
+};
+
+export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  HfTransformersOnnxModelConfig
+> = async function* (
+  input,
+  model,
+  signal
+): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
+  const noopProgress = () => {};
+  const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
+
+  const prompt = buildStructuredGenerationPrompt(input);
+
+  const messages: Message[] = [{ role: "user", content: prompt }];
+
+  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+    tokenize: false,
+    add_generation_prompt: true,
+  }) as string;
+
+  const queue = createStreamEventQueue<StreamEvent<StructuredGenerationTaskOutput>>();
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue);
+
+  let fullText = "";
+
+  const originalPush = queue.push;
+  queue.push = (event: StreamEvent<StructuredGenerationTaskOutput>) => {
+    if (event.type === "text-delta" && "textDelta" in event) {
+      fullText += (event as any).textDelta;
+      // Try to parse partial JSON and emit object-delta
+      const match = fullText.match(/\{[\s\S]*/);
+      if (match) {
+        const partial = parsePartialJson(match[0]);
+        if (partial !== undefined) {
+          originalPush({
+            type: "object-delta",
+            port: "object",
+            objectDelta: partial,
+          } as StreamEvent<StructuredGenerationTaskOutput>);
+          return;
+        }
+      }
+    }
+    originalPush(event);
+  };
+
+  const pipelinePromise = generateText(formattedPrompt, {
+    max_new_tokens: input.maxTokens ?? 1024,
+    temperature: input.temperature ?? undefined,
+    return_full_text: false,
+    streamer,
+  }).then(
+    () => queue.done(),
+    (err: Error) => queue.error(err)
+  );
+
+  yield* queue.iterable;
+  await pipelinePromise;
+
+  const object = extractJsonFromText(fullText);
+  yield { type: "finish", data: { object } as StructuredGenerationTaskOutput };
+};
+
+// ========================================================================
 // Task registries
 // ========================================================================
 
@@ -2123,6 +2244,7 @@ export const HFT_TASKS = {
   ImageClassificationTask: HFT_ImageClassification,
   ObjectDetectionTask: HFT_ObjectDetection,
   ToolCallingTask: HFT_ToolCalling,
+  StructuredGenerationTask: HFT_StructuredGeneration,
 } as const;
 
 /**
@@ -2139,6 +2261,7 @@ export const HFT_STREAM_TASKS: Record<
   TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
   TextTranslationTask: HFT_TextTranslation_Stream,
   ToolCallingTask: HFT_ToolCalling_Stream,
+  StructuredGenerationTask: HFT_StructuredGeneration_Stream,
 };
 
 export const HFT_REACTIVE_TASKS: Record<

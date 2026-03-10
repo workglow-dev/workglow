@@ -34,6 +34,13 @@ import {
 import { TaskConfig, TaskInput, TaskOutput, TaskStatus } from "./TaskTypes";
 
 /**
+ * Type guard that checks whether a value is an ITask-like object with a mutable `runConfig`.
+ */
+function hasRunConfig(i: unknown): i is { runConfig: Partial<IRunConfig> } {
+  return i !== null && typeof i === "object" && "runConfig" in (i as object);
+}
+
+/**
  * Responsible for running tasks
  * Manages the execution lifecycle of individual tasks
  */
@@ -248,6 +255,14 @@ export class TaskRunner<
   protected own<T extends Taskish<any, any>>(i: T): T {
     const task = ensureTask(i, { isOwned: true });
     this.task.subGraph.addTask(task);
+    // Propagate parent registry and abort signal to owned ITask instances so
+    // that calling task.run() on the returned value inherits this execution context.
+    if (hasRunConfig(i)) {
+      Object.assign(i.runConfig, {
+        registry: this.registry,
+        signal: this.abortController?.signal,
+      });
+    }
     return i;
   }
 
@@ -308,7 +323,7 @@ export class TaskRunner<
 
     const accumulated = this.shouldAccumulate ? new Map<string, string>() : undefined;
     const accumulatedObjects = this.shouldAccumulate
-      ? new Map<string, Record<string, unknown>>()
+      ? new Map<string, Record<string, unknown> | unknown[]>()
       : undefined;
     let chunkCount = 0;
     let finalOutput: Output | undefined;
@@ -436,6 +451,14 @@ export class TaskRunner<
     this.abortController.signal.addEventListener("abort", () => {
       this.handleAbort();
     });
+
+    // If a parent signal is provided (e.g. set by context.own()), link it so
+    // that aborting the parent also aborts this task.
+    if (config.signal?.aborted) {
+      this.abortController.abort();
+    } else if (config.signal) {
+      config.signal.addEventListener("abort", () => this.abortController!.abort(), { once: true });
+    }
 
     const cache = config.outputCache ?? this.task.runConfig?.outputCache;
     if (cache === true) {

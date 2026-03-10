@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toOpenAIMessages } from "@workglow/ai";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
@@ -25,6 +25,7 @@ import type {
   TextSummaryTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -352,16 +353,6 @@ async function loadTiktoken() {
 // Cache encoders by model name to avoid repeated allocation overhead.
 const _encoderCache = new Map<string, ReturnType<typeof import("tiktoken").get_encoding>>();
 
-/**
- * @internal Test-only hook: inject a mock tiktoken module and clear the encoder cache.
- * Needed because `vi.mock("tiktoken")` cannot intercept the dynamic `import("tiktoken")`
- * that lives inside `loadTiktoken()` when running under vitest.
- */
-export function _setTiktokenForTesting(mod: typeof import("tiktoken") | undefined): void {
-  _tiktoken = mod;
-  _encoderCache.clear();
-}
-
 async function getEncoder(modelName: string) {
   const tiktoken = await loadTiktoken();
   if (!_encoderCache.has(modelName)) {
@@ -535,7 +526,7 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await OpenAI_ToolCalling(
         { ...input, prompt: item },
@@ -544,9 +535,9 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
         signal
       );
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   update_progress(0, "Starting OpenAI tool calling");
@@ -562,11 +553,7 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toOpenAIMessages(input) as any[];
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 
@@ -586,7 +573,7 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
   const response = await client.chat.completions.create(params, { signal });
 
   const text = response.choices[0]?.message?.content ?? "";
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   for (const tc of response.choices[0]?.message?.tool_calls ?? []) {
     if (!("function" in tc)) continue;
     const id = tc.id as string;
@@ -607,7 +594,7 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
         }
       }
     }
-    toolCalls[id] = { id, name, input };
+    toolCalls.push({ id, name, input });
   }
 
   update_progress(100, "Completed OpenAI tool calling");
@@ -631,11 +618,7 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
     },
   }));
 
-  const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toOpenAIMessages(input) as any[];
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
 
@@ -684,9 +667,9 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
         if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
       }
 
-      // Yield progressive snapshot of all tool calls as Record keyed by id
-      const snapshotObject: Record<string, unknown> = {};
-      Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
+      // Yield progressive snapshot of all tool calls as array
+      const snapshot: ToolCalls = [];
+      for (const [, tc] of toolCallAccumulator) {
         let parsedInput: Record<string, unknown>;
         try {
           parsedInput = JSON.parse(tc.arguments);
@@ -694,25 +677,23 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
           const partial = parsePartialJson(tc.arguments);
           parsedInput = (partial as Record<string, unknown>) ?? {};
         }
-        const key = tc.id || String(idx);
-        snapshotObject[key] = { id: tc.id, name: tc.name, input: parsedInput };
-      });
-      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshotObject };
+        snapshot.push({ id: tc.id, name: tc.name, input: parsedInput });
+      }
+      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot };
     }
   }
 
-  // Build final tool calls as Record keyed by id
-  const toolCalls: Record<string, unknown> = {};
-  Array.from(toolCallAccumulator.entries()).forEach(([idx, tc]) => {
+  // Build final tool calls as array
+  const toolCalls: ToolCalls = [];
+  for (const [, tc] of toolCallAccumulator) {
     let finalInput: Record<string, unknown>;
     try {
       finalInput = JSON.parse(tc.arguments);
     } catch {
       finalInput = (parsePartialJson(tc.arguments) as Record<string, unknown>) ?? {};
     }
-    const key = tc.id || String(idx);
-    toolCalls[key] = { id: tc.id, name: tc.name, input: finalInput };
-  });
+    toolCalls.push({ id: tc.id, name: tc.name, input: finalInput });
+  }
 
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
   yield {

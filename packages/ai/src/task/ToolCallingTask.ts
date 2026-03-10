@@ -21,12 +21,28 @@ import { StreamingAiTask } from "./base/StreamingAiTask";
 /**
  * A tool definition that can be passed to an LLM for tool calling.
  * Can be created manually or generated from TaskRegistry entries via {@link taskTypesToTools}.
+ *
+ * The `name` is used both as the tool name presented to the LLM and as a
+ * lookup key for the backing Task in the TaskRegistry. When a tool is
+ * backed by a configurable task (e.g. `McpToolCallTask`, `JavaScriptTask`),
+ * `configSchema` describes what configuration the task accepts and `config`
+ * provides the concrete values. The LLM never sees `configSchema` or
+ * `config` — they are setup-time concerns used when instantiating the task.
  */
 export interface ToolDefinition {
   name: string;
   description: string;
   inputSchema: JsonSchema;
   outputSchema?: JsonSchema;
+  /** JSON Schema describing the task's configuration options. */
+  configSchema?: JsonSchema;
+  /** Concrete configuration values matching {@link configSchema}. */
+  config?: Record<string, unknown>;
+  /**
+   * Optional custom executor function. When provided, the tool is executed
+   * by calling this function directly instead of instantiating a Task.
+   */
+  execute?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -37,6 +53,8 @@ export interface ToolCall {
   name: string;
   input: Record<string, unknown>;
 }
+
+export type ToolCalls = Array<ToolCall>;
 
 /**
  * Controls which tools the model may call.
@@ -75,48 +93,51 @@ export function isAllowedToolName(
 }
 
 /**
- * Filters a Record of tool calls, removing any whose name does not appear
- * in the provided tools list. Returns the filtered Record.
+ * Filters an array of tool calls, removing any whose name does not appear
+ * in the provided tools list. Returns the filtered array.
  */
 export function filterValidToolCalls(
-  toolCalls: Record<string, unknown>,
+  toolCalls: ToolCalls,
   allowedTools: ReadonlyArray<ToolDefinition>
-): Record<string, unknown> {
-  const filtered: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(toolCalls)) {
-    const tc = value as { name?: string };
+): ToolCalls {
+  return toolCalls.filter((tc) => {
     if (tc.name && isAllowedToolName(tc.name, allowedTools)) {
-      filtered[key] = value;
-    } else {
-      getLogger().warn(`Filtered out tool call with unknown name "${tc.name ?? "(missing)"}"`, {
-        callId: key,
-        toolName: tc.name,
-      });
+      return true;
     }
-  }
-  return filtered;
+    getLogger().warn(`Filtered out tool call with unknown name "${tc.name ?? "(missing)"}"`, {
+      callId: tc.id,
+      toolName: tc.name,
+    });
+    return false;
+  });
 }
 
 // ========================================================================
 // Utility: convert TaskRegistry entries to tool definitions
 // ========================================================================
 
+export interface ToolDefinitionWithTaskType extends ToolDefinition {
+  /** The task type name this definition was generated from. */
+  readonly taskType: string;
+}
+
 /**
- * Converts an allow-list of task type names into {@link ToolDefinition} objects
- * suitable for the ToolCallingTask input.
+ * Converts an allow-list of task type names into {@link ToolDefinitionWithTaskType} objects
+ * suitable for the ToolCallingTask input. Each entry carries the originating
+ * `taskType` so callers don't need to rely on index correspondence.
  *
  * Each task's `type`, `description`, `inputSchema()`, and `outputSchema()`
  * are used to build the tool definition.
  *
  * @param taskNames - Array of task type names registered in the task constructors
  * @param registry - Optional service registry for DI-based lookups
- * @returns Array of ToolDefinition objects
+ * @returns Array of ToolDefinitionWithTaskType objects
  * @throws Error if a task name is not found in the registry
  */
 export function taskTypesToTools(
   taskNames: ReadonlyArray<string>,
   registry?: ServiceRegistry
-): ToolDefinition[] {
+): ToolDefinitionWithTaskType[] {
   const constructors = getTaskConstructors(registry);
   return taskNames.map((name) => {
     const ctor = constructors.get(name);
@@ -125,11 +146,17 @@ export function taskTypesToTools(
         `taskTypesToTools: Unknown task type "${name}" — not found in task constructors registry (ServiceRegistry: ${registry ? "custom" : "default"})`
       );
     }
+    const configSchema =
+      "configSchema" in ctor && typeof (ctor as any).configSchema === "function"
+        ? (ctor as any).configSchema()
+        : undefined;
     return {
       name: ctor.type,
       description: (ctor as any).description ?? "",
       inputSchema: ctor.inputSchema(),
       outputSchema: ctor.outputSchema(),
+      ...(configSchema ? { configSchema } : {}),
+      taskType: name,
     };
   });
 }
@@ -163,9 +190,21 @@ export const ToolDefinitionSchema = {
       description: "JSON Schema describing what the tool returns",
       additionalProperties: true,
     },
+    configSchema: {
+      type: "object",
+      title: "Config Schema",
+      description: "JSON Schema describing the task's configuration options (not sent to the LLM)",
+      additionalProperties: true,
+    },
+    config: {
+      type: "object",
+      title: "Config",
+      description: "Concrete configuration values for the backing task (not sent to the LLM)",
+      additionalProperties: true,
+    },
   },
   required: ["name", "description", "inputSchema"],
-  additionalProperties: false,
+  additionalProperties: true,
 } as const;
 
 const ToolCallSchema = {
@@ -198,15 +237,50 @@ export const ToolCallingInputSchema = {
   type: "object",
   properties: {
     model: modelSchema,
-    prompt: TypeSingleOrArray({
-      type: "string",
+    prompt: {
+      oneOf: [
+        { type: "string", title: "Prompt", description: "The prompt to send to the model" },
+        {
+          type: "array",
+          title: "Prompt",
+          description: "The prompt as an array of strings or content blocks",
+          items: {
+            oneOf: [
+              { type: "string" },
+              {
+                type: "object",
+                properties: {
+                  type: { type: "string", enum: ["text", "image", "audio"] },
+                },
+                required: ["type"],
+                additionalProperties: true,
+              },
+            ],
+          },
+        },
+      ],
       title: "Prompt",
       description: "The prompt to send to the model",
-    }),
+    },
     systemPrompt: {
       type: "string",
       title: "System Prompt",
       description: "Optional system instructions for the model",
+    },
+    messages: {
+      type: "array",
+      title: "Messages",
+      description:
+        "Full conversation history for multi-turn interactions. When provided, used instead of prompt to construct the messages array sent to the provider.",
+      items: {
+        type: "object",
+        properties: {
+          role: { type: "string", enum: ["user", "assistant", "tool"] },
+          content: {},
+        },
+        required: ["role", "content"],
+        additionalProperties: true,
+      },
     },
     tools: {
       type: "array",
@@ -257,10 +331,7 @@ export const ToolCallingOutputSchema = {
       "x-stream": "append",
     }),
     toolCalls: TypeSingleOrArray({
-      type: "object",
-      title: "Tool Calls",
-      description: "Tool invocations requested by the model, keyed by call id",
-      additionalProperties: true,
+      ...ToolCallSchema,
       "x-stream": "object",
     }),
   },
@@ -275,10 +346,19 @@ export const ToolCallingOutputSchema = {
  * references and inline tool definitions, but the input resolver converts all
  * strings to {@link ToolDefinition} objects before execution. The `tools` field
  * is therefore narrowed to `ToolDefinition[]` here.
+ *
+ * Extends the schema-derived base with the
+ * `messages` field typed explicitly (the loose `content: {}` in the
+ * schema prevents `FromSchema` from producing a useful type).
  */
 export type ToolCallingTaskInput = Omit<FromSchema<typeof ToolCallingInputSchema>, "tools"> & {
   readonly tools: ToolDefinition[];
+  readonly messages?: ReadonlyArray<{
+    readonly role: "user" | "assistant" | "tool";
+    readonly content: unknown;
+  }>;
 };
+
 export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
 
 // ========================================================================

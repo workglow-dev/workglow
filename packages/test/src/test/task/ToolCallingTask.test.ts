@@ -69,52 +69,51 @@ describe("ToolCallingTask shared utilities", () => {
 
   describe("filterValidToolCalls", () => {
     test("should keep valid tool calls", () => {
-      const toolCalls: Record<string, unknown> = {
-        call_0: { id: "call_0", name: "get_weather", input: { location: "NYC" } },
-        call_1: { id: "call_1", name: "search", input: { query: "test" } },
-      };
+      const toolCalls = [
+        { id: "call_0", name: "get_weather", input: { location: "NYC" } },
+        { id: "call_1", name: "search", input: { query: "test" } },
+      ];
 
       const result = filterValidToolCalls(toolCalls, sampleTools);
-      expect(Object.keys(result)).toHaveLength(2);
-      expect(result).toHaveProperty("call_0");
-      expect(result).toHaveProperty("call_1");
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe("get_weather");
+      expect(result[1].name).toBe("search");
     });
 
     test("should remove tool calls with unknown names", () => {
-      const toolCalls: Record<string, unknown> = {
-        call_0: { id: "call_0", name: "get_weather", input: { location: "NYC" } },
-        call_1: { id: "call_1", name: "evil_tool", input: { malicious: true } },
-        call_2: { id: "call_2", name: "search", input: { query: "test" } },
-      };
+      const toolCalls = [
+        { id: "call_0", name: "get_weather", input: { location: "NYC" } },
+        { id: "call_1", name: "evil_tool", input: { malicious: true } },
+        { id: "call_2", name: "search", input: { query: "test" } },
+      ];
 
       const result = filterValidToolCalls(toolCalls, sampleTools);
-      expect(Object.keys(result)).toHaveLength(2);
-      expect(result).toHaveProperty("call_0");
-      expect(result).not.toHaveProperty("call_1");
-      expect(result).toHaveProperty("call_2");
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe("get_weather");
+      expect(result[1].name).toBe("search");
     });
 
-    test("should return empty record when all names are unknown", () => {
-      const toolCalls: Record<string, unknown> = {
-        call_0: { id: "call_0", name: "unknown", input: {} },
-      };
+    test("should return empty array when all names are unknown", () => {
+      const toolCalls = [
+        { id: "call_0", name: "unknown", input: {} },
+      ];
 
       const result = filterValidToolCalls(toolCalls, sampleTools);
-      expect(Object.keys(result)).toHaveLength(0);
+      expect(result).toHaveLength(0);
     });
 
     test("should handle empty toolCalls", () => {
-      const result = filterValidToolCalls({}, sampleTools);
-      expect(Object.keys(result)).toHaveLength(0);
+      const result = filterValidToolCalls([], sampleTools);
+      expect(result).toHaveLength(0);
     });
 
     test("should handle entries without name property", () => {
-      const toolCalls: Record<string, unknown> = {
-        call_0: { id: "call_0", input: {} },
-      };
+      const toolCalls = [
+        { id: "call_0", name: "", input: {} },
+      ];
 
       const result = filterValidToolCalls(toolCalls, sampleTools);
-      expect(Object.keys(result)).toHaveLength(0);
+      expect(result).toHaveLength(0);
     });
   });
 });
@@ -194,7 +193,7 @@ describe("taskTypesToTools", () => {
     TaskRegistry.all.delete("TestConcatTask");
   });
 
-  test("should convert registered tasks to tool definitions", () => {
+  test("should convert registered tasks to tool definitions with taskType", () => {
     const tools = taskTypesToTools(["TestAddTask", "TestConcatTask"]);
 
     expect(tools).toHaveLength(2);
@@ -203,11 +202,13 @@ describe("taskTypesToTools", () => {
     expect(tools[0].description).toBe("Adds two numbers together");
     expect(tools[0].inputSchema).toEqual(TestAddTask.inputSchema());
     expect(tools[0].outputSchema).toEqual(TestAddTask.outputSchema());
+    expect(tools[0].taskType).toBe("TestAddTask");
 
     expect(tools[1].name).toBe("TestConcatTask");
     expect(tools[1].description).toBe("Concatenates text with a suffix");
     expect(tools[1].inputSchema).toEqual(TestConcatTask.inputSchema());
     expect(tools[1].outputSchema).toEqual(TestConcatTask.outputSchema());
+    expect(tools[1].taskType).toBe("TestConcatTask");
   });
 
   test("should return a single tool when given one name", () => {
@@ -230,14 +231,13 @@ describe("taskTypesToTools", () => {
   test("should produce tools compatible with filterValidToolCalls", () => {
     const tools = taskTypesToTools(["TestAddTask", "TestConcatTask"]);
 
-    const toolCalls: Record<string, unknown> = {
-      call_0: { id: "call_0", name: "TestAddTask", input: { a: 1, b: 2 } },
-      call_1: { id: "call_1", name: "UnknownTask", input: {} },
-    };
+    const toolCalls = [
+      { id: "call_0", name: "TestAddTask", input: { a: 1, b: 2 } },
+      { id: "call_1", name: "UnknownTask", input: {} },
+    ];
 
     const filtered = filterValidToolCalls(toolCalls, tools);
-    expect(Object.keys(filtered)).toHaveLength(1);
-    expect(filtered).toHaveProperty("call_0");
-    expect(filtered).not.toHaveProperty("call_1");
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].name).toBe("TestAddTask");
   });
 });

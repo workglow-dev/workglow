@@ -15,6 +15,8 @@ import type {
   DownloadModelTaskRunOutput,
   ModelInfoTaskInput,
   ModelInfoTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
   TextGenerationTaskInput,
@@ -25,12 +27,13 @@ import type {
   TextSummaryTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util";
 import { LLAMACPP_DEFAULT_MODELS_DIR } from "./LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 
@@ -612,6 +615,38 @@ export const LlamaCpp_CountTokens_Reactive: AiProviderReactiveRunFn<
 // ========================================================================
 
 /**
+ * Build a prompt string from the task input.
+ * When `input.messages` is present (multi-turn agent loop), concatenates
+ * the conversation history into a single prompt string since LlamaCpp
+ * uses a session-based approach that doesn't support external message arrays.
+ */
+function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
+  const inputMessages = input.messages;
+  if (!inputMessages || inputMessages.length === 0) {
+    return Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
+  }
+
+  // Concatenate messages into a single prompt for the session
+  const parts: string[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "user") {
+      parts.push(`User: ${msg.content}`);
+    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      const text = msg.content
+        .filter((b: any) => b.type === "text")
+        .map((b: any) => b.text)
+        .join("");
+      if (text) parts.push(`Assistant: ${text}`);
+    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        parts.push(`Tool Result: ${block.content}`);
+      }
+    }
+  }
+  return parts.join("\n\n");
+}
+
+/**
  * Builds function definitions for node-llama-cpp from ToolDefinition inputs.
  * Each function handler captures the call arguments and returns a simple
  * acknowledgment, allowing us to collect tool calls without side-effects.
@@ -647,7 +682,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await LlamaCpp_ToolCalling(
         { ...input, prompt: item },
@@ -656,9 +691,9 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
         signal
       );
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   if (!model) throw new Error("Model config is required for ToolCallingTask.");
@@ -675,23 +710,24 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   update_progress(10, "Running tool calling");
   const sequence = context.getSequence();
   const { LlamaChatSession } = _sdk!;
+  const promptText = buildLlamaCppPrompt(input);
   const session = new LlamaChatSession({
     contextSequence: sequence,
     ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
   });
 
   try {
-    const text = await session.prompt(input.prompt as string, {
+    const text = await session.prompt(promptText, {
       signal,
       ...(functions && { functions }),
       ...(input.temperature !== undefined && { temperature: input.temperature }),
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
     });
 
-    const toolCalls: Record<string, unknown> = {};
+    const toolCalls: ToolCalls = [];
     capturedCalls.forEach((call, index) => {
       const id = `call_${index}`;
-      toolCalls[id] = { id, name: call.name, input: call.input };
+      toolCalls.push({ id, name: call.name, input: call.input });
     });
 
     update_progress(100, "Tool calling complete");
@@ -722,6 +758,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   const sequence = context.getSequence();
   const { LlamaChatSession } = _sdk!;
+  const promptText = buildLlamaCppPrompt(input);
   const session = new LlamaChatSession({
     contextSequence: sequence,
     ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
@@ -739,7 +776,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   let accumulatedText = "";
   const promptPromise = session
-    .prompt(input.prompt as string, {
+    .prompt(promptText, {
       signal,
       ...(functions && { functions }),
       onTextChunk: (chunk: string) => {
@@ -787,21 +824,168 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
     return;
   }
 
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   capturedCalls.forEach((call, index) => {
     const id = `call_${index}`;
-    toolCalls[id] = { id, name: call.name, input: call.input };
+    toolCalls.push({ id, name: call.name, input: call.input });
   });
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
 
-  if (Object.keys(validToolCalls).length > 0) {
-    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...validToolCalls } };
+  if (validToolCalls.length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: [...validToolCalls] };
   }
 
   yield {
     type: "finish",
     data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
   };
+};
+
+// ========================================================================
+// StructuredGenerationTask
+// ========================================================================
+
+export const LlamaCpp_StructuredGeneration: AiProviderRunFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  LlamaCppModelConfig
+> = async (input, model, update_progress, signal) => {
+  if (!model) throw new Error("Model config is required for StructuredGenerationTask.");
+
+  await loadSdk();
+
+  update_progress(0, "Loading model");
+  const llama = await getLlamaInstance();
+  const context = await getOrCreateTextContext(model);
+
+  update_progress(10, "Running structured generation");
+  const grammar = await llama.createGrammarForJsonSchema(input.outputSchema as any);
+  const sequence = context.getSequence();
+  const { LlamaChatSession } = _sdk!;
+  const session = new LlamaChatSession({ contextSequence: sequence });
+
+  try {
+    const text = await session.prompt(input.prompt as string, {
+      signal,
+      grammar,
+      ...(input.temperature !== undefined && { temperature: input.temperature }),
+      ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
+    });
+
+    let object: Record<string, unknown>;
+    try {
+      object = JSON.parse(text);
+    } catch {
+      object = {};
+    }
+
+    update_progress(100, "Structured generation complete");
+    return { object };
+  } finally {
+    sequence.dispose();
+  }
+};
+
+// ========================================================================
+// StructuredGenerationTask (streaming)
+// ========================================================================
+
+export const LlamaCpp_StructuredGeneration_Stream: AiProviderStreamFn<
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
+  LlamaCppModelConfig
+> = async function* (
+  input,
+  model,
+  signal
+): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
+  if (!model) throw new Error("Model config is required for StructuredGenerationTask.");
+
+  await loadSdk();
+
+  const llama = await getLlamaInstance();
+  const context = await getOrCreateTextContext(model);
+  const grammar = await llama.createGrammarForJsonSchema(input.outputSchema as any);
+
+  const sequence = context.getSequence();
+  const { LlamaChatSession } = _sdk!;
+  const session = new LlamaChatSession({ contextSequence: sequence });
+
+  const queue: string[] = [];
+  let isComplete = false;
+  let completionError: unknown;
+  let resolveWait: (() => void) | null = null;
+
+  const notifyWaiter = () => {
+    resolveWait?.();
+    resolveWait = null;
+  };
+
+  let accumulatedText = "";
+  const promptPromise = session
+    .prompt(input.prompt as string, {
+      signal,
+      grammar,
+      onTextChunk: (chunk: string) => {
+        queue.push(chunk);
+        notifyWaiter();
+      },
+      ...(input.temperature !== undefined && { temperature: input.temperature }),
+      ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
+    })
+    .then(() => {
+      isComplete = true;
+      notifyWaiter();
+    })
+    .catch((err: unknown) => {
+      completionError = err;
+      isComplete = true;
+      notifyWaiter();
+    });
+
+  try {
+    while (true) {
+      while (queue.length > 0) {
+        const chunk = queue.shift()!;
+        accumulatedText += chunk;
+        // Try to parse partial JSON and emit object-delta
+        const partial = parsePartialJson(accumulatedText);
+        if (partial !== undefined) {
+          yield {
+            type: "object-delta",
+            port: "object",
+            objectDelta: partial as Record<string, unknown>,
+          };
+        }
+      }
+      if (isComplete) break;
+      await new Promise<void>((r) => {
+        resolveWait = r;
+      });
+    }
+    // Drain remaining chunks
+    while (queue.length > 0) {
+      const chunk = queue.shift()!;
+      accumulatedText += chunk;
+    }
+  } finally {
+    await promptPromise.catch(() => {});
+    sequence.dispose();
+  }
+
+  if (completionError) {
+    if (signal.aborted) return;
+    throw completionError;
+  }
+
+  let finalObject: Record<string, unknown>;
+  try {
+    finalObject = JSON.parse(accumulatedText);
+  } catch {
+    finalObject = (parsePartialJson(accumulatedText) as Record<string, unknown>) ?? {};
+  }
+
+  yield { type: "finish", data: { object: finalObject } as StructuredGenerationTaskOutput };
 };
 
 // ========================================================================
@@ -861,6 +1045,7 @@ export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppMo
   TextRewriterTask: LlamaCpp_TextRewriter,
   TextSummaryTask: LlamaCpp_TextSummary,
   ToolCallingTask: LlamaCpp_ToolCalling,
+  StructuredGenerationTask: LlamaCpp_StructuredGeneration,
 };
 
 export const LLAMACPP_STREAM_TASKS: Record<
@@ -871,6 +1056,7 @@ export const LLAMACPP_STREAM_TASKS: Record<
   TextRewriterTask: LlamaCpp_TextRewriter_Stream,
   TextSummaryTask: LlamaCpp_TextSummary_Stream,
   ToolCallingTask: LlamaCpp_ToolCalling_Stream,
+  StructuredGenerationTask: LlamaCpp_StructuredGeneration_Stream,
 };
 
 export const LLAMACPP_REACTIVE_TASKS: Record<

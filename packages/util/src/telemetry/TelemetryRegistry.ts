@@ -29,7 +29,12 @@ function createDefaultTelemetryProvider(): ITelemetryProvider {
   if (getEnv("TELEMETRY")?.toLowerCase() === "console") {
     return new ConsoleTelemetryProvider();
   }
-  if (isTruthy(getEnv("DEV"))) {
+  if (
+    isTruthy(getEnv("DEV")) &&
+    getEnv("NODE_ENV") !== "test" &&
+    !isTruthy(getEnv("VITEST")) &&
+    !isTruthy(getEnv("CI"))
+  ) {
     return new ConsoleTelemetryProvider();
   }
   return new NoopTelemetryProvider();

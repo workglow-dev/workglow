@@ -26,6 +26,7 @@ import type {
   TextSummaryTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -75,6 +76,23 @@ function getModelName(model: GeminiModelConfig | undefined): string {
     throw new Error("Missing model name in provider_config.model_name.");
   }
   return name;
+}
+
+/**
+ * Recursively strip JSON Schema properties that the Gemini API does not support
+ * (e.g. `additionalProperties`). Returns a shallow-cloned schema without mutating the original.
+ */
+function sanitizeSchemaForGemini(schema: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "additionalProperties") continue;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      result[key] = sanitizeSchemaForGemini(value as Record<string, unknown>);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 export const Gemini_TextGeneration: AiProviderRunFn<
@@ -355,6 +373,9 @@ export const Gemini_CountTokens_Reactive: AiProviderReactiveRunFn<
   CountTokensTaskOutput,
   GeminiModelConfig
 > = async (input, _output, _model) => {
+  if (Array.isArray(input.text)) {
+    return { count: (input.text as string[]).map((t) => Math.ceil(t.length / 4)) };
+  }
   return { count: Math.ceil((input.text as string).length / 4) };
 };
 
@@ -373,11 +394,13 @@ export const Gemini_StructuredGeneration: AiProviderRunFn<
 
   const schema = input.outputSchema ?? outputSchema;
 
+  const sanitizedSchema = sanitizeSchemaForGemini(schema as Record<string, unknown>);
+
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: schema as any,
+      responseSchema: sanitizedSchema as any,
       maxOutputTokens: input.maxTokens,
       temperature: input.temperature,
     },
@@ -407,11 +430,13 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
 
   const schema = input.outputSchema ?? outputSchema;
 
+  const sanitizedSchema = sanitizeSchemaForGemini(schema as Record<string, unknown>);
+
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: schema as any,
+      responseSchema: sanitizedSchema as any,
       maxOutputTokens: input.maxTokens,
       temperature: input.temperature,
     },
@@ -447,6 +472,91 @@ export const Gemini_StructuredGeneration_Stream: AiProviderStreamFn<
 // Tool calling implementations
 // ========================================================================
 
+/**
+ * Build Gemini-format contents from the task input.
+ * When `input.messages` is present (multi-turn agent loop), converts the
+ * provider-agnostic ChatMessage format to Gemini's Content format.
+ * Otherwise falls back to a single user content from `input.prompt`.
+ */
+function buildGeminiContents(input: ToolCallingTaskInput): any[] {
+  const inputMessages = input.messages;
+  if (!inputMessages || inputMessages.length === 0) {
+    return [{ role: "user", parts: [{ text: input.prompt }] }];
+  }
+
+  // Build a lookup from tool_use_id -> tool name for functionResponse mapping
+  const toolUseNames = new Map<string, string>();
+  for (const msg of inputMessages) {
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (block.type === "tool_use") {
+          toolUseNames.set(block.id, block.name);
+        }
+      }
+    }
+  }
+
+  const contents: any[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "user") {
+      if (typeof msg.content === "string") {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      } else if (Array.isArray(msg.content)) {
+        const parts: any[] = [];
+        for (const block of msg.content) {
+          if (block.type === "text") {
+            parts.push({ text: block.text });
+          } else if (block.type === "image" || block.type === "audio") {
+            parts.push({ inlineData: { mimeType: block.mimeType, data: block.data } });
+          }
+        }
+        contents.push({ role: "user", parts });
+      } else {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      }
+    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      const parts: any[] = [];
+      for (const block of msg.content) {
+        if (block.type === "text" && block.text) {
+          parts.push({ text: block.text });
+        } else if (block.type === "tool_use") {
+          parts.push({ functionCall: { name: block.name, args: block.input } });
+        }
+      }
+      if (parts.length > 0) {
+        contents.push({ role: "model", parts });
+      }
+    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+      const parts = msg.content.map((block: any) => {
+        const name = toolUseNames.get(block.tool_use_id) ?? "unknown";
+        let response: Record<string, unknown>;
+        if (typeof block.content === "string") {
+          try {
+            response = JSON.parse(block.content);
+          } catch {
+            response = { result: block.content };
+          }
+        } else if (Array.isArray(block.content)) {
+          // Extract text from multi-part content; Gemini functionResponse only supports JSON
+          const textParts = (block.content as Array<Record<string, unknown>>)
+            .filter((b) => b.type === "text")
+            .map((b) => b.text as string);
+          try {
+            response = JSON.parse(textParts.join(""));
+          } catch {
+            response = { result: textParts.join("") };
+          }
+        } else {
+          response = {};
+        }
+        return { functionResponse: { name, response } };
+      });
+      contents.push({ role: "user", parts });
+    }
+  }
+  return contents;
+}
+
 function mapGeminiToolConfig(
   toolChoice: string | undefined
 ):
@@ -481,7 +591,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await Gemini_ToolCalling(
         { ...input, prompt: item },
@@ -490,9 +600,9 @@ export const Gemini_ToolCalling: AiProviderRunFn<
         signal
       );
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   update_progress(0, "Starting Gemini tool calling");
@@ -502,7 +612,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
     name: t.name,
     description: buildToolDescription(t),
-    parameters: t.inputSchema as any,
+    parameters: sanitizeSchemaForGemini(t.inputSchema as Record<string, unknown>) as any,
   }));
 
   const toolConfig = mapGeminiToolConfig(input.toolChoice);
@@ -518,14 +628,14 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     },
   });
 
-  const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.prompt as string }] }],
-  });
+  const contents = buildGeminiContents(input);
+
+  const result = await genModel.generateContent({ contents });
 
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
 
   const textParts: string[] = [];
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
 
   for (const part of parts) {
@@ -534,11 +644,11 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     }
     if ("functionCall" in part && part.functionCall) {
       const id = `call_${callIndex++}`;
-      toolCalls[id] = {
+      toolCalls.push({
         id,
         name: part.functionCall.name,
         input: (part.functionCall.args as Record<string, unknown>) ?? {},
-      };
+      });
     }
   }
 
@@ -557,7 +667,7 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
   const functionDeclarations = input.tools.map((t: ToolDefinition) => ({
     name: t.name,
     description: buildToolDescription(t),
-    parameters: t.inputSchema as any,
+    parameters: sanitizeSchemaForGemini(t.inputSchema as Record<string, unknown>) as any,
   }));
 
   const toolConfig = mapGeminiToolConfig(input.toolChoice);
@@ -573,13 +683,12 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
     },
   });
 
-  const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.prompt as string }] }] },
-    { signal }
-  );
+  const contents = buildGeminiContents(input);
+
+  const result = await genModel.generateContentStream({ contents }, { signal });
 
   let accumulatedText = "";
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
 
   for await (const chunk of result.stream) {
@@ -591,12 +700,12 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
       }
       if ("functionCall" in part && part.functionCall) {
         const id = `call_${callIndex++}`;
-        toolCalls[id] = {
+        toolCalls.push({
           id,
           name: part.functionCall.name,
           input: (part.functionCall.args as Record<string, unknown>) ?? {},
-        };
-        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
+        });
+        yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCalls] };
       }
     }
   }

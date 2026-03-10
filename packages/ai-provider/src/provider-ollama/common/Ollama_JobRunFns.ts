@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -20,6 +20,7 @@ import type {
   TextSummaryTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -322,7 +323,7 @@ export const Ollama_ToolCalling: AiProviderRunFn<
     );
     const prompts = input.prompt as string[];
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: ToolCalls[] = [];
     for (const item of prompts) {
       const r = await Ollama_ToolCalling(
         { ...input, prompt: item },
@@ -331,20 +332,16 @@ export const Ollama_ToolCalling: AiProviderRunFn<
         signal
       );
       texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as Record<string, unknown>);
+      toolCallsList.push(r.toolCalls as ToolCalls);
     }
-    return { text: texts, toolCalls: toolCallsList };
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
 
   update_progress(0, "Starting Ollama tool calling");
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
 
@@ -359,7 +356,7 @@ export const Ollama_ToolCalling: AiProviderRunFn<
   });
 
   const text = response.message.content ?? "";
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   (response.message.tool_calls ?? []).forEach((tc: any, index: number) => {
     let parsedInput: Record<string, unknown> = {};
     const fnArgs = tc.function.arguments;
@@ -374,7 +371,7 @@ export const Ollama_ToolCalling: AiProviderRunFn<
       parsedInput = fnArgs as Record<string, unknown>;
     }
     const id = `call_${index}`;
-    toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
+    toolCalls.push({ id, name: tc.function.name as string, input: parsedInput });
   });
 
   update_progress(100, "Completed Ollama tool calling");
@@ -389,11 +386,7 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const messages: Array<{ role: string; content: string }> = [];
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt as string });
-  }
-  messages.push({ role: "user", content: input.prompt as string });
+  const messages = toTextFlatMessages(input);
 
   const tools = input.toolChoice === "none" ? undefined : mapOllamaTools(input.tools);
 
@@ -412,7 +405,7 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
   signal.addEventListener("abort", onAbort, { once: true });
 
   let accumulatedText = "";
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
 
   try {
@@ -439,9 +432,9 @@ export const Ollama_ToolCalling_Stream: AiProviderStreamFn<
             parsedInput = fnArgs as Record<string, unknown>;
           }
           const id = `call_${callIndex++}`;
-          toolCalls[id] = { id, name: tc.function.name as string, input: parsedInput };
+          toolCalls.push({ id, name: tc.function.name as string, input: parsedInput });
         }
-        yield { type: "object-delta", port: "toolCalls", objectDelta: { ...toolCalls } };
+        yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCalls] };
       }
     }
 
