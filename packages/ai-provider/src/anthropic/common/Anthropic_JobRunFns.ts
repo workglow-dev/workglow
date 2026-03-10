@@ -334,6 +334,9 @@ export const Anthropic_CountTokens_Reactive: AiProviderReactiveRunFn<
   CountTokensTaskOutput,
   AnthropicModelConfig
 > = async (input, _output, _model) => {
+  if (Array.isArray(input.text)) {
+    return { count: (input.text as string[]).map((t) => Math.ceil(t.length / 4)) };
+  }
   return { count: Math.ceil((input.text as string).length / 4) };
 };
 
