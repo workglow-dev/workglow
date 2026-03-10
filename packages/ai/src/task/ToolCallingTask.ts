@@ -194,8 +194,7 @@ export const ToolDefinitionSchema = {
     configSchema: {
       type: "object",
       title: "Config Schema",
-      description:
-        "JSON Schema describing the task's configuration options (not sent to the LLM)",
+      description: "JSON Schema describing the task's configuration options (not sent to the LLM)",
       additionalProperties: true,
     },
     config: {
@@ -333,10 +332,7 @@ export const ToolCallingOutputSchema = {
       "x-stream": "append",
     }),
     toolCalls: TypeSingleOrArray({
-      type: "object",
-      title: "Tool Calls",
-      description: "Tool invocations requested by the model, keyed by call id",
-      additionalProperties: true,
+      ...ToolCallSchema,
       "x-stream": "object",
     }),
   },
