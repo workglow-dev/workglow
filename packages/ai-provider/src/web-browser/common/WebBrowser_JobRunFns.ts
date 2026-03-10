@@ -265,7 +265,6 @@ export const WebBrowser_TextGeneration: AiProviderRunFn<
     for (const item of input.prompt as string[]) {
       const session = await factory.create({
         temperature: input.temperature ?? undefined,
-        topK: input.topK ?? undefined,
       });
       try {
         results.push(await session.prompt(item, { signal }));
@@ -279,7 +278,6 @@ export const WebBrowser_TextGeneration: AiProviderRunFn<
 
   const session = await factory.create({
     temperature: input.temperature ?? undefined,
-    topK: input.topK ?? undefined,
   });
   try {
     const text = await session.prompt(input.prompt as string, { signal });
@@ -426,7 +424,6 @@ export const WebBrowser_TextGeneration_Stream: AiProviderStreamFn<
 
   const session = await factory.create({
     temperature: input.temperature ?? undefined,
-    topK: input.topK ?? undefined,
   });
   try {
     const stream = session.promptStreaming(input.prompt as string, { signal });
