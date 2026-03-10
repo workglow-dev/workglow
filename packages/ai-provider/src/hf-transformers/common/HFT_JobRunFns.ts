@@ -57,6 +57,8 @@ import type {
   ModelInfoTaskOutput,
   ObjectDetectionTaskInput,
   ObjectDetectionTaskOutput,
+  StructuredGenerationTaskInput,
+  StructuredGenerationTaskOutput,
   TextClassificationTaskInput,
   TextClassificationTaskOutput,
   TextEmbeddingTaskInput,
@@ -77,8 +79,6 @@ import type {
   TextSummaryTaskOutput,
   TextTranslationTaskInput,
   TextTranslationTaskOutput,
-  StructuredGenerationTaskInput,
-  StructuredGenerationTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
@@ -2011,20 +2011,6 @@ export const HFT_ModelInfo: AiProviderRunFn<
   ModelInfoTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model) => {
-  if (self.location.href.startsWith("http://localhost:")) {
-    console.error("HFT_ModelInfo SKIPPING on localhost", { input, model });
-    return {
-      model: input.model,
-      is_local: true,
-      is_remote: false,
-      supports_browser: true,
-      supports_node: true,
-      is_cached: false,
-      is_loaded: true,
-      file_sizes: {},
-    };
-  }
-
   const logger = getLogger();
   const { ModelRegistry } = await loadTransformersSDK();
   const timerLabel = `hft:ModelInfo:${model?.provider_config.model_path}`;
@@ -2035,7 +2021,7 @@ export const HFT_ModelInfo: AiProviderRunFn<
 
   const { pipeline: pipelineType, model_path, dtype, device } = model!.provider_config;
 
-  const cacheStatus = await ModelRegistry.is_pipeline_cached(pipelineType, model_path, {
+  const cacheStatus = await ModelRegistry.is_pipeline_cached_files(pipelineType, model_path, {
     ...(dtype ? { dtype } : {}),
   });
   logger.debug("is_pipeline_cached", {
