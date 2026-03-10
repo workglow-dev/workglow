@@ -5,7 +5,7 @@
  */
 
 import { parseDataUri } from "@workglow/util";
-import type { ToolCall, ToolDefinition } from "./ToolCallingTask";
+import type { ToolCall, ToolCalls, ToolDefinition } from "./ToolCallingTask";
 
 // ========================================================================
 // Chat message types — provider-agnostic conversation history
@@ -211,22 +211,20 @@ export function audioBlockFromDataUri(dataUri: string): AudioContentBlock {
 /**
  * Creates a user message from a prompt string or array of content blocks.
  */
-export function userMessage(
-  prompt: string | ReadonlyArray<UserContentBlock>
-): ChatMessage {
+export function userMessage(prompt: string | ReadonlyArray<UserContentBlock>): ChatMessage {
   return { role: "user", content: prompt };
 }
 
 /**
  * Creates an assistant message from text and optional tool calls.
  */
-export function assistantMessage(text: string, toolCalls?: Record<string, ToolCall>): ChatMessage {
+export function assistantMessage(text: string, toolCalls?: ToolCalls): ChatMessage {
   const content: Array<TextContentBlock | ToolUseContentBlock> = [];
   if (text) {
     content.push({ type: "text", text });
   }
   if (toolCalls) {
-    for (const tc of Object.values(toolCalls)) {
+    for (const tc of toolCalls) {
       content.push({
         type: "tool_use",
         id: tc.id,

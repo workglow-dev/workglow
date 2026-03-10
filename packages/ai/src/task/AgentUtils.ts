@@ -8,6 +8,7 @@ import { getTaskConstructors } from "@workglow/task-graph";
 import type { IExecuteContext } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import type { ServiceRegistry } from "@workglow/util";
+import { findToolSource } from "./AgentTypes";
 import type {
   AgentHooks,
   FunctionToolSource,
@@ -15,9 +16,13 @@ import type {
   ToolResult,
   ToolSource,
 } from "./AgentTypes";
-import { findToolSource } from "./AgentTypes";
-import type { ToolCall, ToolDefinition, ToolDefinitionWithTaskType } from "./ToolCallingTask";
 import { taskTypesToTools } from "./ToolCallingTask";
+import type {
+  ToolCall,
+  ToolCalls,
+  ToolDefinition,
+  ToolDefinitionWithTaskType,
+} from "./ToolCallingTask";
 
 // ========================================================================
 // Tool source resolution
@@ -222,13 +227,13 @@ export async function executeToolCall(
  * @param maxConcurrency - Max parallel tool executions (default: 5)
  */
 export async function executeToolCalls(
-  toolCalls: Record<string, ToolCall>,
+  toolCalls: ToolCalls,
   sources: ReadonlyArray<ToolSource>,
   context: IExecuteContext,
   hooks?: AgentHooks,
   maxConcurrency: number = 5
 ): Promise<ToolResult[]> {
-  const calls = Object.values(toolCalls);
+  const calls = toolCalls;
   if (calls.length === 0) return [];
 
   const concurrency = Math.max(1, Math.min(maxConcurrency, calls.length));
@@ -260,6 +265,6 @@ export async function executeToolCalls(
 /**
  * Checks whether a ToolCallingTask output contains any tool calls.
  */
-export function hasToolCalls(toolCalls: Record<string, unknown> | undefined): boolean {
-  return toolCalls !== undefined && Object.keys(toolCalls).length > 0;
+export function hasToolCalls(toolCalls: unknown[] | undefined): boolean {
+  return toolCalls !== undefined && toolCalls.length > 0;
 }

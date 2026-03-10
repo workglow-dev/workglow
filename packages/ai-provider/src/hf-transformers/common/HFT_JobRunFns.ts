@@ -81,6 +81,7 @@ import type {
   TextTranslationTaskOutput,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
@@ -1665,9 +1666,9 @@ function mapHFTTools(tools: ReadonlyArray<ToolDefinition>) {
  */
 export function parseToolCallsFromText(responseText: string): {
   text: string;
-  toolCalls: Record<string, unknown>;
+  toolCalls: ToolCalls;
 } {
-  const toolCalls: Record<string, unknown> = {};
+  const toolCalls: ToolCalls = [];
   let callIndex = 0;
   let cleanedText = responseText;
 
@@ -1678,20 +1679,20 @@ export function parseToolCallsFromText(responseText: string): {
     try {
       const parsed = JSON.parse(tagMatch[1].trim());
       const id = `call_${callIndex++}`;
-      toolCalls[id] = {
+      toolCalls.push({
         id,
         name: parsed.name ?? parsed.function?.name ?? "",
         input: (parsed.arguments ??
           parsed.function?.arguments ??
           parsed.parameters ??
           {}) as Record<string, unknown>,
-      };
+      });
     } catch {
       // Not valid JSON inside the tag, skip
     }
   }
 
-  if (Object.keys(toolCalls).length > 0) {
+  if (toolCalls.length > 0) {
     // Remove tool_call tags from the text output
     cleanedText = responseText.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
     return { text: cleanedText, toolCalls };
@@ -1747,11 +1748,11 @@ export function parseToolCallsFromText(responseText: string): {
       const parsed = JSON.parse(candidate.text);
       if (parsed.name && (parsed.arguments !== undefined || parsed.parameters !== undefined)) {
         const id = `call_${callIndex++}`;
-        toolCalls[id] = {
+        toolCalls.push({
           id,
           name: parsed.name as string,
           input: (parsed.arguments ?? parsed.parameters ?? {}) as Record<string, unknown>,
-        };
+        });
         matchedRanges.push({ start: candidate.start, end: candidate.end });
       } else if (parsed.function?.name) {
         let functionArgs: unknown = parsed.function.arguments ?? {};
@@ -1764,11 +1765,11 @@ export function parseToolCallsFromText(responseText: string): {
           }
         }
         const id = `call_${callIndex++}`;
-        toolCalls[id] = {
+        toolCalls.push({
           id,
           name: parsed.function.name as string,
           input: (functionArgs ?? {}) as Record<string, unknown>,
-        };
+        });
         matchedRanges.push({ start: candidate.start, end: candidate.end });
       }
     } catch {
@@ -1776,7 +1777,7 @@ export function parseToolCallsFromText(responseText: string): {
     }
   }
 
-  if (Object.keys(toolCalls).length > 0) {
+  if (toolCalls.length > 0) {
     // Remove only the matched JSON portions, preserving surrounding text
     let result = "";
     let lastIndex = 0;
@@ -1843,7 +1844,8 @@ export const HFT_ToolCalling: AiProviderRunFn<
       (typeof input)["prompt"] extends Array<infer T> ? T : unknown
     >;
     const texts: string[] = [];
-    const toolCallsList: Record<string, unknown>[] = [];
+    const toolCallsList: Array<{ id: string; input: { [x: string]: unknown }; name: string }[]> =
+      [];
 
     for (const singlePrompt of prompts) {
       const singleInput = { ...input, prompt: singlePrompt } as ToolCallingTaskInput;
@@ -1882,7 +1884,8 @@ export const HFT_ToolCalling: AiProviderRunFn<
 
     // When input.prompt is an array, return a single ToolCallingTaskOutput whose
     // `text` and `toolCalls` fields are arrays aligned by index (TypeSingleOrArray behavior).
-    return { text: texts, toolCalls: toolCallsList };
+    // FromSchema does not express array-of-arrays for toolCalls, so we assert the batch shape.
+    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
   }
   const messages = toTextFlatMessages(input);
 
@@ -1913,7 +1916,10 @@ export const HFT_ToolCalling: AiProviderRunFn<
   ).trim();
 
   const { text, toolCalls } = parseToolCallsFromText(responseText);
-  return { text, toolCalls: filterValidToolCalls(toolCalls, input.tools) };
+  return {
+    text,
+    toolCalls: filterValidToolCalls(toolCalls, input.tools),
+  };
 };
 
 export const HFT_ToolCalling_Stream: AiProviderStreamFn<
@@ -1992,8 +1998,8 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   const { text: cleanedText, toolCalls } = parseToolCallsFromText(fullText);
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
 
-  if (Object.keys(validToolCalls).length > 0) {
-    yield { type: "object-delta", port: "toolCalls", objectDelta: { ...validToolCalls } };
+  if (validToolCalls.length > 0) {
+    yield { type: "object-delta", port: "toolCalls", objectDelta: [...validToolCalls] };
   }
 
   yield {

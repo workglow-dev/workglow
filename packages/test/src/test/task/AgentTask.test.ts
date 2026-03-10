@@ -29,9 +29,9 @@ const trimMessages = (AgentTask.prototype as any).trimMessages.bind(
 
 describe("AgentTask.trimMessages", () => {
   const initialUser = userMessage("Start");
-  const assist1 = assistantMessage("Response 1", {
-    tc_1: { id: "tc_1", name: "tool", input: {} },
-  });
+  const assist1 = assistantMessage("Response 1", [
+    { id: "tc_1", name: "tool", input: {} },
+  ]);
   const tool1 = toolMessage([
     { toolCallId: "tc_1", toolName: "tool", output: { done: true }, isError: false },
   ]);
