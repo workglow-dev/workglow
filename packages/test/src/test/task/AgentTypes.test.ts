@@ -33,9 +33,9 @@ describe("assistantMessage", () => {
   });
 
   test("should create assistant message with text and tool calls", () => {
-    const msg = assistantMessage("Calling tool", {
-      tc_1: { id: "tc_1", name: "search", input: { q: "test" } },
-    });
+    const msg = assistantMessage("Calling tool", [
+      { id: "tc_1", name: "search", input: { q: "test" } },
+    ]);
     expect(msg.role).toBe("assistant");
     expect(msg.content).toHaveLength(2);
     expect(msg.content[0]).toEqual({ type: "text", text: "Calling tool" });
@@ -48,9 +48,9 @@ describe("assistantMessage", () => {
   });
 
   test("should omit text block when text is empty", () => {
-    const msg = assistantMessage("", {
-      tc_1: { id: "tc_1", name: "search", input: {} },
-    });
+    const msg = assistantMessage("", [
+      { id: "tc_1", name: "search", input: {} },
+    ]);
     expect(msg.content).toHaveLength(1);
     expect(msg.content[0]).toEqual({
       type: "tool_use",
@@ -61,10 +61,10 @@ describe("assistantMessage", () => {
   });
 
   test("should include multiple tool calls", () => {
-    const msg = assistantMessage("", {
-      tc_1: { id: "tc_1", name: "a", input: {} },
-      tc_2: { id: "tc_2", name: "b", input: { x: 1 } },
-    });
+    const msg = assistantMessage("", [
+      { id: "tc_1", name: "a", input: {} },
+      { id: "tc_2", name: "b", input: { x: 1 } },
+    ]);
     expect(msg.content).toHaveLength(2);
   });
 });

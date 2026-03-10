@@ -18,9 +18,8 @@ import { assistantMessage, toolMessage, toolSourceDefinitions, userMessage } fro
 import type { AgentHooks, ChatMessage, ToolSource, UserContentBlock } from "./AgentTypes";
 import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";
 import { TypeModel } from "./base/AiTaskSchemas";
-import { ToolCallingTask } from "./ToolCallingTask";
-import type { ToolCall, ToolCallingTaskInput, ToolDefinition } from "./ToolCallingTask";
-import { ToolDefinitionSchema } from "./ToolCallingTask";
+import { ToolCallingTask, ToolDefinitionSchema } from "./ToolCallingTask";
+import type { ToolCallingTaskInput, ToolCalls, ToolDefinition } from "./ToolCallingTask";
 
 // ========================================================================
 // Config
@@ -304,7 +303,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
       // Call the LLM and stream its output
       const llmTask = context.own(new ToolCallingTask({}, {}));
       let iterationText = "";
-      const toolCalls: Record<string, ToolCall> = {};
+      let toolCalls: ToolCalls = [];
 
       for await (const event of llmTask.executeStream(
         {
@@ -325,7 +324,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
           const data = event.data as Record<string, unknown> | undefined;
           iterationText = (data?.text as string) ?? iterationText;
           if (data?.toolCalls) {
-            Object.assign(toolCalls, data.toolCalls);
+            toolCalls = (data.toolCalls as ToolCalls) ?? [];
           }
         }
       }
@@ -337,7 +336,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
       // other tools, we intentionally skip executing the sibling calls and
       // end the loop immediately. The stop tool signals task completion.
       if (input.stopTool) {
-        const stopCall = Object.values(toolCalls).find((tc) => tc.name === input.stopTool);
+        const stopCall = toolCalls.find((tc) => tc.name === input.stopTool);
         if (stopCall) {
           structuredOutput = stopCall.input;
           break;

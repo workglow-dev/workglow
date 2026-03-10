@@ -4,10 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AgentTaskOutput, StructuredGenerationTaskOutput, ToolDefinition } from "@workglow/ai";
+import type {
+  AgentTaskOutput,
+  StructuredGenerationTaskOutput,
+  ToolCalls,
+  ToolDefinition,
+} from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
 import type { JsonSchema } from "@workglow/util";
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // ========================================================================
 // Setup interface
@@ -141,13 +146,13 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
           const result = (await workflow.run()) as {
             text: string;
-            toolCalls: Record<string, { id: string; name: string; input: Record<string, unknown> }>;
+            toolCalls: ToolCalls;
           };
 
           expect(result).toBeDefined();
           expect(result.toolCalls).toBeDefined();
 
-          const calls = Object.values(result.toolCalls);
+          const calls = result.toolCalls;
           // The model should call get_weather
           expect(calls.length).toBeGreaterThan(0);
           expect(calls[0].name).toBe("get_weather");
@@ -170,13 +175,13 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
           const result = (await workflow.run()) as {
             text: string;
-            toolCalls: Record<string, unknown>;
+            toolCalls: unknown[];
           };
 
           expect(result).toBeDefined();
           expect(typeof result.text).toBe("string");
           expect(result.text.length).toBeGreaterThan(0);
-          expect(Object.keys(result.toolCalls)).toHaveLength(0);
+          expect(result.toolCalls).toHaveLength(0);
         },
         setup.timeout
       );
@@ -202,10 +207,10 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
           const result1 = (await workflow1.run()) as {
             text: string;
-            toolCalls: Record<string, { id: string; name: string; input: Record<string, unknown> }>;
+            toolCalls: ToolCalls;
           };
 
-          const calls = Object.values(result1.toolCalls);
+          const calls = result1.toolCalls;
           if (calls.length === 0) {
             // Model didn't call the tool — can happen with small models; skip gracefully
             return;

@@ -4,20 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  buildToolSources,
-  executeToolCall,
-  executeToolCalls,
-  hasToolCalls,
-} from "@workglow/ai";
+import { buildToolSources, executeToolCall, executeToolCalls, hasToolCalls } from "@workglow/ai";
 import type {
   AgentHooks,
   FunctionToolSource,
   RegistryToolSource,
-  ToolResult,
+  ToolCall,
+  ToolCalls,
   ToolSource,
 } from "@workglow/ai";
-import type { ToolCall } from "@workglow/ai";
 import { Task, TaskRegistry } from "@workglow/task-graph";
 import type { IExecuteContext } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util";
@@ -119,7 +114,9 @@ describe("buildToolSources", () => {
 
     expect(sources).toHaveLength(1);
     const fnSource = sources[0] as FunctionToolSource;
-    await expect(fnSource.run({})).rejects.toThrow('No executor registered for tool "no_exec_tool"');
+    await expect(fnSource.run({})).rejects.toThrow(
+      'No executor registered for tool "no_exec_tool"'
+    );
   });
 
   test("should build registry tool source from ToolDefinition with config when task is registered", () => {
@@ -369,10 +366,10 @@ describe("executeToolCalls", () => {
       },
     ];
 
-    const toolCalls: Record<string, ToolCall> = {
-      call_0: { id: "call_0", name: "a", input: { x: 1 } },
-      call_1: { id: "call_1", name: "b", input: { y: 2 } },
-    };
+    const toolCalls: ToolCalls = [
+      { id: "call_0", name: "a", input: { x: 1 } },
+      { id: "call_1", name: "b", input: { y: 2 } },
+    ];
     const context = createMockContext();
 
     const results = await executeToolCalls(toolCalls, sources, context);
@@ -386,7 +383,7 @@ describe("executeToolCalls", () => {
 
   test("should return empty array for empty toolCalls", async () => {
     const context = createMockContext();
-    const results = await executeToolCalls({}, [], context);
+    const results = await executeToolCalls([], [], context);
     expect(results).toHaveLength(0);
   });
 
@@ -408,9 +405,9 @@ describe("executeToolCalls", () => {
       },
     ];
 
-    const toolCalls: Record<string, ToolCall> = {};
+    const toolCalls: ToolCalls = [];
     for (let i = 0; i < 6; i++) {
-      toolCalls[`call_${i}`] = { id: `call_${i}`, name: "slow", input: {} };
+      toolCalls.push({ id: `call_${i}`, name: "slow", input: {} });
     }
     const context = createMockContext();
 
@@ -441,11 +438,11 @@ describe("executeToolCalls", () => {
       },
     ];
 
-    const toolCalls: Record<string, ToolCall> = {
-      call_0: { id: "call_0", name: "tool", input: {} },
-      call_1: { id: "call_1", name: "tool", input: {} },
-      call_2: { id: "call_2", name: "tool", input: {} },
-    };
+    const toolCalls: ToolCalls = [
+      { id: "call_0", name: "tool", input: {} },
+      { id: "call_1", name: "tool", input: {} },
+      { id: "call_2", name: "tool", input: {} },
+    ];
 
     await expect(executeToolCalls(toolCalls, sources, context, undefined, 1)).rejects.toThrow();
   });
@@ -457,11 +454,11 @@ describe("executeToolCalls", () => {
 
 describe("hasToolCalls", () => {
   test("should return true when toolCalls has entries", () => {
-    expect(hasToolCalls({ call_0: {} })).toBe(true);
+    expect(hasToolCalls([{ id: "call_0", name: "test", input: {} }])).toBe(true);
   });
 
-  test("should return false for empty object", () => {
-    expect(hasToolCalls({})).toBe(false);
+  test("should return false for empty array", () => {
+    expect(hasToolCalls([])).toBe(false);
   });
 
   test("should return false for undefined", () => {
