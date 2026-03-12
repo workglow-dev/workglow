@@ -1,5 +1,15 @@
 # @workglow/tasks
 
+## 0.0.117
+
+### Features
+
+- introduce AgentTask for multi-turn agentic loops
+
+### Chores
+
+- update tsconfig to avoid node_modules
+
 ## 0.0.116
 
 ## 0.0.115

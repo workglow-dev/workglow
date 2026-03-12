@@ -1,5 +1,12 @@
 # @workglow/util
 
+## 0.0.117
+
+### Chores
+
+- update tsconfig to avoid node_modules
+- update telemetry provider handling and GitHub Actions workflow
+
 ## 0.0.116
 
 ### Features

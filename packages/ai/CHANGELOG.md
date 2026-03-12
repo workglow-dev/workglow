@@ -1,5 +1,28 @@
 # @workglow/ai
 
+## 0.0.117
+
+### Features
+
+- enhance AgentTask and content block handling enabling multimedia
+- introduce AgentTask for multi-turn agentic loops
+
+### Bug Fixes
+
+- handle content block arrays in prompt for message conversion (#302)
+- improve type imports and message handling in AgentTask and tests
+
+### Refactors
+
+- unify tool call handling across providers
+- enhance tool handling and message conversion
+
+### Chores
+
+- update dependencies and account for api changes
+- update tsconfig to avoid node_modules
+- update VSCode settings and refactor task categories
+
 ## 0.0.116
 
 ### Refactors

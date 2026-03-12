@@ -1,5 +1,33 @@
 # @workglow/test
 
+## 0.0.117
+
+### Features
+
+- add Structured Generation support to HFT and LlamaCpp providers
+- add generic AI provider integration test suite
+
+### Bug Fixes
+
+- handle content block arrays in prompt for message conversion (#302)
+- resolve ai-provider test failures from mock leakage and env var … (#299)
+- OpenAI schema compatibility for structured generation and stop tool
+- revert streaming accumulation, keep test-only changes
+- accumulate text in streaming finish events, add comprehensive provider tests
+- improve type imports and message handling in AgentTask and tests
+
+### Refactors
+
+- unify tool call handling across providers
+- simplify test gating and clean up documentation
+- enhance tool handling and message conversion
+
+### Chores
+
+- update dependencies and account for api changes
+- update tsconfig to avoid node_modules
+- update telemetry provider handling and GitHub Actions workflow
+
 ## 0.0.116
 
 ### Features

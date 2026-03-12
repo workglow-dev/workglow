@@ -13,6 +13,7 @@ export * from "./provider-llamacpp/common/LlamaCpp_Constants";
 export * from "./provider-ollama/common/Ollama_Constants";
 export * from "./provider-openai/common/OpenAI_Constants";
 export * from "./tf-mediapipe/common/TFMP_Constants";
+export * from "./web-browser/common/WebBrowser_Constants";
 
 // Model schemas (no SDK dependency)
 export * from "./anthropic/common/Anthropic_ModelSchema";
@@ -23,6 +24,7 @@ export * from "./provider-llamacpp/common/LlamaCpp_ModelSchema";
 export * from "./provider-ollama/common/Ollama_ModelSchema";
 export * from "./provider-openai/common/OpenAI_ModelSchema";
 export * from "./tf-mediapipe/common/TFMP_ModelSchema";
+export * from "./web-browser/common/WebBrowser_ModelSchema";
 
 // Provider classes (no SDK dependency -- they use dependency injection)
 export * from "./anthropic/AnthropicProvider";
@@ -33,3 +35,4 @@ export * from "./provider-llamacpp/LlamaCppProvider";
 export * from "./provider-ollama/OllamaProvider";
 export * from "./provider-openai/OpenAiProvider";
 export * from "./tf-mediapipe/TensorFlowMediaPipeProvider";
+export * from "./web-browser/WebBrowserProvider";

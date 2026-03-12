@@ -1,5 +1,22 @@
 # @workglow/task-graph
 
+## 0.0.117
+
+### Features
+
+#### task-graph
+
+- make context.own() propagate registry and abort signal to owned tasks (#296)
+
+### Refactors
+
+- unify tool call handling across providers
+
+### Chores
+
+- update tsconfig to avoid node_modules
+- update VSCode settings and refactor task categories
+
 ## 0.0.116
 
 ### Features

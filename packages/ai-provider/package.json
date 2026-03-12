@@ -2,19 +2,19 @@
   "name": "@workglow/ai-provider",
   "type": "module",
   "sideEffects": false,
-  "version": "0.0.116",
+  "version": "0.0.117",
   "description": "AI provider integrations for Workglow, supporting OpenAI, Hugging Face Transformers, MediaPipe, and GGML models.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
     "watch-js": "concurrently -c 'auto' -n 'code,browser' 'bun run watch-code' 'bun run watch-browser'",
     "watch-code": "bun build --splitting --watch --no-clear-screen --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-hf-inference/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
-    "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
+    "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts ./src/web-browser/index.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "concurrently -c 'auto' -n 'code,browser,types' 'bun run build-code' 'bun run build-browser' 'bun run build-types'",
     "build-js": "concurrently -c 'auto' -n 'code,browser' 'bun run build-code' 'bun run build-browser'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-code": "bun build --splitting --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-hf-inference/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
-    "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts",
+    "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts ./src/web-browser/index.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test"
@@ -64,6 +64,10 @@
     "./tf-mediapipe": {
       "browser": "./dist/tf-mediapipe/index.js",
       "types": "./dist/tf-mediapipe/index.d.ts"
+    },
+    "./web-browser": {
+      "browser": "./dist/web-browser/index.js",
+      "types": "./dist/web-browser/index.d.ts"
     }
   },
   "files": [
