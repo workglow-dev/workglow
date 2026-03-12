@@ -118,7 +118,11 @@ export const WebBrowser_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   WebBrowserModelConfig
 > = async (input, model, update_progress, signal) => {
-  const factory = getApi("Summarizer", typeof Summarizer !== "undefined" ? Summarizer : undefined);
+  const factory = getApi(
+    "Summarizer",
+    (globalThis as any)?.ai?.summarizer ??
+      (typeof Summarizer !== "undefined" ? Summarizer : undefined),
+  );
   await ensureAvailable("Summarizer", factory);
   const config = getConfig(model);
 
