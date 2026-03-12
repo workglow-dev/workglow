@@ -1,5 +1,15 @@
 # @workglow/job-queue
 
+## 0.0.118
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Chores
+
+- update tsconfig to avoid node_modules
+
 ## 0.0.117
 
 ### Chores

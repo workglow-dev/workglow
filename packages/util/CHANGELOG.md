@@ -1,5 +1,20 @@
 # @workglow/util
 
+## 0.0.118
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Refactors
+
+- move prototype assignments to Workflow.ts to resolve circular dependency issues
+
+### Chores
+
+- update tsconfig to avoid node_modules
+- update telemetry provider handling and GitHub Actions workflow
+
 ## 0.0.117
 
 ### Chores

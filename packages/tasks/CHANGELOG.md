@@ -1,5 +1,16 @@
 # @workglow/tasks
 
+## 0.0.118
+
+### Features
+
+- add chrome web browser provider (#303)
+- introduce AgentTask for multi-turn agentic loops
+
+### Chores
+
+- update tsconfig to avoid node_modules
+
 ## 0.0.117
 
 ### Features

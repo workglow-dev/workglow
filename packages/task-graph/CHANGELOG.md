@@ -1,5 +1,25 @@
 # @workglow/task-graph
 
+## 0.0.118
+
+### Features
+
+- add chrome web browser provider (#303)
+
+#### task-graph
+
+- make context.own() propagate registry and abort signal to owned tasks (#296)
+
+### Refactors
+
+- move prototype assignments to Workflow.ts to resolve circular dependency issues
+- unify tool call handling across providers
+
+### Chores
+
+- update tsconfig to avoid node_modules
+- update VSCode settings and refactor task categories
+
 ## 0.0.117
 
 ### Features

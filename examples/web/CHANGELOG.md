@@ -1,5 +1,11 @@
 # @workglow/web
 
+## 0.0.118
+
+### Features
+
+- add chrome web browser provider (#303)
+
 ## 0.0.117
 
 ## 0.0.116
