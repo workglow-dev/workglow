@@ -217,6 +217,18 @@ export const WebBrowser_TextTranslation: AiProviderRunFn<
   );
   await ensureAvailable("Translator", factory);
 
+  // Ensure the requested language pair is supported by this Translator
+  const translationAvailability = await factory.availability({
+    sourceLanguage: input.source_lang as string,
+    targetLanguage: input.target_lang as string,
+  });
+  if (!translationAvailability || translationAvailability.available === false) {
+    throw new PermanentJobError(
+      `Translator not available for language pair ${String(
+        input.source_lang
+      )} -> ${String(input.target_lang)}`
+    );
+  }
   if (Array.isArray(input.text)) {
     getLogger().warn(
       "WebBrowser_TextTranslation: array input received; processing sequentially"
