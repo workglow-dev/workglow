@@ -1,5 +1,11 @@
 # @workglow/job-queue
 
+## 0.0.117
+
+### Chores
+
+- update tsconfig to avoid node_modules
+
 ## 0.0.116
 
 ### Features
