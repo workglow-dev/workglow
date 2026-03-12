@@ -339,9 +339,5 @@ declare module "../task-graph/Workflow" {
   }
 }
 
-queueMicrotask(async () => {
-  const { CreateLoopWorkflow, CreateEndLoopWorkflow, Workflow } =
-    await import("../task-graph/Workflow");
-  Workflow.prototype.group = CreateLoopWorkflow(GraphAsTask);
-  Workflow.prototype.endGroup = CreateEndLoopWorkflow("endGroup");
-});
+// Prototype assignments live in Workflow.ts (bottom of file) to avoid
+// circular-dependency issues at module evaluation time.

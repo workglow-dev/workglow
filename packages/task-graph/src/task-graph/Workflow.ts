@@ -1623,3 +1623,9 @@ export class Workflow<
     return this._parentWorkflow;
   }
 }
+
+// Module augmentation prototype assignments — placed here (not in GraphAsTask.ts)
+// so that Workflow is fully defined before assignment. GraphAsTask is already
+// imported at the top of this file, so it's safe to reference here.
+Workflow.prototype.group = CreateLoopWorkflow(GraphAsTask);
+Workflow.prototype.endGroup = CreateEndLoopWorkflow("endGroup");

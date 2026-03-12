@@ -18,6 +18,7 @@ export type JsonSchemaCustomProps = {
   "x-ui-group-order"?: number;
   "x-ui-group-priority"?: number;
   "x-ui-group-open"?: boolean;
+  "x-ui-enum-labels"?: Record<string, string>; // Map of enum value -> display label
   "x-ui-manual"?: boolean; // marks a property as manually added by the user
   "x-ui"?: unknown;
   "x-ui-iteration"?: boolean; // marks property as iteration-injected (hidden from parent, read-only in subgraph)

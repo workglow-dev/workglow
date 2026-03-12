@@ -6,7 +6,7 @@
 
 import type { DataPortSchema } from "@workglow/util";
 import { PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
-import type { CreateLoopWorkflow } from "../task-graph/Workflow";
+import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import { IteratorTask, IteratorTaskConfig, iteratorTaskConfigSchema } from "./IteratorTask";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 export const mapTaskConfigSchema = {
@@ -171,9 +171,5 @@ declare module "../task-graph/Workflow" {
   }
 }
 
-queueMicrotask(async () => {
-  const { CreateLoopWorkflow, CreateEndLoopWorkflow, Workflow } =
-    await import("../task-graph/Workflow");
-  Workflow.prototype.map = CreateLoopWorkflow(MapTask);
-  Workflow.prototype.endMap = CreateEndLoopWorkflow("endMap");
-});
+Workflow.prototype.map = CreateLoopWorkflow(MapTask);
+Workflow.prototype.endMap = CreateEndLoopWorkflow("endMap");
