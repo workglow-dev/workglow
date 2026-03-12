@@ -1,5 +1,20 @@
 # @workglow/tasks
 
+## 0.0.118
+
+### Features
+
+- add chrome web browser provider (#303)
+- introduce AgentTask for multi-turn agentic loops
+
+### Refactors
+
+- update MCP task schemas to use properties and allOf from mcpServerConfigSchema
+
+### Chores
+
+- update tsconfig to avoid node_modules
+
 ## 0.0.117
 
 ### Features

@@ -1,5 +1,21 @@
 # @workglow/util
 
+## 0.0.118
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Refactors
+
+- update MCP task schemas to use properties and allOf from mcpServerConfigSchema
+- move prototype assignments to Workflow.ts to resolve circular dependency issues
+
+### Chores
+
+- update tsconfig to avoid node_modules
+- update telemetry provider handling and GitHub Actions workflow
+
 ## 0.0.117
 
 ### Chores
