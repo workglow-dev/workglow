@@ -25,7 +25,7 @@ const configSchema = {
   type: "object",
   properties: {
     ...TaskConfigSchema["properties"],
-    ...mcpServerConfigSchema,
+    ...mcpServerConfigSchema.properties,
     prompt_name: {
       type: "string",
       title: "Prompt Name",
@@ -37,6 +37,7 @@ const configSchema = {
   if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
   then: { required: ["command"] },
   else: { required: ["server_url"] },
+  allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 

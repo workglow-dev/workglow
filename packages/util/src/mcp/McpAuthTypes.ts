@@ -6,7 +6,6 @@
  * Shared MCP authentication type definitions and JSON Schema.
  */
 
-import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
 
 /**
  * Supported MCP authentication types.
@@ -79,73 +78,140 @@ export type McpAuthConfig =
   | McpAuthStaticPrivateKeyJwt
   | McpAuthAuthorizationCode;
 
-// ── JSON Schema properties for auth config ─────────────────────────────
+// ── JSON Schema for auth config (discriminated union on auth_type) ─────
 
 export const mcpAuthConfigSchema = {
-  auth_type: {
-    type: "string",
-    enum: mcpAuthTypes,
-    title: "Auth Type",
-    description: "Authentication method for connecting to the MCP server",
-    default: "none",
+  properties: {
+    auth_type: {
+      type: "string",
+      enum: mcpAuthTypes,
+      title: "Auth Type",
+      description: "Authentication method for connecting to the MCP server",
+      default: "none",
+    },
+    auth_token: {
+      type: "string",
+      format: "credential",
+      title: "Bearer Token",
+      description: "Static bearer token or API key (for bearer auth)",
+    },
+    auth_client_id: {
+      type: "string",
+      title: "Client ID",
+      description: "OAuth client ID (for OAuth auth types)",
+    },
+    auth_client_secret: {
+      type: "string",
+      format: "credential",
+      title: "Client Secret",
+      description: "OAuth client secret (for client_credentials auth)",
+    },
+    auth_private_key: {
+      type: "string",
+      format: "credential",
+      title: "Private Key",
+      description: "PEM or JWK private key (for private_key_jwt auth)",
+    },
+    auth_algorithm: {
+      type: "string",
+      title: "Algorithm",
+      description: "JWT signing algorithm, e.g. RS256, ES256 (for private_key_jwt auth)",
+    },
+    auth_jwt_bearer_assertion: {
+      type: "string",
+      format: "credential",
+      title: "JWT Assertion",
+      description: "Pre-built JWT assertion (for static_private_key_jwt auth)",
+    },
+    auth_redirect_url: {
+      type: "string",
+      format: "uri",
+      title: "Redirect URL",
+      description: "OAuth redirect URL (for authorization_code auth)",
+    },
+    auth_scope: {
+      type: "string",
+      title: "Scope",
+      description: "OAuth scope (space-separated)",
+    },
+    auth_client_name: {
+      type: "string",
+      title: "Client Name",
+      description: "Optional OAuth client display name",
+    },
+    auth_jwt_lifetime_seconds: {
+      type: "number",
+      title: "JWT Lifetime",
+      description: "JWT lifetime in seconds (default: 300)",
+      minimum: 1,
+    },
   },
-  auth_token: {
-    type: "string",
-    format: "credential",
-    title: "Bearer Token",
-    description: "Static bearer token or API key (for bearer auth)",
-  },
-  auth_client_id: {
-    type: "string",
-    title: "Client ID",
-    description: "OAuth client ID (for OAuth auth types)",
-  },
-  auth_client_secret: {
-    type: "string",
-    format: "credential",
-    title: "Client Secret",
-    description: "OAuth client secret (for client_credentials auth)",
-  },
-  auth_private_key: {
-    type: "string",
-    format: "credential",
-    title: "Private Key",
-    description: "PEM or JWK private key (for private_key_jwt auth)",
-  },
-  auth_algorithm: {
-    type: "string",
-    title: "Algorithm",
-    description: "JWT signing algorithm, e.g. RS256, ES256 (for private_key_jwt auth)",
-  },
-  auth_jwt_bearer_assertion: {
-    type: "string",
-    format: "credential",
-    title: "JWT Assertion",
-    description: "Pre-built JWT assertion (for static_private_key_jwt auth)",
-  },
-  auth_redirect_url: {
-    type: "string",
-    format: "uri",
-    title: "Redirect URL",
-    description: "OAuth redirect URL (for authorization_code auth)",
-  },
-  auth_scope: {
-    type: "string",
-    title: "Scope",
-    description: "OAuth scope (space-separated)",
-  },
-  auth_client_name: {
-    type: "string",
-    title: "Client Name",
-    description: "Optional OAuth client display name",
-  },
-  auth_jwt_lifetime_seconds: {
-    type: "number",
-    title: "JWT Lifetime",
-    description: "JWT lifetime in seconds (default: 300)",
-    minimum: 1,
-  },
-} as const satisfies DataPortSchemaObject["properties"];
+  allOf: [
+    {
+      if: { properties: { auth_type: { const: "bearer" } }, required: ["auth_type"] },
+      then: {
+        required: ["auth_token"],
+        properties: { auth_token: true },
+      },
+    },
+    {
+      if: {
+        properties: { auth_type: { const: "client_credentials" } },
+        required: ["auth_type"],
+      },
+      then: {
+        required: ["auth_client_id", "auth_client_secret"],
+        properties: {
+          auth_client_id: true,
+          auth_client_secret: true,
+          auth_client_name: true,
+          auth_scope: true,
+        },
+      },
+    },
+    {
+      if: { properties: { auth_type: { const: "private_key_jwt" } }, required: ["auth_type"] },
+      then: {
+        required: ["auth_client_id", "auth_private_key", "auth_algorithm"],
+        properties: {
+          auth_client_id: true,
+          auth_private_key: true,
+          auth_algorithm: true,
+          auth_client_name: true,
+          auth_jwt_lifetime_seconds: true,
+          auth_scope: true,
+        },
+      },
+    },
+    {
+      if: {
+        properties: { auth_type: { const: "static_private_key_jwt" } },
+        required: ["auth_type"],
+      },
+      then: {
+        required: ["auth_client_id", "auth_jwt_bearer_assertion"],
+        properties: {
+          auth_client_id: true,
+          auth_jwt_bearer_assertion: true,
+          auth_client_name: true,
+          auth_scope: true,
+        },
+      },
+    },
+    {
+      if: { properties: { auth_type: { const: "authorization_code" } }, required: ["auth_type"] },
+      then: {
+        required: ["auth_client_id", "auth_redirect_url"],
+        properties: {
+          auth_client_id: true,
+          auth_client_secret: true,
+          auth_redirect_url: true,
+          auth_scope: true,
+        },
+      },
+    },
+  ],
+} as const;
 
 /**
  * Runtime type guard for McpAuthType.

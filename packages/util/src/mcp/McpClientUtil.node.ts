@@ -14,7 +14,6 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { getGlobalCredentialStore } from "../credentials/CredentialStoreRegistry";
-import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
 import { getLogger } from "../logging/LoggerRegistry";
 import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 import { buildAuthConfig, mcpAuthConfigSchema } from "./McpAuthTypes";
@@ -23,37 +22,40 @@ import type { McpAuthConfig } from "./McpAuthTypes";
 export const mcpTransportTypes = ["stdio", "sse", "streamable-http"] as const;
 
 export const mcpServerConfigSchema = {
-  transport: {
-    type: "string",
-    enum: mcpTransportTypes,
-    title: "Transport",
-    description: "The transport type to use for connecting to the MCP server",
+  properties: {
+    transport: {
+      type: "string",
+      enum: mcpTransportTypes,
+      title: "Transport",
+      description: "The transport type to use for connecting to the MCP server",
+    },
+    server_url: {
+      type: "string",
+      format: "string:uri",
+      title: "Server URL",
+      description: "The URL of the MCP server (for sse and streamable-http transports)",
+    },
+    command: {
+      type: "string",
+      title: "Command",
+      description: "The command to run (for stdio transport)",
+    },
+    args: {
+      type: "array",
+      items: { type: "string" },
+      title: "Arguments",
+      description: "Command arguments (for stdio transport)",
+    },
+    env: {
+      type: "object",
+      additionalProperties: { type: "string" },
+      title: "Environment",
+      description: "Environment variables (for stdio transport)",
+    },
+    ...mcpAuthConfigSchema.properties,
   },
-  server_url: {
-    type: "string",
-    format: "string:uri",
-    title: "Server URL",
-    description: "The URL of the MCP server (for sse and streamable-http transports)",
-  },
-  command: {
-    type: "string",
-    title: "Command",
-    description: "The command to run (for stdio transport)",
-  },
-  args: {
-    type: "array",
-    items: { type: "string" },
-    title: "Arguments",
-    description: "Command arguments (for stdio transport)",
-  },
-  env: {
-    type: "object",
-    additionalProperties: { type: "string" },
-    title: "Environment",
-    description: "Environment variables (for stdio transport)",
-  },
-  ...mcpAuthConfigSchema,
-} as const satisfies DataPortSchemaObject["properties"];
+  allOf: mcpAuthConfigSchema.allOf,
+} as const;
 
 export type McpTransportType = (typeof mcpTransportTypes)[number];
 

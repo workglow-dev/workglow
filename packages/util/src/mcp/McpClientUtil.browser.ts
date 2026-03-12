@@ -12,7 +12,6 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { getGlobalCredentialStore } from "../credentials/CredentialStoreRegistry";
-import type { DataPortSchemaObject } from "../json-schema/DataPortSchema.js";
 import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 import { buildAuthConfig, mcpAuthConfigSchema } from "./McpAuthTypes";
 import type { McpAuthConfig } from "./McpAuthTypes";
@@ -20,20 +19,23 @@ import type { McpAuthConfig } from "./McpAuthTypes";
 export const mcpTransportTypes = ["streamable-http", "sse"] as const;
 
 export const mcpServerConfigSchema = {
-  transport: {
-    type: "string",
-    enum: mcpTransportTypes,
-    title: "Transport",
-    description: "The transport type to use for connecting to the MCP server",
+  properties: {
+    transport: {
+      type: "string",
+      enum: mcpTransportTypes,
+      title: "Transport",
+      description: "The transport type to use for connecting to the MCP server",
+    },
+    server_url: {
+      type: "string",
+      format: "uri",
+      title: "Server URL",
+      description: "The URL of the MCP server (for streamable-http transport)",
+    },
+    ...mcpAuthConfigSchema.properties,
   },
-  server_url: {
-    type: "string",
-    format: "uri",
-    title: "Server URL",
-    description: "The URL of the MCP server (for streamable-http transport)",
-  },
-  ...mcpAuthConfigSchema,
-} as const satisfies DataPortSchemaObject["properties"];
+  allOf: mcpAuthConfigSchema.allOf,
+} as const;
 
 export type McpTransportType = (typeof mcpTransportTypes)[number];
 

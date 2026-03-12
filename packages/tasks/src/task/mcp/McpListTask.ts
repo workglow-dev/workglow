@@ -18,7 +18,7 @@ const mcpListTypes = ["tools", "resources", "prompts"] as const;
 const inputSchema = {
   type: "object",
   properties: {
-    ...mcpServerConfigSchema,
+    ...mcpServerConfigSchema.properties,
     list_type: {
       type: "string",
       enum: mcpListTypes,
@@ -27,6 +27,7 @@ const inputSchema = {
     },
   },
   required: ["transport", "list_type"],
+  allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
