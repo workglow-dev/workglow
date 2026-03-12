@@ -11,7 +11,7 @@
  * @see https://developer.chrome.com/docs/ai/built-in-apis
  */
 
-type AIAvailability = "no" | "after-download" | "readily";
+export type AIAvailability = "unavailable" | "downloadable" | "available";
 
 // ---------------------------------------------------------------------------
 // Summarizer API
@@ -124,10 +124,7 @@ interface AIRewriterCreateOptions {
 }
 
 interface AIRewriter {
-  rewrite(
-    input: string,
-    options?: { signal?: AbortSignal; context?: string }
-  ): Promise<string>;
+  rewrite(input: string, options?: { signal?: AbortSignal; context?: string }): Promise<string>;
   rewriteStreaming(
     input: string,
     options?: { signal?: AbortSignal; context?: string }

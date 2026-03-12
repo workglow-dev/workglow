@@ -23,6 +23,7 @@ import type {
 import { PermanentJobError } from "@workglow/job-queue";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
+import { AIAvailability } from "./WebBrowser_ChromeAI";
 import type { WebBrowserModelConfig } from "./WebBrowser_ModelSchema";
 
 // ========================================================================
@@ -51,15 +52,14 @@ function getApi<T>(name: string, global: T | undefined): T {
   return global;
 }
 
-async function ensureAvailable(name: string, factory: { availability(): Promise<string> }) {
+async function ensureAvailable(name: string, factory: { availability(): Promise<AIAvailability> }) {
   const status = await factory.availability();
-  if (status === "no") {
+  if (status === "unavailable") {
     throw new PermanentJobError(
       `Chrome Built-in AI "${name}" is not available (status: "no"). ` +
         `Ensure you are using a compatible Chrome version with the flag enabled.`
     );
   }
-  // "after-download" and "readily" are both acceptable — create() handles downloading.
 }
 
 /**
@@ -137,15 +137,13 @@ export const WebBrowser_TextSummary: AiProviderRunFn<
   const factory = getApi(
     "Summarizer",
     (globalThis as any)?.ai?.summarizer ??
-      (typeof Summarizer !== "undefined" ? Summarizer : undefined),
+      (typeof Summarizer !== "undefined" ? Summarizer : undefined)
   );
   await ensureAvailable("Summarizer", factory);
   const config = getConfig(model);
 
   if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "WebBrowser_TextSummary: array input received; processing sequentially"
-    );
+    getLogger().warn("WebBrowser_TextSummary: array input received; processing sequentially");
     const results: string[] = [];
     for (const item of input.text as string[]) {
       const summarizer = await factory.create({
@@ -227,10 +225,7 @@ export const WebBrowser_TextTranslation: AiProviderRunFn<
   TextTranslationTaskOutput,
   WebBrowserModelConfig
 > = async (input, model, update_progress, signal) => {
-  const factory = getApi(
-    "Translator",
-    typeof Translator !== "undefined" ? Translator : undefined
-  );
+  const factory = getApi("Translator", typeof Translator !== "undefined" ? Translator : undefined);
   await ensureAvailable("Translator", factory);
 
   // Ensure the requested language pair is supported by this Translator
@@ -238,7 +233,7 @@ export const WebBrowser_TextTranslation: AiProviderRunFn<
     sourceLanguage: input.source_lang as string,
     targetLanguage: input.target_lang as string,
   });
-  if (!translationAvailability || translationAvailability.available === false) {
+  if (!translationAvailability || translationAvailability === "unavailable") {
     throw new PermanentJobError(
       `Translator not available for language pair ${String(
         input.source_lang
@@ -246,9 +241,7 @@ export const WebBrowser_TextTranslation: AiProviderRunFn<
     );
   }
   if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "WebBrowser_TextTranslation: array input received; processing sequentially"
-    );
+    getLogger().warn("WebBrowser_TextTranslation: array input received; processing sequentially");
     const results: string[] = [];
     for (const item of input.text as string[]) {
       const translator = await factory.create({
@@ -290,9 +283,7 @@ export const WebBrowser_TextGeneration: AiProviderRunFn<
   await ensureAvailable("LanguageModel", factory);
 
   if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "WebBrowser_TextGeneration: array input received; processing sequentially"
-    );
+    getLogger().warn("WebBrowser_TextGeneration: array input received; processing sequentially");
     const results: string[] = [];
     for (const item of input.prompt as string[]) {
       const session = await factory.create({
@@ -330,9 +321,7 @@ export const WebBrowser_TextRewriter: AiProviderRunFn<
   const config = getConfig(model);
 
   if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "WebBrowser_TextRewriter: array input received; processing sequentially"
-    );
+    getLogger().warn("WebBrowser_TextRewriter: array input received; processing sequentially");
     const results: string[] = [];
     for (const item of input.text as string[]) {
       const rewriter = await factory.create({
@@ -422,11 +411,25 @@ export const WebBrowser_TextTranslation_Stream: AiProviderStreamFn<
   TextTranslationTaskOutput,
   WebBrowserModelConfig
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextTranslationTaskOutput>> {
-  const factory = getApi(
-    "Translator",
-    typeof Translator !== "undefined" ? Translator : undefined
-  );
-  await ensureAvailable("Translator", factory);
+  const factory = getApi("Translator", typeof Translator !== "undefined" ? Translator : undefined);
+  let status: AIAvailability;
+  try {
+    status = await factory.availability({
+      sourceLanguage: input.source_lang as string,
+      targetLanguage: input.target_lang as string,
+    });
+  } catch (error) {
+    throw new PermanentJobError(
+      `Chrome Built-in AI "Translator" is not available (status: "no"). ` +
+        `Ensure you are using a compatible Chrome version with the flag enabled.`
+    );
+  }
+  if (status === "unavailable") {
+    throw new PermanentJobError(
+      `Chrome Built-in AI "Translator" is not available (status: "no"). ` +
+        `Ensure you are using a compatible Chrome version with the flag enabled.`
+    );
+  }
 
   const translator = await factory.create({
     sourceLanguage: input.source_lang as string,
@@ -459,7 +462,9 @@ export const WebBrowser_TextGeneration_Stream: AiProviderStreamFn<
   });
   try {
     const stream = session.promptStreaming(input.prompt as string, { signal });
-    yield* snapshotStreamToTextDeltas<TextGenerationTaskOutput>(stream, "text", (text) => ({ text }));
+    yield* snapshotStreamToTextDeltas<TextGenerationTaskOutput>(stream, "text", (text) => ({
+      text,
+    }));
   } finally {
     session.destroy();
   }
