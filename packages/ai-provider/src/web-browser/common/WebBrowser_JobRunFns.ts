@@ -65,21 +65,37 @@ async function ensureAvailable(name: string, factory: { availability(): Promise<
 /**
  * Chrome streaming APIs return progressive full-text snapshots. This helper
  * converts them to append-mode text-delta events by diffing successive snapshots.
+ *
+ * When the API emits a non-monotonic snapshot (one that doesn't extend the
+ * previous snapshot as a strict prefix — e.g., a correction, truncation, or
+ * restart), the helper falls back to emitting a `snapshot` event carrying the
+ * full new text (built via `buildFallbackOutput`) and resets tracking so that
+ * subsequent chunks are diffed against the new baseline.
  */
 async function* snapshotStreamToTextDeltas<Output>(
   stream: ReadableStream<string>,
-  port: string
+  port: string,
+  buildFallbackOutput: (text: string) => Output
 ): AsyncIterable<StreamEvent<Output>> {
   const reader = stream.getReader();
-  let previousLength = 0;
+  let previousSnapshot = "";
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const delta = value.slice(previousLength);
-      previousLength = value.length;
-      if (delta) {
-        yield { type: "text-delta", port, textDelta: delta };
+      if (value.startsWith(previousSnapshot)) {
+        // Normal monotonic case: emit only the new suffix as a text-delta.
+        const delta = value.slice(previousSnapshot.length);
+        previousSnapshot = value;
+        if (delta) {
+          yield { type: "text-delta", port, textDelta: delta };
+        }
+      } else {
+        // Non-monotonic snapshot (correction, truncation, or restart):
+        // fall back to a full snapshot event so the consumer can replace its
+        // accumulated state, then reset tracking to the new baseline.
+        previousSnapshot = value;
+        yield { type: "snapshot", data: buildFallbackOutput(value) };
       }
     }
   } finally {
@@ -395,7 +411,7 @@ export const WebBrowser_TextSummary_Stream: AiProviderStreamFn<
   });
   try {
     const stream = summarizer.summarizeStreaming(input.text as string, { signal });
-    yield* snapshotStreamToTextDeltas<TextSummaryTaskOutput>(stream, "text");
+    yield* snapshotStreamToTextDeltas<TextSummaryTaskOutput>(stream, "text", (text) => ({ text }));
   } finally {
     summarizer.destroy();
   }
@@ -443,7 +459,7 @@ export const WebBrowser_TextGeneration_Stream: AiProviderStreamFn<
   });
   try {
     const stream = session.promptStreaming(input.prompt as string, { signal });
-    yield* snapshotStreamToTextDeltas<TextGenerationTaskOutput>(stream, "text");
+    yield* snapshotStreamToTextDeltas<TextGenerationTaskOutput>(stream, "text", (text) => ({ text }));
   } finally {
     session.destroy();
   }
@@ -467,7 +483,7 @@ export const WebBrowser_TextRewriter_Stream: AiProviderStreamFn<
       signal,
       context: input.prompt as string | undefined,
     });
-    yield* snapshotStreamToTextDeltas<TextRewriterTaskOutput>(stream, "text");
+    yield* snapshotStreamToTextDeltas<TextRewriterTaskOutput>(stream, "text", (text) => ({ text }));
   } finally {
     rewriter.destroy();
   }
