@@ -6,7 +6,7 @@
 
 import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai";
 import { DataPortSchemaObject, FromSchema } from "@workglow/util";
-import { WEB_BROWSER, WebBrowserPipelineTask } from "./WebBrowser_Constants";
+import { WEB_BROWSER } from "./WebBrowser_Constants";
 
 export const WebBrowserModelSchema = {
   type: "object",
@@ -19,11 +19,6 @@ export const WebBrowserModelSchema = {
       type: "object",
       description: "Chrome Built-in AI configuration.",
       properties: {
-        pipeline: {
-          type: "string",
-          enum: Object.values(WebBrowserPipelineTask),
-          description: "Which Chrome Built-in AI API to use.",
-        },
         summary_type: {
           type: "string",
           enum: ["tl;dr", "key-points", "teaser", "headline"],
@@ -50,7 +45,7 @@ export const WebBrowserModelSchema = {
           description: "Length adjustment for rewriting (Rewriter API only).",
         },
       },
-      required: ["pipeline"],
+      required: [],
       additionalProperties: false,
     },
   },
