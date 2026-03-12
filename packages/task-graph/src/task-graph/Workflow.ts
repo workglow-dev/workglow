@@ -1093,6 +1093,18 @@ export class Workflow<
 
     for (const task of tasks) {
       if (task.type === "InputTask") {
+        // If the schema is marked as fully manual (x-ui-manual at schema level),
+        // skip edge-based regeneration — the user explicitly defined this schema.
+        const existingConfig = (task as any).config;
+        const existingSchema = existingConfig?.inputSchema ?? existingConfig?.outputSchema;
+        if (
+          existingSchema &&
+          typeof existingSchema === "object" &&
+          (existingSchema as Record<string, unknown>)["x-ui-manual"] === true
+        ) {
+          continue;
+        }
+
         const outgoing = graph.getTargetDataflows(task.id);
         if (outgoing.length === 0) continue;
 
@@ -1454,12 +1466,31 @@ export class Workflow<
         const earlierTask = earlierTasks[i];
         const earlierOutputSchema = earlierTask.outputSchema();
 
-        // When earlier task is InputTask (pass-through), satisfy all unmatched
-        // required inputs directly. InputTask's schema may have been narrowed by
-        // updateBoundaryTaskSchemas, but it can always provide any port at runtime.
+        // When earlier task is InputTask (pass-through), satisfy unmatched
+        // required inputs. If the InputTask has an explicitly defined schema
+        // (x-ui-manual), only connect ports that exist in its schema.
+        // Otherwise, treat it as a universal provider.
         if (earlierTask.type === "InputTask") {
+          const inputConfig = (earlierTask as any).config;
+          const inputSchema = inputConfig?.inputSchema ?? inputConfig?.outputSchema;
+          const isManualSchema =
+            inputSchema &&
+            typeof inputSchema === "object" &&
+            (inputSchema as Record<string, unknown>)["x-ui-manual"] === true;
+          const inputProperties =
+            isManualSchema &&
+            inputSchema &&
+            typeof inputSchema === "object" &&
+            "properties" in inputSchema &&
+            inputSchema.properties &&
+            typeof inputSchema.properties === "object"
+              ? new Set(Object.keys(inputSchema.properties as Record<string, unknown>))
+              : undefined;
+
           for (const requiredInputId of [...unmatchedRequired]) {
             if (matches.has(requiredInputId)) continue;
+            // If schema is manual, only connect ports that exist in the explicit schema
+            if (inputProperties && !inputProperties.has(requiredInputId)) continue;
             matches.set(requiredInputId, requiredInputId);
             graph.addDataflow(
               new Dataflow(earlierTask.id, requiredInputId, targetTask.id, requiredInputId)

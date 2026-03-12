@@ -13,6 +13,7 @@ export type JsonSchemaCustomProps = {
   "x-ui-order"?: number;
   "x-ui-priority"?: number;
   "x-ui-viewer"?: string;
+  "x-ui-type-override"?: boolean;
   "x-ui-editor"?: string;
   "x-ui-group"?: string;
   "x-ui-group-order"?: number;
