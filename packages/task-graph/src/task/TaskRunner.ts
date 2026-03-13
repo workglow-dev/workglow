@@ -133,6 +133,17 @@ export class TaskRunner<
     await this.handleStart(config);
 
     try {
+      // Resolve schema-annotated config properties (e.g., mcp-server references)
+      const configSchemaResult = (this.task.constructor as typeof Task).configSchema();
+      if (configSchemaResult) {
+        const resolvedConfig = await resolveSchemaInputs(
+          this.task.config as Record<string, unknown>,
+          configSchemaResult,
+          { registry: this.registry }
+        );
+        Object.assign(this.task.config, resolvedConfig);
+      }
+
       this.task.setInput(overrides);
 
       // Resolve schema-annotated inputs (models, repositories) before validation
@@ -185,6 +196,16 @@ export class TaskRunner<
         this.task.runOutputData = outputs ?? ({} as Output);
       }
 
+      // Resolve schema-annotated output properties
+      const outSchema = this.task.outputSchema();
+      if (outSchema && this.task.runOutputData) {
+        this.task.runOutputData = (await resolveSchemaInputs(
+          this.task.runOutputData as Record<string, unknown>,
+          outSchema,
+          { registry: this.registry }
+        )) as Output;
+      }
+
       await this.handleComplete();
 
       return this.task.runOutputData as Output;
@@ -205,6 +226,17 @@ export class TaskRunner<
     if (this.task.status === TaskStatus.PROCESSING) {
       return this.task.runOutputData as Output;
     }
+    // Resolve schema-annotated config properties (e.g., mcp-server references)
+    const configSchemaResult = (this.task.constructor as typeof Task).configSchema();
+    if (configSchemaResult) {
+      const resolvedConfig = await resolveSchemaInputs(
+        this.task.config as Record<string, unknown>,
+        configSchemaResult,
+        { registry: this.registry }
+      );
+      Object.assign(this.task.config, resolvedConfig);
+    }
+
     this.task.setInput(overrides);
 
     // Resolve schema-annotated inputs (models, repositories) before validation
@@ -229,6 +261,16 @@ export class TaskRunner<
       );
 
       this.task.runOutputData = resultReactive;
+
+      // Resolve schema-annotated output properties
+      const outSchema = this.task.outputSchema();
+      if (outSchema && this.task.runOutputData) {
+        this.task.runOutputData = (await resolveSchemaInputs(
+          this.task.runOutputData as Record<string, unknown>,
+          outSchema,
+          { registry: this.registry }
+        )) as Output;
+      }
 
       await this.handleCompleteReactive();
     } catch (err: any) {

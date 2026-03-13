@@ -24,6 +24,12 @@ const configSchema = {
   type: "object",
   properties: {
     ...TaskConfigSchema["properties"],
+    server: {
+      type: "string",
+      format: "mcp-server",
+      title: "MCP Server",
+      description: "Server ID from the MCP server registry (alternative to inline config)",
+    },
     ...mcpServerConfigSchema.properties,
     resource_uri: {
       type: "string",
@@ -32,10 +38,10 @@ const configSchema = {
       format: "string:uri:mcp-resourceuri",
     },
   },
-  required: ["transport", "resource_uri"],
+  required: ["resource_uri"],
   if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
   then: { required: ["command"] },
-  else: { required: ["server_url"] },
+  else: {},
   allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -115,14 +121,26 @@ export class McpResourceReadTask extends Task<
     return configSchema;
   }
 
+  private getMcpServerConfig(): McpServerConfig {
+    const server = this.config.server as Record<string, unknown> | string | undefined;
+    const base = typeof server === "object" && server !== null ? server : {};
+    const merged = { ...base } as Record<string, unknown>;
+    for (const key of ["transport", "server_url", "command", "args", "env"] as const) {
+      if (this.config[key] !== undefined) {
+        merged[key] = this.config[key];
+      }
+    }
+    if (!merged.transport) {
+      throw new Error("MCP server transport is required (provide inline or via server registry)");
+    }
+    return merged as unknown as McpServerConfig;
+  }
+
   async execute(
     _input: McpResourceReadTaskInput,
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {
-    const { client } = await mcpClientFactory.create(
-      this.config as unknown as McpServerConfig,
-      context.signal
-    );
+    const { client } = await mcpClientFactory.create(this.getMcpServerConfig(), context.signal);
     try {
       const result = await client.readResource({ uri: this.config.resource_uri });
       return { contents: result.contents };
