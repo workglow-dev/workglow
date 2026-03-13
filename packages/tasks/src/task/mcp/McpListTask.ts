@@ -33,7 +33,16 @@ const inputSchema = {
     },
   },
   required: ["list_type"],
-  allOf: mcpServerConfigSchema.allOf,
+  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
+  then: { required: ["command"] },
+  else: {
+    if: { required: ["transport"] },
+    then: { required: ["server_url"] },
+  },
+  allOf: [
+    ...mcpServerConfigSchema.allOf,
+    { anyOf: [{ required: ["server"] }, { required: ["transport"] }] },
+  ],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
