@@ -39,6 +39,6 @@ export const McpServerRecordSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchemaObject;
 
-export type McpServerConfig = FromSchema<typeof McpServerConfigSchema>;
+export type McpServerTaskConfig = FromSchema<typeof McpServerConfigSchema>;
 export type McpServerRecord = FromSchema<typeof McpServerRecordSchema>;
 export const McpServerPrimaryKeyNames = ["server_id"] as const;
