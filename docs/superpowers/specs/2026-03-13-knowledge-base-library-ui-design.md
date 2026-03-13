@@ -24,7 +24,7 @@ New file: `routes/_authenticated/project/$project_id/knowledge-bases.tsx`
 
 ### Navigation
 
-In `routes/_authenticated/route.tsx`, add entry after "Models":
+In `routes/_authenticated/route.tsx`, add `Database` to the lucide-react import (line 8) and add entry after "Models":
 
 ```ts
 {
@@ -49,7 +49,8 @@ File: `components/knowledge-base/KnowledgeBaseLibrary.tsx`
 **Data loading:**
 - `getGlobalKnowledgeBaseRepository().enumerateAll()` for persisted records
 - For live stats, looks up each KB from `getGlobalKnowledgeBases()` map, calls `kb.chunkCount()` (async)
-- Subscribes to `KnowledgeBaseRepository` events (`knowledge_base_added`, `knowledge_base_removed`) for auto-refresh
+- For document count, calls `kb.listDocuments()` and uses `.length` (no `documentCount()` method exists on `KnowledgeBase`)
+- Follows Model Library's reload-after-mutation pattern (call `loadKnowledgeBases()` after create/delete), no event subscription needed
 
 **Search:** Filters by title, kb_id, description (case-insensitive).
 
@@ -81,9 +82,15 @@ Trigger: Button with `Plus` icon, text "Create Knowledge Base".
 - **Description** — optional textarea
 - **Vector Dimensions** — required number input, default `384`
 
+**Validation:**
+- Name/ID must be alphanumeric + hyphens/underscores, no spaces
+- Check `getGlobalKnowledgeBases().has(name)` before creating — show error if duplicate
+
 **On submit:** Calls `createKnowledgeBase({ name, vectorDimensions, title, description })` from `@workglow/knowledge-base`. This auto-registers in both the live Map and the repository.
 
-**Reusable:** Exported so it can also be used inline from property/input editors.
+**Note:** `createKnowledgeBase` creates in-memory storage (InMemoryTabularStorage, InMemoryVectorStorage). The metadata record persists in the repository, but document/chunk data lives in memory only. This is acceptable for the lightweight scope — KBs are populated by workflow execution, not the management UI.
+
+**Reusable:** Uses `open`/`onOpenChange`/`onCreated` props (matching `AddModelDialog` API pattern) so it works both standalone and inline from editors.
 
 ## 2. Fix Format Detection
 
@@ -115,18 +122,25 @@ The `getKnowledgeBaseEntries()` functions in both editors already handle `format
 
 ### Property Editor
 
-In `KnowledgeBasePropertyEditor.tsx`, add a footer section below the command list (when popover is open):
+In `KnowledgeBasePropertyEditor.tsx`, add a footer section below the command list (when popover is open). Use state to control the dialog externally (`open`/`onOpenChange`) rather than embedding a trigger inside the popover (avoids Radix Popover + Dialog portal conflicts):
 
 ```tsx
+{/* Footer with Create New button */}
 <div className="border-t p-2">
-  <AddKnowledgeBaseDialog
-    trigger={<Button variant="ghost" size="sm" className="w-full h-7 text-xs"><Plus size={12} className="mr-1" /> Create New</Button>}
-    onCreated={(kbId) => { handleSelect(kbId); }}
-  />
+  <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => { setOpen(false); setCreateDialogOpen(true); }}>
+    <Plus size={12} className="mr-1" /> Create New
+  </Button>
 </div>
+
+{/* Dialog rendered outside the popover */}
+<AddKnowledgeBaseDialog
+  open={createDialogOpen}
+  onOpenChange={setCreateDialogOpen}
+  onCreated={(kbId) => { handleSelect(kbId); }}
+/>
 ```
 
-After creation, auto-select the new KB and close the popover.
+After creation, auto-select the new KB.
 
 ### Input Editor
 
