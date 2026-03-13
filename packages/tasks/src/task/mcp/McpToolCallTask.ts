@@ -25,6 +25,12 @@ const configSchema = {
   type: "object",
   properties: {
     ...TaskConfigSchema["properties"],
+    server: {
+      type: "string",
+      format: "mcp-server",
+      title: "MCP Server",
+      description: "Server ID from the MCP server registry (alternative to inline config)",
+    },
     ...mcpServerConfigSchema.properties,
     tool_name: {
       type: "string",
@@ -33,10 +39,10 @@ const configSchema = {
       format: "string:mcp-toolname",
     },
   },
-  required: ["transport", "tool_name"],
+  required: ["tool_name"],
   if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
   then: { required: ["command"] },
-  else: { required: ["server_url"] },
+  else: {},
   allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -217,19 +223,38 @@ export class McpToolCallTask extends Task<
 
   private _schemasDiscovering = false;
 
+  private getMcpServerConfig(): McpServerConfig | undefined {
+    const server = this.config.server as Record<string, unknown> | string | undefined;
+    const base = typeof server === "object" && server !== null ? server : {};
+    const merged = { ...base } as Record<string, unknown>;
+    // Inline fields override registry values
+    for (const key of ["transport", "server_url", "command", "args", "env"] as const) {
+      if (this.config[key] !== undefined) {
+        merged[key] = this.config[key];
+      }
+    }
+    if (!merged.transport) return undefined;
+    return merged as unknown as McpServerConfig;
+  }
+
   async discoverSchemas(signal?: AbortSignal): Promise<void> {
     if (this.config.inputSchema && this.config.outputSchema) return;
     if (this._schemasDiscovering) return;
-    if (!this.config.transport || !this.config.tool_name) return;
+    if (!this.config.tool_name) return;
+
+    const serverConfig = this.getMcpServerConfig();
+    if (!serverConfig) return;
 
     this._schemasDiscovering = true;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cfg = serverConfig as any;
       const result = await mcpList({
-        transport: this.config.transport,
-        server_url: this.config.server_url,
-        command: this.config.command,
-        args: this.config.args,
-        env: this.config.env,
+        transport: cfg.transport,
+        server_url: cfg.server_url,
+        command: cfg.command,
+        args: cfg.args,
+        env: cfg.env,
         list_type: "tools",
       });
 
@@ -256,10 +281,11 @@ export class McpToolCallTask extends Task<
   ): Promise<McpToolCallTaskOutput> {
     await this.discoverSchemas(context.signal);
 
-    const { client } = await mcpClientFactory.create(
-      this.config as unknown as McpServerConfig,
-      context.signal
-    );
+    const serverConfig = this.getMcpServerConfig();
+    if (!serverConfig) {
+      throw new Error("MCP server transport is required (provide inline or via server registry)");
+    }
+    const { client } = await mcpClientFactory.create(serverConfig, context.signal);
     try {
       const result = await client.callTool({
         name: this.config.tool_name,
