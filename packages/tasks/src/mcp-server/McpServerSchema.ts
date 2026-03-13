@@ -9,8 +9,10 @@ import { DataPortSchemaObject, FromSchema, mcpServerConfigSchema } from "@workgl
 /**
  * A lightweight MCP server configuration suitable for task config/input schemas.
  *
- * When a string `server_id` is provided, the input resolver system resolves it
- * to the full server record from the registry.
+ * This schema carries `format: "mcp-server"`. Task input properties annotated
+ * with that format (e.g. a `server` field) are resolved by the input resolver
+ * system: when such a property receives a plain string, the resolver looks up
+ * that ID in the MCP server registry and substitutes the full server config object.
  */
 export const McpServerConfigSchema = {
   type: "object",
