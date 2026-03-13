@@ -12,7 +12,7 @@ import {
 } from "@workglow/util";
 import { InMemoryMcpServerRepository } from "./InMemoryMcpServerRepository";
 import { McpServerRepository } from "./McpServerRepository";
-import type { McpServerConfig } from "./McpServerSchema";
+import type { McpServerTaskConfig } from "./McpServerSchema";
 
 /**
  * Service token for the global MCP server repository
@@ -44,14 +44,14 @@ export function setGlobalMcpServerRepository(repository: McpServerRepository): v
 }
 
 /**
- * Resolves an MCP server ID to a McpServerConfig from the repository.
+ * Resolves an MCP server ID to a McpServerTaskConfig from the repository.
  * Used by the input resolver system.
  */
 async function resolveMcpServerFromRegistry(
   id: string,
   format: string,
   registry: ServiceRegistry
-): Promise<McpServerConfig | undefined> {
+): Promise<McpServerTaskConfig | undefined> {
   const serverRepo = registry.has(MCP_SERVER_REPOSITORY)
     ? registry.get<McpServerRepository>(MCP_SERVER_REPOSITORY)
     : getGlobalMcpServerRepository();
