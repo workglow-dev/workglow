@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type BaseTabularStorage } from "@workglow/storage";
+import { type ITabularStorage } from "@workglow/storage";
 import { EventEmitter, type EventParameters } from "@workglow/util";
 
 import {
@@ -41,13 +41,13 @@ export class KnowledgeBaseRepository {
   /**
    * Storage for KnowledgeBase records
    */
-  protected readonly storage: BaseTabularStorage<
+  protected readonly storage: ITabularStorage<
     typeof KnowledgeBaseRecordSchema,
     typeof KnowledgeBasePrimaryKeyNames
   >;
 
   constructor(
-    storage: BaseTabularStorage<
+    storage: ITabularStorage<
       typeof KnowledgeBaseRecordSchema,
       typeof KnowledgeBasePrimaryKeyNames
     >
