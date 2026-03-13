@@ -54,6 +54,8 @@ export const BuilderKnowledgeBaseRecordSchemaSecondaryKeys = [["user_id", "proje
 
 File: `components/knowledge-base/BuilderKnowledgeBaseRepository.ts`
 
+**Note:** `KnowledgeBaseRepository` accepts `BaseTabularStorage` (not `ITabularStorage` like `ModelRepository`). Either change the base class to accept `ITabularStorage` for consistency, or use `BaseTabularStorage` in the builder type. `CachedTabularStorage` extends `BaseTabularStorage` so it's compatible either way. Preferred: change `KnowledgeBaseRepository` to accept `ITabularStorage` (aligns with `ModelRepository`).
+
 ```ts
 import { KnowledgeBaseRepository } from "@workglow/knowledge-base";
 import { ITabularStorage } from "@workglow/storage";
@@ -109,13 +111,15 @@ setGlobalKnowledgeBaseRepository(knowledgeBaseRepository);
 
 In initialization sequence: `await kbStorage.setupDatabase()` + `await kbStorage.refreshCache()`.
 
-### Context integration
+### Global registration (NOT React context)
 
-Add `knowledgeBaseRepository` to:
-- `Repositories` interface in `create-repositories.ts`
-- `UserRepositoryContextValue` in `UserRepositoryContext.tsx`
-- `UserRepositoryProvider`
-- Add `useKnowledgeBaseRepository()` hook in `useUserRepositories.ts`
+Models and custom tasks use the global service registry pattern — NOT `UserRepositoryContext`. The KB repository follows the same approach:
+
+- `create-repositories.ts` calls `setGlobalKnowledgeBaseRepository(knowledgeBaseRepository)` (already shown above)
+- Components access it via `getGlobalKnowledgeBaseRepository()` from `@workglow/knowledge-base`
+- Add `knowledgeBaseRepository` to the `Repositories` interface in `create-repositories.ts` and return it
+
+Do NOT modify `UserRepositoryContext.tsx`, `UserRepositoryProvider.tsx`, or `useUserRepositories.ts`.
 
 ### Supabase migration
 
@@ -156,14 +160,14 @@ File: `components/knowledge-base/KnowledgeBaseLibrary.tsx`
 - Delete confirmation AlertDialog
 
 **Data loading:**
-- Uses `useKnowledgeBaseRepository()` hook to get the project-scoped repository
-- Calls `repository.enumerateAll()` for persisted records, then filters by current `user_id` + `project_id`
-- For live stats, looks up each KB from `getGlobalKnowledgeBases()` map if the live instance is available, calls `kb.chunkCount()` (async) and `kb.listDocuments().then(d => d.length)` for document count
+- Uses `getGlobalKnowledgeBaseRepository()` to access the repository (same pattern as `ModelLibrary` calling `getGlobalModelRepository()`)
+- Calls `repository.enumerateAll()` for persisted records (CachedTabularStorage is pre-loaded via `refreshCache()`)
+- For live stats, looks up each KB from `getGlobalKnowledgeBases()` map if the live instance is available, calls `kb.chunkCount()` (async) and `kb.listDocuments().then(d => d.length)` for document count. Show loading/placeholder state while stats are fetched.
 - Follows Model Library's reload-after-mutation pattern (call `loadKnowledgeBases()` after create/delete)
 
 **Search:** Filters by title, kb_id, description (case-insensitive).
 
-**Delete:** Calls `repository.removeKnowledgeBase(kb_id)` and removes from the live `getGlobalKnowledgeBases()` map. Confirmation dialog before delete.
+**Delete:** Calls `getGlobalKnowledgeBaseRepository().removeKnowledgeBase(kb_id)` and removes from the live `getGlobalKnowledgeBases()` map. Confirmation dialog before delete.
 
 ### KnowledgeBaseCard component
 
@@ -192,12 +196,13 @@ Trigger: Button with `Plus` icon, text "Create Knowledge Base".
 - **Vector Dimensions** — required number input, default `384`
 
 **Validation:**
-- Name/ID must be alphanumeric + hyphens/underscores, no spaces
-- Check for duplicate via `repository.getKnowledgeBase(name)` — show error if exists
+- Name/ID (used as `kb_id`) must be alphanumeric + hyphens/underscores, no spaces
+- Check for duplicate via `getGlobalKnowledgeBaseRepository().getKnowledgeBase(kb_id)` — show error if exists
 
 **On submit:**
-1. Build a `BuilderKnowledgeBaseRecord` with `user_id`, `project_id`, computed `document_table`/`chunk_table` from `knowledgeBaseTableNames(name)`, timestamps
-2. Call `repository.addKnowledgeBase(record)` to persist
+1. Get `user_id` from `useAuth()` and `project_id` from `useProjectId()` (same hooks `AddModelDialog` uses)
+2. Build a `BuilderKnowledgeBaseRecord` with `user_id`, `project_id`, `kb_id` from the Name field, computed `document_table`/`chunk_table` from `knowledgeBaseTableNames(kb_id)`, timestamps
+3. Call `getGlobalKnowledgeBaseRepository().addKnowledgeBase(record)` to persist
 3. Create a live `KnowledgeBase` instance (using in-memory storage for documents/chunks) and add to `getGlobalKnowledgeBases()` map so it's immediately available to workflows
 
 **Note:** The document/chunk storage for live KB instances is in-memory. The metadata record persists across sessions. When the app restarts, metadata is loaded from the repository; live KB instances with their document/chunk storage are recreated when workflows use them. This matches how the system already works.
@@ -275,14 +280,17 @@ Same pattern in `KnowledgeBaseInputEditor.tsx` — add "Create New" footer butto
 
 | File | Change |
 |------|--------|
-| `lib/create-repositories.ts` | Add KB storage stack + repository for both Supabase and IndexedDB |
-| `contexts/UserRepositoryContext.tsx` | Add `knowledgeBaseRepository` to context |
-| `contexts/UserRepositoryProvider.tsx` | Pass through KB repository |
-| `contexts/useUserRepositories.ts` | Add `useKnowledgeBaseRepository()` hook |
+| `lib/create-repositories.ts` | Add KB storage stack + repository for both Supabase and IndexedDB; add to `Repositories` interface |
 | `routes/_authenticated/route.tsx` | Add nav entry + Database icon import |
 | `property-editors/KnowledgeBasePropertyEditor.tsx` | Fix format detection + add "Create New" |
 | `shared/input-editors/types.ts` | Fix `hasKnowledgeBaseFormat()` |
 | `shared/input-editors/KnowledgeBaseInputEditor.tsx` | Add "Create New" |
+
+### Modified files (in libs)
+
+| File | Change |
+|------|--------|
+| `packages/knowledge-base/src/knowledge-base/KnowledgeBaseRepository.ts` | Change `BaseTabularStorage` to `ITabularStorage` for consistency with `ModelRepository` |
 
 ## Dependencies
 
