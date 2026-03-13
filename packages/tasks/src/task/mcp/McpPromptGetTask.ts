@@ -40,9 +40,14 @@ const configSchema = {
     },
   },
   required: ["prompt_name"],
-  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-  then: { required: ["command"] },
-  else: {},
+  anyOf: [
+    { required: ["server"] },
+    { required: ["transport", "command"], properties: { transport: { const: "stdio" } } },
+    {
+      required: ["transport", "server_url"],
+      properties: { transport: { enum: ["sse", "streamable-http"] } },
+    },
+  ],
   allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
