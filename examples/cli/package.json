@@ -5,13 +5,12 @@
   "description": "Command-line interface example for Workglow, demonstrating how to build and run AI task pipelines from the terminal.",
   "scripts": {
     "dev": "concurrently -c 'auto' -n 'cli:' 'bun:dev-*'",
-    "dev-js": "bun build --watch --target=node --sourcemap=external --packages=external --outdir ./dist ./src/workglow.ts",
-    "dev-lib": "bun build --watch --target=node --sourcemap=external --packages=external --outdir ./dist ./src/lib.ts",
+    "dev-js": "bun build --watch --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/workglow.ts",
+    "dev-lib": "bun build --watch --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/lib.ts",
     "dev-types": "tsc --watch --preserveWatchOutput",
-    "build-example": "concurrently -c 'auto' -n 'js,js-worker,js-worker-hft,lib, types' 'bun run build-js' 'bun run build-js-worker-hft' 'bun run build-lib' 'bun run build-types'",
+    "build-example": "concurrently -c 'auto' -n 'js,lib,types' 'bun run build-js' 'bun run build-lib' 'bun run build-types'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-js": "bun build --target=bun --packages=external --outdir ./dist ./src/workglow.ts",
-    "build-js-worker-hft": "bun build --target=node --packages=external --outdir ./dist ./src/worker_hft.ts",
     "build-lib": "bun build --target=bun --packages=external --outdir ./dist ./src/lib.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -35,10 +34,6 @@
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
-    "@mediapipe/tasks-text": "catalog:",
-    "@mediapipe/tasks-vision": "catalog:",
-    "@mediapipe/tasks-audio": "catalog:",
-    "@mediapipe/tasks-genai": "catalog:",
     "@huggingface/transformers": "catalog:",
     "tiktoken": "catalog:",
     "openai": "catalog:",
@@ -47,14 +42,9 @@
     "@huggingface/inference": "catalog:",
     "@anthropic-ai/sdk": "catalog:",
     "@google/generative-ai": "catalog:",
-    "@types/react": "^19.2.14",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
-    "ink": "^6.8.0",
-    "is-unicode-supported": "^2.1.0",
-    "react": "^19.2.4",
-    "react-reconciler": "^0.33.0",
-    "react-devtools-core": "^7.0.1"
+    "smol-toml": "^1.3.1"
   },
   "publishConfig": {
     "access": "public"

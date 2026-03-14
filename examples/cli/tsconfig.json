@@ -1,12 +1,10 @@
 {
   "extends": "../../tsconfig.json",
   "include": ["src/**/*"],
-  "files": ["src/workglow.ts", "src/lib.ts"],
   "exclude": ["dist"],
   "compilerOptions": {
     "outDir": "dist",
     "baseUrl": "./src",
-    "rootDir": "./src",
-    "jsx": "react-jsx"
+    "rootDir": "./src"
   }
 }
