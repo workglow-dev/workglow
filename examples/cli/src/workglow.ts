@@ -1,22 +1,43 @@
 #!/usr/bin/env bun
 
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
-import { getTaskQueueRegistry } from "@workglow/task-graph";
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
+import { registerBaseTasks } from "@workglow/task-graph";
+import { registerCommonTasks } from "@workglow/tasks";
 import { program } from "commander";
-import { registerHuggingfaceLocalModels } from "./ONNXModelSamples";
-import { AddBaseCommands } from "./TaskCLI";
+import { loadConfig } from "./config";
+import { registerAgentCommand } from "./commands/agent";
+import { registerInitCommand } from "./commands/init";
+import { registerModelCommand } from "./commands/model";
+import { registerTaskCommand } from "./commands/task";
+import { registerWorkflowCommand } from "./commands/workflow";
+import { createModelRepository } from "./storage";
 
-program.version("1.0.0").description("A CLI to run tasks.");
+// Register all task types so TaskRegistry is populated
+registerBaseTasks();
+registerCommonTasks();
+registerAiTasks();
 
-AddBaseCommands(program);
+// Set up global model repository backed by filesystem
+const config = await loadConfig();
+const modelRepo = createModelRepository(config);
+await modelRepo.setupDatabase();
+setGlobalModelRepository(modelRepo);
 
-await registerHuggingfaceLocalModels();
-await new HuggingFaceTransformersProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
-});
+program
+  .version("2.0.0")
+  .description("Workglow CLI — manage models, workflows, agents, and tasks");
+
+registerInitCommand(program);
+registerModelCommand(program);
+registerWorkflowCommand(program);
+registerAgentCommand(program);
+registerTaskCommand(program);
 
 await program.parseAsync(process.argv);
-
-await getTaskQueueRegistry().stopQueues();
 process.exit(0);
