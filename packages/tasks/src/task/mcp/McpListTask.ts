@@ -256,7 +256,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
       | undefined;
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
-    for (const key of ["transport", "server_url", "command", "args", "env"] as const) {
+    for (const key of Object.keys(mcpServerConfigSchema.properties)) {
       const val = (input as Record<string, unknown>)[key];
       if (val !== undefined) {
         merged[key] = val;
@@ -264,6 +264,12 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     }
     if (!merged.transport) {
       throw new Error("MCP server transport is required (provide inline or via server registry)");
+    }
+    if (merged.transport === "stdio" && !merged.command) {
+      throw new Error("MCP server command is required for stdio transport");
+    }
+    if ((merged.transport === "sse" || merged.transport === "streamable-http") && !merged.server_url) {
+      throw new Error("MCP server URL is required for sse and streamable-http transports");
     }
     return merged as unknown as McpServerConfig;
   }
