@@ -7,8 +7,9 @@
 import { createGraphFromGraphJSON, type TaskGraphJson } from "@workglow/task-graph";
 import type { Command } from "commander";
 import { loadConfig } from "../config";
+import { StatusDisplay } from "../status";
 import { createAgentRepository } from "../storage";
-import { formatTable, readStdin } from "../util";
+import { formatTable, readInput, readStdin, writeOutput } from "../util";
 
 export function registerAgentCommand(program: Command): void {
   const agent = program.command("agent").description("Manage and run agents");
@@ -88,8 +89,10 @@ export function registerAgentCommand(program: Command): void {
   agent
     .command("run")
     .argument("<id>", "agent identifier to run")
+    .option("--in <path>", "Read input JSON overrides from a file instead of stdin")
+    .option("--out <path>", "Write output JSON to a file instead of stdout")
     .description("Run a saved agent")
-    .action(async (id: string) => {
+    .action(async (id: string, opts: { in?: string; out?: string }) => {
       const config = await loadConfig();
       const repo = createAgentRepository(config);
       await repo.setupDatabase();
@@ -100,7 +103,46 @@ export function registerAgentCommand(program: Command): void {
         process.exit(1);
       }
 
-      const result = await graph.run();
-      console.log(JSON.stringify(result, null, 2));
+      // Optional input overrides
+      const raw = await readInput(opts.in);
+      if (raw) {
+        try {
+          const overrides = JSON.parse(raw) as Record<string, unknown>;
+          const tasks = graph.getTasks();
+          for (const task of tasks) {
+            const sources = graph.getSourceDataflows(task.id as any);
+            if (sources.length === 0 && overrides) {
+              Object.assign(task.defaults, overrides);
+            }
+          }
+        } catch {
+          console.error("Invalid JSON input for overrides.");
+          process.exit(1);
+        }
+      }
+
+      // Set up status display
+      const display = new StatusDisplay();
+      const tasks = graph.getTasks();
+      for (const task of tasks) {
+        display.addTask(task.id, task.title || task.type);
+      }
+
+      graph.subscribeToTaskStatus((taskId, status) => {
+        display.updateStatus(taskId, status);
+      });
+      graph.subscribeToTaskProgress((taskId, progress, message, ...args) => {
+        display.updateProgress(taskId, progress, message, ...args);
+      });
+
+      try {
+        const result = await graph.run();
+        display.finish();
+        await writeOutput(JSON.stringify(result, null, 2), opts.out);
+      } catch (err) {
+        display.finish();
+        console.error(`Agent failed: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
     });
 }

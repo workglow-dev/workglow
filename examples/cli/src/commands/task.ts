@@ -6,7 +6,8 @@
 
 import { TaskRegistry } from "@workglow/task-graph";
 import type { Command } from "commander";
-import { formatTable, readStdin } from "../util";
+import { StatusDisplay } from "../status";
+import { formatTable, readInput, writeOutput } from "../util";
 
 export function registerTaskCommand(program: Command): void {
   const task = program.command("task").description("List and run tasks");
@@ -36,11 +37,15 @@ export function registerTaskCommand(program: Command): void {
 
   task
     .command("run")
-    .description("Run a task from stdin JSON { type, input, config }")
-    .action(async () => {
-      const raw = await readStdin();
+    .description("Run a task from JSON { type, input, config }")
+    .option("--in <path>", "Read input JSON from a file instead of stdin")
+    .option("--out <path>", "Write output JSON to a file instead of stdout")
+    .action(async (opts: { in?: string; out?: string }) => {
+      const raw = await readInput(opts.in);
       if (!raw) {
-        console.error("No input provided. Pipe JSON to stdin: { type, input, config }");
+        console.error(
+          "No input provided. Pipe JSON to stdin or use --in <file>: { type, input, config }"
+        );
         process.exit(1);
       }
 
@@ -64,7 +69,26 @@ export function registerTaskCommand(program: Command): void {
       }
 
       const instance = new Ctor(parsed.input ?? {}, parsed.config ?? {});
-      const result = await instance.run();
-      console.log(JSON.stringify(result, null, 2));
+
+      const display = new StatusDisplay();
+      const label = instance.title || instance.type;
+      display.addTask(instance.id, label);
+
+      instance.on("status", (status) => {
+        display.updateStatus(instance.id, status);
+      });
+      instance.on("progress", (progress, message, ...args) => {
+        display.updateProgress(instance.id, progress, message, ...args);
+      });
+
+      try {
+        const result = await instance.run();
+        display.finish();
+        await writeOutput(JSON.stringify(result, null, 2), opts.out);
+      } catch (err) {
+        display.finish();
+        console.error(`Task failed: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
     });
 }
