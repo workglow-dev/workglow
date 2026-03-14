@@ -18,6 +18,12 @@ const mcpListTypes = ["tools", "resources", "prompts"] as const;
 const inputSchema = {
   type: "object",
   properties: {
+    server: {
+      type: "string",
+      format: "mcp-server",
+      title: "MCP Server",
+      description: "Server ID from the MCP server registry (alternative to inline config)",
+    },
     ...mcpServerConfigSchema.properties,
     list_type: {
       type: "string",
@@ -26,8 +32,17 @@ const inputSchema = {
       description: "The type of items to list from the MCP server",
     },
   },
-  required: ["transport", "list_type"],
-  allOf: mcpServerConfigSchema.allOf,
+  required: ["list_type"],
+  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
+  then: { required: ["command"] },
+  else: {
+    if: { required: ["transport"] },
+    then: { required: ["server_url"] },
+  },
+  allOf: [
+    ...mcpServerConfigSchema.allOf,
+    { anyOf: [{ required: ["server"] }, { required: ["transport"] }] },
+  ],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -243,9 +258,34 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     }
   }
 
+  private getMcpServerConfig(input: McpListTaskInput): McpServerConfig {
+    const server = (input as Record<string, unknown>).server as
+      | Record<string, unknown>
+      | string
+      | undefined;
+    const base = typeof server === "object" && server !== null ? server : {};
+    const merged = { ...base } as Record<string, unknown>;
+    for (const key of Object.keys(mcpServerConfigSchema.properties)) {
+      const val = (input as Record<string, unknown>)[key];
+      if (val !== undefined) {
+        merged[key] = val;
+      }
+    }
+    if (!merged.transport) {
+      throw new Error("MCP server transport is required (provide inline or via server registry)");
+    }
+    if (merged.transport === "stdio" && !merged.command) {
+      throw new Error("MCP server command is required for stdio transport");
+    }
+    if ((merged.transport === "sse" || merged.transport === "streamable-http") && !merged.server_url) {
+      throw new Error("MCP server URL is required for sse and streamable-http transports");
+    }
+    return merged as unknown as McpServerConfig;
+  }
+
   async execute(input: McpListTaskInput, context: IExecuteContext): Promise<McpListTaskOutput> {
     const { client } = await mcpClientFactory.create(
-      input as unknown as McpServerConfig,
+      this.getMcpServerConfig(input),
       context.signal
     );
     try {
