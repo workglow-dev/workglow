@@ -102,12 +102,24 @@ export class SqliteVectorStorage<
   }
 
   async similaritySearch(query: TypedArray, options: VectorSearchOptions<Metadata> = {}) {
-    const { topK = 10, filter, scoreThreshold = 0 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0 } = options;
     const results: Array<Entity & { score: number }> = [];
 
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (entity[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       // SQLite stores vectors as JSON strings, need to deserialize
       const vectorRaw = entity[this.vectorPropertyName] as unknown as string;
       const vector = this.deserializeVector(vectorRaw);
@@ -142,11 +154,11 @@ export class SqliteVectorStorage<
   }
 
   async hybridSearch(query: TypedArray, options: HybridSearchOptions<Metadata>) {
-    const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
       // Fall back to regular vector search if no text query
-      return this.similaritySearch(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, where, scoreThreshold });
     }
 
     const results: Array<Entity & { score: number }> = [];
@@ -155,6 +167,18 @@ export class SqliteVectorStorage<
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
     for (const entity of allEntities) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (entity[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       // SQLite stores vectors as JSON strings, need to deserialize
       const vectorRaw = entity[this.vectorPropertyName] as unknown as string;
       const vector = this.deserializeVector(vectorRaw);

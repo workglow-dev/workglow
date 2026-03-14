@@ -393,7 +393,7 @@ export class SqliteAiVectorStorage<
       return this.searchFallback(query, options);
     }
 
-    const { topK = 10, filter, scoreThreshold = 0 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0 } = options;
     const db = this.database;
     const tableName = this.table;
     const vectorCol = String(this.vectorPropertyName);
@@ -405,7 +405,9 @@ export class SqliteAiVectorStorage<
         .prepare(`SELECT vector_as_${this.vectorTypeSuffix}(?) as v`)
         .get(queryJson) as { v: Buffer };
 
-      if (filter && Object.keys(filter).length > 0) {
+      const needsStreaming = (filter && Object.keys(filter).length > 0) || (where && Object.keys(where).length > 0);
+
+      if (needsStreaming) {
         // When filtering, use streaming mode (no k parameter) so we can filter rows
         const sql = `
           SELECT t.*, v.distance
@@ -433,6 +435,18 @@ export class SqliteAiVectorStorage<
           delete entity.distance;
           for (const k in this.schema.properties) {
             entity[k] = this.sqlToJsValue(k, entity[k] as any);
+          }
+
+          // Apply entity-level where filter
+          if (where) {
+            let skip = false;
+            for (const [key, val] of Object.entries(where)) {
+              if (entity[key] !== val) {
+                skip = true;
+                break;
+              }
+            }
+            if (skip) continue;
           }
 
           // Apply metadata filter (use empty object if no metadata column)
@@ -496,10 +510,10 @@ export class SqliteAiVectorStorage<
    * Falls back to in-memory search if the extension is unavailable.
    */
   async hybridSearch(query: TypedArray, options: HybridSearchOptions<Metadata>) {
-    const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
-      return this.similaritySearch(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, where, scoreThreshold });
     }
 
     if (!this.extensionLoaded) {
@@ -543,6 +557,18 @@ export class SqliteAiVectorStorage<
           entity[k] = this.sqlToJsValue(k, entity[k] as any);
         }
 
+        // Apply entity-level where filter
+        if (where) {
+          let skip = false;
+          for (const [key, val] of Object.entries(where)) {
+            if (entity[key] !== val) {
+              skip = true;
+              break;
+            }
+          }
+          if (skip) continue;
+        }
+
         const metadata = metadataCol ? (entity[metadataCol] as Metadata) : ({} as Metadata);
 
         // Apply metadata filter
@@ -584,11 +610,23 @@ export class SqliteAiVectorStorage<
    * Fallback search using in-memory cosine similarity
    */
   private async searchFallback(query: TypedArray, options: VectorSearchOptions<Metadata>) {
-    const { topK = 10, filter, scoreThreshold = 0 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0 } = options;
     const allRows = (await this.getAll()) || [];
     const results: Array<Entity & { score: number }> = [];
 
     for (const row of allRows) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (row[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       const vector = row[this.vectorPropertyName] as TypedArray;
       const metadata = this.metadataPropertyName
         ? (row[this.metadataPropertyName] as Metadata)
@@ -613,7 +651,7 @@ export class SqliteAiVectorStorage<
    * Fallback hybrid search using in-memory computation
    */
   private async hybridSearchFallback(query: TypedArray, options: HybridSearchOptions<Metadata>) {
-    const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     const allRows = (await this.getAll()) || [];
     const results: Array<Entity & { score: number }> = [];
@@ -621,6 +659,18 @@ export class SqliteAiVectorStorage<
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
     for (const row of allRows) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (row[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       const vector = row[this.vectorPropertyName] as TypedArray;
       const metadata = this.metadataPropertyName
         ? (row[this.metadataPropertyName] as Metadata)

@@ -30,6 +30,7 @@ export interface VectorSearchOptions<
 > {
   readonly topK?: number;
   readonly filter?: Partial<Metadata>;
+  readonly where?: Record<string, unknown>;
   readonly scoreThreshold?: number;
 }
 

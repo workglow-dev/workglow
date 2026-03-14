@@ -113,12 +113,24 @@ export class InMemoryVectorStorage<
     query: TypedArray,
     options: VectorSearchOptions<Record<string, unknown>> = {}
   ) {
-    const { topK = 10, filter, scoreThreshold = 0 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0 } = options;
     const results: Array<Entity & { score: number }> = [];
 
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (entity[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       const vector = entity[this.vectorPropertyName] as TypedArray;
       const metadata = this.metadataPropertyName
         ? (entity[this.metadataPropertyName] as Metadata)
@@ -151,17 +163,29 @@ export class InMemoryVectorStorage<
   }
 
   async hybridSearch(query: TypedArray, options: HybridSearchOptions<Record<string, unknown>>) {
-    const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
       // Fall back to regular vector search if no text query
-      return this.similaritySearch(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, where, scoreThreshold });
     }
 
     const results: Array<Entity & { score: number }> = [];
     const allEntities = (await this.getAll()) || [];
 
     for (const entity of allEntities) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (entity[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       // In memory, vectors are stored as TypedArrays directly (not serialized)
       const vector = entity[this.vectorPropertyName] as TypedArray;
       const metadata = this.metadataPropertyName

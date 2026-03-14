@@ -89,7 +89,7 @@ export class PostgresVectorStorage<
     query: TypedArray,
     options: VectorSearchOptions<Metadata> = {}
   ): Promise<Array<Entity & { score: number }>> {
-    const { topK = 10, filter, scoreThreshold = 0 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0 } = options;
 
     try {
       // Try native pgvector search first
@@ -98,7 +98,7 @@ export class PostgresVectorStorage<
       const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
 
       let sql = `
-        SELECT 
+        SELECT
           *,
           1 - (${vectorCol} <=> $1::vector) as score
         FROM "${this.table}"
@@ -106,19 +106,31 @@ export class PostgresVectorStorage<
 
       const params: any[] = [queryVector];
       let paramIndex = 2;
+      const conditions: string[] = [];
+
+      // Apply entity-level where filter
+      if (where && Object.keys(where).length > 0) {
+        for (const [key, value] of Object.entries(where)) {
+          conditions.push(`"${key}" = $${paramIndex}`);
+          params.push(value);
+          paramIndex++;
+        }
+      }
 
       if (filter && Object.keys(filter).length > 0 && metadataCol) {
-        const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
           paramIndex++;
         }
+      }
+
+      if (conditions.length > 0) {
         sql += ` WHERE ${conditions.join(" AND ")}`;
       }
 
       if (scoreThreshold > 0) {
-        sql += filter ? " AND" : " WHERE";
+        sql += conditions.length > 0 ? " AND" : " WHERE";
         sql += ` (1 - (${vectorCol} <=> $1::vector)) >= $${paramIndex}`;
         params.push(scoreThreshold);
         paramIndex++;
@@ -155,10 +167,10 @@ export class PostgresVectorStorage<
   }
 
   async hybridSearch(query: TypedArray, options: HybridSearchOptions<Metadata>) {
-    const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     if (!textQuery || textQuery.trim().length === 0) {
-      return this.similaritySearch(query, { topK, filter, scoreThreshold });
+      return this.similaritySearch(query, { topK, filter, where, scoreThreshold });
     }
 
     try {
@@ -169,7 +181,7 @@ export class PostgresVectorStorage<
       const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
 
       let sql = `
-        SELECT 
+        SELECT
           *,
           (
             $2 * (1 - (${vectorCol} <=> $1::vector)) +
@@ -180,19 +192,31 @@ export class PostgresVectorStorage<
 
       const params: any[] = [queryVector, vectorWeight, 1 - vectorWeight, tsQuery];
       let paramIndex = 5;
+      const conditions: string[] = [];
+
+      // Apply entity-level where filter
+      if (where && Object.keys(where).length > 0) {
+        for (const [key, value] of Object.entries(where)) {
+          conditions.push(`"${key}" = $${paramIndex}`);
+          params.push(value);
+          paramIndex++;
+        }
+      }
 
       if (filter && Object.keys(filter).length > 0 && metadataCol) {
-        const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
           paramIndex++;
         }
+      }
+
+      if (conditions.length > 0) {
         sql += ` WHERE ${conditions.join(" AND ")}`;
       }
 
       if (scoreThreshold > 0) {
-        sql += filter ? " AND" : " WHERE";
+        sql += conditions.length > 0 ? " AND" : " WHERE";
         sql += ` (
           $2 * (1 - (${vectorCol} <=> $1::vector)) +
           $3 * ts_rank(to_tsvector('english', ${metadataCol || "''"}::text), to_tsquery('english', $4))
@@ -235,11 +259,23 @@ export class PostgresVectorStorage<
    * Fallback search using in-memory cosine similarity
    */
   private async searchFallback(query: TypedArray, options: VectorSearchOptions<Metadata>) {
-    const { topK = 10, filter, scoreThreshold = 0 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0 } = options;
     const allRows = (await this.getAll()) || [];
     const results: Array<Entity & { score: number }> = [];
 
     for (const row of allRows) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (row[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       const vector = row[this.vectorPropertyName] as TypedArray;
       const metadata = this.metadataPropertyName
         ? (row[this.metadataPropertyName] as Metadata)
@@ -266,7 +302,7 @@ export class PostgresVectorStorage<
    * Fallback hybrid search
    */
   private async hybridSearchFallback(query: TypedArray, options: HybridSearchOptions<Metadata>) {
-    const { topK = 10, filter, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
+    const { topK = 10, filter, where, scoreThreshold = 0, textQuery, vectorWeight = 0.7 } = options;
 
     const allRows = (await this.getAll()) || [];
     const results: Array<Entity & { score: number }> = [];
@@ -274,6 +310,18 @@ export class PostgresVectorStorage<
     const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 0);
 
     for (const row of allRows) {
+      // Apply entity-level where filter
+      if (where) {
+        let skip = false;
+        for (const [key, val] of Object.entries(where)) {
+          if (row[key as keyof Entity] !== val) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) continue;
+      }
+
       const vector = row[this.vectorPropertyName] as TypedArray;
       const metadata = this.metadataPropertyName
         ? (row[this.metadataPropertyName] as Metadata)
