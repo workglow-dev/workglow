@@ -14,6 +14,7 @@ export interface CliConfig {
     readonly models: string;
     readonly workflows: string;
     readonly agents: string;
+    readonly mcps: string;
     readonly cache: string;
   };
 }
@@ -25,6 +26,7 @@ export const DEFAULT_CONFIG: CliConfig = {
     models: join(DEFAULT_BASE, "definition", "model"),
     workflows: join(DEFAULT_BASE, "definition", "workflow"),
     agents: join(DEFAULT_BASE, "definition", "agent"),
+    mcps: join(DEFAULT_BASE, "definition", "mcp"),
     cache: join(DEFAULT_BASE, "cache"),
   },
 };
@@ -50,12 +52,13 @@ export async function loadConfig(): Promise<CliConfig> {
       };
     };
 
-    const dirs = parsed.directories;
+    const dirs = parsed.directories as Record<string, string | undefined> | undefined;
     return {
       directories: {
         models: resolvePath(dirs?.models ?? DEFAULT_CONFIG.directories.models),
         workflows: resolvePath(dirs?.workflows ?? DEFAULT_CONFIG.directories.workflows),
         agents: resolvePath(dirs?.agents ?? DEFAULT_CONFIG.directories.agents),
+        mcps: resolvePath(dirs?.mcps ?? DEFAULT_CONFIG.directories.mcps),
         cache: resolvePath(dirs?.cache ?? DEFAULT_CONFIG.directories.cache),
       },
     };

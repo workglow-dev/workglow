@@ -13,6 +13,7 @@ import { program } from "commander";
 import { loadConfig } from "./config";
 import { registerAgentCommand } from "./commands/agent";
 import { registerInitCommand } from "./commands/init";
+import { registerMcpCommand } from "./commands/mcp";
 import { registerModelCommand } from "./commands/model";
 import { registerTaskCommand } from "./commands/task";
 import { registerWorkflowCommand } from "./commands/workflow";
@@ -35,6 +36,7 @@ program
 
 registerInitCommand(program);
 registerModelCommand(program);
+registerMcpCommand(program);
 registerWorkflowCommand(program);
 registerAgentCommand(program);
 registerTaskCommand(program);
