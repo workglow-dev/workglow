@@ -35,7 +35,20 @@ export const mcpServerConfigSchema = {
     },
     ...mcpAuthConfigSchema.properties,
   },
-  allOf: mcpAuthConfigSchema.allOf,
+  allOf: [
+    {
+      if: { properties: { transport: { const: "sse" as const } }, required: ["transport"] },
+      then: { required: ["server_url"] },
+    },
+    {
+      if: {
+        properties: { transport: { const: "streamable-http" as const } },
+        required: ["transport"],
+      },
+      then: { required: ["server_url"] },
+    },
+    ...mcpAuthConfigSchema.allOf,
+  ] as readonly Record<string, unknown>[],
 } as const;
 
 export type McpTransportType = (typeof mcpTransportTypes)[number];

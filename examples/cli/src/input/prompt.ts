@@ -1,0 +1,272 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util";
+import { deepMerge } from "./resolve-input";
+
+export interface PromptFieldDescriptor {
+  readonly key: string;
+  readonly type: "string" | "number" | "integer" | "boolean" | "enum" | "array" | "object";
+  readonly label: string;
+  readonly description?: string;
+  readonly format?: string;
+  readonly enumValues?: readonly string[];
+  readonly defaultValue?: unknown;
+  readonly required: boolean;
+}
+
+type SchemaProperty = DataPortSchemaNonBoolean;
+
+/**
+ * Walk schema properties and return descriptors for missing required fields.
+ * Evaluates allOf if/then conditions to include conditionally required fields.
+ */
+export function getMissingFields(
+  input: Record<string, unknown>,
+  schema: DataPortSchemaObject
+): PromptFieldDescriptor[] {
+  const fields: PromptFieldDescriptor[] = [];
+  const properties = schema.properties ?? {};
+  const required = new Set((schema.required as readonly string[] | undefined) ?? []);
+
+  // Evaluate allOf if/then conditions to find conditionally required fields
+  const conditionalRequired = evaluateConditionalRequired(input, schema);
+  for (const name of conditionalRequired) {
+    required.add(name);
+  }
+
+  collectMissingFields(properties, required, input, "", fields);
+  return fields;
+}
+
+/**
+ * Evaluate allOf if/then conditional rules against current input values.
+ * Returns additional field names that are conditionally required.
+ */
+function evaluateConditionalRequired(
+  input: Record<string, unknown>,
+  schema: DataPortSchemaObject
+): string[] {
+  const allOf = (schema as Record<string, unknown>).allOf;
+  if (!Array.isArray(allOf)) return [];
+
+  const additional: string[] = [];
+
+  for (const rule of allOf) {
+    if (typeof rule !== "object" || rule === null) continue;
+    const { if: condition, then: consequence } = rule as {
+      if?: Record<string, unknown>;
+      then?: Record<string, unknown>;
+    };
+    if (!condition || !consequence) continue;
+
+    // Check if the condition matches the current input
+    const condProps = condition.properties as Record<string, unknown> | undefined;
+    const condRequired = condition.required as string[] | undefined;
+    if (!condProps) continue;
+
+    let matches = true;
+    for (const [key, constraint] of Object.entries(condProps)) {
+      // Only evaluate if this key is required by the condition
+      if (condRequired && !condRequired.includes(key)) continue;
+
+      const inputValue = input[key];
+      if (inputValue === undefined) {
+        matches = false;
+        break;
+      }
+
+      if (
+        typeof constraint === "object" &&
+        constraint !== null &&
+        "const" in constraint
+      ) {
+        if (inputValue !== (constraint as { const: unknown }).const) {
+          matches = false;
+          break;
+        }
+      }
+    }
+
+    if (matches) {
+      const thenRequired = consequence.required;
+      if (Array.isArray(thenRequired)) {
+        additional.push(...thenRequired);
+      }
+    }
+  }
+
+  return additional;
+}
+
+function collectMissingFields(
+  properties: Record<string, SchemaProperty>,
+  required: Set<string>,
+  input: Record<string, unknown>,
+  prefix: string,
+  fields: PromptFieldDescriptor[]
+): void {
+  for (const [name, prop] of Object.entries(properties)) {
+    if (typeof prop === "boolean" || !prop) continue;
+
+    // Skip hidden fields
+    if ((prop as Record<string, unknown>)["x-ui-hidden"]) continue;
+
+    const fullKey = prefix ? `${prefix}.${name}` : name;
+    const isRequired = required.has(name);
+
+    // Only prompt for required fields
+    if (!isRequired) continue;
+
+    // Skip fields that already have values
+    const existingValue = getNestedValue(input, fullKey);
+    if (existingValue !== undefined) continue;
+
+    // Skip fields with defaults
+    if ("default" in prop) continue;
+
+    const schemaType = prop.type as string | undefined;
+
+    // Recurse into nested objects
+    if (schemaType === "object" && "properties" in prop && prop.properties) {
+      const nestedRequired = new Set((prop.required as readonly string[] | undefined) ?? []);
+      collectMissingFields(
+        prop.properties as Record<string, SchemaProperty>,
+        nestedRequired,
+        input,
+        fullKey,
+        fields
+      );
+      continue;
+    }
+
+    // Determine prompt type
+    let promptType: PromptFieldDescriptor["type"];
+    if ("enum" in prop && Array.isArray(prop.enum)) {
+      promptType = "enum";
+    } else {
+      switch (schemaType) {
+        case "boolean":
+          promptType = "boolean";
+          break;
+        case "number":
+          promptType = "number";
+          break;
+        case "integer":
+          promptType = "integer";
+          break;
+        case "array":
+          promptType = "array";
+          break;
+        case "object":
+          promptType = "object";
+          break;
+        default:
+          promptType = "string";
+      }
+    }
+
+    const label = (prop.title as string | undefined) ?? formatKeyAsLabel(name);
+
+    fields.push({
+      key: fullKey,
+      type: promptType,
+      label,
+      description: prop.description as string | undefined,
+      format: (prop as Record<string, unknown>).format as string | undefined,
+      enumValues: "enum" in prop && Array.isArray(prop.enum) ? prop.enum : undefined,
+      defaultValue: undefined,
+      required: true,
+    });
+  }
+}
+
+function getNestedValue(obj: Record<string, unknown>, key: string): unknown {
+  const parts = key.split(".");
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function formatKeyAsLabel(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Resolve dynamic options for fields with format annotations (e.g. format: "model").
+ * Converts string fields to enum fields with available options from the registry.
+ */
+async function enrichFieldsWithOptions(
+  fields: PromptFieldDescriptor[]
+): Promise<PromptFieldDescriptor[]> {
+  const hasModelFields = fields.some((f) => f.format && f.format.startsWith("model"));
+  if (!hasModelFields) return fields;
+
+  let modelIds: string[] = [];
+  try {
+    const { loadConfig } = await import("../config");
+    const { createModelRepository } = await import("../storage");
+    const config = await loadConfig();
+    const repo = createModelRepository(config);
+    await repo.setupDatabase();
+
+    const taskFilter = fields.find((f) => f.format?.startsWith("model:"))?.format?.slice(6);
+
+    const models = taskFilter
+      ? await repo.findModelsByTask(taskFilter)
+      : await repo.enumerateAllModels();
+
+    modelIds = (models ?? []).map((m) => m.model_id);
+  } catch {
+    // If we can't load models, fall through to string input
+  }
+
+  if (modelIds.length === 0) return fields;
+
+  return fields.map((field) => {
+    if (field.format && field.format.startsWith("model") && field.type === "string") {
+      return { ...field, type: "enum" as const, enumValues: modelIds };
+    }
+    return field;
+  });
+}
+
+/**
+ * Prompt the user interactively for missing required fields (TTY only).
+ * Loops to handle conditionally required fields that emerge after initial answers.
+ * Returns the input with prompted values merged in.
+ */
+export async function promptMissingInput(
+  input: Record<string, unknown>,
+  schema: DataPortSchemaObject
+): Promise<Record<string, unknown>> {
+  if (!process.stdin.isTTY) {
+    return input;
+  }
+
+  let result = input;
+  const { renderSchemaPrompt } = await import("../ui/render");
+
+  // Loop to handle conditional requirements (e.g. transport → server_url)
+  for (;;) {
+    let fields = getMissingFields(result, schema);
+    if (fields.length === 0) break;
+
+    fields = await enrichFieldsWithOptions(fields);
+    const prompted = await renderSchemaPrompt(fields);
+    result = deepMerge(result, prompted);
+  }
+
+  return result;
+}

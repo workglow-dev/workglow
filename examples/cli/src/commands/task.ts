@@ -5,8 +5,50 @@
  */
 
 import { TaskRegistry } from "@workglow/task-graph";
+import type { DataPortSchemaObject } from "@workglow/util";
 import type { Command } from "commander";
-import { formatTable, readStdin } from "../util";
+import { formatError, formatTable, outputResult } from "../util";
+import {
+  parseDynamicFlags,
+  parseConfigFlags,
+  generateSchemaHelpText,
+  generateConfigHelpText,
+  resolveInput,
+  resolveConfig,
+  validateInput,
+} from "../input";
+
+type TaskConstructor = {
+  readonly type: string;
+  readonly category?: string;
+  readonly title?: string;
+  readonly description?: string;
+  inputSchema(): unknown;
+  configSchema?(): unknown;
+  new (input: Record<string, unknown>, config: Record<string, unknown>): {
+    run(overrides?: Record<string, unknown>): Promise<unknown>;
+    events: {
+      on(event: string, fn: (...args: any[]) => void): void;
+    };
+  };
+};
+
+function resolveTaskType(name: string): TaskConstructor | undefined {
+  // Exact match first
+  const exact = TaskRegistry.all.get(name) as TaskConstructor | undefined;
+  if (exact) return exact;
+
+  // Case-insensitive match, with or without "Task" suffix
+  const lower = name.toLowerCase();
+  const candidates = [lower, lower.endsWith("task") ? lower.slice(0, -4) : lower + "task"];
+
+  for (const [key, ctor] of TaskRegistry.all) {
+    if (candidates.includes(key.toLowerCase())) {
+      return ctor as TaskConstructor;
+    }
+  }
+  return undefined;
+}
 
 export function registerTaskCommand(program: Command): void {
   const task = program.command("task").description("List and run tasks");
@@ -17,11 +59,15 @@ export function registerTaskCommand(program: Command): void {
     .action(async () => {
       const rows: Record<string, string>[] = [];
       for (const [, ctor] of TaskRegistry.all) {
+        const category = (ctor as TaskConstructor).category ?? "";
+        // Filter out Flow Control tasks (ConditionalTask, MapTask, etc.)
+        if (category === "Flow Control") continue;
+
+        const typeName = ctor.type.endsWith("Task") ? ctor.type.slice(0, -4) : ctor.type;
         rows.push({
-          type: ctor.type,
-          category: (ctor as { category?: string }).category ?? "",
-          title: (ctor as { title?: string }).title ?? "",
-          description: (ctor as { description?: string }).description ?? "",
+          type: typeName,
+          category,
+          description: (ctor as TaskConstructor).description ?? "",
         });
       }
 
@@ -31,40 +77,103 @@ export function registerTaskCommand(program: Command): void {
       }
 
       rows.sort((a, b) => (a.category + a.type).localeCompare(b.category + b.type));
-      console.log(formatTable(rows, ["type", "category", "title", "description"]));
+      console.log(formatTable(rows, ["type", "description"]));
     });
 
-  task
-    .command("run")
-    .description("Run a task from stdin JSON { type, input, config }")
-    .action(async () => {
-      const raw = await readStdin();
-      if (!raw) {
-        console.error("No input provided. Pipe JSON to stdin: { type, input, config }");
-        process.exit(1);
-      }
-
-      let parsed: { type: string; input?: Record<string, unknown>; config?: Record<string, unknown> };
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        console.error("Invalid JSON input.");
-        process.exit(1);
-      }
-
-      if (!parsed.type) {
-        console.error('JSON must include a "type" field.');
-        process.exit(1);
-      }
-
-      const Ctor = TaskRegistry.all.get(parsed.type);
+  const run = task
+    .command("run", { isDefault: true })
+    .argument("<type>", "task type to run")
+    .description("Run a task by type")
+    .allowUnknownOption()
+    .allowExcessArguments(true)
+    .helpOption(false)
+    .option("--input-json <json>", "Input as JSON string")
+    .option("--input-json-file <path>", "Input from JSON file")
+    .option("--config-json <json>", "Config as JSON string")
+    .option("--config-json-file <path>", "Config from JSON file")
+    .option("--output-json-file <path>", "Write output to file")
+    .option("--dry-run", "Validate input without executing")
+    .option("--help", "Show help including schema-derived flags")
+    .action(async (type: string, opts: Record<string, string | boolean | undefined>) => {
+      const Ctor = resolveTaskType(type);
       if (!Ctor) {
-        console.error(`Unknown task type "${parsed.type}".`);
+        console.error(`Unknown task type "${type}".`);
         process.exit(1);
       }
 
-      const instance = new Ctor(parsed.input ?? {}, parsed.config ?? {});
-      const result = await instance.run();
-      console.log(JSON.stringify(result, null, 2));
+      const schemaRaw = Ctor.inputSchema();
+      const schema: DataPortSchemaObject =
+        typeof schemaRaw === "boolean" || !schemaRaw
+          ? { type: "object" as const, properties: {} }
+          : (schemaRaw as DataPortSchemaObject);
+
+      const configSchemaRaw = Ctor.configSchema?.();
+      const configSchema: DataPortSchemaObject =
+        typeof configSchemaRaw === "object" && configSchemaRaw !== null
+          ? (configSchemaRaw as DataPortSchemaObject)
+          : { type: "object" as const, properties: {} };
+
+      if (opts.help) {
+        run.outputHelp();
+        console.log("\nInput flags (from task schema):");
+        console.log(generateSchemaHelpText(schema));
+        const configHelp = generateConfigHelpText(configSchema, schema);
+        if (configHelp !== "  (no config properties)") {
+          console.log("\nConfig flags:");
+          console.log(configHelp);
+        }
+        process.exit(0);
+      }
+
+      const dynamicFlags = parseDynamicFlags(process.argv, schema);
+      let input = await resolveInput({
+        inputJson: opts.inputJson as string | undefined,
+        inputJsonFile: opts.inputJsonFile as string | undefined,
+        dynamicFlags,
+        schema,
+      });
+      const configFlags = parseConfigFlags(process.argv, configSchema, schema);
+      const configFromJson = await resolveConfig({
+        configJson: opts.configJson as string | undefined,
+        configJsonFile: opts.configJsonFile as string | undefined,
+      });
+      const { deepMerge } = await import("../input/resolve-input");
+      const taskConfig = deepMerge(configFromJson, configFlags);
+
+      if (process.stdin.isTTY) {
+        const { promptMissingInput } = await import("../input/prompt");
+        input = await promptMissingInput(input, schema);
+      }
+
+      const validation = validateInput(input, schema);
+      if (!validation.valid) {
+        console.error("Input validation failed:");
+        for (const err of validation.errors) {
+          console.error(`  - ${err}`);
+        }
+        process.exit(1);
+      }
+
+      if (opts.dryRun) {
+        console.log(JSON.stringify(input, null, 2));
+        process.exit(0);
+      }
+
+      try {
+        if (process.stdout.isTTY) {
+          const { renderTaskRun } = await import("../ui/render");
+          await renderTaskRun(Ctor, input, {
+            outputJsonFile: opts.outputJsonFile as string | undefined,
+            config: taskConfig,
+          });
+        } else {
+          const instance = new Ctor(input, taskConfig);
+          const result = await instance.run();
+          await outputResult(result, opts.outputJsonFile as string | undefined);
+        }
+      } catch (err) {
+        console.error(`Error: ${formatError(err)}`);
+        process.exit(1);
+      }
     });
 }

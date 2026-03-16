@@ -5,4 +5,9 @@
  */
 
 export { loadConfig, type CliConfig } from "./config";
-export { createModelRepository, createWorkflowRepository, createAgentRepository } from "./storage";
+export {
+  createModelRepository,
+  createWorkflowRepository,
+  createAgentRepository,
+  createMcpStorage,
+} from "./storage";

@@ -19,6 +19,7 @@ export function registerInitCommand(program: Command): void {
           models: DEFAULT_CONFIG.directories.models,
           workflows: DEFAULT_CONFIG.directories.workflows,
           agents: DEFAULT_CONFIG.directories.agents,
+          mcps: DEFAULT_CONFIG.directories.mcps,
           cache: DEFAULT_CONFIG.directories.cache,
         },
       });
