@@ -7,16 +7,17 @@
  */
 
 import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
+import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 import { registerBaseTasks } from "@workglow/task-graph";
 import { registerCommonTasks } from "@workglow/tasks";
 import { program } from "commander";
-import { loadConfig } from "./config";
 import { registerAgentCommand } from "./commands/agent";
 import { registerInitCommand } from "./commands/init";
 import { registerMcpCommand } from "./commands/mcp";
 import { registerModelCommand } from "./commands/model";
 import { registerTaskCommand } from "./commands/task";
 import { registerWorkflowCommand } from "./commands/workflow";
+import { loadConfig } from "./config";
 import { createModelRepository } from "./storage";
 
 // Register all task types so TaskRegistry is populated
@@ -30,9 +31,12 @@ const modelRepo = createModelRepository(config);
 await modelRepo.setupDatabase();
 setGlobalModelRepository(modelRepo);
 
-program
-  .version("2.0.0")
-  .description("Workglow CLI — manage models, workflows, agents, and tasks");
+await new HuggingFaceTransformersProvider().register({
+  mode: "worker",
+  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+});
+
+program.version("2.0.0").description("Workglow CLI — manage models, workflows, agents, and tasks");
 
 registerInitCommand(program);
 registerModelCommand(program);
