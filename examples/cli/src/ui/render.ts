@@ -109,6 +109,7 @@ export async function renderSchemaPrompt(
 
     const onCancel = () => {
       instance.unmount();
+      console.log("Cancelled.");
       resolve(undefined);
     };
 
@@ -139,6 +140,7 @@ export async function renderSearchSelect<T extends SearchSelectItem>(
 
     const onCancel = () => {
       instance.unmount();
+      console.log("Cancelled.");
       resolve(undefined);
     };
 
@@ -171,6 +173,7 @@ export async function renderSelectPrompt(
 
     const onCancel = () => {
       instance.unmount();
+      console.log("Cancelled.");
       resolve(undefined);
     };
 
