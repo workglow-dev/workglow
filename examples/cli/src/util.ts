@@ -6,6 +6,48 @@
 
 import { writeFile } from "fs/promises";
 
+const PROTOTYPE_POLLUTION_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Set a value on an object using dot-notation key (e.g. "a.b.c").
+ * Creates intermediate objects as needed. Skips keys that could cause prototype pollution.
+ */
+export function setNestedValue(obj: Record<string, unknown>, key: string, value: unknown): void {
+  const parts = key.split(".");
+  for (const part of parts) {
+    if (PROTOTYPE_POLLUTION_KEYS.has(part)) return;
+  }
+  let current: Record<string, unknown> = obj;
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!(parts[i] in current) || typeof current[parts[i]] !== "object") {
+      current[parts[i]] = {};
+    }
+    current = current[parts[i]] as Record<string, unknown>;
+  }
+
+  current[parts[parts.length - 1]] = value;
+}
+
+/**
+ * Get a value from an object using dot-notation key (e.g. "a.b.c").
+ * Returns undefined if any segment is missing or if the key would touch prototype-pollution-sensitive properties.
+ */
+export function getNestedValue(obj: Record<string, unknown>, key: string): unknown {
+  const parts = key.split(".");
+  for (const part of parts) {
+    if (PROTOTYPE_POLLUTION_KEYS.has(part)) return undefined;
+  }
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
 /**
  * Read all of stdin as a string.
  */

@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util";
+import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util";
+import { getNestedValue } from "../util";
 import { deepMerge } from "./resolve-input";
 
 export interface PromptFieldDescriptor {
@@ -79,11 +80,7 @@ function evaluateConditionalRequired(
         break;
       }
 
-      if (
-        typeof constraint === "object" &&
-        constraint !== null &&
-        "const" in constraint
-      ) {
+      if (typeof constraint === "object" && constraint !== null && "const" in constraint) {
         if (inputValue !== (constraint as { const: unknown }).const) {
           matches = false;
           break;
@@ -182,18 +179,6 @@ function collectMissingFields(
       required: true,
     });
   }
-}
-
-function getNestedValue(obj: Record<string, unknown>, key: string): unknown {
-  const parts = key.split(".");
-  let current: unknown = obj;
-  for (const part of parts) {
-    if (current === null || current === undefined || typeof current !== "object") {
-      return undefined;
-    }
-    current = (current as Record<string, unknown>)[part];
-  }
-  return current;
 }
 
 function formatKeyAsLabel(key: string): string {

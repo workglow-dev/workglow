@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util";
+import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util";
+import { setNestedValue } from "../util";
 
 type SchemaProperty = DataPortSchemaNonBoolean;
 
@@ -102,20 +103,6 @@ function coerceValue(
     default:
       return value;
   }
-}
-
-function setNestedValue(obj: Record<string, unknown>, key: string, value: unknown): void {
-  const parts = key.split(".");
-  let current: Record<string, unknown> = obj;
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (!(parts[i] in current) || typeof current[parts[i]] !== "object") {
-      current[parts[i]] = {};
-    }
-    current = current[parts[i]] as Record<string, unknown>;
-  }
-
-  current[parts[parts.length - 1]] = value;
 }
 
 /**
