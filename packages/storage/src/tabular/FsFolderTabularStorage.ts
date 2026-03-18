@@ -255,8 +255,13 @@ export class FsFolderTabularStorage<
    */
   async deleteAll(): Promise<void> {
     await this.setupDirectory();
-    // Delete all files in the folder ending in .json
-    await rm(this.folderPath, { recursive: true, force: true });
+    // Delete all files in the folder
+    try {
+      await rm(this.folderPath, { recursive: true, force: true });
+    } catch (error) {
+      console.error("Error deleting folder", this.folderPath, error);
+      await rm(this.folderPath, { recursive: true, force: true });
+    }
     this.events.emit("clearall");
   }
 

@@ -5,20 +5,20 @@
  */
 
 import { FsFolderTabularStorage } from "@workglow/storage";
+import { setLogger } from "@workglow/util";
 import { mkdirSync, rmSync } from "fs";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { runGenericTabularRepositorySubscriptionTests } from "./genericTabularRepositorySubscriptionTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
+import { runGenericTabularStorageSubscriptionTests } from "./genericTabularStorageSubscriptionTests";
 import {
   AllTypesPrimaryKeyNames,
   AllTypesSchema,
   CompoundPrimaryKeyNames,
   CompoundSchema,
-  runGenericTabularRepositoryTests,
+  runGenericTabularStorageTests,
   SearchPrimaryKeyNames,
   SearchSchema,
-} from "./genericTabularRepositoryTests";
-import { setLogger } from "@workglow/util";
-import { getTestingLogger } from "../../binding/TestingLogger";
+} from "./genericTabularStorageTests";
 
 const testDir = ".cache/test/testing";
 
@@ -39,7 +39,7 @@ describe("FsFolderTabularStorage", () => {
 
   // Run basic storage tests that don't involve search
   describe("basic functionality", () => {
-    runGenericTabularRepositoryTests(
+    runGenericTabularStorageTests(
       async () =>
         new FsFolderTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
           testDir,
@@ -56,7 +56,7 @@ describe("FsFolderTabularStorage", () => {
     );
   });
 
-  runGenericTabularRepositorySubscriptionTests(
+  runGenericTabularStorageSubscriptionTests(
     async () =>
       new FsFolderTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         testDir,

@@ -5,26 +5,26 @@
  */
 
 import { SupabaseTabularStorage } from "@workglow/storage";
-import { uuid4, setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { describe } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import {
   AllTypesPrimaryKeyNames,
   AllTypesSchema,
   CompoundPrimaryKeyNames,
   CompoundSchema,
-  runGenericTabularRepositoryTests,
+  runGenericTabularStorageTests,
   SearchPrimaryKeyNames,
   SearchSchema,
-} from "./genericTabularRepositoryTests";
-import { getTestingLogger } from "../../binding/TestingLogger";
+} from "./genericTabularStorageTests";
 
 const client = createSupabaseMockClient();
 
 describe("SupabaseTabularStorage", () => {
   let logger = getTestingLogger();
   setLogger(logger);
-  runGenericTabularRepositoryTests(
+  runGenericTabularStorageTests(
     async () =>
       new SupabaseTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
         client,

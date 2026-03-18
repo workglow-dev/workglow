@@ -120,10 +120,8 @@ function createHfSearchFn(
 }
 
 function mapHfModelResult(entry: HfModelEntry, provider: string): Record<string, unknown> {
-  const model_id = entry.id.replace(/\//g, "--");
-
   return {
-    model_id,
+    model_id: entry.id,
     provider,
     title: entry.id.split("/").pop() ?? entry.id,
     description: [entry.pipeline_tag, `${formatDownloads(entry.downloads)} downloads`]

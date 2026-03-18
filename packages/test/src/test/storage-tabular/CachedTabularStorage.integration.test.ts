@@ -5,17 +5,17 @@
  */
 
 import { CachedTabularStorage, InMemoryTabularStorage } from "@workglow/storage";
+import { setLogger } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runGenericTabularRepositorySubscriptionTests } from "./genericTabularRepositorySubscriptionTests";
+import { getTestingLogger } from "../../binding/TestingLogger";
+import { runGenericTabularStorageSubscriptionTests } from "./genericTabularStorageSubscriptionTests";
 import {
   CompoundPrimaryKeyNames,
   CompoundSchema,
-  runGenericTabularRepositoryTests,
+  runGenericTabularStorageTests,
   SearchPrimaryKeyNames,
   SearchSchema,
-} from "./genericTabularRepositoryTests";
-import { setLogger } from "@workglow/util";
-import { getTestingLogger } from "../../binding/TestingLogger";
+} from "./genericTabularStorageTests";
 
 const spyOn = vi.spyOn;
 
@@ -23,7 +23,7 @@ describe("CachedTabularStorage", () => {
   let logger = getTestingLogger();
   setLogger(logger);
   describe("generic repository tests", () => {
-    runGenericTabularRepositoryTests(
+    runGenericTabularStorageTests(
       async () => {
         const durable = new InMemoryTabularStorage<
           typeof CompoundSchema,
@@ -57,7 +57,7 @@ describe("CachedTabularStorage", () => {
     );
   });
 
-  runGenericTabularRepositorySubscriptionTests(
+  runGenericTabularStorageSubscriptionTests(
     async () => {
       const durable = new InMemoryTabularStorage<
         typeof CompoundSchema,

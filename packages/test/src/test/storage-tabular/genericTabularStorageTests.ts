@@ -101,7 +101,7 @@ export const UuidSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchemaObject;
 
-export function runGenericTabularRepositoryTests(
+export function runGenericTabularStorageTests(
   createCompoundPkRepository: () => Promise<
     ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>
   >,

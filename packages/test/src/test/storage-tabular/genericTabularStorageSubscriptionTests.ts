@@ -7,13 +7,13 @@
 import { ITabularStorage, TabularChangePayload } from "@workglow/storage";
 import { FromSchema, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CompoundPrimaryKeyNames, CompoundSchema } from "./genericTabularRepositoryTests";
+import { CompoundPrimaryKeyNames, CompoundSchema } from "./genericTabularStorageTests";
 
 /**
  * Generic tests for tabular repository subscription functionality
  */
 
-export function runGenericTabularRepositorySubscriptionTests(
+export function runGenericTabularStorageSubscriptionTests(
   createRepository: () => Promise<
     ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>
   >,
@@ -109,6 +109,9 @@ export function runGenericTabularRepositorySubscriptionTests(
       await sleep(waitTime);
 
       const updateChange = changes.find((c) => c.type === "UPDATE");
+      if (!updateChange) {
+        console.warn("No update change found", changes);
+      }
       expect(updateChange).toBeDefined();
       expect(updateChange?.new?.option).toBe("value2");
       expect(updateChange?.new?.success).toBe(false);
