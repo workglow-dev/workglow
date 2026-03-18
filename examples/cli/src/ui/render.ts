@@ -6,7 +6,10 @@
 
 import type { TaskGraph } from "@workglow/task-graph";
 import type { PromptFieldDescriptor } from "../input/prompt";
+import type { SearchSelectItem, SearchSelectAppProps } from "./SearchSelectApp";
 import { formatError, outputResult } from "../util";
+
+export type { SearchSelectItem, SearchPage } from "./SearchSelectApp";
 
 interface RenderOptions {
   readonly outputJsonFile?: string;
@@ -108,6 +111,34 @@ export async function renderSchemaPrompt(
       React.createElement(SchemaPromptApp, {
         fields,
         onComplete,
+      })
+    );
+  });
+}
+
+export async function renderSearchSelect<T extends SearchSelectItem>(
+  props: Omit<SearchSelectAppProps<T>, "onSelect" | "onCancel">
+): Promise<T | undefined> {
+  const React = await import("react");
+  const { render } = await import("ink");
+  const { SearchSelectApp } = await import("./SearchSelectApp");
+
+  return new Promise<T | undefined>((resolve) => {
+    const onSelect = (item: T) => {
+      instance.unmount();
+      resolve(item);
+    };
+
+    const onCancel = () => {
+      instance.unmount();
+      resolve(undefined);
+    };
+
+    const instance = render(
+      React.createElement(SearchSelectApp as any, {
+        ...props,
+        onSelect,
+        onCancel,
       })
     );
   });
