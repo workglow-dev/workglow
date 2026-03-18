@@ -28,6 +28,7 @@ import {
 } from "../input";
 import { createModelRepository } from "../storage";
 import { formatTable } from "../util";
+import type { SearchPage, SearchSelectItem } from "../ui/render";
 
 const PROVIDER_SCHEMAS: Record<string, DataPortSchemaObject> = {
   ANTHROPIC: AnthropicModelRecordSchema as unknown as DataPortSchemaObject,
@@ -53,6 +54,84 @@ function detectProviderFromArgv(argv: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+interface HfModelEntry {
+  id: string;
+  modelId: string;
+  pipeline_tag?: string;
+  library_name?: string;
+  likes: number;
+  downloads: number;
+  tags?: string[];
+}
+
+interface HfSearchResult extends SearchSelectItem {
+  readonly entry: HfModelEntry;
+}
+
+const HF_API_BASE = "https://huggingface.co/api";
+const HF_PAGE_SIZE = 20;
+
+function formatDownloads(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+async function searchHuggingFace(
+  query: string,
+  cursor: string | undefined
+): Promise<SearchPage<HfSearchResult>> {
+  const skip = cursor ? parseInt(cursor, 10) : 0;
+  const params = new URLSearchParams({
+    search: query,
+    limit: String(HF_PAGE_SIZE),
+    sort: "downloads",
+    direction: "-1",
+    skip: String(skip),
+  });
+
+  const res = await fetch(`${HF_API_BASE}/models?${params}`);
+  if (!res.ok) throw new Error(`HuggingFace API returned ${res.status}`);
+
+  const data: HfModelEntry[] = await res.json();
+
+  const items: HfSearchResult[] = data.map((entry) => {
+    const badges = [entry.pipeline_tag, entry.library_name].filter(Boolean).join(" | ");
+    return {
+      id: entry.id,
+      label: `${entry.id}${badges ? `  ${badges}` : ""}`,
+      description: `${formatDownloads(entry.downloads)} downloads`,
+      entry,
+    };
+  });
+
+  return {
+    items,
+    nextCursor: data.length >= HF_PAGE_SIZE ? String(skip + HF_PAGE_SIZE) : undefined,
+  };
+}
+
+function mapHfModelResult(entry: HfModelEntry): Record<string, unknown> {
+  let provider = "HF_INFERENCE";
+  if (entry.library_name === "onnx" || entry.tags?.includes("onnx")) {
+    provider = "HF_TRANSFORMERS_ONNX";
+  }
+
+  const model_id = entry.id.replace(/\//g, "--");
+
+  return {
+    model_id,
+    provider,
+    title: entry.id.split("/").pop() ?? entry.id,
+    description: [entry.pipeline_tag, `${formatDownloads(entry.downloads)} downloads`]
+      .filter(Boolean)
+      .join(" \u2014 "),
+    tasks: entry.pipeline_tag ? [entry.pipeline_tag] : [],
+    provider_config: { model_name: entry.id },
+    metadata: {},
+  };
 }
 
 export function registerModelCommand(program: Command): void {
@@ -138,6 +217,63 @@ export function registerModelCommand(program: Command): void {
         const { promptMissingInput } = await import("../input/prompt");
         withDefaults = await promptMissingInput(withDefaults, schema);
       }
+
+      const validation = validateInput(withDefaults, schema);
+      if (!validation.valid) {
+        console.error("Input validation failed:");
+        for (const err of validation.errors) {
+          console.error(`  - ${err}`);
+        }
+        process.exit(1);
+      }
+
+      if (opts.dryRun) {
+        console.log(JSON.stringify(withDefaults, null, 2));
+        process.exit(0);
+      }
+
+      const config = await loadConfig();
+      const repo = createModelRepository(config);
+      await repo.setupDatabase();
+
+      await repo.addModel(withDefaults as unknown as ModelRecord);
+      console.log(`Model "${withDefaults.model_id}" added.`);
+    });
+
+  model
+    .command("find")
+    .argument("[query]", "Initial search term")
+    .option("--dry-run", "Validate and print result without saving")
+    .description("Search HuggingFace and add a model")
+    .action(async (query: string | undefined, opts: { dryRun?: boolean }) => {
+      if (!process.stdin.isTTY) {
+        console.error("Error: model find requires an interactive terminal.");
+        process.exit(1);
+      }
+
+      const { renderSearchSelect } = await import("../ui/render");
+      const selected = await renderSearchSelect<HfSearchResult>({
+        initialQuery: query,
+        placeholder: "Search HuggingFace models",
+        onSearch: searchHuggingFace,
+      });
+
+      if (!selected) {
+        return;
+      }
+
+      let input = mapHfModelResult(selected.entry);
+
+      const provider = input.provider as string;
+      const schema: DataPortSchemaObject =
+        provider && PROVIDER_SCHEMAS[provider]
+          ? PROVIDER_SCHEMAS[provider]
+          : (ModelRecordSchema as unknown as DataPortSchemaObject);
+
+      let withDefaults = applySchemaDefaults(input, schema);
+
+      const { promptMissingInput } = await import("../input/prompt");
+      withDefaults = await promptMissingInput(withDefaults, schema);
 
       const validation = validateInput(withDefaults, schema);
       if (!validation.valid) {
