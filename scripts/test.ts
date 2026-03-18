@@ -111,7 +111,11 @@ async function runBunTest(files: string[]): Promise<number> {
     cwd: ROOT,
     stdio: ["inherit", "inherit", "inherit"],
   });
-  return proc.exited;
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    console.error(`Bun test failed with exit code ${exitCode}`);
+  }
+  return exitCode;
 }
 
 async function runVitest(files: string[]): Promise<number> {
@@ -125,7 +129,11 @@ async function runVitest(files: string[]): Promise<number> {
     cwd: ROOT,
     stdio: ["inherit", "inherit", "inherit"],
   });
-  return proc.exited;
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    console.error(`Vitest test failed with exit code ${exitCode}`);
+  }
+  return exitCode;
 }
 
 // ── Parse args ────────────────────────────────────────────────────────────────
