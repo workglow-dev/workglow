@@ -27,7 +27,6 @@ export interface SearchSelectAppProps<T extends SearchSelectItem> {
   readonly onCancel: () => void;
   readonly renderItem?: (item: T, isFocused: boolean) => React.ReactElement;
   readonly debounceMs?: number;
-  readonly pageSize?: number;
 }
 
 const VISIBLE_ITEMS = 10;
@@ -44,6 +43,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
   const [items, setItems] = useState<T[]>([]);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -67,6 +67,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
         setIsLoading(true);
       } else {
         isLoadingMoreRef.current = true;
+        setIsLoadingMore(true);
       }
 
       const fetchId = ++fetchIdRef.current;
@@ -93,6 +94,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
         if (fetchId === fetchIdRef.current) {
           setIsLoading(false);
           isLoadingMoreRef.current = false;
+          setIsLoadingMore(false);
         }
       }
     },
@@ -220,7 +222,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
           <Text dimColor>  {"\u2193"} {items.length - windowEnd} more below</Text>
         )}
 
-        {isLoadingMoreRef.current && (
+        {isLoadingMore && (
           <Spinner label="Loading more..." />
         )}
       </Box>
