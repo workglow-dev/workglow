@@ -132,6 +132,8 @@ export async function renderSearchSelect<T extends SearchSelectItem>(
   return new Promise<T | undefined>((resolve) => {
     const onSelect = (item: T) => {
       instance.unmount();
+      const label = props.placeholder?.replace(/:$/, "") ?? "Selected";
+      console.log(`\u2713 ${label}: ${item.label}`);
       resolve(item);
     };
 
@@ -161,6 +163,9 @@ export async function renderSelectPrompt(
   return new Promise<string | undefined>((resolve) => {
     const onSelect = (value: string) => {
       instance.unmount();
+      const label = message?.replace(/:$/, "") ?? "Selected";
+      const option = options.find((o) => o.value === value);
+      console.log(`\u2713 ${label}: ${option?.label ?? value}`);
       resolve(value);
     };
 
