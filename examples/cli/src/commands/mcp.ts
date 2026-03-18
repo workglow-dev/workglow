@@ -188,15 +188,36 @@ export function registerMcpCommand(program: Command): void {
 
   mcp
     .command("remove")
-    .argument("<id>", "MCP server name to remove")
+    .argument("[id]", "MCP server name to remove")
     .description("Remove an MCP server by name")
-    .action(async (id: string) => {
+    .action(async (id: string | undefined) => {
       const config = await loadConfig();
       const storage = createMcpStorage(config);
       await storage.setupDirectory();
 
-      await storage.delete({ name: id });
-      console.log(`MCP server "${id}" removed.`);
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await storage.getAll();
+        if (!all || all.length === 0) {
+          console.log("No MCP servers to remove.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
+          value: String(e.name),
+        }));
+        const selected = await renderSelectPrompt(options, "Select MCP server to remove:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      await storage.delete({ name: targetId });
+      console.log(`MCP server "${targetId}" removed.`);
     });
 
   const add = mcp
