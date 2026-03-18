@@ -7,12 +7,12 @@
 import { ModelRecordSchema, type ModelRecord } from "@workglow/ai";
 import {
   AnthropicModelRecordSchema,
-  OpenAiModelRecordSchema,
   GeminiModelRecordSchema,
-  OllamaModelRecordSchema,
   HfInferenceModelRecordSchema,
   HfTransformersOnnxModelRecordSchema,
   LlamaCppModelRecordSchema,
+  OllamaModelRecordSchema,
+  OpenAiModelRecordSchema,
   TFMPModelRecordSchema,
   WebBrowserModelRecordSchema,
 } from "@workglow/ai-provider";
@@ -20,15 +20,15 @@ import type { DataPortSchemaObject } from "@workglow/util";
 import type { Command } from "commander";
 import { loadConfig } from "../config";
 import {
-  parseDynamicFlags,
+  applySchemaDefaults,
   generateSchemaHelpText,
+  parseDynamicFlags,
   resolveInput,
   validateInput,
-  applySchemaDefaults,
 } from "../input";
 import { createModelRepository } from "../storage";
-import { formatTable } from "../util";
 import type { SearchPage, SearchSelectItem } from "../ui/render";
+import { formatTable } from "../util";
 
 const PROVIDER_SCHEMAS: Record<string, DataPortSchemaObject> = {
   ANTHROPIC: AnthropicModelRecordSchema as unknown as DataPortSchemaObject,
@@ -189,7 +189,9 @@ const ANTHROPIC_FALLBACK: Array<{ label: string; value: string }> = [
 ];
 
 const OPENAI_FALLBACK: Array<{ label: string; value: string }> = [
-  { label: "gpt-4o", value: "gpt-4o" },
+  { label: "gpt-5.4", value: "gpt-5.4" },
+  { label: "gpt-5", value: "gpt-5" },
+  { label: "gpt-5-mini", value: "gpt-5-mini" },
   { label: "gpt-4o-mini", value: "gpt-4o-mini" },
   { label: "gpt-4-turbo", value: "gpt-4-turbo" },
   { label: "o3", value: "o3" },
@@ -199,6 +201,8 @@ const OPENAI_FALLBACK: Array<{ label: string; value: string }> = [
 ];
 
 const GEMINI_MODELS: Array<{ label: string; value: string }> = [
+  { label: "gemini-3.1-flash", value: "gemini-3.1-flash" },
+  { label: "gemini-3.1-pro", value: "gemini-3.1-pro" },
   { label: "gemini-2.5-flash", value: "gemini-2.5-flash" },
   { label: "gemini-2.5-pro", value: "gemini-2.5-pro" },
   { label: "gemini-2.0-flash", value: "gemini-2.0-flash" },
