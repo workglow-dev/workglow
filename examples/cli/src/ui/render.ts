@@ -143,3 +143,33 @@ export async function renderSearchSelect<T extends SearchSelectItem>(
     );
   });
 }
+
+export async function renderSelectPrompt(
+  options: Array<{ label: string; value: string }>,
+  message?: string
+): Promise<string | undefined> {
+  const React = await import("react");
+  const { render } = await import("ink");
+  const { SelectPromptApp } = await import("./SelectPromptApp");
+
+  return new Promise<string | undefined>((resolve) => {
+    const onSelect = (value: string) => {
+      instance.unmount();
+      resolve(value);
+    };
+
+    const onCancel = () => {
+      instance.unmount();
+      resolve(undefined);
+    };
+
+    const instance = render(
+      React.createElement(SelectPromptApp, {
+        message,
+        options,
+        onSelect,
+        onCancel,
+      })
+    );
+  });
+}

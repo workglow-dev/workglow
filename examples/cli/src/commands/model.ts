@@ -162,16 +162,37 @@ export function registerModelCommand(program: Command): void {
 
   model
     .command("remove")
-    .argument("<id>", "model ID to remove")
+    .argument("[id]", "model ID to remove")
     .description("Remove a model by ID")
-    .action(async (id: string) => {
+    .action(async (id: string | undefined) => {
       const config = await loadConfig();
       const repo = createModelRepository(config);
       await repo.setupDatabase();
 
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const models = await repo.enumerateAllModels();
+        if (!models || models.length === 0) {
+          console.log("No models to remove.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = models.map((m) => ({
+          label: `${m.model_id}  ${m.provider}  ${m.title ?? ""}`,
+          value: m.model_id,
+        }));
+        const selected = await renderSelectPrompt(options, "Select model to remove:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
       try {
-        await repo.removeModel(id);
-        console.log(`Model "${id}" removed.`);
+        await repo.removeModel(targetId);
+        console.log(`Model "${targetId}" removed.`);
       } catch (e: unknown) {
         console.error((e as Error).message);
         process.exit(1);
