@@ -39,11 +39,13 @@ export async function renderTaskRun(
   return new Promise<void>((resolve, reject) => {
     const onComplete = async (result: unknown) => {
       await outputResult(result, opts.outputJsonFile);
+      instance.clear();
       instance.unmount();
       resolve();
     };
 
     const onError = (error: Error) => {
+      instance.clear();
       instance.unmount();
       console.error(`\nError: ${formatError(error)}`);
       process.exit(1);
@@ -72,11 +74,13 @@ export async function renderWorkflowRun(
   return new Promise<void>((resolve, reject) => {
     const onComplete = async (result: unknown) => {
       await outputResult(result, opts.outputJsonFile);
+      instance.clear();
       instance.unmount();
       resolve();
     };
 
     const onError = (error: Error) => {
+      instance.clear();
       instance.unmount();
       console.error(`\nError: ${formatError(error)}`);
       process.exit(1);
@@ -103,11 +107,13 @@ export async function renderSchemaPrompt(
 
   return new Promise<Record<string, unknown> | undefined>((resolve) => {
     const onComplete = (values: Record<string, unknown>) => {
+      instance.clear();
       instance.unmount();
       resolve(values);
     };
 
     const onCancel = () => {
+      instance.clear();
       instance.unmount();
       console.log("Cancelled.");
       resolve(undefined);
@@ -132,6 +138,7 @@ export async function renderSearchSelect<T extends SearchSelectItem>(
 
   return new Promise<T | undefined>((resolve) => {
     const onSelect = (item: T) => {
+      instance.clear();
       instance.unmount();
       const label = props.placeholder?.replace(/:$/, "") ?? "Selected";
       console.log(`\u2713 ${label}: ${item.label}`);
@@ -139,6 +146,7 @@ export async function renderSearchSelect<T extends SearchSelectItem>(
     };
 
     const onCancel = () => {
+      instance.clear();
       instance.unmount();
       console.log("Cancelled.");
       resolve(undefined);
@@ -164,6 +172,7 @@ export async function renderSelectPrompt(
 
   return new Promise<string | undefined>((resolve) => {
     const onSelect = (value: string) => {
+      instance.clear();
       instance.unmount();
       const label = message?.replace(/:$/, "") ?? "Selected";
       const option = options.find((o) => o.value === value);
@@ -172,6 +181,7 @@ export async function renderSelectPrompt(
     };
 
     const onCancel = () => {
+      instance.clear();
       instance.unmount();
       console.log("Cancelled.");
       resolve(undefined);
