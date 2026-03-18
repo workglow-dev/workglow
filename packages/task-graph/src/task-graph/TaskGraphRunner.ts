@@ -404,11 +404,15 @@ export class TaskGraphRunner {
         const narrowed = await task.narrowInput({ ...results }, this.registry);
         dataflow.setPortData(narrowed);
       } else {
-        getLogger().warn("pushOutputFromNodeToEdge not compatible, not setting port data", {
-          dataflowId: dataflow.id,
-          compatibility,
-          resultsKeys: Object.keys(results),
-        });
+        // Warn only when we had data to push; empty results (e.g. progress mid-run) are expected
+        const resultsKeys = Object.keys(results);
+        if (resultsKeys.length > 0) {
+          getLogger().warn("pushOutputFromNodeToEdge not compatible, not setting port data", {
+            dataflowId: dataflow.id,
+            compatibility,
+            resultsKeys,
+          });
+        }
       }
     }
   }
@@ -1085,7 +1089,10 @@ export class TaskGraphRunner {
       progress = Math.round(completed / total);
     }
     this.pushStatusFromNodeToEdges(this.graph, task);
-    await this.pushOutputFromNodeToEdges(task, task.runOutputData);
+    // Only push output when the task has produced data; progress can fire mid-run with empty runOutputData
+    if (task.runOutputData && Object.keys(task.runOutputData).length > 0) {
+      await this.pushOutputFromNodeToEdges(task, task.runOutputData);
+    }
     this.graph.emit("graph_progress", progress, message, args);
   }
 }
