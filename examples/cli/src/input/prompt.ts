@@ -265,6 +265,10 @@ export async function promptMissingInput(
 
     fields = await enrichFieldsWithOptions(fields);
     const prompted = await renderSchemaPrompt(fields);
+    if (prompted === undefined) {
+      // User pressed Escape to cancel
+      process.exit(0);
+    }
     result = deepMerge(result, prompted);
   }
 

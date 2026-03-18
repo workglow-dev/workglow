@@ -4,20 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { Box, Text, Static } from "ink";
+import React, { useState, useCallback, useRef } from "react";
+import { Box, Text, useInput } from "ink";
 import { TextInput, Select, ConfirmInput } from "@inkjs/ui";
 import type { PromptFieldDescriptor } from "../input/prompt";
 
 interface SchemaPromptAppProps {
   readonly fields: readonly PromptFieldDescriptor[];
   readonly onComplete: (values: Record<string, unknown>) => void;
-}
-
-interface CompletedField {
-  readonly id: number;
-  readonly label: string;
-  readonly value: string;
+  readonly onCancel: () => void;
 }
 
 function setNestedValue(obj: Record<string, unknown>, key: string, value: unknown): void {
@@ -61,69 +56,242 @@ function coercePromptValue(raw: string, field: PromptFieldDescriptor): unknown {
   }
 }
 
-export function SchemaPromptApp({ fields, onComplete }: SchemaPromptAppProps): React.ReactElement {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [values] = useState<Record<string, unknown>>({});
-  const [completedFields, setCompletedFields] = useState<CompletedField[]>([]);
+/**
+ * Validate a field value before accepting it.
+ * Returns an error message string if invalid, or undefined if valid.
+ */
+function validateFieldValue(raw: string, field: PromptFieldDescriptor): string | undefined {
+  // Required fields cannot be empty
+  if (field.required && raw.trim() === "") {
+    return `${field.label} is required`;
+  }
 
-  const handleSubmit = (raw: string, field: PromptFieldDescriptor): void => {
-    const coerced = coercePromptValue(raw, field);
-    setNestedValue(values, field.key, coerced);
+  // Skip further validation for empty optional fields
+  if (raw.trim() === "") return undefined;
 
-    setCompletedFields((prev) => [
-      ...prev,
-      { id: prev.length, label: field.key, value: String(raw) },
-    ]);
-
-    const nextIndex = currentIndex + 1;
-    if (nextIndex >= fields.length) {
-      onComplete(values);
-    } else {
-      setCurrentIndex(nextIndex);
+  switch (field.type) {
+    case "number": {
+      const n = parseFloat(raw);
+      if (isNaN(n)) return `"${raw}" is not a valid number`;
+      return undefined;
     }
-  };
+    case "integer": {
+      const n = parseInt(raw, 10);
+      if (isNaN(n)) return `"${raw}" is not a valid integer`;
+      if (String(n) !== raw.trim()) return `"${raw}" is not a valid integer`;
+      return undefined;
+    }
+    case "array": {
+      try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return `Expected a JSON array, got ${typeof parsed}`;
+      } catch {
+        // Comma-separated fallback is always valid
+      }
+      return undefined;
+    }
+    case "object": {
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          return `Expected a JSON object`;
+        }
+      } catch {
+        return `Invalid JSON: ${raw}`;
+      }
+      return undefined;
+    }
+    default:
+      return undefined;
+  }
+}
 
-  const field = fields[currentIndex];
+function isTextField(field: PromptFieldDescriptor): boolean {
+  return field.type !== "enum" && field.type !== "boolean";
+}
+
+export function SchemaPromptApp({ fields, onComplete, onCancel }: SchemaPromptAppProps): React.ReactElement {
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const valuesRef = useRef<Record<string, unknown>>({});
+  const rawValuesRef = useRef<Record<string, string>>({});
+  const [rawValues, setRawValues] = useState<Record<string, string>>({});
+  const pendingTextRef = useRef("");
+  const [fieldError, setFieldError] = useState<string | undefined>(undefined);
+
+  const saveRawValue = useCallback((key: string, raw: string) => {
+    rawValuesRef.current[key] = raw;
+    setRawValues((prev) => ({ ...prev, [key]: raw }));
+  }, []);
+
+  const handleFieldSubmit = useCallback(
+    (raw: string, field: PromptFieldDescriptor, index: number) => {
+      const error = validateFieldValue(raw, field);
+      if (error) {
+        setFieldError(error);
+        return;
+      }
+      setFieldError(undefined);
+
+      const coerced = coercePromptValue(raw, field);
+      setNestedValue(valuesRef.current, field.key, coerced);
+      saveRawValue(field.key, raw);
+      pendingTextRef.current = "";
+
+      const nextIndex = index + 1;
+      if (nextIndex >= fields.length) {
+        onComplete(valuesRef.current);
+      } else {
+        pendingTextRef.current = rawValuesRef.current[fields[nextIndex].key] ?? "";
+        setFocusedIndex(nextIndex);
+      }
+    },
+    [fields, onComplete, saveRawValue]
+  );
+
+  const navigateBy = useCallback(
+    (direction: number) => {
+      const currentField = fields[focusedIndex];
+      if (!currentField) return;
+
+      // Save pending text value when leaving a text field
+      if (isTextField(currentField) && pendingTextRef.current) {
+        const coerced = coercePromptValue(pendingTextRef.current, currentField);
+        setNestedValue(valuesRef.current, currentField.key, coerced);
+        saveRawValue(currentField.key, pendingTextRef.current);
+      }
+
+      const newIndex = focusedIndex + direction;
+      if (newIndex >= 0 && newIndex < fields.length) {
+        setFieldError(undefined);
+        pendingTextRef.current = rawValuesRef.current[fields[newIndex].key] ?? "";
+        setFocusedIndex(newIndex);
+      }
+    },
+    [focusedIndex, fields, saveRawValue]
+  );
+
+  useInput((_input, key) => {
+    const currentField = fields[focusedIndex];
+    if (!currentField) return;
+
+    const isSelect = currentField.type === "enum";
+
+    // Tab / Shift+Tab always navigate
+    if (key.tab && !key.shift) {
+      navigateBy(1);
+      return;
+    }
+    if (key.tab && key.shift) {
+      navigateBy(-1);
+      return;
+    }
+
+    // Up/Down navigate between fields (except on Select, which uses them for options)
+    if (key.downArrow && !isSelect) {
+      navigateBy(1);
+      return;
+    }
+    if (key.upArrow && !isSelect) {
+      navigateBy(-1);
+      return;
+    }
+
+    // Escape cancels the form
+    if (key.escape) {
+      onCancel();
+      return;
+    }
+  });
 
   return (
     <Box flexDirection="column">
-      <Static items={completedFields}>
-        {(item) => (
-          <Text key={item.id} color="green">
-            {"  \u2713 "}{item.label}: {item.value}
-          </Text>
-        )}
-      </Static>
+      <Box marginBottom={1}>
+        <Text bold color="cyan">
+          Fill in the fields below
+        </Text>
+        <Text dimColor> {"\u2014"} Enter to confirm, Tab/arrows to navigate, Esc to cancel</Text>
+      </Box>
 
-      {field && (
-        <Box flexDirection="column">
-          <Text dimColor>
-            ({currentIndex + 1}/{fields.length})
-          </Text>
-          <Box>
-            <Text bold>{field.label}</Text>
-            <Text> </Text>
-            <Text color="red">(required)</Text>
-            {field.description && (
-              <Text dimColor> — {field.description}</Text>
+      {fields.map((field, index) => {
+        const isFocused = index === focusedIndex;
+        const rawValue = rawValues[field.key];
+        const isCompleted = rawValue !== undefined;
+
+        return (
+          <Box key={field.key} flexDirection="column">
+            <Box>
+              <Text color={isFocused ? "cyan" : isCompleted ? "green" : "gray"}>
+                {isFocused ? "\u25B8 " : isCompleted ? "\u2713 " : "\u25CB "}
+              </Text>
+              <Text bold={isFocused} dimColor={!isFocused && !isCompleted}>
+                {field.label}
+              </Text>
+              {field.required && isFocused && (
+                <>
+                  <Text> </Text>
+                  <Text color="red">(required)</Text>
+                </>
+              )}
+              {!isFocused && isCompleted && <Text color="green"> = {rawValue}</Text>}
+              {!isFocused && !isCompleted && <Text dimColor> {"\u2014"}</Text>}
+            </Box>
+
+            {isFocused && field.description && (
+              <Box marginLeft={2}>
+                <Text dimColor>{field.description}</Text>
+              </Box>
+            )}
+
+            {isFocused && (
+              <Box marginLeft={2}>
+                <FieldWidget
+                  field={field}
+                  previousValue={rawValue}
+                  onSubmit={(raw) => handleFieldSubmit(raw, field, index)}
+                  onTextChange={(value) => {
+                    pendingTextRef.current = value;
+                    if (fieldError) setFieldError(undefined);
+                  }}
+                />
+              </Box>
+            )}
+
+            {isFocused && fieldError && (
+              <Box marginLeft={2}>
+                <Text color="red">{fieldError}</Text>
+              </Box>
             )}
           </Box>
-          <FieldWidget field={field} onSubmit={(raw) => handleSubmit(raw, field)} />
-        </Box>
-      )}
+        );
+      })}
+
+      <Box marginTop={1}>
+        <Text dimColor>
+          ({focusedIndex + 1}/{fields.length})
+        </Text>
+      </Box>
     </Box>
   );
 }
 
 interface FieldWidgetProps {
   readonly field: PromptFieldDescriptor;
+  readonly previousValue: string | undefined;
   readonly onSubmit: (value: string) => void;
+  readonly onTextChange: (value: string) => void;
 }
 
-function FieldWidget({ field, onSubmit }: FieldWidgetProps): React.ReactElement {
+function FieldWidget({
+  field,
+  previousValue,
+  onSubmit,
+  onTextChange,
+}: FieldWidgetProps): React.ReactElement {
   if (field.type === "enum" && field.enumValues) {
     const options = field.enumValues.map((v) => ({ label: v, value: v }));
-    return <Select options={options} onChange={(value) => onSubmit(value)} />;
+    return (
+      <Select options={options} defaultValue={previousValue} onChange={(value) => onSubmit(value)} />
+    );
   }
 
   if (field.type === "boolean") {
@@ -131,6 +299,7 @@ function FieldWidget({ field, onSubmit }: FieldWidgetProps): React.ReactElement 
       <Box>
         <Text dimColor>(y/n) </Text>
         <ConfirmInput
+          defaultChoice={previousValue === "false" ? "cancel" : "confirm"}
           onConfirm={() => onSubmit("true")}
           onCancel={() => onSubmit("false")}
         />
@@ -148,7 +317,10 @@ function FieldWidget({ field, onSubmit }: FieldWidgetProps): React.ReactElement 
   return (
     <TextInput
       placeholder={placeholder}
-      defaultValue={field.defaultValue !== undefined ? String(field.defaultValue) : undefined}
+      defaultValue={
+        previousValue ?? (field.defaultValue !== undefined ? String(field.defaultValue) : undefined)
+      }
+      onChange={onTextChange}
       onSubmit={onSubmit}
     />
   );
