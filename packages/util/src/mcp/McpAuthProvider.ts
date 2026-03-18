@@ -12,11 +12,15 @@ import {
   StaticPrivateKeyJwtProvider,
   createPrivateKeyJwtAuth,
 } from "@modelcontextprotocol/sdk/client/auth-extensions.js";
+import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import type {
   AddClientAuthentication,
   OAuthClientProvider,
   OAuthDiscoveryState,
 } from "@modelcontextprotocol/sdk/client/auth.js";
+
+export { UnauthorizedError };
+export type { OAuthClientProvider };
 import type {
   OAuthClientInformationMixed,
   OAuthClientMetadata,

@@ -7,9 +7,6 @@ export default defineConfig({
   resolve: {
     mainFields: ["browser", "import", "module", "main"],
   },
-  esbuild: {
-    target: "esnext",
-  },
   worker: {
     format: "es",
   },
@@ -17,34 +14,27 @@ export default defineConfig({
     target: "esnext",
     rollupOptions: {
       output: {
-        manualChunks: {
-          "huggingface-transformers": ["@huggingface/transformers"],
-          workglow: [
-            "@workglow/ai",
-            "@workglow/ai-provider",
-            "@workglow/job-queue",
-            "@workglow/storage",
-            "@workglow/task-graph",
-            "@workglow/debug",
-            "@workglow/knowledge-base",
-            "@workglow/tasks",
-            "@workglow/util",
-            "@workglow/sqlite",
-          ],
-          react: [
-            "react",
-            "react-dom",
-            "@xyflow/react",
-            "react-hotkeys-hook",
-            "react-icons",
-            "react-resizable-panels",
-          ],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("@huggingface/transformers")) return "huggingface-transformers";
+            if (id.includes("@workglow/")) return "workglow";
+            if (
+              id.includes("node_modules/react/") ||
+              id.includes("node_modules/react-dom") ||
+              id.includes("node_modules/@xyflow/react") ||
+              id.includes("node_modules/react-hotkeys-hook") ||
+              id.includes("node_modules/react-icons") ||
+              id.includes("node_modules/react-resizable-panels")
+            )
+              return "react";
+          }
+          return undefined;
         },
       },
     },
   },
   optimizeDeps: {
-    esbuildOptions: {
+    rolldownOptions: {
       target: "esnext",
     },
   },

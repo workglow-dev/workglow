@@ -18,6 +18,7 @@ import { getLogger } from "../logging/LoggerRegistry";
 import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 import { buildAuthConfig, mcpAuthConfigSchema } from "./McpAuthTypes";
 import type { McpAuthConfig } from "./McpAuthTypes";
+import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 
 export const mcpTransportTypes = ["stdio", "sse", "streamable-http"] as const;
 
@@ -85,6 +86,8 @@ export interface McpServerConfig {
   auth?: McpAuthConfig;
   // Flat auth properties from schema (used when config comes from JSON Schema forms)
   auth_type?: string;
+  // External auth provider — when set, bypasses internal auth resolution for OAuth flows
+  authProvider?: OAuthClientProvider;
 }
 
 export async function createMcpClient(
@@ -101,11 +104,12 @@ export async function createMcpClient(
     auth = await resolveAuthSecrets(auth, getGlobalCredentialStore());
   }
 
-  // Build auth provider for OAuth flows
+  // Build auth provider for OAuth flows (external provider takes precedence)
   const authProvider =
-    auth && auth.type !== "none" && auth.type !== "bearer"
+    config.authProvider ??
+    (auth && auth.type !== "none" && auth.type !== "bearer"
       ? createAuthProvider(auth, config.server_url ?? "", getGlobalCredentialStore())
-      : undefined;
+      : undefined);
 
   // Build request headers (SDK sets MCP-Protocol-Version automatically)
   const headers: Record<string, string> = {
