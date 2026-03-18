@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { FallbackTask, FallbackTaskConfig } from "./FallbackTask";
+import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { ITask } from "./ITask";
 import { TaskAbortedError, TaskFailedError, TaskTimeoutError } from "./TaskError";
 import { TaskStatus, type TaskInput, type TaskOutput } from "./TaskTypes";
@@ -141,6 +141,7 @@ export class FallbackTaskRunner<
         const results = await this.task.subGraph.run<Output>(mergedInput, {
           parentSignal: this.abortController?.signal,
           outputCache: this.outputCache,
+          registry: this.registry,
         });
 
         const mergedOutput = this.task.subGraph.mergeExecuteOutputsToRunOutput(

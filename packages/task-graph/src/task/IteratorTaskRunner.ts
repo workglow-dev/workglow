@@ -215,6 +215,7 @@ export class IteratorTaskRunner<
     const results = await graphClone.run<TaskOutput>(input as TaskInput, {
       parentSignal: this.abortController?.signal,
       outputCache: this.outputCache,
+      registry: this.registry,
     });
 
     if (results.length === 0) {

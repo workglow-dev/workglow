@@ -29,6 +29,7 @@ export class GraphAsTaskRunner<
     const results = await this.task.subGraph!.run<Output>(input, {
       parentSignal: this.abortController?.signal,
       outputCache: this.outputCache,
+      registry: this.registry,
     });
     unsubscribe();
     return results;
@@ -41,7 +42,9 @@ export class GraphAsTaskRunner<
    * parent's input values after resetInputData() is called.
    */
   protected async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
-    return this.task.subGraph!.runReactive<Output>(this.task.runInputData);
+    return this.task.subGraph!.runReactive<Output>(this.task.runInputData, {
+      registry: this.registry,
+    });
   }
 
   protected async handleDisable(): Promise<void> {
