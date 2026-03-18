@@ -56,6 +56,10 @@ function detectProviderFromArgv(argv: string[]): string | undefined {
   return undefined;
 }
 
+// ---------------------------------------------------------------------------
+// HuggingFace search (used by HF_INFERENCE, HF_TRANSFORMERS_ONNX, LOCAL_LLAMACPP)
+// ---------------------------------------------------------------------------
+
 interface HfModelEntry {
   id: string;
   modelId: string;
@@ -79,46 +83,43 @@ function formatDownloads(n: number): string {
   return String(n);
 }
 
-async function searchHuggingFace(
-  query: string,
-  cursor: string | undefined
-): Promise<SearchPage<HfSearchResult>> {
-  const skip = cursor ? parseInt(cursor, 10) : 0;
-  const params = new URLSearchParams({
-    search: query,
-    limit: String(HF_PAGE_SIZE),
-    sort: "downloads",
-    direction: "-1",
-    skip: String(skip),
-  });
+function createHfSearchFn(
+  extraParams?: Record<string, string>
+): (query: string, cursor: string | undefined) => Promise<SearchPage<HfSearchResult>> {
+  return async (query, cursor) => {
+    const skip = cursor ? parseInt(cursor, 10) : 0;
+    const params = new URLSearchParams({
+      search: query,
+      limit: String(HF_PAGE_SIZE),
+      sort: "downloads",
+      direction: "-1",
+      skip: String(skip),
+      ...extraParams,
+    });
 
-  const res = await fetch(`${HF_API_BASE}/models?${params}`);
-  if (!res.ok) throw new Error(`HuggingFace API returned ${res.status}`);
+    const res = await fetch(`${HF_API_BASE}/models?${params}`);
+    if (!res.ok) throw new Error(`HuggingFace API returned ${res.status}`);
 
-  const data: HfModelEntry[] = await res.json();
+    const data: HfModelEntry[] = await res.json();
 
-  const items: HfSearchResult[] = data.map((entry) => {
-    const badges = [entry.pipeline_tag, entry.library_name].filter(Boolean).join(" | ");
+    const items: HfSearchResult[] = data.map((entry) => {
+      const badges = [entry.pipeline_tag, entry.library_name].filter(Boolean).join(" | ");
+      return {
+        id: entry.id,
+        label: `${entry.id}${badges ? `  ${badges}` : ""}`,
+        description: `${formatDownloads(entry.downloads)} downloads`,
+        entry,
+      };
+    });
+
     return {
-      id: entry.id,
-      label: `${entry.id}${badges ? `  ${badges}` : ""}`,
-      description: `${formatDownloads(entry.downloads)} downloads`,
-      entry,
+      items,
+      nextCursor: data.length >= HF_PAGE_SIZE ? String(skip + HF_PAGE_SIZE) : undefined,
     };
-  });
-
-  return {
-    items,
-    nextCursor: data.length >= HF_PAGE_SIZE ? String(skip + HF_PAGE_SIZE) : undefined,
   };
 }
 
-function mapHfModelResult(entry: HfModelEntry): Record<string, unknown> {
-  let provider = "HF_INFERENCE";
-  if (entry.library_name === "onnx" || entry.tags?.includes("onnx")) {
-    provider = "HF_TRANSFORMERS_ONNX";
-  }
-
+function mapHfModelResult(entry: HfModelEntry, provider: string): Record<string, unknown> {
   const model_id = entry.id.replace(/\//g, "--");
 
   return {
@@ -133,6 +134,182 @@ function mapHfModelResult(entry: HfModelEntry): Record<string, unknown> {
     metadata: {},
   };
 }
+
+// ---------------------------------------------------------------------------
+// SDK-based model listing (Anthropic, OpenAI, Ollama)
+// ---------------------------------------------------------------------------
+
+async function listAnthropicModels(): Promise<Array<{ label: string; value: string }>> {
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  const client = new Anthropic();
+  const models: Array<{ label: string; value: string }> = [];
+  for await (const m of client.beta.models.list()) {
+    models.push({ label: `${m.id}  ${m.display_name}`, value: m.id });
+  }
+  return models;
+}
+
+async function listOpenAiModels(): Promise<Array<{ label: string; value: string }>> {
+  const { default: OpenAI } = await import("openai");
+  const client = new OpenAI();
+  const models: Array<{ label: string; value: string }> = [];
+  for await (const m of client.models.list()) {
+    models.push({ label: `${m.id}  ${m.owned_by}`, value: m.id });
+  }
+  // Sort: gpt/o1 models first, then by name
+  models.sort((a, b) => {
+    const aGpt = a.value.startsWith("gpt") || a.value.startsWith("o1") ? 0 : 1;
+    const bGpt = b.value.startsWith("gpt") || b.value.startsWith("o1") ? 0 : 1;
+    if (aGpt !== bGpt) return aGpt - bGpt;
+    return a.value.localeCompare(b.value);
+  });
+  return models;
+}
+
+async function listOllamaModels(): Promise<Array<{ label: string; value: string }>> {
+  const { Ollama } = await import("ollama");
+  const client = new Ollama();
+  const response = await client.list();
+  return response.models.map((m) => ({
+    label: `${m.name}  ${m.details.parameter_size}  ${m.details.quantization_level}`,
+    value: m.name,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Static/fallback model lists
+// ---------------------------------------------------------------------------
+
+const ANTHROPIC_FALLBACK: Array<{ label: string; value: string }> = [
+  { label: "claude-opus-4-20250514", value: "claude-opus-4-20250514" },
+  { label: "claude-sonnet-4-20250514", value: "claude-sonnet-4-20250514" },
+  { label: "claude-haiku-4-5-20251001", value: "claude-haiku-4-5-20251001" },
+  { label: "claude-3-5-sonnet-20241022", value: "claude-3-5-sonnet-20241022" },
+  { label: "claude-3-5-haiku-20241022", value: "claude-3-5-haiku-20241022" },
+];
+
+const OPENAI_FALLBACK: Array<{ label: string; value: string }> = [
+  { label: "gpt-4o", value: "gpt-4o" },
+  { label: "gpt-4o-mini", value: "gpt-4o-mini" },
+  { label: "gpt-4-turbo", value: "gpt-4-turbo" },
+  { label: "o3", value: "o3" },
+  { label: "o3-mini", value: "o3-mini" },
+  { label: "o1", value: "o1" },
+  { label: "o1-mini", value: "o1-mini" },
+];
+
+const GEMINI_MODELS: Array<{ label: string; value: string }> = [
+  { label: "gemini-2.5-flash", value: "gemini-2.5-flash" },
+  { label: "gemini-2.5-pro", value: "gemini-2.5-pro" },
+  { label: "gemini-2.0-flash", value: "gemini-2.0-flash" },
+  { label: "gemini-1.5-pro", value: "gemini-1.5-pro" },
+  { label: "gemini-1.5-flash", value: "gemini-1.5-flash" },
+];
+
+const TFMP_MODELS: Array<{ label: string; value: string }> = [
+  { label: "text-embedder  Universal Sentence Encoder", value: "text-embedder" },
+];
+
+const WEB_BROWSER_MODELS: Array<{ label: string; value: string }> = [
+  { label: "webgpu  WebGPU inference", value: "webgpu" },
+  { label: "wasm  WASM inference", value: "wasm" },
+];
+
+// ---------------------------------------------------------------------------
+// Provider search dispatch
+// ---------------------------------------------------------------------------
+
+type FindResult =
+  | { type: "hf"; entry: HfModelEntry; provider: string }
+  | { type: "id"; modelId: string; provider: string };
+
+const HF_PROVIDERS: Record<string, { placeholder: string; extra?: Record<string, string> }> = {
+  HF_INFERENCE: { placeholder: "Search HuggingFace models" },
+  HF_TRANSFORMERS_ONNX: { placeholder: "Search ONNX models", extra: { library: "onnx" } },
+  LOCAL_LLAMACPP: { placeholder: "Search GGUF models", extra: { tags: "gguf" } },
+};
+
+async function findModelForProvider(provider: string): Promise<FindResult | undefined> {
+  const hfConfig = HF_PROVIDERS[provider];
+  if (hfConfig) {
+    const { renderSearchSelect } = await import("../ui/render");
+    const searchFn = createHfSearchFn(hfConfig.extra);
+    const selected = await renderSearchSelect<HfSearchResult>({
+      placeholder: hfConfig.placeholder,
+      onSearch: searchFn,
+    });
+    if (!selected) return undefined;
+    return { type: "hf", entry: selected.entry, provider };
+  }
+
+  // SDK or static list providers
+  let options: Array<{ label: string; value: string }> | undefined;
+
+  switch (provider) {
+    case "ANTHROPIC":
+      try {
+        options = await listAnthropicModels();
+      } catch {
+        options = ANTHROPIC_FALLBACK;
+      }
+      break;
+    case "OPENAI":
+      try {
+        options = await listOpenAiModels();
+      } catch {
+        options = OPENAI_FALLBACK;
+      }
+      break;
+    case "OLLAMA":
+      try {
+        options = await listOllamaModels();
+      } catch (e: unknown) {
+        console.error(`Could not connect to Ollama: ${(e as Error).message}`);
+        console.error("Make sure Ollama is running (ollama serve).");
+        return undefined;
+      }
+      break;
+    case "GOOGLE_GEMINI":
+      options = GEMINI_MODELS;
+      break;
+    case "TENSORFLOW_MEDIAPIPE":
+      options = TFMP_MODELS;
+      break;
+    case "WEB_BROWSER":
+      options = WEB_BROWSER_MODELS;
+      break;
+  }
+
+  if (!options || options.length === 0) {
+    console.log("No models available for this provider.");
+    return undefined;
+  }
+
+  const { renderSelectPrompt } = await import("../ui/render");
+  const selected = await renderSelectPrompt(options, `Select ${provider} model:`);
+  if (!selected) return undefined;
+  return { type: "id", modelId: selected, provider };
+}
+
+function mapFindResult(result: FindResult): Record<string, unknown> {
+  if (result.type === "hf") {
+    return mapHfModelResult(result.entry, result.provider);
+  }
+
+  return {
+    model_id: result.modelId,
+    provider: result.provider,
+    title: result.modelId,
+    description: "",
+    tasks: [],
+    provider_config: { model_name: result.modelId },
+    metadata: {},
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Command registration
+// ---------------------------------------------------------------------------
 
 export function registerModelCommand(program: Command): void {
   const model = program.command("model").description("Manage models");
@@ -263,33 +440,31 @@ export function registerModelCommand(program: Command): void {
 
   model
     .command("find")
-    .argument("[query]", "Initial search term")
+    .argument("[query]", "Initial search term (HuggingFace providers only)")
     .option("--dry-run", "Validate and print result without saving")
-    .description("Search HuggingFace and add a model")
+    .description("Search for a model and add it")
     .action(async (query: string | undefined, opts: { dryRun?: boolean }) => {
       if (!process.stdin.isTTY) {
         console.error("Error: model find requires an interactive terminal.");
         process.exit(1);
       }
 
-      const { renderSearchSelect } = await import("../ui/render");
-      const selected = await renderSearchSelect<HfSearchResult>({
-        initialQuery: query,
-        placeholder: "Search HuggingFace models",
-        onSearch: searchHuggingFace,
-      });
+      // Step 1: Pick provider
+      const { renderSelectPrompt } = await import("../ui/render");
+      const providerOptions = AVAILABLE_PROVIDERS.map((p) => ({ label: p, value: p }));
+      const selectedProvider = await renderSelectPrompt(providerOptions, "Select provider:");
+      if (!selectedProvider) return;
 
-      if (!selected) {
-        return;
-      }
+      // Step 2: Find model for that provider
+      const result = await findModelForProvider(selectedProvider);
+      if (!result) return;
 
-      let input = mapHfModelResult(selected.entry);
+      // Step 3: Map to partial input and run add form
+      let input = mapFindResult(result);
 
-      const provider = input.provider as string;
       const schema: DataPortSchemaObject =
-        provider && PROVIDER_SCHEMAS[provider]
-          ? PROVIDER_SCHEMAS[provider]
-          : (ModelRecordSchema as unknown as DataPortSchemaObject);
+        PROVIDER_SCHEMAS[selectedProvider] ??
+        (ModelRecordSchema as unknown as DataPortSchemaObject);
 
       let withDefaults = applySchemaDefaults(input, schema);
 
