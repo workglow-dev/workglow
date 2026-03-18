@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
 import { TextInput, Spinner } from "@inkjs/ui";
 
 export interface SearchSelectItem {
@@ -29,7 +29,8 @@ export interface SearchSelectAppProps<T extends SearchSelectItem> {
   readonly debounceMs?: number;
 }
 
-const VISIBLE_ITEMS = 10;
+// Reserve rows for: search input (1), status line (1), help text (2), padding
+const CHROME_ROWS = 6;
 
 export function SearchSelectApp<T extends SearchSelectItem>({
   initialQuery,
@@ -40,6 +41,10 @@ export function SearchSelectApp<T extends SearchSelectItem>({
   renderItem,
   debounceMs = 300,
 }: SearchSelectAppProps<T>): React.ReactElement {
+  const { stdout } = useStdout();
+  const terminalRows = stdout?.rows ?? 24;
+  // Each item takes ~2 rows (label + description), so divide available space
+  const maxVisibleItems = Math.max(3, Math.floor((terminalRows - CHROME_ROWS) / 2));
   const [items, setItems] = useState<T[]>([]);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -177,8 +182,8 @@ export function SearchSelectApp<T extends SearchSelectItem>({
 
   const itemRenderer = renderItem ?? defaultRenderItem;
 
-  const windowStart = Math.max(0, Math.min(highlightIndex - Math.floor(VISIBLE_ITEMS / 2), items.length - VISIBLE_ITEMS));
-  const windowEnd = Math.min(items.length, windowStart + VISIBLE_ITEMS);
+  const windowStart = Math.max(0, Math.min(highlightIndex - Math.floor(maxVisibleItems / 2), items.length - maxVisibleItems));
+  const windowEnd = Math.min(items.length, windowStart + maxVisibleItems);
   const visibleItems = items.slice(windowStart, windowEnd);
 
   return (
