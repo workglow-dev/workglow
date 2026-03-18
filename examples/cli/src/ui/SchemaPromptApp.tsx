@@ -4,29 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useCallback, useRef } from "react";
+import { ConfirmInput, Select, TextInput } from "@inkjs/ui";
 import { Box, Text, useInput } from "ink";
-import { TextInput, Select, ConfirmInput } from "@inkjs/ui";
+import React, { useCallback, useRef, useState } from "react";
 import type { PromptFieldDescriptor } from "../input/prompt";
+import { setNestedValue } from "../util";
 
 interface SchemaPromptAppProps {
   readonly fields: readonly PromptFieldDescriptor[];
   readonly onComplete: (values: Record<string, unknown>) => void;
   readonly onCancel: () => void;
-}
-
-function setNestedValue(obj: Record<string, unknown>, key: string, value: unknown): void {
-  const parts = key.split(".");
-  let current: Record<string, unknown> = obj;
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (!(parts[i] in current) || typeof current[parts[i]] !== "object") {
-      current[parts[i]] = {};
-    }
-    current = current[parts[i]] as Record<string, unknown>;
-  }
-
-  current[parts[parts.length - 1]] = value;
 }
 
 function coercePromptValue(raw: string, field: PromptFieldDescriptor): unknown {
@@ -110,7 +97,11 @@ function isTextField(field: PromptFieldDescriptor): boolean {
   return field.type !== "enum" && field.type !== "boolean";
 }
 
-export function SchemaPromptApp({ fields, onComplete, onCancel }: SchemaPromptAppProps): React.ReactElement {
+export function SchemaPromptApp({
+  fields,
+  onComplete,
+  onCancel,
+}: SchemaPromptAppProps): React.ReactElement {
   const [focusedIndex, setFocusedIndex] = useState(0);
   const valuesRef = useRef<Record<string, unknown>>({});
   const rawValuesRef = useRef<Record<string, string>>({});
@@ -290,7 +281,11 @@ function FieldWidget({
   if (field.type === "enum" && field.enumValues) {
     const options = field.enumValues.map((v) => ({ label: v, value: v }));
     return (
-      <Select options={options} defaultValue={previousValue} onChange={(value) => onSubmit(value)} />
+      <Select
+        options={options}
+        defaultValue={previousValue}
+        onChange={(value) => onSubmit(value)}
+      />
     );
   }
 
