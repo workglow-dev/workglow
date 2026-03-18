@@ -1,3 +1,6 @@
 [install]
 # Explicitly set the linker to isolated
 linker = "isolated"
+[test]
+retry = 2
+root = "./packages/test/src/test"
