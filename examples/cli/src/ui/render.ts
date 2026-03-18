@@ -96,21 +96,27 @@ export async function renderWorkflowRun(
 
 export async function renderSchemaPrompt(
   fields: readonly PromptFieldDescriptor[]
-): Promise<Record<string, unknown>> {
+): Promise<Record<string, unknown> | undefined> {
   const React = await import("react");
   const { render } = await import("ink");
   const { SchemaPromptApp } = await import("./SchemaPromptApp");
 
-  return new Promise<Record<string, unknown>>((resolve) => {
+  return new Promise<Record<string, unknown> | undefined>((resolve) => {
     const onComplete = (values: Record<string, unknown>) => {
       instance.unmount();
       resolve(values);
+    };
+
+    const onCancel = () => {
+      instance.unmount();
+      resolve(undefined);
     };
 
     const instance = render(
       React.createElement(SchemaPromptApp, {
         fields,
         onComplete,
+        onCancel,
       })
     );
   });
