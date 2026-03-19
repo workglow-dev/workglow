@@ -107,7 +107,7 @@ function collectFiles(dirs: string[], kinds: readonly Kind[]): string[] {
 }
 
 async function runBunTest(files: string[]): Promise<number> {
-  const proc = Bun.spawn(["bun", "test", ...files], {
+  const proc = Bun.spawn(files.length > 0 ? ["bun", "test", ...files] : ["bun", "test"], {
     cwd: ROOT,
     stdio: ["inherit", "inherit", "inherit"],
   });
@@ -119,8 +119,8 @@ async function runBunTest(files: string[]): Promise<number> {
 }
 
 async function runVitest(files: string[]): Promise<number> {
-  // Pass relative paths from root as positional args — vitest treats them as name filters
-  const relFiles = files.map((f) => relative(ROOT, f));
+  // When no file filter: run all. Otherwise pass relative paths as name filters.
+  const relFiles = files.length > 0 ? files.map((f) => relative(ROOT, f)) : [];
   const args = ["npx", "vitest", "run", ...relFiles];
   if (process.env.CI) {
     args.push("--coverage");
@@ -173,27 +173,27 @@ if (unknown.length > 0) {
   process.exit(1);
 }
 
-// ── Collect test files ────────────────────────────────────────────────────────
+// ── Collect test files (only when section filter is given) ─────────────────────
 
-const dirs =
+const files: string[] =
   sections.length > 0
-    ? sections.flatMap((s) => SECTION_DIRS[s])
-    : Object.values(SECTION_DIRS).flat();
+    ? collectFiles(
+        sections.flatMap((s) => SECTION_DIRS[s]),
+        kinds
+      )
+    : [];
 
-const files = collectFiles(dirs, kinds);
-
-if (files.length === 0) {
+if (sections.length > 0 && files.length === 0) {
   const kindLabel = kinds.length > 0 ? kinds.join("+") : "all";
-  const sectionLabel = sections.length > 0 ? sections.join("+") : "all";
+  const sectionLabel = sections.join("+");
   console.log(`No test files found for kind=${kindLabel} section=${sectionLabel}`);
   process.exit(0);
 }
 
 const kindLabel = kinds.length > 0 ? kinds.join("+") : "all";
 const sectionLabel = sections.length > 0 ? sections.join("+") : "all";
-console.log(
-  `\nRunning ${kindLabel} tests in sections [${sectionLabel}] — ${files.length} file(s)\n`
-);
+const fileCount = files.length > 0 ? `${files.length} file(s)` : "all files";
+console.log(`\nRunning ${kindLabel} tests in sections [${sectionLabel}] — ${fileCount}\n`);
 
 // ── Execute ───────────────────────────────────────────────────────────────────
 
