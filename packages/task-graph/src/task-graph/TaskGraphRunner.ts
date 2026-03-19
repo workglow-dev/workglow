@@ -1010,7 +1010,7 @@ export class TaskGraphRunner {
     await Promise.allSettled(
       this.graph.getTasks().map(async (task: ITask) => {
         if (task.status === TaskStatus.PROCESSING || task.status === TaskStatus.STREAMING) {
-          task.abort();
+          return task.abort();
         }
       })
     );
@@ -1034,11 +1034,13 @@ export class TaskGraphRunner {
    * Handles task graph abortion
    */
   protected async handleAbort(): Promise<void> {
-    this.graph.getTasks().map(async (task: ITask) => {
-      if (task.status === TaskStatus.PROCESSING || task.status === TaskStatus.STREAMING) {
-        task.abort();
-      }
-    });
+    await Promise.allSettled(
+      this.graph.getTasks().map(async (task: ITask) => {
+        if (task.status === TaskStatus.PROCESSING || task.status === TaskStatus.STREAMING) {
+          return task.abort();
+        }
+      })
+    );
     this.running = false;
 
     if (this.telemetrySpan) {

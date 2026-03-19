@@ -5,7 +5,7 @@
  */
 
 import { SupabaseQueueStorage } from "@workglow/storage";
-import { describe } from "vitest";
+import { afterAll, describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStorageTests";
 import { runGenericQueueStorageSubscriptionTests } from "./genericQueueStorageSubscriptionTests";
@@ -25,6 +25,11 @@ class SupabaseQueueStorageWithPolling<Input, Output> extends SupabaseQueueStorag
 describe("SupabasePrefixedQueueStorage", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  afterAll(async () => {
+    await client.close();
+  });
+
   runGenericPrefixedQueueStorageTests(
     (queueName: string, options) => new SupabaseQueueStorage(client, queueName, options)
   );

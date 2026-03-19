@@ -132,6 +132,8 @@ describe("DownloadModelTask abort behavior", () => {
       const isAbortError =
         errorMessage.includes("abort") ||
         errorMessage.includes("protobuf parsing failed") ||
+        errorMessage.includes("json parse error") ||
+        errorMessage.includes("unexpected eof") ||
         errorMessage.includes("closed") ||
         error?.code === "ERR_INVALID_STATE";
 

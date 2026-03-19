@@ -11,7 +11,7 @@ import {
   SupabaseTabularStorage,
 } from "@workglow/storage";
 import { uuid4, setLogger } from "@workglow/util";
-import { describe } from "vitest";
+import { afterAll, describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -20,6 +20,11 @@ describe("SupabaseKvStorage", () => {
   let logger = getTestingLogger();
   setLogger(logger);
   const client = createSupabaseMockClient();
+
+  afterAll(async () => {
+    await client.close();
+  });
+
   runGenericKvRepositoryTests(async (keyType, valueType) => {
     const tableName = `supabase_test_${uuid4().replace(/-/g, "_")}`;
     return new SupabaseKvStorage(

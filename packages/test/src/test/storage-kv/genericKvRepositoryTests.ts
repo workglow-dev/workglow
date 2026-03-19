@@ -22,7 +22,10 @@ export function runGenericKvRepositoryTests(
       await (repository as any).setupDatabase?.();
     });
 
-    afterEach(async () => {});
+    afterEach(async () => {
+      await repository.deleteAll();
+      await (repository as any).destroy?.();
+    });
 
     it("should store and retrieve values for a key", async () => {
       const key = "key1";
@@ -79,6 +82,11 @@ export function runGenericKvRepositoryTests(
         }
       )) as IKvStorage<string, { option: string; success: boolean }>;
       await (repository as any).setupDatabase?.();
+    });
+
+    afterEach(async () => {
+      await repository.deleteAll();
+      await (repository as any).destroy?.();
     });
 
     it("should store and retrieve values for a key", async () => {

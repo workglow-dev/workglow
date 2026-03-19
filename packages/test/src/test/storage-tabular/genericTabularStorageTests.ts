@@ -240,6 +240,7 @@ export function runGenericTabularStorageTests(
 
       afterEach(async () => {
         await searchableRepo.deleteAll();
+        searchableRepo.destroy();
       });
 
       it("should store and search using compound indexes", async () => {
@@ -376,6 +377,7 @@ export function runGenericTabularStorageTests(
 
       afterEach(async () => {
         await repository.deleteAll();
+        repository.destroy();
       });
 
       it("should delete entries older than a specified date using createdAt", async () => {
@@ -836,6 +838,7 @@ export function runGenericTabularStorageTests(
 
       afterEach(async () => {
         await repository.deleteAll();
+        repository.destroy();
       });
 
       it("should return matching entries with equality criteria", async () => {
@@ -1106,6 +1109,7 @@ export function runGenericTabularStorageTests(
 
       afterEach(async () => {
         await repository.deleteAll();
+        repository.destroy();
       });
 
       it("should return entity with timestamps from put()", async () => {

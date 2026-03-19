@@ -6,7 +6,7 @@
 
 import { SupabaseTabularStorage } from "@workglow/storage";
 import { setLogger, uuid4 } from "@workglow/util";
-import { describe } from "vitest";
+import { afterAll, describe } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import {
@@ -24,6 +24,11 @@ const client = createSupabaseMockClient();
 describe("SupabaseTabularStorage", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  afterAll(async () => {
+    await client.close();
+  });
+
   runGenericTabularStorageTests(
     async () =>
       new SupabaseTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
