@@ -1,5 +1,7 @@
 # @workglow/task-graph
 
+## 0.0.121
+
 ## 0.0.120
 
 ### Bug Fixes

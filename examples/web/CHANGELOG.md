@@ -1,5 +1,15 @@
 # @workglow/web
 
+## 0.0.121
+
+### Chores
+
+- updated "@huggingface/transformers" to version 4.0.0-next.8.
+
+### Updated Dependencies
+
+- `vite`: ^8.0.1
+
 ## 0.0.120
 
 ## 0.0.119
