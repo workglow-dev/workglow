@@ -5,6 +5,7 @@
  */
 
 import type { DataPortSchemaObject } from "@workglow/util";
+import type { McpServerRecord } from "@workglow/tasks";
 import type { Command } from "commander";
 import { loadConfig } from "../config";
 import {
@@ -13,7 +14,8 @@ import {
   resolveInput,
   validateInput,
 } from "../input";
-import { createMcpStorage, McpServerRecordSchema } from "../storage";
+import { McpServerRecordSchema } from "@workglow/tasks";
+import { createMcpServerRepository } from "../storage";
 import { formatTable } from "../util";
 import type { SearchPage, SearchSelectItem } from "../ui/render";
 
@@ -100,19 +102,22 @@ async function searchMcpRegistry(
 }
 
 function mapMcpRegistryResult(server: McpRegistryServer): Record<string, unknown> {
-  const name = server.name.split("/").pop() ?? server.name;
+  const serverId = server.name.split("/").pop() ?? server.name;
+  const title = server.title ?? serverId;
 
   if (server.remotes && server.remotes.length > 0) {
     const remote = server.remotes[0];
     return {
-      name,
+      server_id: serverId,
+      title,
+      description: server.description,
       transport: remote.type,
       server_url: remote.url,
     };
   }
 
   const pkg = server.packages?.[0];
-  if (!pkg) return { name };
+  if (!pkg) return { server_id: serverId, title, description: server.description };
 
   let command: string;
   let args: string[];
@@ -143,7 +148,9 @@ function mapMcpRegistryResult(server: McpRegistryServer): Record<string, unknown
   }
 
   const result: Record<string, unknown> = {
-    name,
+    server_id: serverId,
+    title,
+    description: server.description,
     transport: "stdio",
     command,
     args,
@@ -168,32 +175,33 @@ export function registerMcpCommand(program: Command): void {
     .description("List all configured MCP servers")
     .action(async () => {
       const config = await loadConfig();
-      const storage = createMcpStorage(config);
-      await storage.setupDirectory();
+      const repo = createMcpServerRepository(config);
+      await repo.setupDatabase();
 
-      const all = await storage.getAll();
+      const all = await repo.enumerateAllServers();
       if (!all || all.length === 0) {
         console.log("No MCP servers found.");
         return;
       }
 
       const rows = all.map((entry) => ({
-        name: String(entry.name ?? ""),
+        server_id: String(entry.server_id ?? ""),
+        title: String(entry.title ?? ""),
         transport: String(entry.transport ?? ""),
         server_url: String(entry.server_url ?? ""),
         command: String(entry.command ?? ""),
       }));
-      console.log(formatTable(rows, ["name", "transport", "server_url", "command"]));
+      console.log(formatTable(rows, ["server_id", "title", "transport", "server_url", "command"]));
     });
 
   mcp
     .command("detail")
-    .argument("[id]", "MCP server name to show")
+    .argument("[id]", "MCP server id to show")
     .description("Show full details of an MCP server")
     .action(async (id: string | undefined) => {
       const config = await loadConfig();
-      const storage = createMcpStorage(config);
-      await storage.setupDirectory();
+      const repo = createMcpServerRepository(config);
+      await repo.setupDatabase();
 
       let targetId = id;
       if (!targetId) {
@@ -201,22 +209,22 @@ export function registerMcpCommand(program: Command): void {
           console.error("Error: specify an id or run interactively.");
           process.exit(1);
         }
-        const all = await storage.getAll();
+        const all = await repo.enumerateAllServers();
         if (!all || all.length === 0) {
           console.log("No MCP servers found.");
           return;
         }
         const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
-          label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
-          value: String(e.name),
+          label: `${e.server_id}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
+          value: String(e.server_id),
         }));
         const selected = await renderSelectPrompt(options, "Select MCP server:");
         if (!selected) return;
         targetId = selected;
       }
 
-      const entry = await storage.get({ name: targetId });
+      const entry = await repo.findByName(targetId);
       if (!entry) {
         console.error(`MCP server "${targetId}" not found.`);
         process.exit(1);
@@ -227,12 +235,12 @@ export function registerMcpCommand(program: Command): void {
 
   mcp
     .command("remove")
-    .argument("[id]", "MCP server name to remove")
-    .description("Remove an MCP server by name")
+    .argument("[id]", "MCP server id to remove")
+    .description("Remove an MCP server by id")
     .action(async (id: string | undefined) => {
       const config = await loadConfig();
-      const storage = createMcpStorage(config);
-      await storage.setupDirectory();
+      const repo = createMcpServerRepository(config);
+      await repo.setupDatabase();
 
       let targetId = id;
       if (!targetId) {
@@ -240,22 +248,22 @@ export function registerMcpCommand(program: Command): void {
           console.error("Error: specify an id or run interactively.");
           process.exit(1);
         }
-        const all = await storage.getAll();
+        const all = await repo.enumerateAllServers();
         if (!all || all.length === 0) {
           console.log("No MCP servers to remove.");
           return;
         }
         const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
-          label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
-          value: String(e.name),
+          label: `${e.server_id}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
+          value: String(e.server_id),
         }));
         const selected = await renderSelectPrompt(options, "Select MCP server to remove:");
         if (!selected) return;
         targetId = selected;
       }
 
-      await storage.delete({ name: targetId });
+      await repo.removeServer(targetId);
       console.log(`MCP server "${targetId}" removed.`);
     });
 
@@ -316,11 +324,11 @@ export function registerMcpCommand(program: Command): void {
       }
 
       const config = await loadConfig();
-      const storage = createMcpStorage(config);
-      await storage.setupDirectory();
+      const repo = createMcpServerRepository(config);
+      await repo.setupDatabase();
 
-      await storage.put(input as Record<string, unknown>);
-      console.log(`MCP server "${input.name}" added.`);
+      await repo.addServer(input as McpServerRecord);
+      console.log(`MCP server "${input.server_id}" added.`);
     });
 
   mcp
@@ -375,10 +383,10 @@ export function registerMcpCommand(program: Command): void {
       }
 
       const config = await loadConfig();
-      const storage = createMcpStorage(config);
-      await storage.setupDirectory();
+      const repo = createMcpServerRepository(config);
+      await repo.setupDatabase();
 
-      await storage.put(input as Record<string, unknown>);
-      console.log(`MCP server "${input.name}" added.`);
+      await repo.addServer(input as McpServerRecord);
+      console.log(`MCP server "${input.server_id}" added.`);
     });
 }

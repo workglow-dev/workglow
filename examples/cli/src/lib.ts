@@ -9,5 +9,5 @@ export {
   createModelRepository,
   createWorkflowRepository,
   createAgentRepository,
-  createMcpStorage,
+  createMcpServerRepository,
 } from "./storage";
