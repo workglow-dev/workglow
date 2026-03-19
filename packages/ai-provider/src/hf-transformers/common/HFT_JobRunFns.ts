@@ -89,11 +89,27 @@ import type {
 import type { StreamEvent } from "@workglow/task-graph";
 
 let _transformersSdk: typeof import("@huggingface/transformers") | undefined;
+let _cacheDir: string | undefined;
+
+/**
+ * Set the filesystem cache directory for downloaded transformers.js models.
+ * Must be called before any model is loaded. Works in both Node and browser.
+ */
+export function setHftCacheDir(dir: string): void {
+  _cacheDir = dir;
+  if (_transformersSdk) {
+    _transformersSdk.env.cacheDir = dir;
+  }
+}
+
 async function loadTransformersSDK() {
   if (!_transformersSdk) {
     try {
       _transformersSdk = await import("@huggingface/transformers");
       _transformersSdk.env.fetch = abortableFetch as typeof fetch;
+      if (_cacheDir) {
+        _transformersSdk.env.cacheDir = _cacheDir;
+      }
     } catch {
       throw new Error(
         "@huggingface/transformers is required for HuggingFace Transformers tasks. Install it with: bun add @huggingface/transformers"
@@ -136,6 +152,11 @@ const pipelineLoadPromises = new Map<string, Promise<any>>();
  */
 export function clearPipelineCache(): void {
   pipelines.clear();
+}
+
+/** True when running in a browser. Transformers.js only accepts device "wasm" in the browser build. */
+function isBrowserEnv(): boolean {
+  return typeof globalThis !== "undefined" && typeof (globalThis as any).window !== "undefined";
 }
 
 /**
@@ -297,12 +318,19 @@ const doGetPipeline = async (
     }
   };
 
+  let device = model.provider_config.device as string | undefined;
+  if (!isBrowserEnv()) {
+    if (device === "wasm" || device === "webgpu") {
+      device = undefined;
+    }
+  }
+
   const pipelineOptions: PretrainedModelOptions = {
     dtype: model.provider_config.dtype || "q8",
     ...(model.provider_config.use_external_data_format
       ? { useExternalDataFormat: model.provider_config.use_external_data_format }
       : {}),
-    ...(model.provider_config.device ? { device: model.provider_config.device as any } : {}),
+    ...(device ? { device: device as any } : {}),
     ...options,
     progress_callback: progressCallback,
   };

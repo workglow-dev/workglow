@@ -26,9 +26,9 @@ import {
   resolveInput,
   validateInput,
 } from "../input";
-import { createModelRepository } from "../storage";
 import { parseOnnxDtypes } from "../provider/hft/parse-onnx-dtypes";
 import { pipelineToTaskTypes } from "../provider/hft/taskToPipeline";
+import { createModelRepository } from "../storage";
 import type { SearchPage, SearchSelectItem } from "../ui/render";
 import { formatTable } from "../util";
 
@@ -268,27 +268,27 @@ const HF_PROVIDERS: Record<
   LOCAL_LLAMACPP: { placeholder: "Search GGUF models", extra: { filter: "gguf" } },
 };
 
-/** True when the runtime exposes WebGPU (e.g. browser with WebGPU, Node with --experimental-webgpu). */
-function isWebGPUAvailable(): boolean {
-  try {
-    const nav = typeof navigator !== "undefined" ? (navigator as { gpu?: unknown }) : undefined;
-    return !!nav?.gpu;
-  } catch {
-    return false;
-  }
-}
-
 /**
- * When WebGPU is not available, avoid sending device "webgpu" to transformers.js.
- * Normalize HF_TRANSFORMERS_ONNX provider_config.device so we persist "wasm" instead of "webgpu".
+ * Normalize HF_TRANSFORMERS_ONNX device for the CLI.
+ *
+ * The CLI schema prompt seeds schema defaults into the output, so `provider_config.device`
+ * often ends up as `"webgpu"` even when the user didn't explicitly choose anything.
+ *
+ * For the CLI we want `device` to be `undefined` by default so transformers.js can auto-select
+ * based on what the runtime supports.
+ *
+ * Also, on the Node build, transformers.js rejects `device: "wasm"`, so we drop it entirely.
  */
 function normalizeHfTransformersOnnxDevice(record: Record<string, unknown>): void {
   if (record.provider !== "HF_TRANSFORMERS_ONNX") return;
   const pc = record.provider_config as Record<string, unknown> | undefined;
   if (!pc || typeof pc !== "object") return;
   const device = pc.device as string | undefined;
-  if ((device === "webgpu" || device === undefined) && !isWebGPUAvailable()) {
-    pc.device = "wasm";
+
+  // Default device should be undefined (auto-select).
+  if (device === "webgpu" || device === "wasm") {
+    delete pc.device;
+    return;
   }
 }
 

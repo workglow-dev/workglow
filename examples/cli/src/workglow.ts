@@ -11,6 +11,7 @@ import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 import { registerBaseTasks } from "@workglow/task-graph";
 import { registerCommonTasks } from "@workglow/tasks";
 import { program } from "commander";
+import path from "node:path";
 import { registerAgentCommand } from "./commands/agent";
 import { registerInitCommand } from "./commands/init";
 import { registerMcpCommand } from "./commands/mcp";
@@ -30,6 +31,9 @@ const config = await loadConfig();
 const modelRepo = createModelRepository(config);
 await modelRepo.setupDatabase();
 setGlobalModelRepository(modelRepo);
+
+// Expose model cache path to the HFT worker via env var
+process.env.WORKGLOW_MODEL_CACHE = path.join(config.directories.cache, "onnx");
 
 await new HuggingFaceTransformersProvider().register({
   mode: "worker",
