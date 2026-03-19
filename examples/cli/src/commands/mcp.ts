@@ -14,7 +14,8 @@ import {
   resolveInput,
   validateInput,
 } from "../input";
-import { createMcpServerRepository, McpServerRecordSchema } from "../storage";
+import { McpServerRecordSchema } from "@workglow/tasks";
+import { createMcpServerRepository } from "../storage";
 import { formatTable } from "../util";
 import type { SearchPage, SearchSelectItem } from "../ui/render";
 
