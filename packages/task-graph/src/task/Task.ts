@@ -21,6 +21,7 @@ import {
   TaskConfigurationError,
   TaskError,
   TaskInvalidInputError,
+  TaskSerializationError,
 } from "./TaskError";
 import {
   type TaskEventListener,
@@ -908,18 +909,36 @@ export class Task<
   }
 
   /**
+   * Override to indicate whether this task instance can be serialized to JSON.
+   * Return `true` if serializable, or a string error message if not.
+   *
+   * Use this for tasks with dual modes (e.g. WhileTask with native function
+   * vs serializable conditionField/conditionOperator/conditionValue).
+   */
+  protected canSerialize(): true | string {
+    return true;
+  }
+
+  /**
    * Serializes the task and its subtasks into a format that can be stored
    * @param _options Options controlling serialization (used by subclasses)
    * @returns The serialized task and subtasks
+   * @throws TaskSerializationError if the task contains non-serializable config values
    */
   public toJSON(_options?: TaskGraphJsonOptions): TaskGraphItemJson {
     const ctor = this.constructor as typeof Task;
 
+    // Check if the task can be serialized (e.g. LambdaTask always fails,
+    // WhileTask/ConditionalTask fail when using native functions without
+    // serializable alternatives)
+    const serializableResult = this.canSerialize();
+    if (serializableResult !== true) {
+      throw new TaskSerializationError(serializableResult);
+    }
+
     // Build config by extracting only serializable properties defined in the configSchema.
-    // We filter through the schema to avoid accidentally including non-serializable
-    // values (e.g. functions like WhileTask.condition) or internal-only properties
-    // that were never part of the serialized output and that consuming applications
-    // don't expect (e.g. `queue` from JobQueueTask).
+    // Non-serializable properties (functions, runtime state) should have been moved
+    // out of config into class properties by the constructor.
     const schema = ctor.configSchema();
     const schemaProperties =
       typeof schema !== "boolean" && schema?.properties
@@ -929,7 +948,7 @@ export class Task<
     const config: Record<string, unknown> = {};
     for (const [key, propSchema] of Object.entries(schemaProperties)) {
       if (key === "id") continue;
-      // Skip internal properties marked as hidden (e.g. queue, compoundMerge)
+      // Skip internal properties marked as hidden (e.g. compoundMerge)
       // except inputSchema/outputSchema/extras which are needed for task reconstruction
       if (
         propSchema?.["x-ui-hidden"] === true &&
@@ -941,8 +960,15 @@ export class Task<
       }
       const value = (this.config as Record<string, unknown>)[key];
       if (value === undefined) continue;
-      // Skip non-serializable values (functions, symbols, etc.)
-      if (typeof value === "function" || typeof value === "symbol") continue;
+
+      // Safety net: error on non-serializable values that slipped through.
+      // If you hit this, move the property out of config into a class property.
+      if (typeof value === "function" || typeof value === "symbol") {
+        throw new TaskSerializationError(
+          `${this.type}.toJSON(): config property "${key}" is a ${typeof value} ` +
+            `and cannot be serialized. Move it out of config into a class property.`
+        );
+      }
       config[key] = value;
     }
 

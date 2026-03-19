@@ -18,28 +18,14 @@ export const jobQueueTaskConfigSchema = {
   type: "object",
   properties: {
     ...graphAsTaskConfigSchema["properties"],
-    queue: {
-      oneOf: [{ type: "boolean" }, { type: "string" }],
-      description: "Queue handling: false=run inline, true=use default, string=explicit queue name",
-      "x-ui-hidden": true,
-    },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 /**
  * Configuration type for JobQueueTask.
- * Extends the base TaskConfig with job queue specific properties.
  */
-export type JobQueueTaskConfig = TaskConfig & {
-  /**
-   * Queue selection for the task
-   * - `true` (default): create/use the task's default queue
-   * - `false`: run directly without queueing (requires `canRunDirectly`)
-   * - `string`: use an explicitly registered queue name
-   */
-  queue?: boolean | string;
-};
+export type JobQueueTaskConfig = TaskConfig;
 
 /**
  * Extended event listeners for JobQueueTask.
@@ -69,6 +55,14 @@ export abstract class JobQueueTask<
     return jobQueueTaskConfigSchema;
   }
 
+  /**
+   * Queue selection for the task (runtime-only, not serialized).
+   * - `true` (default): create/use the task's default queue
+   * - `false`: run directly without queueing (requires `canRunDirectly`)
+   * - `string`: use an explicitly registered queue name
+   */
+  public queue: boolean | string;
+
   /** Name of the queue currently processing the task */
   currentQueueName?: string;
   /** ID of the current job being processed */
@@ -78,9 +72,13 @@ export abstract class JobQueueTask<
 
   public jobClass: JobClass<any, any>;
 
-  constructor(input: Partial<Input> = {} as Input, config: Config = {} as Config) {
-    config.queue ??= true;
-    super(input, config);
+  constructor(
+    input: Partial<Input> = {} as Input,
+    config: Config & { queue?: boolean | string } = {} as Config & { queue?: boolean | string }
+  ) {
+    const { queue, ...restConfig } = config;
+    super(input, restConfig as Config);
+    this.queue = queue ?? true;
     this.jobClass = Job as JobClass<any, any>;
   }
 
@@ -89,7 +87,7 @@ export abstract class JobQueueTask<
 
     try {
       if (
-        this.config.queue === false &&
+        this.queue === false &&
         !(this.constructor as typeof JobQueueTask).canRunDirectly
       ) {
         throw new TaskConfigurationError(`${this.type} cannot run directly without a queue`);
@@ -101,8 +99,8 @@ export abstract class JobQueueTask<
         // Direct execution without a queue
         if (!(this.constructor as typeof JobQueueTask).canRunDirectly) {
           const queueLabel =
-            typeof this.config.queue === "string"
-              ? this.config.queue
+            typeof this.queue === "string"
+              ? this.queue
               : (this.currentQueueName ?? this.type);
           throw new TaskConfigurationError(
             `Queue ${queueLabel} not found, and ${this.type} cannot run directly`
@@ -178,7 +176,7 @@ export abstract class JobQueueTask<
   }
 
   protected async resolveQueue(input: Input): Promise<RegisteredQueue<Input, Output> | undefined> {
-    const preference = this.config.queue ?? true;
+    const preference = this.queue ?? true;
 
     if (preference === false) {
       this.currentQueueName = undefined;

@@ -91,6 +91,19 @@ export class TaskJSONError extends TaskError {
 }
 
 /**
+ * A task error that is caused by a task that cannot be serialized to JSON.
+ *
+ * Examples: LambdaTask (contains native functions), WhileTask with a native
+ * condition function and no serializable alternative
+ */
+export class TaskSerializationError extends TaskError {
+  static readonly type: string = "TaskSerializationError";
+  constructor(message: string = "Task cannot be serialized to JSON") {
+    super(message);
+  }
+}
+
+/**
  * A task error that is caused by invalid input data
  *
  * Examples: task.run() received invalid input data

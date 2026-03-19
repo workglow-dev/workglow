@@ -439,10 +439,9 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
       if (rawConfig.conditionValue !== undefined) {
         config.conditionValue = rawConfig.conditionValue;
       }
-      // If there's a function condition but no serializable form, use a null placeholder
-      if (rawConfig.condition && !rawConfig.conditionOperator) {
-        config.condition = null;
-      }
+      // Note: native condition functions are stored as class properties, not in config.
+      // If a WhileTask has only a native function (no serializable form), it cannot
+      // be serialized, so this code path only sees serializable conditions.
       break;
     }
   }

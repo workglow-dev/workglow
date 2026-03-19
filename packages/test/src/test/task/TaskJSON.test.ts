@@ -5,6 +5,7 @@
  */
 
 import {
+  ConditionalTask,
   createGraphFromGraphJSON,
   createTaskFromGraphJSON,
   Dataflow,
@@ -12,8 +13,11 @@ import {
   TASK_CONSTRUCTORS,
   TaskGraph,
   TaskRegistry,
+  TaskSerializationError,
+  WhileTask,
 } from "@workglow/task-graph";
 import type { TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import { LambdaTask } from "@workglow/tasks";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
@@ -377,6 +381,127 @@ describe("TaskJSON", () => {
       expect(restoredChildren).toHaveLength(2);
       expect(restoredChildren[0].id).toBe("child1");
       expect(restoredChildren[1].id).toBe("child2");
+    });
+  });
+
+  describe("Serialization safety", () => {
+    test("LambdaTask.toJSON() should throw TaskSerializationError", () => {
+      const task = new LambdaTask(
+        {},
+        {
+          execute: async (input: any) => input,
+        }
+      );
+
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+      expect(() => task.toJSON()).toThrow("cannot be serialized");
+    });
+
+    test("WhileTask with native condition and no serializable alternative should throw", () => {
+      const task = new WhileTask(
+        {},
+        {
+          condition: (output: any) => output.quality < 0.9,
+          maxIterations: 10,
+        }
+      );
+
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+      expect(() => task.toJSON()).toThrow("conditionField");
+    });
+
+    test("WhileTask with serializable condition should succeed", () => {
+      const task = new WhileTask(
+        {},
+        {
+          id: "while1",
+          conditionField: "quality",
+          conditionOperator: "less_than",
+          conditionValue: "0.9",
+          maxIterations: 10,
+        }
+      );
+
+      const json = task.toJSON();
+      expect(json.id).toBe("while1");
+      expect(json.type).toBe("WhileTask");
+      expect(json.config?.conditionField).toBe("quality");
+      expect(json.config?.conditionOperator).toBe("less_than");
+      expect(json.config?.conditionValue).toBe("0.9");
+      expect(json.config?.maxIterations).toBe(10);
+    });
+
+    test("WhileTask with both native function and serializable fields should succeed", () => {
+      const task = new WhileTask(
+        {},
+        {
+          id: "while2",
+          condition: (output: any) => output.quality < 0.9,
+          conditionField: "quality",
+          conditionOperator: "less_than",
+          conditionValue: "0.9",
+          maxIterations: 10,
+        }
+      );
+
+      // Should NOT throw because serializable alternatives exist
+      const json = task.toJSON();
+      expect(json.config?.conditionField).toBe("quality");
+    });
+
+    test("ConditionalTask with native branch functions and no conditionConfig should throw", () => {
+      const task = new ConditionalTask(
+        {},
+        {
+          branches: [
+            { id: "high", condition: (i: any) => i.value > 100, outputPort: "highPath" },
+            { id: "low", condition: (i: any) => i.value <= 100, outputPort: "lowPath" },
+          ],
+        }
+      );
+
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+      expect(() => task.toJSON()).toThrow("conditionConfig");
+    });
+
+    test("ConditionalTask with conditionConfig should succeed", () => {
+      const task = new ConditionalTask(
+        {},
+        {
+          id: "cond1",
+          conditionConfig: {
+            branches: [
+              { id: "high", field: "value", operator: "greater_than", value: "100" },
+            ],
+            exclusive: true,
+          },
+        }
+      );
+
+      const json = task.toJSON();
+      expect(json.id).toBe("cond1");
+      expect(json.type).toBe("ConditionalTask");
+      expect(json.config?.conditionConfig).toBeDefined();
+    });
+
+    test("toJSON should not include queue property from JobQueueTask descendants", () => {
+      // DoubleToResultTask is a regular Task, but we can test that the
+      // config output doesn't contain queue for any task
+      const task = new DoubleToResultTask({ value: 42 }, { id: "task1" });
+      const json = task.toJSON();
+
+      expect(json.config).toBeDefined();
+      expect((json.config as Record<string, unknown>)["queue"]).toBeUndefined();
+    });
+
+    test("toJSON should not include non-serializable config properties", () => {
+      // Verify that functions and symbols are not silently included
+      const task = new DoubleToResultTask({ value: 42 }, { id: "task1" });
+      const json = task.toJSON();
+      const jsonStr = JSON.stringify(json);
+
+      // Should be valid JSON (no functions or symbols)
+      expect(() => JSON.parse(jsonStr)).not.toThrow();
     });
   });
 });

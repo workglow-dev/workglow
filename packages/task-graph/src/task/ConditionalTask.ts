@@ -6,7 +6,7 @@
 
 import { getLogger, type DataPortSchema } from "@workglow/util";
 import { evaluateCondition, getNestedValue, type UIConditionConfig } from "./ConditionUtils";
-import type { IExecuteContext } from "./ITask";
+import type { IExecuteContext, IRunConfig } from "./ITask";
 import { Task } from "./Task";
 import {
   TaskConfigSchema,
@@ -95,7 +95,6 @@ export const conditionalTaskConfigSchema = {
   type: "object",
   properties: {
     ...TaskConfigSchema["properties"],
-    branches: { type: "array", items: {} },
     defaultBranch: { type: "string" },
     exclusive: { type: "boolean" },
     conditionConfig: { type: "object", additionalProperties: true },
@@ -104,7 +103,10 @@ export const conditionalTaskConfigSchema = {
 } as const satisfies DataPortSchema;
 
 export type ConditionalTaskConfig = TaskConfig & {
-  /** Branches may contain ConditionFn functions — not JSON-schema-representable */
+  /**
+   * Branches with condition functions (non-serializable).
+   * Extracted to a class property in the constructor.
+   */
   readonly branches?: BranchConfig<any>[];
   readonly defaultBranch?: string;
   readonly exclusive?: boolean;
@@ -219,11 +221,46 @@ export class ConditionalTask<
   }
 
   /**
+   * Branch definitions with condition functions (non-serializable, extracted from config).
+   */
+  protected _branches: BranchConfig<any>[];
+
+  /**
    * Set of branch IDs that are currently active after execution.
    * Populated during execute() and used by the graph runner to
    * determine which dataflows should be enabled vs disabled.
    */
   public activeBranches: Set<string> = new Set();
+
+  constructor(
+    input: Partial<Input> = {},
+    config: Partial<Config> = {},
+    runConfig: Partial<IRunConfig> = {}
+  ) {
+    const { branches, ...restConfig } = config as ConditionalTaskConfig;
+    super(input, restConfig as Config, runConfig);
+    this._branches = branches ?? [];
+  }
+
+  protected override canSerialize(): true | string {
+    const hasFunctionConditions = this._branches.some(
+      (b) => typeof b.condition === "function"
+    );
+    if (hasFunctionConditions && !this.config.conditionConfig) {
+      return (
+        `${this.type} has branches with native condition functions and no serializable ` +
+        `alternative. Use conditionConfig for serializable conditions.`
+      );
+    }
+    return true;
+  }
+
+  /**
+   * Gets the branch definitions.
+   */
+  public get branches(): readonly BranchConfig<any>[] {
+    return this._branches;
+  }
 
   // ========================================================================
   // Execution methods
@@ -274,7 +311,7 @@ export class ConditionalTask<
     defaultBranch: string | undefined;
     fromConditionConfig: boolean;
   } {
-    const configBranches = this.config.branches ?? [];
+    const configBranches = this._branches ?? [];
 
     // If config branches have condition functions, use them directly
     if (configBranches.length > 0 && typeof configBranches[0].condition === "function") {
@@ -414,7 +451,7 @@ export class ConditionalTask<
       _activeBranches: Array.from(this.activeBranches),
     };
 
-    const branches = this.config.branches ?? [];
+    const branches = this._branches ?? [];
 
     // For each active branch, populate its output port with the input data
     for (const branch of branches) {
@@ -475,7 +512,7 @@ export class ConditionalTask<
    */
   public getPortActiveStatus(): Map<string, boolean> {
     const status = new Map<string, boolean>();
-    const branches = this.config.branches ?? [];
+    const branches = this._branches ?? [];
 
     for (const branch of branches) {
       status.set(branch.outputPort, this.activeBranches.has(branch.id));
@@ -517,7 +554,7 @@ export class ConditionalTask<
    * @returns JSON Schema for the task's output including branch ports
    */
   outputSchema(): DataPortSchema {
-    const branches = this.config?.branches ?? [];
+    const branches = this._branches ?? [];
     const properties: Record<string, any> = {
       _activeBranches: {
         type: "array",

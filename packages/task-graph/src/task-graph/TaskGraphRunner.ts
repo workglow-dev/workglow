@@ -434,7 +434,7 @@ export class TaskGraphRunner {
     // Check if this is a ConditionalTask with selective branching
     if (node instanceof ConditionalTask && effectiveStatus === TaskStatus.COMPLETED) {
       // Build a map of output port -> branch ID for lookup
-      const branches = node.config.branches ?? [];
+      const branches = node.branches;
       const portToBranch = new Map<string, string>();
       for (const branch of branches) {
         portToBranch.set(branch.outputPort, branch.id);

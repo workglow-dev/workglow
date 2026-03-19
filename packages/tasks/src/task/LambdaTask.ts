@@ -13,6 +13,7 @@ import {
   TaskConfig,
   TaskConfigSchema,
   TaskConfigurationError,
+  TaskSerializationError,
   TaskInput,
   TaskOutput,
   Workflow,
@@ -23,13 +24,11 @@ export const lambdaTaskConfigSchema = {
   type: "object",
   properties: {
     ...TaskConfigSchema["properties"],
-    execute: {},
-    executeReactive: {},
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-type LambdaTaskConfig<
+export type LambdaTaskConfig<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
 > = TaskConfig & {
@@ -90,18 +89,32 @@ export class LambdaTask<
     return outputSchema;
   }
 
+  protected _executeFn?: (input: Input, context: IExecuteContext) => Promise<Output>;
+  protected _executeReactiveFn?: (
+    input: Input,
+    output: Output,
+    context: IExecuteReactiveContext
+  ) => Promise<Output>;
+
   constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
-    if (!config.execute && !config.executeReactive) {
+    const { execute, executeReactive, ...restConfig } = config as LambdaTaskConfig<Input, Output>;
+    if (!execute && !executeReactive) {
       throw new TaskConfigurationError(
         "LambdaTask must have either execute or executeReactive function in config"
       );
     }
-    super(input, config as Config);
+    super(input, restConfig as Config);
+    this._executeFn = execute;
+    this._executeReactiveFn = executeReactive;
+  }
+
+  protected override canSerialize(): true | string {
+    return `${this.type} contains native functions and cannot be serialized to JSON`;
   }
 
   async execute(input: Input, context: IExecuteContext): Promise<Output> {
-    if (typeof this.config.execute === "function") {
-      return await this.config.execute(input, context);
+    if (typeof this._executeFn === "function") {
+      return await this._executeFn(input, context);
     }
     return {} as Output;
   }
@@ -111,8 +124,8 @@ export class LambdaTask<
    * Throws an error if no function is provided or if the provided value is not callable
    */
   async executeReactive(input: Input, output: Output, context: IExecuteReactiveContext) {
-    if (typeof this.config.executeReactive === "function") {
-      return (await this.config.executeReactive(input, output, context)) ?? output;
+    if (typeof this._executeReactiveFn === "function") {
+      return (await this._executeReactiveFn(input, output, context)) ?? output;
     }
     return output;
   }

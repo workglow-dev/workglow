@@ -46,7 +46,6 @@ export const whileTaskConfigSchema = {
   type: "object",
   properties: {
     ...graphAsTaskConfigSchema["properties"],
-    condition: {},
     maxIterations: { type: "integer", minimum: 1 },
     chainIterations: { type: "boolean" },
     conditionField: { type: "string" },
@@ -65,6 +64,8 @@ export type WhileTaskConfig<Output extends TaskOutput = TaskOutput> = GraphAsTas
    * Condition function that determines whether to continue looping.
    * Called after each iteration with the current output and iteration count.
    * Returns true to continue, false to stop.
+   *
+   * Not stored in config (non-serializable). Extracted to a class property in the constructor.
    */
   readonly condition?: WhileConditionFn<Output>;
 
@@ -166,12 +167,34 @@ export class WhileTask<
   }
 
   /**
+   * Condition function (non-serializable, extracted from config in constructor).
+   */
+  protected _conditionFn: WhileConditionFn<Output> | undefined;
+
+  /**
    * Current iteration count during execution.
    */
   protected _currentIteration: number = 0;
 
   constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
-    super(input, config as Config);
+    const { condition, ...restConfig } = config as WhileTaskConfig<Output>;
+    super(input, restConfig as Config);
+    this._conditionFn = condition;
+  }
+
+  protected override canSerialize(): true | string {
+    if (this._conditionFn) {
+      const hasSerializableCondition = !!(
+        this.config.conditionField || this.config.conditionOperator
+      );
+      if (!hasSerializableCondition) {
+        return (
+          `${this.type} has a native condition function with no serializable alternative. ` +
+          `Use conditionField/conditionOperator/conditionValue for serializable conditions.`
+        );
+      }
+    }
+    return true;
   }
 
   // ========================================================================
@@ -195,7 +218,7 @@ export class WhileTask<
    * Gets the condition function.
    */
   public get condition(): WhileConditionFn<Output> | undefined {
-    return this.config.condition;
+    return this._conditionFn;
   }
 
   /**

@@ -39,7 +39,7 @@ describe("ConditionalTask", () => {
         );
 
         expect(task).toBeDefined();
-        expect(task.config.branches).toHaveLength(2);
+        expect(task.branches).toHaveLength(2);
       });
 
       it("should evaluate conditions and activate correct branch", async () => {
