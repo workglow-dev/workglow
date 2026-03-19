@@ -19,7 +19,9 @@ import {
   mcpServerConfigSchema,
   type McpServerConfig,
 } from "@workglow/util";
-import { mcpList } from "./McpListTask";
+import { mcpList, type McpListTaskInput } from "./McpListTask";
+
+const mcpServerConfigKeys = Object.keys(mcpServerConfigSchema.properties);
 
 const configSchema = {
   type: "object",
@@ -40,9 +42,7 @@ const configSchema = {
     },
   },
   required: ["prompt_name"],
-  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-  then: { required: ["command"] },
-  else: {},
+  anyOf: [{ required: ["server"] }, { required: ["transport"] }],
   allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -226,9 +226,10 @@ export class McpPromptGetTask extends Task<
     const server = this.config.server as Record<string, unknown> | string | undefined;
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
-    for (const key of ["transport", "server_url", "command", "args", "env"] as const) {
-      if (this.config[key] !== undefined) {
-        merged[key] = this.config[key];
+    // Merge all MCP config keys from inline config; inline values override registry base
+    for (const key of mcpServerConfigKeys) {
+      if ((this.config as Record<string, unknown>)[key] !== undefined) {
+        merged[key] = (this.config as Record<string, unknown>)[key];
       }
     }
     if (!merged.transport) return undefined;
@@ -245,16 +246,10 @@ export class McpPromptGetTask extends Task<
 
     this._schemasDiscovering = true;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cfg = serverConfig as any;
       const result = await mcpList({
-        transport: cfg.transport,
-        server_url: cfg.server_url,
-        command: cfg.command,
-        args: cfg.args,
-        env: cfg.env,
+        ...(serverConfig as Record<string, unknown>),
         list_type: "prompts",
-      });
+      } as McpListTaskInput);
 
       const prompt = result.prompts?.find((p) => p.name === this.config.prompt_name);
       if (prompt) {

@@ -132,16 +132,18 @@ export class TaskRunner<
   async run(overrides: Partial<Input> = {}, config: IRunConfig = {}): Promise<Output> {
     await this.handleStart(config);
 
+    const originalConfig = this.task.config;
     try {
-      // Resolve schema-annotated config properties (e.g., mcp-server references)
+      // Resolve schema-annotated config properties (e.g., mcp-server references) into a
+      // per-run copy so the original config remains immutable and re-resolved on each run.
       const configSchemaResult = (this.task.constructor as typeof Task).configSchema();
       if (configSchemaResult) {
         const resolvedConfig = await resolveSchemaInputs(
-          this.task.config as Record<string, unknown>,
+          originalConfig as Record<string, unknown>,
           configSchemaResult,
           { registry: this.registry }
         );
-        Object.assign(this.task.config, resolvedConfig);
+        this.task.config = { ...originalConfig, ...resolvedConfig } as Config;
       }
 
       this.task.setInput(overrides);
@@ -214,6 +216,9 @@ export class TaskRunner<
       // If a timeout triggered the abort, throw the TaskTimeoutError instead
       // of the generic TaskAbortedError that the task's execute() may have thrown.
       throw this.task.error instanceof TaskTimeoutError ? this.task.error : err;
+    } finally {
+      // Restore the original config so registry references are re-resolved on subsequent runs
+      this.task.config = originalConfig;
     }
   }
 
@@ -226,15 +231,17 @@ export class TaskRunner<
     if (this.task.status === TaskStatus.PROCESSING) {
       return this.task.runOutputData as Output;
     }
-    // Resolve schema-annotated config properties (e.g., mcp-server references)
+    // Resolve schema-annotated config properties (e.g., mcp-server references) into a
+    // per-run copy so the original config remains immutable and re-resolved on each run.
+    const originalConfig = this.task.config;
     const configSchemaResult = (this.task.constructor as typeof Task).configSchema();
     if (configSchemaResult) {
       const resolvedConfig = await resolveSchemaInputs(
-        this.task.config as Record<string, unknown>,
+        originalConfig as Record<string, unknown>,
         configSchemaResult,
         { registry: this.registry }
       );
-      Object.assign(this.task.config, resolvedConfig);
+      this.task.config = { ...originalConfig, ...resolvedConfig } as Config;
     }
 
     this.task.setInput(overrides);
@@ -276,6 +283,8 @@ export class TaskRunner<
     } catch (err: any) {
       await this.handleErrorReactive();
     } finally {
+      // Restore the original config so registry references are re-resolved on subsequent runs
+      this.task.config = originalConfig;
       return this.task.runOutputData as Output;
     }
   }

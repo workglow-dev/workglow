@@ -20,6 +20,8 @@ import {
   type McpServerConfig,
 } from "@workglow/util";
 
+const mcpServerConfigKeys = Object.keys(mcpServerConfigSchema.properties);
+
 const configSchema = {
   type: "object",
   properties: {
@@ -39,9 +41,7 @@ const configSchema = {
     },
   },
   required: ["resource_uri"],
-  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-  then: { required: ["command"] },
-  else: {},
+  anyOf: [{ required: ["server"] }, { required: ["transport"] }],
   allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -125,9 +125,10 @@ export class McpResourceReadTask extends Task<
     const server = this.config.server as Record<string, unknown> | string | undefined;
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
-    for (const key of ["transport", "server_url", "command", "args", "env"] as const) {
-      if (this.config[key] !== undefined) {
-        merged[key] = this.config[key];
+    // Merge all MCP config keys from inline config; inline values override registry base
+    for (const key of mcpServerConfigKeys) {
+      if ((this.config as Record<string, unknown>)[key] !== undefined) {
+        merged[key] = (this.config as Record<string, unknown>)[key];
       }
     }
     if (!merged.transport) {

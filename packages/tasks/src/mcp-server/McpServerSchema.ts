@@ -9,8 +9,9 @@ import { DataPortSchemaObject, FromSchema, mcpServerConfigSchema } from "@workgl
 /**
  * A lightweight MCP server configuration suitable for task config/input schemas.
  *
- * When a string `server_id` is provided, the input resolver system resolves it
- * to the full server record from the registry.
+ * When a task property is annotated with `format: "mcp-server"` and contains a
+ * string value, the input resolver system resolves it to the full server record
+ * from the registry. This schema defines the shape of that resolved record.
  */
 export const McpServerConfigSchema = {
   type: "object",
@@ -22,6 +23,7 @@ export const McpServerConfigSchema = {
     metadata: { type: "object", default: {}, "x-ui-hidden": true },
   },
   required: ["transport"],
+  allOf: mcpServerConfigSchema.allOf,
   format: "mcp-server",
   additionalProperties: true,
 } as const satisfies DataPortSchemaObject;

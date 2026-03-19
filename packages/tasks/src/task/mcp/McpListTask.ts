@@ -14,6 +14,7 @@ import {
 } from "@workglow/util";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
+const mcpServerConfigKeys = Object.keys(mcpServerConfigSchema.properties);
 
 const inputSchema = {
   type: "object",
@@ -33,6 +34,7 @@ const inputSchema = {
     },
   },
   required: ["list_type"],
+  anyOf: [{ required: ["server"] }, { required: ["transport"] }],
   allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -256,7 +258,8 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
       | undefined;
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
-    for (const key of ["transport", "server_url", "command", "args", "env"] as const) {
+    // Merge all MCP config keys from inline input; inline values override registry base
+    for (const key of mcpServerConfigKeys) {
       const val = (input as Record<string, unknown>)[key];
       if (val !== undefined) {
         merged[key] = val;

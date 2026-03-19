@@ -80,11 +80,31 @@ export class McpServerRepository {
   }
 
   /**
-   * Adds a new server to the repository
+   * Adds a new server to the repository.
+   * Emits `server_added` for new records or `server_updated` when overwriting an existing one.
    */
   async addServer(server: McpServerRecord) {
+    const existing = await this.serverTabularRepository.get({ server_id: server.server_id });
     await this.serverTabularRepository.put(server);
-    this.events.emit("server_added", server);
+    if (existing) {
+      this.events.emit("server_updated", server);
+    } else {
+      this.events.emit("server_added", server);
+    }
+    return server;
+  }
+
+  /**
+   * Updates an existing server in the repository.
+   * Throws if the server does not exist.
+   */
+  async updateServer(server: McpServerRecord): Promise<McpServerRecord> {
+    const existing = await this.serverTabularRepository.get({ server_id: server.server_id });
+    if (!existing) {
+      throw new Error(`MCP server with id "${server.server_id}" not found`);
+    }
+    await this.serverTabularRepository.put(server);
+    this.events.emit("server_updated", server);
     return server;
   }
 
