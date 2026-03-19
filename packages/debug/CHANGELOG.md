@@ -1,5 +1,16 @@
 # @workglow/debug
 
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+
 ## 0.0.118
 
 ### Features

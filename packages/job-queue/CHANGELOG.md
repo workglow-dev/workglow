@@ -1,5 +1,22 @@
 # @workglow/job-queue
 
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Bug Fixes
+
+#### job-queue
+
+- improve error handling during job deletion in JobQueueServer
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+
 ## 0.0.118
 
 ### Features

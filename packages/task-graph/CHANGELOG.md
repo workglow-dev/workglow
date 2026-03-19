@@ -1,5 +1,39 @@
 # @workglow/task-graph
 
+## 0.0.119
+
+### Features
+
+- enhance Workflow input handling for manual schemas
+- add chrome web browser provider (#303)
+
+#### task
+
+- optimize JSON serialization in Task class
+
+#### task-graph
+
+- make context.own() propagate registry and abort signal to owned tasks (#296)
+
+### Bug Fixes
+
+#### task-graph
+
+- improve task abortion handling in TaskGraphRunner
+- improve output handling in TaskGraphRunner
+- add registry parameter to task runners
+
+### Refactors
+
+- move prototype assignments to Workflow.ts to resolve circular dependency issues
+- unify tool call handling across providers
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+- update VSCode settings and refactor task categories
+
 ## 0.0.118
 
 ### Features

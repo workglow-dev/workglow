@@ -1,5 +1,20 @@
 # @workglow/web
 
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Chores
+
+- update dependencies including upgrade to vite 8
+- release 14 packages
+
+### Updated Dependencies
+
+- `vite`: ^8.0.0
+
 ## 0.0.118
 
 ### Features

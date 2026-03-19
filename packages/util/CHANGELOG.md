@@ -1,5 +1,23 @@
 # @workglow/util
 
+## 0.0.119
+
+### Features
+
+- enhance Workflow input handling for manual schemas
+- add chrome web browser provider (#303)
+
+### Refactors
+
+- update MCP task schemas to use properties and allOf from mcpServerConfigSchema
+- move prototype assignments to Workflow.ts to resolve circular dependency issues
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+- update telemetry provider handling and GitHub Actions workflow
+
 ## 0.0.118
 
 ### Features

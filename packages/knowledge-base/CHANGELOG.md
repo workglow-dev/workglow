@@ -1,5 +1,20 @@
 # @workglow/knowledge-base
 
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Refactors
+
+- update KnowledgeBaseRepository to use ITabularStorage type
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+
 ## 0.0.118
 
 ### Features
