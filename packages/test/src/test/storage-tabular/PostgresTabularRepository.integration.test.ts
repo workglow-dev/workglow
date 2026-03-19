@@ -8,7 +8,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { PostgresTabularStorage } from "@workglow/storage";
 import { uuid4, setLogger } from "@workglow/util";
 import type { Pool } from "pg";
-import { describe } from "vitest";
+import { afterAll, describe } from "vitest";
 import {
   AllTypesPrimaryKeyNames,
   AllTypesSchema,
@@ -30,6 +30,11 @@ const db = new PGlite() as unknown as Pool;
 describe("PostgresTabularStorage", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  afterAll(async () => {
+    await (db as unknown as PGlite).close();
+  });
+
   runGenericTabularRepositoryTests(
     async () =>
       new PostgresTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(

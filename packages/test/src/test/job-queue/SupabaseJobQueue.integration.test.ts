@@ -6,7 +6,7 @@
 
 import { RateLimiter } from "@workglow/job-queue";
 import { SupabaseQueueStorage, SupabaseRateLimiterStorage } from "@workglow/storage";
-import { describe } from "vitest";
+import { afterAll, describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericJobQueueTests } from "./genericJobQueueTests";
 import { setLogger } from "@workglow/util";
@@ -17,6 +17,11 @@ const client = createSupabaseMockClient();
 describe("SupabaseJobQueue", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  afterAll(async () => {
+    await client.close();
+  });
+
   runGenericJobQueueTests(
     (queueName: string) => new SupabaseQueueStorage(client, queueName),
     async (queueName: string, maxExecutions: number, windowSizeInSeconds: number) => {

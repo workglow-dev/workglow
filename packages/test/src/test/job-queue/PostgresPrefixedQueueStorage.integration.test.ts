@@ -7,7 +7,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { PostgresQueueStorage } from "@workglow/storage";
 import { Pool } from "pg";
-import { describe } from "vitest";
+import { afterAll, describe } from "vitest";
 import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStorageTests";
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -17,6 +17,11 @@ const db = new PGlite() as unknown as Pool;
 describe("PostgresPrefixedQueueStorage", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+
+  afterAll(async () => {
+    await (db as unknown as PGlite).close();
+  });
+
   runGenericPrefixedQueueStorageTests(
     (queueName: string, options) => new PostgresQueueStorage(db, queueName, options)
   );

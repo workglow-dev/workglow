@@ -10,11 +10,15 @@ import { setLogger } from "@workglow/util";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
 
+export interface IClosableSupabaseClient extends SupabaseClient {
+  readonly close: () => Promise<void>;
+}
+
 /**
  * Creates a mock Supabase client for testing that uses PGlite as the backend.
  * This provides a real PostgreSQL database for testing without needing a Supabase instance.
  */
-export function createSupabaseMockClient(): SupabaseClient {
+export function createSupabaseMockClient(): IClosableSupabaseClient {
   const pglite = new PGlite();
   const logger = getTestingLogger();
   setLogger(logger);
@@ -599,7 +603,11 @@ export function createSupabaseMockClient(): SupabaseClient {
         },
       });
     },
+
+    close: async () => {
+      await pglite.close();
+    },
   };
 
-  return mockClient as unknown as SupabaseClient;
+  return mockClient as unknown as IClosableSupabaseClient;
 }
