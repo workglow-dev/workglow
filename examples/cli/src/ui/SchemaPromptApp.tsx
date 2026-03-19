@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ConfirmInput, Select, TextInput } from "@inkjs/ui";
+import { ConfirmInput, TextInput } from "@inkjs/ui";
 import { Box, Text, useInput } from "ink";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import type { PromptFieldDescriptor } from "../input/prompt";
@@ -285,6 +285,7 @@ export function SchemaPromptApp({
                     pendingTextRef.current = value;
                     if (fieldError) setFieldError(undefined);
                   }}
+                  onNavigate={(dir) => navigateBy(dir)}
                 />
               </Box>
             )}
@@ -312,6 +313,56 @@ interface FieldWidgetProps {
   readonly previousValue: string | undefined;
   readonly onSubmit: (value: string) => void;
   readonly onTextChange: (value: string) => void;
+  readonly onNavigate?: (direction: 1 | -1) => void;
+}
+
+function InlineSelect({
+  options,
+  defaultValue,
+  onChange,
+  onOverflow,
+}: {
+  readonly options: readonly string[];
+  readonly defaultValue: string | undefined;
+  readonly onChange: (value: string) => void;
+  readonly onOverflow?: (direction: 1 | -1) => void;
+}): React.ReactElement {
+  const initialIndex = defaultValue ? Math.max(0, options.indexOf(defaultValue)) : 0;
+  const [focusedIndex, setFocusedIndex] = useState(initialIndex);
+
+  useInput((_input, key) => {
+    if (key.upArrow) {
+      if (focusedIndex === 0) {
+        onOverflow?.(-1);
+      } else {
+        setFocusedIndex((i) => i - 1);
+      }
+    } else if (key.downArrow) {
+      if (focusedIndex === options.length - 1) {
+        onOverflow?.(1);
+      } else {
+        setFocusedIndex((i) => i + 1);
+      }
+    } else if (key.return) {
+      onChange(options[focusedIndex]!);
+    }
+  });
+
+  return (
+    <Box flexDirection="column">
+      {options.map((option, index) => {
+        const isFocused = index === focusedIndex;
+        return (
+          <Box key={option}>
+            <Text color={isFocused ? "cyan" : undefined}>
+              {isFocused ? "\u276F " : "  "}
+              {option}
+            </Text>
+          </Box>
+        );
+      })}
+    </Box>
+  );
 }
 
 function FieldWidget({
@@ -319,14 +370,15 @@ function FieldWidget({
   previousValue,
   onSubmit,
   onTextChange,
+  onNavigate,
 }: FieldWidgetProps): React.ReactElement {
   if (field.type === "enum" && field.enumValues) {
-    const options = field.enumValues.map((v) => ({ label: v, value: v }));
     return (
-      <Select
-        options={options}
+      <InlineSelect
+        options={field.enumValues}
         defaultValue={previousValue}
         onChange={(value) => onSubmit(value)}
+        onOverflow={onNavigate}
       />
     );
   }

@@ -112,6 +112,9 @@ function collectMissingFields(
     // Skip hidden fields
     if ((prop as Record<string, unknown>)["x-ui-hidden"]) continue;
 
+    // Skip const fields — value is fixed
+    if ("const" in prop) continue;
+
     const fullKey = prefix ? `${prefix}.${name}` : name;
     const isRequired = required.has(name);
 
@@ -260,6 +263,9 @@ function collectAllFields(
 
     // Skip hidden fields
     if ((prop as Record<string, unknown>)["x-ui-hidden"]) continue;
+
+    // Skip const fields — value is fixed, not editable
+    if ("const" in prop) continue;
 
     const fullKey = prefix ? `${prefix}.${name}` : name;
     const isRequired = required.has(name);

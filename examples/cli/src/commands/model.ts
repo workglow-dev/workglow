@@ -27,7 +27,8 @@ import {
   validateInput,
 } from "../input";
 import { createModelRepository } from "../storage";
-import { pipelineToTaskTypes } from "../taskToPipeline";
+import { parseOnnxDtypes } from "../provider/hft/parse-onnx-dtypes";
+import { pipelineToTaskTypes } from "../provider/hft/taskToPipeline";
 import type { SearchPage, SearchSelectItem } from "../ui/render";
 import { formatTable } from "../util";
 
@@ -69,6 +70,7 @@ interface HfModelEntry {
   likes: number;
   downloads: number;
   tags?: string[];
+  siblings?: Array<{ rfilename: string }>;
 }
 
 interface HfSearchResult extends SearchSelectItem {
@@ -85,7 +87,8 @@ function formatDownloads(n: number): string {
 }
 
 function createHfSearchFn(
-  extraParams?: Record<string, string>
+  extraParams?: Record<string, string>,
+  expandFields?: string[]
 ): (query: string, cursor: string | undefined) => Promise<SearchPage<HfSearchResult>> {
   return async (query, cursor) => {
     const skip = cursor ? parseInt(cursor, 10) : 0;
@@ -95,10 +98,14 @@ function createHfSearchFn(
       sort: "downloads",
       direction: "-1",
       skip: String(skip),
-      "expand[]": "pipeline_tag",
       ...extraParams,
     });
-    console.log(`${HF_API_BASE}/models?${params}`);
+    params.append("expand[]", "pipeline_tag");
+    if (expandFields) {
+      for (const field of expandFields) {
+        params.append("expand[]", field);
+      }
+    }
     const res = await fetch(`${HF_API_BASE}/models?${params}`);
     if (!res.ok) throw new Error(`HuggingFace API returned ${res.status}`);
 
@@ -119,6 +126,13 @@ function createHfSearchFn(
       nextCursor: data.length >= HF_PAGE_SIZE ? String(skip + HF_PAGE_SIZE) : undefined,
     };
   };
+}
+
+function getAvailableOnnxDtypes(entry: HfModelEntry): string[] | undefined {
+  if (!entry.siblings || entry.siblings.length === 0) return undefined;
+  const filePaths = entry.siblings.map((s) => s.rfilename);
+  const dtypes = parseOnnxDtypes({ filePaths });
+  return dtypes.length > 0 ? dtypes : undefined;
 }
 
 function mapHfProviderConfig(entry: HfModelEntry, provider: string): Record<string, unknown> {
@@ -241,9 +255,16 @@ type FindResult =
   | { type: "hf"; entry: HfModelEntry; provider: string }
   | { type: "id"; modelId: string; provider: string };
 
-const HF_PROVIDERS: Record<string, { placeholder: string; extra?: Record<string, string> }> = {
+const HF_PROVIDERS: Record<
+  string,
+  { placeholder: string; extra?: Record<string, string>; expand?: string[] }
+> = {
   HF_INFERENCE: { placeholder: "Search HuggingFace models" },
-  HF_TRANSFORMERS_ONNX: { placeholder: "Search ONNX models", extra: { filter: "onnx" } },
+  HF_TRANSFORMERS_ONNX: {
+    placeholder: "Search ONNX models",
+    extra: { filter: "onnx" },
+    expand: ["siblings"],
+  },
   LOCAL_LLAMACPP: { placeholder: "Search GGUF models", extra: { filter: "gguf" } },
 };
 
@@ -275,7 +296,7 @@ async function findModelForProvider(provider: string): Promise<FindResult | unde
   const hfConfig = HF_PROVIDERS[provider];
   if (hfConfig) {
     const { renderSearchSelect } = await import("../ui/render");
-    const searchFn = createHfSearchFn(hfConfig.extra);
+    const searchFn = createHfSearchFn(hfConfig.extra, hfConfig.expand);
     const selected = await renderSearchSelect<HfSearchResult>({
       placeholder: hfConfig.placeholder,
       onSearch: searchFn,
@@ -342,6 +363,27 @@ function mapIdProviderConfig(modelId: string, provider: string): Record<string, 
     default:
       return { model_name: modelId };
   }
+}
+
+/**
+ * Narrow the dtype enum in a provider schema to only show available dtypes.
+ * Returns a new schema object (shallow copy) with the dtype enum replaced.
+ */
+function narrowDtypeEnum(
+  schema: DataPortSchemaObject,
+  availableDtypes: string[]
+): DataPortSchemaObject {
+  const pc = schema.properties?.provider_config;
+  if (!pc || typeof pc === "boolean" || pc.type !== "object") return schema;
+  const dtypeProp = (pc as DataPortSchemaObject).properties?.dtype;
+  if (!dtypeProp || typeof dtypeProp === "boolean") return schema;
+
+  const withAuto = ["auto", ...availableDtypes.filter((d) => d !== "auto")];
+  const newDtype = { ...dtypeProp, enum: withAuto };
+  const newPcProps = { ...(pc as DataPortSchemaObject).properties, dtype: newDtype };
+  const newPc = { ...pc, properties: newPcProps };
+  const newProps = { ...schema.properties, provider_config: newPc };
+  return { ...schema, properties: newProps } as unknown as DataPortSchemaObject;
 }
 
 function mapFindResult(result: FindResult): Record<string, unknown> {
@@ -556,9 +598,17 @@ export function registerModelCommand(program: Command): void {
       // Step 3: Map to partial input and run add form
       let input = mapFindResult(result);
 
-      const schema: DataPortSchemaObject =
+      let schema: DataPortSchemaObject =
         PROVIDER_SCHEMAS[selectedProvider] ??
         (ModelRecordSchema as unknown as DataPortSchemaObject);
+
+      // For ONNX models, narrow dtype enum to available dtypes from model files
+      if (result.type === "hf" && selectedProvider === "HF_TRANSFORMERS_ONNX") {
+        const dtypes = getAvailableOnnxDtypes(result.entry);
+        if (dtypes) {
+          schema = narrowDtypeEnum(schema, dtypes);
+        }
+      }
 
       let withDefaults = applySchemaDefaults(input, schema);
 
