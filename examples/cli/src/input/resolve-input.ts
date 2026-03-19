@@ -8,6 +8,16 @@ import { readFile } from "fs/promises";
 import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util";
 import { readStdin } from "../util";
 
+function parseJson(source: string, label: string): unknown {
+  try {
+    return JSON.parse(source);
+  } catch (e) {
+    const msg = e instanceof SyntaxError ? e.message : String(e);
+    console.error(`Invalid JSON (${label}): ${msg}`);
+    process.exit(1);
+  }
+}
+
 export interface ResolveInputOptions {
   readonly inputJson?: string;
   readonly inputJsonFile?: string;
@@ -25,14 +35,14 @@ export async function resolveInput(opts: ResolveInputOptions): Promise<Record<st
   let base: Record<string, unknown> = {};
 
   if (opts.inputJson) {
-    base = JSON.parse(opts.inputJson);
+    base = parseJson(opts.inputJson, "--input-json") as Record<string, unknown>;
   } else if (opts.inputJsonFile) {
     const content = await readFile(opts.inputJsonFile, "utf-8");
-    base = JSON.parse(content);
+    base = parseJson(content, opts.inputJsonFile) as Record<string, unknown>;
   } else if (!process.stdin.isTTY) {
     const stdinContent = await readStdin();
     if (stdinContent) {
-      base = JSON.parse(stdinContent);
+      base = parseJson(stdinContent, "stdin") as Record<string, unknown>;
     }
   }
 
@@ -74,16 +84,16 @@ export async function readJsonInput(opts: {
   inputJsonFile?: string;
 }): Promise<unknown> {
   if (opts.inputJson) {
-    return JSON.parse(opts.inputJson);
+    return parseJson(opts.inputJson, "--input-json");
   }
   if (opts.inputJsonFile) {
     const content = await readFile(opts.inputJsonFile, "utf-8");
-    return JSON.parse(content);
+    return parseJson(content, opts.inputJsonFile);
   }
   if (!process.stdin.isTTY) {
     const stdinContent = await readStdin();
     if (stdinContent) {
-      return JSON.parse(stdinContent);
+      return parseJson(stdinContent, "stdin");
     }
   }
   throw new Error(
@@ -100,11 +110,11 @@ export async function resolveConfig(opts: {
   configJsonFile?: string;
 }): Promise<Record<string, unknown>> {
   if (opts.configJson) {
-    return JSON.parse(opts.configJson);
+    return parseJson(opts.configJson, "--config-json") as Record<string, unknown>;
   }
   if (opts.configJsonFile) {
     const content = await readFile(opts.configJsonFile, "utf-8");
-    return JSON.parse(content);
+    return parseJson(content, opts.configJsonFile) as Record<string, unknown>;
   }
   return {};
 }
