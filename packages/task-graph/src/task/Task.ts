@@ -913,23 +913,27 @@ export class Task<
    * @returns The serialized task and subtasks
    */
   public toJSON(_options?: TaskGraphJsonOptions): TaskGraphItemJson {
-    const extras = this.config.extras;
+    const ctor = this.constructor as typeof Task;
+    const { id: _id, ...config } = this.config as Record<string, unknown>;
+
+    // Omit title/description when they match the static class defaults
+    if (config.title === ctor.title) delete config.title;
+    if (config.description === ctor.description) delete config.description;
+
+    // Omit empty extras
+    const extras = config.extras as Record<string, unknown> | undefined;
+    if (!extras || Object.keys(extras).length === 0) delete config.extras;
+
+    // Remove undefined values
+    for (const key of Object.keys(config)) {
+      if (config[key] === undefined) delete config[key];
+    }
+
     const json: TaskGraphItemJson = this.stripSymbols({
       id: this.id,
       type: this.type,
       defaults: this.defaults,
-      config: {
-        ...(this.config.title && this.config.title !== (this.constructor as typeof Task).title
-          ? { title: this.config.title }
-          : {}),
-        ...(this.config.description &&
-        this.config.description !== (this.constructor as typeof Task).description
-          ? { description: this.config.description }
-          : {}),
-        ...(this.config.inputSchema ? { inputSchema: this.config.inputSchema } : {}),
-        ...(this.config.outputSchema ? { outputSchema: this.config.outputSchema } : {}),
-        ...(extras && Object.keys(extras).length ? { extras } : {}),
-      },
+      config,
     });
     return json;
   }
