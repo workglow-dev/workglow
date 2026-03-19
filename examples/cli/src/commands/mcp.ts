@@ -187,6 +187,45 @@ export function registerMcpCommand(program: Command): void {
     });
 
   mcp
+    .command("detail")
+    .argument("[id]", "MCP server name to show")
+    .description("Show full details of an MCP server")
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const storage = createMcpStorage(config);
+      await storage.setupDirectory();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await storage.getAll();
+        if (!all || all.length === 0) {
+          console.log("No MCP servers found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
+          value: String(e.name),
+        }));
+        const selected = await renderSelectPrompt(options, "Select MCP server:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const entry = await storage.get({ name: targetId });
+      if (!entry) {
+        console.error(`MCP server "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      console.log(JSON.stringify(entry, null, 2));
+    });
+
+  mcp
     .command("remove")
     .argument("[id]", "MCP server name to remove")
     .description("Remove an MCP server by name")

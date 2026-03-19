@@ -6,7 +6,7 @@
 
 import { ConfirmInput, Select, TextInput } from "@inkjs/ui";
 import { Box, Text, useInput } from "ink";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import type { PromptFieldDescriptor } from "../input/prompt";
 import { setNestedValue } from "../util";
 
@@ -102,10 +102,27 @@ export function SchemaPromptApp({
   onComplete,
   onCancel,
 }: SchemaPromptAppProps): React.ReactElement {
+  // Seed refs with pre-populated defaultValues so untouched fields are included in output
+  const { initialValues, initialRaw } = useMemo(() => {
+    const values: Record<string, unknown> = {};
+    const raw: Record<string, string> = {};
+    for (const field of fields) {
+      if (field.defaultValue !== undefined && field.defaultValue !== null) {
+        const rawStr =
+          typeof field.defaultValue === "string"
+            ? field.defaultValue
+            : JSON.stringify(field.defaultValue);
+        setNestedValue(values, field.key, field.defaultValue);
+        raw[field.key] = rawStr;
+      }
+    }
+    return { initialValues: values, initialRaw: raw };
+  }, [fields]);
+
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const valuesRef = useRef<Record<string, unknown>>({});
-  const rawValuesRef = useRef<Record<string, string>>({});
-  const [rawValues, setRawValues] = useState<Record<string, string>>({});
+  const valuesRef = useRef<Record<string, unknown>>(initialValues);
+  const rawValuesRef = useRef<Record<string, string>>(initialRaw);
+  const [rawValues, setRawValues] = useState<Record<string, string>>(initialRaw);
   const pendingTextRef = useRef("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
 
@@ -114,8 +131,39 @@ export function SchemaPromptApp({
     setRawValues((prev) => ({ ...prev, [key]: raw }));
   }, []);
 
+  const submitForm = useCallback(() => {
+    // Save the currently focused field before submitting
+    const currentField = fields[focusedIndex];
+    if (currentField && isTextField(currentField) && pendingTextRef.current) {
+      const error = validateFieldValue(pendingTextRef.current, currentField);
+      if (error) {
+        setFieldError(error);
+        return;
+      }
+      const coerced = coercePromptValue(pendingTextRef.current, currentField);
+      setNestedValue(valuesRef.current, currentField.key, coerced);
+      saveRawValue(currentField.key, pendingTextRef.current);
+    }
+
+    // Validate all required fields before submitting
+    for (const field of fields) {
+      const raw = rawValuesRef.current[field.key];
+      if (field.required && (raw === undefined || raw.trim() === "")) {
+        setFieldError(`${field.label} is required`);
+        const idx = fields.indexOf(field);
+        if (idx >= 0) {
+          pendingTextRef.current = rawValuesRef.current[field.key] ?? "";
+          setFocusedIndex(idx);
+        }
+        return;
+      }
+    }
+
+    onComplete(valuesRef.current);
+  }, [fields, focusedIndex, onComplete, saveRawValue]);
+
   const handleFieldSubmit = useCallback(
-    (raw: string, field: PromptFieldDescriptor, index: number) => {
+    (raw: string, field: PromptFieldDescriptor) => {
       const error = validateFieldValue(raw, field);
       if (error) {
         setFieldError(error);
@@ -128,15 +176,9 @@ export function SchemaPromptApp({
       saveRawValue(field.key, raw);
       pendingTextRef.current = "";
 
-      const nextIndex = index + 1;
-      if (nextIndex >= fields.length) {
-        onComplete(valuesRef.current);
-      } else {
-        pendingTextRef.current = rawValuesRef.current[fields[nextIndex].key] ?? "";
-        setFocusedIndex(nextIndex);
-      }
+      submitForm();
     },
-    [fields, onComplete, saveRawValue]
+    [saveRawValue, submitForm]
   );
 
   const navigateBy = useCallback(
@@ -200,7 +242,7 @@ export function SchemaPromptApp({
         <Text bold color="cyan">
           Fill in the fields below
         </Text>
-        <Text dimColor> {"\u2014"} Enter to confirm, Tab/arrows to navigate, Esc to cancel</Text>
+        <Text dimColor> {"\u2014"} Tab/arrows to navigate, Enter to submit, Esc to cancel</Text>
       </Box>
 
       {fields.map((field, index) => {
@@ -238,7 +280,7 @@ export function SchemaPromptApp({
                 <FieldWidget
                   field={field}
                   previousValue={rawValue}
-                  onSubmit={(raw) => handleFieldSubmit(raw, field, index)}
+                  onSubmit={(raw) => handleFieldSubmit(raw, field)}
                   onTextChange={(value) => {
                     pendingTextRef.current = value;
                     if (fieldError) setFieldError(undefined);
@@ -258,7 +300,7 @@ export function SchemaPromptApp({
 
       <Box marginTop={1}>
         <Text dimColor>
-          ({focusedIndex + 1}/{fields.length})
+          Field {focusedIndex + 1} of {fields.length}
         </Text>
       </Box>
     </Box>

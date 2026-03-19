@@ -80,6 +80,58 @@ export function registerTaskCommand(program: Command): void {
       console.log(formatTable(rows, ["type", "description"]));
     });
 
+  task
+    .command("detail")
+    .argument("[type]", "task type to show")
+    .description("Show details of a task type")
+    .action(async (type: string | undefined) => {
+      let targetType = type;
+      if (!targetType) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify a type or run interactively.");
+          process.exit(1);
+        }
+        const options: Array<{ label: string; value: string }> = [];
+        for (const [, ctor] of TaskRegistry.all) {
+          const c = ctor as TaskConstructor;
+          if (c.category === "Flow Control") continue;
+          const typeName = c.type.endsWith("Task") ? c.type.slice(0, -4) : c.type;
+          options.push({
+            label: `${typeName}  ${c.category ?? ""}`,
+            value: c.type,
+          });
+        }
+        if (options.length === 0) {
+          console.log("No tasks registered.");
+          return;
+        }
+        options.sort((a, b) => a.label.localeCompare(b.label));
+        const { renderSelectPrompt } = await import("../ui/render");
+        const selected = await renderSelectPrompt(options, "Select task type:");
+        if (!selected) return;
+        targetType = selected;
+      }
+
+      const Ctor = resolveTaskType(targetType);
+      if (!Ctor) {
+        console.error(`Unknown task type "${targetType}".`);
+        process.exit(1);
+      }
+
+      const detail: Record<string, unknown> = {
+        type: Ctor.type,
+        category: Ctor.category ?? null,
+        title: Ctor.title ?? null,
+        description: Ctor.description ?? null,
+        inputSchema: Ctor.inputSchema(),
+      };
+      if (Ctor.configSchema) {
+        detail.configSchema = Ctor.configSchema();
+      }
+
+      console.log(JSON.stringify(detail, null, 2));
+    });
+
   const run = task
     .command("run", { isDefault: true })
     .argument("<type>", "task type to run")

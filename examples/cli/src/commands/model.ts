@@ -27,6 +27,7 @@ import {
   validateInput,
 } from "../input";
 import { createModelRepository } from "../storage";
+import { pipelineToTaskTypes } from "../taskToPipeline";
 import type { SearchPage, SearchSelectItem } from "../ui/render";
 import { formatTable } from "../util";
 
@@ -94,9 +95,10 @@ function createHfSearchFn(
       sort: "downloads",
       direction: "-1",
       skip: String(skip),
+      "expand[]": "pipeline_tag",
       ...extraParams,
     });
-
+    console.log(`${HF_API_BASE}/models?${params}`);
     const res = await fetch(`${HF_API_BASE}/models?${params}`);
     if (!res.ok) throw new Error(`HuggingFace API returned ${res.status}`);
 
@@ -119,6 +121,20 @@ function createHfSearchFn(
   };
 }
 
+function mapHfProviderConfig(entry: HfModelEntry, provider: string): Record<string, unknown> {
+  switch (provider) {
+    case "HF_TRANSFORMERS_ONNX":
+      return {
+        model_path: entry.id,
+        ...(entry.pipeline_tag ? { pipeline: entry.pipeline_tag } : {}),
+      };
+    case "LOCAL_LLAMACPP":
+      return { model_path: entry.id };
+    default:
+      return { model_name: entry.id };
+  }
+}
+
 function mapHfModelResult(entry: HfModelEntry, provider: string): Record<string, unknown> {
   return {
     model_id: entry.id,
@@ -127,8 +143,8 @@ function mapHfModelResult(entry: HfModelEntry, provider: string): Record<string,
     description: [entry.pipeline_tag, `${formatDownloads(entry.downloads)} downloads`]
       .filter(Boolean)
       .join(" \u2014 "),
-    tasks: entry.pipeline_tag ? [entry.pipeline_tag] : [],
-    provider_config: { model_name: entry.id },
+    tasks: entry.pipeline_tag ? pipelineToTaskTypes(entry.pipeline_tag) : [],
+    provider_config: mapHfProviderConfig(entry, provider),
     metadata: {},
   };
 }
@@ -227,9 +243,33 @@ type FindResult =
 
 const HF_PROVIDERS: Record<string, { placeholder: string; extra?: Record<string, string> }> = {
   HF_INFERENCE: { placeholder: "Search HuggingFace models" },
-  HF_TRANSFORMERS_ONNX: { placeholder: "Search ONNX models", extra: { library: "onnx" } },
-  LOCAL_LLAMACPP: { placeholder: "Search GGUF models", extra: { tags: "gguf" } },
+  HF_TRANSFORMERS_ONNX: { placeholder: "Search ONNX models", extra: { filter: "onnx" } },
+  LOCAL_LLAMACPP: { placeholder: "Search GGUF models", extra: { filter: "gguf" } },
 };
+
+/** True when the runtime exposes WebGPU (e.g. browser with WebGPU, Node with --experimental-webgpu). */
+function isWebGPUAvailable(): boolean {
+  try {
+    const nav = typeof navigator !== "undefined" ? (navigator as { gpu?: unknown }) : undefined;
+    return !!nav?.gpu;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * When WebGPU is not available, avoid sending device "webgpu" to transformers.js.
+ * Normalize HF_TRANSFORMERS_ONNX provider_config.device so we persist "wasm" instead of "webgpu".
+ */
+function normalizeHfTransformersOnnxDevice(record: Record<string, unknown>): void {
+  if (record.provider !== "HF_TRANSFORMERS_ONNX") return;
+  const pc = record.provider_config as Record<string, unknown> | undefined;
+  if (!pc || typeof pc !== "object") return;
+  const device = pc.device as string | undefined;
+  if ((device === "webgpu" || device === undefined) && !isWebGPUAvailable()) {
+    pc.device = "wasm";
+  }
+}
 
 async function findModelForProvider(provider: string): Promise<FindResult | undefined> {
   const hfConfig = HF_PROVIDERS[provider];
@@ -293,6 +333,17 @@ async function findModelForProvider(provider: string): Promise<FindResult | unde
   return { type: "id", modelId: selected, provider };
 }
 
+function mapIdProviderConfig(modelId: string, provider: string): Record<string, unknown> {
+  switch (provider) {
+    case "TENSORFLOW_MEDIAPIPE":
+      return { model_path: modelId };
+    case "WEB_BROWSER":
+      return {};
+    default:
+      return { model_name: modelId };
+  }
+}
+
 function mapFindResult(result: FindResult): Record<string, unknown> {
   if (result.type === "hf") {
     return mapHfModelResult(result.entry, result.provider);
@@ -304,7 +355,7 @@ function mapFindResult(result: FindResult): Record<string, unknown> {
     title: result.modelId,
     description: "",
     tasks: [],
-    provider_config: { model_name: result.modelId },
+    provider_config: mapIdProviderConfig(result.modelId, result.provider),
     metadata: {},
   };
 }
@@ -337,6 +388,45 @@ export function registerModelCommand(program: Command): void {
         description: m.description ?? "",
       }));
       console.log(formatTable(rows, ["model_id", "provider", "title", "description"]));
+    });
+
+  model
+    .command("detail")
+    .argument("[id]", "model ID to show")
+    .description("Show full details of a model")
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const repo = createModelRepository(config);
+      await repo.setupDatabase();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const models = await repo.enumerateAllModels();
+        if (!models || models.length === 0) {
+          console.log("No models found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = models.map((m) => ({
+          label: `${m.model_id}  ${m.provider}  ${m.title ?? ""}`,
+          value: m.model_id,
+        }));
+        const selected = await renderSelectPrompt(options, "Select model:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const model = await repo.findByName(targetId);
+      if (!model) {
+        console.error(`Model "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      console.log(JSON.stringify(model, null, 2));
     });
 
   model
@@ -418,6 +508,8 @@ export function registerModelCommand(program: Command): void {
         withDefaults = await promptMissingInput(withDefaults, schema);
       }
 
+      normalizeHfTransformersOnnxDevice(withDefaults as Record<string, unknown>);
+
       const validation = validateInput(withDefaults, schema);
       if (!validation.valid) {
         console.error("Input validation failed:");
@@ -470,8 +562,11 @@ export function registerModelCommand(program: Command): void {
 
       let withDefaults = applySchemaDefaults(input, schema);
 
-      const { promptMissingInput } = await import("../input/prompt");
-      withDefaults = await promptMissingInput(withDefaults, schema);
+      // Present the full editable form pre-populated with found data
+      const { promptEditableInput } = await import("../input/prompt");
+      withDefaults = await promptEditableInput(withDefaults, schema);
+
+      normalizeHfTransformersOnnxDevice(withDefaults as Record<string, unknown>);
 
       const validation = validateInput(withDefaults, schema);
       if (!validation.valid) {

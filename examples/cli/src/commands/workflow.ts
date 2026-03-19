@@ -47,6 +47,50 @@ export function registerWorkflowCommand(program: Command): void {
     });
 
   workflow
+    .command("detail")
+    .argument("[id]", "workflow identifier to show")
+    .description("Show full details of a workflow")
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const repo = createWorkflowRepository(config);
+      await repo.setupDatabase();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await repo.tabularRepository.getAll();
+        if (!all || all.length === 0) {
+          console.log("No workflows found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: String(e.key),
+          value: String(e.key),
+        }));
+        const selected = await renderSelectPrompt(options, "Select workflow:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const entry = await repo.tabularRepository.get({ key: targetId });
+      if (!entry) {
+        console.error(`Workflow "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      try {
+        const parsed = JSON.parse(entry.value as string);
+        console.log(JSON.stringify(parsed, null, 2));
+      } catch {
+        console.log(entry.value);
+      }
+    });
+
+  workflow
     .command("remove")
     .argument("[id]", "workflow identifier to remove")
     .description("Remove a workflow by ID")

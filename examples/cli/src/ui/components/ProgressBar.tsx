@@ -12,14 +12,34 @@ interface ProgressBarProps {
   readonly width?: number;
 }
 
-export function ProgressBar({ progress, width = 30 }: ProgressBarProps): React.ReactElement {
+/**
+ * Build a Unicode block-character progress bar with 8-level sub-pixel precision.
+ * Uses U+2588–U+258F fractional blocks for smooth animation.
+ */
+function createBar(progress: number, length: number): string {
+  const distance = progress * length;
+  let bar = "";
+  bar += "\u2588".repeat(Math.floor(distance));
+  const c = Math.round((distance % 1) * 7);
+  switch (c) {
+    case 1: bar += "\u258F"; break;
+    case 2: bar += "\u258E"; break;
+    case 3: bar += "\u258D"; break;
+    case 4: bar += "\u258C"; break;
+    case 5: bar += "\u258B"; break;
+    case 6: bar += "\u258A"; break;
+    case 7: bar += "\u2589"; break;
+  }
+  bar += "\u258F".repeat(length > bar.length ? length - bar.length : 0);
+  return "\u2595" + bar + "\u258F";
+}
+
+export function ProgressBar({ progress, width = 15 }: ProgressBarProps): React.ReactElement {
   const clamped = Math.max(0, Math.min(100, progress));
-  const filled = Math.round((clamped / 100) * width);
-  const empty = width - filled;
-  const bar = "=".repeat(filled) + (filled < width ? ">" : "") + " ".repeat(Math.max(0, empty - (filled < width ? 1 : 0)));
+  const bar = createBar(clamped / 100, width);
   return (
     <Text>
-      [{bar}] {Math.round(clamped)}%
+      {bar} {Math.round(clamped)}%
     </Text>
   );
 }

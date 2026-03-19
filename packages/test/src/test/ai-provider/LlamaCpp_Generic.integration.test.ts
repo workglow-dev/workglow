@@ -47,7 +47,7 @@ const model: LlamaCppModelRecord = {
     model_url: "hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M",
     models_dir: "./models",
     context_size: 2048,
-    flash_attention: false,
+    flash_attention: true,
   },
   metadata: {},
 };

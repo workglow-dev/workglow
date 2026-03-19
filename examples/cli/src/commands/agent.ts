@@ -54,6 +54,50 @@ export function registerAgentCommand(program: Command): void {
     });
 
   agent
+    .command("detail")
+    .argument("[id]", "agent identifier to show")
+    .description("Show full details of an agent")
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const repo = createAgentRepository(config);
+      await repo.setupDatabase();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await repo.tabularRepository.getAll();
+        if (!all || all.length === 0) {
+          console.log("No agents found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: String(e.key),
+          value: String(e.key),
+        }));
+        const selected = await renderSelectPrompt(options, "Select agent:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const entry = await repo.tabularRepository.get({ key: targetId });
+      if (!entry) {
+        console.error(`Agent "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      try {
+        const parsed = JSON.parse(entry.value as string);
+        console.log(JSON.stringify(parsed, null, 2));
+      } catch {
+        console.log(entry.value);
+      }
+    });
+
+  agent
     .command("remove")
     .argument("[id]", "agent identifier to remove")
     .description("Remove an agent by ID")

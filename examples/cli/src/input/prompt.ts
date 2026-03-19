@@ -228,6 +228,124 @@ async function enrichFieldsWithOptions(
 }
 
 /**
+ * Walk schema properties and return descriptors for ALL visible fields,
+ * pre-populated with current values from input.
+ */
+export function getAllFields(
+  input: Record<string, unknown>,
+  schema: DataPortSchemaObject
+): PromptFieldDescriptor[] {
+  const fields: PromptFieldDescriptor[] = [];
+  const properties = schema.properties ?? {};
+  const required = new Set((schema.required as readonly string[] | undefined) ?? []);
+
+  const conditionalRequired = evaluateConditionalRequired(input, schema);
+  for (const name of conditionalRequired) {
+    required.add(name);
+  }
+
+  collectAllFields(properties, required, input, "", fields);
+  return fields;
+}
+
+function collectAllFields(
+  properties: Record<string, SchemaProperty>,
+  required: Set<string>,
+  input: Record<string, unknown>,
+  prefix: string,
+  fields: PromptFieldDescriptor[]
+): void {
+  for (const [name, prop] of Object.entries(properties)) {
+    if (typeof prop === "boolean" || !prop) continue;
+
+    // Skip hidden fields
+    if ((prop as Record<string, unknown>)["x-ui-hidden"]) continue;
+
+    const fullKey = prefix ? `${prefix}.${name}` : name;
+    const isRequired = required.has(name);
+    const schemaType = prop.type as string | undefined;
+
+    // Recurse into nested objects
+    if (schemaType === "object" && "properties" in prop && prop.properties) {
+      const nestedRequired = new Set((prop.required as readonly string[] | undefined) ?? []);
+      collectAllFields(
+        prop.properties as Record<string, SchemaProperty>,
+        nestedRequired,
+        input,
+        fullKey,
+        fields
+      );
+      continue;
+    }
+
+    // Determine prompt type
+    let promptType: PromptFieldDescriptor["type"];
+    if ("enum" in prop && Array.isArray(prop.enum)) {
+      promptType = "enum";
+    } else {
+      switch (schemaType) {
+        case "boolean":
+          promptType = "boolean";
+          break;
+        case "number":
+          promptType = "number";
+          break;
+        case "integer":
+          promptType = "integer";
+          break;
+        case "array":
+          promptType = "array";
+          break;
+        case "object":
+          promptType = "object";
+          break;
+        default:
+          promptType = "string";
+      }
+    }
+
+    const label = (prop.title as string | undefined) ?? formatKeyAsLabel(name);
+    const existingValue = getNestedValue(input, fullKey);
+    const defaultFromSchema = "default" in prop ? prop.default : undefined;
+    const defaultValue = existingValue ?? defaultFromSchema;
+
+    fields.push({
+      key: fullKey,
+      type: promptType,
+      label,
+      description: prop.description as string | undefined,
+      format: (prop as Record<string, unknown>).format as string | undefined,
+      enumValues: "enum" in prop && Array.isArray(prop.enum) ? prop.enum : undefined,
+      defaultValue,
+      required: isRequired,
+    });
+  }
+}
+
+/**
+ * Present a full editable form with all schema fields pre-populated from input.
+ * Returns the edited values merged with input, or exits if cancelled.
+ */
+export async function promptEditableInput(
+  input: Record<string, unknown>,
+  schema: DataPortSchemaObject
+): Promise<Record<string, unknown>> {
+  if (!process.stdin.isTTY) {
+    return input;
+  }
+
+  let fields = getAllFields(input, schema);
+  fields = await enrichFieldsWithOptions(fields);
+
+  const { renderSchemaPrompt } = await import("../ui/render");
+  const prompted = await renderSchemaPrompt(fields);
+  if (prompted === undefined) {
+    process.exit(0);
+  }
+  return deepMerge(input, prompted);
+}
+
+/**
  * Prompt the user interactively for missing required fields (TTY only).
  * Loops to handle conditionally required fields that emerge after initial answers.
  * Returns the input with prompted values merged in.
