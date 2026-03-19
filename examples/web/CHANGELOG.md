@@ -1,5 +1,32 @@
 # @workglow/web
 
+## 0.0.121
+
+### Chores
+
+- updated "@huggingface/transformers" to version 4.0.0-next.8.
+
+### Updated Dependencies
+
+- `vite`: ^8.0.1
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Chores
+
+- update dependencies including upgrade to vite 8
+- release 14 packages
+
+### Updated Dependencies
+
+- `vite`: ^8.0.0
+
 ## 0.0.118
 
 ### Features

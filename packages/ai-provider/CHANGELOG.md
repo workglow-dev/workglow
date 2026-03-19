@@ -1,5 +1,37 @@
 # @workglow/ai-provider
 
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+- enhance token counting for array input in Anthropic and Gemini providers
+- add Structured Generation support to HFT and LlamaCpp providers
+- enhance AgentTask and content block handling enabling multimedia
+- introduce AgentTask for multi-turn agentic loops
+
+### Bug Fixes
+
+- resolve ai-provider test failures from mock leakage and env var … (#299)
+- revert streaming accumulation, keep test-only changes
+- accumulate text in streaming finish events, add comprehensive provider tests
+- resolve batch ToolCalling type errors in HFT provider by collecting typed arrays directly (#297)
+- improve type imports and message handling in AgentTask and tests
+
+### Refactors
+
+- unify tool call handling across providers
+
+### Chores
+
+- release 14 packages
+- update dependencies in bun.lock and package.json
+- update dependencies and account for api changes
+
 ## 0.0.118
 
 ### Features
