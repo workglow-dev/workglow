@@ -320,7 +320,7 @@ export class JobQueueServer<
       this.forwardToClients("handleJobStart", jobId);
     });
 
-    worker.on("job_complete", async (jobId, output) => {
+    worker.on("job_complete", (jobId, output) => {
       this.stats = { ...this.stats, completedJobs: this.stats.completedJobs + 1 };
       this.updateAverageProcessingTime();
       this.events.emit("job_complete", this.queueName, jobId, output);
@@ -328,35 +328,41 @@ export class JobQueueServer<
 
       // Immediate deletion when configured
       if (this.deleteAfterCompletionMs === 0) {
-        await this.storage.delete(jobId);
+        this.storage.delete(jobId).catch((err) => {
+          console.error("Error deleting job after completion:", err);
+        });
       }
 
       // A concurrency slot freed up — wake idle workers
       this.notifyWorkers();
     });
 
-    worker.on("job_error", async (jobId, error, errorCode) => {
+    worker.on("job_error", (jobId, error, errorCode) => {
       this.stats = { ...this.stats, failedJobs: this.stats.failedJobs + 1 };
       this.events.emit("job_error", this.queueName, jobId, error);
       this.forwardToClients("handleJobError", jobId, error, errorCode);
 
       // Immediate deletion when configured
       if (this.deleteAfterFailureMs === 0) {
-        await this.storage.delete(jobId);
+        this.storage.delete(jobId).catch((err) => {
+          console.error("Error deleting job after error:", err);
+        });
       }
 
       // A concurrency slot freed up — wake idle workers
       this.notifyWorkers();
     });
 
-    worker.on("job_disabled", async (jobId) => {
+    worker.on("job_disabled", (jobId) => {
       this.stats = { ...this.stats, disabledJobs: this.stats.disabledJobs + 1 };
       this.events.emit("job_disabled", this.queueName, jobId);
       this.forwardToClients("handleJobDisabled", jobId);
 
       // Immediate deletion when configured
       if (this.deleteAfterDisabledMs === 0) {
-        await this.storage.delete(jobId);
+        this.storage.delete(jobId).catch((err) => {
+          console.error("Error deleting job after disabling:", err);
+        });
       }
 
       // A concurrency slot freed up — wake idle workers
