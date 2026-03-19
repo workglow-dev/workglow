@@ -1,5 +1,7 @@
 # @workglow/debug
 
+## 0.0.120
+
 ## 0.0.119
 
 ### Features

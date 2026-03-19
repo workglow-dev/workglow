@@ -1,5 +1,13 @@
 # @workglow/task-graph
 
+## 0.0.120
+
+### Bug Fixes
+
+#### task-graph
+
+- filter toJSON config through configSchema to prevent node property issues (#322)
+
 ## 0.0.119
 
 ### Features

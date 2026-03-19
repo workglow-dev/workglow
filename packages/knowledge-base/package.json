@@ -1,7 +1,7 @@
 {
   "name": "@workglow/knowledge-base",
   "type": "module",
-  "version": "0.0.119",
+  "version": "0.0.120",
   "description": "Dataset package for Workglow.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
