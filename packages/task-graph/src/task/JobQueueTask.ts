@@ -251,11 +251,13 @@ export abstract class JobQueueTask<
    * Aborts the task
    * @returns A promise that resolves when the task is aborted
    */
-  async abort(): Promise<void> {
+  abort() {
     if (this.currentQueueName && this.currentJobId) {
       const registeredQueue = getTaskQueueRegistry().getQueue(this.currentQueueName);
       if (registeredQueue) {
-        await registeredQueue.client.abort(this.currentJobId);
+        registeredQueue.client.abort(this.currentJobId).catch((err) => {
+          console.warn(`Failed to abort remote job ${this.currentJobId}`, err);
+        });
       }
     }
     // Always call the parent abort to ensure the task is properly marked as aborted
