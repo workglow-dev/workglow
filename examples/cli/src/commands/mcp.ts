@@ -5,20 +5,41 @@
  */
 
 import type { DataPortSchemaObject } from "@workglow/util";
-import { searchMcpRegistry, type McpSearchResultItem } from "@workglow/tasks";
+import { searchMcpRegistryPage, type McpSearchResultItem } from "@workglow/tasks";
 import type { Command } from "commander";
 import { loadConfig } from "../config";
-import {
-  parseDynamicFlags,
-  generateSchemaHelpText,
-  resolveInput,
-  validateInput,
-} from "../input";
+import { parseDynamicFlags, generateSchemaHelpText, resolveInput, validateInput } from "../input";
 import { createMcpStorage, McpServerRecordSchema } from "../storage";
 import { formatTable } from "../util";
 import type { SearchSelectItem } from "../ui/render";
 
-const mcpSchema = McpServerRecordSchema as unknown as DataPortSchemaObject;
+/** Extends stored record schema with if/then rules so interactive prompts ask for command / server_url after transport is chosen. */
+const mcpSchema = {
+  ...McpServerRecordSchema,
+  allOf: [
+    {
+      if: {
+        properties: { transport: { const: "stdio" } },
+        required: ["transport"],
+      },
+      then: { required: ["command"] },
+    },
+    {
+      if: {
+        properties: { transport: { const: "sse" } },
+        required: ["transport"],
+      },
+      then: { required: ["server_url"] },
+    },
+    {
+      if: {
+        properties: { transport: { const: "streamable-http" } },
+        required: ["transport"],
+      },
+      then: { required: ["server_url"] },
+    },
+  ],
+} as unknown as DataPortSchemaObject;
 
 interface McpSearchSelectItem extends SearchSelectItem {
   readonly result: McpSearchResultItem;
@@ -203,14 +224,14 @@ export function registerMcpCommand(program: Command): void {
         initialQuery: query,
         placeholder: "Search MCP servers",
         onSearch: async (q, cursor) => {
-          const results = await searchMcpRegistry(q);
-          const items: McpSearchSelectItem[] = results.map((r) => ({
+          const page = await searchMcpRegistryPage(q, { cursor });
+          const items: McpSearchSelectItem[] = page.results.map((r) => ({
             id: r.id,
             label: r.label,
             description: r.description,
             result: r,
           }));
-          return { items, nextCursor: undefined };
+          return { items, nextCursor: page.nextCursor };
         },
       });
 

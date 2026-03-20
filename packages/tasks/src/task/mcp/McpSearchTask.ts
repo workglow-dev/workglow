@@ -51,6 +51,12 @@ export interface McpSearchResultItem {
   readonly config: Record<string, unknown>;
 }
 
+/** Results from {@link searchMcpRegistryPage}; pass `nextCursor` back for the next page. */
+export interface McpRegistrySearchPage {
+  readonly results: McpSearchResultItem[];
+  readonly nextCursor: string | undefined;
+}
+
 const McpSearchInputSchema = {
   type: "object",
   properties: {
@@ -153,24 +159,10 @@ export function mapMcpRegistryResult(server: McpRegistryServer): Record<string, 
   return result;
 }
 
-/**
- * Search the MCP registry for servers matching a query.
- */
-export async function searchMcpRegistry(
-  query: string,
-  signal?: AbortSignal
-): Promise<McpSearchResultItem[]> {
-  const params = new URLSearchParams({
-    search: query,
-    limit: "500",
-    version: "latest",
-  });
-
-  const res = await fetch(`${MCP_REGISTRY_BASE}/servers?${params}`, { signal });
-  if (!res.ok) throw new Error(`Registry returned ${res.status}`);
-
-  const data = await res.json();
-  return (data.servers ?? []).map((entry: { server: McpRegistryServer }) => {
+function mapRegistryServersToResults(
+  servers: Array<{ server: McpRegistryServer }> | undefined
+): McpSearchResultItem[] {
+  return (servers ?? []).map((entry) => {
     const s = entry.server;
     const pkg = s.packages?.[0];
     const remote = s.remotes?.[0];
@@ -185,6 +177,68 @@ export async function searchMcpRegistry(
       config: mapMcpRegistryResult(s),
     };
   });
+}
+
+/**
+ * Search the MCP registry for one page of servers (max 100 per request — registry limit).
+ */
+export async function searchMcpRegistryPage(
+  query: string,
+  options?: { readonly cursor?: string; readonly signal?: AbortSignal }
+): Promise<McpRegistrySearchPage> {
+  const params = new URLSearchParams({
+    search: query,
+    limit: "100",
+    version: "latest",
+  });
+  if (options?.cursor) {
+    params.set("cursor", options.cursor);
+  }
+
+  const res = await fetch(`${MCP_REGISTRY_BASE}/servers?${params}`, {
+    signal: options?.signal,
+  });
+  if (!res.ok) {
+    let detail = `Registry returned ${res.status}`;
+    try {
+      const errBody = (await res.json()) as {
+        detail?: string;
+        errors?: Array<{ message?: string }>;
+      };
+      if (typeof errBody.detail === "string") {
+        detail = `${detail}: ${errBody.detail}`;
+      } else if (Array.isArray(errBody.errors) && errBody.errors.length > 0) {
+        detail = `${detail}: ${errBody.errors
+          .map((e) => e.message)
+          .filter(Boolean)
+          .join("; ")}`;
+      }
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    throw new Error(detail);
+  }
+
+  const data = (await res.json()) as {
+    servers?: Array<{ server: McpRegistryServer }>;
+    metadata?: { nextCursor?: string };
+  };
+
+  return {
+    results: mapRegistryServersToResults(data.servers),
+    nextCursor: data.metadata?.nextCursor,
+  };
+}
+
+/**
+ * Search the MCP registry for servers matching a query (first page only).
+ */
+export async function searchMcpRegistry(
+  query: string,
+  signal?: AbortSignal
+): Promise<McpSearchResultItem[]> {
+  const page = await searchMcpRegistryPage(query, { signal });
+  return page.results;
 }
 
 /**
@@ -204,10 +258,7 @@ export class McpSearchTask extends Task<McpSearchTaskInput, McpSearchTaskOutput,
     return McpSearchOutputSchema satisfies DataPortSchema;
   }
 
-  async execute(
-    input: McpSearchTaskInput,
-    context: IExecuteContext
-  ): Promise<McpSearchTaskOutput> {
+  async execute(input: McpSearchTaskInput, context: IExecuteContext): Promise<McpSearchTaskOutput> {
     const results = await searchMcpRegistry(input.query, context.signal);
     return { results };
   }
