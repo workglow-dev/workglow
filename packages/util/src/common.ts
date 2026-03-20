@@ -25,7 +25,6 @@ export * from "./vector/TypedArrayUtils";
 export * from "./vector/VectorSimilarityUtils";
 export * from "./vector/VectorUtils";
 export * from "./worker/WorkerManager";
-export * from "./worker/WorkerServer";
 export * from "./credentials";
 export * from "./crypto/WebCrypto";
 export * from "./mcp/McpAuthTypes";

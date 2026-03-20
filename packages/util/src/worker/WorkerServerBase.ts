@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { parentPort } from "@workglow/util";
 import { createServiceToken, globalServiceRegistry } from "../di";
 
 /**
@@ -76,21 +75,12 @@ function extractTransferables(obj: any) {
 }
 
 /**
- * WorkerServer is a class that handles messages from the main thread to the worker.
+ * WorkerServerBase is a class that handles messages from the main thread to the worker.
  * It is used to register functions that can be called from the main thread.
  * It also handles the transfer of transferables to the main thread.
  */
-export class WorkerServer {
-  constructor() {
-    parentPort?.addEventListener("message", async (event) => {
-      const msg = {
-        type: event.type,
-        // @ts-ignore - Ignore type mismatch between standard MessageEvent and our message type
-        data: event.data,
-      };
-      await this.handleMessage(msg);
-    });
-  }
+export class WorkerServerBase {
+  constructor() {} // overridden in subclasses
 
   private functions: Record<string, (...args: any[]) => Promise<any>> = {};
   private streamFunctions: Record<string, (...args: any[]) => AsyncIterable<any>> = {};
@@ -309,7 +299,3 @@ export class WorkerServer {
     }
   }
 }
-
-export const WORKER_SERVER = createServiceToken<WorkerServer>("worker.server");
-
-globalServiceRegistry.register(WORKER_SERVER, () => new WorkerServer(), true);
