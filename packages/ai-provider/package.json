@@ -15,7 +15,7 @@
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-code": "bun build --splitting --sourcemap=external --packages=external --outdir ./dist ./src/index.ts ./src/anthropic/index.ts ./src/google-gemini/index.ts ./src/hf-transformers/index.ts ./src/provider-llamacpp/index.ts ./src/provider-hf-inference/index.ts ./src/provider-ollama/index.ts ./src/provider-openai/index.ts",
     "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/tf-mediapipe/index.ts ./src/web-browser/index.ts",
-    "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
+    "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test"
   },

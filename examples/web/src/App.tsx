@@ -36,7 +36,7 @@ await queueRegistry.startQueues();
 const taskOutputCache = new IndexedDbTaskOutputRepository();
 const taskGraphRepo = new IndexedDbTaskGraphRepository();
 const resetGraph = () => {
-  const workflow = window["workflow"];
+  const workflow = (window as any)["workflow"] as Workflow;
   workflow
     .reset()
     .downloadModel({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" })
@@ -54,25 +54,25 @@ const resetGraph = () => {
   taskGraphRepo.saveTaskGraph("default", workflow.graph);
 };
 
-window["workflow"] = new Workflow(taskOutputCache);
+(window as any)["workflow"] = new Workflow(taskOutputCache);
 let graph: TaskGraph | undefined;
 try {
   graph = await taskGraphRepo.getTaskGraph("default");
-} catch (error) {
+} catch (error: any) {
   console.error("Task graph loading error, going to reset:", error.message);
   resetGraph();
-  graph = window["workflow"].graph;
+  graph = (window as any)["workflow"].graph;
 }
 
 if (graph) {
-  window["workflow"].graph = graph;
+  (window as any)["workflow"].graph = graph;
 } else {
   resetGraph();
 }
 
 // console access. what happens there will be reflected in the UI
 const setupWorkflow = async () => {
-  const workflow = window["workflow"];
+  const workflow = (window as any)["workflow"] as Workflow;
   const run = workflow.run.bind(workflow);
   workflow.run = async () => {
     console.log("Running task graph...");
@@ -80,7 +80,7 @@ const setupWorkflow = async () => {
       const result = await run();
       console.log("Task graph complete.", workflow);
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Task graph error:", error.message, error.errors, error);
       throw error;
     }
@@ -97,7 +97,7 @@ const setupWorkflow = async () => {
   });
 };
 setupWorkflow();
-let workflow: Workflow = window["workflow"];
+let workflow: Workflow = (window as any)["workflow"] as Workflow;
 
 const initialJsonObj: JsonTaskItem[] = workflow.toDependencyJSON();
 const initialJson = JSON.stringify(initialJsonObj, null, 2);
@@ -106,7 +106,7 @@ await registerMediaPipeTfJsLocalModels();
 
 export const App = () => {
   const [graph, setGraph] = useState<TaskGraph>(workflow.graph);
-  const [w, setWorkflow] = useState<Workflow>(window["workflow"]);
+  const [w, setWorkflow] = useState<Workflow>((window as any)["workflow"] as Workflow);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isAborting, setIsAborting] = useState<boolean>(false);
   const [jsonData, setJsonData] = useState<string>(initialJson);
@@ -131,8 +131,11 @@ export const App = () => {
   // changes coming from workflow in console
   useEffect(() => {
     const interval = setInterval(() => {
-      if (workflow !== window["workflow"] && window["workflow"] instanceof Workflow) {
-        workflow = window["workflow"];
+      if (
+        workflow !== (window as any)["workflow"] &&
+        (window as any)["workflow"] instanceof Workflow
+      ) {
+        workflow = (window as any)["workflow"] as Workflow;
         setWorkflow(workflow);
         const cache = cacheEnabled ? taskOutputCache : undefined;
         workflow.graph.outputCache = cache;

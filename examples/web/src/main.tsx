@@ -23,7 +23,7 @@ installDevToolsFormatters();
 const tasks = [...registerBaseTasks()];
 [Workflow, ...registerBaseTasks(), ...registerCommonTasks(), ...registerAiTasks()].forEach(
   (item) => {
-    window[item.name] = item;
+    (window as any)[item.name] = item;
   }
 );
 
@@ -89,5 +89,5 @@ console.log(
   `color: ${grey}; font-weight: normal;`
 );
 setTimeout(() => {
-  console.log("console.log(workflow):", window["workflow"]);
+  console.log("console.log(workflow):", (window as any)["workflow"]);
 }, 100);

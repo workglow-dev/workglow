@@ -22,7 +22,7 @@ interface LayoutOptions {
 }
 
 export class GraphPipelineLayout<T extends Node> implements LayoutOptions {
-  protected dataflowDAG: DirectedAcyclicGraph<T, boolean, string, string>;
+  protected dataflowDAG?: DirectedAcyclicGraph<T, boolean, string, string>;
   protected positions: Map<string, PositionXY> = new Map();
   protected layerHeight: number[] = [];
   public layers: Map<number, T[]> = new Map();
@@ -44,7 +44,7 @@ export class GraphPipelineLayout<T extends Node> implements LayoutOptions {
   }
 
   public layoutGraph() {
-    const sortedNodes = this.dataflowDAG.topologicallySortedNodes();
+    const sortedNodes = this.dataflowDAG?.topologicallySortedNodes() || [];
     this.assignLayers(sortedNodes);
     this.positionNodes();
   }
@@ -60,7 +60,7 @@ export class GraphPipelineLayout<T extends Node> implements LayoutOptions {
       let maxLayer = -1;
 
       // Get all incoming edges (dependencies) of the node
-      const incomingEdges = this.dataflowDAG.inEdges(node.id).map(([from]) => from);
+      const incomingEdges = this.dataflowDAG?.inEdges(node.id).map(([from]) => from) || [];
 
       incomingEdges.forEach((from) => {
         // Find the layer of the dependency
@@ -149,17 +149,17 @@ const groupBy = <T = any>(items: T[], key: keyof T) =>
     {}
   );
 
-export function computeLayout(
-  nodes: Node[],
+export function computeLayout<T extends Node>(
+  nodes: T[],
   edges: Edge[],
-  layout: GraphPipelineLayout<Node>,
-  subFlowLayout?: GraphPipelineLayout<Node>
-): Node[] {
+  layout: GraphPipelineLayout<T>,
+  subFlowLayout?: GraphPipelineLayout<T>
+): T[] {
   // before we bother with anything, ignore hidden nodes
   nodes = nodes.filter((node) => !node.hidden);
 
   const subgraphSize = new Map<string, { height: number; width: number }>();
-  const subgraphDAG = new DirectedAcyclicGraph<Node, boolean, string, string>(
+  const subgraphDAG = new DirectedAcyclicGraph<T, boolean, string, string>(
     (node) => node.id,
     (edge, node1Identity, node2Identity) => `${node1Identity}-${node2Identity}-${edge}` as string
   );
@@ -174,15 +174,15 @@ export function computeLayout(
     }
   });
 
-  const subgraphDepthLayout = new GraphPipelineLayout();
+  const subgraphDepthLayout = new GraphPipelineLayout<T>();
   subgraphDepthLayout.setGraph(subgraphDAG);
   const sortedNodes = subgraphDAG.topologicallySortedNodes();
   subgraphDepthLayout.assignLayers(sortedNodes);
   const allgraphs = Array.from(subgraphDepthLayout.layers.values());
 
-  const returnNodes: Node[] = [];
+  const returnNodes: T[] = [];
   for (let i = allgraphs.length - 1; i >= 0; i--) {
-    const graphs = groupBy<Node>(allgraphs[i], "parentId");
+    const graphs = groupBy<T>(allgraphs[i], "parentId");
     for (const parentId in graphs) {
       // This loop goes from innermost graph to outermost graph
       // and lays out the nodes in each graph. We do innermost
@@ -192,7 +192,7 @@ export function computeLayout(
 
       const subgraphNodes = graphs[parentId];
 
-      const dataflowDAG = new DirectedAcyclicGraph<Node, boolean, string, string>(
+      const dataflowDAG = new DirectedAcyclicGraph<T, boolean, string, string>(
         (node) => node.id,
         (edge, node1Identity, node2Identity) =>
           `${node1Identity}-${node2Identity}-${edge}` as string
@@ -209,19 +209,21 @@ export function computeLayout(
       subgraphNodes.forEach((node) => {
         if (subgraphSize.has(node.id)) {
           const sizes = subgraphSize.get(node.id);
-          node.height = sizes.height;
-          node.width = sizes.width;
+          node.height = sizes!.height;
+          node.width = sizes!.width;
         }
       });
       const last = subgraphNodes[subgraphNodes.length - 1];
       const l = parentId === "undefined" ? layout : subFlowLayout;
-      l.setGraph(dataflowDAG);
-      l.layoutGraph();
 
-      subgraphSize.set(parentId, {
-        width: l.startLeft + (last.position?.x || 0) + l.getNodeWidth(last),
-        height: l.startTop / 2 + (last.position?.y || 0) + l.getNodeHeight(last),
-      });
+      if (l) {
+        l.setGraph(dataflowDAG);
+        l.layoutGraph();
+        subgraphSize.set(parentId, {
+          width: l.startLeft + (last.position?.x || 0) + l.getNodeWidth(last),
+          height: l.startTop / 2 + (last.position?.y || 0) + l.getNodeHeight(last),
+        });
+      }
 
       returnNodes.push(...subgraphNodes);
     }

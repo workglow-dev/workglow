@@ -2,7 +2,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { JsonTree } from "./JsonTree";
 
-function DialogPortal({ children }) {
+function DialogPortal({ children }: { children: React.ReactNode }) {
   return createPortal(
     <div
       style={{

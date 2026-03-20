@@ -14,9 +14,22 @@ export type DataflowEdgeData = {
   dataflow: Dataflow;
 };
 
+type EdgeStrokeStyle = {
+  stroke: string;
+  strokeWidth: number;
+  transition: string;
+  strokeDasharray?: string;
+};
+
 // Edge style options for each status
-const EDGE_STYLE_MAP = {
+const EDGE_STYLE_MAP: Record<TaskStatus, EdgeStrokeStyle> = {
   [TaskStatus.PROCESSING]: {
+    stroke: "url(#edge-gradient)",
+    strokeWidth: 2,
+    strokeDasharray: "3 3",
+    transition: "stroke 0.3s",
+  },
+  [TaskStatus.STREAMING]: {
     stroke: "url(#edge-gradient)",
     strokeWidth: 2,
     strokeDasharray: "3 3",
@@ -48,6 +61,10 @@ const EDGE_STYLE_MAP = {
     transition: "stroke 0.3s",
   },
 };
+
+function isFlowingStatus(status: TaskStatus): boolean {
+  return status === TaskStatus.PROCESSING || status === TaskStatus.STREAMING;
+}
 
 export function DataflowEdge({
   sourceX,
@@ -89,7 +106,7 @@ export function DataflowEdge({
 
   useEffect(() => {
     // Animate the flow when status is 'flowing'
-    if (status === TaskStatus.PROCESSING) {
+    if (isFlowingStatus(status)) {
       const interval = setInterval(() => {
         setAnimatedDashOffset((prev) => (prev - 1) % 20);
       }, 50);
@@ -105,13 +122,12 @@ export function DataflowEdge({
   const [edgePath] = edgePathParams;
 
   // Get the base style for current status
-  const baseStyle = EDGE_STYLE_MAP[status] || EDGE_STYLE_MAP[TaskStatus.PENDING];
+  const baseStyle = EDGE_STYLE_MAP[status];
 
   // Add animated dash offset for flowing status
-  const statusStyle =
-    status === TaskStatus.PROCESSING
-      ? { ...baseStyle, strokeDashoffset: animatedDashOffset }
-      : baseStyle;
+  const statusStyle = isFlowingStatus(status)
+    ? { ...baseStyle, strokeDashoffset: animatedDashOffset }
+    : baseStyle;
 
   const edgeStyles = { ...style, ...statusStyle };
 
@@ -120,7 +136,7 @@ export function DataflowEdge({
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={edgeStyles} />
 
       {/* Data particle effect for flowing data */}
-      {status === TaskStatus.PROCESSING && (
+      {isFlowingStatus(status) && (
         <>
           <circle
             cx={0}

@@ -42,10 +42,10 @@ const defaultEdgeOptions = {
 };
 
 function doNodeLayout(
-  setNodes: Dispatch<SetStateAction<Node[]>>,
-  setEdges: Dispatch<SetStateAction<Edge[]>>
+  setNodes: Dispatch<SetStateAction<Node<TaskNodeData>[]>>,
+  setEdges: Dispatch<SetStateAction<Edge<DataflowEdgeData>[]>>
 ) {
-  let edges = [];
+  let edges: Edge<DataflowEdgeData>[] = [];
   setEdges((es) => {
     edges = es.map((n) => {
       return {
@@ -54,12 +54,12 @@ function doNodeLayout(
       };
     });
     setNodes((nodes) => {
-      const computedNodes = computeLayout(
+      const computedNodes = computeLayout<Node<TaskNodeData>>(
         nodes,
         edges,
         new GraphPipelineCenteredLayout<Node<TaskNodeData>>(),
         new GraphPipelineLayout<Node<TaskNodeData>>({ startTop: 100, startLeft: 20 })
-      ) as Node<TaskNodeData>[];
+      );
       const sortedNodes = sortNodes(computedNodes);
       sortedNodes.map((n) => {
         n.style = { opacity: 1 };
@@ -111,8 +111,8 @@ function sortNodes(nodes: Node<TaskNodeData>[]): Node<TaskNodeData>[] {
 export const RunGraphFlow: React.FC<{
   graph: TaskGraph;
 }> = ({ graph }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<TaskNodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<DataflowEdgeData>>([]);
   const graphRef = useRef<TaskGraph | null>(null);
   const { fitView } = useReactFlow();
 
@@ -122,27 +122,27 @@ export const RunGraphFlow: React.FC<{
     const dataFlows = taskGraph.getDataflows();
 
     // Create nodes
-    const newNodes = tasks.map((task, index) => {
-      // Determine node type based on task type
-      let type = "task";
-      let data: TaskNodeData = { task };
+    const newNodes: Node<TaskNodeData>[] = tasks.map((task) => {
+      const type = "task";
+      const data: TaskNodeData = { task };
 
       return {
-        id: task.id,
+        id: String(task.id),
         type,
         data,
+        position: { x: 0, y: 0 },
       };
     });
 
     // Create edges
-    const newEdges = dataFlows.map((flow) => ({
+    const newEdges: Edge<DataflowEdgeData>[] = dataFlows.map((flow) => ({
       id: flow.id,
-      source: flow.sourceTaskId,
-      target: flow.targetTaskId,
+      source: String(flow.sourceTaskId),
+      target: String(flow.targetTaskId),
       type: "dataflow",
       data: {
         dataflow: flow,
-      } as DataflowEdgeData,
+      },
     }));
 
     setNodes(newNodes);

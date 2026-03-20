@@ -11,14 +11,17 @@
  */
 
 import { DragHandleDots2Icon } from "@radix-ui/react-icons";
+import type { ReactElement } from "react";
 import * as ResizablePrimitive from "react-resizable-panels";
+import type { PanelGroupProps, PanelResizeHandleProps } from "react-resizable-panels";
 
 import { cn } from "./util";
 
-const ResizablePanelGroup = ({
-  className,
-  ...props
-}: React.ComponentProps<typeof ResizablePrimitive.PanelGroup>) => (
+interface ResizableHandleProps extends PanelResizeHandleProps {
+  readonly withHandle?: boolean;
+}
+
+const ResizablePanelGroup: (props: PanelGroupProps) => ReactElement = ({ className, ...props }) => (
   <ResizablePrimitive.PanelGroup
     className={cn("flex h-full w-full data-[panel-group-direction=vertical]:flex-col", className)}
     {...props}
@@ -27,12 +30,10 @@ const ResizablePanelGroup = ({
 
 const ResizablePanel: typeof ResizablePrimitive.Panel = ResizablePrimitive.Panel;
 
-const ResizableHandle = ({
+const ResizableHandle: (props: ResizableHandleProps) => ReactElement = ({
   withHandle,
   className,
   ...props
-}: React.ComponentProps<typeof ResizablePrimitive.PanelResizeHandle> & {
-  withHandle?: boolean;
 }) => (
   <ResizablePrimitive.PanelResizeHandle
     className={cn(
