@@ -5,6 +5,10 @@ import wasm from "vite-plugin-wasm";
 
 const analyze = process.env.ANALYZE === "1";
 
+// Bundle report: `stats.html` is written to dist/ only during `vite build` (see analyze script).
+// `vite dev` does not serve dist — after analyze, run `bun run analyze:preview` and open /stats.html
+// or open dist/stats.html directly in a browser.
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -28,6 +32,51 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          minSize: 50_000,
+          // maxSize: 500_000,
+          groups: [
+            {
+              name: "react",
+              priority: 20,
+              test: /node_modules[\\/](?:react(?:-dom)?[\\/]|@xyflow[\\/]react|react-hotkeys-hook|react-resizable-panels)/,
+            },
+            {
+              name: "mediapipe",
+              priority: 18,
+              test: /node_modules[\\/]@mediapipe[\\/]/,
+            },
+            {
+              name: "codemirror",
+              priority: 17,
+              test: /node_modules[\\/](?:@codemirror|@uiw[\\/])/,
+            },
+            {
+              name: "hf-transformers",
+              priority: 16,
+              test: /node_modules[\\/]@huggingface[\\/]/,
+            },
+            {
+              name: "workglow",
+              priority: 15,
+              test: /node_modules[\\/]@workglow[\\/]/,
+            },
+            {
+              name: "icons",
+              priority: 12,
+              test: /node_modules[\\/](?:react-icons|@radix-ui[\\/]react-icons)/,
+            },
+            {
+              name: "vendor",
+              priority: 10,
+              test: /node_modules[\\/]/,
+            },
+          ],
+        },
+      },
+    },
   },
   optimizeDeps: {
     exclude: ["tiktoken", "@huggingface/transformers"],
