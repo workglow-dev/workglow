@@ -5,9 +5,9 @@
  */
 
 import type { AiProviderRunFn, AiProviderStreamFn, ToolCallingTaskInput } from "@workglow/ai";
-import type { OllamaModelConfig } from "./Ollama_ModelSchema";
-import { getClient, getModelName, loadOllamaSDK } from "./Ollama_Client.browser";
+import { getClient } from "./Ollama_Client.browser";
 import { createOllamaModelInfo } from "./Ollama_ModelInfo";
+import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 import { createOllamaModelSearch } from "./Ollama_ModelSearch";
 import { createOllamaTextEmbedding } from "./Ollama_TextEmbedding";
 import {
@@ -32,23 +32,26 @@ function buildBrowserToolCallingMessages(input: ToolCallingTaskInput): Array<{
   return messages;
 }
 
-const Ollama_TextGeneration = createOllamaTextGeneration(getClient);
-const Ollama_TextEmbedding = createOllamaTextEmbedding(getClient);
-const Ollama_TextRewriter = createOllamaTextRewriter(getClient);
-const Ollama_TextSummary = createOllamaTextSummary(getClient);
+export const Ollama_TextGeneration = createOllamaTextGeneration(getClient);
+export const Ollama_TextEmbedding = createOllamaTextEmbedding(getClient);
+export const Ollama_TextRewriter = createOllamaTextRewriter(getClient);
+export const Ollama_TextSummary = createOllamaTextSummary(getClient);
 
-const Ollama_TextGeneration_Stream = createOllamaTextGenerationStream(getClient);
-const Ollama_TextRewriter_Stream = createOllamaTextRewriterStream(getClient);
-const Ollama_TextSummary_Stream = createOllamaTextSummaryStream(getClient);
+export const Ollama_TextGeneration_Stream = createOllamaTextGenerationStream(getClient);
+export const Ollama_TextRewriter_Stream = createOllamaTextRewriterStream(getClient);
+export const Ollama_TextSummary_Stream = createOllamaTextSummaryStream(getClient);
 
-const Ollama_ToolCalling = createOllamaToolCalling(getClient, buildBrowserToolCallingMessages);
-const Ollama_ToolCalling_Stream = createOllamaToolCallingStream(
+export const Ollama_ToolCalling = createOllamaToolCalling(
+  getClient,
+  buildBrowserToolCallingMessages
+);
+export const Ollama_ToolCalling_Stream = createOllamaToolCallingStream(
   getClient,
   buildBrowserToolCallingMessages
 );
 
-const Ollama_ModelInfo = createOllamaModelInfo(getClient);
-const Ollama_ModelSearch = createOllamaModelSearch(getClient);
+export const Ollama_ModelInfo = createOllamaModelInfo(getClient);
+export const Ollama_ModelSearch = createOllamaModelSearch(getClient);
 
 export const OLLAMA_TASKS: Record<string, AiProviderRunFn<any, any, OllamaModelConfig>> = {
   ModelInfoTask: Ollama_ModelInfo,
