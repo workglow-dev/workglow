@@ -5,6 +5,7 @@ dist
 .nx/cache
 *.d.ts
 *.d.ts.map
+!examples/web/src/vite-env.d.ts
 storybook-static/
 packages/cli-web/
 packages/cli-sec/
