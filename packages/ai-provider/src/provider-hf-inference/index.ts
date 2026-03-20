@@ -7,4 +7,3 @@
 export * from "./common/HFI_Constants";
 export * from "./common/HFI_ModelSchema";
 export * from "./registerHfInference";
-export * from "./common/HFI_Client";

@@ -36,8 +36,7 @@ import { HFT_Unload } from "./HFT_Unload";
 
 /**
  * All HuggingFace Transformers task run functions, keyed by task type name.
- * Pass this to `new HuggingFaceTransformersProviderInline(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS)` (from
- * `@workglow/ai-provider/hf-transformers`) when the
+ * Used by `@workglow/ai-provider/hf-transformers/runtime` (inline + worker registration) and custom worker scripts when the
  * actual run function implementations are needed (inline mode, worker server).
  */
 export const HFT_TASKS = {
@@ -68,7 +67,6 @@ export const HFT_TASKS = {
 
 /**
  * Streaming variants of HuggingFace Transformers task run functions.
- * Pass this as the second argument to `new HuggingFaceTransformersProviderInline(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS)`.
  */
 export const HFT_STREAM_TASKS: Record<
   string,

@@ -28,7 +28,7 @@ import {
 import {
   clearPipelineCache,
   registerHuggingFaceTransformersInline,
-} from "@workglow/ai-provider/hf-transformers";
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import { createKnowledgeBase, KnowledgeBase } from "@workglow/knowledge-base";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";

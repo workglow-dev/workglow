@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers/runtime";
 
 async function initHftWorkerEnv(): Promise<void> {
   const { env } = await import("@huggingface/transformers");

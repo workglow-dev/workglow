@@ -36,7 +36,6 @@ export default defineConfig({
       output: {
         codeSplitting: {
           minSize: 50_000,
-          // maxSize: 500_000,
           groups: [
             {
               name: "react",
@@ -57,11 +56,13 @@ export default defineConfig({
               name: "hf-transformers",
               priority: 16,
               test: /node_modules[\\/]@huggingface[\\/]/,
+              maxSize: 400_000,
             },
             {
               name: "workglow",
               priority: 15,
               test: /node_modules[\\/]@workglow[\\/]/,
+              maxSize: 400_000,
             },
             {
               name: "icons",

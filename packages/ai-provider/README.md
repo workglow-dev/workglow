@@ -41,8 +41,8 @@ npm install @mediapipe/tasks-text @mediapipe/tasks-vision @mediapipe/tasks-audio
 ### 1. Basic Setup
 
 ```typescript
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
-import { registerTensorFlowMediaPipeInline } from "@workglow/ai-provider/tf-mediapipe";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
+import { registerTensorFlowMediaPipeInline } from "@workglow/ai-provider/tf-mediapipe/runtime";
 
 await registerHuggingFaceTransformersInline();
 await registerTensorFlowMediaPipeInline();
@@ -77,6 +77,10 @@ const result = await workflow
   )
   .run();
 ```
+
+## Main entry vs `…/runtime`
+
+Each provider export (for example `@workglow/ai-provider/openai`) exposes schemas, constants, and the **lightweight** `register*` helper that attaches a `Worker` factory. SDK client modules (`*Client.ts`), MediaPipe loaders (`TFMP_Client`), and LlamaCpp runtime helpers (`LlamaCpp_Runtime`) live under **`@workglow/ai-provider/<name>/runtime`** together with `register*Inline` / `register*Worker` (which pull in `*JobRunFns`). Import those from `runtime`, not from the main barrel, so the main bundle stays small.
 
 ## Available Providers
 
@@ -251,7 +255,7 @@ await registerTensorFlowMediaPipe({
 **hft-worker.ts:**
 
 ```typescript
-import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers/runtime";
 
 registerHuggingFaceTransformersWorker();
 ```
@@ -259,7 +263,7 @@ registerHuggingFaceTransformersWorker();
 **tfmp-worker.ts:**
 
 ```typescript
-import { registerTensorFlowMediaPipeWorker } from "@workglow/ai-provider/tf-mediapipe";
+import { registerTensorFlowMediaPipeWorker } from "@workglow/ai-provider/tf-mediapipe/runtime";
 
 registerTensorFlowMediaPipeWorker();
 ```
@@ -283,7 +287,7 @@ await downloadTask.execute();
 ### Custom Job Queue Configuration
 
 ```typescript
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
 // Register with custom queue concurrency (provider creates queue with concurrency: 2)
 await registerHuggingFaceTransformersInline({
@@ -337,7 +341,7 @@ await task.execute();
 ## Complete Working Example
 
 ```typescript
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 import { TextGenerationTask, TextEmbeddingTask } from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
 

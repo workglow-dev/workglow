@@ -11,7 +11,10 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import { LOCAL_LLAMACPP, type LlamaCppModelRecord } from "@workglow/ai-provider/llamacpp";
-import { disposeLlamaCppResources, registerLlamaCppInline } from "@workglow/ai-provider/llamacpp";
+import {
+  disposeLlamaCppResources,
+  registerLlamaCppInline,
+} from "@workglow/ai-provider/llamacpp/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 

@@ -9,4 +9,3 @@ export * from "./common/HFT_ModelSchema";
 export * from "./registerHuggingFaceTransformers";
 export * from "./common/HFT_OnnxDtypes";
 export * from "./common/HFT_ToolMarkup";
-export * from "./common/HFT_Pipeline";

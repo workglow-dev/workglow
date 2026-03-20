@@ -37,10 +37,8 @@ import {
 import { Workflow, getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import {
-  HF_TRANSFORMERS_ONNX,
-  registerHuggingFaceTransformersInline,
-} from "@workglow/ai-provider/hf-transformers";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
 // 1. Set up a model repository
 const modelRepo = new InMemoryModelRepository();
@@ -323,7 +321,7 @@ AI providers handle the actual execution of AI tasks. You need to register provi
 ### Basic Provider Registration
 
 ```typescript
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
 // Inline: run functions registered on the current thread (tasks wired inside the provider)
 await registerHuggingFaceTransformersInline();
@@ -339,7 +337,7 @@ import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transf
 await registerHuggingFaceTransformers({
   worker: () => new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
 });
-// Worker file must call registerHuggingFaceTransformersWorker() from @workglow/ai-provider/hf-transformers
+// Worker file must call registerHuggingFaceTransformersWorker() from @workglow/ai-provider/hf-transformers/runtime
 ```
 
 ### Job Queue Setup

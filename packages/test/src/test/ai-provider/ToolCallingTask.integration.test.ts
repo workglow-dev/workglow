@@ -16,9 +16,9 @@ import {
   createToolCallMarkupFilter,
   HF_TRANSFORMERS_ONNX,
   parseToolCallsFromText,
-  registerHuggingFaceTransformersInline,
   type HfTransformersOnnxModelRecord,
-} from "@workglow/ai-provider/hf-transformers";
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { JsonSchema, setLogger } from "@workglow/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

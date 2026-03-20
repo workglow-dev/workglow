@@ -14,9 +14,9 @@ import {
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
-  registerHuggingFaceTransformersInline,
   type HfTransformersOnnxModelRecord,
-} from "@workglow/ai-provider/hf-transformers";
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import {
   ConcurrencyLimiter,
   JobQueueClient,

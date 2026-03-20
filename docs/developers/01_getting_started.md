@@ -48,7 +48,7 @@ After this, please read [Architecture](02_architecture.md) before attempting to 
 
 ```ts
 import { Workflow } from "@workglow/task-graph";
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 // config and start up
 await registerHuggingFaceTransformersInline();
 
@@ -76,7 +76,7 @@ This is equivalent to creating the graph directly, with additional features like
 import { Dataflow, TaskGraph } from "@workglow/task-graph";
 import { DownloadModelTask, TextRewriterTask } from "@workglow/ai";
 import { DebugLogTask } from "@workglow/tasks";
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
 // config and start up
 await registerHuggingFaceTransformersInline();
@@ -138,10 +138,8 @@ import {
 import { DebugLogTask } from "@workglow/tasks";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import {
-  HF_TRANSFORMERS_ONNX,
-  registerHuggingFaceTransformersInline,
-} from "@workglow/ai-provider/hf-transformers";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
 // Provider run functions on this thread
 await registerHuggingFaceTransformersInline();
@@ -231,8 +229,8 @@ LLM providers have long running functions. These are handled by a Job Queue. The
 #### In memory:
 
 ```ts
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
-import { registerTensorFlowMediaPipeInline } from "@workglow/ai-provider/tf-mediapipe";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
+import { registerTensorFlowMediaPipeInline } from "@workglow/ai-provider/tf-mediapipe/runtime";
 
 await registerHuggingFaceTransformersInline();
 await registerTensorFlowMediaPipeInline();
@@ -249,7 +247,7 @@ await registerHuggingFaceTransformers({
 });
 
 // worker_hft.ts
-import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers/runtime";
 registerHuggingFaceTransformersWorker();
 ```
 

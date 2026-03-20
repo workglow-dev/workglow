@@ -11,13 +11,11 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
+  clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
   type HfTransformersOnnxModelRecord,
-} from "@workglow/ai-provider/hf-transformers";
-import {
-  clearPipelineCache,
   registerHuggingFaceTransformersInline,
-} from "@workglow/ai-provider/hf-transformers";
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 
