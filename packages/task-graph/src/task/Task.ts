@@ -954,13 +954,15 @@ export class Task<
     const extras = config.extras as Record<string, unknown> | undefined;
     if (!extras || Object.keys(extras).length === 0) delete config.extras;
 
-    const json: TaskGraphItemJson = this.stripSymbols({
+    const base: TaskGraphItemJson = {
       id: this.id,
       type: this.type,
       defaults: this.defaults,
-      config,
-    });
-    return json;
+    };
+    if (Object.keys(config).length > 0) {
+      base.config = config;
+    }
+    return this.stripSymbols(base) as TaskGraphItemJson;
   }
 
   /**

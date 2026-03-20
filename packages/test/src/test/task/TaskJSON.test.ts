@@ -82,6 +82,13 @@ describe("TaskJSON", () => {
       expect(json.defaults).toEqual({ value: 10, multiplier: 5 });
     });
 
+    test("should omit config when there is nothing to serialize beyond id", () => {
+      const task = new TestTaskWithDefaults({ value: 10, multiplier: 5 }, { id: "task-no-config" });
+      const json = task.toJSON();
+
+      expect(json.config).toBeUndefined();
+    });
+
     test("should serialize task with extras", () => {
       const task = new DoubleToResultTask(
         { value: 100 },
