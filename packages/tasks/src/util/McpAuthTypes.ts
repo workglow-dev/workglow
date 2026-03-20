@@ -6,7 +6,6 @@
  * Shared MCP authentication type definitions and JSON Schema.
  */
 
-
 /**
  * Supported MCP authentication types.
  */

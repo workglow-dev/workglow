@@ -10,7 +10,8 @@ import {
   McpResourceReadTask,
   McpToolCallTask,
 } from "@workglow/tasks";
-import { mcpClientFactory, setLogger } from "@workglow/util";
+import { mcpClientFactory } from "@workglow/tasks";
+import { setLogger } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

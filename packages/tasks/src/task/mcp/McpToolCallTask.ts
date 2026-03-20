@@ -12,34 +12,9 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import {
-  DataPortSchema,
-  FromSchema,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  type McpServerConfig,
-} from "@workglow/util";
-import { mcpList } from "./McpListTask";
-
-const configSchema = {
-  type: "object",
-  properties: {
-    ...TaskConfigSchema["properties"],
-    ...mcpServerConfigSchema.properties,
-    tool_name: {
-      type: "string",
-      title: "Tool Name",
-      description: "The name of the tool to call",
-      format: "string:mcp-toolname",
-    },
-  },
-  required: ["transport", "tool_name"],
-  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-  then: { required: ["command"] },
-  else: { required: ["server_url"] },
-  allOf: mcpServerConfigSchema.allOf,
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
+import { getMcpTaskDeps, type McpConnectionConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema } from "@workglow/util";
+import { mcpList, type McpListTaskInput } from "./McpListTask";
 
 const annotationsSchema = {
   type: "object",
@@ -169,16 +144,11 @@ const fallbackInputSchema = {
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
-/** Base config from schema; inputSchema/outputSchema overridden to DataPortSchema so constructor accepts TaskConfig from registry. */
-type McpToolCallConfigFromSchema = Omit<
-  FromSchema<typeof configSchema>,
-  "inputSchema" | "outputSchema"
->;
-export type McpToolCallTaskConfig = TaskConfig &
-  McpToolCallConfigFromSchema & {
-    inputSchema?: DataPortSchema;
-    outputSchema?: DataPortSchema;
-  };
+/** Config includes MCP connection fields (transport-dependent shape is registered per platform). */
+export type McpToolCallTaskConfig = TaskConfig & {
+  inputSchema?: DataPortSchema;
+  outputSchema?: DataPortSchema;
+} & Record<string, unknown>;
 export type McpToolCallTaskInput = Record<string, unknown>;
 export type McpToolCallTaskOutput = Record<string, unknown>;
 
@@ -203,8 +173,27 @@ export class McpToolCallTask extends Task<
     return fallbackOutputSchema;
   }
 
-  public static configSchema() {
-    return configSchema;
+  public static configSchema(): DataPortSchema {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
+    return {
+      type: "object",
+      properties: {
+        ...TaskConfigSchema["properties"],
+        ...mcpServerConfigSchema.properties,
+        tool_name: {
+          type: "string",
+          title: "Tool Name",
+          description: "The name of the tool to call",
+          format: "string:mcp-toolname",
+        },
+      },
+      required: ["transport", "tool_name"],
+      if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
+      then: { required: ["command"] },
+      else: { required: ["server_url"] },
+      allOf: mcpServerConfigSchema.allOf,
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
 
   public override inputSchema(): DataPortSchema {
@@ -231,7 +220,7 @@ export class McpToolCallTask extends Task<
         args: this.config.args,
         env: this.config.env,
         list_type: "tools",
-      });
+      } as McpListTaskInput);
 
       const tool = result.tools?.find((t) => t.name === this.config.tool_name);
       if (tool) {
@@ -256,13 +245,14 @@ export class McpToolCallTask extends Task<
   ): Promise<McpToolCallTaskOutput> {
     await this.discoverSchemas(context.signal);
 
+    const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(
-      this.config as unknown as McpServerConfig,
+      this.config as unknown as McpConnectionConfig,
       context.signal
     );
     try {
       const result = await client.callTool({
-        name: this.config.tool_name,
+        name: String(this.config.tool_name ?? ""),
         arguments: input as Record<string, unknown>,
       });
       if (!("content" in result) || !Array.isArray(result.content)) {

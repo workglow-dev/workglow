@@ -27,6 +27,4 @@ export * from "./vector/VectorUtils";
 export * from "./worker/WorkerManager";
 export * from "./credentials";
 export * from "./crypto/WebCrypto";
-export * from "./mcp/McpAuthTypes";
-export * from "./mcp/McpAuthProvider";
 export * from "./telemetry";

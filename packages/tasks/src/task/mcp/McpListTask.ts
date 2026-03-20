@@ -5,31 +5,10 @@
  */
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import {
-  DataPortSchema,
-  FromSchema,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  type McpServerConfig,
-} from "@workglow/util";
+import { getMcpTaskDeps } from "../../util/McpTaskDeps";
+import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
-
-const inputSchema = {
-  type: "object",
-  properties: {
-    ...mcpServerConfigSchema.properties,
-    list_type: {
-      type: "string",
-      enum: mcpListTypes,
-      title: "List Type",
-      description: "The type of items to list from the MCP server",
-    },
-  },
-  required: ["transport", "list_type"],
-  allOf: mcpServerConfigSchema.allOf,
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
 
 const iconSchema = {
   type: "object",
@@ -190,8 +169,10 @@ const outputSchemaAll = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type McpListTaskInput = FromSchema<typeof inputSchema>;
 export type McpListTaskOutput = FromSchema<typeof outputSchemaAll>;
+
+/** MCP list input (transport fields depend on platform; see static inputSchema()). */
+export type McpListTaskInput = Record<string, unknown>;
 
 export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskConfig> {
   public static type = "McpListTask";
@@ -201,8 +182,23 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   static readonly cacheable = false;
   public static hasDynamicSchemas: boolean = true;
 
-  public static inputSchema() {
-    return inputSchema;
+  public static inputSchema(): DataPortSchema {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
+    return {
+      type: "object",
+      properties: {
+        ...mcpServerConfigSchema.properties,
+        list_type: {
+          type: "string",
+          enum: mcpListTypes,
+          title: "List Type",
+          description: "The type of items to list from the MCP server",
+        },
+      },
+      required: ["transport", "list_type"],
+      allOf: mcpServerConfigSchema.allOf,
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
 
   public static outputSchema() {
@@ -244,12 +240,11 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   }
 
   async execute(input: McpListTaskInput, context: IExecuteContext): Promise<McpListTaskOutput> {
-    const { client } = await mcpClientFactory.create(
-      input as unknown as McpServerConfig,
-      context.signal
-    );
+    const { mcpClientFactory } = getMcpTaskDeps();
+    const { client } = await mcpClientFactory.create(input, context.signal);
+    const listType = input.list_type;
     try {
-      switch (input.list_type) {
+      switch (listType) {
         case "tools": {
           const result = await client.listTools();
           return { tools: result.tools };
@@ -263,7 +258,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
           return { prompts: result.prompts };
         }
         default:
-          throw new Error(`Unsupported list type: ${input.list_type}`);
+          throw new Error(`Unsupported list type: ${String(listType)}`);
       }
     } finally {
       await client.close();

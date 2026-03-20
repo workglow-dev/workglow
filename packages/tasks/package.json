@@ -37,12 +37,16 @@
     "access": "public"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
     "@workglow/task-graph": "workspace:*",
     "@workglow/util": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*"
   },
   "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": false
+    },
     "@workglow/task-graph": {
       "optional": false
     },
@@ -57,6 +61,7 @@
     }
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
     "@types/papaparse": "^5.5.2",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",

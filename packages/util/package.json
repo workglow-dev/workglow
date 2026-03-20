@@ -39,13 +39,5 @@
   "dependencies": {
     "@sroussey/json-schema-library": "^11.0.0",
     "@sroussey/json-schema-to-ts": "3.1.4"
-  },
-  "peerDependencies": {
-    "@modelcontextprotocol/sdk": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "@modelcontextprotocol/sdk": {
-      "optional": true
-    }
   }
 }

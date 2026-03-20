@@ -12,33 +12,8 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import {
-  DataPortSchema,
-  FromSchema,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  type McpServerConfig,
-} from "@workglow/util";
-
-const configSchema = {
-  type: "object",
-  properties: {
-    ...TaskConfigSchema["properties"],
-    ...mcpServerConfigSchema.properties,
-    resource_uri: {
-      type: "string",
-      title: "Resource URI",
-      description: "The URI of the resource to read",
-      format: "string:uri:mcp-resourceuri",
-    },
-  },
-  required: ["transport", "resource_uri"],
-  if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-  then: { required: ["command"] },
-  else: { required: ["server_url"] },
-  allOf: mcpServerConfigSchema.allOf,
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
+import { getMcpTaskDeps, type McpConnectionConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema, FromSchema } from "@workglow/util";
 
 const contentItemSchema = {
   anyOf: [
@@ -87,7 +62,7 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type McpResourceReadTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
+export type McpResourceReadTaskConfig = TaskConfig & Record<string, unknown>;
 export type McpResourceReadTaskInput = FromSchema<typeof inputSchema>;
 export type McpResourceReadTaskOutput = FromSchema<typeof outputSchema>;
 
@@ -111,20 +86,42 @@ export class McpResourceReadTask extends Task<
     return outputSchema;
   }
 
-  public static configSchema() {
-    return configSchema;
+  public static configSchema(): DataPortSchema {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
+    return {
+      type: "object",
+      properties: {
+        ...TaskConfigSchema["properties"],
+        ...mcpServerConfigSchema.properties,
+        resource_uri: {
+          type: "string",
+          title: "Resource URI",
+          description: "The URI of the resource to read",
+          format: "string:uri:mcp-resourceuri",
+        },
+      },
+      required: ["transport", "resource_uri"],
+      if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
+      then: { required: ["command"] },
+      else: { required: ["server_url"] },
+      allOf: mcpServerConfigSchema.allOf,
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
 
   async execute(
     _input: McpResourceReadTaskInput,
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {
+    const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(
-      this.config as unknown as McpServerConfig,
+      this.config as unknown as McpConnectionConfig,
       context.signal
     );
     try {
-      const result = await client.readResource({ uri: this.config.resource_uri });
+      const result = await client.readResource({
+        uri: String(this.config.resource_uri ?? ""),
+      });
       return { contents: result.contents };
     } finally {
       await client.close();

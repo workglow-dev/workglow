@@ -19,7 +19,8 @@ import type { AgentHooks, ChatMessage, ToolSource, UserContentBlock } from "./Ag
 import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { ToolCallingTask, ToolDefinitionSchema } from "./ToolCallingTask";
-import type { ToolCallingTaskInput, ToolCalls, ToolDefinition } from "./ToolCallingTask";
+import type { ToolCallingTaskInput } from "./ToolCallingTask";
+import type { ToolCalls, ToolDefinition } from "./ToolCallingUtils";
 
 // ========================================================================
 // Config

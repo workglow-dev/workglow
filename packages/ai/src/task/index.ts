@@ -110,6 +110,7 @@ export * from "./AgentTask";
 export * from "./AgentTypes";
 export * from "./AgentUtils";
 export * from "./MessageConversion";
+export * from "./ToolCallingUtils";
 export * from "./BackgroundRemovalTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";

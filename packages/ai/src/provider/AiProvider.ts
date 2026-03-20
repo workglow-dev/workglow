@@ -7,7 +7,6 @@
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { globalServiceRegistry, WORKER_MANAGER, type WorkerServer } from "@workglow/util";
 import type { ModelConfig } from "../model/ModelSchema";
-import { createDefaultQueue } from "../queue/createDefaultQueue";
 import {
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
@@ -57,7 +56,6 @@ export interface AiProviderRegisterContext extends AiProviderRegisterOptions {
  *
  * The base class handles:
  * - Registering run functions with the AiProviderRegistry (inline or worker proxies)
- * - Creating a default job queue
  * - Registering functions on a WorkerServer (for worker-side code)
  * - Lifecycle management (initialize / dispose)
  *
@@ -227,9 +225,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
 
     registry.registerProvider(this);
 
-    if (options.queue?.autoCreate !== false) {
-      await this.createQueue(options.queue?.concurrency ?? 1);
-    }
+    await this.afterRegister(options);
   }
 
   /**
@@ -277,10 +273,9 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   async dispose(): Promise<void> {}
 
   /**
-   * Create and register a default job queue for this provider.
-   * Uses InMemoryQueueStorage with a ConcurrencyLimiter.
+   * Called at the end of {@link register} after registry wiring.
+   * {@link QueuedAiProvider} overrides this to create the default job queue; the base
+   * implementation is a no-op so worker-only provider classes stay free of queue/storage.
    */
-  protected async createQueue(concurrency: number): Promise<void> {
-    await createDefaultQueue(this.name, concurrency);
-  }
+  protected async afterRegister(_options: AiProviderRegisterOptions): Promise<void> {}
 }

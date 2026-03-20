@@ -6,6 +6,8 @@
 
 export * from "./job/AiJob";
 
+export * from "./task/ToolCallingUtils";
+
 export * from "./model/InMemoryModelRepository";
 export * from "./model/ModelRegistry";
 export * from "./model/ModelRepository";
@@ -13,5 +15,6 @@ export * from "./model/ModelSchema";
 
 export * from "./provider/AiProvider";
 export * from "./provider/AiProviderRegistry";
+export * from "./provider/QueuedAiProvider";
 
 export * from "./task";

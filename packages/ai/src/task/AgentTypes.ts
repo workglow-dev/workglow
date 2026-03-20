@@ -6,7 +6,7 @@
 
 import { DataPorts } from "@workglow/task-graph";
 import { parseDataUri } from "@workglow/util";
-import type { ToolCall, ToolCalls, ToolDefinition } from "./ToolCallingTask";
+import type { ToolCall, ToolCalls, ToolDefinition } from "./ToolCallingUtils";
 
 // ========================================================================
 // Chat message types — provider-agnostic conversation history
