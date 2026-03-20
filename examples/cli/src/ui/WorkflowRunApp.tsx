@@ -5,23 +5,21 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Box, Text, Static } from "ink";
+import { Box, Text } from "ink";
 import type { TaskGraph } from "@workglow/task-graph";
+import {
+  cliTaskShowsProgressBar,
+  sortCliTaskLinesForDisplay,
+  startGraphTaskPoll,
+} from "./cliTaskUi";
 import { ProgressBar } from "./components/ProgressBar";
 import { TaskStatusLine } from "./components/TaskStatusLine";
-
-interface TaskInfo {
-  readonly id: string;
-  readonly type: string;
-  status: string;
-  progress?: number;
-  message?: string;
-}
-
-interface LogLine {
-  readonly id: number;
-  readonly text: string;
-}
+import type { CliTaskLine, IterationSlotRow } from "./taskGraphCliSubscriptions";
+import {
+  iterationSlotToTaskStatus,
+  sortIterationSlotsForDisplay,
+  subscribeTaskGraphForCli,
+} from "./taskGraphCliSubscriptions";
 
 interface WorkflowRunAppProps {
   readonly graph: TaskGraph;
@@ -38,88 +36,78 @@ export function WorkflowRunApp({
   onComplete,
   onError,
 }: WorkflowRunAppProps): React.ReactElement {
-  const [taskInfos, setTaskInfos] = useState<Map<string, TaskInfo>>(new Map());
+  const [taskInfos, setTaskInfos] = useState<Map<string, CliTaskLine>>(new Map());
   const [overallProgress, setOverallProgress] = useState<number | undefined>(undefined);
-  const [completedLogs, setCompletedLogs] = useState<LogLine[]>([]);
+  const [iterationSlots, setIterationSlots] = useState<Map<string, IterationSlotRow[]>>(new Map());
   useEffect(() => {
-    let logCounter = 0;
-    const tasks = graph.getTasks();
-
-    // Initialize task status map
-    const initial = new Map<string, TaskInfo>();
-    for (const task of tasks) {
-      const taskId = String(task.id);
-      const taskType = (task as any).type ?? "Unknown";
-      initial.set(taskId, { id: taskId, type: taskType, status: "PENDING" });
-
-      task.events.on("status", (status: string) => {
-        setTaskInfos((prev) => {
-          const next = new Map(prev);
-          const info = next.get(taskId);
-          if (info) {
-            next.set(taskId, { ...info, status });
-            if (status === "COMPLETED") {
-              setCompletedLogs((logs) => [
-                ...logs,
-                { id: logCounter++, text: `[COMPLETED] ${taskType}` },
-              ]);
-            }
-          }
-          return next;
-        });
-      });
-
-      task.events.on("progress", (progress: number, message?: string) => {
-        setTaskInfos((prev) => {
-          const next = new Map(prev);
-          const info = next.get(taskId);
-          if (info) {
-            next.set(taskId, { ...info, progress, message });
-          }
-          return next;
-        });
-      });
-    }
-    setTaskInfos(initial);
-
-    graph.on("graph_progress", (progress: number) => {
-      setOverallProgress(progress);
-    });
+    const unsub = subscribeTaskGraphForCli(
+      graph,
+      setTaskInfos,
+      undefined,
+      setOverallProgress,
+      setIterationSlots
+    );
+    const stopPoll = startGraphTaskPoll(graph, setTaskInfos);
 
     graph
       .run(input, config)
       .then((result) => onComplete(result))
       .catch((err) => onError(err));
+
+    return () => {
+      stopPoll();
+      unsub();
+    };
   }, []);
 
-  const activeTasks = Array.from(taskInfos.values()).filter(
-    (t) => t.status !== "PENDING" && t.status !== "COMPLETED"
-  );
+  const order = new Map(graph.getTasks().map((t, i) => [String(t.id), i]));
+  const orderedTasks = sortCliTaskLinesForDisplay(Array.from(taskInfos.values()), order);
 
   return (
     <Box flexDirection="column">
-      <Static items={completedLogs}>
-        {(log) => (
-          <Text key={log.id}>{log.text}</Text>
-        )}
-      </Static>
-
       <Box flexDirection="column">
         {overallProgress !== undefined && (
-          <Box>
-            <Text>Workflow: </Text>
-            <ProgressBar progress={overallProgress} />
+          <Box flexDirection="column">
+            <Box>
+              <Text>Workflow: </Text>
+              <ProgressBar progress={overallProgress} />
+            </Box>
           </Box>
         )}
-        {activeTasks.map((t) => (
-          <TaskStatusLine
-            key={t.id}
-            type={t.type}
-            status={t.status}
-            progress={t.progress}
-            message={t.message}
-          />
-        ))}
+        {orderedTasks.map((t) => {
+          const slots = iterationSlots.get(t.id);
+          const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
+          return (
+            <Box key={t.id} flexDirection="column">
+              <TaskStatusLine
+                type={t.type}
+                status={t.status}
+                progress={t.progress}
+                message={t.message}
+              />
+              {cliTaskShowsProgressBar(t.status) && (
+                <Box marginLeft={2}>
+                  <ProgressBar progress={t.progress ?? 0} />
+                </Box>
+              )}
+              {sortedSlots.map((slot) => (
+                <Box key={`${t.id}-iter-${slot.index}`} flexDirection="column" marginLeft={2}>
+                  <TaskStatusLine
+                    type={`#${slot.index + 1}`}
+                    status={iterationSlotToTaskStatus(slot.status)}
+                    progress={slot.status === "completed" ? undefined : slot.progress}
+                    message={slot.status === "completed" ? undefined : slot.message}
+                  />
+                  {slot.status === "running" && slot.progress !== undefined && (
+                    <Box marginLeft={2}>
+                      <ProgressBar progress={slot.progress} />
+                    </Box>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          );
+        })}
       </Box>
     </Box>
   );

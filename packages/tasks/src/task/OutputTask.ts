@@ -52,10 +52,6 @@ export class OutputTask extends Task<OutputTaskInput, OutputTaskOutput, OutputTa
     return this.config?.outputSchema ?? (this.constructor as typeof OutputTask).outputSchema();
   }
 
-  public async execute(input: OutputTaskInput) {
-    return input as OutputTaskOutput;
-  }
-
   public async executeReactive(input: OutputTaskInput) {
     return input as OutputTaskOutput;
   }

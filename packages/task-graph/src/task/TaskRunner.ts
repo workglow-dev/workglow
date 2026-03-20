@@ -643,7 +643,8 @@ export class TaskRunner<
     ...args: any[]
   ): Promise<void> {
     this.task.progress = progress;
-    await this.updateProgress(this.task, progress, message, ...args);
+    // Emit before graph-level work (e.g. pushOutputFromNodeToEdges) so listeners are not stalled.
     this.task.emit("progress", progress, message, ...args);
+    await this.updateProgress(this.task, progress, message, ...args);
   }
 }

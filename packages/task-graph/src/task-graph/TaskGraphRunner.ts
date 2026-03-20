@@ -32,6 +32,16 @@ import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
+/**
+ * Tasks that inherit {@link Task.prototype.execute} without declaring their own `execute` on the
+ * subclass prototype are omitted from graph-level progress averaging (they keep default 0% until
+ * complete and would dilute the bar).
+ */
+export function taskPrototypeHasOwnExecute(task: ITask): boolean {
+  const Ctor = task.constructor as typeof Task;
+  return Object.hasOwn(Ctor.prototype, "execute");
+}
+
 export type GraphSingleTaskResult<T> = {
   id: unknown;
   type: String;
@@ -1073,8 +1083,8 @@ export class TaskGraphRunner {
   }
 
   /**
-   * Handles progress updates for the task graph
-   * Currently not implemented at the graph level
+   * Handles progress updates for the task graph by averaging `progress` across tasks whose class
+   * declares its own `execute` ({@link taskPrototypeHasOwnExecute}). Other nodes are ignored.
    * @param progress Progress value (0-100)
    * @param message Optional message
    * @param args Additional arguments
@@ -1085,16 +1095,21 @@ export class TaskGraphRunner {
     message?: string,
     ...args: any[]
   ): Promise<void> {
-    const total = this.graph.getTasks().length;
-    if (total > 1) {
-      const completed = this.graph.getTasks().reduce((acc, t) => acc + t.progress, 0);
-      progress = Math.round(completed / total);
+    const contributors = this.graph.getTasks().filter(taskPrototypeHasOwnExecute);
+    if (contributors.length > 1) {
+      const sum = contributors.reduce((acc, t) => acc + t.progress, 0);
+      progress = Math.round(sum / contributors.length);
+    } else if (contributors.length === 1) {
+      const [only] = contributors;
+      progress = only.progress;
     }
     this.pushStatusFromNodeToEdges(this.graph, task);
+    // Emit aggregate progress before awaiting output push so UIs (and task `emit("progress")` in
+    // TaskRunner) are not blocked when pushOutput/narrowInput is slow or stalls mid-run.
+    this.graph.emit("graph_progress", progress, message, args);
     // Only push output when the task has produced data; progress can fire mid-run with empty runOutputData
     if (task.runOutputData && Object.keys(task.runOutputData).length > 0) {
       await this.pushOutputFromNodeToEdges(task, task.runOutputData);
     }
-    this.graph.emit("graph_progress", progress, message, args);
   }
 }

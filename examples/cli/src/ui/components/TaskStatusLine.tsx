@@ -6,6 +6,8 @@
 
 import React from "react";
 import { Text } from "ink";
+import { cliTaskShowsProgressBar, cliTaskStatusGlyph, cliTaskStatusGlyphColor } from "../cliTaskUi";
+import { CliSpinner } from "./CliSpinner";
 
 interface TaskStatusLineProps {
   readonly type: string;
@@ -14,27 +16,23 @@ interface TaskStatusLineProps {
   readonly message?: string;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: "gray",
-  PROCESSING: "yellow",
-  COMPLETED: "green",
-  FAILED: "red",
-  ABORTED: "red",
-};
-
 export function TaskStatusLine({
   type,
   status,
   progress,
   message,
 }: TaskStatusLineProps): React.ReactElement {
-  const color = STATUS_COLORS[status] ?? "white";
+  const glyph = cliTaskStatusGlyph(status);
+  const color = cliTaskStatusGlyphColor(status);
   const progressText = progress !== undefined ? ` ${Math.round(progress)}%` : "";
   const msgText = message ? ` — ${message}` : "";
+  const showSpinner = cliTaskShowsProgressBar(status);
 
   return (
     <Text>
-      <Text color={color}>[{status}]</Text> {type}{progressText}{msgText}
+      {showSpinner ? <CliSpinner color={color} /> : <Text color={color}>{glyph}</Text>} {type}
+      {progressText}
+      {msgText}
     </Text>
   );
 }

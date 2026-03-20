@@ -717,9 +717,9 @@ export class Task<
    * Emits an event
    */
   public emit<Event extends TaskEvents>(name: Event, ...args: TaskEventParameters<Event>): void {
-    // this one is not like the others. Listeners will cause a lazy load of the event emitter.
-    // but no need to emit if no one is listening, so we don't want to create the event emitter if not needed
-    this._events?.emit(name, ...args);
+    // Route through `events` so the emitter exists: `this._events?.emit` dropped progress when
+    // nothing had accessed `task.events` yet (e.g. parent MapTask before CLI wired listeners).
+    this.events.emit(name, ...args);
   }
 
   /**

@@ -35,6 +35,28 @@ export type TaskEventListeners = {
   /** Fired when a task reports progress */
   progress: (progress: number, message?: string, ...args: any[]) => void;
 
+  /**
+   * Iterator tasks (MapTask, ReduceTask, etc.): a per-iteration subgraph run is starting.
+   * Index is 0-based; iterationCount is total iterations for this run.
+   */
+  iteration_start: (index: number, iterationCount: number) => void;
+
+  /**
+   * Iterator tasks: a per-iteration subgraph run finished (success or failure — check task status).
+   */
+  iteration_complete: (index: number, iterationCount: number) => void;
+
+  /**
+   * Iterator tasks: progress inside the per-iteration cloned subgraph (0–100).
+   * Does not update {@link Task#progress} on the parent — use for per-row UI without fighting concurrent map workers.
+   */
+  iteration_progress: (
+    index: number,
+    iterationCount: number,
+    progress: number,
+    message?: string
+  ) => void;
+
   /** Fired when a regenerative task regenerates its graph */
   regenerate: () => void;
 
