@@ -44,7 +44,7 @@
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
     "@workglow/sqlite": "workspace:*",
-    "@electric-sql/pglite": "^0.4.0",
+    "@electric-sql/pglite": "^0.4.1",
     "pg": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "@modelcontextprotocol/sdk": "catalog:"
@@ -83,7 +83,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",
-    "@electric-sql/pglite": "^0.4.0",
+    "@electric-sql/pglite": "^0.4.1",
     "@google/generative-ai": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "@huggingface/transformers": "catalog:",

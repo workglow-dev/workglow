@@ -288,7 +288,7 @@
       "version": "0.0.121",
       "devDependencies": {
         "@anthropic-ai/sdk": "catalog:",
-        "@electric-sql/pglite": "^0.4.0",
+        "@electric-sql/pglite": "^0.4.1",
         "@google/generative-ai": "catalog:",
         "@huggingface/transformers": "catalog:",
         "@modelcontextprotocol/sdk": "catalog:",
@@ -311,7 +311,7 @@
         "vitest": "^4.1.0",
       },
       "peerDependencies": {
-        "@electric-sql/pglite": "^0.4.0",
+        "@electric-sql/pglite": "^0.4.1",
         "@modelcontextprotocol/sdk": "catalog:",
         "@supabase/supabase-js": "catalog:",
         "@workglow/ai": "workspace:*",
@@ -483,7 +483,7 @@
 
     "@codemirror/view": ["@codemirror/view@6.40.0", "", { "dependencies": { "@codemirror/state": "^6.6.0", "crelt": "^1.0.6", "style-mod": "^4.1.0", "w3c-keyname": "^2.2.4" } }, "sha512-WA0zdU7xfF10+5I3HhUUq3kqOx3KjqmtQ9lqZjfK7jtYk4G72YW9rezcSywpaUMCWOMlq+6E0pO1IWg1TNIhtg=="],
 
-    "@electric-sql/pglite": ["@electric-sql/pglite@0.4.0", "", {}, "sha512-NBs9e2XwW0+pzUVNqsIRe+VOrP36zfJexI6EBuiPSn/6AcwQ/QE88QtbRfRNFJINqSagH7Rpn5e3Q7NypsVYWg=="],
+    "@electric-sql/pglite": ["@electric-sql/pglite@0.4.1", "", {}, "sha512-mZ9NzzUSYPOCnxHH1oAHPRzoMFJHY472raDKwXl/+6oPbpdJ7g8LsCN4FSaIIfkiCKHhb3iF/Zqo3NYxaIhU7Q=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.0", "tslib": "^2.4.0" } }, "sha512-mukuNALVsoix/w1BJwFzwXBN/dHeejQtuVzcDsfOEsdpCumXb/E9j8w11h5S54tT1xhifGfbbSm/ICrObRb3KA=="],
 
