@@ -39,6 +39,16 @@ npm run dev
 
 The application will be available at `http://localhost:5173`
 
+### Bundle analysis
+
+Production treemap (gzip/brotli sizes) for planning chunk reductions:
+
+```bash
+bun run analyze
+```
+
+Then open `dist/stats.html` in a browser (the `dist/` folder is gitignored). Set `ANALYZE=1` is only used by this script; ordinary `bun run build-code` does not run the analyzer.
+
 ## Usage
 
 ### Creating a Task Graph
@@ -109,7 +119,8 @@ The web example supports various AI task types:
 The application uses web workers for AI processing to keep the UI responsive:
 
 - **worker_hft.ts**: HuggingFace Transformers worker
-- **worker_tfmp.ts**: TensorFlow MediaPipe worker
+- **worker_tfmp_text.ts**: TensorFlow MediaPipe worker (text/audio tasks)
+- **worker_tfmp_vision.ts**: TensorFlow MediaPipe worker (vision tasks)
 
 ### Storage
 
@@ -129,7 +140,8 @@ src/
 ├── graph/                 # Graph editor components
 ├── status/                # Status monitoring components
 ├── worker_hft.ts          # HuggingFace worker
-├── worker_tfmp.ts         # MediaPipe worker
+├── worker_tfmp_text.ts    # MediaPipe text/audio worker
+├── worker_tfmp_vision.ts  # MediaPipe vision worker
 └── main.css              # Global styles
 ```
 

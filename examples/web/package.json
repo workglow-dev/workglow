@@ -8,6 +8,7 @@
     "build-example": "concurrently -c 'auto' -n 'code,types' 'bun run build-code' 'bun run build-types'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-code": "vite build",
+    "analyze": "ANALYZE=1 vite build",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview --port 3800"
@@ -48,6 +49,7 @@
     "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "10.4.27",
     "postcss": "8.5.8",
+    "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "3.4.17",
     "vite": "^8.0.1"
   },

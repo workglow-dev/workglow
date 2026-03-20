@@ -1,9 +1,23 @@
 import react from "@vitejs/plugin-react";
+import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
+
+const analyze = process.env.ANALYZE === "1";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    analyze &&
+      visualizer({
+        filename: "dist/stats.html",
+        gzipSize: true,
+        brotliSize: true,
+        open: false,
+        template: "treemap",
+        title: "@workglow/web bundle",
+      }),
+  ].filter(Boolean),
   resolve: {
     mainFields: ["browser", "import", "module", "main"],
   },
@@ -12,26 +26,6 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("@huggingface/transformers")) return "huggingface-transformers";
-            if (id.includes("@workglow/")) return "workglow";
-            if (
-              id.includes("node_modules/react/") ||
-              id.includes("node_modules/react-dom") ||
-              id.includes("node_modules/@xyflow/react") ||
-              id.includes("node_modules/react-hotkeys-hook") ||
-              id.includes("node_modules/react-icons") ||
-              id.includes("node_modules/react-resizable-panels")
-            )
-              return "react";
-          }
-          return undefined;
-        },
-      },
-    },
   },
   optimizeDeps: {
     rolldownOptions: {
