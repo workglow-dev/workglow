@@ -5,6 +5,6 @@
  */
 
 export * from "./common/LlamaCpp_Constants";
-export * from "./common/LlamaCpp_JobRunFns";
 export * from "./common/LlamaCpp_ModelSchema";
 export * from "./registerLlamaCpp";
+export * from "./common/LlamaCpp_Runtime";

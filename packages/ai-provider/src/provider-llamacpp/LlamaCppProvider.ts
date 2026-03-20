@@ -24,19 +24,6 @@ import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
  *
  * Models are cached in memory after the first load. Use UnloadModelTask to
  * release memory when a model is no longer needed.
- *
- * @example
- * ```typescript
- * // Inline mode:
- * import { LLAMACPP_TASKS, LLAMACPP_STREAM_TASKS } from "@workglow/ai-provider/llamacpp";
- * await new LlamaCppProvider(LLAMACPP_TASKS, LLAMACPP_STREAM_TASKS).register({ mode: "inline" });
- *
- * // Worker mode (main thread) -- lightweight, no SDK import:
- * await new LlamaCppProvider().register({
- *   mode: "worker",
- *   worker: new Worker(new URL("./worker_llamacpp.ts", import.meta.url), { type: "module" }),
- * });
- * ```
  */
 export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
   readonly name = LOCAL_LLAMACPP;

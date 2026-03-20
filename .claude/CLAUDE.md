@@ -161,7 +161,7 @@ Each provider is a separate sub-export with optional peer dependencies:
 
 - `@workglow/ai-provider/anthropic` — Claude
 - `@workglow/ai-provider/openai` — OpenAI
-- `@workglow/ai-provider/google-gemini` — Gemini
+- `@workglow/ai-provider/gemini` — Gemini
 - `@workglow/ai-provider/ollama` — Ollama (browser + node)
 - `@workglow/ai-provider/hf-transformers` — HuggingFace Transformers.js
 - `@workglow/ai-provider/hf-inference` — HuggingFace Inference API

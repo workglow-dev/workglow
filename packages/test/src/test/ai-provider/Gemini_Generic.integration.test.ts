@@ -9,8 +9,8 @@ import {
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
-import { GOOGLE_GEMINI } from "@workglow/ai-provider/google-gemini";
-import { registerGeminiInline } from "@workglow/ai-provider/google-gemini";
+import { GOOGLE_GEMINI } from "@workglow/ai-provider/gemini";
+import { registerGeminiInline } from "@workglow/ai-provider/gemini";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 

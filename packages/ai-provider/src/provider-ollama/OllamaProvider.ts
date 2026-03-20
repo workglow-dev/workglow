@@ -25,19 +25,6 @@ import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
  * Task run functions are injected via the constructor so that the `ollama` SDK
  * is only imported where actually needed (inline mode, worker server), not on
  * the main thread in worker mode.
- *
- * @example
- * ```typescript
- * // Worker mode (main thread) -- lightweight, no SDK import:
- * await new OllamaProvider().register({
- *   mode: "worker",
- *   worker: new Worker(new URL("./worker_ollama.ts", import.meta.url), { type: "module" }),
- * });
- *
- * // Inline mode -- caller provides the tasks:
- * import { OLLAMA_TASKS } from "@workglow/ai-provider/ollama";
- * await new OllamaProvider(OLLAMA_TASKS).register({ mode: "inline" });
- * ```
  */
 export class OllamaProvider extends AiProvider<OllamaModelConfig> {
   readonly name = OLLAMA;

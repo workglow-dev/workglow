@@ -11,7 +11,7 @@ import {
   type ModelSearchResultItem,
 } from "@workglow/ai";
 import { AnthropicModelRecordSchema } from "@workglow/ai-provider/anthropic";
-import { GeminiModelRecordSchema } from "@workglow/ai-provider/google-gemini";
+import { GeminiModelRecordSchema } from "@workglow/ai-provider/gemini";
 import { HfInferenceModelRecordSchema } from "@workglow/ai-provider/hf-inference";
 import {
   HfTransformersOnnxModelRecordSchema,
@@ -20,8 +20,6 @@ import {
 import { LlamaCppModelRecordSchema } from "@workglow/ai-provider/llamacpp";
 import { OllamaModelRecordSchema } from "@workglow/ai-provider/ollama";
 import { OpenAiModelRecordSchema } from "@workglow/ai-provider/openai";
-import { TFMPModelRecordSchema } from "@workglow/ai-provider/tf-mediapipe";
-import { WebBrowserModelRecordSchema } from "@workglow/ai-provider/web-browser";
 import type { DataPortSchemaObject } from "@workglow/util";
 import type { Command } from "commander";
 import { loadConfig } from "../config";
@@ -44,8 +42,6 @@ const PROVIDER_SCHEMAS: Record<string, DataPortSchemaObject> = {
   HF_INFERENCE: HfInferenceModelRecordSchema as unknown as DataPortSchemaObject,
   HF_TRANSFORMERS_ONNX: HfTransformersOnnxModelRecordSchema as unknown as DataPortSchemaObject,
   LOCAL_LLAMACPP: LlamaCppModelRecordSchema as unknown as DataPortSchemaObject,
-  TENSORFLOW_MEDIAPIPE: TFMPModelRecordSchema as unknown as DataPortSchemaObject,
-  WEB_BROWSER: WebBrowserModelRecordSchema as unknown as DataPortSchemaObject,
 };
 
 const AVAILABLE_PROVIDERS = Object.keys(PROVIDER_SCHEMAS);

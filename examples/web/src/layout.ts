@@ -29,7 +29,7 @@ export class GraphPipelineLayout<T extends Node> implements LayoutOptions {
   public nodeWidthMin: number = 190;
   public nodeHeightMin: number = 50;
   public horizontalSpacing = 100; // Horizontal spacing between layers
-  public verticalSpacing = 20; // Vertical spacing between nodes within a layer
+  public verticalSpacing = 120; // Vertical spacing between nodes within a layer
   public startTop = 50; // Starting position of the top layer
   public startLeft = 50; // Starting position of the left layer
 

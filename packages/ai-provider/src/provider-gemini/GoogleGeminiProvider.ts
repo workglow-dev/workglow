@@ -10,40 +10,40 @@ import {
   type AiProviderRunFn,
   type AiProviderStreamFn,
 } from "@workglow/ai";
-import { OPENAI } from "./common/OpenAI_Constants";
-import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
+import { GOOGLE_GEMINI } from "./common/Gemini_Constants";
+import type { GeminiModelConfig } from "./common/Gemini_ModelSchema";
 
 /**
- * AI provider for OpenAI cloud models.
+ * AI provider for Google Gemini cloud models.
  *
  * Supports text generation, text embedding, text rewriting, and text summarization
- * via the OpenAI API using the `openai` SDK.
+ * via the Google Generative AI API using the `@google/generative-ai` SDK.
  *
- * Task run functions are injected via the constructor so that the `openai` SDK
+ * Task run functions are injected via the constructor so that the SDK
  * is only imported where actually needed (inline mode, worker server), not on
  * the main thread in worker mode.
  */
-export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
-  readonly name = OPENAI;
+export class GoogleGeminiProvider extends AiProvider<GeminiModelConfig> {
+  readonly name = GOOGLE_GEMINI;
   readonly isLocal = false;
   readonly supportsBrowser = true;
 
   readonly taskTypes = [
+    "CountTokensTask",
+    "ModelInfoTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
-    "CountTokensTask",
-    "ModelInfoTask",
     "StructuredGenerationTask",
     "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 
   constructor(
-    tasks?: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>>,
-    streamTasks?: Record<string, AiProviderStreamFn<any, any, OpenAiModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, OpenAiModelConfig>>
+    tasks?: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, GeminiModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, GeminiModelConfig>>
   ) {
     super(tasks, streamTasks, reactiveTasks);
   }

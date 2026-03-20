@@ -4,15 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./common/Ollama_Constants";
-export * from "./common/Ollama_JobRunFns.browser";
-export * from "./common/Ollama_ModelSchema";
-export * from "./OllamaProvider";
-
 import type { AiProviderRegisterOptions } from "@workglow/ai";
 import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
 import { OLLAMA_STREAM_TASKS, OLLAMA_TASKS } from "./common/Ollama_JobRunFns.browser";
 import { OllamaProvider } from "./OllamaProvider";
+
+export * from "./common/Ollama_Constants";
+export * from "./common/Ollama_ModelSchema";
+export * from "./common/Ollama_Client.browser";
 
 export async function registerOllamaInline(options?: AiProviderRegisterOptions): Promise<void> {
   await new OllamaProvider(OLLAMA_TASKS, OLLAMA_STREAM_TASKS).register(options ?? {});
