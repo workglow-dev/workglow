@@ -10,6 +10,7 @@ import {
   AiProviderRegistry,
   getAiProviderRegistry,
   setAiProviderRegistry,
+  type AiProviderRegisterContext,
   type AiProviderRegisterOptions,
   type AiProviderRunFn,
 } from "@workglow/ai";
@@ -34,7 +35,7 @@ class TestProvider extends AiProvider {
   readonly taskTypes: readonly string[];
 
   public initializeCalled = false;
-  public initializeOptions: AiProviderRegisterOptions | null = null;
+  public initializeOptions: AiProviderRegisterContext | null = null;
   public disposeCalled = false;
 
   constructor(fns?: Record<string, AiProviderRunFn<any, any, any>>) {
@@ -42,7 +43,7 @@ class TestProvider extends AiProvider {
     this.taskTypes = fns ? Object.keys(fns) : [];
   }
 
-  protected override async onInitialize(options: AiProviderRegisterOptions): Promise<void> {
+  protected override async onInitialize(options: AiProviderRegisterContext): Promise<void> {
     this.initializeCalled = true;
     this.initializeOptions = options;
   }
@@ -130,7 +131,7 @@ describe("AiProvider", () => {
     });
   });
 
-  describe("register (inline mode)", () => {
+  describe("register (inline)", () => {
     test("should register all run functions with the AiProviderRegistry", async () => {
       const mockGenFn = mock(() => Promise.resolve({ text: "hello" }));
       const mockEmbedFn = mock(() => Promise.resolve({ vector: [] }));
@@ -139,7 +140,7 @@ describe("AiProvider", () => {
         TextEmbeddingTask: mockEmbedFn,
       });
 
-      await provider.register({ mode: "inline", queue: { autoCreate: false } });
+      await provider.register({ queue: { autoCreate: false } });
 
       const genFn = aiProviderRegistry.getDirectRunFn(TEST_PROVIDER_NAME, "TextGenerationTask");
       expect(genFn).toBe(mockGenFn);
@@ -153,11 +154,11 @@ describe("AiProvider", () => {
         TextGenerationTask: mock(() => Promise.resolve({})),
       });
 
-      const options: AiProviderRegisterOptions = { mode: "inline", queue: { autoCreate: false } };
+      const options: AiProviderRegisterOptions = { queue: { autoCreate: false } };
       await provider.register(options);
 
       expect(provider.initializeCalled).toBe(true);
-      expect(provider.initializeOptions).toEqual(options);
+      expect(provider.initializeOptions).toEqual({ ...options, isInline: true });
     });
 
     test("should register provider instance on the registry", async () => {
@@ -165,7 +166,7 @@ describe("AiProvider", () => {
         TextGenerationTask: mock(() => Promise.resolve({})),
       });
 
-      await provider.register({ mode: "inline", queue: { autoCreate: false } });
+      await provider.register({ queue: { autoCreate: false } });
 
       const retrieved = aiProviderRegistry.getProvider(TEST_PROVIDER_NAME);
       expect(retrieved).toBe(provider);
@@ -176,7 +177,7 @@ describe("AiProvider", () => {
         TextGenerationTask: mock(() => Promise.resolve({ text: "hello" })),
       });
 
-      await provider.register({ mode: "inline" });
+      await provider.register();
 
       const registeredQueue = getTaskQueueRegistry().getQueue(TEST_PROVIDER_NAME);
       expect(registeredQueue).toBeDefined();
@@ -189,18 +190,17 @@ describe("AiProvider", () => {
         TextGenerationTask: mock(() => Promise.resolve({ text: "hello" })),
       });
 
-      await provider.register({ mode: "inline", queue: { autoCreate: false } });
+      await provider.register({ queue: { autoCreate: false } });
 
       const registeredQueue = getTaskQueueRegistry().getQueue(TEST_PROVIDER_NAME);
       expect(registeredQueue).toBeUndefined();
     });
+  });
 
-    test("should throw when tasks not provided in inline mode", async () => {
+  describe("register (worker)", () => {
+    test("should throw when worker is omitted for worker-backed registration", async () => {
       const provider = new StaticTaskTypesProvider();
-
-      await expect(
-        provider.register({ mode: "inline", queue: { autoCreate: false } })
-      ).rejects.toThrow(/tasks must be provided via the constructor for inline mode/);
+      await expect(provider.register({})).rejects.toThrow(/worker is required/);
     });
   });
 
@@ -249,7 +249,7 @@ describe("AiProvider", () => {
         TextGenerationTask: mock(() => Promise.resolve({})),
       });
 
-      await provider.register({ mode: "inline", queue: { autoCreate: false } });
+      await provider.register({ queue: { autoCreate: false } });
       await provider.dispose();
 
       expect(provider.disposeCalled).toBe(true);
@@ -262,7 +262,7 @@ describe("AiProvider", () => {
         TextGenerationTask: mock(() => Promise.resolve({})),
       });
 
-      await provider.register({ mode: "inline", queue: { autoCreate: false } });
+      await provider.register({ queue: { autoCreate: false } });
 
       expect(aiProviderRegistry.getProvider(TEST_PROVIDER_NAME)).toBe(provider);
     });
@@ -301,7 +301,7 @@ describe("AiProvider", () => {
         TextGenerationTask: mockRunFn,
       });
 
-      await provider.register({ mode: "inline", queue: { autoCreate: false } });
+      await provider.register({ queue: { autoCreate: false } });
 
       const model = {
         model_id: "test:model:v1",

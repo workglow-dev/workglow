@@ -4,12 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @license
- * Copyright 2025 Steven Roussey <sroussey@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { DragHandleDots2Icon } from "@radix-ui/react-icons";
 import type { ReactElement } from "react";
 import * as ResizablePrimitive from "react-resizable-panels";

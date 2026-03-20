@@ -6,7 +6,7 @@
 
 import { AiProviderRegistry, getAiProviderRegistry, setAiProviderRegistry } from "@workglow/ai";
 import type { ToolCalls } from "@workglow/ai";
-import { OLLAMA, OllamaModelConfig, OllamaProvider } from "@workglow/ai-provider";
+import { OLLAMA, type OllamaModelConfig } from "@workglow/ai-provider/ollama";
 import {
   OLLAMA_TASKS,
   Ollama_TextEmbedding,
@@ -15,6 +15,7 @@ import {
   Ollama_TextSummary,
   Ollama_ToolCalling,
   Ollama_ToolCalling_Stream,
+  OllamaProvider,
 } from "@workglow/ai-provider/ollama";
 import {
   getTaskQueueRegistry,
@@ -82,12 +83,13 @@ describe("OllamaProvider", () => {
         "TextRewriterTask",
         "TextSummaryTask",
         "ToolCallingTask",
+        "ModelSearchTask",
       ]);
     });
 
     test("should register in inline mode", async () => {
       const provider = new OllamaProvider(OLLAMA_TASKS);
-      await provider.register({ mode: "inline", queue: { autoCreate: false } });
+      await provider.register({ queue: { autoCreate: false } });
 
       expect(registry.getProvider(OLLAMA)).toBe(provider);
       expect(registry.getDirectRunFn(OLLAMA, "TextGenerationTask")).toBeDefined();
@@ -100,7 +102,7 @@ describe("OllamaProvider", () => {
       const provider = new OllamaProvider(OLLAMA_TASKS);
       provider.registerOnWorkerServer(mockServer as any);
 
-      expect(mockServer.registerFunction).toHaveBeenCalledTimes(6);
+      expect(mockServer.registerFunction).toHaveBeenCalledTimes(7);
     });
   });
 
@@ -580,12 +582,13 @@ describe("OllamaProvider", () => {
   describe("OLLAMA_TASKS", () => {
     test("should export all task run functions", () => {
       expect(OLLAMA_TASKS).toHaveProperty("ModelInfoTask");
+      expect(OLLAMA_TASKS).toHaveProperty("ModelSearchTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextGenerationTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextEmbeddingTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextRewriterTask");
       expect(OLLAMA_TASKS).toHaveProperty("TextSummaryTask");
       expect(OLLAMA_TASKS).toHaveProperty("ToolCallingTask");
-      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(6);
+      expect(Object.keys(OLLAMA_TASKS)).toHaveLength(7);
     });
   });
 });

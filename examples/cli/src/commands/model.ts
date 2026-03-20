@@ -4,18 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ModelRecordSchema, type ModelRecord } from "@workglow/ai";
 import {
-  AnthropicModelRecordSchema,
-  GeminiModelRecordSchema,
-  HfInferenceModelRecordSchema,
+  modelSearch,
+  ModelRecordSchema,
+  type ModelRecord,
+  type ModelSearchResultItem,
+} from "@workglow/ai";
+import { AnthropicModelRecordSchema } from "@workglow/ai-provider/anthropic";
+import { GeminiModelRecordSchema } from "@workglow/ai-provider/google-gemini";
+import { HfInferenceModelRecordSchema } from "@workglow/ai-provider/hf-inference";
+import {
   HfTransformersOnnxModelRecordSchema,
-  LlamaCppModelRecordSchema,
-  OllamaModelRecordSchema,
-  OpenAiModelRecordSchema,
-  TFMPModelRecordSchema,
-  WebBrowserModelRecordSchema,
-} from "@workglow/ai-provider";
+  parseOnnxQuantizations,
+} from "@workglow/ai-provider/hf-transformers";
+import { LlamaCppModelRecordSchema } from "@workglow/ai-provider/llamacpp";
+import { OllamaModelRecordSchema } from "@workglow/ai-provider/ollama";
+import { OpenAiModelRecordSchema } from "@workglow/ai-provider/openai";
+import { TFMPModelRecordSchema } from "@workglow/ai-provider/tf-mediapipe";
+import { WebBrowserModelRecordSchema } from "@workglow/ai-provider/web-browser";
 import type { DataPortSchemaObject } from "@workglow/util";
 import type { Command } from "commander";
 import { loadConfig } from "../config";
@@ -26,10 +32,8 @@ import {
   resolveInput,
   validateInput,
 } from "../input";
-import { parseOnnxDtypes } from "../provider/hft/parse-onnx-dtypes";
-import { pipelineToTaskTypes } from "../provider/hft/taskToPipeline";
 import { createModelRepository } from "../storage";
-import type { SearchPage, SearchSelectItem } from "../ui/render";
+import type { SearchSelectItem } from "../ui/render";
 import { formatTable } from "../util";
 
 const PROVIDER_SCHEMAS: Record<string, DataPortSchemaObject> = {
@@ -59,214 +63,12 @@ function detectProviderFromArgv(argv: string[]): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// HuggingFace search (used by HF_INFERENCE, HF_TRANSFORMERS_ONNX, LOCAL_LLAMACPP)
+// Provider search (delegates to ModelSearchTask via modelSearch())
 // ---------------------------------------------------------------------------
 
-interface HfModelEntry {
-  id: string;
-  modelId: string;
-  pipeline_tag?: string;
-  library_name?: string;
-  likes: number;
-  downloads: number;
-  tags?: string[];
-  siblings?: Array<{ rfilename: string }>;
+interface ModelSearchSelectItem extends SearchSelectItem {
+  readonly result: ModelSearchResultItem;
 }
-
-interface HfSearchResult extends SearchSelectItem {
-  readonly entry: HfModelEntry;
-}
-
-const HF_API_BASE = "https://huggingface.co/api";
-const HF_PAGE_SIZE = 20;
-
-function formatDownloads(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
-}
-
-function createHfSearchFn(
-  extraParams?: Record<string, string>,
-  expandFields?: string[]
-): (query: string, cursor: string | undefined) => Promise<SearchPage<HfSearchResult>> {
-  return async (query, cursor) => {
-    const skip = cursor ? parseInt(cursor, 10) : 0;
-    const params = new URLSearchParams({
-      search: query,
-      limit: String(HF_PAGE_SIZE),
-      sort: "downloads",
-      direction: "-1",
-      skip: String(skip),
-      ...extraParams,
-    });
-    params.append("expand[]", "pipeline_tag");
-    if (expandFields) {
-      for (const field of expandFields) {
-        params.append("expand[]", field);
-      }
-    }
-    const res = await fetch(`${HF_API_BASE}/models?${params}`);
-    if (!res.ok) throw new Error(`HuggingFace API returned ${res.status}`);
-
-    const data: HfModelEntry[] = await res.json();
-
-    const items: HfSearchResult[] = data.map((entry) => {
-      const badges = [entry.pipeline_tag, entry.library_name].filter(Boolean).join(" | ");
-      return {
-        id: entry.id,
-        label: `${entry.id}${badges ? `  ${badges}` : ""}`,
-        description: `${formatDownloads(entry.downloads)} downloads`,
-        entry,
-      };
-    });
-
-    return {
-      items,
-      nextCursor: data.length >= HF_PAGE_SIZE ? String(skip + HF_PAGE_SIZE) : undefined,
-    };
-  };
-}
-
-function getAvailableOnnxDtypes(entry: HfModelEntry): string[] | undefined {
-  if (!entry.siblings || entry.siblings.length === 0) return undefined;
-  const filePaths = entry.siblings.map((s) => s.rfilename);
-  const dtypes = parseOnnxDtypes({ filePaths });
-  return dtypes.length > 0 ? dtypes : undefined;
-}
-
-function mapHfProviderConfig(entry: HfModelEntry, provider: string): Record<string, unknown> {
-  switch (provider) {
-    case "HF_TRANSFORMERS_ONNX":
-      return {
-        model_path: entry.id,
-        ...(entry.pipeline_tag ? { pipeline: entry.pipeline_tag } : {}),
-      };
-    case "LOCAL_LLAMACPP":
-      return { model_path: entry.id };
-    default:
-      return { model_name: entry.id };
-  }
-}
-
-function mapHfModelResult(entry: HfModelEntry, provider: string): Record<string, unknown> {
-  return {
-    model_id: entry.id,
-    provider,
-    title: entry.id.split("/").pop() ?? entry.id,
-    description: [entry.pipeline_tag, `${formatDownloads(entry.downloads)} downloads`]
-      .filter(Boolean)
-      .join(" \u2014 "),
-    tasks: entry.pipeline_tag ? pipelineToTaskTypes(entry.pipeline_tag) : [],
-    provider_config: mapHfProviderConfig(entry, provider),
-    metadata: {},
-  };
-}
-
-// ---------------------------------------------------------------------------
-// SDK-based model listing (Anthropic, OpenAI, Ollama)
-// ---------------------------------------------------------------------------
-
-async function listAnthropicModels(): Promise<Array<{ label: string; value: string }>> {
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic();
-  const models: Array<{ label: string; value: string }> = [];
-  for await (const m of client.beta.models.list()) {
-    models.push({ label: `${m.id}  ${m.display_name}`, value: m.id });
-  }
-  return models;
-}
-
-async function listOpenAiModels(): Promise<Array<{ label: string; value: string }>> {
-  const { default: OpenAI } = await import("openai");
-  const client = new OpenAI();
-  const models: Array<{ label: string; value: string }> = [];
-  for await (const m of client.models.list()) {
-    models.push({ label: `${m.id}  ${m.owned_by}`, value: m.id });
-  }
-  // Sort: gpt/o1 models first, then by name
-  models.sort((a, b) => {
-    const aGpt = a.value.startsWith("gpt") || a.value.startsWith("o1") ? 0 : 1;
-    const bGpt = b.value.startsWith("gpt") || b.value.startsWith("o1") ? 0 : 1;
-    if (aGpt !== bGpt) return aGpt - bGpt;
-    return a.value.localeCompare(b.value);
-  });
-  return models;
-}
-
-async function listOllamaModels(): Promise<Array<{ label: string; value: string }>> {
-  const { Ollama } = await import("ollama");
-  const client = new Ollama();
-  const response = await client.list();
-  return response.models.map((m) => ({
-    label: `${m.name}  ${m.details.parameter_size}  ${m.details.quantization_level}`,
-    value: m.name,
-  }));
-}
-
-// ---------------------------------------------------------------------------
-// Static/fallback model lists
-// ---------------------------------------------------------------------------
-
-const ANTHROPIC_FALLBACK: Array<{ label: string; value: string }> = [
-  { label: "claude-opus-4-20250514", value: "claude-opus-4-20250514" },
-  { label: "claude-sonnet-4-20250514", value: "claude-sonnet-4-20250514" },
-  { label: "claude-haiku-4-5-20251001", value: "claude-haiku-4-5-20251001" },
-  { label: "claude-3-5-sonnet-20241022", value: "claude-3-5-sonnet-20241022" },
-  { label: "claude-3-5-haiku-20241022", value: "claude-3-5-haiku-20241022" },
-];
-
-const OPENAI_FALLBACK: Array<{ label: string; value: string }> = [
-  { label: "gpt-5.4", value: "gpt-5.4" },
-  { label: "gpt-5", value: "gpt-5" },
-  { label: "gpt-5-mini", value: "gpt-5-mini" },
-  { label: "gpt-4o-mini", value: "gpt-4o-mini" },
-  { label: "gpt-4-turbo", value: "gpt-4-turbo" },
-  { label: "o3", value: "o3" },
-  { label: "o3-mini", value: "o3-mini" },
-  { label: "o1", value: "o1" },
-  { label: "o1-mini", value: "o1-mini" },
-];
-
-const GEMINI_MODELS: Array<{ label: string; value: string }> = [
-  { label: "gemini-3.1-flash", value: "gemini-3.1-flash" },
-  { label: "gemini-3.1-pro", value: "gemini-3.1-pro" },
-  { label: "gemini-2.5-flash", value: "gemini-2.5-flash" },
-  { label: "gemini-2.5-pro", value: "gemini-2.5-pro" },
-  { label: "gemini-2.0-flash", value: "gemini-2.0-flash" },
-  { label: "gemini-1.5-pro", value: "gemini-1.5-pro" },
-  { label: "gemini-1.5-flash", value: "gemini-1.5-flash" },
-];
-
-const TFMP_MODELS: Array<{ label: string; value: string }> = [
-  { label: "text-embedder  Universal Sentence Encoder", value: "text-embedder" },
-];
-
-const WEB_BROWSER_MODELS: Array<{ label: string; value: string }> = [
-  { label: "webgpu  WebGPU inference", value: "webgpu" },
-  { label: "wasm  WASM inference", value: "wasm" },
-];
-
-// ---------------------------------------------------------------------------
-// Provider search dispatch
-// ---------------------------------------------------------------------------
-
-type FindResult =
-  | { type: "hf"; entry: HfModelEntry; provider: string }
-  | { type: "id"; modelId: string; provider: string };
-
-const HF_PROVIDERS: Record<
-  string,
-  { placeholder: string; extra?: Record<string, string>; expand?: string[] }
-> = {
-  HF_INFERENCE: { placeholder: "Search HuggingFace models" },
-  HF_TRANSFORMERS_ONNX: {
-    placeholder: "Search ONNX models",
-    extra: { filter: "onnx" },
-    expand: ["siblings"],
-  },
-  LOCAL_LLAMACPP: { placeholder: "Search GGUF models", extra: { filter: "gguf" } },
-};
 
 /**
  * Normalize HF_TRANSFORMERS_ONNX device for the CLI.
@@ -292,77 +94,62 @@ function normalizeHfTransformersOnnxDevice(record: Record<string, unknown>): voi
   }
 }
 
-async function findModelForProvider(provider: string): Promise<FindResult | undefined> {
-  const hfConfig = HF_PROVIDERS[provider];
-  if (hfConfig) {
+async function findModelForProvider(provider: string): Promise<ModelSearchResultItem | undefined> {
+  async function runSearch(query: string) {
+    try {
+      return await modelSearch({ provider, query });
+    } catch {
+      console.log(`No search function registered for provider "${provider}".`);
+      return undefined;
+    }
+  }
+
+  // For HF-based providers, use the interactive search select
+  const HF_PROVIDERS = ["HF_INFERENCE", "HF_TRANSFORMERS_ONNX", "LOCAL_LLAMACPP"];
+  const placeholders: Record<string, string> = {
+    HF_INFERENCE: "Search HuggingFace models",
+    HF_TRANSFORMERS_ONNX: "Search ONNX models",
+    LOCAL_LLAMACPP: "Search GGUF models",
+  };
+
+  if (HF_PROVIDERS.includes(provider)) {
     const { renderSearchSelect } = await import("../ui/render");
-    const searchFn = createHfSearchFn(hfConfig.extra, hfConfig.expand);
-    const selected = await renderSearchSelect<HfSearchResult>({
-      placeholder: hfConfig.placeholder,
-      onSearch: searchFn,
+    const selected = await renderSearchSelect<ModelSearchSelectItem>({
+      placeholder: placeholders[provider] ?? "Search models",
+      onSearch: async (query, _cursor) => {
+        const result = await runSearch(query);
+        if (!result) {
+          return { items: [], nextCursor: undefined };
+        }
+        const items: ModelSearchSelectItem[] = result.results.map((item) => ({
+          id: item.id,
+          label: item.label,
+          description: item.description,
+          result: item,
+        }));
+        return { items, nextCursor: undefined };
+      },
     });
-    if (!selected) return undefined;
-    return { type: "hf", entry: selected.entry, provider };
+    return selected?.result;
   }
 
-  // SDK or static list providers
-  let options: Array<{ label: string; value: string }> | undefined;
-
-  switch (provider) {
-    case "ANTHROPIC":
-      try {
-        options = await listAnthropicModels();
-      } catch {
-        options = ANTHROPIC_FALLBACK;
-      }
-      break;
-    case "OPENAI":
-      try {
-        options = await listOpenAiModels();
-      } catch {
-        options = OPENAI_FALLBACK;
-      }
-      break;
-    case "OLLAMA":
-      try {
-        options = await listOllamaModels();
-      } catch (e: unknown) {
-        console.error(`Could not connect to Ollama: ${(e as Error).message}`);
-        console.error("Make sure Ollama is running (ollama serve).");
-        return undefined;
-      }
-      break;
-    case "GOOGLE_GEMINI":
-      options = GEMINI_MODELS;
-      break;
-    case "TENSORFLOW_MEDIAPIPE":
-      options = TFMP_MODELS;
-      break;
-    case "WEB_BROWSER":
-      options = WEB_BROWSER_MODELS;
-      break;
-  }
-
-  if (!options || options.length === 0) {
+  // SDK or static list providers — fetch all and use select prompt
+  const result = await runSearch("");
+  if (!result) return undefined;
+  if (!result.results || result.results.length === 0) {
     console.log("No models available for this provider.");
     return undefined;
   }
 
   const { renderSelectPrompt } = await import("../ui/render");
-  const selected = await renderSelectPrompt(options, `Select ${provider} model:`);
-  if (!selected) return undefined;
-  return { type: "id", modelId: selected, provider };
-}
+  const options = result.results.map((item) => ({
+    label: item.label,
+    value: item.id,
+  }));
+  const selectedId = await renderSelectPrompt(options, `Select ${provider} model:`);
+  if (!selectedId) return undefined;
 
-function mapIdProviderConfig(modelId: string, provider: string): Record<string, unknown> {
-  switch (provider) {
-    case "TENSORFLOW_MEDIAPIPE":
-      return { model_path: modelId };
-    case "WEB_BROWSER":
-      return {};
-    default:
-      return { model_name: modelId };
-  }
+  return result.results.find((item) => item.id === selectedId);
 }
 
 /**
@@ -384,22 +171,6 @@ function narrowDtypeEnum(
   const newPc = { ...pc, properties: newPcProps };
   const newProps = { ...schema.properties, provider_config: newPc };
   return { ...schema, properties: newProps } as unknown as DataPortSchemaObject;
-}
-
-function mapFindResult(result: FindResult): Record<string, unknown> {
-  if (result.type === "hf") {
-    return mapHfModelResult(result.entry, result.provider);
-  }
-
-  return {
-    model_id: result.modelId,
-    provider: result.provider,
-    title: result.modelId,
-    description: "",
-    tasks: [],
-    provider_config: mapIdProviderConfig(result.modelId, result.provider),
-    metadata: {},
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -579,7 +350,7 @@ export function registerModelCommand(program: Command): void {
     .argument("[query]", "Initial search term (HuggingFace providers only)")
     .option("--dry-run", "Validate and print result without saving")
     .description("Search for a model and add it")
-    .action(async (query: string | undefined, opts: { dryRun?: boolean }) => {
+    .action(async (_query: string | undefined, opts: { dryRun?: boolean }) => {
       if (!process.stdin.isTTY) {
         console.error("Error: model find requires an interactive terminal.");
         process.exit(1);
@@ -596,17 +367,30 @@ export function registerModelCommand(program: Command): void {
       if (!result) return;
 
       // Step 3: Map to partial input and run add form
-      let input = mapFindResult(result);
+      let input = result.record as Record<string, unknown>;
 
       let schema: DataPortSchemaObject =
         PROVIDER_SCHEMAS[selectedProvider] ??
         (ModelRecordSchema as unknown as DataPortSchemaObject);
 
-      // For ONNX models, narrow dtype enum to available dtypes from model files
-      if (result.type === "hf" && selectedProvider === "HF_TRANSFORMERS_ONNX") {
-        const dtypes = getAvailableOnnxDtypes(result.entry);
-        if (dtypes) {
-          schema = narrowDtypeEnum(schema, dtypes);
+      // For ONNX models, narrow dtype enum to available dtypes from search results
+      if (selectedProvider === "HF_TRANSFORMERS_ONNX") {
+        const pc = input.provider_config as Record<string, unknown> | undefined;
+        const quantizations = pc?.quantizations as string[] | undefined;
+        if (quantizations && quantizations.length > 0) {
+          schema = narrowDtypeEnum(schema, quantizations);
+          // Remove quantizations from the record before saving (not part of model schema)
+          delete pc!.quantizations;
+        } else if (result.raw) {
+          // Fallback: parse from raw entry if siblings available
+          const raw = result.raw as { siblings?: Array<{ rfilename: string }> };
+          if (raw.siblings && raw.siblings.length > 0) {
+            const filePaths = raw.siblings.map((s) => s.rfilename);
+            const dtypes = parseOnnxQuantizations({ filePaths });
+            if (dtypes.length > 0) {
+              schema = narrowDtypeEnum(schema, dtypes);
+            }
+          }
         }
       }
 

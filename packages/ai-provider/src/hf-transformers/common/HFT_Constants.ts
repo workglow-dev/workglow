@@ -30,7 +30,7 @@ export const QuantizationDataType = {
   q4f16: "q4f16",
 } as const satisfies Record<QuantizationDataType, QuantizationDataType>;
 
-export type TextPipelineUseCase =
+type TextPipelineUseCase =
   | "fill-mask" // https://huggingface.co/tasks/fill-mask
   | "token-classification" // https://huggingface.co/tasks/token-classification
   | "text-generation" // https://huggingface.co/tasks/text-generation#completion-generation-models
@@ -42,7 +42,7 @@ export type TextPipelineUseCase =
   | "zero-shot-classification" // https://huggingface.co/tasks/zero-shot-classification
   | "question-answering"; // https://huggingface.co/tasks/question-answering
 
-export const TextPipelineUseCase = {
+const TextPipelineUseCase = {
   "fill-mask": "fill-mask",
   "token-classification": "token-classification",
   "text-generation": "text-generation",
@@ -55,44 +55,50 @@ export const TextPipelineUseCase = {
   "question-answering": "question-answering",
 } as const satisfies Record<TextPipelineUseCase, TextPipelineUseCase>;
 
-export type VisionPipelineUseCase =
+type VisionPipelineUseCase =
   | "background-removal" // https://huggingface.co/tasks/image-segmentation#background-removal
   | "image-segmentation" // https://huggingface.co/tasks/image-segmentation
   | "depth-estimation" // https://huggingface.co/tasks/depth-estimation
   | "image-classification" // https://huggingface.co/tasks/image-classification
   | "image-to-image" // https://huggingface.co/tasks/image-to-image
+  // | "text-to-image" // https://huggingface.co/tasks/text-to-image
+  | "image-to-text" // https://huggingface.co/tasks/image-to-text
+  // | "image-text-to-text" // https://huggingface.co/tasks/image-text-to-text
   | "object-detection" // https://huggingface.co/tasks/object-detection
   | "image-feature-extraction"; // https://huggingface.co/tasks/image-feature-extraction
 
-export const VisionPipelineUseCase = {
+const VisionPipelineUseCase = {
   "background-removal": "background-removal",
   "image-segmentation": "image-segmentation",
   "depth-estimation": "depth-estimation",
   "image-classification": "image-classification",
   "image-to-image": "image-to-image",
+  // "text-to-image": "text-to-image",
+  "image-to-text": "image-to-text",
+  // "image-text-to-text": "image-text-to-text",
   "object-detection": "object-detection",
   "image-feature-extraction": "image-feature-extraction",
 } as const satisfies Record<VisionPipelineUseCase, VisionPipelineUseCase>;
 
-export type AudioPipelineUseCase =
+type AudioPipelineUseCase =
   | "audio-classification" // https://huggingface.co/tasks/audio-classification
   | "automatic-speech-recognition" // https://huggingface.co/tasks/automatic-speech-recognition
   | "text-to-speech"; // https://huggingface.co/tasks/text-to-speech
 
-export const AudioPipelineUseCase = {
+const AudioPipelineUseCase = {
   "audio-classification": "audio-classification",
   "automatic-speech-recognition": "automatic-speech-recognition",
   "text-to-speech": "text-to-speech",
 } as const satisfies Record<AudioPipelineUseCase, AudioPipelineUseCase>;
 
-export type MultimodalPipelineUseCase =
+type MultimodalPipelineUseCase =
   | "document-question-answering" // https://huggingface.co/tasks/document-question-answering
   | "image-to-text" // https://huggingface.co/tasks/image-to-text
   | "zero-shot-audio-classification" // https://huggingface.co/tasks/zero-shot-audio-classification
   | "zero-shot-image-classification" // https://huggingface.co/tasks/zero-shot-image-classification
   | "zero-shot-object-detection"; // https://huggingface.co/tasks/zero-shot-object-detection
 
-export const MultimodalPipelineUseCase = {
+const MultimodalPipelineUseCase = {
   "document-question-answering": "document-question-answering",
   "image-to-text": "image-to-text",
   "zero-shot-audio-classification": "zero-shot-audio-classification",

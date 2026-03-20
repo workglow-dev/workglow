@@ -15,15 +15,10 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
-  HF_TRANSFORMERS_ONNX,
-  HuggingFaceTransformersProvider,
-  type HfTransformersOnnxModelRecord,
-} from "@workglow/ai-provider";
-import {
   clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
+  HF_TRANSFORMERS_ONNX,
+  registerHuggingFaceTransformersInline,
+  type HfTransformersOnnxModelRecord,
 } from "@workglow/ai-provider/hf-transformers";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
@@ -41,11 +36,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
   beforeEach(async () => {
     await setTaskQueueRegistry(null);
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(
-      HFT_TASKS,
-      HFT_STREAM_TASKS,
-      HFT_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerHuggingFaceTransformersInline();
     setGlobalModelRepository(new InMemoryModelRepository());
   });
   afterEach(async () => {
@@ -242,7 +233,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
 
 //   beforeEach(async () => {
 //     await setTaskQueueRegistry(null);
-//     await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
+//     await registerTensorFlowMediaPipeInline();
 //     setGlobalModelRepository(new InMemoryModelRepository());
 //   });
 //   afterEach(async () => {

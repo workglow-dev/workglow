@@ -5,13 +5,11 @@
  */
 
 import { AiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai";
-import { TENSORFLOW_MEDIAPIPE } from "./common/TFMP_Constants";
+import { TENSORFLOW_MEDIAPIPE, TFMP_DEFAULT_TASK_TYPES } from "./common/TFMP_Constants";
 import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 
 /**
  * AI provider for TensorFlow MediaPipe models.
- *
- * Supports text, vision, and gesture recognition tasks via @mediapipe packages.
  *
  * Task run functions are injected via the constructor so that the heavy
  * `@mediapipe/*` libraries are only imported where actually needed
@@ -19,19 +17,10 @@ import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
  *
  * @example
  * ```typescript
- * // Worker mode (main thread) -- lightweight, no heavy imports:
- * await new TensorFlowMediaPipeProvider().register({
- *   mode: "worker",
- *   worker: new Worker(new URL("./worker_tfmp.ts", import.meta.url), { type: "module" }),
+ * import { registerTensorFlowMediaPipe } from "@workglow/ai-provider/tf-mediapipe";
+ * await registerTensorFlowMediaPipe({
+ *   worker: () => new Worker(new URL("./worker_tfmp.ts", import.meta.url), { type: "module" }),
  * });
- *
- * // Inline mode -- caller provides the tasks:
- * import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
- * await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
- *
- * // Worker side -- caller provides the tasks:
- * import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
- * new TensorFlowMediaPipeProvider(TFMP_TASKS).registerOnWorkerServer(workerServer);
  * ```
  */
 export class TensorFlowMediaPipeProvider extends AiProvider<TFMPModelConfig> {
@@ -39,23 +28,7 @@ export class TensorFlowMediaPipeProvider extends AiProvider<TFMPModelConfig> {
   readonly isLocal = true;
   readonly supportsBrowser = true;
 
-  readonly taskTypes = [
-    "DownloadModelTask",
-    "UnloadModelTask",
-    "ModelInfoTask",
-    "TextEmbeddingTask",
-    "TextLanguageDetectionTask",
-    "TextClassificationTask",
-    "ImageSegmentationTask",
-    "ImageEmbeddingTask",
-    "ImageClassificationTask",
-    "ObjectDetectionTask",
-    "GestureRecognizerTask",
-    "HandLandmarkerTask",
-    "FaceDetectorTask",
-    "FaceLandmarkerTask",
-    "PoseLandmarkerTask",
-  ] as const;
+  readonly taskTypes: readonly string[] = TFMP_DEFAULT_TASK_TYPES;
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, TFMPModelConfig>>,

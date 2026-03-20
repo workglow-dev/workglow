@@ -7,7 +7,6 @@
 import {
   AiProvider,
   type AiProviderReactiveRunFn,
-  type AiProviderRegisterOptions,
   type AiProviderRunFn,
   type AiProviderStreamFn,
 } from "@workglow/ai";
@@ -31,11 +30,18 @@ import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
  *   worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
  * });
  *
- * // Inline mode -- caller provides the tasks:
- * import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS } from "@workglow/ai-provider/hf-transformers";
- * await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register({ mode: "inline" });
+ * // Inline mode -- use HuggingFaceTransformersProviderInline from the hf-transformers subpath:
+ * import {
+ *   HFT_TASKS,
+ *   HFT_STREAM_TASKS,
+ *   HFT_REACTIVE_TASKS,
+ *   HuggingFaceTransformersProviderInline,
+ * } from "@workglow/ai-provider/hf-transformers";
+ * await new HuggingFaceTransformersProviderInline(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register({
+ *   mode: "inline",
+ * });
  *
- * // Worker side -- caller provides the tasks:
+ * // Worker side -- caller provides the tasks (thin provider; no Transformers import on this module):
  * import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS } from "@workglow/ai-provider/hf-transformers";
  * new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).registerOnWorkerServer(workerServer);
  * ```
@@ -67,6 +73,7 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
     "ImageClassificationTask",
     "ObjectDetectionTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(
@@ -75,20 +82,5 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
     reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>>
   ) {
     super(tasks, streamTasks, reactiveTasks);
-  }
-
-  protected override async onInitialize(options: AiProviderRegisterOptions): Promise<void> {
-    if (options.mode === "inline") {
-      const { env } = await import("@huggingface/transformers");
-      // @ts-ignore -- backends.onnx.wasm.proxy is not fully typed
-      env.backends.onnx.wasm.proxy = true;
-    }
-  }
-
-  override async dispose(): Promise<void> {
-    if (this.tasks) {
-      const { clearPipelineCache } = await import("./common/HFT_JobRunFns");
-      clearPipelineCache();
-    }
   }
 }

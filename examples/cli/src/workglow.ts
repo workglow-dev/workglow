@@ -7,7 +7,7 @@
  */
 
 import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
 import { registerBaseTasks } from "@workglow/task-graph";
 import { registerCommonTasks } from "@workglow/tasks";
 import { program } from "commander";
@@ -35,9 +35,8 @@ setGlobalModelRepository(modelRepo);
 // Expose model cache path to the HFT worker via env var
 process.env.WORKGLOW_MODEL_CACHE = path.join(config.directories.cache, "onnx");
 
-await new HuggingFaceTransformersProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+await registerHuggingFaceTransformers({
+  worker: () => new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
 });
 
 program.version("2.0.0").description("Workglow CLI — manage models, workflows, agents, and tasks");

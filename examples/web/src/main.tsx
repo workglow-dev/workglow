@@ -48,7 +48,7 @@ console.log(
   workflow.%crename%c(%c'*'%c, %c'console'%c);
   workflow.%cdebugLog%c({ %clevel%c: %c'info'%c });
   
-  console.log(JSON.stringify(workflow.toDependencyJSON(),null,2));
+  console.log(JSON.stringify(workflow.toDependencyJSON({ withBoundaryNodes: false }),null,2));
   `,
   `color: ${grey}; font-weight: normal;`,
   `color: ${yellow}; font-weight: normal;`,

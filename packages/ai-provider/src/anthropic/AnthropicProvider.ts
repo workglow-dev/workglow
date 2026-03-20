@@ -52,6 +52,7 @@ export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {
     "TextSummaryTask",
     "StructuredGenerationTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

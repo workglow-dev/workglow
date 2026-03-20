@@ -19,15 +19,10 @@ import {
   TextQuestionAnswerTaskOutput,
 } from "@workglow/ai";
 import {
-  HF_TRANSFORMERS_ONNX,
-  type HfTransformersOnnxModelRecord,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
-import {
   clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
+  HF_TRANSFORMERS_ONNX,
+  registerHuggingFaceTransformersInline,
+  type HfTransformersOnnxModelRecord,
 } from "@workglow/ai-provider/hf-transformers";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
@@ -43,11 +38,7 @@ describe("HFT array input/output support", () => {
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(
-      HFT_TASKS,
-      HFT_STREAM_TASKS,
-      HFT_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerHuggingFaceTransformersInline();
   });
 
   afterAll(async () => {

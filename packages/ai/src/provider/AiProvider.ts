@@ -16,20 +16,19 @@ import {
 } from "./AiProviderRegistry";
 
 /**
- * Execution mode for an AI provider.
- * - "inline": run functions execute directly in the current thread
- * - "worker": run functions are proxied to a Web Worker via WorkerManager
- */
-export type AiProviderMode = "inline" | "worker";
-
-/**
- * Options for registering an AI provider.
+ * Options for registering an AI provider on the main thread.
+ *
+ * - If the provider was constructed **with** task run functions → **inline** registration
+ *   (direct run fns). No `worker` option.
+ * - If the provider was constructed **without** tasks → **worker** registration (proxies).
+ *   A `worker` (instance or lazy factory) is **required**.
  */
 export interface AiProviderRegisterOptions {
-  /** Execution mode: "inline" (same thread) or "worker" (Web Worker) */
-  mode: AiProviderMode;
-  /** The Web Worker instance. Required when mode is "worker". */
-  worker?: Worker;
+  /**
+   * Web Worker for worker-backed registration. Pass a `Worker` or a factory
+   * `() => Worker` to defer instantiation until the first job (lazy worker).
+   */
+  worker?: Worker | (() => Worker);
   /** Job queue configuration */
   queue?: {
     /** Maximum number of concurrent jobs. Defaults to 1. */
@@ -37,6 +36,14 @@ export interface AiProviderRegisterOptions {
     /** Set to false to skip automatic queue creation. Defaults to true. */
     autoCreate?: boolean;
   };
+}
+
+/**
+ * Registration context passed to {@link AiProvider.onInitialize}, including whether
+ * the provider is registering inline (tasks present) or worker-backed (no tasks).
+ */
+export interface AiProviderRegisterContext extends AiProviderRegisterOptions {
+  readonly isInline: boolean;
 }
 
 /**
@@ -49,22 +56,21 @@ export interface AiProviderRegisterOptions {
  * thread without pulling in heavy dependencies when running in worker mode.
  *
  * The base class handles:
- * - Registering run functions with the AiProviderRegistry (inline or worker mode)
+ * - Registering run functions with the AiProviderRegistry (inline or worker proxies)
  * - Creating a default job queue
  * - Registering functions on a WorkerServer (for worker-side code)
  * - Lifecycle management (initialize / dispose)
  *
  * @example
  * ```typescript
- * // Worker mode (main thread) -- lightweight, no heavy imports:
+ * // Worker host (main thread) -- lightweight, no heavy task imports:
  * await new MyProvider().register({
- *   mode: "worker",
- *   worker: new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
+ *   worker: () => new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
  * });
  *
- * // Inline mode -- caller provides the tasks (imports heavy library):
+ * // Inline -- caller provides the tasks (imports heavy library):
  * import { MY_TASKS } from "./MyJobRunFns";
- * await new MyProvider(MY_TASKS).register({ mode: "inline" });
+ * await new MyProvider(MY_TASKS).register();
  *
  * // Worker side -- caller provides the tasks:
  * import { MY_TASKS } from "./MyJobRunFns";
@@ -164,39 +170,37 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   /**
    * Register this provider on the main thread.
    *
-   * In "inline" mode, registers direct run functions with the AiProviderRegistry.
-   * Requires `tasks` to have been provided via the constructor.
+   * Inferred from constructor: **with** tasks → direct run functions; **without** tasks →
+   * worker proxies (requires `worker` in options).
    *
-   * In "worker" mode, registers the worker with WorkerManager and creates proxy
-   * functions that delegate to the worker. Does NOT require `tasks`.
+   * Creates a job queue unless `queue.autoCreate` is set to false.
    *
-   * Both modes create a job queue unless `queue.autoCreate` is set to false.
-   *
-   * @param options - Registration options (mode, worker, queue config)
+   * @param options - Registration options (worker for worker-backed, queue config)
    */
-  async register(options: AiProviderRegisterOptions = { mode: "inline" }): Promise<void> {
-    await this.onInitialize(options);
+  async register(options: AiProviderRegisterOptions = {}): Promise<void> {
+    const isInline = !!this.tasks;
+    const context: AiProviderRegisterContext = { ...options, isInline };
+    await this.onInitialize(context);
 
-    // Validate before any registration so we don't leave the registry in a partial state
-    if (options.mode === "worker") {
-      if (!options.worker) {
+    if (isInline) {
+      if (!this.tasks) {
         throw new Error(
-          `AiProvider "${this.name}": worker is required when mode is "worker". ` +
-            `Pass a Web Worker instance, e.g. register({ mode: "worker", worker: new Worker(...) }).`
+          `AiProvider "${this.name}": tasks must be provided via the constructor for inline registration. ` +
+            `Pass the tasks record when constructing the provider, e.g. new MyProvider(MY_TASKS).`
         );
       }
     } else {
-      if (!this.tasks) {
+      if (!options.worker) {
         throw new Error(
-          `AiProvider "${this.name}": tasks must be provided via the constructor for inline mode. ` +
-            `Pass the tasks record when constructing the provider, e.g. new MyProvider(MY_TASKS).`
+          `AiProvider "${this.name}": worker is required when no tasks are provided (worker-backed registration). ` +
+            `Pass worker: new Worker(...) or worker: () => new Worker(...).`
         );
       }
     }
 
     const registry = getAiProviderRegistry();
 
-    if (options.mode === "worker" && options.worker) {
+    if (!isInline && options.worker) {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
       workerManager.registerWorker(this.name, options.worker);
       for (const taskType of this.taskTypes) {
@@ -264,7 +268,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
    * Called at the start of `register()`, before any functions are registered.
    * Override in subclasses to perform setup (e.g., configuring WASM backends).
    */
-  protected async onInitialize(_options: AiProviderRegisterOptions): Promise<void> {}
+  protected async onInitialize(_options: AiProviderRegisterContext): Promise<void> {}
 
   /**
    * Dispose of provider resources.

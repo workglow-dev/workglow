@@ -6,6 +6,25 @@
 
 export const TENSORFLOW_MEDIAPIPE = "TENSORFLOW_MEDIAPIPE";
 
+export const TFMP_DEFAULT_TASK_TYPES = [
+  "DownloadModelTask",
+  "UnloadModelTask",
+  "ModelInfoTask",
+  "TextEmbeddingTask",
+  "TextLanguageDetectionTask",
+  "TextClassificationTask",
+  "ImageSegmentationTask",
+  "ImageEmbeddingTask",
+  "ImageClassificationTask",
+  "ObjectDetectionTask",
+  "GestureRecognizerTask",
+  "HandLandmarkerTask",
+  "FaceDetectorTask",
+  "FaceLandmarkerTask",
+  "PoseLandmarkerTask",
+  "ModelSearchTask",
+] as const;
+
 export type TextPipelineTask =
   | "text-embedder"
   | "text-classifier"

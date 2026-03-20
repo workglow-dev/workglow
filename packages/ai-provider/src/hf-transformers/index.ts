@@ -7,5 +7,7 @@
 export * from "./common/HFT_Constants";
 export * from "./common/HFT_JobRunFns";
 export * from "./common/HFT_ModelSchema";
-export * from "./HFT_Worker";
+export * from "./common/HFT_OnnxDtypes";
+
 export * from "./HuggingFaceTransformersProvider";
+export * from "./registerHuggingFaceTransformers";

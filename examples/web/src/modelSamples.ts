@@ -7,10 +7,9 @@
 import { getGlobalModelRepository } from "@workglow/ai";
 import {
   HF_TRANSFORMERS_ONNX,
-  HfTransformersOnnxModelRecord,
-  TENSORFLOW_MEDIAPIPE,
-  type TFMPModelRecord,
-} from "@workglow/ai-provider";
+  type HfTransformersOnnxModelRecord,
+} from "@workglow/ai-provider/hf-transformers";
+import { TENSORFLOW_MEDIAPIPE, type TFMPModelRecord } from "@workglow/ai-provider/tf-mediapipe";
 
 export async function registerHuggingfaceLocalModels(): Promise<void> {
   const onnxModels: HfTransformersOnnxModelRecord[] = [

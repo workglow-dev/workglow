@@ -7,5 +7,4 @@
 export * from "./common/WebBrowser_Constants";
 export * from "./common/WebBrowser_JobRunFns";
 export * from "./common/WebBrowser_ModelSchema";
-export * from "./WebBrowserProvider";
-export * from "./WebBrowser_Worker";
+export * from "./registerWebBrowser";

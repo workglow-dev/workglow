@@ -5,7 +5,10 @@
  */
 
 import { env } from "@huggingface/transformers";
-import { HFT_WORKER_JOBRUN_REGISTER, setHftCacheDir } from "@workglow/ai-provider/hf-transformers";
+import {
+  registerHuggingFaceTransformersWorker,
+  setHftCacheDir,
+} from "@workglow/ai-provider/hf-transformers";
 
 env.backends!.onnx!.wasm!.proxy = true;
 
@@ -13,4 +16,4 @@ if (process.env.WORKGLOW_MODEL_CACHE) {
   setHftCacheDir(process.env.WORKGLOW_MODEL_CACHE);
 }
 
-HFT_WORKER_JOBRUN_REGISTER();
+registerHuggingFaceTransformersWorker();

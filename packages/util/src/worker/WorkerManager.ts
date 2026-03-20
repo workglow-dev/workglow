@@ -14,11 +14,26 @@ export class WorkerManager {
   private workerFunctions: Map<string, Set<string>> = new Map();
   private workerStreamFunctions: Map<string, Set<string>> = new Map();
   private workerReactiveFunctions: Map<string, Set<string>> = new Map();
+  /** Pending lazy factories (worker not yet constructed). */
+  private lazyFactories: Map<string, () => Worker> = new Map();
+  /** Single-flight init promise per name (lazy path). */
+  private lazyInitPromises: Map<string, Promise<void>> = new Map();
 
-  registerWorker(name: string, worker: Worker) {
-    if (this.workers.has(name)) throw new Error(`Worker ${name} is already registered.`);
-    this.workers.set(name, worker);
+  registerWorker(name: string, workerOrFactory: Worker | (() => Worker)): void {
+    if (this.workers.has(name)) {
+      throw new Error(`Worker ${name} is already registered.`);
+    }
+    if (this.lazyFactories.has(name)) {
+      throw new Error(`Worker ${name} is already registered.`);
+    }
+    if (typeof workerOrFactory === "function") {
+      this.lazyFactories.set(name, workerOrFactory);
+    } else {
+      this.attachWorkerInstance(name, workerOrFactory);
+    }
+  }
 
+  private attachWorkerInstance(name: string, worker: Worker): void {
     this.workers.set(name, worker);
     worker.addEventListener("error", (event) => {
       console.error("Worker Error:", event.message, "at", event.filename, "line:", event.lineno);
@@ -44,6 +59,34 @@ export class WorkerManager {
     this.readyWorkers.set(name, readyPromise);
   }
 
+  /**
+   * Ensures a lazy worker is constructed and ready. No-op if already
+   * registered eagerly.
+   */
+  private async ensureWorkerReady(name: string): Promise<void> {
+    if (this.workers.has(name)) {
+      await this.readyWorkers.get(name)!;
+      return;
+    }
+    const factory = this.lazyFactories.get(name);
+    if (!factory) {
+      throw new Error(`Worker ${name} not found.`);
+    }
+    let init = this.lazyInitPromises.get(name);
+    if (!init) {
+      init = (async () => {
+        const f = this.lazyFactories.get(name)!;
+        this.lazyFactories.delete(name);
+        const worker = f();
+        this.attachWorkerInstance(name, worker);
+      })();
+      this.lazyInitPromises.set(name, init);
+    }
+    await init;
+    await this.readyWorkers.get(name)!;
+    this.lazyInitPromises.delete(name);
+  }
+
   getWorker(name: string): Worker {
     const worker = this.workers.get(name);
     if (!worker) throw new Error(`Worker ${name} not found.`);
@@ -59,6 +102,7 @@ export class WorkerManager {
       onProgress?: (progress: number, message?: string, details?: any) => void;
     }
   ): Promise<T> {
+    await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
     await this.readyWorkers.get(workerName);
@@ -133,6 +177,7 @@ export class WorkerManager {
     functionName: string,
     args: any[]
   ): Promise<T | undefined> {
+    await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) return undefined;
     await this.readyWorkers.get(workerName);
@@ -187,6 +232,7 @@ export class WorkerManager {
     args: any[],
     options?: { signal?: AbortSignal }
   ): AsyncGenerator<T> {
+    await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
     await this.readyWorkers.get(workerName);

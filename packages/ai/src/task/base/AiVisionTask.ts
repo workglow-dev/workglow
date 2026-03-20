@@ -53,9 +53,17 @@ export class AiVisionTask<
     // └─────────────────────────┴──────────────────────────────────────────────────────────────┴────────────────────────────────────────────┘
     const supports: ImageDataSupport[] = ["Blob"];
     if (input.image) {
-      if (queueName === "TENSORFLOW_MEDIAPIPE" && "ImageBitmap" in globalThis) {
+      if (
+        typeof queueName === "string" &&
+        queueName.startsWith("TENSORFLOW_MEDIAPIPE") &&
+        "ImageBitmap" in globalThis
+      ) {
         supports.push("ImageBitmap");
-      } else if (queueName === "TENSORFLOW_MEDIAPIPE" && "VideoFrame" in globalThis) {
+      } else if (
+        typeof queueName === "string" &&
+        queueName.startsWith("TENSORFLOW_MEDIAPIPE") &&
+        "VideoFrame" in globalThis
+      ) {
         supports.push("VideoFrame");
       }
       const image = await convertImageDataToUseableForm(input.image, supports);

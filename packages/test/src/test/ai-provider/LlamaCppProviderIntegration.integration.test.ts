@@ -22,13 +22,8 @@ import {
   type TextEmbeddingTaskOutput,
   type TextGenerationTaskOutput,
 } from "@workglow/ai";
-import { LOCAL_LLAMACPP, type LlamaCppModelRecord } from "@workglow/ai-provider";
-import {
-  disposeLlamaCppResources,
-  LLAMACPP_STREAM_TASKS,
-  LLAMACPP_TASKS,
-  LlamaCppProvider,
-} from "@workglow/ai-provider/llamacpp";
+import { LOCAL_LLAMACPP, type LlamaCppModelRecord } from "@workglow/ai-provider/llamacpp";
+import { disposeLlamaCppResources, registerLlamaCppInline } from "@workglow/ai-provider/llamacpp";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -86,9 +81,7 @@ describe("LlamaCpp Integration (real models, no mocks)", () => {
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
 
-    await new LlamaCppProvider(LLAMACPP_TASKS, LLAMACPP_STREAM_TASKS).register({
-      mode: "inline",
-    });
+    await registerLlamaCppInline();
 
     const repo = getGlobalModelRepository();
     await repo.addModel(llmModel);

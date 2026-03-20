@@ -52,6 +52,7 @@ export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

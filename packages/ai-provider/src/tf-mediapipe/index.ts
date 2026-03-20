@@ -5,7 +5,6 @@
  */
 
 export * from "./common/TFMP_Constants";
-export * from "./common/TFMP_JobRunFns";
 export * from "./common/TFMP_ModelSchema";
+export * from "./registerTensorFlowMediaPipe";
 export * from "./TensorFlowMediaPipeProvider";
-export * from "./TFMP_Worker";

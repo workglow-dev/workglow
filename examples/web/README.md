@@ -119,8 +119,7 @@ The web example supports various AI task types:
 The application uses web workers for AI processing to keep the UI responsive:
 
 - **worker_hft.ts**: HuggingFace Transformers worker
-- **worker_tfmp_text.ts**: TensorFlow MediaPipe worker (text/audio tasks)
-- **worker_tfmp_vision.ts**: TensorFlow MediaPipe worker (vision tasks)
+- **worker_tfmp.ts**: TensorFlow MediaPipe worker (text + vision tasks; MediaPipe loads on demand per task)
 
 ### Storage
 
@@ -140,8 +139,7 @@ src/
 ├── graph/                 # Graph editor components
 ├── status/                # Status monitoring components
 ├── worker_hft.ts          # HuggingFace worker
-├── worker_tfmp_text.ts    # MediaPipe text/audio worker
-├── worker_tfmp_vision.ts  # MediaPipe vision worker
+├── worker_tfmp.ts         # MediaPipe unified worker
 └── main.css              # Global styles
 ```
 

@@ -23,13 +23,10 @@ bun add workglow
 ## Quick Start
 
 ```typescript
-import { Workflow, TextGenerationTask, HuggingFaceTransformersProvider } from "workglow";
-import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS } from "workglow/hf-transformers";
+import { Workflow, TextGenerationTask, registerHuggingFaceTransformersInline } from "workglow";
 
-// Register a provider
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
-  { mode: "inline" }
-);
+// Register a provider (inline ONNX in this bundle)
+await registerHuggingFaceTransformersInline();
 
 // Create and run a workflow
 const workflow = new Workflow();
@@ -39,22 +36,22 @@ const result = await workflow.run();
 
 ## Included Packages
 
-| Package                 | Description                                                     |
-| ----------------------- | --------------------------------------------------------------- |
-| `@workglow/util`        | Utility functions and shared types                              |
-| `@workglow/sqlite`      | Cross-platform SQLite (browser, Node.js, Bun)                   |
-| `@workglow/storage`     | Storage abstraction (IndexedDB, PostgreSQL, Supabase)           |
-| `@workglow/job-queue`   | Job queue management and task scheduling                        |
-| `@workglow/task-graph`  | DAG task graph construction and execution                       |
-| `@workglow/knowledge-base`     | Knowledge base, document management, and RAG infrastructure     |
-| `@workglow/ai`          | Core AI functionality, tasks, and model management              |
-| `@workglow/ai-provider` | AI provider integrations (constants, schemas, provider classes) |
-| `@workglow/tasks`       | Pre-built utility tasks (arrays, scalars, vectors, etc.)        |
-| `@workglow/debug`       | Chrome DevTools custom formatters (browser only)                |
+| Package                    | Description                                                             |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `@workglow/util`           | Utility functions and shared types                                      |
+| `@workglow/sqlite`         | Cross-platform SQLite (browser, Node.js, Bun)                           |
+| `@workglow/storage`        | Storage abstraction (IndexedDB, PostgreSQL, Supabase)                   |
+| `@workglow/job-queue`      | Job queue management and task scheduling                                |
+| `@workglow/task-graph`     | DAG task graph construction and execution                               |
+| `@workglow/knowledge-base` | Knowledge base, document management, and RAG infrastructure             |
+| `@workglow/ai`             | Core AI functionality, tasks, and model management                      |
+| `@workglow/ai-provider/*`  | AI provider integrations (use subpath imports, e.g. `/hf-transformers`) |
+| `@workglow/tasks`          | Pre-built utility tasks (arrays, scalars, vectors, etc.)                |
+| `@workglow/debug`          | Chrome DevTools custom formatters (browser only)                        |
 
 ## Provider Subpath Exports
 
-SDK-dependent code is isolated behind subpath exports to keep the main entry point free of heavy dependencies. Each subpath mirrors the corresponding `@workglow/ai-provider` subpath:
+SDK-dependent code is isolated behind subpath exports. Each `workglow/*` provider entry mirrors the corresponding `@workglow/ai-provider/*` package subpath (there is no root barrel on `@workglow/ai-provider`):
 
 ```typescript
 // Anthropic (requires: @anthropic-ai/sdk)

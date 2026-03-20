@@ -50,6 +50,7 @@ export class WebBrowserProvider extends AiProvider<WebBrowserModelConfig> {
     "TextTranslationTask",
     "TextGenerationTask",
     "TextRewriterTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

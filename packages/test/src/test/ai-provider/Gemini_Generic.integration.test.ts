@@ -9,12 +9,8 @@ import {
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
-import { GOOGLE_GEMINI, GoogleGeminiProvider } from "@workglow/ai-provider";
-import {
-  GEMINI_REACTIVE_TASKS,
-  GEMINI_STREAM_TASKS,
-  GEMINI_TASKS,
-} from "@workglow/ai-provider/google-gemini";
+import { GOOGLE_GEMINI } from "@workglow/ai-provider/google-gemini";
+import { registerGeminiInline } from "@workglow/ai-provider/google-gemini";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 
@@ -33,11 +29,7 @@ runGenericAiProviderTests({
     setLogger(logger);
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
-    await new GoogleGeminiProvider(
-      GEMINI_TASKS,
-      GEMINI_STREAM_TASKS,
-      GEMINI_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerGeminiInline();
 
     await getGlobalModelRepository().addModel({
       model_id: MODEL_ID,

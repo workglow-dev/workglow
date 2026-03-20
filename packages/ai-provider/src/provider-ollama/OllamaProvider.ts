@@ -51,6 +51,7 @@ export class OllamaProvider extends AiProvider<OllamaModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

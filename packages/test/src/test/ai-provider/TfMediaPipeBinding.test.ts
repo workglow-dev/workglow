@@ -15,7 +15,7 @@
 //   TENSORFLOW_MEDIAPIPE,
 //   TensorFlowMediaPipeProvider,
 //   type TFMPModelRecord,
-// } from "@workglow/ai-provider";
+// } from "@workglow/ai-provider/tf-mediapipe";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 // import {
 //   ConcurrencyLimiter,

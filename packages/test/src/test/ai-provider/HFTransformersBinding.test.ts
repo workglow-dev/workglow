@@ -12,15 +12,10 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
-  HF_TRANSFORMERS_ONNX,
-  type HfTransformersOnnxModelRecord,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
-import {
   clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
+  HF_TRANSFORMERS_ONNX,
+  registerHuggingFaceTransformersInline,
+  type HfTransformersOnnxModelRecord,
 } from "@workglow/ai-provider/hf-transformers";
 import {
   ConcurrencyLimiter,
@@ -80,12 +75,7 @@ describe("HFTransformersBinding", () => {
 
       client.attach(server);
       clearPipelineCache();
-      await new HuggingFaceTransformersProvider(
-        HFT_TASKS,
-        HFT_STREAM_TASKS,
-        HFT_REACTIVE_TASKS
-      ).register({
-        mode: "inline",
+      await registerHuggingFaceTransformersInline({
         queue: { autoCreate: false },
       });
       queueRegistry.registerQueue({ server, client, storage });
@@ -159,12 +149,7 @@ describe("HFTransformersBinding", () => {
 
       client.attach(server);
 
-      await new HuggingFaceTransformersProvider(
-        HFT_TASKS,
-        HFT_STREAM_TASKS,
-        HFT_REACTIVE_TASKS
-      ).register({
-        mode: "inline",
+      await registerHuggingFaceTransformersInline({
         queue: { autoCreate: false },
       });
       queueRegistry.registerQueue({ server, client, storage });

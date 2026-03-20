@@ -44,7 +44,7 @@ export class DownloadModelTask extends AiTask<
   JobQueueTaskConfig
 > {
   public static type = "DownloadModelTask";
-  public static category = "AI Text Model";
+  public static category = "AI Model";
   public static title = "Download Model";
   public static description = "Downloads and caches AI models locally with progress tracking";
   public static inputSchema(): DataPortSchema {

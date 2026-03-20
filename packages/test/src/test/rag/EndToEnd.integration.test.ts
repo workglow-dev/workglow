@@ -47,21 +47,14 @@ import {
   InMemoryModelRepository,
   QueryExpanderTaskOutput,
   RerankerTaskOutput,
-  TextEmbeddingTaskOutput,
   setGlobalModelRepository,
+  TextEmbeddingTaskOutput,
 } from "@workglow/ai";
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
 import {
   clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
+  registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers";
-import {
-  createKnowledgeBase,
-  KnowledgeBase,
-  registerKnowledgeBase,
-} from "@workglow/knowledge-base";
+import { createKnowledgeBase, KnowledgeBase } from "@workglow/knowledge-base";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { join } from "path";
@@ -95,11 +88,7 @@ describe("End-to-End RAG Pipeline", () => {
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(
-      HFT_TASKS,
-      HFT_STREAM_TASKS,
-      HFT_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerHuggingFaceTransformersInline();
     await registerHuggingfaceLocalModels();
 
     // Create unified KnowledgeBase with 1024 dimensions for Qwen3 model

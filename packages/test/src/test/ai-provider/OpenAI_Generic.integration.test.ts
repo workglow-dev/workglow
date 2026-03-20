@@ -9,12 +9,8 @@ import {
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
-import { OPENAI, OpenAiProvider } from "@workglow/ai-provider";
-import {
-  OPENAI_REACTIVE_TASKS,
-  OPENAI_STREAM_TASKS,
-  OPENAI_TASKS,
-} from "@workglow/ai-provider/openai";
+import { OPENAI } from "@workglow/ai-provider/openai";
+import { registerOpenAiInline } from "@workglow/ai-provider/openai";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 
@@ -33,9 +29,7 @@ runGenericAiProviderTests({
     setLogger(logger);
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
-    await new OpenAiProvider(OPENAI_TASKS, OPENAI_STREAM_TASKS, OPENAI_REACTIVE_TASKS).register({
-      mode: "inline",
-    });
+    await registerOpenAiInline();
 
     await getGlobalModelRepository().addModel({
       model_id: MODEL_ID,

@@ -12,7 +12,8 @@ export const TFMPModelSchema = {
   type: "object",
   properties: {
     provider: {
-      const: TENSORFLOW_MEDIAPIPE,
+      type: "string",
+      enum: [TENSORFLOW_MEDIAPIPE],
       description: "Discriminator: TensorFlow MediaPipe backend.",
     },
     provider_config: {

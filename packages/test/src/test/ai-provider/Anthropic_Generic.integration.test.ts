@@ -9,12 +9,7 @@ import {
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
-import { ANTHROPIC, AnthropicProvider } from "@workglow/ai-provider";
-import {
-  ANTHROPIC_REACTIVE_TASKS,
-  ANTHROPIC_STREAM_TASKS,
-  ANTHROPIC_TASKS,
-} from "@workglow/ai-provider/anthropic";
+import { ANTHROPIC, registerAnthropicInline } from "@workglow/ai-provider/anthropic";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 
@@ -33,11 +28,7 @@ runGenericAiProviderTests({
     setLogger(logger);
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
-    await new AnthropicProvider(
-      ANTHROPIC_TASKS,
-      ANTHROPIC_STREAM_TASKS,
-      ANTHROPIC_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerAnthropicInline();
 
     await getGlobalModelRepository().addModel({
       model_id: MODEL_ID,

@@ -54,6 +54,7 @@ export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
     "ModelInfoTask",
     "StructuredGenerationTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

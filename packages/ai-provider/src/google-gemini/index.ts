@@ -7,5 +7,6 @@
 export * from "./common/Gemini_Constants";
 export * from "./common/Gemini_JobRunFns";
 export * from "./common/Gemini_ModelSchema";
-export * from "./Gemini_Worker";
+
 export * from "./GoogleGeminiProvider";
+export * from "./registerGemini";

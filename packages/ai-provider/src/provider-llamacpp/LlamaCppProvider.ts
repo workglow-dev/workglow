@@ -53,6 +53,7 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

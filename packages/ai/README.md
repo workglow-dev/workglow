@@ -37,7 +37,10 @@ import {
 import { Workflow, getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS, HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import {
+  HF_TRANSFORMERS_ONNX,
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers";
 
 // 1. Set up a model repository
 const modelRepo = new InMemoryModelRepository();
@@ -55,8 +58,8 @@ await modelRepo.addModel({
     model_path: "Xenova/LaMini-Flan-T5-783M"
 });
 
-// 3. Register provider (inline mode requires HFT_TASKS via constructor, creates queue automatically)
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register({ mode: "inline" });
+// 3. Register provider (inline: full ONNX stack in this bundle; creates queue automatically)
+await registerHuggingFaceTransformersInline();
 
 // 4. Or manually set up job queue (when queue.autoCreate: false)
 const queueName = HF_TRANSFORMERS_ONNX;
@@ -225,7 +228,7 @@ Downloads and prepares AI models for use.
 ```typescript
 import { DownloadModelTask } from "@workglow/ai";
 
-import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
 
 const task = new DownloadModelTask({
   modelName: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
@@ -292,7 +295,7 @@ setGlobalModelRepository(modelRepo);
 
 ```typescript
 import { getGlobalModelRepository } from "@workglow/ai";
-import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
 
 const modelRepo = getGlobalModelRepository();
 
@@ -320,17 +323,10 @@ AI providers handle the actual execution of AI tasks. You need to register provi
 ### Basic Provider Registration
 
 ```typescript
-import {
-  HFT_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_REACTIVE_TASKS,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers";
 
-// Registers run functions for all supported AI tasks on the current thread (inline mode requires HFT_TASKS)
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
-  { mode: "inline" }
-);
+// Inline: run functions registered on the current thread (tasks wired inside the provider)
+await registerHuggingFaceTransformersInline();
 ```
 
 ### Worker-Based Provider Registration
@@ -338,13 +334,12 @@ await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACT
 For compute-intensive tasks that should run in workers:
 
 ```typescript
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
 
-await new HuggingFaceTransformersProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+await registerHuggingFaceTransformers({
+  worker: () => new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
 });
-// Worker file must call HFT_WORKER_JOBRUN_REGISTER() from @workglow/ai-provider
+// Worker file must call registerHuggingFaceTransformersWorker() from @workglow/ai-provider/hf-transformers
 ```
 
 ### Job Queue Setup
@@ -356,7 +351,7 @@ import { getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-grap
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { AiJob, AiJobInput } from "@workglow/ai";
-import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
 
 const queueName = HF_TRANSFORMERS_ONNX;
 const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(queueName);
@@ -423,12 +418,12 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 ### Vector and Storage Tasks
 
-| Task                    | Description                              |
-| ----------------------- | ---------------------------------------- |
+| Task                    | Description                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
 | `ChunkToVectorTask`     | Transforms chunks to vector store format (input: `vector` + `chunks`, output: `vectors`) |
-| `ChunkVectorUpsertTask` | Stores vectors in a KnowledgeBase (input: `knowledgeBase` + `vectors`) |
-| `ChunkVectorSearchTask` | Searches vectors by similarity           |
-| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency |
+| `ChunkVectorUpsertTask` | Stores vectors in a KnowledgeBase (input: `knowledgeBase` + `vectors`)                   |
+| `ChunkVectorSearchTask` | Searches vectors by similarity                                                           |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency                                                 |
 
 ### Retrieval and Generation Tasks
 

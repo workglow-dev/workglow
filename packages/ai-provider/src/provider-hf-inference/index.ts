@@ -7,5 +7,4 @@
 export * from "./common/HFI_Constants";
 export * from "./common/HFI_JobRunFns";
 export * from "./common/HFI_ModelSchema";
-export * from "./HFI_Worker";
-export * from "./HfInferenceProvider";
+export * from "./registerHfInference";

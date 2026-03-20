@@ -7,5 +7,6 @@
 export * from "./common/OpenAI_Constants";
 export * from "./common/OpenAI_JobRunFns";
 export * from "./common/OpenAI_ModelSchema";
-export * from "./OpenAI_Worker";
+
 export * from "./OpenAiProvider";
+export * from "./registerOpenAi";
