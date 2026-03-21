@@ -5,7 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
-import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
+import { HuggingFaceTransformersQueuedProvider } from "./HuggingFaceTransformersQueuedProvider";
 
 /**
  * Register HuggingFace Transformers ONNX on the **main thread** with worker-backed execution
@@ -16,5 +16,5 @@ export async function registerHuggingFaceTransformers(
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new HuggingFaceTransformersProvider().register(options);
+  await new HuggingFaceTransformersQueuedProvider().register(options);
 }

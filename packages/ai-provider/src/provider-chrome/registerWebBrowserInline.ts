@@ -6,8 +6,10 @@
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
 import { WEB_BROWSER_STREAM_TASKS, WEB_BROWSER_TASKS } from "./common/WebBrowser_JobRunFns";
-import { WebBrowserProvider } from "./WebBrowserProvider";
+import { WebBrowserQueuedProvider } from "./WebBrowserQueuedProvider";
 
 export async function registerWebBrowserInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new WebBrowserProvider(WEB_BROWSER_TASKS, WEB_BROWSER_STREAM_TASKS).register(options ?? {});
+  await new WebBrowserQueuedProvider(WEB_BROWSER_TASKS, WEB_BROWSER_STREAM_TASKS).register(
+    options ?? {}
+  );
 }

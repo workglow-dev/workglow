@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai";
+import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai/worker";
 import { DataPortSchemaObject, FromSchema } from "@workglow/util";
 import { WEB_BROWSER } from "./WebBrowser_Constants";
 

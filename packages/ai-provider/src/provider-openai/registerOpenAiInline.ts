@@ -10,10 +10,10 @@ import {
   OPENAI_STREAM_TASKS,
   OPENAI_TASKS,
 } from "./common/OpenAI_JobRunFns";
-import { OpenAiProvider } from "./OpenAiProvider";
+import { OpenAiQueuedProvider } from "./OpenAiQueuedProvider";
 
 export async function registerOpenAiInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new OpenAiProvider(OPENAI_TASKS, OPENAI_STREAM_TASKS, OPENAI_REACTIVE_TASKS).register(
+  await new OpenAiQueuedProvider(OPENAI_TASKS, OPENAI_STREAM_TASKS, OPENAI_REACTIVE_TASKS).register(
     options ?? {}
   );
 }

@@ -5,28 +5,16 @@
  */
 
 import {
-  AiProvider,
+  QueuedAiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+} from "@workglow/ai";
 import { OLLAMA } from "./common/Ollama_Constants";
 import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
 
-/**
- * AI provider for Ollama local LLM server.
- *
- * Supports text generation, text embedding, text rewriting, and text summarization
- * via the Ollama API using the `ollama` SDK.
- *
- * Ollama runs locally and does not require an API key -- only a `base_url`
- * (defaults to `http://localhost:11434`).
- *
- * Task run functions are injected via the constructor so that the `ollama` SDK
- * is only imported where actually needed (inline mode, worker server), not on
- * the main thread in worker mode.
- */
-export class OllamaProvider extends AiProvider<OllamaModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class OllamaQueuedProvider extends QueuedAiProvider<OllamaModelConfig> {
   readonly name = OLLAMA;
   readonly isLocal = true;
   readonly supportsBrowser = true;

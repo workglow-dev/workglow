@@ -5,7 +5,7 @@
  */
 
 import type { TextGenerationOutput, TextGenerationPipeline } from "@huggingface/transformers";
-import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,

@@ -5,25 +5,16 @@
  */
 
 import {
-  AiProvider,
+  QueuedAiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+} from "@workglow/ai";
 import { OPENAI } from "./common/OpenAI_Constants";
 import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
 
-/**
- * AI provider for OpenAI cloud models.
- *
- * Supports text generation, text embedding, text rewriting, and text summarization
- * via the OpenAI API using the `openai` SDK.
- *
- * Task run functions are injected via the constructor so that the `openai` SDK
- * is only imported where actually needed (inline mode, worker server), not on
- * the main thread in worker mode.
- */
-export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class OpenAiQueuedProvider extends QueuedAiProvider<OpenAiModelConfig> {
   readonly name = OPENAI;
   readonly isLocal = false;
   readonly supportsBrowser = true;

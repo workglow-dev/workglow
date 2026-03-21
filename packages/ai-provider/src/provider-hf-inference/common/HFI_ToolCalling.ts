@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { buildToolDescription, filterValidToolCalls, toOpenAIMessages } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls, toOpenAIMessages } from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,

@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
-import { toTextFlatMessages } from "@workglow/ai";
+import { toTextFlatMessages, type AiProviderRunFn, type AiProviderStreamFn } from "@workglow/ai/worker";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
-import { getClient, getModelName, loadOllamaSDK } from "./Ollama_Client";
+import { getClient } from "./Ollama_Client";
 import { createOllamaModelInfo } from "./Ollama_ModelInfo";
 import { createOllamaModelSearch } from "./Ollama_ModelSearch";
 import { createOllamaTextEmbedding } from "./Ollama_TextEmbedding";
@@ -18,8 +17,6 @@ import {
 import { createOllamaTextRewriter, createOllamaTextRewriterStream } from "./Ollama_TextRewriter";
 import { createOllamaTextSummary, createOllamaTextSummaryStream } from "./Ollama_TextSummary";
 import { createOllamaToolCalling, createOllamaToolCallingStream } from "./Ollama_ToolCalling";
-
-export { getClient, getModelName, loadOllamaSDK } from "./Ollama_Client";
 
 export const Ollama_TextGeneration = createOllamaTextGeneration(getClient);
 export const Ollama_TextEmbedding = createOllamaTextEmbedding(getClient);

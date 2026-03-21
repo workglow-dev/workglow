@@ -5,12 +5,12 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
-import { HfInferenceProvider } from "./HfInferenceProvider";
+import { HfInferenceQueuedProvider } from "./HfInferenceQueuedProvider";
 
 export async function registerHfInference(
   options: AiProviderRegisterOptions & {
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new HfInferenceProvider().register(options);
+  await new HfInferenceQueuedProvider().register(options);
 }

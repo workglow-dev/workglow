@@ -10,10 +10,10 @@ import {
   ANTHROPIC_STREAM_TASKS,
   ANTHROPIC_TASKS,
 } from "./common/Anthropic_JobRunFns";
-import { AnthropicProvider } from "./AnthropicProvider";
+import { AnthropicQueuedProvider } from "./AnthropicQueuedProvider";
 
 export async function registerAnthropicInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new AnthropicProvider(
+  await new AnthropicQueuedProvider(
     ANTHROPIC_TASKS,
     ANTHROPIC_STREAM_TASKS,
     ANTHROPIC_REACTIVE_TASKS

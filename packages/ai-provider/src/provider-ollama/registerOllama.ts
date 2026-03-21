@@ -5,12 +5,12 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
-import { OllamaProvider } from "./OllamaProvider";
+import { OllamaQueuedProvider } from "./OllamaQueuedProvider";
 
 export async function registerOllama(
   options: AiProviderRegisterOptions & {
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new OllamaProvider().register(options);
+  await new OllamaQueuedProvider().register(options);
 }

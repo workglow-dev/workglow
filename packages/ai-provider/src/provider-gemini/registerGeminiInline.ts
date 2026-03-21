@@ -10,10 +10,12 @@ import {
   GEMINI_STREAM_TASKS,
   GEMINI_TASKS,
 } from "./common/Gemini_JobRunFns";
-import { GoogleGeminiProvider } from "./GoogleGeminiProvider";
+import { GoogleGeminiQueuedProvider } from "./GoogleGeminiQueuedProvider";
 
 export async function registerGeminiInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new GoogleGeminiProvider(GEMINI_TASKS, GEMINI_STREAM_TASKS, GEMINI_REACTIVE_TASKS).register(
-    options ?? {}
-  );
+  await new GoogleGeminiQueuedProvider(
+    GEMINI_TASKS,
+    GEMINI_STREAM_TASKS,
+    GEMINI_REACTIVE_TASKS
+  ).register(options ?? {});
 }

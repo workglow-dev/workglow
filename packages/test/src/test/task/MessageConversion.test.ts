@@ -5,8 +5,7 @@
  */
 
 import { toOpenAIMessages, toTextFlatMessages } from "@workglow/ai";
-import type { ToolCallingTaskInput } from "@workglow/ai";
-import type { ToolDefinition } from "@workglow/ai";
+import type { ToolCallingTaskInput, ToolDefinition } from "@workglow/ai";
 import { describe, expect, test } from "vitest";
 
 const dummyTools: ToolDefinition[] = [

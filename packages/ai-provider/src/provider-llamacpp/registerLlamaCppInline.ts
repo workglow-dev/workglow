@@ -10,10 +10,10 @@ import {
   LLAMACPP_STREAM_TASKS,
   LLAMACPP_TASKS,
 } from "./common/LlamaCpp_JobRunFns";
-import { LlamaCppProvider } from "./LlamaCppProvider";
+import { LlamaCppQueuedProvider } from "./LlamaCppQueuedProvider";
 
 export async function registerLlamaCppInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new LlamaCppProvider(
+  await new LlamaCppQueuedProvider(
     LLAMACPP_TASKS,
     LLAMACPP_STREAM_TASKS,
     LLAMACPP_REACTIVE_TASKS

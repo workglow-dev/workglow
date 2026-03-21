@@ -8,6 +8,7 @@ import {
   AiJob,
   AiProvider,
   AiProviderRegistry,
+  QueuedAiProvider,
   getAiProviderRegistry,
   setAiProviderRegistry,
   type AiProviderRegisterContext,
@@ -50,6 +51,19 @@ class TestProvider extends AiProvider {
 
   override async dispose(): Promise<void> {
     this.disposeCalled = true;
+  }
+}
+
+// A concrete test provider that auto-creates job queues (like the real providers)
+class TestQueuedProvider extends QueuedAiProvider {
+  readonly name = TEST_PROVIDER_NAME;
+  readonly isLocal = false;
+  readonly supportsBrowser = true;
+  readonly taskTypes: readonly string[];
+
+  constructor(fns?: Record<string, AiProviderRunFn<any, any, any>>) {
+    super(fns);
+    this.taskTypes = fns ? Object.keys(fns) : [];
   }
 }
 
@@ -172,8 +186,19 @@ describe("AiProvider", () => {
       expect(retrieved).toBe(provider);
     });
 
-    test("should auto-create a job queue by default", async () => {
+    test("should not auto-create a job queue (base AiProvider)", async () => {
       const provider = new TestProvider({
+        TextGenerationTask: mock(() => Promise.resolve({ text: "hello" })),
+      });
+
+      await provider.register();
+
+      const registeredQueue = getTaskQueueRegistry().getQueue(TEST_PROVIDER_NAME);
+      expect(registeredQueue).toBeUndefined();
+    });
+
+    test("should auto-create a job queue by default (QueuedAiProvider)", async () => {
+      const provider = new TestQueuedProvider({
         TextGenerationTask: mock(() => Promise.resolve({ text: "hello" })),
       });
 
@@ -186,7 +211,7 @@ describe("AiProvider", () => {
     });
 
     test("should skip queue creation when autoCreate is false", async () => {
-      const provider = new TestProvider({
+      const provider = new TestQueuedProvider({
         TextGenerationTask: mock(() => Promise.resolve({ text: "hello" })),
       });
 

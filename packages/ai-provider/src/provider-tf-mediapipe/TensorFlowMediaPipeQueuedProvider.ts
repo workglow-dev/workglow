@@ -4,20 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai/worker";
+import { QueuedAiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai";
 import { TENSORFLOW_MEDIAPIPE, TFMP_DEFAULT_TASK_TYPES } from "./common/TFMP_Constants";
 import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 
-/**
- * AI provider for TensorFlow MediaPipe models.
- *
- * Task run functions are injected via the constructor so that the heavy
- * `@mediapipe/*` libraries are only pulled in where actually needed
- * (inline mode, worker server), not on the main thread in worker mode.
- * Use `loadTfmpTasksTextSDK` / `loadTfmpTasksVisionSDK` for cached dynamic imports.
-
- */
-export class TensorFlowMediaPipeProvider extends AiProvider<TFMPModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class TensorFlowMediaPipeQueuedProvider extends QueuedAiProvider<TFMPModelConfig> {
   readonly name = TENSORFLOW_MEDIAPIPE;
   readonly isLocal = true;
   readonly supportsBrowser = true;

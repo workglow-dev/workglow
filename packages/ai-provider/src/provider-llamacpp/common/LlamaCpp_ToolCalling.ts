@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { filterValidToolCalls } from "@workglow/ai";
+import { filterValidToolCalls } from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -16,11 +16,7 @@ import type {
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
-import {
-  getLlamaCppSdk,
-  getOrCreateTextContext,
-  loadSdk,
-} from "./LlamaCpp_Runtime";
+import { getLlamaCppSdk, getOrCreateTextContext, loadSdk } from "./LlamaCpp_Runtime";
 
 function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
   const inputMessages = input.messages;

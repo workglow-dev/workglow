@@ -7,7 +7,7 @@
 import type { AiProviderRegisterOptions } from "@workglow/ai";
 import { clearHftInlinePipelineCache } from "./common/HFT_InlineLifecycle";
 import { HFT_REACTIVE_TASKS, HFT_STREAM_TASKS, HFT_TASKS } from "./common/HFT_JobRunFns";
-import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
+import { HuggingFaceTransformersQueuedProvider } from "./HuggingFaceTransformersQueuedProvider";
 import { loadTransformersSDK } from "./common/HFT_Pipeline";
 
 /**
@@ -22,7 +22,7 @@ export async function registerHuggingFaceTransformersInline(
 ): Promise<void> {
   const { env } = await loadTransformersSDK();
   env.backends!.onnx!.wasm!.proxy = true;
-  const provider = new HuggingFaceTransformersProvider(
+  const provider = new HuggingFaceTransformersQueuedProvider(
     HFT_TASKS,
     HFT_STREAM_TASKS,
     HFT_REACTIVE_TASKS

@@ -6,10 +6,10 @@
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
 import { HFI_STREAM_TASKS, HFI_TASKS } from "./common/HFI_JobRunFns";
-import { HfInferenceProvider } from "./HfInferenceProvider";
+import { HfInferenceQueuedProvider } from "./HfInferenceQueuedProvider";
 
 export async function registerHfInferenceInline(
   options?: AiProviderRegisterOptions
 ): Promise<void> {
-  await new HfInferenceProvider(HFI_TASKS, HFI_STREAM_TASKS).register(options ?? {});
+  await new HfInferenceQueuedProvider(HFI_TASKS, HFI_STREAM_TASKS).register(options ?? {});
 }

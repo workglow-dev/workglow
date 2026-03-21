@@ -5,24 +5,16 @@
  */
 
 import {
-  AiProvider,
+  QueuedAiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+} from "@workglow/ai";
 import { HF_TRANSFORMERS_ONNX } from "./common/HFT_Constants";
 import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
 
-/**
- * AI provider for HuggingFace Transformers ONNX models.
- *
- * Supports text, vision, and multimodal tasks via the @huggingface/transformers library.
- *
- * Task run functions are injected via the constructor so that the heavy
- * `@huggingface/transformers` library is only imported where actually needed
- * (inline mode, worker server), not on the main thread in worker mode.
- */
-export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOnnxModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider<HfTransformersOnnxModelConfig> {
   readonly name = HF_TRANSFORMERS_ONNX;
   readonly isLocal = true;
   readonly supportsBrowser = true;

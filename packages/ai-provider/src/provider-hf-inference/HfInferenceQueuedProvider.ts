@@ -5,25 +5,16 @@
  */
 
 import {
-  AiProvider,
+  QueuedAiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+} from "@workglow/ai";
 import { HF_INFERENCE } from "./common/HFI_Constants";
 import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
 
-/**
- * AI provider for Hugging Face Inference API.
- *
- * Supports text generation, text embedding, text rewriting, and text summarization
- * via the Hugging Face Inference API using the `@huggingface/inference` SDK.
- *
- * Task run functions are injected via the constructor so that the `@huggingface/inference` SDK
- * is only imported where actually needed (inline mode, worker server), not on
- * the main thread in worker mode.
- */
-export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class HfInferenceQueuedProvider extends QueuedAiProvider<HfInferenceModelConfig> {
   readonly name = HF_INFERENCE;
   readonly isLocal = false;
   readonly supportsBrowser = true;

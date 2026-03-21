@@ -5,27 +5,16 @@
  */
 
 import {
-  AiProvider,
+  QueuedAiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+} from "@workglow/ai";
 import { LOCAL_LLAMACPP } from "./common/LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
 
-/**
- * AI provider for running GGUF models locally via node-llama-cpp.
- *
- * Supports model downloading, unloading, text generation, text embedding,
- * text rewriting, and text summarization using llama.cpp under the hood.
- *
- * This provider is server-side only (Node.js/Bun) — it requires native binaries
- * and cannot run in the browser.
- *
- * Models are cached in memory after the first load. Use UnloadModelTask to
- * release memory when a model is no longer needed.
- */
-export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class LlamaCppQueuedProvider extends QueuedAiProvider<LlamaCppModelConfig> {
   readonly name = LOCAL_LLAMACPP;
   readonly isLocal = true;
   readonly supportsBrowser = false;

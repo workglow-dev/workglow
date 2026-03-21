@@ -5,12 +5,12 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
-import { LlamaCppProvider } from "./LlamaCppProvider";
+import { LlamaCppQueuedProvider } from "./LlamaCppQueuedProvider";
 
 export async function registerLlamaCpp(
   options: AiProviderRegisterOptions & {
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new LlamaCppProvider().register(options);
+  await new LlamaCppQueuedProvider().register(options);
 }

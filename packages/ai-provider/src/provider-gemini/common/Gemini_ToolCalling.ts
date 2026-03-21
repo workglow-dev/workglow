@@ -5,7 +5,7 @@
  */
 
 import type { FunctionCallingMode } from "@google/generative-ai";
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,

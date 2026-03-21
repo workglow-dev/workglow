@@ -27,9 +27,6 @@ export default defineConfig({
   resolve: {
     mainFields: ["browser", "import", "module", "main"],
   },
-  worker: {
-    format: "es",
-  },
   build: {
     target: "esnext",
     rolldownOptions: {
@@ -53,7 +50,7 @@ export default defineConfig({
               test: /node_modules[\\/](?:@codemirror|@uiw[\\/])/,
             },
             {
-              name: "hf-transformers",
+              name: "huggingface",
               priority: 16,
               test: /node_modules[\\/]@huggingface[\\/]/,
               maxSize: 400_000,
@@ -62,6 +59,7 @@ export default defineConfig({
               name: "workglow",
               priority: 15,
               test: /node_modules[\\/]@workglow[\\/]/,
+              entriesAware: true,
               maxSize: 400_000,
             },
             {
@@ -78,6 +76,36 @@ export default defineConfig({
         },
       },
     },
+  },
+  worker: {
+    format: "es",
+    plugins: () => [wasm()],
+    // rolldownOptions: {
+    //   output: {
+    //     codeSplitting: {
+    //       minSize: 20_000,
+    //       groups: [
+    //         {
+    //           name: "hf-transformers",
+    //           priority: 16,
+    //           test: /node_modules[\\/]@huggingface[\\/]/,
+    //           maxSize: 400_000,
+    //         },
+    //         {
+    //           name: "workglow",
+    //           priority: 15,
+    //           test: /node_modules[\\/]@workglow[\\/]/,
+    //           maxSize: 400_000,
+    //         },
+    //         {
+    //           name: "vendor",
+    //           priority: 10,
+    //           test: /node_modules[\\/]/,
+    //         },
+    //       ],
+    //     },
+    //   },
+    // },
   },
   optimizeDeps: {
     exclude: ["tiktoken", "@huggingface/transformers"],

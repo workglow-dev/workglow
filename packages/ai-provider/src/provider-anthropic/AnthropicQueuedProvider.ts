@@ -5,29 +5,16 @@
  */
 
 import {
-  AiProvider,
+  QueuedAiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+} from "@workglow/ai";
 import { ANTHROPIC } from "./common/Anthropic_Constants";
 import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
 
-/**
- * AI provider for Anthropic cloud models.
- *
- * Supports text generation, text rewriting, and text summarization via the
- * Anthropic Messages API using the `@anthropic-ai/sdk` SDK.
- *
- * Note: Anthropic does not offer an embeddings API, so TextEmbeddingTask
- * is not supported by this provider.
- *
- * Task run functions are injected via the constructor so that the SDK
- * is only imported where actually needed (inline mode, worker server), not on
- * the main thread in worker mode.
- *
- */
-export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class AnthropicQueuedProvider extends QueuedAiProvider<AnthropicModelConfig> {
   readonly name = ANTHROPIC;
   readonly isLocal = false;
   readonly supportsBrowser = true;

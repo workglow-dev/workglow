@@ -5,27 +5,16 @@
  */
 
 import {
-  AiProvider,
+  QueuedAiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+} from "@workglow/ai";
 import { WEB_BROWSER } from "./common/WebBrowser_Constants";
 import type { WebBrowserModelConfig } from "./common/WebBrowser_ModelSchema";
 
-/**
- * AI provider for Chrome Built-in AI APIs (Gemini Nano on-device).
- *
- * Browser-only provider — no external SDK needed, the APIs are browser globals.
- *
- * Supports summarization, language detection, translation, text generation
- * (Prompt API), and text rewriting via Chrome's Built-in AI APIs.
- *
- * Task run functions are injected via the constructor so that the provider
- * class itself has no runtime dependency on Chrome globals (it can be
- * instantiated on the main thread in worker mode without errors).
- */
-export class WebBrowserProvider extends AiProvider<WebBrowserModelConfig> {
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class WebBrowserQueuedProvider extends QueuedAiProvider<WebBrowserModelConfig> {
   readonly name = WEB_BROWSER;
   readonly isLocal = true;
   readonly supportsBrowser = true;

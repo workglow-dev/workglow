@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai";
+import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai/worker";
 import { DataPortSchemaObject, FromSchema } from "@workglow/util";
 import { LLAMACPP_DEFAULT_MODELS_DIR, LOCAL_LLAMACPP } from "./LlamaCpp_Constants";
 
