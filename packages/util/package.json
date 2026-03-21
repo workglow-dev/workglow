@@ -49,6 +49,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@sroussey/json-schema-library": "^11.0.0",
     "@sroussey/json-schema-to-ts": "3.1.4"
   }
 }

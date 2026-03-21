@@ -7,7 +7,7 @@
 import {
   areObjectSchemasSemanticallyCompatible,
   areSemanticallyCompatible,
-} from "@workglow/schema";
+} from "@workglow/util";
 import type { JsonSchema } from "@workglow/util";
 import { setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";

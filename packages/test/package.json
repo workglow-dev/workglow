@@ -40,7 +40,6 @@
     "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
-    "@workglow/schema": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
@@ -61,9 +60,6 @@
       "optional": false
     },
     "@workglow/job-queue": {
-      "optional": false
-    },
-    "@workglow/schema": {
       "optional": false
     },
     "@workglow/storage": {
@@ -98,7 +94,6 @@
     "@workglow/job-queue": "workspace:*",
     "@workglow/sqlite": "workspace:*",
     "@workglow/storage": "workspace:*",
-    "@workglow/schema": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",

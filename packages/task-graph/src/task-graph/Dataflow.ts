@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { areSemanticallyCompatible } from "@workglow/schema";
+import { areSemanticallyCompatible } from "@workglow/util";
 import { EventEmitter } from "@workglow/util";
 import { type StreamEvent } from "../task/StreamTypes";
 import { TaskError } from "../task/TaskError";

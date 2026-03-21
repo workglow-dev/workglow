@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { compileSchema, type SchemaNode } from "@workglow/schema";
+import { compileSchema, type SchemaNode } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util";
 import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";

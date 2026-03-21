@@ -43,7 +43,7 @@
  * Only connections that pass the runtime check will pass data at runtime.
  */
 
-import type { JsonSchema } from "@workglow/util";
+import type { JsonSchema } from "./JsonSchema";
 
 /**
  * Checks if two format strings are compatible.

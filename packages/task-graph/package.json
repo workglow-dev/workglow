@@ -38,15 +38,11 @@
   },
   "peerDependencies": {
     "@workglow/job-queue": "workspace:*",
-    "@workglow/schema": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/util": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@workglow/job-queue": {
-      "optional": false
-    },
-    "@workglow/schema": {
       "optional": false
     },
     "@workglow/storage": {
@@ -58,7 +54,6 @@
   },
   "devDependencies": {
     "@workglow/job-queue": "workspace:*",
-    "@workglow/schema": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/util": "workspace:*"
   }
