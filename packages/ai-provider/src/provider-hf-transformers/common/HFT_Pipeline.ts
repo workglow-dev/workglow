@@ -146,15 +146,41 @@ const doGetPipeline = async (
 ) => {
   // Throttle state for progress events
   let lastProgressTime = 0;
-  let pendingProgress: { progress: number; file: string; fileProgress: number } | null = null;
+  type FilesByteMap = Record<string, { loaded: number; total: number }>;
+  let pendingProgress: {
+    progress: number;
+    file: string;
+    fileProgress: number;
+    filesMap?: FilesByteMap;
+  } | null = null;
   let throttleTimer: ReturnType<typeof setTimeout> | null = null;
   const THROTTLE_MS = 160;
+
+  const buildProgressDetails = (
+    file: string,
+    fileProgress: number,
+    filesMap?: FilesByteMap
+  ): { file: string; progress: number; files?: FilesByteMap } => {
+    const details: { file: string; progress: number; files?: FilesByteMap } = {
+      file,
+      progress: fileProgress,
+    };
+    if (filesMap && Object.keys(filesMap).length > 0) {
+      details.files = filesMap;
+    }
+    return details;
+  };
 
   /**
    * Sends a progress event, throttled to avoid flooding the worker channel.
    * Always sends first event and final (>=progressScaleMax) immediately.
    */
-  const sendProgress = (progress: number, file: string, fileProgress: number): void => {
+  const sendProgress = (
+    progress: number,
+    file: string,
+    fileProgress: number,
+    filesMap?: FilesByteMap
+  ): void => {
     const now = Date.now();
     const timeSinceLastEvent = now - lastProgressTime;
     const isFirst = lastProgressTime === 0;
@@ -166,22 +192,28 @@ const doGetPipeline = async (
         throttleTimer = null;
       }
       pendingProgress = null;
-      onProgress(Math.round(progress), "Downloading model", { file, progress: fileProgress });
+      onProgress(
+        Math.round(progress),
+        "Downloading model",
+        buildProgressDetails(file, fileProgress, filesMap)
+      );
       lastProgressTime = now;
       return;
     }
 
     if (timeSinceLastEvent < THROTTLE_MS) {
-      pendingProgress = { progress, file, fileProgress };
+      pendingProgress = { progress, file, fileProgress, filesMap };
       if (!throttleTimer) {
         const timeRemaining = Math.max(1, THROTTLE_MS - timeSinceLastEvent);
         throttleTimer = setTimeout(() => {
           throttleTimer = null;
           if (pendingProgress) {
-            onProgress(Math.round(pendingProgress.progress), "Downloading model", {
-              file: pendingProgress.file,
-              progress: pendingProgress.fileProgress,
-            });
+            const p = pendingProgress;
+            onProgress(
+              Math.round(p.progress),
+              "Downloading model",
+              buildProgressDetails(p.file, p.fileProgress, p.filesMap)
+            );
             lastProgressTime = Date.now();
             pendingProgress = null;
           }
@@ -190,7 +222,11 @@ const doGetPipeline = async (
       return;
     }
 
-    onProgress(Math.round(progress), "Downloading model", { file, progress: fileProgress });
+    onProgress(
+      Math.round(progress),
+      "Downloading model",
+      buildProgressDetails(file, fileProgress, filesMap)
+    );
     lastProgressTime = now;
     pendingProgress = null;
   };
@@ -240,7 +276,7 @@ const doGetPipeline = async (
         }
       }
 
-      sendProgress(scaledProgress, activeFile, activeFileProgress);
+      sendProgress(scaledProgress, activeFile, activeFileProgress, files);
     }
   };
 
@@ -288,12 +324,14 @@ const doGetPipeline = async (
       progress: number;
       file: string;
       fileProgress: number;
+      filesMap?: FilesByteMap;
     } | null;
     if (finalPending) {
-      onProgress(Math.round(finalPending.progress), "Downloading model", {
-        file: finalPending.file,
-        progress: finalPending.fileProgress,
-      });
+      onProgress(
+        Math.round(finalPending.progress),
+        "Downloading model",
+        buildProgressDetails(finalPending.file, finalPending.fileProgress, finalPending.filesMap)
+      );
       pendingProgress = null;
     }
 

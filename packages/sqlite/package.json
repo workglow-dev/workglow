@@ -38,27 +38,27 @@
   "sideEffects": true,
   "exports": {
     ".": {
-      "react-native": "./dist/browser.js",
-      "browser": "./dist/browser.js",
-      "bun": "./dist/bun.js",
-      "types": "./dist/types.d.ts",
-      "import": "./dist/node.js"
+      "react-native": "./src/browser.ts",
+      "browser": "./src/browser.ts",
+      "bun": "./src/bun.ts",
+      "types": "./src/types.ts",
+      "import": "./src/node.ts"
     },
     "./bun": {
-      "types": "./dist/bun.d.ts",
-      "import": "./dist/bun.js"
+      "types": "./src/bun.ts",
+      "import": "./src/bun.ts"
     },
     "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js"
+      "types": "./src/node.ts",
+      "import": "./src/node.ts"
     },
     "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
+      "types": "./src/browser.ts",
+      "import": "./src/browser.ts"
     },
     "./react-native": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
+      "types": "./src/browser.ts",
+      "import": "./src/browser.ts"
     }
   },
   "files": [

@@ -22,6 +22,9 @@ export * from "./di";
 export * from "./logging";
 
 // Worker infrastructure — WorkerServerBase, WORKER_SERVER, WorkerManager, WORKER_MANAGER
+// Note: Platform-specific WorkerServer registration (Worker.browser/node/bun) is NOT
+// included here. The worker registration files must import @workglow/util to trigger
+// the side-effect that registers the WorkerServer implementation.
 export * from "./worker/WorkerServerBase";
 export * from "./worker/WorkerManager";
 

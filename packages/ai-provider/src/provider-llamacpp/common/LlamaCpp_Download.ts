@@ -34,7 +34,7 @@ export const LlamaCpp_Download: AiProviderRunFn<
     const downloaded = (downloader as any).downloadedSize as number | undefined;
     if (total && total > 0 && downloaded !== undefined) {
       const pct = Math.min(99, Math.round((downloaded / total) * 100));
-      update_progress(pct, "Downloading model", { file: modelUri, progress: pct / 100 });
+      update_progress(pct, "Downloading model", { file: modelUri, progress: pct });
     }
   }, 500);
 
@@ -47,7 +47,7 @@ export const LlamaCpp_Download: AiProviderRunFn<
 
   resolvedPaths.set(getConfigKey(model), modelPath);
 
-  update_progress(100, "Model downloaded", { file: modelUri, progress: 1 });
+  update_progress(100, "Model downloaded", { file: modelUri, progress: 100 });
 
   return { model: input.model! };
 };
