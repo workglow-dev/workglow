@@ -22,6 +22,11 @@ interface WorkflowRunAppProps {
   readonly graph: TaskGraph;
   readonly input: Record<string, unknown>;
   readonly config?: Record<string, unknown>;
+  /**
+   * When set (e.g. from {@link Workflow.run}), runs this instead of `graph.run(input, config)` so
+   * abort/output-cache/merge semantics match the Workflow API.
+   */
+  readonly runExecutor?: () => Promise<unknown>;
   readonly onComplete: (result: unknown) => void;
   readonly onError: (error: Error) => void;
 }
@@ -30,6 +35,7 @@ export function WorkflowRunApp({
   graph,
   input,
   config,
+  runExecutor,
   onComplete,
   onError,
 }: WorkflowRunAppProps): React.ReactElement {
@@ -48,10 +54,8 @@ export function WorkflowRunApp({
     );
     const stopPoll = startGraphTaskPoll(graph, setTaskInfos);
 
-    graph
-      .run(input, config)
-      .then((result) => onComplete(result))
-      .catch((err) => onError(err));
+    const runPromise = runExecutor ? runExecutor() : graph.run(input, config);
+    runPromise.then((result) => onComplete(result)).catch((err) => onError(err));
 
     return () => {
       stopPoll();

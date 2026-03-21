@@ -23,6 +23,8 @@ function wrapWithCliTheme(node: React.ReactElement): React.ReactElement {
 
 interface RenderOptions {
   readonly outputJsonFile?: string;
+  /** When true, do not print JSON to stdout on success (TUI embed / library use). */
+  readonly suppressResultOutput?: boolean;
 }
 
 type TaskConstructor = new (
@@ -48,7 +50,9 @@ export async function renderTaskRun(
 
   return new Promise<void>((resolve, reject) => {
     const onComplete = async (result: unknown) => {
-      await outputResult(result, opts.outputJsonFile);
+      if (!opts.suppressResultOutput) {
+        await outputResult(result, opts.outputJsonFile);
+      }
       instance.clear();
       instance.unmount();
       resolve();
@@ -77,18 +81,23 @@ export async function renderTaskRun(
 export async function renderWorkflowRun(
   graph: TaskGraph,
   input: Record<string, unknown>,
-  opts: RenderOptions & { readonly config?: Record<string, unknown> }
-): Promise<void> {
+  opts: RenderOptions & {
+    readonly config?: Record<string, unknown>;
+    readonly runExecutor?: () => Promise<unknown>;
+  }
+): Promise<unknown> {
   const React = await import("react");
   const { render } = await import("ink");
   const { WorkflowRunApp } = await import("./WorkflowRunApp");
 
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<unknown>((resolve, reject) => {
     const onComplete = async (result: unknown) => {
-      await outputResult(result, opts.outputJsonFile);
+      if (!opts.suppressResultOutput) {
+        await outputResult(result, opts.outputJsonFile);
+      }
       instance.clear();
       instance.unmount();
-      resolve();
+      resolve(result);
     };
 
     const onError = (error: Error) => {
@@ -104,6 +113,53 @@ export async function renderWorkflowRun(
           graph,
           input,
           config: opts.config,
+          runExecutor: opts.runExecutor,
+          onComplete,
+          onError,
+        })
+      )
+    );
+  });
+}
+
+type TaskInstanceForRun = {
+  run(overrides?: Record<string, unknown>): Promise<unknown>;
+  events: {
+    on(event: string, fn: (...args: unknown[]) => void): void;
+  };
+};
+
+export async function renderTaskInstanceRun(
+  task: TaskInstanceForRun,
+  taskType: string,
+  opts: RenderOptions
+): Promise<unknown> {
+  const React = await import("react");
+  const { render } = await import("ink");
+  const { TaskRunApp } = await import("./TaskRunApp");
+
+  return new Promise<unknown>((resolve, reject) => {
+    const onComplete = async (result: unknown) => {
+      if (!opts.suppressResultOutput) {
+        await outputResult(result, opts.outputJsonFile);
+      }
+      instance.clear();
+      instance.unmount();
+      resolve(result);
+    };
+
+    const onError = (error: Error) => {
+      instance.clear();
+      instance.unmount();
+      console.error(`\nError: ${formatError(error)}`);
+      process.exit(1);
+    };
+
+    const instance = render(
+      wrapWithCliTheme(
+        React.createElement(TaskRunApp, {
+          task,
+          taskType,
           onComplete,
           onError,
         })
