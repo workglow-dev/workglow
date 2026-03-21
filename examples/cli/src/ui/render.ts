@@ -6,10 +6,22 @@
 
 import type { TaskGraph } from "@workglow/task-graph";
 import type { PromptFieldDescriptor } from "../input/prompt";
-import type { SearchSelectItem, SearchSelectAppProps } from "./SearchSelectApp";
+import { getCliTheme } from "../terminal/detectTerminalTheme";
 import { formatError, outputResult } from "../util";
+import type { SearchSelectItem, SearchSelectAppProps } from "./SearchSelectApp";
+import { CliThemeProvider } from "./CliThemeContext";
 
 export type { SearchSelectItem, SearchPage } from "./SearchSelectApp";
+
+function wrapWithCliTheme(
+  React: typeof import("react"),
+  node: React.ReactElement
+): React.ReactElement {
+  return React.createElement(CliThemeProvider, {
+    value: getCliTheme(),
+    children: node,
+  });
+}
 
 interface RenderOptions {
   readonly outputJsonFile?: string;
@@ -52,12 +64,15 @@ export async function renderTaskRun(
     };
 
     const instance = render(
-      React.createElement(TaskRunApp, {
-        task,
-        taskType: Ctor.type,
-        onComplete,
-        onError,
-      })
+      wrapWithCliTheme(
+        React,
+        React.createElement(TaskRunApp, {
+          task,
+          taskType: Ctor.type,
+          onComplete,
+          onError,
+        })
+      )
     );
   });
 }
@@ -87,13 +102,16 @@ export async function renderWorkflowRun(
     };
 
     const instance = render(
-      React.createElement(WorkflowRunApp, {
-        graph,
-        input,
-        config: opts.config,
-        onComplete,
-        onError,
-      })
+      wrapWithCliTheme(
+        React,
+        React.createElement(WorkflowRunApp, {
+          graph,
+          input,
+          config: opts.config,
+          onComplete,
+          onError,
+        })
+      )
     );
   });
 }
@@ -120,11 +138,14 @@ export async function renderSchemaPrompt(
     };
 
     const instance = render(
-      React.createElement(SchemaPromptApp, {
-        fields,
-        onComplete,
-        onCancel,
-      })
+      wrapWithCliTheme(
+        React,
+        React.createElement(SchemaPromptApp, {
+          fields,
+          onComplete,
+          onCancel,
+        })
+      )
     );
   });
 }
@@ -153,11 +174,14 @@ export async function renderSearchSelect<T extends SearchSelectItem>(
     };
 
     const instance = render(
-      React.createElement(SearchSelectApp as any, {
-        ...props,
-        onSelect,
-        onCancel,
-      })
+      wrapWithCliTheme(
+        React,
+        React.createElement(SearchSelectApp as any, {
+          ...props,
+          onSelect,
+          onCancel,
+        })
+      )
     );
   });
 }
@@ -188,12 +212,15 @@ export async function renderSelectPrompt(
     };
 
     const instance = render(
-      React.createElement(SelectPromptApp, {
-        message,
-        options,
-        onSelect,
-        onCancel,
-      })
+      wrapWithCliTheme(
+        React,
+        React.createElement(SelectPromptApp, {
+          message,
+          options,
+          onSelect,
+          onCancel,
+        })
+      )
     );
   });
 }

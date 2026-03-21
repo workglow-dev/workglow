@@ -22,6 +22,7 @@ import { OllamaModelRecordSchema } from "@workglow/ai-provider/ollama";
 import { OpenAiModelRecordSchema } from "@workglow/ai-provider/openai";
 import type { DataPortSchemaObject } from "@workglow/util";
 import type { Command } from "commander";
+import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
 import {
   applySchemaDefaults,
@@ -32,7 +33,7 @@ import {
 } from "../input";
 import { createModelRepository } from "../storage";
 import type { SearchSelectItem } from "../ui/render";
-import { formatTable } from "../util";
+import { formatError, formatTable } from "../util";
 
 const PROVIDER_SCHEMAS: Record<string, DataPortSchemaObject> = {
   ANTHROPIC: AnthropicModelRecordSchema as unknown as DataPortSchemaObject,
@@ -339,6 +340,93 @@ export function registerModelCommand(program: Command): void {
 
       await repo.addModel(withDefaults as unknown as ModelRecord);
       console.log(`Model "${withDefaults.model_id}" added.`);
+    });
+
+  model
+    .command("edit")
+    .argument("[id]", "model ID to edit")
+    .description(
+      "Edit model JSON in $GIT_EDITOR, $VISUAL, or $EDITOR; save to apply, or quit without saving to cancel"
+    )
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const repo = createModelRepository(config);
+      await repo.setupDatabase();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const models = await repo.enumerateAllModels();
+        if (!models || models.length === 0) {
+          console.log("No models found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = models.map((m) => ({
+          label: `${m.model_id}  ${m.provider}  ${m.title ?? ""}`,
+          value: m.model_id,
+        }));
+        const selected = await renderSelectPrompt(options, "Select model to edit:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const existing = await repo.findByName(targetId);
+      if (!existing) {
+        console.error(`Model "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      const initial = JSON.stringify(existing, null, 2);
+
+      const result = editStringInExternalEditor(
+        initial,
+        `${targetId.replace(/[^\w.-]+/g, "_")}.json`
+      );
+
+      if (result.status === "unchanged") {
+        console.log("Aborted: file unchanged (quit the editor without saving).");
+        return;
+      }
+
+      if (result.status === "editor_error") {
+        console.error(`Editor failed: ${result.message}`);
+        process.exit(1);
+      }
+
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(result.content) as Record<string, unknown>;
+      } catch (e) {
+        console.error(`Invalid JSON: ${formatError(e)}`);
+        process.exit(1);
+      }
+
+      if (String(parsed.model_id ?? "") !== targetId) {
+        console.error(`model_id must remain "${targetId}" when editing this entry.`);
+        process.exit(1);
+      }
+
+      const provider = parsed.provider as string;
+      const schema: DataPortSchemaObject =
+        PROVIDER_SCHEMAS[provider] ?? (ModelRecordSchema as unknown as DataPortSchemaObject);
+
+      normalizeHfTransformersOnnxDevice(parsed);
+
+      const validation = validateInput(parsed, schema);
+      if (!validation.valid) {
+        console.error("Validation failed:");
+        for (const err of validation.errors) {
+          console.error(`  - ${err}`);
+        }
+        process.exit(1);
+      }
+
+      await repo.addModel(parsed as unknown as ModelRecord);
+      console.log(`Model "${targetId}" saved.`);
     });
 
   model

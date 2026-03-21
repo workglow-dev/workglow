@@ -7,10 +7,11 @@
 import type { DataPortSchemaObject } from "@workglow/util";
 import { searchMcpRegistryPage, type McpSearchResultItem } from "@workglow/tasks";
 import type { Command } from "commander";
+import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
 import { parseDynamicFlags, generateSchemaHelpText, resolveInput, validateInput } from "../input";
 import { createMcpStorage, McpServerRecordSchema } from "../storage";
-import { formatTable } from "../util";
+import { formatError, formatTable } from "../util";
 import type { SearchSelectItem } from "../ui/render";
 
 /** Extends stored record schema with if/then rules so interactive prompts ask for command / server_url after transport is chosen. */
@@ -206,6 +207,97 @@ export function registerMcpCommand(program: Command): void {
 
       await storage.put(input as Record<string, unknown>);
       console.log(`MCP server "${input.name}" added.`);
+    });
+
+  mcp
+    .command("edit")
+    .argument("[id]", "MCP server name to edit")
+    .description(
+      "Edit MCP server JSON in $GIT_EDITOR, $VISUAL, or $EDITOR; save to apply, or quit without saving to cancel"
+    )
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const storage = createMcpStorage(config);
+      await storage.setupDirectory();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await storage.getAll();
+        if (!all || all.length === 0) {
+          console.log("No MCP servers found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
+          value: String(e.name),
+        }));
+        const selected = await renderSelectPrompt(options, "Select MCP server to edit:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const entry = await storage.get({ name: targetId });
+      if (!entry) {
+        console.error(`MCP server "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      const initial = JSON.stringify(entry, null, 2);
+
+      const result = editStringInExternalEditor(
+        initial,
+        `${String(targetId).replace(/[^\w.-]+/g, "_")}.json`
+      );
+
+      if (result.status === "unchanged") {
+        console.log("Aborted: file unchanged (quit the editor without saving).");
+        return;
+      }
+
+      if (result.status === "editor_error") {
+        console.error(`Editor failed: ${result.message}`);
+        process.exit(1);
+      }
+
+      let input: Record<string, unknown>;
+      try {
+        input = JSON.parse(result.content) as Record<string, unknown>;
+      } catch (e) {
+        console.error(`Invalid JSON: ${formatError(e)}`);
+        process.exit(1);
+      }
+
+      if (String(input.name ?? "") !== targetId) {
+        console.error(`name must remain "${targetId}" when editing this entry.`);
+        process.exit(1);
+      }
+
+      const validation = validateInput(input, mcpSchema);
+      if (!validation.valid) {
+        console.error("Validation failed:");
+        for (const err of validation.errors) {
+          console.error(`  - ${err}`);
+        }
+        process.exit(1);
+      }
+
+      const transport = input.transport as string;
+      if (transport === "stdio" && !input.command) {
+        console.error('Transport "stdio" requires command.');
+        process.exit(1);
+      }
+      if ((transport === "sse" || transport === "streamable-http") && !input.server_url) {
+        console.error(`Transport "${transport}" requires server_url.`);
+        process.exit(1);
+      }
+
+      await storage.put(input);
+      console.log(`MCP server "${targetId}" saved.`);
     });
 
   mcp

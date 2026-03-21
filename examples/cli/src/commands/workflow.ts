@@ -4,13 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { computeGraphInputSchema, createGraphFromGraphJSON, type TaskGraphJson } from "@workglow/task-graph";
+import {
+  computeGraphInputSchema,
+  createGraphFromGraphJSON,
+  type TaskGraphJson,
+} from "@workglow/task-graph";
 import type { DataPortSchemaObject } from "@workglow/util";
 import type { Command } from "commander";
+import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
 import { createWorkflowRepository } from "../storage";
 import { formatError, formatTable, outputResult } from "../util";
-import { parseDynamicFlags, generateSchemaHelpText, resolveInput, resolveConfig, validateInput, readJsonInput } from "../input";
+import {
+  parseDynamicFlags,
+  generateSchemaHelpText,
+  resolveInput,
+  resolveConfig,
+  validateInput,
+  readJsonInput,
+} from "../input";
 
 export function registerWorkflowCommand(program: Command): void {
   const workflow = program.command("workflow").description("Manage and run workflows");
@@ -150,6 +162,87 @@ export function registerWorkflowCommand(program: Command): void {
 
       await repo.saveTaskGraph(id, graph);
       console.log(`Workflow "${id}" added.`);
+    });
+
+  workflow
+    .command("edit")
+    .argument("[id]", "workflow identifier to edit")
+    .description(
+      "Edit workflow JSON in $GIT_EDITOR, $VISUAL, or $EDITOR; save the file to apply, or quit without saving to cancel"
+    )
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const repo = createWorkflowRepository(config);
+      await repo.setupDatabase();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await repo.tabularRepository.getAll();
+        if (!all || all.length === 0) {
+          console.log("No workflows found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: String(e.key),
+          value: String(e.key),
+        }));
+        const selected = await renderSelectPrompt(options, "Select workflow to edit:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const entry = await repo.tabularRepository.get({ key: targetId });
+      if (!entry) {
+        console.error(`Workflow "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      const raw = entry.value as string;
+      let initial: string;
+      try {
+        initial = JSON.stringify(JSON.parse(raw), null, 2);
+      } catch {
+        initial = raw;
+      }
+
+      const result = editStringInExternalEditor(
+        initial,
+        `${targetId.replace(/[^\w.-]+/g, "_")}.json`
+      );
+
+      if (result.status === "unchanged") {
+        console.log("Aborted: file unchanged (quit the editor without saving).");
+        return;
+      }
+
+      if (result.status === "editor_error") {
+        console.error(`Editor failed: ${result.message}`);
+        process.exit(1);
+      }
+
+      let json: TaskGraphJson;
+      try {
+        json = JSON.parse(result.content) as TaskGraphJson;
+      } catch (e) {
+        console.error(`Invalid JSON: ${formatError(e)}`);
+        process.exit(1);
+      }
+
+      let graph;
+      try {
+        graph = createGraphFromGraphJSON(json);
+      } catch (e) {
+        console.error(`Invalid workflow: ${formatError(e)}`);
+        process.exit(1);
+      }
+
+      await repo.saveTaskGraph(targetId, graph);
+      console.log(`Workflow "${targetId}" saved.`);
     });
 
   const run = workflow

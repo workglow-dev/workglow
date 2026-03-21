@@ -7,13 +7,10 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
 import type { TaskGraph } from "@workglow/task-graph";
-import {
-  cliTaskShowsProgressBar,
-  sortCliTaskLinesForDisplay,
-  startGraphTaskPoll,
-} from "./cliTaskUi";
+import { sortCliTaskLinesForDisplay, startGraphTaskPoll } from "./cliTaskUi";
 import { ProgressBar } from "./components/ProgressBar";
-import { TaskStatusLine } from "./components/TaskStatusLine";
+import { TaskStatusProgressRow } from "./components/TaskStatusProgressRow";
+import { useCliTheme } from "./CliThemeContext";
 import type { CliTaskLine, IterationSlotRow } from "./taskGraphCliSubscriptions";
 import {
   iterationSlotToTaskStatus,
@@ -36,6 +33,8 @@ export function WorkflowRunApp({
   onComplete,
   onError,
 }: WorkflowRunAppProps): React.ReactElement {
+  const theme = useCliTheme();
+  const bodyColor = theme.level === "advanced" ? theme.fg : undefined;
   const [taskInfos, setTaskInfos] = useState<Map<string, CliTaskLine>>(new Map());
   const [overallProgress, setOverallProgress] = useState<number | undefined>(undefined);
   const [iterationSlots, setIterationSlots] = useState<Map<string, IterationSlotRow[]>>(new Map());
@@ -67,9 +66,9 @@ export function WorkflowRunApp({
     <Box flexDirection="column">
       <Box flexDirection="column">
         {overallProgress !== undefined && (
-          <Box flexDirection="column">
-            <Box>
-              <Text>Workflow: </Text>
+          <Box flexDirection="row" justifyContent="space-between" width="100%">
+            <Text color={bodyColor}>Workflow: </Text>
+            <Box flexShrink={0} marginLeft={1}>
               <ProgressBar progress={overallProgress} />
             </Box>
           </Box>
@@ -79,30 +78,21 @@ export function WorkflowRunApp({
           const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
           return (
             <Box key={t.id} flexDirection="column">
-              <TaskStatusLine
+              <TaskStatusProgressRow
                 type={t.type}
                 status={t.status}
-                progress={t.progress}
                 message={t.message}
+                barProgress={t.progress ?? 0}
               />
-              {cliTaskShowsProgressBar(t.status) && (
-                <Box marginLeft={2}>
-                  <ProgressBar progress={t.progress ?? 0} />
-                </Box>
-              )}
               {sortedSlots.map((slot) => (
-                <Box key={`${t.id}-iter-${slot.index}`} flexDirection="column" marginLeft={2}>
-                  <TaskStatusLine
+                <Box key={`${t.id}-iter-${slot.index}`} flexDirection="column" paddingLeft={2}>
+                  <TaskStatusProgressRow
                     type={`#${slot.index + 1}`}
                     status={iterationSlotToTaskStatus(slot.status)}
-                    progress={slot.status === "completed" ? undefined : slot.progress}
                     message={slot.status === "completed" ? undefined : slot.message}
+                    barProgress={slot.progress ?? 0}
+                    suppressProgressBar={slot.status !== "running" || slot.progress === undefined}
                   />
-                  {slot.status === "running" && slot.progress !== undefined && (
-                    <Box marginLeft={2}>
-                      <ProgressBar progress={slot.progress} />
-                    </Box>
-                  )}
                 </Box>
               ))}
             </Box>

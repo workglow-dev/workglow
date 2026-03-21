@@ -20,6 +20,7 @@ import { registerTaskCommand } from "./commands/task";
 import { registerWorkflowCommand } from "./commands/workflow";
 import { loadConfig } from "./config";
 import { createModelRepository } from "./storage";
+import { detectCliTheme, setCliTheme } from "./terminal/detectTerminalTheme";
 
 // Register all task types so TaskRegistry is populated
 registerBaseTasks();
@@ -28,6 +29,7 @@ registerAiTasks();
 
 // Set up global model repository backed by filesystem
 const config = await loadConfig();
+setCliTheme(await detectCliTheme());
 const modelRepo = createModelRepository(config);
 await modelRepo.setupDatabase();
 setGlobalModelRepository(modelRepo);

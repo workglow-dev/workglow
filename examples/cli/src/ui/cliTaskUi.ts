@@ -79,20 +79,25 @@ export function cliTaskShowsProgressBar(status: string): boolean {
   return status === "PROCESSING" || status === "STREAMING" || status === "ABORTING";
 }
 
+/** Optional per-file progress (e.g. {@link DownloadModelTask}.files). */
+export interface TaskFileProgressRow {
+  readonly file: string;
+  readonly progress: number;
+}
+
 /**
- * Polls `task.status` / `task.progress` on the runner-owned instance — `emit("progress")` can lag
- * behind mutations, and STREAMING tasks need frequent UI updates.
+ * Polls `task.status` on the runner-owned instance (backup if `emit("status")` is missed).
+ * For single-task runs, {@link TaskRunApp} batches `progress` / `files` on a timer so Ink is not
+ * flooded with setState (high-frequency download progress + poll + spinner).
  */
 export function startTaskInstancePoll(
-  getTask: () => { status?: string; progress?: number } | undefined,
-  setStatus: Dispatch<SetStateAction<string>>,
-  setProgress: Dispatch<SetStateAction<number | undefined>>
+  getTask: () => { status?: string } | undefined,
+  setStatus: Dispatch<SetStateAction<string>>
 ): () => void {
   const id = setInterval(() => {
     const t = getTask();
     if (!t) return;
     if (t.status !== undefined) setStatus(t.status);
-    if (typeof t.progress === "number") setProgress(t.progress);
   }, 100);
   return () => clearInterval(id);
 }
