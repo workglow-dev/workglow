@@ -1,5 +1,28 @@
 # @workglow/web
 
+## 0.0.122
+
+### Refactors
+
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- ai provider
+
+#### ai-provider
+
+- introduce queued providers for various AI models
+
+### Chores
+
+- update dependencies and enhance Vite configuration
+- makes example/web build types and code at the same time
+- add rollup-plugin-visualizer for bundle analysis
+- add @typescript/native-preview package and make updates for tsgo
+
+### Updated Dependencies
+
+- `@vitejs/plugin-react`: ^6.0.1
+
 ## 0.0.121
 
 ### Chores

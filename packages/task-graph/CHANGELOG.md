@@ -1,5 +1,44 @@
 # @workglow/task-graph
 
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- implement CLI task UI components and subscription handling
+
+#### task
+
+- optimize JSON serialization in Task class
+
+### Bug Fixes
+
+#### task-graph
+
+- improve output handling in TaskGraphRunner
+- add registry parameter to task runners
+
+### Refactors
+
+- update package exports to use source files instead of dist
+
+#### task
+
+- improve JSON serialization logic in Task class
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
 ## 0.0.121
 
 ## 0.0.120

@@ -1,5 +1,34 @@
 # @workglow/ai-provider
 
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- add model cache directory configuration for HFT worker
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- more moving around to make workers smaller (95% smaller now)
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- export Ollama functions for better tests
+- ai provider
+
+#### ai-provider
+
+- introduce queued providers for various AI models
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
 ## 0.0.121
 
 ## 0.0.120

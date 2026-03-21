@@ -1,5 +1,34 @@
 # @workglow/util
 
+## 0.0.122
+
+### Features
+
+- enhance CLI with MCP support and input handling
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- more moving around to make workers smaller (95% smaller now)
+- ai provider
+
+#### util
+
+- reorganize MCP-related and toolcalling related code
+- fixed WorkerServer based on each platform
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
 ## 0.0.121
 
 ## 0.0.120

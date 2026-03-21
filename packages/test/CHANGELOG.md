@@ -1,5 +1,50 @@
 # @workglow/test
 
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- add detail commands for agent, MCP, model, task, and workflow
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- ai provider
+
+#### ai-provider
+
+- introduce queued providers for various AI models
+
+#### util
+
+- reorganize MCP-related and toolcalling related code
+
+#### task
+
+- improve JSON serialization logic in Task class
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- update dependencies and enhance Vite configuration
+- add @typescript/native-preview package and make updates for tsgo
+- rename tests to represent storage
+
+### Updated Dependencies
+
+- `@electric-sql/pglite`: ^0.4.1
+
 ## 0.0.121
 
 ## 0.0.120

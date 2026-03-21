@@ -1,5 +1,28 @@
 # workglow
 
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- ai provider
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
 ## 0.0.121
 
 ## 0.0.120

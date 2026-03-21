@@ -1,5 +1,64 @@
 # @workglow/cli
 
+## 0.0.122
+
+### Features
+
+- enhance CLI with MCP support and input handling
+- rebuild CLI with resource-oriented command structure
+
+#### cli
+
+- add edit commands for agents, MCP servers, models, and workflows
+- implement CLI task UI components and subscription handling
+- implement JSON parsing utility for input handling
+- add model cache directory configuration for HFT worker
+- enhance model command with ONNX dtype parsing and task mapping
+- add detail commands for agent, MCP, model, task, and workflow
+- implement nested object value manipulation functions
+- print Cancelled message on Escape for all TUI components
+- show confirmation line after select/search selection
+- adaptive list sizing and scroll indicators
+- Escape cancels any TUI form
+- model find now asks for provider first with per-provider search
+- interactive select for remove commands when no id given
+- add model find command with HuggingFace search
+- add mcp find command with MCP registry search
+- add renderSearchSelect helper in render.ts
+- add SearchSelectApp component for live-search TUI
+
+#### mcp
+
+- move implemention of MCP search functionality into new McpSearchTask and integrate with CLI
+
+### Bug Fixes
+
+- return worker for hft
+
+#### cli
+
+- clear TUI output before unmounting Ink instances
+- fix SearchSelectApp loading-more spinner and remove unused pageSize prop
+
+### Refactors
+
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- ai provider
+
+#### mcp
+
+- enhance MCP search functionality with pagination support
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+- rename tests to represent storage
+
+#### cli
+
+- update ink and react versions, and adjust model command imports
+
 ## 0.0.121
 
 ## 0.0.120

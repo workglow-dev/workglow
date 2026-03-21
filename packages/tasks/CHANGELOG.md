@@ -1,5 +1,41 @@
 # @workglow/tasks
 
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- implement CLI task UI components and subscription handling
+
+#### mcp
+
+- move implemention of MCP search functionality into new McpSearchTask and integrate with CLI
+
+### Refactors
+
+- update package exports to use source files instead of dist
+
+#### util
+
+- reorganize MCP-related and toolcalling related code
+
+#### mcp
+
+- enhance MCP search functionality with pagination support
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
 ## 0.0.121
 
 ## 0.0.120

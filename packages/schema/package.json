@@ -1,7 +1,7 @@
 {
   "name": "@workglow/schema",
   "type": "module",
-  "version": "0.0.121",
+  "version": "0.0.122",
   "description": "Schema validation and compatibility utilities for Workglow task graphs.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
