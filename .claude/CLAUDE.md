@@ -48,7 +48,7 @@ debug                                 (Chrome DevTools formatters)
 
 ### Per-package build
 
-Each package builds three runtime targets via `bun build --splitting --target=X`:
+Each package builds three runtime targets via `bun build --target=X`:
 
 - `src/browser.ts` → `dist/browser.js`
 - `src/node.ts` → `dist/node.js`
