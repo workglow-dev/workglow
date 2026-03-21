@@ -9,7 +9,7 @@ import type {
   TextLanguageDetectionTaskInput,
   TextLanguageDetectionTaskOutput,
 } from "@workglow/ai";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import { ensureAvailable, getApi } from "./WebBrowser_ChromeHelpers";
 import type { WebBrowserModelConfig } from "./WebBrowser_ModelSchema";
 

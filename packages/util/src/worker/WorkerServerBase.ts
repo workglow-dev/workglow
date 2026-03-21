@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, globalServiceRegistry } from "../di";
+import { createServiceToken } from "../di";
+
+/** Service token for the platform-specific WorkerServer instance. */
+export const WORKER_SERVER = createServiceToken<WorkerServerBase>("worker.server");
 
 /**
  * Extracts transferables from an object.

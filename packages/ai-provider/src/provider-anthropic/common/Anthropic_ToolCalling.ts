@@ -15,7 +15,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util/worker";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 import { getClient, getMaxTokens, getModelName } from "./Anthropic_Client";
 

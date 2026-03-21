@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
+import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util/worker";
 import {
   OPENAI_REACTIVE_TASKS,
   OPENAI_STREAM_TASKS,

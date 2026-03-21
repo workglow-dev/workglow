@@ -5,17 +5,19 @@
   "description": "Utility functions and shared types for Workglow, providing common functionality across all packages.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun'",
+    "watch-js": "concurrently -c 'auto' -n 'browser,node,bun,worker' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun' 'bun run watch-worker'",
     "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "watch-node": "bun build --splitting --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
     "watch-bun": "bun build --splitting --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
+    "watch-worker": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/worker-entry.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
-    "build-package": "concurrently -c 'auto' -n 'browser,node,bun,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-types'",
-    "build-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run build-browser' 'bun run build-node' 'bun run build-bun'",
+    "build-package": "concurrently -c 'auto' -n 'browser,node,bun,worker,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-worker' 'bun run build-types'",
+    "build-js": "concurrently -c 'auto' -n 'browser,node,bun,worker' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-worker'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "build-node": "bun build --splitting --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
     "build-bun": "bun build --splitting --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
+    "build-worker": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/worker-entry.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test"
@@ -27,6 +29,10 @@
       "bun": "./dist/bun.js",
       "types": "./dist/types.d.ts",
       "import": "./dist/node.js"
+    },
+    "./worker": {
+      "types": "./dist/worker-entry.d.ts",
+      "import": "./dist/worker-entry.js"
     }
   },
   "files": [

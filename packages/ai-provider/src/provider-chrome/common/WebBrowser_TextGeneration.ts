@@ -11,7 +11,7 @@ import type {
   TextGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import { ensureAvailable, getApi, snapshotStreamToTextDeltas } from "./WebBrowser_ChromeHelpers";
 import type { WebBrowserModelConfig } from "./WebBrowser_ModelSchema";
 

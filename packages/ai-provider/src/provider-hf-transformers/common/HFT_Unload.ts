@@ -4,21 +4,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, UnloadModelTaskRunInput, UnloadModelTaskRunOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  UnloadModelTaskRunInput,
+  UnloadModelTaskRunOutput,
+} from "@workglow/ai";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
-import { getPipelineCacheKey, removeCachedPipeline } from "./HFT_Pipeline";
+import { getPipelineCacheKey, loadTransformersSDK, removeCachedPipeline } from "./HFT_Pipeline";
+
+function hasBrowserCacheStorage(): boolean {
+  return (
+    typeof globalThis !== "undefined" &&
+    "caches" in globalThis &&
+    typeof (globalThis as unknown as { caches?: CacheStorage }).caches?.open === "function"
+  );
+}
 
 /**
- * Deletes all cache entries for a given model path
- * @param model_path - The model path to delete from cache
+ * Deletes all Cache Storage entries for a given model path (browser / Service Worker).
  */
-async function deleteModelCache(model_path: string): Promise<void> {
-  const cache = await caches.open(HTF_CACHE_NAME);
+async function deleteModelCacheFromBrowser(model_path: string): Promise<void> {
+  const cachesApi = (globalThis as unknown as { caches: CacheStorage }).caches;
+  const cache = await cachesApi.open(HTF_CACHE_NAME);
   const keys = await cache.keys();
   const prefix = `/${model_path}/`;
 
-  // Collect all matching requests first
   const requestsToDelete: Request[] = [];
   for (const request of keys) {
     const url = new URL(request.url);
@@ -27,7 +38,6 @@ async function deleteModelCache(model_path: string): Promise<void> {
     }
   }
 
-  // Delete all matching requests
   for (const request of requestsToDelete) {
     try {
       const deleted = await cache.delete(request);
@@ -41,6 +51,17 @@ async function deleteModelCache(model_path: string): Promise<void> {
       console.error(`Failed to delete cache entry: ${request.url}`, error);
     }
   }
+}
+
+/**
+ * Removes cached ONNX/tokenizer files from the filesystem (Node/Bun / worker).
+ */
+async function deleteModelCacheFromFilesystem(model: HfTransformersOnnxModelConfig): Promise<void> {
+  const { ModelRegistry } = await loadTransformersSDK();
+  const { pipeline: pipelineType, model_path, dtype } = model.provider_config;
+  await ModelRegistry.clear_pipeline_cache(pipelineType, model_path, {
+    ...(dtype ? { dtype } : {}),
+  });
 }
 
 /**
@@ -58,9 +79,12 @@ export const HFT_Unload: AiProviderRunFn<
     onProgress(50, "Pipeline removed from memory");
   }
 
-  // Delete model cache entries
   const model_path = model!.provider_config.model_path;
-  await deleteModelCache(model_path);
+  if (hasBrowserCacheStorage()) {
+    await deleteModelCacheFromBrowser(model_path);
+  } else {
+    await deleteModelCacheFromFilesystem(model!);
+  }
   onProgress(100, "Model cache deleted");
 
   return {

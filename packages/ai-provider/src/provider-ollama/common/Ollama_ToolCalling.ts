@@ -14,7 +14,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson } from "@workglow/util";
+import { getLogger, parsePartialJson } from "@workglow/util/worker";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 import { getOllamaModelName } from "./Ollama_ModelUtil";
 

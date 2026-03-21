@@ -12,7 +12,7 @@ import type {
 } from "@workglow/ai";
 import { PermanentJobError } from "@workglow/job-queue";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import { AIAvailability } from "./WebBrowser_ChromeAI";
 import { ensureAvailable, getApi, snapshotStreamToSnapshots } from "./WebBrowser_ChromeHelpers";
 import type { WebBrowserModelConfig } from "./WebBrowser_ModelSchema";

@@ -5,7 +5,7 @@
  */
 
 import type { PretrainedModelOptions, ProgressInfo } from "@huggingface/transformers";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 
 let _transformersSdk: typeof import("@huggingface/transformers") | undefined;

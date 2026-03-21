@@ -11,7 +11,7 @@ import type {
   StructuredGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { parsePartialJson } from "@workglow/util";
+import { parsePartialJson } from "@workglow/util/worker";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 import { getClient, getMaxTokens, getModelName } from "./Anthropic_Client";
 

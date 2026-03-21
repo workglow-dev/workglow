@@ -14,7 +14,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import { getLlamaCppSdk, getOrCreateTextContext, loadSdk } from "./LlamaCpp_Runtime";
 

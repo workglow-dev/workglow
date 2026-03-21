@@ -5,7 +5,7 @@
  */
 
 import type { AiProviderRunFn, ModelInfoTaskInput, ModelInfoTaskOutput } from "@workglow/ai";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { parseOnnxQuantizations } from "./HFT_OnnxDtypes";
 import { getPipelineCacheKey, hasCachedPipeline, loadTransformersSDK } from "./HFT_Pipeline";

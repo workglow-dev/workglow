@@ -16,7 +16,7 @@ import type {
   StructuredGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { parsePartialJson } from "@workglow/util";
+import { parsePartialJson } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
 import {

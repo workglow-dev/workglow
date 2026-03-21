@@ -10,7 +10,7 @@ import type {
   CountTokensTaskInput,
   CountTokensTaskOutput,
 } from "@workglow/ai";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import { getOrLoadModel } from "./LlamaCpp_Runtime";
 

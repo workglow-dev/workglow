@@ -5,7 +5,7 @@
  */
 
 import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
-import { globalServiceRegistry, WORKER_MANAGER, type JsonSchema } from "@workglow/util";
+import { globalServiceRegistry, WORKER_MANAGER, type JsonSchema } from "@workglow/util/worker";
 import type { ModelConfig } from "../model/ModelSchema";
 import type { AiProvider } from "./AiProvider";
 

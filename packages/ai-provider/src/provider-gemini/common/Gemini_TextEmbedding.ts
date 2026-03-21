@@ -6,7 +6,7 @@
 
 import type { TaskType } from "@google/generative-ai";
 import type { AiProviderRunFn, TextEmbeddingTaskInput, TextEmbeddingTaskOutput } from "@workglow/ai";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { getApiKey, getModelName, loadGeminiSDK } from "./Gemini_Client";
 

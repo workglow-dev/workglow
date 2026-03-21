@@ -10,7 +10,7 @@ import type {
   TextEmbeddingTaskInput,
   TextEmbeddingTaskOutput,
 } from "@workglow/ai";
-import { getLogger, TypedArray } from "@workglow/util";
+import { getLogger, TypedArray } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline } from "./HFT_Pipeline";
 

@@ -11,7 +11,7 @@ import type {
   StructuredGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { parsePartialJson } from "@workglow/util";
+import { parsePartialJson } from "@workglow/util/worker";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { getApiKey, getModelName, loadGeminiSDK } from "./Gemini_Client";
 import { sanitizeSchemaForGemini } from "./Gemini_Schema";

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
+import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util/worker";
 import { HFI_STREAM_TASKS, HFI_TASKS } from "./common/HFI_JobRunFns";
 import { HfInferenceProvider } from "./HfInferenceProvider";
 

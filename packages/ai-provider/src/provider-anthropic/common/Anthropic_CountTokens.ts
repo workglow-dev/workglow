@@ -10,7 +10,7 @@ import type {
   CountTokensTaskInput,
   CountTokensTaskOutput,
 } from "@workglow/ai";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 import { getClient, getModelName } from "./Anthropic_Client";
 

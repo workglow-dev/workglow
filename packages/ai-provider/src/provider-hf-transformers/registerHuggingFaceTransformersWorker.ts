@@ -10,7 +10,7 @@
  * `HFT_JobRunFns` / full task implementations.
  */
 
-import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util";
+import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util/worker";
 import { HFT_REACTIVE_TASKS, HFT_STREAM_TASKS, HFT_TASKS } from "./common/HFT_JobRunFns";
 import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
 import { loadTransformersSDK } from "./common/HFT_Pipeline";

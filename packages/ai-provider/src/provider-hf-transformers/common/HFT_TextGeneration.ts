@@ -12,7 +12,7 @@ import type {
   TextGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
 import {

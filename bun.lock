@@ -270,6 +270,7 @@
         "papaparse": "^5.5.3",
       },
       "devDependencies": {
+        "@modelcontextprotocol/sdk": "catalog:",
         "@types/papaparse": "^5.5.2",
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
@@ -277,6 +278,7 @@
         "@workglow/util": "workspace:*",
       },
       "peerDependencies": {
+        "@modelcontextprotocol/sdk": "catalog:",
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
@@ -333,12 +335,6 @@
         "@sroussey/json-schema-library": "^11.0.0",
         "@sroussey/json-schema-to-ts": "3.1.4",
       },
-      "peerDependencies": {
-        "@modelcontextprotocol/sdk": "catalog:",
-      },
-      "optionalPeers": [
-        "@modelcontextprotocol/sdk",
-      ],
     },
     "packages/workglow": {
       "name": "workglow",

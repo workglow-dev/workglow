@@ -2,8 +2,9 @@ const Worker = globalThis.Worker;
 const parentPort = self;
 export { Worker, parentPort };
 
-import { WorkerServerBase } from "./WorkerServerBase";
-import { createServiceToken, globalServiceRegistry } from "../di";
+import { WorkerServerBase, WORKER_SERVER } from "./WorkerServerBase";
+import { globalServiceRegistry } from "../di";
+export { WORKER_SERVER };
 export class WorkerServer extends WorkerServerBase {
   constructor() {
     parentPort?.addEventListener("message", async (event) => {
@@ -17,7 +18,5 @@ export class WorkerServer extends WorkerServerBase {
     super();
   }
 }
-
-export const WORKER_SERVER = createServiceToken<WorkerServer>("worker.server");
 
 globalServiceRegistry.register(WORKER_SERVER, () => new WorkerServer(), true);
