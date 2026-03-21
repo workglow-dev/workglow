@@ -22,7 +22,7 @@ export function setHftCacheDir(dir: string): void {
   }
 }
 
-export async function loadTransformersSDK(): Promise<typeof import("@huggingface/transformers")> {
+export async function loadTransformersSDK() {
   if (!_transformersSdk) {
     try {
       _transformersSdk = await import("@huggingface/transformers");

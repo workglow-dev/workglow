@@ -8,13 +8,13 @@
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
     "watch-js": "concurrently -c 'auto' -n 'code,browser' 'bun run watch-code' 'bun run watch-browser'",
     "watch-code": "bun build --watch --no-clear-screen --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/provider-anthropic/index.ts ./src/provider-anthropic/runtime.ts ./src/provider-gemini/index.ts ./src/provider-gemini/runtime.ts ./src/provider-hf-transformers/index.ts ./src/provider-hf-transformers/runtime.ts ./src/provider-llamacpp/index.ts ./src/provider-llamacpp/runtime.ts ./src/provider-hf-inference/index.ts ./src/provider-hf-inference/runtime.ts ./src/provider-ollama/index.ts ./src/provider-ollama/runtime.ts ./src/provider-openai/index.ts ./src/provider-openai/runtime.ts ./src/provider-chrome/index.ts ./src/provider-chrome/runtime.ts",
-    "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/provider-ollama/runtime.browser.ts ./src/provider-tf-mediapipe/index.ts ./src/provider-tf-mediapipe/runtime.ts ./src/provider-chrome/index.ts",
+    "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/provider-ollama/runtime.browser.ts ./src/provider-openai/index.browser.ts ./src/provider-openai/runtime.browser.ts ./src/provider-tf-mediapipe/index.ts ./src/provider-tf-mediapipe/runtime.ts ./src/provider-chrome/index.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "concurrently -c 'auto' -n 'code,browser,types' 'bun run build-code' 'bun run build-browser' 'bun run build-types'",
     "build-js": "concurrently -c 'auto' -n 'code,browser' 'bun run build-code' 'bun run build-browser'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-code": "bun build --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/provider-anthropic/index.ts ./src/provider-anthropic/runtime.ts ./src/provider-gemini/index.ts ./src/provider-gemini/runtime.ts ./src/provider-hf-transformers/index.ts ./src/provider-hf-transformers/runtime.ts ./src/provider-llamacpp/index.ts ./src/provider-llamacpp/runtime.ts ./src/provider-hf-inference/index.ts ./src/provider-hf-inference/runtime.ts ./src/provider-ollama/index.ts ./src/provider-ollama/runtime.ts ./src/provider-openai/index.ts ./src/provider-openai/runtime.ts ./src/provider-chrome/index.ts ./src/provider-chrome/runtime.ts",
-    "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/provider-ollama/runtime.browser.ts ./src/provider-tf-mediapipe/index.ts ./src/provider-tf-mediapipe/runtime.ts ./src/provider-chrome/index.ts",
+    "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/provider-ollama/runtime.browser.ts ./src/provider-openai/index.browser.ts ./src/provider-openai/runtime.browser.ts ./src/provider-tf-mediapipe/index.ts ./src/provider-tf-mediapipe/runtime.ts ./src/provider-chrome/index.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test"
@@ -64,10 +64,12 @@
       "import": "./dist/provider-ollama/runtime.js"
     },
     "./openai": {
+      "browser": "./dist/provider-openai/index.browser.js",
       "types": "./dist/provider-openai/index.d.ts",
       "import": "./dist/provider-openai/index.js"
     },
     "./openai/runtime": {
+      "browser": "./dist/provider-openai/runtime.browser.js",
       "types": "./dist/provider-openai/runtime.d.ts",
       "import": "./dist/provider-openai/runtime.js"
     },
@@ -116,6 +118,7 @@
     "@mediapipe/tasks-genai": "catalog:",
     "openai": "catalog:",
     "tiktoken": "catalog:",
+    "js-tiktoken": "catalog:",
     "@anthropic-ai/sdk": "catalog:",
     "@google/generative-ai": "catalog:",
     "node-llama-cpp": "catalog:",
@@ -142,6 +145,9 @@
       "optional": true
     },
     "tiktoken": {
+      "optional": true
+    },
+    "js-tiktoken": {
       "optional": true
     },
     "@anthropic-ai/sdk": {
@@ -192,6 +198,7 @@
     "node-llama-cpp": "catalog:",
     "ollama": "catalog:",
     "openai": "catalog:",
-    "tiktoken": "catalog:"
+    "tiktoken": "catalog:",
+    "js-tiktoken": "catalog:"
   }
 }

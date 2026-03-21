@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TextStreamer } from "@huggingface/transformers";
 import type { StreamEvent } from "@workglow/task-graph";
 
 export type StreamEventQueue<T> = {
@@ -77,10 +78,9 @@ export function createStreamEventQueue<T>(): StreamEventQueue<T> {
 export function createStreamingTextStreamer(
   tokenizer: any,
   queue: StreamEventQueue<StreamEvent<any>>,
-  transformers: typeof import("@huggingface/transformers")
+  textStreamer: typeof TextStreamer
 ) {
-  const { TextStreamer } = transformers;
-  return new TextStreamer(tokenizer, {
+  return new textStreamer(tokenizer, {
     skip_prompt: true,
     decode_kwargs: { skip_special_tokens: true },
     callback_function: (text: string) => {
@@ -95,11 +95,10 @@ export function createStreamingTextStreamer(
 export function createTextStreamer(
   tokenizer: any,
   updateProgress: (progress: number, message?: string, details?: any) => void,
-  transformers: typeof import("@huggingface/transformers")
+  textStreamer: typeof TextStreamer
 ) {
-  const { TextStreamer } = transformers;
   let count = 0;
-  return new TextStreamer(tokenizer, {
+  return new textStreamer(tokenizer, {
     skip_prompt: true,
     decode_kwargs: { skip_special_tokens: true },
     callback_function: (text: string) => {

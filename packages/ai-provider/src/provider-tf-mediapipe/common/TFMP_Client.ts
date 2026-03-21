@@ -7,7 +7,7 @@
 let _tasksText: typeof import("@mediapipe/tasks-text") | undefined;
 let _tasksVision: typeof import("@mediapipe/tasks-vision") | undefined;
 
-export async function loadTfmpTasksTextSDK(): Promise<typeof import("@mediapipe/tasks-text")> {
+export async function loadTfmpTasksTextSDK() {
   if (!_tasksText) {
     try {
       _tasksText = await import("@mediapipe/tasks-text");
@@ -20,7 +20,7 @@ export async function loadTfmpTasksTextSDK(): Promise<typeof import("@mediapipe/
   return _tasksText;
 }
 
-export async function loadTfmpTasksVisionSDK(): Promise<typeof import("@mediapipe/tasks-vision")> {
+export async function loadTfmpTasksVisionSDK() {
   if (!_tasksVision) {
     try {
       _tasksVision = await import("@mediapipe/tasks-vision");

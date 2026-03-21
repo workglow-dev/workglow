@@ -38,7 +38,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
   const isArrayInput = Array.isArray(input.prompt);
 
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   logger.debug("HFT TextGeneration: pipeline ready, generating text", {
     model: model?.provider_config.model_path,
@@ -47,7 +47,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
 
   const streamer = isArrayInput
     ? undefined
-    : createTextStreamer(generateText.tokenizer, onProgress, sdk);
+    : createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
 
   let results = await generateText(input.prompt as any, {
     ...(streamer ? { streamer } : {}),
@@ -81,10 +81,10 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextGenerationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, sdk);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
 
   const pipelinePromise = generateText(input.prompt as string, {
     streamer,

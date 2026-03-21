@@ -32,10 +32,10 @@ export const HFT_TextSummary: AiProviderRunFn<
   const isArrayInput = Array.isArray(input.text);
 
   const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
   const streamer = isArrayInput
     ? undefined
-    : createTextStreamer(generateSummary.tokenizer, onProgress, sdk);
+    : createTextStreamer(generateSummary.tokenizer, onProgress, TextStreamer);
 
   const result = await generateSummary(
     input.text as any,
@@ -75,10 +75,10 @@ export const HFT_TextSummary_Stream: AiProviderStreamFn<
     {},
     signal
   );
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextSummaryTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue, sdk);
+  const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue, TextStreamer);
 
   const pipelinePromise = generateSummary(
     input.text as string,

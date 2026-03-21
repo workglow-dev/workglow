@@ -6,10 +6,12 @@
 
 import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
+import type { Llama as LlamaInstance } from "node-llama-cpp";
+import type { LlamaModel, LlamaContext, LlamaEmbeddingContext } from "node-llama-cpp";
 
 let _sdk: typeof import("node-llama-cpp") | undefined;
 
-export async function loadSdk(): Promise<typeof import("node-llama-cpp")> {
+export async function loadSdk() {
   if (!_sdk) {
     try {
       _sdk = await import("node-llama-cpp");
@@ -22,17 +24,12 @@ export async function loadSdk(): Promise<typeof import("node-llama-cpp")> {
   return _sdk;
 }
 
-export function getLlamaCppSdk(): typeof import("node-llama-cpp") {
+export function getLlamaCppSdk() {
   if (!_sdk) {
     throw new Error("LlamaCpp SDK not loaded; call loadSdk() first");
   }
   return _sdk;
 }
-
-type LlamaInstance = Awaited<ReturnType<(typeof import("node-llama-cpp"))["getLlama"]>>;
-type LlamaModel = Awaited<ReturnType<LlamaInstance["loadModel"]>>;
-type LlamaContext = Awaited<ReturnType<LlamaModel["createContext"]>>;
-type LlamaEmbeddingContext = Awaited<ReturnType<LlamaModel["createEmbeddingContext"]>>;
 
 let llamaInstance: LlamaInstance | undefined;
 /** @internal Used by unload task */

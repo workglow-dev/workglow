@@ -13,17 +13,17 @@ import type {
 import { getLogger } from "@workglow/util/worker";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { getModelName } from "./OpenAI_Client";
-import type { Tiktoken, TiktokenModel } from "tiktoken";
+import type { Tiktoken, TiktokenModel } from "js-tiktoken";
 
-let _tiktoken: typeof import("tiktoken") | undefined;
+let _tiktoken: typeof import("js-tiktoken") | undefined;
 
 async function loadTiktoken() {
   if (!_tiktoken) {
     try {
-      _tiktoken = await import("tiktoken");
+      _tiktoken = await import("js-tiktoken");
     } catch {
       throw new Error(
-        "tiktoken is required for OpenAI token counting. Install it with: bun add tiktoken"
+        "js-tiktoken is required for OpenAI token counting in the browser. Install it with: bun add js-tiktoken"
       );
     }
   }
@@ -36,11 +36,11 @@ async function getEncoder(modelName: string) {
   const tiktoken = await loadTiktoken();
   if (!_encoderCache.has(modelName)) {
     try {
-      _encoderCache.set(modelName, tiktoken.encoding_for_model(modelName as TiktokenModel));
+      _encoderCache.set(modelName, tiktoken.encodingForModel(modelName as TiktokenModel));
     } catch {
       const fallback = "cl100k_base";
       if (!_encoderCache.has(fallback)) {
-        _encoderCache.set(fallback, tiktoken.get_encoding(fallback));
+        _encoderCache.set(fallback, tiktoken.getEncoding(fallback));
       }
       _encoderCache.set(modelName, _encoderCache.get(fallback)!);
     }

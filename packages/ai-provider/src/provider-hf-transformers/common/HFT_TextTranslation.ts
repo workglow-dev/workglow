@@ -32,10 +32,10 @@ export const HFT_TextTranslation: AiProviderRunFn<
   const isArrayInput = Array.isArray(input.text);
 
   const translate: TranslationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
   const streamer = isArrayInput
     ? undefined
-    : createTextStreamer(translate.tokenizer, onProgress, sdk);
+    : createTextStreamer(translate.tokenizer, onProgress, TextStreamer);
 
   const result = await translate(
     input.text as any,
@@ -71,10 +71,10 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextTranslationTaskOutput>> {
   const noopProgress = () => {};
   const translate: TranslationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextTranslationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(translate.tokenizer, queue, sdk);
+  const streamer = createStreamingTextStreamer(translate.tokenizer, queue, TextStreamer);
 
   const pipelinePromise = translate(
     input.text as string,

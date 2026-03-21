@@ -33,10 +33,10 @@ export const HFT_TextRewriter: AiProviderRunFn<
   const isArrayInput = Array.isArray(input.text);
 
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
   const streamer = isArrayInput
     ? undefined
-    : createTextStreamer(generateText.tokenizer, onProgress, sdk);
+    : createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
 
   if (isArrayInput) {
     const texts = input.text as string[];
@@ -86,10 +86,10 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, sdk);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
 
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + (input.text as string);
 

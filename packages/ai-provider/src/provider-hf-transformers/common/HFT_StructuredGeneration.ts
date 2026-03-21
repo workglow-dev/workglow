@@ -59,7 +59,7 @@ export const HFT_StructuredGeneration: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   const prompt = buildStructuredGenerationPrompt(input);
 
@@ -70,7 +70,7 @@ export const HFT_StructuredGeneration: AiProviderRunFn<
     add_generation_prompt: true,
   }) as string;
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, sdk);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
 
   let results = await generateText(formattedPrompt, {
     max_new_tokens: input.maxTokens ?? 1024,
@@ -102,7 +102,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
 ): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   const prompt = buildStructuredGenerationPrompt(input);
 
@@ -114,7 +114,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
   }) as string;
 
   const queue = createStreamEventQueue<StreamEvent<StructuredGenerationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, sdk);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
 
   let fullText = "";
 

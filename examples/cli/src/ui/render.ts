@@ -10,13 +10,11 @@ import { getCliTheme } from "../terminal/detectTerminalTheme";
 import { formatError, outputResult } from "../util";
 import type { SearchSelectItem, SearchSelectAppProps } from "./SearchSelectApp";
 import { CliThemeProvider } from "./CliThemeContext";
+import React from "react";
 
 export type { SearchSelectItem, SearchPage } from "./SearchSelectApp";
 
-function wrapWithCliTheme(
-  React: typeof import("react"),
-  node: React.ReactElement
-): React.ReactElement {
+function wrapWithCliTheme(node: React.ReactElement): React.ReactElement {
   return React.createElement(CliThemeProvider, {
     value: getCliTheme(),
     children: node,
@@ -65,7 +63,6 @@ export async function renderTaskRun(
 
     const instance = render(
       wrapWithCliTheme(
-        React,
         React.createElement(TaskRunApp, {
           task,
           taskType: Ctor.type,
@@ -103,7 +100,6 @@ export async function renderWorkflowRun(
 
     const instance = render(
       wrapWithCliTheme(
-        React,
         React.createElement(WorkflowRunApp, {
           graph,
           input,
@@ -139,7 +135,6 @@ export async function renderSchemaPrompt(
 
     const instance = render(
       wrapWithCliTheme(
-        React,
         React.createElement(SchemaPromptApp, {
           fields,
           onComplete,
@@ -175,7 +170,6 @@ export async function renderSearchSelect<T extends SearchSelectItem>(
 
     const instance = render(
       wrapWithCliTheme(
-        React,
         React.createElement(SearchSelectApp as any, {
           ...props,
           onSelect,
@@ -213,7 +207,6 @@ export async function renderSelectPrompt(
 
     const instance = render(
       wrapWithCliTheme(
-        React,
         React.createElement(SelectPromptApp, {
           message,
           options,

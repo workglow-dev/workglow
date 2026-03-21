@@ -5,7 +5,11 @@
  */
 
 import type { TextGenerationOutput, TextGenerationPipeline } from "@huggingface/transformers";
-import { buildToolDescription, filterValidToolCalls, toTextFlatMessages } from "@workglow/ai/worker";
+import {
+  buildToolDescription,
+  filterValidToolCalls,
+  toTextFlatMessages,
+} from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -81,7 +85,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
   const isArrayInput = Array.isArray(input.prompt);
 
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   if (isArrayInput) {
     const prompts = input.prompt as Array<
@@ -104,7 +108,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
         add_generation_prompt: true,
       }) as string;
 
-      const streamer = createTextStreamer(generateText.tokenizer, onProgress, sdk);
+      const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
 
       let results = await generateText(prompt, {
         max_new_tokens: input.maxTokens ?? 1024,
@@ -142,7 +146,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
     add_generation_prompt: true,
   }) as string;
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, sdk);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
 
   let results = await generateText(prompt, {
     max_new_tokens: input.maxTokens ?? 1024,
@@ -173,7 +177,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const sdk = await loadTransformersSDK();
+  const { TextStreamer } = await loadTransformersSDK();
 
   const messages = toTextFlatMessages(input);
 
@@ -189,7 +193,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   // the outer queue receives filtered text-delta events (markup stripped).
   const innerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
   const outerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, innerQueue, sdk);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, innerQueue, TextStreamer);
 
   let fullText = "";
   const filter = createToolCallMarkupFilter((text) => {
