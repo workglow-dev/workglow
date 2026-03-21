@@ -22,78 +22,78 @@
   "exports": {
     "./src/*": "./src/*",
     "./anthropic": {
-      "types": "./src/provider-anthropic/index.ts",
-      "import": "./src/provider-anthropic/index.ts"
+      "types": "./dist/provider-anthropic/index.d.ts",
+      "import": "./dist/provider-anthropic/index.js"
     },
     "./anthropic/runtime": {
-      "types": "./src/provider-anthropic/runtime.ts",
-      "import": "./src/provider-anthropic/runtime.ts"
+      "types": "./dist/provider-anthropic/runtime.d.ts",
+      "import": "./dist/provider-anthropic/runtime.js"
     },
     "./gemini": {
-      "types": "./src/provider-gemini/index.ts",
-      "import": "./src/provider-gemini/index.ts"
+      "types": "./dist/provider-gemini/index.d.ts",
+      "import": "./dist/provider-gemini/index.js"
     },
     "./gemini/runtime": {
-      "types": "./src/provider-gemini/runtime.ts",
-      "import": "./src/provider-gemini/runtime.ts"
+      "types": "./dist/provider-gemini/runtime.d.ts",
+      "import": "./dist/provider-gemini/runtime.js"
     },
     "./hf-transformers": {
-      "types": "./src/provider-hf-transformers/index.ts",
-      "import": "./src/provider-hf-transformers/index.ts"
+      "types": "./dist/provider-hf-transformers/index.d.ts",
+      "import": "./dist/provider-hf-transformers/index.js"
     },
     "./hf-transformers/runtime": {
-      "types": "./src/provider-hf-transformers/runtime.ts",
-      "import": "./src/provider-hf-transformers/runtime.ts"
+      "types": "./dist/provider-hf-transformers/runtime.d.ts",
+      "import": "./dist/provider-hf-transformers/runtime.js"
     },
     "./llamacpp": {
-      "types": "./src/provider-llamacpp/index.ts",
-      "import": "./src/provider-llamacpp/index.ts"
+      "types": "./dist/provider-llamacpp/index.d.ts",
+      "import": "./dist/provider-llamacpp/index.js"
     },
     "./llamacpp/runtime": {
-      "types": "./src/provider-llamacpp/runtime.ts",
-      "import": "./src/provider-llamacpp/runtime.ts"
+      "types": "./dist/provider-llamacpp/runtime.d.ts",
+      "import": "./dist/provider-llamacpp/runtime.js"
     },
     "./ollama": {
-      "browser": "./src/provider-ollama/index.browser.ts",
-      "types": "./src/provider-ollama/index.ts",
-      "import": "./src/provider-ollama/index.ts"
+      "browser": "./dist/provider-ollama/index.browser.js",
+      "types": "./dist/provider-ollama/index.d.ts",
+      "import": "./dist/provider-ollama/index.js"
     },
     "./ollama/runtime": {
-      "browser": "./src/provider-ollama/runtime.browser.ts",
-      "types": "./src/provider-ollama/runtime.ts",
-      "import": "./src/provider-ollama/runtime.ts"
+      "browser": "./dist/provider-ollama/runtime.browser.js",
+      "types": "./dist/provider-ollama/runtime.d.ts",
+      "import": "./dist/provider-ollama/runtime.js"
     },
     "./openai": {
-      "types": "./src/provider-openai/index.ts",
-      "import": "./src/provider-openai/index.ts"
+      "types": "./dist/provider-openai/index.d.ts",
+      "import": "./dist/provider-openai/index.js"
     },
     "./openai/runtime": {
-      "types": "./src/provider-openai/runtime.ts",
-      "import": "./src/provider-openai/runtime.ts"
+      "types": "./dist/provider-openai/runtime.d.ts",
+      "import": "./dist/provider-openai/runtime.js"
     },
     "./hf-inference": {
-      "types": "./src/provider-hf-inference/index.ts",
-      "import": "./src/provider-hf-inference/index.ts"
+      "types": "./dist/provider-hf-inference/index.d.ts",
+      "import": "./dist/provider-hf-inference/index.js"
     },
     "./hf-inference/runtime": {
-      "types": "./src/provider-hf-inference/runtime.ts",
-      "import": "./src/provider-hf-inference/runtime.ts"
+      "types": "./dist/provider-hf-inference/runtime.d.ts",
+      "import": "./dist/provider-hf-inference/runtime.js"
     },
     "./tf-mediapipe": {
-      "types": "./src/provider-tf-mediapipe/index.ts",
-      "import": "./src/provider-tf-mediapipe/index.ts"
+      "types": "./dist/provider-tf-mediapipe/index.d.ts",
+      "import": "./dist/provider-tf-mediapipe/index.js"
     },
     "./tf-mediapipe/runtime": {
-      "types": "./src/provider-tf-mediapipe/runtime.ts",
-      "import": "./src/provider-tf-mediapipe/runtime.ts"
+      "types": "./dist/provider-tf-mediapipe/runtime.d.ts",
+      "import": "./dist/provider-tf-mediapipe/runtime.js"
     },
     "./chrome": {
-      "types": "./src/provider-chrome/index.ts",
-      "import": "./src/provider-chrome/index.ts"
+      "types": "./dist/provider-chrome/index.d.ts",
+      "import": "./dist/provider-chrome/index.js"
     },
     "./chrome/runtime": {
-      "types": "./src/provider-chrome/runtime.ts",
-      "import": "./src/provider-chrome/runtime.ts"
+      "types": "./dist/provider-chrome/runtime.d.ts",
+      "import": "./dist/provider-chrome/runtime.js"
     }
   },
   "files": [

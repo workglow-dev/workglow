@@ -22,11 +22,11 @@
   },
   "exports": {
     ".": {
-      "react-native": "./src/browser.ts",
-      "browser": "./src/browser.ts",
-      "bun": "./src/bun.ts",
-      "types": "./src/types.ts",
-      "import": "./src/node.ts"
+      "react-native": "./dist/browser.js",
+      "browser": "./dist/browser.js",
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
+      "import": "./dist/node.js"
     }
   },
   "files": [
@@ -38,11 +38,15 @@
   },
   "peerDependencies": {
     "@workglow/job-queue": "workspace:*",
+    "@workglow/schema": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/util": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@workglow/job-queue": {
+      "optional": false
+    },
+    "@workglow/schema": {
       "optional": false
     },
     "@workglow/storage": {
@@ -54,6 +58,7 @@
   },
   "devDependencies": {
     "@workglow/job-queue": "workspace:*",
+    "@workglow/schema": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/util": "workspace:*"
   }

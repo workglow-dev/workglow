@@ -1,8 +1,8 @@
 {
-  "name": "@workglow/sqlite",
+  "name": "@workglow/schema",
   "type": "module",
   "version": "0.0.121",
-  "description": "SQLite database providing cross-platform database support for browser, Node.js, and Bun environments.",
+  "description": "Schema validation and compatibility utilities for Workglow task graphs.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
     "watch-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun'",
@@ -20,22 +20,6 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test"
   },
-  "peerDependencies": {
-    "@sqlite.org/sqlite-wasm": "catalog:",
-    "better-sqlite3": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "@sqlite.org/sqlite-wasm": {
-      "optional": false
-    },
-    "better-sqlite3": {
-      "optional": false
-    }
-  },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13"
-  },
-  "sideEffects": true,
   "exports": {
     ".": {
       "react-native": "./dist/browser.js",
@@ -43,22 +27,6 @@
       "bun": "./dist/bun.js",
       "types": "./dist/types.d.ts",
       "import": "./dist/node.js"
-    },
-    "./bun": {
-      "types": "./dist/bun.d.ts",
-      "import": "./dist/bun.js"
-    },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js"
-    },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
-    },
-    "./react-native": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
     }
   },
   "files": [
@@ -68,5 +36,18 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@sroussey/json-schema-library": "^11.0.0"
+  },
+  "peerDependencies": {
+    "@workglow/util": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@workglow/util": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@workglow/util": "workspace:*"
+  }
 }

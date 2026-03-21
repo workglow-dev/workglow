@@ -23,11 +23,11 @@
   },
   "exports": {
     ".": {
-      "react-native": "./src/browser.ts",
-      "browser": "./src/browser.ts",
-      "bun": "./src/bun.ts",
-      "types": "./src/types.ts",
-      "import": "./src/node.ts"
+      "react-native": "./dist/browser.js",
+      "browser": "./dist/browser.js",
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
+      "import": "./dist/node.js"
     }
   },
   "files": [
@@ -40,6 +40,7 @@
     "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
+    "@workglow/schema": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",
@@ -60,6 +61,9 @@
       "optional": false
     },
     "@workglow/job-queue": {
+      "optional": false
+    },
+    "@workglow/schema": {
       "optional": false
     },
     "@workglow/storage": {
@@ -94,6 +98,7 @@
     "@workglow/job-queue": "workspace:*",
     "@workglow/sqlite": "workspace:*",
     "@workglow/storage": "workspace:*",
+    "@workglow/schema": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
     "@workglow/util": "workspace:*",

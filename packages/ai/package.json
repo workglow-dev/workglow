@@ -24,15 +24,15 @@
   },
   "exports": {
     ".": {
-      "react-native": "./src/browser.ts",
-      "browser": "./src/browser.ts",
-      "bun": "./src/bun.ts",
-      "types": "./src/types.ts",
-      "import": "./src/node.ts"
+      "react-native": "./dist/browser.js",
+      "browser": "./dist/browser.js",
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
+      "import": "./dist/node.js"
     },
     "./worker": {
-      "types": "./src/worker.ts",
-      "import": "./src/worker.ts"
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
     }
   },
   "sideEffects": false,

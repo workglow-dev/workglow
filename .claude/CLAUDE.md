@@ -27,7 +27,7 @@ Bun workspaces + Turborepo. All packages live in `packages/`. Build order is man
 ### Dependency graph
 
 ```
-util, sqlite                          (foundation, no workglow deps)
+util, sqlite, schema                  (foundation; schema depends on util for types)
     ↓
 storage                               (KV, Tabular, Queue, Vector abstractions)
     ↓

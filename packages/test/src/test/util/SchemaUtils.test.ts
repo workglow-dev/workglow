@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { JsonSchema } from "@workglow/util";
 import {
   areObjectSchemasSemanticallyCompatible,
   areSemanticallyCompatible,
-  setLogger,
-} from "@workglow/util";
+} from "@workglow/schema";
+import type { JsonSchema } from "@workglow/util";
+import { setLogger } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

@@ -216,6 +216,19 @@
         "@workglow/sqlite",
       ],
     },
+    "packages/schema": {
+      "name": "@workglow/schema",
+      "version": "0.0.121",
+      "dependencies": {
+        "@sroussey/json-schema-library": "^11.0.0",
+      },
+      "devDependencies": {
+        "@workglow/util": "workspace:*",
+      },
+      "peerDependencies": {
+        "@workglow/util": "workspace:*",
+      },
+    },
     "packages/sqlite": {
       "name": "@workglow/sqlite",
       "version": "0.0.121",
@@ -254,11 +267,13 @@
       "version": "0.0.121",
       "devDependencies": {
         "@workglow/job-queue": "workspace:*",
+        "@workglow/schema": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
       },
       "peerDependencies": {
         "@workglow/job-queue": "workspace:*",
+        "@workglow/schema": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
       },
@@ -300,6 +315,7 @@
         "@workglow/ai-provider": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
+        "@workglow/schema": "workspace:*",
         "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
@@ -320,6 +336,7 @@
         "@workglow/ai-provider": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
+        "@workglow/schema": "workspace:*",
         "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
@@ -332,7 +349,6 @@
       "name": "@workglow/util",
       "version": "0.0.121",
       "dependencies": {
-        "@sroussey/json-schema-library": "^11.0.0",
         "@sroussey/json-schema-to-ts": "3.1.4",
       },
     },
@@ -888,6 +904,8 @@
     "@workglow/job-queue": ["@workglow/job-queue@workspace:packages/job-queue"],
 
     "@workglow/knowledge-base": ["@workglow/knowledge-base@workspace:packages/knowledge-base"],
+
+    "@workglow/schema": ["@workglow/schema@workspace:packages/schema"],
 
     "@workglow/sqlite": ["@workglow/sqlite@workspace:packages/sqlite"],
 

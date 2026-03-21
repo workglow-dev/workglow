@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { compileSchema, type SchemaNode } from "@workglow/schema";
 import {
-  compileSchema,
   deepEqual,
   EventEmitter,
-  SchemaNode,
   uuid4,
   type DataPortSchema,
   type ServiceRegistry,

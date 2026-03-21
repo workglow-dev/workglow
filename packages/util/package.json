@@ -27,18 +27,18 @@
   },
   "exports": {
     ".": {
-      "react-native": "./src/browser.ts",
-      "browser": "./src/browser.ts",
-      "bun": "./src/bun.ts",
-      "types": "./src/types.ts",
-      "import": "./src/node.ts"
+      "react-native": "./dist/browser.js",
+      "browser": "./dist/browser.js",
+      "bun": "./dist/bun.js",
+      "types": "./dist/types.d.ts",
+      "import": "./dist/node.js"
     },
     "./worker": {
-      "react-native": "./src/worker-browser.ts",
-      "browser": "./src/worker-browser.ts",
-      "bun": "./src/worker-bun.ts",
-      "types": "./src/worker-entry.ts",
-      "import": "./src/worker-node.ts"
+      "react-native": "./dist/worker-browser.js",
+      "browser": "./dist/worker-browser.js",
+      "bun": "./dist/worker-bun.js",
+      "types": "./dist/worker-entry.d.ts",
+      "import": "./dist/worker-node.js"
     }
   },
   "files": [
@@ -49,7 +49,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@sroussey/json-schema-library": "^11.0.0",
     "@sroussey/json-schema-to-ts": "3.1.4"
   }
 }
