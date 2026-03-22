@@ -1,5 +1,23 @@
 # @workglow/cli
 
+## 0.0.123
+
+### Features
+
+#### cli
+
+- add interactive task and workflow execution with enhanced rendering
+
+#### ai-provider
+
+- integrate js-tiktoken for OpenAI token counting in browser
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
 ## 0.0.122
 
 ### Features

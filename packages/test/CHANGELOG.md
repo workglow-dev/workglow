@@ -1,5 +1,17 @@
 # @workglow/test
 
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+#### schema
+
+- remove @workglow/schema package move to back to util
+
 ## 0.0.122
 
 ### Features

@@ -1,5 +1,7 @@
 # @workglow/sqlite
 
+## 0.0.123
+
 ## 0.0.122
 
 ### Features

@@ -1,5 +1,19 @@
 # @workglow/ai-provider
 
+## 0.0.123
+
+### Features
+
+#### ai-provider
+
+- integrate js-tiktoken for OpenAI token counting in browser
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
 ## 0.0.122
 
 ### Features

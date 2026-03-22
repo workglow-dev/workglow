@@ -1,5 +1,13 @@
 # @workglow/knowledge-base
 
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
 ## 0.0.122
 
 ### Features
