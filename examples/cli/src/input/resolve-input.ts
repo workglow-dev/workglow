@@ -5,7 +5,7 @@
  */
 
 import { readFile } from "fs/promises";
-import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util";
+import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util/schema";
 import { readStdin } from "../util";
 
 function parseJson(source: string, label: string): unknown {

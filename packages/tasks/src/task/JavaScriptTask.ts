@@ -5,7 +5,7 @@
  */
 
 import { CreateWorkflow, Task, TaskConfig, TaskConfigSchema, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { Interpreter } from "../util/interpreter";
 
 const configSchema = {

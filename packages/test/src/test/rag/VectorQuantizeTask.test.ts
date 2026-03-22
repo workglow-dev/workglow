@@ -5,7 +5,8 @@
  */
 
 import { vectorQuantize } from "@workglow/ai";
-import { TensorType, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { TensorType } from "@workglow/util/schema";
 import { describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

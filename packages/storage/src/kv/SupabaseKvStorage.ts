@@ -5,7 +5,8 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createServiceToken, JsonSchema } from "@workglow/util";
+import { JsonSchema } from "@workglow/util/schema";
+import { createServiceToken } from "@workglow/util";
 import { SupabaseTabularStorage } from "../tabular/SupabaseTabularStorage";
 import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
 import { KvViaTabularStorage } from "./KvViaTabularStorage";

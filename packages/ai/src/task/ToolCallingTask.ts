@@ -10,7 +10,8 @@ import {
   JobQueueTaskConfig,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema, ServiceRegistry } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { ServiceRegistry } from "@workglow/util";
 import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 import type { ToolDefinition } from "./ToolCallingUtils";

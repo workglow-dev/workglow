@@ -7,7 +7,7 @@
  * Re-exports context schemas and adds pure schema functions that operate on DataPortSchema.
  */
 
-import type { DataPortSchema, PropertySchema } from "@workglow/util";
+import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 
 import {
   createArraySchema,

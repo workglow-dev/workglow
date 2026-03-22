@@ -5,7 +5,7 @@
  */
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const MCP_REGISTRY_BASE = "https://registry.modelcontextprotocol.io/v0.1";
 

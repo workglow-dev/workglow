@@ -12,7 +12,7 @@ import {
   TaskAbortedError,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import Papa from "papaparse";
 import { FetchUrlTask, FetchUrlTaskOutput } from "./FetchUrlTask";
 

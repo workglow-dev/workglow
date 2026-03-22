@@ -14,3 +14,7 @@ export * from "@workglow/storage";
 export * from "@workglow/task-graph";
 export * from "@workglow/tasks";
 export * from "@workglow/util";
+export * from "@workglow/util/schema";
+export * from "@workglow/util/graph";
+export * from "@workglow/util/media";
+export * from "@workglow/util/compress";

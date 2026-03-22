@@ -17,7 +17,7 @@ import {
   TaskOutput,
   TaskStatus,
 } from "@workglow/task-graph";
-import { sleep, setLogger } from "@workglow/util";
+import { setLogger, sleep } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   FailingTask,

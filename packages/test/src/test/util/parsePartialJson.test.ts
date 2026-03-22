@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { parsePartialJson, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { parsePartialJson } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

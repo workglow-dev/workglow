@@ -17,7 +17,8 @@ import {
   TaskStatus,
 } from "@workglow/task-graph";
 import { ArrayTask } from "@workglow/tasks";
-import { ConvertAllToOptionalArray, DataPortSchema, setLogger } from "@workglow/util";
+import { ConvertAllToOptionalArray, setLogger } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

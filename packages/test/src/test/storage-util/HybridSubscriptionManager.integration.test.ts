@@ -5,7 +5,7 @@
  */
 
 import { ChangePayloadFactory, HybridSubscriptionManager } from "@workglow/storage";
-import { sleep, setLogger } from "@workglow/util";
+import { setLogger, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

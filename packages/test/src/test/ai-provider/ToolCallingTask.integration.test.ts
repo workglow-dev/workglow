@@ -20,7 +20,8 @@ import {
   registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
-import { JsonSchema, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { JsonSchema } from "@workglow/util/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getTestingLogger } from "../../binding/TestingLogger";

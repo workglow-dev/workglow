@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, FromSchema, JsonSchema } from "@workglow/util";
+import type { DataPortSchema, FromSchema, JsonSchema } from "@workglow/util/schema";
 import { EntitySchema } from "../document/DocumentSchema";
 
 /**

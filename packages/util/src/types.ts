@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Types entry for the "." export — must match what common.ts exports
 export * from "./common";
-export * from "./compress/compress.node";
-export * from "./media/image.browser";
 export * from "./worker/Worker.bun";

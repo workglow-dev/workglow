@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, JsonSchema } from "@workglow/util";
+import type { DataPortSchema, JsonSchema } from "@workglow/util/schema";
 
 /**
  * Stream mode determines how a task's streaming output is interpreted:

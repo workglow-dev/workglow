@@ -59,6 +59,14 @@ Types built with `tsc` (composite + incremental). Conditional exports in `packag
 
 Exception: `ai-provider` builds per-provider sub-paths (`./anthropic`, `./openai`, `./google-gemini`, etc.) instead of browser/node/bun.
 
+Exception: `util` has multiple named exports beyond `"."`:
+- `@workglow/util` — core infrastructure (DI, events, logging, telemetry, credentials, crypto, utilities)
+- `@workglow/util/schema` — JSON Schema types/validation + vector/tensor types and math
+- `@workglow/util/graph` — graph data structures (Graph, DirectedGraph, DAG)
+- `@workglow/util/worker` — lightweight worker entry (re-exports DI, logging, worker infra)
+- `@workglow/util/media` — platform-specific image handling
+- `@workglow/util/compress` — platform-specific compression
+
 ## Code style
 
 ### TypeScript rules (from `.cursor/rules/`)

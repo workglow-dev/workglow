@@ -12,7 +12,8 @@ import {
   type StreamEvent,
   type TaskIdType,
 } from "@workglow/task-graph";
-import { DataPortSchema, sleep, setLogger } from "@workglow/util";
+import { setLogger, sleep } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

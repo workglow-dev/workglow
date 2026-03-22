@@ -5,7 +5,7 @@
  */
 
 import { DataPorts } from "@workglow/task-graph";
-import { parseDataUri } from "@workglow/util";
+import { parseDataUri } from "@workglow/util/media";
 import type { ToolCall, ToolCalls, ToolDefinition } from "./ToolCallingUtils";
 
 // ========================================================================

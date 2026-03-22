@@ -5,7 +5,9 @@
  */
 
 import { type BaseTabularStorage } from "@workglow/storage";
-import { compress, DataPortSchemaObject, decompress, makeFingerprint } from "@workglow/util";
+import { DataPortSchemaObject } from "@workglow/util/schema";
+import { compress, decompress } from "@workglow/util/compress";
+import { makeFingerprint } from "@workglow/util";
 import { TaskInput, TaskOutput } from "../task/TaskTypes";
 import { TaskOutputRepository } from "./TaskOutputRepository";
 

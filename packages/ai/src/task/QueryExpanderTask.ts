@@ -11,7 +11,7 @@ import {
   Task,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const QueryExpansionMethod = {
   MULTI_QUERY: "multi-query",

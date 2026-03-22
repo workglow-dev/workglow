@@ -12,3 +12,4 @@
  */
 export * from "./common/OpenAI_Client";
 export * from "./registerOpenAiInline.browser";
+export * from "./registerOpenAiWorker.browser";

@@ -9,16 +9,30 @@
 
 import type { Client } from "@modelcontextprotocol/sdk/client";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { DataPortSchemaObject } from "@workglow/util";
+import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { createServiceToken, globalServiceRegistry } from "@workglow/util";
+import type { McpAuthConfig } from "./McpAuthTypes";
 
-/** Config passed to `mcpClientFactory.create` (transport union differs by platform build). */
-export type McpConnectionConfig = Record<string, unknown>;
+/** Configuration for connecting to an MCP server (superset of all platform transports). */
+export interface McpServerConfig {
+  readonly transport?: string;
+  readonly server_url?: string;
+  // stdio-only (node/bun)
+  readonly command?: string;
+  readonly args?: string[];
+  readonly env?: Readonly<Record<string, string>>;
+  readonly auth?: McpAuthConfig;
+  // Flat auth properties from schema (used when config comes from JSON Schema forms)
+  readonly auth_type?: string;
+  // External auth provider — when set, bypasses internal auth resolution for OAuth flows
+  readonly authProvider?: OAuthClientProvider;
+}
 
 export interface McpTaskDeps {
   readonly mcpClientFactory: {
     readonly create: (
-      config: McpConnectionConfig,
+      config: McpServerConfig,
       signal?: AbortSignal
     ) => Promise<{ client: Client; transport: Transport }>;
   };

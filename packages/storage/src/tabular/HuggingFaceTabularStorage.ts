@@ -4,12 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  createServiceToken,
-  DataPortSchemaObject,
-  FromSchema,
-  TypedArraySchemaOptions,
-} from "@workglow/util";
+import { DataPortSchemaObject, FromSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
+import { createServiceToken } from "@workglow/util";
 import { BaseTabularStorage, ClientProvidedKeysOption } from "./BaseTabularStorage";
 import {
   AnyTabularStorage,

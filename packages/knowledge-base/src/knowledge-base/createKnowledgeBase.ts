@@ -5,7 +5,7 @@
  */
 
 import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
-import type { TypedArray } from "@workglow/util";
+import type { TypedArray } from "@workglow/util/schema";
 import { ChunkVectorPrimaryKey, ChunkVectorStorageSchema } from "../chunk/ChunkVectorStorageSchema";
 import type { ChunkVectorStorage } from "../chunk/ChunkVectorStorageSchema";
 import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentStorageSchema";

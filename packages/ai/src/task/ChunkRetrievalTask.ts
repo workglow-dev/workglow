@@ -19,7 +19,7 @@ import {
   TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 import { TextEmbeddingTask } from "./TextEmbeddingTask";
 import type { ChunkSearchResult } from "@workglow/knowledge-base";

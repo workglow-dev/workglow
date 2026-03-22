@@ -5,7 +5,7 @@
  */
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 import type { ModelRecord } from "../model/ModelSchema";
 

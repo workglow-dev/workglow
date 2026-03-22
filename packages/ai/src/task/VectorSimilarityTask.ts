@@ -13,7 +13,7 @@ import {
   jaccardSimilarity,
   TypedArraySchema,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 
 export const SimilarityFn = {
   COSINE: "cosine",

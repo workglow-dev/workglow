@@ -13,7 +13,7 @@ import {
   type TaskConfig,
 } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { assistantMessage, toolMessage, toolSourceDefinitions, userMessage } from "./AgentTypes";
 import type { AgentHooks, ChatMessage, ToolSource, UserContentBlock } from "./AgentTypes";
 import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";

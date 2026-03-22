@@ -5,7 +5,7 @@
  */
 
 import { TaskRegistry } from "@workglow/task-graph";
-import type { DataPortSchemaObject } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
 import { formatError, formatTable, outputResult } from "../util";
 import {

@@ -15,7 +15,7 @@ import type {
 } from "@workglow/ai";
 import { Task, TaskRegistry } from "@workglow/task-graph";
 import type { IExecuteContext } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 // ========================================================================

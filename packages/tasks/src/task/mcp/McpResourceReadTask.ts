@@ -12,8 +12,8 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { getMcpTaskDeps, type McpConnectionConfig } from "../../util/McpTaskDeps";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const contentItemSchema = {
   anyOf: [
@@ -115,7 +115,7 @@ export class McpResourceReadTask extends Task<
   ): Promise<McpResourceReadTaskOutput> {
     const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(
-      this.config as unknown as McpConnectionConfig,
+      this.config as McpServerConfig,
       context.signal
     );
     try {

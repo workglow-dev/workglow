@@ -6,13 +6,12 @@
 
 import { Sqlite } from "@workglow/sqlite";
 import {
-  createServiceToken,
   DataPortSchemaObject,
   FromSchema,
   JsonSchema,
   TypedArraySchemaOptions,
-  uuid4,
-} from "@workglow/util";
+} from "@workglow/util/schema";
+import { createServiceToken, uuid4 } from "@workglow/util";
 import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import { ClientProvidedKeysOption, KeyGenerationStrategy } from "./BaseTabularStorage";
 import {

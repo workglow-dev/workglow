@@ -7,10 +7,10 @@
 import {
   DataPortSchemaNonBoolean,
   TypedArray,
-  uuid4,
   VectorFromSchema,
   type DataPortSchema,
-} from "@workglow/util";
+} from "@workglow/util/schema";
+import { uuid4 } from "@workglow/util";
 
 import {
   GraphAsTask,

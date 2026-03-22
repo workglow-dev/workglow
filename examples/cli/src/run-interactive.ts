@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ITask, Workflow, WorkflowRunConfig } from "@workglow/task-graph";
+import type { ITask, IWorkflow, WorkflowRunConfig } from "@workglow/task-graph";
 import { detectCliTheme, setCliTheme } from "./terminal/detectTerminalTheme";
 import { renderTaskInstanceRun, renderWorkflowRun } from "./ui/render";
 
@@ -14,10 +14,11 @@ function taskStaticType(task: ITask): string {
 }
 
 /**
- * Runs a {@link Workflow} with an Ink progress UI when stdout is a TTY; otherwise `workflow.run()`.
+ * Runs an {@link IWorkflow} (including values returned from {@link pipe}) with an Ink progress UI
+ * when stdout is a TTY; otherwise `workflow.run()`.
  */
 export async function runWorkflow(
-  workflow: Workflow,
+  workflow: IWorkflow,
   input: Record<string, unknown> = {},
   config?: WorkflowRunConfig
 ): Promise<unknown> {

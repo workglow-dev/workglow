@@ -12,7 +12,7 @@ import {
   PermanentJobError,
 } from "@workglow/job-queue";
 import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
-import type { JsonSchema } from "@workglow/util";
+import type { JsonSchema } from "@workglow/util/schema";
 import type { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 

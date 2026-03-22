@@ -10,8 +10,8 @@ import type {
   FromSchema,
   TypedArray,
   TypedArraySchemaOptions,
-} from "@workglow/util";
-import { cosineSimilarity } from "@workglow/util";
+} from "@workglow/util/schema";
+import { cosineSimilarity } from "@workglow/util/schema";
 import { SqliteTabularStorage } from "../tabular/SqliteTabularStorage";
 import {
   getMetadataProperty,

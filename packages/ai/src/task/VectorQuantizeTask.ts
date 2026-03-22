@@ -13,7 +13,7 @@ import {
   TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 
 const inputSchema = {
   type: "object",

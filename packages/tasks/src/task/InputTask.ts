@@ -13,7 +13,7 @@ import {
   type StreamEvent,
   type StreamFinish,
 } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 
 export type InputTaskInput = Record<string, unknown>;
 export type InputTaskOutput = Record<string, unknown>;

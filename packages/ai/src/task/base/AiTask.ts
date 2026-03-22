@@ -18,7 +18,8 @@ import {
   type TaskOutput,
   hasStructuredOutput,
 } from "@workglow/task-graph";
-import { type JsonSchema, type ServiceRegistry } from "@workglow/util";
+import type { JsonSchema } from "@workglow/util/schema";
+import type { ServiceRegistry } from "@workglow/util";
 
 import { AiJob, AiJobInput } from "../../job/AiJob";
 import { MODEL_REPOSITORY } from "../../model/ModelRegistry";

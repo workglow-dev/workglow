@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type DataPortSchema, type FromSchema, StripJSONSchema } from "@workglow/util";
+import { type DataPortSchema, type FromSchema, StripJSONSchema } from "@workglow/util/schema";
 import type { Task } from "./Task";
 
 /**

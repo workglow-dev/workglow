@@ -5,13 +5,13 @@
  */
 
 import { Sqlite } from "@workglow/sqlite";
-import { cosineSimilarity } from "@workglow/util";
+import { cosineSimilarity } from "@workglow/util/schema";
 import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 import { SqliteTabularStorage } from "../tabular/SqliteTabularStorage";
 import {
   getMetadataProperty,

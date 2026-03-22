@@ -9,7 +9,7 @@ import {
   TypedArraySchemaOptions,
   type DataPortSchemaObject,
   type FromSchema,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 
 /**
  * Schema for storing documents in tabular storage

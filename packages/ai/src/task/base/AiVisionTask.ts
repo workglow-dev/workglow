@@ -9,7 +9,7 @@
  */
 
 import { JobQueueTaskConfig, TaskInput, type TaskOutput } from "@workglow/task-graph";
-import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util";
+import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";
 import type { ModelConfig } from "../../model/ModelSchema";

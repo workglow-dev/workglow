@@ -12,7 +12,7 @@ import {
 } from "@workglow/ai";
 import type { ToolDefinition } from "@workglow/ai";
 import { Task, TaskRegistry } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 const sampleTools: ToolDefinition[] = [

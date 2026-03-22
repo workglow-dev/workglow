@@ -6,12 +6,12 @@
 
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import {
-  createServiceToken,
   DataPortSchemaObject,
   FromSchema,
   JsonSchema,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
+import { createServiceToken } from "@workglow/util";
 import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import { ClientProvidedKeysOption } from "./BaseTabularStorage";
 import {

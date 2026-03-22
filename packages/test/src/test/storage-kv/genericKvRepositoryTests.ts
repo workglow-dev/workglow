@@ -5,7 +5,7 @@
  */
 
 import { DefaultKeyValueSchema, IKvStorage } from "@workglow/storage";
-import { FromSchema, JsonSchema } from "@workglow/util";
+import { FromSchema, JsonSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 export function runGenericKvRepositoryTests(

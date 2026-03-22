@@ -9,8 +9,8 @@ import type {
   FromSchema,
   TypedArray,
   TypedArraySchemaOptions,
-} from "@workglow/util";
-import { cosineSimilarity } from "@workglow/util";
+} from "@workglow/util/schema";
+import { cosineSimilarity } from "@workglow/util/schema";
 import { InMemoryTabularStorage } from "../tabular/InMemoryTabularStorage";
 import {
   getMetadataProperty,

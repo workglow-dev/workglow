@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import { IteratorTask, IteratorTaskConfig, iteratorTaskConfigSchema } from "./IteratorTask";

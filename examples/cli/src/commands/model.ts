@@ -20,7 +20,7 @@ import {
 import { LlamaCppModelRecordSchema } from "@workglow/ai-provider/llamacpp";
 import { OllamaModelRecordSchema } from "@workglow/ai-provider/ollama";
 import { OpenAiModelRecordSchema } from "@workglow/ai-provider/openai";
-import type { DataPortSchemaObject } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";

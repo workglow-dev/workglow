@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { inner, magnitude, normalize, normalizeNumberArray, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { inner, magnitude, normalize, normalizeNumberArray } from "@workglow/util/schema";
 import { describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

@@ -5,7 +5,7 @@
  */
 
 import { ConditionalTask, Dataflow, TaskGraph, TaskStatus } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";
 
 import {

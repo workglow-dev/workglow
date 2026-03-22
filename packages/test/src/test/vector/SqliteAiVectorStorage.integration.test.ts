@@ -7,7 +7,7 @@
 import { Sqlite } from "@workglow/sqlite";
 import { SqliteAiVectorStorage } from "@workglow/storage";
 import { setLogger } from "@workglow/util";
-import type { DataPortSchemaObject } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

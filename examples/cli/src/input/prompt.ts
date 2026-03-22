@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util";
+import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util/schema";
 import { getNestedValue } from "../util";
 import { deepMerge } from "./resolve-input";
 

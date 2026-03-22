@@ -11,12 +11,11 @@ import { Client } from "@modelcontextprotocol/sdk/client";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 import { getGlobalCredentialStore } from "@workglow/util";
 import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 import { buildAuthConfig, mcpAuthConfigSchema } from "./McpAuthTypes";
 import type { McpAuthConfig } from "./McpAuthTypes";
-import type { McpConnectionConfig } from "./McpTaskDeps";
+import type { McpServerConfig } from "./McpTaskDeps";
 
 export const mcpTransportTypes = ["streamable-http", "sse"] as const;
 
@@ -54,25 +53,14 @@ export const mcpServerConfigSchema = {
 
 export type McpTransportType = (typeof mcpTransportTypes)[number];
 
-export interface McpServerConfig {
-  transport: McpTransportType;
-  server_url?: string;
-  auth?: McpAuthConfig;
-  // Flat auth properties from schema (used when config comes from JSON Schema forms)
-  auth_type?: string;
-  // External auth provider — when set, bypasses internal auth resolution for OAuth flows
-  authProvider?: OAuthClientProvider;
-}
-
 export async function createMcpClient(
-  config: McpConnectionConfig,
+  config: McpServerConfig,
   signal?: AbortSignal
 ): Promise<{ client: Client; transport: Transport }> {
-  const typed = config as unknown as McpServerConfig;
   let transport: Transport;
 
   // Resolve auth config: prefer structured `auth` object, fall back to flat props
-  let auth: McpAuthConfig | undefined = typed.auth ?? buildAuthConfig({ ...typed });
+  let auth: McpAuthConfig | undefined = config.auth ?? buildAuthConfig({ ...config });
 
   // Resolve credential store keys to actual secret values
   if (auth && auth.type !== "none") {
@@ -81,9 +69,9 @@ export async function createMcpClient(
 
   // Build auth provider for OAuth flows (external provider takes precedence)
   const authProvider =
-    typed.authProvider ??
+    config.authProvider ??
     (auth && auth.type !== "none" && auth.type !== "bearer"
-      ? createAuthProvider(auth, typed.server_url ?? "", getGlobalCredentialStore())
+      ? createAuthProvider(auth, config.server_url ?? "", getGlobalCredentialStore())
       : undefined);
 
   // Build request headers (SDK sets MCP-Protocol-Version automatically)
@@ -92,23 +80,23 @@ export async function createMcpClient(
   };
   const requestInit = { headers };
 
-  switch (typed.transport) {
+  switch (config.transport) {
     case "sse": {
-      transport = new SSEClientTransport(new URL(typed.server_url!), {
+      transport = new SSEClientTransport(new URL(config.server_url!), {
         authProvider,
         requestInit,
       });
       break;
     }
     case "streamable-http": {
-      transport = new StreamableHTTPClientTransport(new URL(typed.server_url!), {
+      transport = new StreamableHTTPClientTransport(new URL(config.server_url!), {
         authProvider,
         requestInit,
       });
       break;
     }
     default:
-      throw new Error(`Unsupported transport type: ${typed.transport}`);
+      throw new Error(`Unsupported transport type: ${config.transport}`);
   }
 
   const client = new Client({ name: "workglow-mcp-client", version: "1.0.0" });
@@ -127,7 +115,7 @@ export async function createMcpClient(
     await client.connect(transport);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const url = typed.server_url ?? "";
+    const url = config.server_url ?? "";
     const is405 =
       message.includes("405") ||
       message.includes("Method Not Allowed") ||

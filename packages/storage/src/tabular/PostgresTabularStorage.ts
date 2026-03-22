@@ -5,13 +5,13 @@
  */
 
 import {
-  createServiceToken,
   DataPortSchemaObject,
   FromSchema,
   JsonSchema,
   type TypedArray,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
+import { createServiceToken } from "@workglow/util";
 import type { Pool } from "pg";
 import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import { ClientProvidedKeysOption } from "./BaseTabularStorage";

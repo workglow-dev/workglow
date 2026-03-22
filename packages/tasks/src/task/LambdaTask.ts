@@ -17,7 +17,7 @@ import {
   TaskOutput,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util/schema";
 
 export const lambdaTaskConfigSchema = {
   type: "object",

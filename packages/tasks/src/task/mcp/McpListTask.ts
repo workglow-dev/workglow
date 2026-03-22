@@ -5,8 +5,8 @@
  */
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import { getMcpTaskDeps } from "../../util/McpTaskDeps";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
 
@@ -171,7 +171,7 @@ const outputSchemaAll = {
 
 export type McpListTaskOutput = FromSchema<typeof outputSchemaAll>;
 
-/** MCP list input (transport fields depend on platform; see static inputSchema()). */
+/** MCP list input (transport + server config fields, plus task-specific fields like list_type). */
 export type McpListTaskInput = Record<string, unknown>;
 
 export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskConfig> {
@@ -241,7 +241,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
 
   async execute(input: McpListTaskInput, context: IExecuteContext): Promise<McpListTaskOutput> {
     const { mcpClientFactory } = getMcpTaskDeps();
-    const { client } = await mcpClientFactory.create(input, context.signal);
+    const { client } = await mcpClientFactory.create(input as McpServerConfig, context.signal);
     const listType = input.list_type;
     try {
       switch (listType) {

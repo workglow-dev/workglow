@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, EventEmitter, ServiceRegistry } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import type { EventEmitter, ServiceRegistry } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ITaskGraph } from "../task-graph/ITaskGraph";
 import { IWorkflow } from "../task-graph/IWorkflow";

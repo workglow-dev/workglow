@@ -12,8 +12,8 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { getMcpTaskDeps, type McpConnectionConfig } from "../../util/McpTaskDeps";
-import { DataPortSchema } from "@workglow/util";
+import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema } from "@workglow/util/schema";
 import { mcpList, type McpListTaskInput } from "./McpListTask";
 
 const annotationsSchema = {
@@ -247,7 +247,7 @@ export class McpToolCallTask extends Task<
 
     const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(
-      this.config as unknown as McpConnectionConfig,
+      this.config as McpServerConfig,
       context.signal
     );
     try {

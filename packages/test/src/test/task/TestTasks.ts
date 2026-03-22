@@ -25,7 +25,8 @@ import {
   TaskOutput,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, sleep } from "@workglow/util";
+import { sleep } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util/schema";
 
 /**
  * Standard input type for basic test tasks

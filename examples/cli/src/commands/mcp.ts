@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { searchMcpRegistryPage, type McpSearchResultItem } from "@workglow/tasks";
 import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";

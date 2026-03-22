@@ -6,8 +6,8 @@
 
 import "fake-indexeddb/auto";
 import { IndexedDbVectorStorage } from "@workglow/storage";
-import type { DataPortSchemaObject } from "@workglow/util";
-import { uuid4, setLogger } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
+import { setLogger, uuid4 } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

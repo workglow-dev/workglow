@@ -5,8 +5,8 @@
  */
 
 import { Dataflow, Task, TaskGraph, TaskStatus, Workflow } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
-import { DirectedAcyclicGraph } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { DirectedAcyclicGraph } from "@workglow/util/graph";
 
 type Config = Record<string, unknown>;
 
