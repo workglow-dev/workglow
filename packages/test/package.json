@@ -1,6 +1,7 @@
 {
   "name": "@workglow/test",
   "type": "module",
+  "private": true,
   "version": "0.0.124",
   "description": "Testing utilities and test suites for Workglow packages, providing comprehensive testing infrastructure.",
   "scripts": {
@@ -104,8 +105,5 @@
     "pg": "catalog:",
     "vitest": "^4.1.0",
     "@modelcontextprotocol/sdk": "catalog:"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }
