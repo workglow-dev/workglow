@@ -5,20 +5,21 @@
   "description": "Utility functions and shared types for Workglow, providing common functionality across all packages.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-js": "concurrently -c 'auto' -n 'browser,node,bun,worker,schema,graph,media-b,media-n,compress-b,compress-n' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun' 'bun run watch-worker' 'bun run watch-schema' 'bun run watch-graph' 'bun run watch-media-browser' 'bun run watch-media-node' 'bun run watch-compress-browser' 'bun run watch-compress-node'",
+    "watch-js": "concurrently -c 'auto' -n 'browser,node,bun,worker,schema,graph,debug,media-b,media-n,compress-b,compress-n' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun' 'bun run watch-worker' 'bun run watch-schema' 'bun run watch-graph' 'bun run watch-debug' 'bun run watch-media-browser' 'bun run watch-media-node' 'bun run watch-compress-browser' 'bun run watch-compress-node'",
     "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "watch-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
     "watch-bun": "bun build --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
     "watch-worker": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/worker-browser.ts",
     "watch-schema": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/schema-entry.ts",
     "watch-graph": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/graph-entry.ts",
+    "watch-debug": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/debug-entry.ts",
     "watch-media-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/media-browser.ts",
     "watch-media-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/media-node.ts",
     "watch-compress-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/compress-browser.ts",
     "watch-compress-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/compress-node.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
-    "build-package": "concurrently -c 'auto' -n 'browser,node,bun,worker,schema,graph,media,compress,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-worker' 'bun run build-schema' 'bun run build-graph' 'bun run build-media' 'bun run build-compress' 'bun run build-types'",
-    "build-js": "concurrently -c 'auto' -n 'browser,node,bun,worker,schema,graph,media,compress' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-worker' 'bun run build-schema' 'bun run build-graph' 'bun run build-media' 'bun run build-compress'",
+    "build-package": "bun run build-js && bun run build-types",
+    "build-js": "concurrently -c 'auto' -n 'browser,node,bun,worker,schema,graph,debug,media,compress' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-worker' 'bun run build-schema' 'bun run build-graph' 'bun run build-debug' 'bun run build-media' 'bun run build-compress'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "build-node": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
@@ -29,6 +30,7 @@
     "build-worker-bun": "bun build --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/worker-bun.ts",
     "build-schema": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/schema-entry.ts",
     "build-graph": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/graph-entry.ts",
+    "build-debug": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/debug-entry.ts",
     "build-media": "concurrently -c 'auto' -n 'media-browser,media-node' 'bun run build-media-browser' 'bun run build-media-node'",
     "build-media-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/media-browser.ts",
     "build-media-node": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist ./src/media-node.ts",
@@ -54,6 +56,13 @@
     "./graph": {
       "types": "./dist/graph-entry.d.ts",
       "import": "./dist/graph-entry.js"
+    },
+    "./debug": {
+      "react-native": "./dist/debug-entry.js",
+      "browser": "./dist/debug-entry.js",
+      "bun": "./dist/debug-entry.js",
+      "types": "./dist/debug-entry.d.ts",
+      "import": "./dist/debug-entry.js"
     },
     "./media": {
       "react-native": "./dist/media-browser.js",
@@ -87,5 +96,16 @@
   "dependencies": {
     "@sroussey/json-schema-library": "^11.0.0",
     "@sroussey/json-schema-to-ts": "3.1.4"
+  },
+  "devDependencies": {
+    "@workglow/task-graph": "workspace:*"
+  },
+  "peerDependencies": {
+    "@workglow/task-graph": "^0.0.124"
+  },
+  "peerDependenciesMeta": {
+    "@workglow/task-graph": {
+      "optional": true
+    }
   }
 }

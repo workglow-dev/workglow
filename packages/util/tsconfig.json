@@ -1,11 +1,19 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/common.ts", "src/worker-entry.ts", "src/schema-entry.ts", "src/graph-entry.ts", "src/*/**/*"],
+  "include": [
+    "src/common.ts",
+    "src/worker-entry.ts",
+    "src/schema-entry.ts",
+    "src/graph-entry.ts",
+    "src/debug-entry.ts",
+    "src/*/**/*"
+  ],
   "files": [
     "./src/types.ts",
     "./src/worker-entry.ts",
     "./src/schema-entry.ts",
     "./src/graph-entry.ts",
+    "./src/debug-entry.ts",
     "./src/media-browser.ts",
     "./src/media-node.ts",
     "./src/compress-browser.ts",

@@ -5,8 +5,8 @@
  */
 
 import { Dataflow, Task, TaskGraph, TaskStatus, Workflow } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util/schema";
-import { DirectedAcyclicGraph } from "@workglow/util/graph";
+import { DirectedAcyclicGraph } from "../../graph/directedAcyclicGraph";
+import type { DataPortSchema } from "../../json-schema/DataPortSchema";
 
 type Config = Record<string, unknown>;
 
@@ -901,7 +901,7 @@ declare global {
  *
  * @example
  * ```ts
- * import { installDevToolsFormatters } from "@workglow/debug";
+ * import { installDevToolsFormatters } from "@workglow/util/debug";
  *
  * // Call early in your app initialization
  * installDevToolsFormatters();

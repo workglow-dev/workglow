@@ -75,7 +75,6 @@
         "@uiw/react-codemirror": "^4.25.7",
         "@workglow/ai": "workspace:*",
         "@workglow/ai-provider": "workspace:*",
-        "@workglow/debug": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
         "@workglow/sqlite": "workspace:*",
@@ -181,14 +180,6 @@
         "openai",
         "tiktoken",
       ],
-    },
-    "packages/debug": {
-      "name": "@workglow/debug",
-      "version": "0.0.124",
-      "dependencies": {
-        "@workglow/task-graph": "workspace:*",
-        "@workglow/util": "workspace:*",
-      },
     },
     "packages/job-queue": {
       "name": "@workglow/job-queue",
@@ -338,6 +329,15 @@
         "@sroussey/json-schema-library": "^11.0.0",
         "@sroussey/json-schema-to-ts": "3.1.4",
       },
+      "devDependencies": {
+        "@workglow/task-graph": "workspace:*",
+      },
+      "peerDependencies": {
+        "@workglow/task-graph": "^0.0.124",
+      },
+      "optionalPeers": [
+        "@workglow/task-graph",
+      ],
     },
     "packages/workglow": {
       "name": "workglow",
@@ -345,7 +345,7 @@
       "dependencies": {
         "@workglow/ai": "workspace:*",
         "@workglow/ai-provider": "workspace:*",
-        "@workglow/debug": "workspace:*",
+        "@workglow/cli": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
         "@workglow/sqlite": "workspace:*",
@@ -886,8 +886,6 @@
     "@workglow/ai-provider": ["@workglow/ai-provider@workspace:packages/ai-provider"],
 
     "@workglow/cli": ["@workglow/cli@workspace:examples/cli"],
-
-    "@workglow/debug": ["@workglow/debug@workspace:packages/debug"],
 
     "@workglow/job-queue": ["@workglow/job-queue@workspace:packages/job-queue"],
 

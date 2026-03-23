@@ -16,7 +16,6 @@
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
     "@workglow/ai": "workspace:*",
-    "@workglow/debug": "workspace:*",
     "@workglow/knowledge-base": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
     "@workglow/storage": "workspace:*",

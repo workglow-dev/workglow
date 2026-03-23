@@ -10,7 +10,7 @@ The `workglow` package is a single entry point that re-exports all `@workglow/*`
 
 - **Single Import**: Access all Workglow APIs from one package
 - **Multi-Platform**: Browser, Node.js, and Bun entry points
-- **Debug in Browser**: `@workglow/debug` (Chrome DevTools formatters) is included only in the browser build
+- **Debug in Browser**: `@workglow/util/debug` (Chrome DevTools formatters) is included only in the browser build
 - **Provider Subpaths**: Opt-in provider subpath exports (`workglow/anthropic`, `workglow/openai`, etc.) preserve lazy SDK loading
 - **All Optional Peers Surfaced**: AI SDKs and storage backends are optional peer dependencies -- install only what you need
 
@@ -47,7 +47,7 @@ const result = await workflow.run();
 | `@workglow/ai`             | Core AI functionality, tasks, and model management                      |
 | `@workglow/ai-provider/*`  | AI provider integrations (use subpath imports, e.g. `/hf-transformers`) |
 | `@workglow/tasks`          | Pre-built utility tasks (arrays, scalars, vectors, etc.)                |
-| `@workglow/debug`          | Chrome DevTools custom formatters (browser only)                        |
+| `@workglow/util/debug`     | Chrome DevTools custom formatters (browser only)                        |
 
 ## Provider Subpath Exports
 
