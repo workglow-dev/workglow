@@ -20,13 +20,15 @@ export interface ModelSearchResultItem {
   readonly raw: unknown;
 }
 
+/** Static input schema (serialization, typing). Enum/labels for `provider` are added at runtime via {@link ModelSearchTask.inputSchema}. */
 const ModelSearchInputSchema = {
   type: "object",
   properties: {
     provider: {
       type: "string",
       title: "Provider",
-      description: "The model provider to search (e.g. ANTHROPIC, OPENAI, HF_TRANSFORMERS_ONNX)",
+      description:
+        "Registered AI provider id to use for model search. At runtime the workflow UI lists only providers that support model search.",
     },
     query: {
       type: "string",
@@ -37,6 +39,31 @@ const ModelSearchInputSchema = {
   required: ["provider", "query"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
+
+function buildModelSearchInputSchemaDynamic(): DataPortSchema {
+  const registry = getAiProviderRegistry();
+  const ids = registry.getProviderIdsForTask("ModelSearchTask");
+  const enumLabels: Record<string, string> = {};
+  for (const id of ids) {
+    enumLabels[id] = registry.getProvider(id)?.displayName ?? id;
+  }
+  const providerProp: Record<string, unknown> = {
+    ...(ModelSearchInputSchema.properties as { provider: Record<string, unknown> }).provider,
+  };
+  if (ids.length > 0) {
+    providerProp.enum = ids;
+    providerProp["x-ui-enum-labels"] = enumLabels;
+  }
+  return {
+    type: "object",
+    properties: {
+      provider: providerProp,
+      query: (ModelSearchInputSchema.properties as { query: unknown }).query,
+    },
+    required: [...ModelSearchInputSchema.required],
+    additionalProperties: ModelSearchInputSchema.additionalProperties,
+  } as DataPortSchema;
+}
 
 const ModelSearchOutputSchema = {
   type: "object",
@@ -67,22 +94,23 @@ export type ModelSearchTaskOutput = { results: ModelSearchResultItem[] };
 /**
  * Search for models using a provider-specific run function from the AiProviderRegistry.
  */
-export class ModelSearchTask extends Task<
-  ModelSearchTaskInput,
-  ModelSearchTaskOutput,
-  TaskConfig
-> {
+export class ModelSearchTask extends Task<ModelSearchTaskInput, ModelSearchTaskOutput, TaskConfig> {
   public static type = "ModelSearchTask";
   public static category = "AI Model";
   public static title = "Model Search";
   public static description = "Search for models using provider-specific search functions";
   public static cacheable = false;
+  public static hasDynamicSchemas = true;
 
   public static inputSchema(): DataPortSchema {
     return ModelSearchInputSchema satisfies DataPortSchema;
   }
   public static outputSchema(): DataPortSchema {
     return ModelSearchOutputSchema satisfies DataPortSchema;
+  }
+
+  public override inputSchema(): DataPortSchema {
+    return buildModelSearchInputSchemaDynamic();
   }
 
   async execute(

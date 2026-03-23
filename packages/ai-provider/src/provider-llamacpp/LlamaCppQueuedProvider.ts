@@ -16,6 +16,7 @@ import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class LlamaCppQueuedProvider extends QueuedAiProvider<LlamaCppModelConfig> {
   readonly name = LOCAL_LLAMACPP;
+  readonly displayName = "Local llama.cpp";
   readonly isLocal = true;
   readonly supportsBrowser = false;
 

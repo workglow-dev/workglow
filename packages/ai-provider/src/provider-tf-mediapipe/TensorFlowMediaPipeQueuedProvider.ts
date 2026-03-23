@@ -11,6 +11,7 @@ import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class TensorFlowMediaPipeQueuedProvider extends QueuedAiProvider<TFMPModelConfig> {
   readonly name = TENSORFLOW_MEDIAPIPE;
+  readonly displayName = "TensorFlow MediaPipe";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

@@ -31,6 +31,7 @@ const TEST_PROVIDER_NAME = "test-ai-provider";
 // A concrete test provider that accepts tasks via constructor (dependency injection)
 class TestProvider extends AiProvider {
   readonly name = TEST_PROVIDER_NAME;
+  readonly displayName = "Test AI Provider";
   readonly isLocal = false;
   readonly supportsBrowser = true;
   readonly taskTypes: readonly string[];
@@ -57,6 +58,7 @@ class TestProvider extends AiProvider {
 // A concrete test provider that auto-creates job queues (like the real providers)
 class TestQueuedProvider extends QueuedAiProvider {
   readonly name = TEST_PROVIDER_NAME;
+  readonly displayName = "Test AI Provider";
   readonly isLocal = false;
   readonly supportsBrowser = true;
   readonly taskTypes: readonly string[];
@@ -70,6 +72,7 @@ class TestQueuedProvider extends QueuedAiProvider {
 // A provider with static taskTypes (like the real providers)
 class StaticTaskTypesProvider extends AiProvider {
   readonly name = "static-task-types-provider";
+  readonly displayName = "Static Task Types";
   readonly isLocal = false;
   readonly supportsBrowser = true;
   readonly taskTypes = ["TextGenerationTask", "TextEmbeddingTask"] as const;
@@ -313,6 +316,51 @@ describe("AiProvider", () => {
       expect(providers.size).toBe(2);
       expect(providers.get(TEST_PROVIDER_NAME)).toBe(provider1);
       expect(providers.get("static-task-types-provider")).toBe(provider2);
+    });
+
+    test("getInstalledProviderIds returns sorted registered provider ids", async () => {
+      expect(aiProviderRegistry.getInstalledProviderIds()).toEqual([]);
+
+      const provider1 = new TestProvider({
+        TextGenerationTask: mock(() => Promise.resolve({})),
+      });
+      const provider2 = new StaticTaskTypesProvider({
+        TextGenerationTask: mock(() => Promise.resolve({})),
+      });
+
+      await provider1.register({ queue: { autoCreate: false } });
+      await provider2.register({ queue: { autoCreate: false } });
+
+      expect(aiProviderRegistry.getInstalledProviderIds()).toEqual([
+        "static-task-types-provider",
+        TEST_PROVIDER_NAME,
+      ]);
+    });
+
+    test("getProviderIdsForTask returns empty when no run fns exist for task", () => {
+      expect(aiProviderRegistry.getProviderIdsForTask("ModelSearchTask")).toEqual([]);
+    });
+
+    test("getProviderIdsForTask returns sorted provider ids with a run fn for that task", async () => {
+      const mockRun = mock(() => Promise.resolve({}));
+      const provider1 = new TestProvider({
+        TextGenerationTask: mockRun,
+      });
+      const provider2 = new StaticTaskTypesProvider({
+        TextGenerationTask: mockRun,
+        TextEmbeddingTask: mockRun,
+      });
+
+      await provider1.register({ queue: { autoCreate: false } });
+      await provider2.register({ queue: { autoCreate: false } });
+
+      expect(aiProviderRegistry.getProviderIdsForTask("TextGenerationTask")).toEqual([
+        "static-task-types-provider",
+        TEST_PROVIDER_NAME,
+      ]);
+      expect(aiProviderRegistry.getProviderIdsForTask("TextEmbeddingTask")).toEqual([
+        "static-task-types-provider",
+      ]);
     });
   });
 

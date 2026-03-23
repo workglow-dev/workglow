@@ -29,6 +29,7 @@ import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
  */
 export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {
   readonly name = ANTHROPIC;
+  readonly displayName = "Anthropic";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 

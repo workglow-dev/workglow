@@ -28,6 +28,7 @@ import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
  */
 export class OllamaProvider extends AiProvider<OllamaModelConfig> {
   readonly name = OLLAMA;
+  readonly displayName = "Ollama";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

@@ -16,6 +16,7 @@ import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class AnthropicQueuedProvider extends QueuedAiProvider<AnthropicModelConfig> {
   readonly name = ANTHROPIC;
+  readonly displayName = "Anthropic";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 

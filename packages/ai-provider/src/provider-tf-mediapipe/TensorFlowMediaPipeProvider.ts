@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai/worker";
+import {
+  AiProvider,
+  type AiProviderReactiveRunFn,
+  type AiProviderRunFn,
+} from "@workglow/ai/worker";
 import { TENSORFLOW_MEDIAPIPE, TFMP_DEFAULT_TASK_TYPES } from "./common/TFMP_Constants";
 import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 
@@ -19,6 +23,7 @@ import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
  */
 export class TensorFlowMediaPipeProvider extends AiProvider<TFMPModelConfig> {
   readonly name = TENSORFLOW_MEDIAPIPE;
+  readonly displayName = "TensorFlow MediaPipe";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

@@ -16,6 +16,7 @@ import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class OpenAiQueuedProvider extends QueuedAiProvider<OpenAiModelConfig> {
   readonly name = OPENAI;
+  readonly displayName = "OpenAI";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 

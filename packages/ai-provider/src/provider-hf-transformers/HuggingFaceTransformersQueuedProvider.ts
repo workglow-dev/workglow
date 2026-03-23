@@ -16,6 +16,7 @@ import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider<HfTransformersOnnxModelConfig> {
   readonly name = HF_TRANSFORMERS_ONNX;
+  readonly displayName = "Hugging Face Transformers (ONNX)";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

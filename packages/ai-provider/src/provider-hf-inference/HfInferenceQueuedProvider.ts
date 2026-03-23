@@ -16,6 +16,7 @@ import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class HfInferenceQueuedProvider extends QueuedAiProvider<HfInferenceModelConfig> {
   readonly name = HF_INFERENCE;
+  readonly displayName = "Hugging Face Inference";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 

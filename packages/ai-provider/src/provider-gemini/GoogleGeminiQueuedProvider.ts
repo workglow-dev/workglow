@@ -16,6 +16,7 @@ import type { GeminiModelConfig } from "./common/Gemini_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class GoogleGeminiQueuedProvider extends QueuedAiProvider<GeminiModelConfig> {
   readonly name = GOOGLE_GEMINI;
+  readonly displayName = "Google Gemini";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 

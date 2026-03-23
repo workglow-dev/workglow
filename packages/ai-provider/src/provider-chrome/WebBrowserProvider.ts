@@ -27,6 +27,7 @@ import type { WebBrowserModelConfig } from "./common/WebBrowser_ModelSchema";
  */
 export class WebBrowserProvider extends AiProvider<WebBrowserModelConfig> {
   readonly name = WEB_BROWSER;
+  readonly displayName = "Chrome Built-in AI";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

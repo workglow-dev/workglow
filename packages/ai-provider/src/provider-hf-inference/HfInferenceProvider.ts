@@ -25,6 +25,7 @@ import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
  */
 export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
   readonly name = HF_INFERENCE;
+  readonly displayName = "Hugging Face Inference";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 

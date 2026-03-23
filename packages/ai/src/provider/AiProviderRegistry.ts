@@ -91,6 +91,25 @@ export class AiProviderRegistry {
   }
 
   /**
+   * Stable-sorted ids of all {@link AiProvider} instances currently registered
+   * via {@link registerProvider} (typically after {@link AiProvider.register}).
+   */
+  getInstalledProviderIds(): string[] {
+    return [...this.providers.keys()].sort();
+  }
+
+  /**
+   * Stable-sorted provider ids that have a direct run function registered for `taskType`.
+   * Use this when the UI or validation should only offer providers that can execute a task
+   * (e.g. {@link ModelSearchTask}).
+   */
+  getProviderIdsForTask(taskType: string): string[] {
+    const taskMap = this.runFnRegistry.get(taskType);
+    if (!taskMap) return [];
+    return [...taskMap.keys()].sort();
+  }
+
+  /**
    * Registers a task execution function for a specific task type and model provider
    * @param taskType - The type of task (e.g., 'text-generation', 'embedding')
    * @param modelProvider - The provider of the model (e.g., 'hf-transformers', 'tf-mediapipe', 'openai', etc)

@@ -27,6 +27,7 @@ import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
  */
 export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
   readonly name = LOCAL_LLAMACPP;
+  readonly displayName = "Local llama.cpp";
   readonly isLocal = true;
   readonly supportsBrowser = false;
 

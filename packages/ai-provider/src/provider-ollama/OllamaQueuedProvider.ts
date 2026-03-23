@@ -16,6 +16,7 @@ import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class OllamaQueuedProvider extends QueuedAiProvider<OllamaModelConfig> {
   readonly name = OLLAMA;
+  readonly displayName = "Ollama";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

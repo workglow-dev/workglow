@@ -16,6 +16,7 @@ import type { WebBrowserModelConfig } from "./common/WebBrowser_ModelSchema";
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class WebBrowserQueuedProvider extends QueuedAiProvider<WebBrowserModelConfig> {
   readonly name = WEB_BROWSER;
+  readonly displayName = "Chrome Built-in AI";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

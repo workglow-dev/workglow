@@ -24,6 +24,7 @@ import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
  */
 export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOnnxModelConfig> {
   readonly name = HF_TRANSFORMERS_ONNX;
+  readonly displayName = "Hugging Face Transformers (ONNX)";
   readonly isLocal = true;
   readonly supportsBrowser = true;
 

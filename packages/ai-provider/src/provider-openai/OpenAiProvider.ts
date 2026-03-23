@@ -25,6 +25,7 @@ import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
  */
 export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
   readonly name = OPENAI;
+  readonly displayName = "OpenAI";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 
