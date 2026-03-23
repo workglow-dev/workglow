@@ -5,7 +5,7 @@
  */
 
 import { registerAiTasks } from "@workglow/ai";
-import { installDevToolsFormatters, isDarkMode } from "@workglow/util/debug";
+import { installDevToolsFormatters, isDarkMode } from "@workglow/task-graph";
 import { registerBaseTasks, Workflow } from "@workglow/task-graph";
 import { registerCommonTasks } from "@workglow/tasks";
 import ReactDOM from "react-dom/client";

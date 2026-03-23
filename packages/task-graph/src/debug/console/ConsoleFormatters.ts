@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Dataflow, Task, TaskGraph, TaskStatus, Workflow } from "@workglow/task-graph";
-import { DirectedAcyclicGraph } from "../../graph/directedAcyclicGraph";
-import type { DataPortSchema } from "../../json-schema/DataPortSchema";
+import { DirectedAcyclicGraph } from "@workglow/util/graph";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { Dataflow } from "../../task-graph/Dataflow";
+import { TaskGraph } from "../../task-graph/TaskGraph";
+import { Workflow } from "../../task-graph/Workflow";
+import { Task } from "../../task/Task";
+import { TaskStatus } from "../../task/TaskTypes";
 
 type Config = Record<string, unknown>;
 
@@ -901,7 +905,7 @@ declare global {
  *
  * @example
  * ```ts
- * import { installDevToolsFormatters } from "@workglow/util/debug";
+ * import { installDevToolsFormatters } from "@workglow/task-graph";
  *
  * // Call early in your app initialization
  * installDevToolsFormatters();

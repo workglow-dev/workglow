@@ -32,6 +32,10 @@ bun add @workglow/task-graph
 yarn add @workglow/task-graph
 ```
 
+### Browser debugging
+
+For Chrome DevTools custom formatters (`Workflow`, `TaskGraph`, `Task`, etc.), import `installDevToolsFormatters` from **`@workglow/task-graph`** (browser build only). See [`src/debug/README.md`](./src/debug/README.md).
+
 ## Quick Start
 
 Here's a simple example that demonstrates the core concepts:

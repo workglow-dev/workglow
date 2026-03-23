@@ -1,12 +1,12 @@
-# `@workglow/util/debug`
+# Chrome DevTools formatters (`ConsoleFormatters`)
 
-Debug utilities for Workglow AI task pipelines.
+Debug utilities for Workglow task graphs and workflows.
 
 ## Overview
 
-The `@workglow/util/debug` subpath provides debugging tools for Workglow, including Chrome DevTools custom formatters that enable rich console output for task graphs, workflows, tasks, and dataflows.
+`ConsoleFormatters.ts` is re-exported from the main **`@workglow/task-graph`** entry when using the **browser** build (`dist/browser.js`). It provides Chrome DevTools custom formatters for rich console output for task graphs, workflows, tasks, and dataflows.
 
-This module is **browser-oriented** (it uses `window` and the DevTools formatter API). Import it only from browser or Bun front-end bundles.
+This code is **browser-oriented** (it uses `window` and the DevTools formatter API). Do not call it from Node-only bundles.
 
 ## Features
 
@@ -17,12 +17,12 @@ This module is **browser-oriented** (it uses `window` and the DevTools formatter
 
 ## Installation
 
-The debug helpers ship with `@workglow/util`. You also need `@workglow/task-graph` installed (peer dependency) for types and runtime classes used by the formatters.
+`@workglow/util` is a peer dependency of `@workglow/task-graph` (graph and schema types used by the formatters).
 
 ```bash
-npm install @workglow/util @workglow/task-graph
+npm install @workglow/task-graph @workglow/util
 # or
-bun add @workglow/util @workglow/task-graph
+bun add @workglow/task-graph @workglow/util
 ```
 
 ## Usage
@@ -32,7 +32,7 @@ bun add @workglow/util @workglow/task-graph
 Call `installDevToolsFormatters()` early in your application to enable rich console output:
 
 ```typescript
-import { installDevToolsFormatters } from "@workglow/util/debug";
+import { installDevToolsFormatters } from "@workglow/task-graph";
 
 // Call once during app initialization
 installDevToolsFormatters();
@@ -51,7 +51,7 @@ Once formatters are installed and enabled, simply `console.log` any Workglow obj
 
 ```typescript
 import { Workflow } from "@workglow/task-graph";
-import { installDevToolsFormatters } from "@workglow/util/debug";
+import { installDevToolsFormatters } from "@workglow/task-graph";
 
 installDevToolsFormatters();
 
@@ -80,7 +80,7 @@ The following Workglow objects will display with rich formatting:
 Registers custom formatters with Chrome DevTools. Call once during application startup.
 
 ```typescript
-import { installDevToolsFormatters } from "@workglow/util/debug";
+import { installDevToolsFormatters } from "@workglow/task-graph";
 
 installDevToolsFormatters();
 ```
@@ -90,7 +90,7 @@ installDevToolsFormatters();
 Returns whether the browser is currently in dark mode.
 
 ```typescript
-import { isDarkMode } from "@workglow/util/debug";
+import { isDarkMode } from "@workglow/task-graph";
 
 if (isDarkMode()) {
   console.log("Using dark theme colors");

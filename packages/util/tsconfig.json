@@ -5,7 +5,6 @@
     "src/worker-entry.ts",
     "src/schema-entry.ts",
     "src/graph-entry.ts",
-    "src/debug-entry.ts",
     "src/*/**/*"
   ],
   "files": [
@@ -13,7 +12,6 @@
     "./src/worker-entry.ts",
     "./src/schema-entry.ts",
     "./src/graph-entry.ts",
-    "./src/debug-entry.ts",
     "./src/media-browser.ts",
     "./src/media-node.ts",
     "./src/compress-browser.ts",

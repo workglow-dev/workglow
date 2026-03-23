@@ -16,7 +16,7 @@ The `@workglow/util` package provides a comprehensive set of utility functions, 
 - **Worker Utilities**: Web worker and background task helpers
 - **JSON Schema Utilities**: JSON Schema types and utilities for schema validation and type inference
 - **Multi-Platform Support**: Works in browser, Node.js, and Bun environments
-- **Browser debug formatters**: Chrome DevTools custom formatters for workflows and tasks — see [`src/debug/README.md`](./src/debug/README.md) (`@workglow/util/debug`)
+- **Browser debug formatters**: Chrome DevTools custom formatters for workflows and tasks are exported from `@workglow/task-graph` in the browser build — see the [`task-graph` package README](../task-graph/README.md) and [`src/debug/README.md`](../task-graph/src/debug/README.md)
 
 ## Installation
 
@@ -304,9 +304,9 @@ type User = z.infer<typeof userSchemaZod>;
 - Worker lifecycle management
 - Error handling and recovery
 
-### Debug formatters (`/debug`)
+### Debug formatters
 
-Chrome DevTools custom formatters for `Workflow`, `TaskGraph`, `Task`, and related types. **Browser-only**; requires `@workglow/task-graph`. Full documentation: [`src/debug/README.md`](./src/debug/README.md).
+Chrome DevTools custom formatters for `Workflow`, `TaskGraph`, `Task`, and related types are provided by **`@workglow/task-graph`** in the browser build. See the [task-graph debug README](../task-graph/src/debug/README.md).
 
 ### JSON Schema Utilities (`/json-schema`)
 
