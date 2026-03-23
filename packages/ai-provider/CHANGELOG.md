@@ -1,5 +1,19 @@
 # @workglow/ai-provider
 
+## 0.0.124
+
+### Features
+
+#### ai-provider
+
+- add displayName property to AiProvider and its implementations
+
+### Bug Fixes
+
+#### ai-provider
+
+- enhance browser environment detection and device handling, failure of which led to device type overwriting and failing models
+
 ## 0.0.123
 
 ### Features

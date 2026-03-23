@@ -1,5 +1,13 @@
 # @workglow/ai
 
+## 0.0.124
+
+### Features
+
+#### ai-provider
+
+- add displayName property to AiProvider and its implementations
+
 ## 0.0.123
 
 ### Refactors

@@ -1,5 +1,13 @@
 # @workglow/util
 
+## 0.0.124
+
+### Refactors
+
+#### task
+
+- clean up input handling and improve parameter naming
+
 ## 0.0.123
 
 ### Refactors

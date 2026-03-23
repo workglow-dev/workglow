@@ -1,5 +1,14 @@
 # @workglow/task-graph
 
+## 0.0.124
+
+### Refactors
+
+#### task
+
+- enhance input handling with Partial types
+- clean up input handling and improve parameter naming
+
 ## 0.0.123
 
 ### Refactors

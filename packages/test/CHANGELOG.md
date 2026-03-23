@@ -1,5 +1,19 @@
 # @workglow/test
 
+## 0.0.124
+
+### Features
+
+#### ai-provider
+
+- add displayName property to AiProvider and its implementations
+
+### Refactors
+
+#### task
+
+- enhance input handling with Partial types
+
 ## 0.0.123
 
 ### Refactors

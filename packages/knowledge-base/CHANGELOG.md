@@ -1,5 +1,7 @@
 # @workglow/knowledge-base
 
+## 0.0.124
+
 ## 0.0.123
 
 ### Refactors
