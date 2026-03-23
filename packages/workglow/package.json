@@ -6,16 +6,16 @@
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
     "watch-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun'",
-    "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
-    "watch-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
-    "watch-bun": "bun build --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
+    "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/worker-browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
+    "watch-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/worker-node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
+    "watch-bun": "bun build --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/worker-bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "concurrently -c 'auto' -n 'browser,node,bun,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-types'",
     "build-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run build-browser' 'bun run build-node' 'bun run build-bun'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
-    "build-browser": "bun build --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
-    "build-node": "bun build --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
-    "build-bun": "bun build --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
+    "build-browser": "bun build --target=browser --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/browser.ts ./src/worker-browser.ts ./src/anthropic.browser.ts ./src/google-gemini.browser.ts ./src/hf-transformers.browser.ts ./src/ollama.browser.ts ./src/openai.browser.ts ./src/tf-mediapipe.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
+    "build-node": "bun build --target=node --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/node.ts ./src/worker-node.ts ./src/anthropic.ts ./src/google-gemini.ts ./src/hf-transformers.ts ./src/ollama.ts ./src/openai.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
+    "build-bun": "bun build --target=bun --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/bun.ts ./src/worker-bun.ts ./src/anthropic.bun.ts ./src/google-gemini.bun.ts ./src/hf-transformers.bun.ts ./src/ollama.bun.ts ./src/openai.bun.ts ./src/anthropic-runtime.ts ./src/google-gemini-runtime.ts ./src/openai-runtime.ts ./src/ollama-runtime.ts ./src/tf-mediapipe-runtime.ts ./src/hf-transformers-runtime.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test"
@@ -85,6 +85,13 @@
     "./tf-mediapipe/runtime": {
       "types": "./dist/tf-mediapipe-runtime.d.ts",
       "import": "./dist/tf-mediapipe-runtime.js"
+    },
+    "./worker": {
+      "react-native": "./dist/worker-browser.js",
+      "browser": "./dist/worker-browser.js",
+      "bun": "./dist/worker-bun.js",
+      "types": "./dist/worker-browser.d.ts",
+      "import": "./dist/worker-node.js"
     }
   },
   "files": [
@@ -98,7 +105,6 @@
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
     "@workglow/knowledge-base": "workspace:*",
-    "@workglow/debug": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/sqlite": "workspace:*",
     "@workglow/storage": "workspace:*",
