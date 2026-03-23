@@ -5,7 +5,6 @@
  */
 
 import type { ILogger } from "@workglow/util";
-import { setLogger } from "@workglow/util";
 import { Logger } from "tslog";
 
 /**
@@ -89,6 +88,3 @@ export class TsLogLogger implements ILogger {
     return new TsLogLogger(this.logger.getSubLogger({}, bindings));
   }
 }
-
-// Override the default ConsoleLogger with tslog.
-setLogger(new TsLogLogger());
