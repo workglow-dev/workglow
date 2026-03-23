@@ -315,16 +315,9 @@ export function registerWorkflowCommand(program: Command): void {
       }
 
       try {
-        if (process.stdout.isTTY) {
-          const { renderWorkflowRun } = await import("../ui/render");
-          await renderWorkflowRun(graph, input, {
-            outputJsonFile: opts.outputJsonFile as string | undefined,
-            config: runConfig,
-          });
-        } else {
-          const result = await graph.run(input, runConfig);
-          await outputResult(result, opts.outputJsonFile as string | undefined);
-        }
+        const { withCli } = await import("../run-interactive");
+        const result = await withCli(graph, { suppressResultOutput: true }).run(input, runConfig);
+        await outputResult(result, opts.outputJsonFile as string | undefined);
       } catch (err) {
         console.error(`Error: ${formatError(err)}`);
         process.exit(1);

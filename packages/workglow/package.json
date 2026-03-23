@@ -104,6 +104,7 @@
   "dependencies": {
     "@workglow/ai": "workspace:*",
     "@workglow/ai-provider": "workspace:*",
+    "@workglow/cli": "workspace:*",
     "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
     "@workglow/sqlite": "workspace:*",

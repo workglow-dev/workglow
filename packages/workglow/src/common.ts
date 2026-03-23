@@ -18,3 +18,4 @@ export * from "@workglow/util/schema";
 export * from "@workglow/util/graph";
 export * from "@workglow/util/media";
 export * from "@workglow/util/compress";
+export * from "@workglow/cli";

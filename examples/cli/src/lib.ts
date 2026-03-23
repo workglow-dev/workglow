@@ -11,5 +11,13 @@ export {
   createAgentRepository,
   createMcpStorage,
 } from "./storage";
-export { runTasks, runWorkflow } from "./run-interactive";
+export {
+  withCli,
+  type Tasklike,
+  type WithCliGraphHandle,
+  type WithCliHandle,
+  type WithCliOptions,
+  type WithCliTaskHandle,
+  type WithCliWorkflowHandle,
+} from "./run-interactive";
 export { renderTaskInstanceRun, renderTaskRun, renderWorkflowRun } from "./ui/render";
