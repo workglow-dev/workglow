@@ -206,7 +206,7 @@ export class McpToolCallTask extends Task<
 
   private _schemasDiscovering = false;
 
-  async discoverSchemas(signal?: AbortSignal): Promise<void> {
+  async discoverSchemas(_signal?: AbortSignal): Promise<void> {
     if (this.config.inputSchema && this.config.outputSchema) return;
     if (this._schemasDiscovering) return;
     if (!this.config.transport || !this.config.tool_name) return;

@@ -507,10 +507,10 @@ export class TaskRunner<
     this.task.emit("status", this.task.status);
   }
   private updateProgress = async (
-    task: ITask,
-    progress: number,
-    message?: string,
-    ...args: any[]
+    _task: ITask,
+    _progress: number,
+    _message?: string,
+    ..._args: any[]
   ) => {};
 
   protected async handleStartReactive(): Promise<void> {

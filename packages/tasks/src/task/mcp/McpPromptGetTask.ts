@@ -210,7 +210,7 @@ export class McpPromptGetTask extends Task<
 
   private _schemasDiscovering = false;
 
-  async discoverSchemas(signal?: AbortSignal): Promise<void> {
+  async discoverSchemas(_signal?: AbortSignal): Promise<void> {
     if (this.config.inputSchema) return;
     if (this._schemasDiscovering) return;
     if (!this.config.transport || !this.config.prompt_name) return;

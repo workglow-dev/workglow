@@ -72,7 +72,7 @@ export class StringReplaceTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     return { result: input.value.replaceAll(input.search, input.replace) } as Output;

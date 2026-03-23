@@ -62,7 +62,7 @@ export class StringLengthTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     return { result: input.value.length } as Output;

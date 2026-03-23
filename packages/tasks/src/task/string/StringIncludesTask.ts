@@ -67,7 +67,7 @@ export class StringIncludesTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     return { result: input.value.includes(input.search) } as Output;

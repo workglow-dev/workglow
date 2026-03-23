@@ -62,7 +62,7 @@ export class StringUpperCaseTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     return { result: input.value.toUpperCase() } as Output;

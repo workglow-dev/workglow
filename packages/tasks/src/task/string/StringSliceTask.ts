@@ -72,7 +72,7 @@ export class StringSliceTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     return { result: input.value.slice(input.start, input.end) } as Output;
