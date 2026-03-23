@@ -78,9 +78,14 @@ export function removeCachedPipeline(cacheKey: string): boolean {
   return pipelines.delete(cacheKey);
 }
 
-/** True when running in a browser. Transformers.js only accepts device "wasm" in the browser build. */
+/** True when running in a browser or Web Worker. Transformers.js only accepts device "wasm" or "webgpu" in the browser build. */
 function isBrowserEnv(): boolean {
-  return typeof globalThis !== "undefined" && typeof (globalThis as any).window !== "undefined";
+  if (typeof globalThis === "undefined") return false;
+  // Main thread
+  if (typeof (globalThis as any).window !== "undefined") return true;
+  // Web Worker (has self but no window)
+  if (typeof (globalThis as any).WorkerGlobalScope !== "undefined") return true;
+  return false;
 }
 
 /**
@@ -281,7 +286,19 @@ const doGetPipeline = async (
   };
 
   let device = model.provider_config.device as string | undefined;
-  if (!isBrowserEnv()) {
+  if (isBrowserEnv()) {
+    // we must make a choice for the device in the browser
+    if (device === "gpu") {
+      device = "webgpu";
+    }
+    if (device === "cpu") {
+      device = "wasm";
+    }
+    if (device !== "wasm" && device !== "webgpu") {
+      device = "webgpu";
+    }
+  } else {
+    // we can trust the lib to make a choice for the device on the server
     if (device === "wasm" || device === "webgpu") {
       device = undefined;
     }
