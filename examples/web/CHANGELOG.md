@@ -1,5 +1,29 @@
 # @workglow/web
 
+## 0.0.125
+
+### Features
+
+#### task-graph
+
+- integrate Chrome DevTools formatters and update imports into task-graph, which is what it is used for. done moving this around now.
+
+### Refactors
+
+#### debug
+
+- remove @workglow/debug package and integrate debug utilities into @workglow/util
+
+### Chores
+
+#### dependencies
+
+- update various package versions for improved stability and features
+
+### Updated Dependencies
+
+- `vite`: ^8.0.2
+
 ## 0.0.124
 
 ## 0.0.123

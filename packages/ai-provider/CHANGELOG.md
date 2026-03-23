@@ -1,5 +1,7 @@
 # @workglow/ai-provider
 
+## 0.0.125
+
 ## 0.0.124
 
 ### Features

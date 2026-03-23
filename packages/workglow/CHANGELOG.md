@@ -1,5 +1,28 @@
 # workglow
 
+## 0.0.125
+
+### Features
+
+#### workglow
+
+- implement custom build script and update package.json for improved build process
+- add worker entry points for browser, Bun, and Node environments in consolidated workglow bundle
+
+#### task-graph
+
+- integrate Chrome DevTools formatters and update imports into task-graph, which is what it is used for. done moving this around now.
+
+#### cli
+
+- enhance CLI integration with task and workflow commands
+
+### Refactors
+
+#### debug
+
+- remove @workglow/debug package and integrate debug utilities into @workglow/util
+
 ## 0.0.124
 
 ## 0.0.123

@@ -1,5 +1,23 @@
 # @workglow/cli
 
+## 0.0.125
+
+### Features
+
+#### cli
+
+- enhance CLI integration with task and workflow commands
+
+### Chores
+
+#### dependencies
+
+- update various package versions for improved stability and features
+
+### Updated Dependencies
+
+- `smol-toml`: ^1.6.1
+
 ## 0.0.124
 
 ## 0.0.123

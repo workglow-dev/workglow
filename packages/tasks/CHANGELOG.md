@@ -1,5 +1,7 @@
 # @workglow/tasks
 
+## 0.0.125
+
 ## 0.0.124
 
 ### Refactors

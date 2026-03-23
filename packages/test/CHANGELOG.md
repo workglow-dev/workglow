@@ -1,5 +1,21 @@
 # @workglow/test
 
+## 0.0.125
+
+### Chores
+
+#### dependencies
+
+- update various package versions for improved stability and features
+
+#### test
+
+- mark test package as private and remove publish configuration
+
+### Updated Dependencies
+
+- `vitest`: ^4.1.1
+
 ## 0.0.124
 
 ### Features
