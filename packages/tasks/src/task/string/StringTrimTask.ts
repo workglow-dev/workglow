@@ -62,7 +62,7 @@ export class StringTrimTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     return { result: input.value.trim() } as Output;

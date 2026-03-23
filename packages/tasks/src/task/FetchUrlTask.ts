@@ -395,7 +395,7 @@ export class FetchUrlTask<
    * Override setInput to detect when response_type changes and emit schemaChange event.
    * This ensures that consumers of the task are notified when the output schema changes.
    */
-  public override setInput(input: Record<string, any>): void {
+  public override setInput(input: Partial<Input>): void {
     // Only check for changes if response_type is being set
     if (!("response_type" in input)) {
       super.setInput(input);

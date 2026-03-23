@@ -224,7 +224,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     }
   }
 
-  public override setInput(input: Record<string, unknown>): void {
+  public override setInput(input: Partial<McpListTaskInput>): void {
     if (!("list_type" in input)) {
       super.setInput(input);
       return;

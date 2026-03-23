@@ -143,7 +143,8 @@ export class TaskRunner<
         { registry: this.registry }
       )) as Input;
 
-      const isValid = await this.task.validateInput(this.task.runInputData);
+      const inputs: Input = this.task.runInputData as Input;
+      const isValid = await this.task.validateInput(inputs);
       if (!isValid) {
         throw new TaskInvalidInputError("Invalid input data");
       }
@@ -153,7 +154,6 @@ export class TaskRunner<
         throw new TaskAbortedError("Promise for task created and aborted before run");
       }
 
-      const inputs: Input = this.task.runInputData as Input;
       let outputs: Output | undefined;
 
       const isStreamable = isTaskStreamable(this.task);
@@ -218,13 +218,14 @@ export class TaskRunner<
     await this.handleStartReactive();
 
     try {
-      const isValid = await this.task.validateInput(this.task.runInputData);
+      const inputs: Input = this.task.runInputData as Input;
+      const isValid = await this.task.validateInput(inputs);
       if (!isValid) {
         throw new TaskInvalidInputError("Invalid input data");
       }
 
       const resultReactive = await this.executeTaskReactive(
-        this.task.runInputData as Input,
+        inputs,
         this.task.runOutputData as Output
       );
 

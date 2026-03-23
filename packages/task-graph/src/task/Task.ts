@@ -5,12 +5,7 @@
  */
 
 import { compileSchema, type DataPortSchema, type SchemaNode } from "@workglow/util/schema";
-import {
-  deepEqual,
-  EventEmitter,
-  uuid4,
-  type ServiceRegistry,
-} from "@workglow/util";
+import { deepEqual, EventEmitter, uuid4, type ServiceRegistry } from "@workglow/util";
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import type { IExecuteContext, IExecuteReactiveContext, IRunConfig, ITask } from "./ITask";
@@ -529,9 +524,9 @@ export class Task<
    *
    * @param defaults The default input values to set
    */
-  public setDefaults(defaults: Record<string, any>): void {
+  public setDefaults(defaults: Partial<Input>): void {
     // Strip symbol properties (like [$JSONSchema]) before storing defaults
-    this.defaults = this.stripSymbols(defaults) as Record<string, any>;
+    this.defaults = this.stripSymbols(defaults) as Partial<Input>;
   }
 
   /**
@@ -539,7 +534,7 @@ export class Task<
    *
    * @param input Input values to set
    */
-  public setInput(input: Record<string, any>): void {
+  public setInput(input: Partial<Input>): void {
     const schema = this.inputSchema();
     if (typeof schema === "boolean") {
       if (schema === true) {
@@ -663,9 +658,9 @@ export class Task<
    * @returns The (possibly narrowed) input
    */
   public async narrowInput(
-    input: Record<string, any>,
+    input: Partial<Input>,
     _registry: ServiceRegistry
-  ): Promise<Record<string, any>> {
+  ): Promise<Partial<Input>> {
     return input;
   }
 
@@ -847,7 +842,10 @@ export class Task<
   /**
    * Validates an input data object against the task's input schema
    */
-  public async validateInput(input: Partial<Input>): Promise<boolean> {
+  public async validateInput(input: Input): Promise<boolean> {
+    if (typeof input !== "object" || input === null) {
+      throw new TaskInvalidInputError("Input must be an object");
+    }
     const ctor = this.constructor as typeof Task;
     let schemaNode: SchemaNode;
     if (ctor.hasDynamicSchemas) {
