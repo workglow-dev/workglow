@@ -173,17 +173,15 @@ if (unknown.length > 0) {
   process.exit(1);
 }
 
-// ── Collect test files (only when section filter is given) ─────────────────────
+// ── Collect test files (when section or kind filter is given) ──────────────────
 
-const files: string[] =
-  sections.length > 0
-    ? collectFiles(
-        sections.flatMap((s) => SECTION_DIRS[s]),
-        kinds
-      )
-    : [];
+const needsFileFilter = sections.length > 0 || kinds.length > 0;
+const dirs = sections.length > 0
+  ? sections.flatMap((s) => SECTION_DIRS[s])
+  : Object.values(SECTION_DIRS).flat();
+const files: string[] = needsFileFilter ? collectFiles(dirs, kinds) : [];
 
-if (sections.length > 0 && files.length === 0) {
+if (needsFileFilter && files.length === 0) {
   const kindLabel = kinds.length > 0 ? kinds.join("+") : "all";
   const sectionLabel = sections.join("+");
   console.log(`No test files found for kind=${kindLabel} section=${sectionLabel}`);

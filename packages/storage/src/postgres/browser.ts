@@ -14,7 +14,8 @@ let _PGlite: typeof import("@electric-sql/pglite").PGlite | undefined;
 let _PoolBound: (new (config?: PoolConfig) => PGLitePool) | undefined;
 
 /**
- * Loads `@electric-sql/pglite` (browser WASM Postgres). Mirrors `loadPostgres` from the Node/Bun entry of this package.
+ * Loads `@electric-sql/pglite` (browser WASM Postgres). Idempotent; same implementation as
+ * {@link Postgres.init} (mirrors {@link Sqlite.init} from `@workglow/storage/sqlite`).
  */
 export async function loadPostgres(): Promise<void> {
   if (_PGlite) {
@@ -44,7 +45,7 @@ export async function loadPostgres(): Promise<void> {
 function requirePoolCtor(): new (config?: PoolConfig) => PGLitePool {
   if (!_PoolBound) {
     throw new Error(
-      "Call await loadPostgres() before using @workglow/storage/postgres in the browser."
+      "Postgres is not ready. Await Postgres.init() before using @workglow/storage/postgres in the browser."
     );
   }
   return _PoolBound;
@@ -52,7 +53,7 @@ function requirePoolCtor(): new (config?: PoolConfig) => PGLitePool {
 
 /**
  * Minimal `pg`-shaped module: `Pool` is a constructor compatible with `new Pool(config)` on Node.
- * Call {@link loadPostgres} first.
+ * Call {@link Postgres.init} / {@link loadPostgres} first.
  */
 export function getPostgres(): typeof import("pg") {
   const PoolCtor = requirePoolCtor();
@@ -74,8 +75,9 @@ export async function createPool(config?: PoolConfig): Promise<Pool> {
   return pool as unknown as Pool;
 }
 
-/** Same entry shape as the Node/Bun entry of this package. */
+/** Same entry shape as the Node/Bun entry of this package. {@link Postgres.init} matches {@link Sqlite.init}. */
 export const Postgres = {
+  init: loadPostgres,
   load: loadPostgres,
   get module(): typeof import("pg") {
     return getPostgres();

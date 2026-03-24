@@ -36,7 +36,7 @@ jobs:
           path: packages/*/dist/**
           retention-days: 1
 
-  test-bun:
+  test-bun-unit:
     runs-on: ubuntu-latest
     needs: build
 
@@ -54,14 +54,35 @@ jobs:
         with:
           name: build-output
           path: packages
-      - name: Run tests via bun
+      - name: Run unit tests via bun
+        run: bun run test:bun:unit
+
+  test-bun-integration:
+    runs-on: ubuntu-latest
+    needs: test-bun-unit
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+          path: packages
+      - name: Run integration tests via bun
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: bun run test:bun
+        run: bun run test:bun:integration
 
-  test-vitest:
+  test-vitest-unit:
     runs-on: ubuntu-latest
     needs: build
 
@@ -79,18 +100,39 @@ jobs:
         with:
           name: build-output
           path: packages
-      - name: Run tests via vitest
+      - name: Run unit tests via vitest
+        run: bun run test:vitest:unit
+
+  test-vitest-integration:
+    runs-on: ubuntu-latest
+    needs: test-vitest-unit
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+          path: packages
+      - name: Run integration tests via vitest
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: bun run test:vitest
+        run: bun run test:vitest:integration
       - name: Report Coverage
         uses: davelosert/vitest-coverage-report-action@v2
 
   cleanup:
     runs-on: ubuntu-latest
-    needs: [test-bun, test-vitest]
+    needs: [test-bun-integration, test-vitest-integration]
 
     steps:
       - uses: geekyeggo/delete-artifact@v6
