@@ -8,6 +8,7 @@ import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@wo
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 import type { ModelRecord } from "../model/ModelSchema";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 /**
  * A single result item from a model search.
@@ -77,7 +78,7 @@ const ModelSearchOutputSchema = {
           id: { type: "string" },
           label: { type: "string" },
           description: { type: "string" },
-          record: { type: "object", additionalProperties: true },
+          record: TypeModel("model"),
           raw: {},
         },
         required: ["id", "label", "description", "record"],
