@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRunFn, ModelSearchTaskInput, ModelSearchTaskOutput } from "@workglow/ai";
+import { filterModelSearchResultsByQuery } from "../../common/modelSearchQuery";
 import { OLLAMA } from "./Ollama_Constants";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 
@@ -13,7 +14,7 @@ type GetClient = (model: OllamaModelConfig | undefined) => Promise<any>;
 export function createOllamaModelSearch(
   getClient: GetClient
 ): AiProviderRunFn<ModelSearchTaskInput, ModelSearchTaskOutput> {
-  return async () => {
+  return async (input) => {
     try {
       const client = await getClient(undefined);
       const response = await client.list();
@@ -32,7 +33,7 @@ export function createOllamaModelSearch(
         },
         raw: m,
       }));
-      return { results };
+      return { results: filterModelSearchResultsByQuery(results, input.query) };
     } catch {
       return { results: [] };
     }

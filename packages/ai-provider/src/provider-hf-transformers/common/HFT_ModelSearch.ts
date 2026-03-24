@@ -9,12 +9,14 @@ import { searchHfModels, mapHfModelResult } from "../../common/HfModelSearch";
 import { HF_TRANSFORMERS_ONNX } from "./HFT_Constants";
 import { parseOnnxQuantizations } from "./HFT_OnnxDtypes";
 
-export const HFT_ModelSearch: AiProviderRunFn<
-  ModelSearchTaskInput,
-  ModelSearchTaskOutput
-> = async (input, _model, _onProgress, signal) => {
+export const HFT_ModelSearch: AiProviderRunFn<ModelSearchTaskInput, ModelSearchTaskOutput> = async (
+  input,
+  _model,
+  _onProgress,
+  signal
+) => {
   const entries = await searchHfModels(
-    input.query,
+    input.query?.trim() ?? "",
     { filter: "onnx" },
     ["siblings"],
     signal

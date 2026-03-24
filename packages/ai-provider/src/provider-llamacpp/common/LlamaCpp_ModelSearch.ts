@@ -12,7 +12,12 @@ export const LlamaCpp_ModelSearch: AiProviderRunFn<
   ModelSearchTaskInput,
   ModelSearchTaskOutput
 > = async (input, _model, _onProgress, signal) => {
-  const entries = await searchHfModels(input.query, { filter: "gguf" }, undefined, signal);
+  const entries = await searchHfModels(
+    input.query?.trim() ?? "",
+    { filter: "gguf" },
+    undefined,
+    signal
+  );
   const results = entries.map((entry) => mapHfModelResult(entry, LOCAL_LLAMACPP));
   return { results };
 };

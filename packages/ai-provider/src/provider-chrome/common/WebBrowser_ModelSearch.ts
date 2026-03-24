@@ -10,6 +10,7 @@ import type {
   ModelSearchTaskInput,
   ModelSearchTaskOutput,
 } from "@workglow/ai";
+import { filterLabeledModelsByQuery } from "../../common/modelSearchQuery";
 import { WEB_BROWSER } from "./WebBrowser_Constants";
 
 const WEB_BROWSER_MODELS: Array<{ label: string; value: string }> = [
@@ -20,8 +21,9 @@ const WEB_BROWSER_MODELS: Array<{ label: string; value: string }> = [
 export const WebBrowser_ModelSearch: AiProviderRunFn<
   ModelSearchTaskInput,
   ModelSearchTaskOutput
-> = async () => {
-  const results: ModelSearchResultItem[] = WEB_BROWSER_MODELS.map((m) => ({
+> = async (input) => {
+  const models = filterLabeledModelsByQuery(WEB_BROWSER_MODELS, input.query);
+  const results: ModelSearchResultItem[] = models.map((m) => ({
     id: m.value,
     label: m.label,
     description: "",

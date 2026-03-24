@@ -33,10 +33,11 @@ const ModelSearchInputSchema = {
     query: {
       type: "string",
       title: "Query",
-      description: "Search query string",
+      description:
+        "Optional search string. When omitted or empty, returns all models (provider-specific listing).",
     },
   },
-  required: ["provider", "query"],
+  required: ["provider"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 

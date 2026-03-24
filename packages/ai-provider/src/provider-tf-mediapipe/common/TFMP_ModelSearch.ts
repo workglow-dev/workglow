@@ -10,6 +10,7 @@ import type {
   ModelSearchTaskInput,
   ModelSearchTaskOutput,
 } from "@workglow/ai";
+import { filterLabeledModelsByQuery } from "../../common/modelSearchQuery";
 import { TENSORFLOW_MEDIAPIPE } from "./TFMP_Constants";
 
 const TFMP_MODELS: Array<{ label: string; value: string }> = [
@@ -19,8 +20,9 @@ const TFMP_MODELS: Array<{ label: string; value: string }> = [
 export function createTFMPModelSearch(
   providerId: string
 ): AiProviderRunFn<ModelSearchTaskInput, ModelSearchTaskOutput> {
-  return async () => {
-    const results: ModelSearchResultItem[] = TFMP_MODELS.map((m) => ({
+  return async (input) => {
+    const models = filterLabeledModelsByQuery(TFMP_MODELS, input.query);
+    const results: ModelSearchResultItem[] = models.map((m) => ({
       id: m.value,
       label: m.label,
       description: "",

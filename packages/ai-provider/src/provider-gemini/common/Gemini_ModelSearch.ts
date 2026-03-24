@@ -10,6 +10,7 @@ import type {
   ModelSearchTaskInput,
   ModelSearchTaskOutput,
 } from "@workglow/ai";
+import { filterLabeledModelsByQuery } from "../../common/modelSearchQuery";
 import { GOOGLE_GEMINI } from "./Gemini_Constants";
 
 const GEMINI_MODELS: Array<{ label: string; value: string }> = [
@@ -25,8 +26,9 @@ const GEMINI_MODELS: Array<{ label: string; value: string }> = [
 export const Gemini_ModelSearch: AiProviderRunFn<
   ModelSearchTaskInput,
   ModelSearchTaskOutput
-> = async () => {
-  const results: ModelSearchResultItem[] = GEMINI_MODELS.map((m) => ({
+> = async (input) => {
+  const models = filterLabeledModelsByQuery(GEMINI_MODELS, input.query);
+  const results: ModelSearchResultItem[] = models.map((m) => ({
     id: m.value,
     label: m.label,
     description: "",

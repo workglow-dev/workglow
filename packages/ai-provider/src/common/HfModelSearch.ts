@@ -72,6 +72,7 @@ export function mapHfModelResult(entry: HfModelEntry, provider: string): ModelSe
 
 /**
  * Search HuggingFace models API. Returns all results (limit=500, no pagination).
+ * An empty `query` lists top models by sort order (no text filter).
  */
 export async function searchHfModels(
   query: string,

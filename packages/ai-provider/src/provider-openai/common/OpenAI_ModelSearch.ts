@@ -10,6 +10,7 @@ import type {
   ModelSearchTaskInput,
   ModelSearchTaskOutput,
 } from "@workglow/ai";
+import { filterLabeledModelsByQuery } from "../../common/modelSearchQuery";
 import { OPENAI } from "./OpenAI_Constants";
 import { getClient } from "./OpenAI_Client";
 
@@ -61,12 +62,13 @@ function mapModelList(models: Array<{ label: string; value: string }>): ModelSea
 export const OpenAI_ModelSearch: AiProviderRunFn<
   ModelSearchTaskInput,
   ModelSearchTaskOutput
-> = async () => {
+> = async (input) => {
   let models: Array<{ label: string; value: string }>;
   try {
     models = await listOpenAiModels();
   } catch {
     models = OPENAI_FALLBACK;
   }
+  models = filterLabeledModelsByQuery(models, input.query);
   return { results: mapModelList(models) };
 };

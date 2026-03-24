@@ -10,6 +10,7 @@ import type {
   ModelSearchTaskInput,
   ModelSearchTaskOutput,
 } from "@workglow/ai";
+import { filterLabeledModelsByQuery } from "../../common/modelSearchQuery";
 import { ANTHROPIC } from "./Anthropic_Constants";
 import { loadAnthropicSDK } from "./Anthropic_Client";
 
@@ -52,12 +53,13 @@ function mapModelList(models: Array<{ label: string; value: string }>): ModelSea
 export const Anthropic_ModelSearch: AiProviderRunFn<
   ModelSearchTaskInput,
   ModelSearchTaskOutput
-> = async () => {
+> = async (input) => {
   let models: Array<{ label: string; value: string }>;
   try {
     models = await listAnthropicModels();
   } catch {
     models = ANTHROPIC_FALLBACK;
   }
+  models = filterLabeledModelsByQuery(models, input.query);
   return { results: mapModelList(models) };
 };
