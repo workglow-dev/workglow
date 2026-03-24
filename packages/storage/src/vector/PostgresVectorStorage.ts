@@ -11,7 +11,7 @@ import type {
   TypedArray,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
-import type { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
 import {
   getMetadataProperty,

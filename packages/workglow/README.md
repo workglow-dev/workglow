@@ -39,8 +39,7 @@ const result = await workflow.run();
 | Package                    | Description                                                                                                                   |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `@workglow/util`           | Utility functions and shared types                                                                                            |
-| `@workglow/sqlite`         | Cross-platform SQLite (browser, Node.js, Bun)                                                                                 |
-| `@workglow/storage`        | Storage abstraction (IndexedDB, PostgreSQL, Supabase)                                                                         |
+| `@workglow/storage`        | Storage abstraction (IndexedDB, PostgreSQL, Supabase) plus `/sqlite` and `/postgres` SQL drivers (optional peers, lazy SDKs)  |
 | `@workglow/job-queue`      | Job queue management and task scheduling                                                                                      |
 | `@workglow/task-graph`     | DAG task graph construction and execution; browser build also exports DevTools formatters (`installDevToolsFormatters`, etc.) |
 | `@workglow/knowledge-base` | Knowledge base, document management, and RAG infrastructure                                                                   |

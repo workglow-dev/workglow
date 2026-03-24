@@ -14,7 +14,7 @@ import {
   knowledgeBaseTableNames,
   registerKnowledgeBase,
 } from "@workglow/knowledge-base";
-import type { Sqlite } from "@workglow/sqlite";
+import type { Sqlite } from "@workglow/storage/sqlite";
 import { SqliteAiVectorStorage, SqliteTabularStorage } from "@workglow/storage";
 import type { TypedArray } from "@workglow/util/schema";
 

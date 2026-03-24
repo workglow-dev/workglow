@@ -171,12 +171,12 @@ const browserStore = new IndexedDbKvRepository("my-app-storage");
 
 // Node.js/Bun (using SQLite)
 import { SqliteKvRepository } from "@workglow/storage";
-// Pass a file path or a Database instance (see @workglow/sqlite)
+// Pass a file path or a Database instance (see @workglow/storage/sqlite)
 const sqliteStore = new SqliteKvRepository("./data.db", "config_table");
 
 // PostgreSQL (Node.js/Bun)
 import { PostgresKvRepository } from "@workglow/storage";
-import { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 const pool = new Pool({ connectionString: "postgresql://..." });
 const pgStore = new PostgresKvRepository(pool, "settings");
 
@@ -401,7 +401,7 @@ const sqliteUsers = new SqliteTabularStorage<typeof UserSchema, ["id"]>(
 
 // PostgreSQL (Node.js/Bun)
 import { PostgresTabularStorage } from "@workglow/storage";
-import { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 
 const pool = new Pool({ connectionString: "postgresql://..." });
 const pgUsers = new PostgresTabularStorage<typeof UserSchema, ["id"]>(

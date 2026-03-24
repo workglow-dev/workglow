@@ -4,13 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
+import type * as SqliteWasmPkg from "@sqlite.org/sqlite-wasm";
 
 import type { SqliteApi } from "./canonical-api";
 
 export type { SqliteApi };
 
-type WasmSqliteModule = Awaited<ReturnType<typeof sqlite3InitModule>>;
+type WasmInit = typeof SqliteWasmPkg.default;
+type WasmSqliteModule = Awaited<ReturnType<WasmInit>>;
+
 type WasmDatabaseCtor = WasmSqliteModule["oo1"]["DB"];
 type WasmDatabase = InstanceType<WasmDatabaseCtor>;
 type WasmStatement = ReturnType<WasmDatabase["prepare"]>;
@@ -33,7 +35,14 @@ function assertWasmLoaded(): WasmSqliteModule {
  */
 function initSqliteWasm(): Promise<void> {
   return (initPromise ??= (async () => {
-    wasmModule = await sqlite3InitModule();
+    try {
+      const { default: sqlite3InitModule } = await import("@sqlite.org/sqlite-wasm");
+      wasmModule = await sqlite3InitModule();
+    } catch {
+      throw new Error(
+        "@sqlite.org/sqlite-wasm is required for @workglow/storage/sqlite in the browser. Install: bun add @sqlite.org/sqlite-wasm"
+      );
+    }
   })());
 }
 

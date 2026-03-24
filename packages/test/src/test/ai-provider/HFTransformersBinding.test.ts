@@ -23,7 +23,7 @@ import {
   JobQueueServer,
   RateLimiter,
 } from "@workglow/job-queue";
-import { Sqlite } from "@workglow/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import {
   InMemoryQueueStorage,
   SqliteQueueStorage,

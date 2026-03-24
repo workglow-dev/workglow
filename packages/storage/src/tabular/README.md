@@ -372,7 +372,7 @@ const repo = new SqliteTabularStorage<
 - Connection pooling support
 
 ```typescript
-import { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 
 const pool = new Pool({
   /* config */

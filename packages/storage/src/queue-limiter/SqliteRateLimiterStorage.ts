@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Sqlite } from "@workglow/sqlite";
+import type { Sqlite } from "@workglow/storage/sqlite";
 import { createServiceToken, sleep, toSQLiteTimestamp } from "@workglow/util";
 import type { PrefixColumn } from "../queue/IQueueStorage";
 import { IRateLimiterStorage, RateLimiterStorageOptions } from "./IRateLimiterStorage";

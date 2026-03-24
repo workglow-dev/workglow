@@ -12,7 +12,7 @@ import {
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
 import { createServiceToken } from "@workglow/util";
-import type { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import { ClientProvidedKeysOption } from "./BaseTabularStorage";
 import {

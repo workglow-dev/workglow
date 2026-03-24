@@ -22,8 +22,7 @@
   },
   "peerDependencies": {
     "@workglow/storage": "workspace:*",
-    "@workglow/util": "workspace:*",
-    "@workglow/sqlite": "workspace:*"
+    "@workglow/util": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@workglow/storage": {
@@ -31,15 +30,11 @@
     },
     "@workglow/util": {
       "optional": false
-    },
-    "@workglow/sqlite": {
-      "optional": true
     }
   },
   "devDependencies": {
     "@workglow/storage": "workspace:*",
-    "@workglow/util": "workspace:*",
-    "@workglow/sqlite": "workspace:*"
+    "@workglow/util": "workspace:*"
   },
   "exports": {
     ".": {

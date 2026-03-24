@@ -77,7 +77,6 @@ This package depends on other Workglow packages:
 - `@workglow/task-graph`
 - `@workglow/tasks`
 - `@workglow/util`
-- `@workglow/sqlite`
 
 ## License
 

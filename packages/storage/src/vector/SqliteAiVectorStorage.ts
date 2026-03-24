@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Sqlite } from "@workglow/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { cosineSimilarity } from "@workglow/util/schema";
 import type {
   DataPortSchemaObject,

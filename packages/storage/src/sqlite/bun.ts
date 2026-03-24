@@ -4,11 +4,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Database as BunNativeDatabase, type Statement as BunStatement } from "bun:sqlite";
+import { createRequire } from "node:module";
+
+import type { Database as BunDatabaseCtor, Statement as BunStatementType } from "bun:sqlite";
 
 import type { SqliteApi } from "./canonical-api";
 
 export type { SqliteApi };
+
+const require = createRequire(import.meta.url);
+
+type BunSqliteModule = typeof import("bun:sqlite");
+
+let _bunSqlite: BunSqliteModule | undefined;
+
+function getBunSqlite(): BunSqliteModule {
+  if (!_bunSqlite) {
+    _bunSqlite = require("bun:sqlite") as BunSqliteModule;
+  }
+  return _bunSqlite;
+}
 
 function toRunResult(changes: number, lastInsertRowid: number | bigint): SqliteApi.RunResult {
   return { changes, lastInsertRowid };
@@ -18,9 +33,9 @@ class BunStatementAdapter<
   BindParameters extends unknown[] | Record<string, unknown> = unknown[],
   Result = unknown,
 > implements SqliteApi.Statement<BindParameters, Result> {
-  readonly #stmt: BunStatement<Result, any>;
+  readonly #stmt: BunStatementType<Result, any>;
 
-  constructor(stmt: BunStatement<Result, any>) {
+  constructor(stmt: BunStatementType<Result, any>) {
     this.#stmt = stmt;
   }
 
@@ -48,10 +63,11 @@ class BunStatementAdapter<
  * `prepare<Bind, Result>` uses bindings-first generics; `get()` maps `null` → `undefined`.
  */
 export class BunSqliteDatabase implements SqliteApi.Database {
-  readonly #db: InstanceType<typeof BunNativeDatabase>;
+  readonly #db: InstanceType<typeof BunDatabaseCtor>;
 
   constructor(filename?: string, options?: number | import("bun:sqlite").DatabaseOptions) {
-    this.#db = new BunNativeDatabase(filename, options);
+    const { Database } = getBunSqlite();
+    this.#db = new Database(filename, options);
   }
 
   exec(sql: string): void {
@@ -61,7 +77,6 @@ export class BunSqliteDatabase implements SqliteApi.Database {
   prepare<BindParameters extends unknown[] | Record<string, unknown> = unknown[], Result = unknown>(
     sql: string
   ): SqliteApi.Statement<BindParameters, Result> {
-    // bun:sqlite uses prepare<ReturnType, ParamsType> — flip at the boundary only.
     const stmt = this.#db.prepare<Result, any>(sql);
     return new BunStatementAdapter<BindParameters, Result>(stmt);
   }

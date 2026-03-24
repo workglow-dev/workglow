@@ -77,11 +77,9 @@
         "@workglow/ai-provider": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
-        "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/tasks": "workspace:*",
-        "@workglow/test": "workspace:*",
         "@workglow/util": "workspace:*",
         "@xyflow/react": "^12.10.1",
         "clsx": "^2.1.1",
@@ -197,50 +195,43 @@
       "name": "@workglow/knowledge-base",
       "version": "0.0.125",
       "devDependencies": {
-        "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
       },
       "peerDependencies": {
-        "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
-      },
-      "optionalPeers": [
-        "@workglow/sqlite",
-      ],
-    },
-    "packages/sqlite": {
-      "name": "@workglow/sqlite",
-      "version": "0.0.125",
-      "devDependencies": {
-        "@types/better-sqlite3": "^7.6.13",
-      },
-      "peerDependencies": {
-        "@sqlite.org/sqlite-wasm": "catalog:",
-        "better-sqlite3": "catalog:",
       },
     },
     "packages/storage": {
       "name": "@workglow/storage",
       "version": "0.0.125",
       "devDependencies": {
+        "@electric-sql/pglite": "catalog:",
+        "@sqlite.org/sqlite-wasm": "catalog:",
         "@supabase/supabase-js": "catalog:",
+        "@types/better-sqlite3": "^7.6.13",
         "@types/pg": "^8.18.0",
-        "@workglow/sqlite": "workspace:*",
         "@workglow/util": "workspace:*",
+        "better-sqlite3": "catalog:",
         "fake-indexeddb": "^6.2.4",
         "pg": "catalog:",
       },
       "peerDependencies": {
+        "@electric-sql/pglite": "catalog:",
+        "@sqlite.org/sqlite-wasm": "catalog:",
         "@sqliteai/sqlite-vector": "^0.9.90",
         "@supabase/supabase-js": "catalog:",
-        "@workglow/sqlite": "workspace:*",
         "@workglow/util": "workspace:*",
+        "better-sqlite3": "catalog:",
         "pg": "catalog:",
       },
       "optionalPeers": [
+        "@electric-sql/pglite",
+        "@sqlite.org/sqlite-wasm",
         "@sqliteai/sqlite-vector",
+        "better-sqlite3",
+        "pg",
       ],
     },
     "packages/task-graph": {
@@ -294,7 +285,6 @@
         "@workglow/ai-provider": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
-        "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/tasks": "workspace:*",
@@ -305,21 +295,6 @@
         "openai": "catalog:",
         "pg": "catalog:",
         "vitest": "^4.1.1",
-      },
-      "peerDependencies": {
-        "@electric-sql/pglite": "^0.4.1",
-        "@modelcontextprotocol/sdk": "catalog:",
-        "@supabase/supabase-js": "catalog:",
-        "@workglow/ai": "workspace:*",
-        "@workglow/ai-provider": "workspace:*",
-        "@workglow/job-queue": "workspace:*",
-        "@workglow/knowledge-base": "workspace:*",
-        "@workglow/sqlite": "workspace:*",
-        "@workglow/storage": "workspace:*",
-        "@workglow/task-graph": "workspace:*",
-        "@workglow/tasks": "workspace:*",
-        "@workglow/util": "workspace:*",
-        "pg": "catalog:",
       },
     },
     "packages/util": {
@@ -338,7 +313,6 @@
         "@workglow/ai-provider": "workspace:*",
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
-        "@workglow/sqlite": "workspace:*",
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/tasks": "workspace:*",
@@ -388,6 +362,7 @@
   ],
   "catalog": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@electric-sql/pglite": "^0.4.1",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/inference": "^4.13.15",
     "@huggingface/transformers": "4.0.0-next.8",
@@ -880,8 +855,6 @@
     "@workglow/job-queue": ["@workglow/job-queue@workspace:packages/job-queue"],
 
     "@workglow/knowledge-base": ["@workglow/knowledge-base@workspace:packages/knowledge-base"],
-
-    "@workglow/sqlite": ["@workglow/sqlite@workspace:packages/sqlite"],
 
     "@workglow/storage": ["@workglow/storage@workspace:packages/storage"],
 

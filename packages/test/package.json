@@ -33,7 +33,6 @@
     "@workglow/ai-provider": "workspace:*",
     "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
-    "@workglow/sqlite": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",

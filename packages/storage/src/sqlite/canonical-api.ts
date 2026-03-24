@@ -5,7 +5,7 @@
  */
 
 /**
- * Canonical SQLite surface for `@workglow/sqlite` across Node (better-sqlite3),
+ * Canonical SQLite surface for `@workglow/storage/sqlite` across Node (better-sqlite3),
  * Bun (native, via adapter), and browser (WASM).
  *
  * **Generic order:** `prepare<BindParameters, Result>(sql)` — bindings first,

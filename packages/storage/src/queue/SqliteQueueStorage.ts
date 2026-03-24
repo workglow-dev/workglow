@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Sqlite } from "@workglow/sqlite";
+import type { Sqlite } from "@workglow/storage/sqlite";
 import { createServiceToken, makeFingerprint, sleep, uuid4 } from "@workglow/util";
 import {
   IQueueStorage,
