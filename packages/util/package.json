@@ -41,10 +41,19 @@
   },
   "exports": {
     ".": {
-      "react-native": "./dist/browser.js",
-      "browser": "./dist/browser.js",
-      "bun": "./dist/bun.js",
-      "types": "./dist/types.d.ts",
+      "react-native": {
+        "types": "./dist/browser.d.ts",
+        "import": "./dist/browser.js"
+      },
+      "browser": {
+        "types": "./dist/browser.d.ts",
+        "import": "./dist/browser.js"
+      },
+      "bun": {
+        "types": "./dist/bun.d.ts",
+        "import": "./dist/bun.js"
+      },
+      "types": "./dist/node.d.ts",
       "import": "./dist/node.js"
     },
     "./schema": {
@@ -56,23 +65,50 @@
       "import": "./dist/graph-entry.js"
     },
     "./media": {
-      "react-native": "./dist/media-browser.js",
-      "browser": "./dist/media-browser.js",
-      "bun": "./dist/media-node.js",
+      "react-native": {
+        "types": "./dist/media-browser.d.ts",
+        "import": "./dist/media-browser.js"
+      },
+      "browser": {
+        "types": "./dist/media-browser.d.ts",
+        "import": "./dist/media-browser.js"
+      },
+      "bun": {
+        "types": "./dist/media-node.d.ts",
+        "import": "./dist/media-node.js"
+      },
       "types": "./dist/media-node.d.ts",
       "import": "./dist/media-node.js"
     },
     "./compress": {
-      "react-native": "./dist/compress-browser.js",
-      "browser": "./dist/compress-browser.js",
-      "bun": "./dist/compress-node.js",
+      "react-native": {
+        "types": "./dist/compress-browser.d.ts",
+        "import": "./dist/compress-browser.js"
+      },
+      "browser": {
+        "types": "./dist/compress-browser.d.ts",
+        "import": "./dist/compress-browser.js"
+      },
+      "bun": {
+        "types": "./dist/compress-node.d.ts",
+        "import": "./dist/compress-node.js"
+      },
       "types": "./dist/compress-node.d.ts",
       "import": "./dist/compress-node.js"
     },
     "./worker": {
-      "react-native": "./dist/worker-browser.js",
-      "browser": "./dist/worker-browser.js",
-      "bun": "./dist/worker-bun.js",
+      "react-native": {
+        "types": "./dist/worker-browser.d.ts",
+        "import": "./dist/worker-browser.js"
+      },
+      "browser": {
+        "types": "./dist/worker-browser.d.ts",
+        "import": "./dist/worker-browser.js"
+      },
+      "bun": {
+        "types": "./dist/worker-bun.d.ts",
+        "import": "./dist/worker-bun.js"
+      },
       "types": "./dist/worker-entry.d.ts",
       "import": "./dist/worker-node.js"
     }

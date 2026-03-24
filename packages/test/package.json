@@ -22,66 +22,6 @@
     "test": "bun test",
     "test-concurrently": "bash -c 'cmds=(); for d in ./src/test/*/; do cmds+=(\"cd $d && bun test\"); done; concurrently \"${cmds[@]}\"'"
   },
-  "exports": {
-    ".": {
-      "react-native": "./dist/browser.js",
-      "browser": "./dist/browser.js",
-      "bun": "./dist/bun.js",
-      "types": "./dist/types.d.ts",
-      "import": "./dist/node.js"
-    }
-  },
-  "files": [
-    "dist",
-    "src/**/*.md"
-  ],
-  "peerDependencies": {
-    "@workglow/ai": "workspace:*",
-    "@workglow/ai-provider": "workspace:*",
-    "@workglow/knowledge-base": "workspace:*",
-    "@workglow/job-queue": "workspace:*",
-    "@workglow/storage": "workspace:*",
-    "@workglow/task-graph": "workspace:*",
-    "@workglow/tasks": "workspace:*",
-    "@workglow/util": "workspace:*",
-    "@workglow/sqlite": "workspace:*",
-    "@electric-sql/pglite": "^0.4.1",
-    "pg": "catalog:",
-    "@supabase/supabase-js": "catalog:",
-    "@modelcontextprotocol/sdk": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "@workglow/ai": {
-      "optional": false
-    },
-    "@workglow/ai-provider": {
-      "optional": false
-    },
-    "@workglow/knowledge-base": {
-      "optional": false
-    },
-    "@workglow/job-queue": {
-      "optional": false
-    },
-    "@workglow/storage": {
-      "optional": false
-    },
-    "@workglow/task-graph": {
-      "optional": false
-    },
-    "@workglow/tasks": {
-      "optional": false
-    },
-    "@workglow/util": {
-      "optional": false
-    },
-    "@workglow/sqlite": {
-      "optional": false
-    },
-    "@modelcontextprotocol/sdk": {
-      "optional": false
-    }
-  },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",
     "@electric-sql/pglite": "^0.4.1",

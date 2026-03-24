@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "include": ["src/**/*"],
-  "files": ["./src/types.ts"],
+  "files": ["./src/browser.ts", "./src/node.ts", "./src/bun.ts", "./src/canonical-api.ts"],
   "exclude": ["dist", "node_modules"],
   "compilerOptions": {
     "composite": true,

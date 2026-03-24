@@ -9,6 +9,7 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "customConditions": ["browser"],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,

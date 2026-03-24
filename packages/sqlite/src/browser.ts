@@ -6,81 +6,155 @@
 
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 
-export class SQLiteWasmDB {
-  private db: any;
-  private stmtCache: Map<string, any> = new Map();
+import type { SqliteApi } from "./canonical-api";
 
-  private constructor(db: any) {
-    this.db = db;
+export type { SqliteApi };
+
+type WasmSqliteModule = Awaited<ReturnType<typeof sqlite3InitModule>>;
+type WasmDatabaseCtor = WasmSqliteModule["oo1"]["DB"];
+type WasmDatabase = InstanceType<WasmDatabaseCtor>;
+type WasmStatement = ReturnType<WasmDatabase["prepare"]>;
+
+let wasmModule: WasmSqliteModule | undefined;
+let initPromise: Promise<void> | undefined;
+
+function assertWasmLoaded(): WasmSqliteModule {
+  if (!wasmModule) {
+    throw new Error(
+      "SQLite WASM is not ready. Await Sqlite.init() before using new Sqlite.Database()."
+    );
   }
+  return wasmModule;
+}
 
-  static async open(filename = ":memory:") {
-    const sqlite3 = await sqlite3InitModule();
-    const db = new sqlite3.oo1.DB(filename);
-    return new SQLiteWasmDB(db);
-  }
+/**
+ * Loads and initializes the SQLite WASM module. Exposed as {@link Sqlite.init}; call once
+ * (and await) before constructing `new Sqlite.Database()` in the browser.
+ */
+function initSqliteWasm(): Promise<void> {
+  return (initPromise ??= (async () => {
+    wasmModule = await sqlite3InitModule();
+  })());
+}
 
-  prepare(query: string) {
-    if (this.stmtCache.has(query)) {
-      return new StatementWrapper(this.stmtCache.get(query));
+class BrowserStatement<
+  BindParameters extends unknown[] | Record<string, unknown> = unknown[],
+  Result = unknown,
+> implements SqliteApi.Statement<BindParameters, Result> {
+  constructor(
+    private readonly stmt: WasmStatement,
+    private readonly db: WasmDatabase,
+    private readonly capi: WasmSqliteModule["capi"]
+  ) {}
+
+  run(...params: unknown[]): SqliteApi.RunResult {
+    this.stmt.reset(true);
+    if (params.length > 0) {
+      this.stmt.bind(params as never);
     }
-
-    const stmt = this.db.prepare(query);
-    this.stmtCache.set(query, stmt);
-    return new StatementWrapper(stmt);
+    while (this.stmt.step()) {
+      // drain result rows for statements that return data
+    }
+    const changes = Number(this.db.changes(false, true));
+    const lastInsertRowid = this.capi.sqlite3_last_insert_rowid(this.db);
+    this.stmt.reset(true);
+    return { changes, lastInsertRowid };
   }
 
-  run(query: string, ...params: any[]) {
-    const stmt = this.prepare(query);
-    stmt.run(...params);
-    stmt.finalize();
+  get(...params: unknown[]): Result | undefined {
+    this.stmt.reset(true);
+    if (params.length > 0) {
+      this.stmt.bind(params as never);
+    }
+    if (!this.stmt.step()) {
+      this.stmt.reset(true);
+      return undefined;
+    }
+    const row = this.stmt.get({});
+    this.stmt.reset(true);
+    return row as Result;
   }
 
-  get(query: string, ...params: any[]) {
-    const stmt = this.prepare(query);
-    const row = stmt.get(...params);
-    stmt.finalize();
-    return row;
-  }
-
-  all(query: string, ...params: any[]) {
-    const stmt = this.prepare(query);
-    const rows = stmt.all(...params);
-    stmt.finalize();
+  all(...params: unknown[]): Result[] {
+    this.stmt.reset(true);
+    if (params.length > 0) {
+      this.stmt.bind(params as never);
+    }
+    const rows: Result[] = [];
+    while (this.stmt.step()) {
+      rows.push(this.stmt.get({}) as Result);
+    }
+    this.stmt.reset(true);
     return rows;
   }
 
-  close() {
-    this.db.close();
+  finalize(): void {
+    this.stmt.finalize();
   }
 }
 
-class StatementWrapper {
-  private stmt: any;
+/**
+ * better-sqlite3 / {@link Sqlite.Database}–shaped wrapper around sqlite-wasm {@link WasmDatabase}.
+ */
+export class BrowserDatabase implements SqliteApi.Database {
+  private readonly inner: WasmDatabase;
 
-  constructor(stmt: any) {
-    this.stmt = stmt;
+  constructor(filename: string = ":memory:") {
+    const sqlite = assertWasmLoaded();
+    this.inner = new sqlite.oo1.DB(filename);
   }
 
-  run(...params: any[]) {
-    this.stmt.bind(params).step();
+  exec(sql: string): void {
+    this.inner.exec(sql);
   }
 
-  get(...params: any[]) {
-    this.stmt.bind(params);
-    return this.stmt.step() ? this.stmt.get() : null;
+  prepare<BindParameters extends unknown[] | Record<string, unknown> = unknown[], Result = unknown>(
+    sql: string
+  ): SqliteApi.Statement<BindParameters, Result> {
+    const sqlite = assertWasmLoaded();
+    return new BrowserStatement<BindParameters, Result>(
+      this.inner.prepare(sql),
+      this.inner,
+      sqlite.capi
+    );
   }
 
-  all(...params: any[]) {
-    this.stmt.bind(params);
-    const rows = [];
-    while (this.stmt.step()) {
-      rows.push(this.stmt.get());
-    }
-    return rows;
+  /**
+   * Same contract as better-sqlite3 / Bun: returns a function that runs `fn` inside a single
+   * SQL transaction (BEGIN → COMMIT or ROLLBACK).
+   */
+  transaction<T extends unknown[]>(fn: (...args: T) => void): (...args: T) => void {
+    return (...args: T) => {
+      this.exec("BEGIN");
+      try {
+        fn(...args);
+        this.exec("COMMIT");
+      } catch (err) {
+        try {
+          this.exec("ROLLBACK");
+        } catch {
+          // prefer the original error if rollback fails
+        }
+        throw err;
+      }
+    };
   }
 
-  finalize() {
-    this.stmt.finalize();
+  close(): void {
+    this.inner.close();
   }
+
+  loadExtension(_path: string, _entryPoint?: string): void {
+    throw new Error("SQLite loadExtension is not supported in the browser WASM build.");
+  }
+}
+
+export const Sqlite = {
+  Database: BrowserDatabase,
+  init: initSqliteWasm,
+} as const;
+
+/** Merged with {@link Sqlite} so `Sqlite.Database` works in type positions (not only as a value). */
+export namespace Sqlite {
+  export type Database = InstanceType<typeof BrowserDatabase>;
 }

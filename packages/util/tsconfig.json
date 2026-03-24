@@ -8,7 +8,9 @@
     "src/*/**/*"
   ],
   "files": [
-    "./src/types.ts",
+    "./src/node.ts",
+    "./src/browser.ts",
+    "./src/bun.ts",
     "./src/worker-entry.ts",
     "./src/schema-entry.ts",
     "./src/graph-entry.ts",

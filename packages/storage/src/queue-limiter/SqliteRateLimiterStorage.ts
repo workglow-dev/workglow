@@ -136,7 +136,7 @@ export class SqliteRateLimiterStorage implements IRateLimiterStorage {
     const prefixParams = this.getPrefixParamValues();
     const thresholdTime = toSQLiteTimestamp(new Date(windowStartTime));
 
-    const stmt = this.db.prepare<{ count: number }, Array<string | number>>(`
+    const stmt = this.db.prepare<unknown[], { count: number }>(`
       SELECT COUNT(*) AS count
       FROM ${this.executionTableName}
       WHERE queue_name = ? AND executed_at > ?${prefixConditions}
@@ -152,7 +152,7 @@ export class SqliteRateLimiterStorage implements IRateLimiterStorage {
     const prefixConditions = this.buildPrefixWhereClause();
     const prefixParams = this.getPrefixParamValues();
 
-    const stmt = this.db.prepare<{ executed_at: string }, Array<string | number>>(`
+    const stmt = this.db.prepare<unknown[], { executed_at: string }>(`
       SELECT executed_at
       FROM ${this.executionTableName}
       WHERE queue_name = ?${prefixConditions}
@@ -169,7 +169,7 @@ export class SqliteRateLimiterStorage implements IRateLimiterStorage {
     const prefixConditions = this.buildPrefixWhereClause();
     const prefixParams = this.getPrefixParamValues();
 
-    const stmt = this.db.prepare<{ next_available_at: string }, Array<string | number>>(`
+    const stmt = this.db.prepare<unknown[], { next_available_at: string }>(`
       SELECT next_available_at
       FROM ${this.nextAvailableTableName}
       WHERE queue_name = ?${prefixConditions}

@@ -769,7 +769,7 @@ export class SqliteTabularStorage<
    */
   async size(): Promise<number> {
     const db = this.db;
-    const stmt = db.prepare<{ count: number }, []>(`
+    const stmt = db.prepare<unknown[], { count: number }>(`
       SELECT COUNT(*) AS count FROM \`${this.table}\`
     `);
     return stmt.get()?.count || 0;
@@ -786,7 +786,7 @@ export class SqliteTabularStorage<
     const orderByClause = this.primaryKeyColumns()
       .map((col) => `\`${String(col)}\``)
       .join(", ");
-    const stmt = db.prepare<Entity, [number, number]>(`
+    const stmt = db.prepare<[number, number], Entity>(`
       SELECT * FROM \`${this.table}\` ORDER BY ${orderByClause} LIMIT ? OFFSET ?
     `);
     const rows = stmt.all(limit, offset);

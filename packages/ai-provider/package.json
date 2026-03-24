@@ -54,22 +54,34 @@
       "import": "./dist/provider-llamacpp/runtime.js"
     },
     "./ollama": {
-      "browser": "./dist/provider-ollama/index.browser.js",
+      "browser": {
+        "types": "./dist/provider-ollama/index.d.ts",
+        "import": "./dist/provider-ollama/index.browser.js"
+      },
       "types": "./dist/provider-ollama/index.d.ts",
       "import": "./dist/provider-ollama/index.js"
     },
     "./ollama/runtime": {
-      "browser": "./dist/provider-ollama/runtime.browser.js",
+      "browser": {
+        "types": "./dist/provider-ollama/runtime.d.ts",
+        "import": "./dist/provider-ollama/runtime.browser.js"
+      },
       "types": "./dist/provider-ollama/runtime.d.ts",
       "import": "./dist/provider-ollama/runtime.js"
     },
     "./openai": {
-      "browser": "./dist/provider-openai/index.browser.js",
+      "browser": {
+        "types": "./dist/provider-openai/index.d.ts",
+        "import": "./dist/provider-openai/index.browser.js"
+      },
       "types": "./dist/provider-openai/index.d.ts",
       "import": "./dist/provider-openai/index.js"
     },
     "./openai/runtime": {
-      "browser": "./dist/provider-openai/runtime.browser.js",
+      "browser": {
+        "types": "./dist/provider-openai/runtime.d.ts",
+        "import": "./dist/provider-openai/runtime.browser.js"
+      },
       "types": "./dist/provider-openai/runtime.d.ts",
       "import": "./dist/provider-openai/runtime.js"
     },
