@@ -1,5 +1,7 @@
 # @workglow/cli
 
+## 0.0.126
+
 ## 0.0.125
 
 ### Features

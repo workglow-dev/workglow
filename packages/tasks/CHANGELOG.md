@@ -1,5 +1,11 @@
 # @workglow/tasks
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
 ## 0.0.125
 
 ## 0.0.124

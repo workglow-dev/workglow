@@ -1,5 +1,25 @@
 # @workglow/storage
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### tests
+
+- enhance testing framework with unit and integration test scripts separated for github actions
+
+#### storage
+
+- move @workglow/sqlite package into @workglow/storage/sqlite and add @workglow/storage/postgresql
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
 ## 0.0.125
 
 ### Features

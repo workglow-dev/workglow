@@ -1,5 +1,17 @@
 # @workglow/job-queue
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
 ## 0.0.125
 
 ### Documentation

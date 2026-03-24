@@ -1,5 +1,22 @@
 # @workglow/ai
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### ai
+
+- refine model search output schema with specific model type
+- enhance model search functionality with query filtering
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
 ## 0.0.125
 
 ## 0.0.124

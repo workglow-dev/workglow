@@ -1,5 +1,15 @@
 # @workglow/ai-provider
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### ai
+
+- enhance model search functionality with query filtering
+
 ## 0.0.125
 
 ## 0.0.124

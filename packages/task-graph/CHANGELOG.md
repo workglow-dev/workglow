@@ -1,5 +1,21 @@
 # @workglow/task-graph
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### example-web
+
+- refactor storage implementation and update model imports
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
 ## 0.0.125
 
 ### Features

@@ -1,5 +1,15 @@
 # @workglow/knowledge-base
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### storage
+
+- move @workglow/sqlite package into @workglow/storage/sqlite and add @workglow/storage/postgresql
+
 ## 0.0.125
 
 ## 0.0.124
