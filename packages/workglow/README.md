@@ -4,7 +4,7 @@ Convenience meta-package that re-exports all Workglow packages for single-import
 
 ## Overview
 
-The `workglow` package is a single entry point that re-exports all `@workglow/*` packages (except `@workglow/test`). Instead of installing and importing from multiple packages, you can use `workglow` to get everything in one import.
+The `workglow` package is a single entry point that re-exports the published `@workglow/*` libraries. Instead of installing and importing from multiple packages, you can use `workglow` to get everything in one import.
 
 ## Features
 

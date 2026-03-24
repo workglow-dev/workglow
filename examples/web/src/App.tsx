@@ -8,7 +8,7 @@ import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transf
 import { registerTensorFlowMediaPipe } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, JsonTaskItem, TaskGraph, Workflow } from "@workglow/task-graph";
 import { JsonTask } from "@workglow/tasks";
-import { IndexedDbTaskGraphRepository, IndexedDbTaskOutputRepository } from "@workglow/test";
+import { IndexedDbTaskGraphRepository, IndexedDbTaskOutputRepository } from "./storage";
 import { ReactFlowProvider } from "@xyflow/react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./Resize";
@@ -47,12 +47,34 @@ const resetGraph = () => {
   const workflow = (window as any)["workflow"] as Workflow;
   workflow
     .reset()
-    .downloadModel({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" })
+    .downloadModel({
+      model: {
+        tasks: ["TextGenerationTask", "TextRewriterTask"],
+        provider: "HF_TRANSFORMERS_ONNX",
+        provider_config: {
+          pipeline: "text2text-generation",
+          model_path: "Xenova/LaMini-Flan-T5-783M",
+          dtype: "q8",
+          device: "wasm",
+        },
+      },
+    })
     .textRewriter({
       text: "The quick brown fox jumps over the lazy dog.",
       prompt: "Rewrite the following text in reverse:",
     })
-    .downloadModel({ model: "onnx:Xenova/m2m100_418M:q8" })
+    .downloadModel({
+      model: {
+        tasks: ["TextTranslationTask"],
+        provider: "HF_TRANSFORMERS_ONNX",
+        provider_config: {
+          pipeline: "translation",
+          model_path: "Xenova/m2m100_418M",
+          language_style: "ISO-639",
+          dtype: "q8",
+        },
+      },
+    })
     .textTranslation({
       source_lang: "en",
       target_lang: "es",
@@ -117,10 +139,6 @@ let workflow: Workflow = (window as any)["workflow"] as Workflow;
 
 const initialJsonObj: JsonTaskItem[] = workflow.toDependencyJSON(dependencyJsonOpts);
 const initialJson = JSON.stringify(initialJsonObj, null, 2);
-const { registerHuggingfaceLocalModels, registerMediaPipeTfJsLocalModels } =
-  await import("./modelSamples");
-await registerHuggingfaceLocalModels();
-await registerMediaPipeTfJsLocalModels();
 
 export const App = () => {
   const [graph, setGraph] = useState<TaskGraph>(workflow.graph);

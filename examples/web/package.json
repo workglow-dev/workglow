@@ -23,7 +23,6 @@
     "@workglow/sqlite": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
-    "@workglow/test": "workspace:*",
     "@workglow/util": "workspace:*",
     "@mediapipe/tasks-text": "catalog:",
     "@mediapipe/tasks-vision": "catalog:",
