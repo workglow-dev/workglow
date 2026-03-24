@@ -52,9 +52,18 @@ import { registerHuggingFaceTransformersInline } from "workglow/hf-transformers/
 // config and start up
 await registerHuggingFaceTransformersInline();
 
+const laMiniModelConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "text2text-generation",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+} as const;
+
 const workflow = new Workflow();
 workflow
-  .downloadModel({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" })
+  .downloadModel({ model: laMiniModelConfig })
   .textRewriter({
     text: "The quick brown fox jumps over the lazy dog.",
     prompt: "Rewrite the following text in reverse:",
@@ -81,9 +90,18 @@ import { registerHuggingFaceTransformersInline } from "workglow/hf-transformers/
 // config and start up
 await registerHuggingFaceTransformersInline();
 
+const laMiniModelConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "text2text-generation",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+} as const;
+
 // build and run graph
 const graph = new TaskGraph();
-graph.addTask(new DownloadModelTask({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" }, { id: "1" }));
+graph.addTask(new DownloadModelTask({ model: laMiniModelConfig }, { id: "1" }));
 graph.addTask(
   new TextRewriterTask(
     {
@@ -149,14 +167,17 @@ const modelRepo = new InMemoryModelRepository();
 setGlobalModelRepository(modelRepo);
 await modelRepo.addModel({
   model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
-  tasks: ["TextGenerationTask","TextRewriterTask"],
+  tasks: ["TextGenerationTask", "TextRewriterTask"],
   title: "LaMini-Flan-T5-783M",
   description: "LaMini-Flan-T5-783M quantized to 8bit",
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text2text-generation",
     pooling: "mean",
-    model_path: "Xenova/LaMini-Flan-T5-783M"
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+  metadata: {},
 });
 
 // Job queue for the provider
@@ -178,9 +199,18 @@ client.attach(server);
 getTaskQueueRegistry().registerQueue({ server, client, storage });
 await server.start();
 
+const laMiniModelConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "text2text-generation",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+} as const;
+
 // Build and run graph
 const graph = new TaskGraph();
-graph.addTask(new DownloadModelTask({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" }, { id: "1" }));
+graph.addTask(new DownloadModelTask({ model: laMiniModelConfig }, { id: "1" }));
 graph.addTask(
   new TextRewriterTask(
     {
@@ -265,9 +295,20 @@ An example is TextEmbeddingTask and TextEmbeddingCompoundTask. The first takes a
 
 ```ts
 import { Workflow } from "workglow";
+
+const laMiniEmbeddingConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+} as const;
+
 const workflow = new Workflow();
 workflow.textEmbedding({
-  model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+  model: laMiniEmbeddingConfig,
   text: "The quick brown fox jumps over the lazy dog.",
 });
 await workflow.run();
@@ -277,9 +318,20 @@ OR
 
 ```ts
 import { Workflow } from "workglow";
+
+const laMiniEmbeddingConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+} as const;
+
 const workflow = new Workflow();
 workflow.textEmbedding({
-  model: ["onnx:Xenova/LaMini-Flan-T5-783M:q8", "Universal Sentence Encoder"],
+  model: [laMiniEmbeddingConfig, "Universal Sentence Encoder"],
   text: "The quick brown fox jumps over the lazy dog.",
 });
 await workflow.run();
@@ -289,14 +341,25 @@ The workflow will look at outputs of one task and automatically connect it to th
 
 ```ts
 import { Workflow } from "workglow";
+
+const laMiniEmbeddingConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+} as const;
+
 const workflow = new Workflow();
 workflow
   .downloadModel({
-    model: ["onnx:Xenova/LaMini-Flan-T5-783M:q8", "Universal Sentence Encoder"],
+    model: [laMiniEmbeddingConfig, "Universal Sentence Encoder"],
   })
   .textEmbedding({
     text: "The quick brown fox jumps over the lazy dog.",
-  });
+  })
   .rename("*", "console")
   .debugLog();
 await workflow.run();
@@ -314,7 +377,14 @@ There is a JSONTask that can be used to build a graph. This is useful for saving
     "id": "2",
     "type": "TextRewriterTask",
     "input": {
-      "model": "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+      "model": {
+        "provider": "HF_TRANSFORMERS_ONNX",
+        "provider_config": {
+          "pipeline": "text2text-generation",
+          "model_path": "Xenova/LaMini-Flan-T5-783M",
+          "dtype": "q8"
+        }
+      },
       "text": "The quick brown fox jumps over the lazy dog.",
       "prompt": "Rewrite the following text in reverse:"
     },
@@ -329,7 +399,14 @@ There is a JSONTask that can be used to build a graph. This is useful for saving
     "id": "3",
     "type": "TextTranslationTask",
     "input": {
-      "model": "onnx:Xenova/m2m100_418M:q8",
+      "model": {
+        "provider": "HF_TRANSFORMERS_ONNX",
+        "provider_config": {
+          "pipeline": "translation",
+          "model_path": "Xenova/m2m100_418M",
+          "dtype": "q8"
+        }
+      },
       "source_lang": "en",
       "target_lang": "es"
     },
@@ -372,8 +449,18 @@ await task.run();
 To use a task, instantiate it with some input and call `run()`:
 
 ```ts
+const laMiniEmbeddingConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+} as const;
+
 const task = new TextEmbeddingTask({
-  model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+  model: laMiniEmbeddingConfig,
   text: "The quick brown fox jumps over the lazy dog.",
 });
 const result = await task.run();
@@ -389,10 +476,19 @@ The task graph is a collection of tasks (nodes) and data flows (edges). It is th
 Example:
 
 ```ts
+const laMiniModelConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "text2text-generation",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+} as const;
+
 const graph = new TaskGraph();
 graph.addTask(
   new TextRewriterCompoundTask({
-    model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+    model: laMiniModelConfig,
     text: "The quick brown fox jumps over the lazy dog.",
     prompt: "Rewrite the following text in reverse:",
   })
@@ -406,11 +502,20 @@ Dataflows are the edges in the graph. They connect the output of one task to the
 Example, adding a data flow to the graph similar to above:
 
 ```ts
+const laMiniModelConfig = {
+  provider: "HF_TRANSFORMERS_ONNX",
+  provider_config: {
+    pipeline: "text2text-generation",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+} as const;
+
 const graph = new TaskGraph();
 graph.addTask(
   new TextRewriterCompoundTask(
     {
-      model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+      model: laMiniModelConfig,
       text: "The quick brown fox jumps over the lazy dog.",
       prompt: "Rewrite the following text in reverse:",
     },
