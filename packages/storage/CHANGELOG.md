@@ -2,6 +2,12 @@
 
 ## 0.0.125
 
+### Features
+
+#### sqlite
+
+- Unified **`Sqlite.init()`** on Node (dynamic `import` of `better-sqlite3`), Bun (`bun:sqlite`), and browser (WASM). Call it once before **`new Sqlite.Database(...)`** or any storage that opens SQLite by file path.
+
 ## 0.0.124
 
 ## 0.0.123

@@ -4,25 +4,40 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createRequire } from "node:module";
-
 import type { Database as BunDatabaseCtor, Statement as BunStatementType } from "bun:sqlite";
 
 import type { SqliteApi } from "./canonical-api";
 
 export type { SqliteApi };
 
-const require = createRequire(import.meta.url);
-
 type BunSqliteModule = typeof import("bun:sqlite");
 
 let _bunSqlite: BunSqliteModule | undefined;
+let initPromise: Promise<void> | undefined;
 
-function getBunSqlite(): BunSqliteModule {
+function assertBunLoaded(): BunSqliteModule {
   if (!_bunSqlite) {
-    _bunSqlite = require("bun:sqlite") as BunSqliteModule;
+    throw new Error(
+      "SQLite is not ready. Await Sqlite.init() before using new Sqlite.Database()."
+    );
   }
   return _bunSqlite;
+}
+
+/**
+ * Resolves `bun:sqlite` via dynamic import. Idempotent; concurrent callers share one load.
+ */
+function initSqlite(): Promise<void> {
+  return (initPromise ??= (async () => {
+    if (_bunSqlite) {
+      return;
+    }
+    _bunSqlite = await import("bun:sqlite");
+  })());
+}
+
+function getBunSqlite(): BunSqliteModule {
+  return assertBunLoaded();
 }
 
 function toRunResult(changes: number, lastInsertRowid: number | bigint): SqliteApi.RunResult {
@@ -98,8 +113,9 @@ export class BunSqliteDatabase implements SqliteApi.Database {
 }
 
 export const Sqlite = {
+  init: initSqlite,
   Database: BunSqliteDatabase,
-};
+} as const;
 
 export namespace Sqlite {
   export type Database = BunSqliteDatabase;

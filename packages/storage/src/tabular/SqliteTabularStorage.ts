@@ -36,8 +36,6 @@ export const SQLITE_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.sqlite"
 );
 
-const Database = Sqlite.Database;
-
 // SqliteTabularStorage is a key-value store that uses SQLite as the backend for
 // in app data.
 
@@ -86,7 +84,7 @@ export class SqliteTabularStorage<
   ) {
     super(table, schema, primaryKeyNames, indexes, clientProvidedKeys);
     if (typeof dbOrPath === "string") {
-      this.db = new Database(dbOrPath);
+      this.db = new Sqlite.Database(dbOrPath);
     } else {
       this.db = dbOrPath;
     }

@@ -457,10 +457,15 @@ await storage.setupDatabase();
 
 ### SQLite Storage (Node.js/Bun)
 
+`SqliteQueueStorage` takes an open **`Sqlite.Database`** instance (not a path string).
+
 ```typescript
 import { SqliteQueueStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
 
-const storage = new SqliteQueueStorage<Input, Output>("./jobs.db", "my-queue");
+await Sqlite.init();
+const db = new Sqlite.Database("./jobs.db");
+const storage = new SqliteQueueStorage<Input, Output>(db, "my-queue");
 await storage.setupDatabase();
 ```
 
@@ -524,7 +529,12 @@ const limiter = new RateLimiter(rateLimiterStorage, "my-queue", {
 ### Composite Limiter
 
 ```typescript
-import { CompositeLimiter, ConcurrencyLimiter, DelayLimiter, RateLimiter } from "@workglow/job-queue";
+import {
+  CompositeLimiter,
+  ConcurrencyLimiter,
+  DelayLimiter,
+  RateLimiter,
+} from "@workglow/job-queue";
 import { InMemoryRateLimiterStorage } from "@workglow/storage";
 
 // Create storage for the rate limiter

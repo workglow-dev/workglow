@@ -2,6 +2,10 @@
 
 ## 0.0.125
 
+### Documentation
+
+- README: `SqliteQueueStorage` takes an opened **`Sqlite.Database`**; call **`await Sqlite.init()`** first (see `@workglow/storage`).
+
 ## 0.0.124
 
 ## 0.0.123

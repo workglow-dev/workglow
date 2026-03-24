@@ -12,9 +12,9 @@ import { runGenericJobQueueTests } from "./genericJobQueueTests";
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-const db = new Sqlite.Database(":memory:");
-
-describe("SqliteJobQueue", () => {
+describe("SqliteJobQueue", async () => {
+  await Sqlite.init();
+  const db = new Sqlite.Database(":memory:");
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericJobQueueTests(

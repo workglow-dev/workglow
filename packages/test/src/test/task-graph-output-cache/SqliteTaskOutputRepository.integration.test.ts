@@ -4,13 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Sqlite } from "@workglow/storage/sqlite";
 import { setLogger, uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { SqliteTaskOutputRepository } from "../../binding/SqliteTaskOutputRepository";
 import { runGenericTaskOutputRepositoryTests } from "./genericTaskOutputRepositoryTests";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-describe("SqliteTaskOutputRepository", () => {
+describe("SqliteTaskOutputRepository", async () => {
+  await Sqlite.init();
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericTaskOutputRepositoryTests(async () => {

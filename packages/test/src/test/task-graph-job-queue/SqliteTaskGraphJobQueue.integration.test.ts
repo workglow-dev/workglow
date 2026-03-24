@@ -13,7 +13,8 @@ import { describe } from "vitest";
 import { runGenericTaskGraphJobQueueTests, TestJob } from "./genericTaskGraphJobQueueTests";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-describe("SqliteTaskGraphJobQueue", () => {
+describe("SqliteTaskGraphJobQueue", async () => {
+  await Sqlite.init();
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericTaskGraphJobQueueTests(async () => {

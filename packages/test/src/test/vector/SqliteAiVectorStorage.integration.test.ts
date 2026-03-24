@@ -44,7 +44,9 @@ type VectorEntity = {
 
 const VectorPrimaryKey = ["chunk_id"] as const;
 
-describe.skipIf(!sqliteVectorAvailable)("SqliteAiVectorStorage", () => {
+describe.skipIf(!sqliteVectorAvailable)("SqliteAiVectorStorage", async () => {
+  await Sqlite.init();
+
   const logger = getTestingLogger();
   setLogger(logger);
   let db: InstanceType<typeof Sqlite.Database>;

@@ -23,18 +23,21 @@ let initPromise: Promise<void> | undefined;
 function assertWasmLoaded(): WasmSqliteModule {
   if (!wasmModule) {
     throw new Error(
-      "SQLite WASM is not ready. Await Sqlite.init() before using new Sqlite.Database()."
+      "SQLite is not ready. Await Sqlite.init() before using new Sqlite.Database()."
     );
   }
   return wasmModule;
 }
 
 /**
- * Loads and initializes the SQLite WASM module. Exposed as {@link Sqlite.init}; call once
- * (and await) before constructing `new Sqlite.Database()` in the browser.
+ * Loads and initializes the SQLite WASM module. Idempotent; call once (and await) before
+ * `new Sqlite.Database()` (same contract as Node and Bun).
  */
-function initSqliteWasm(): Promise<void> {
+function initSqlite(): Promise<void> {
   return (initPromise ??= (async () => {
+    if (wasmModule) {
+      return;
+    }
     try {
       const { default: sqlite3InitModule } = await import("@sqlite.org/sqlite-wasm");
       wasmModule = await sqlite3InitModule();
@@ -159,8 +162,8 @@ export class BrowserDatabase implements SqliteApi.Database {
 }
 
 export const Sqlite = {
+  init: initSqlite,
   Database: BrowserDatabase,
-  init: initSqliteWasm,
 } as const;
 
 /** Merged with {@link Sqlite} so `Sqlite.Database` works in type positions (not only as a value). */

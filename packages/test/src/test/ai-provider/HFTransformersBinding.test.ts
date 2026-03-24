@@ -40,6 +40,7 @@ import { setLogger, sleep } from "@workglow/util";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
+await Sqlite.init();
 const db = new Sqlite.Database(":memory:");
 
 describe("HFTransformersBinding", () => {

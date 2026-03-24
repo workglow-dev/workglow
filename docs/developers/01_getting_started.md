@@ -47,8 +47,8 @@ After this, please read [Architecture](02_architecture.md) before attempting to 
 ## Using Workflow & a config helper
 
 ```ts
-import { Workflow } from "@workglow/task-graph";
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
+import { Workflow } from "workglow";
+import { registerHuggingFaceTransformersInline } from "workglow/hf-transformers/runtime";
 // config and start up
 await registerHuggingFaceTransformersInline();
 
@@ -73,10 +73,10 @@ console.log(graphJson);
 This is equivalent to creating the graph directly, with additional features like caching and reactive execution:
 
 ```ts
-import { Dataflow, TaskGraph } from "@workglow/task-graph";
-import { DownloadModelTask, TextRewriterTask } from "@workglow/ai";
-import { DebugLogTask } from "@workglow/tasks";
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
+import { Dataflow, TaskGraph } from "workglow";
+import { DownloadModelTask, TextRewriterTask } from "workglow";
+import { DebugLogTask } from "workglow";
+import { registerHuggingFaceTransformersInline } from "workglow/hf-transformers/runtime";
 
 // config and start up
 await registerHuggingFaceTransformersInline();
@@ -126,7 +126,7 @@ import {
   getTaskQueueRegistry,
   TaskInput,
   TaskOutput,
-} from "@workglow/task-graph";
+} from "workglow";
 import {
   DownloadModelTask,
   TextRewriterTask,
@@ -134,12 +134,12 @@ import {
   AiJobInput,
   InMemoryModelRepository,
   setGlobalModelRepository,
-} from "@workglow/ai";
-import { DebugLogTask } from "@workglow/tasks";
-import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
-import { InMemoryQueueStorage } from "@workglow/storage";
-import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
+} from "workglow";
+import { DebugLogTask } from "workglow";
+import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "workglow";
+import { InMemoryQueueStorage } from "workglow";
+import { HF_TRANSFORMERS_ONNX } from "workglow/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "workglow/hf-transformers/runtime";
 
 // Provider run functions on this thread
 await registerHuggingFaceTransformersInline();
@@ -229,8 +229,8 @@ LLM providers have long running functions. These are handled by a Job Queue. The
 #### In memory:
 
 ```ts
-import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
-import { registerTensorFlowMediaPipeInline } from "@workglow/ai-provider/tf-mediapipe/runtime";
+import { registerHuggingFaceTransformersInline } from "workglow/hf-transformers/runtime";
+import { registerTensorFlowMediaPipeInline } from "workglow/tf-mediapipe/runtime";
 
 await registerHuggingFaceTransformersInline();
 await registerTensorFlowMediaPipeInline();
@@ -240,14 +240,14 @@ For browser apps, prefer **worker mode** to keep the main thread responsive:
 
 ```ts
 // Main thread
-import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformers } from "workglow/hf-transformers";
 
 await registerHuggingFaceTransformers({
   worker: () => new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
 });
 
 // worker_hft.ts
-import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers/runtime";
+import { registerHuggingFaceTransformersWorker } from "workglow/hf-transformers/runtime";
 registerHuggingFaceTransformersWorker();
 ```
 
@@ -264,7 +264,7 @@ Tasks are the smallest unit of work, therefore they take simple inputs. GraphAsT
 An example is TextEmbeddingTask and TextEmbeddingCompoundTask. The first takes a single model input, the second accepts an array of model inputs. Since models can have different providers, the Compound version creates a single task version for each model input. The workflow is smart enough to know that the Compound version is needed when an array is passed, and as such, you don't need to differentiate between the two:
 
 ```ts
-import { Workflow } from "@workglow/task-graph";
+import { Workflow } from "workglow";
 const workflow = new Workflow();
 workflow.textEmbedding({
   model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
@@ -276,7 +276,7 @@ await workflow.run();
 OR
 
 ```ts
-import { Workflow } from "@workglow/task-graph";
+import { Workflow } from "workglow";
 const workflow = new Workflow();
 workflow.textEmbedding({
   model: ["onnx:Xenova/LaMini-Flan-T5-783M:q8", "Universal Sentence Encoder"],
@@ -288,7 +288,7 @@ await workflow.run();
 The workflow will look at outputs of one task and automatically connect it to the input of the next task, if the output and input names and types match. If they don't, you can use the `rename` method to rename the output of the first task to match the input of the second task.
 
 ```ts
-import { Workflow } from "@workglow/task-graph";
+import { Workflow } from "workglow";
 const workflow = new Workflow();
 workflow
   .downloadModel({
@@ -359,7 +359,7 @@ There is a JSONTask that can be used to build a graph. This is useful for saving
 The JSON above is a good example as it shows how to use a compound task with multiple inputs. Compound tasks export arrays, so use a compound task to consume the output of another compound task. The `dependencies` object is used to specify which output of which task is used as input for the current task. It is a shorthand for creating a data flow (an edge) in the graph.
 
 ```ts
-import { JsonTask } from "@workglow/tasks";
+import { JsonTask } from "workglow";
 const json = require("./example.json");
 const task = new JsonTask({ json });
 await task.run();

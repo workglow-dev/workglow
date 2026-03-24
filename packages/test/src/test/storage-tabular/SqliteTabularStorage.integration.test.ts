@@ -5,6 +5,7 @@
  */
 
 import { SqliteTabularStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { setLogger, uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -23,7 +24,8 @@ import {
   UuidSchema,
 } from "./genericTabularStorageTests";
 
-describe("SqliteTabularStorage", () => {
+describe("SqliteTabularStorage", async () => {
+  await Sqlite.init();
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericTabularStorageTests(

@@ -266,7 +266,9 @@ setGlobalModelRepository(modelRepo);
 
 ```typescript
 import { SqliteModelRepository, setGlobalModelRepository } from "@workglow/ai";
+import { Sqlite } from "@workglow/storage/sqlite";
 
+await Sqlite.init();
 const modelRepo = new SqliteModelRepository("./models.db");
 setGlobalModelRepository(modelRepo);
 ```
@@ -667,7 +669,9 @@ const modelRepo = new IndexedDbModelRepository();
 
 ```typescript
 import { SqliteModelRepository } from "@workglow/ai";
+import { Sqlite } from "@workglow/storage/sqlite";
 
+await Sqlite.init();
 // Use SQLite for server-side storage
 const modelRepo = new SqliteModelRepository("./models.db");
 ```

@@ -860,6 +860,7 @@ import {
   IndexedDbTabularStorage,
   SqliteTabularStorage,
 } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
 
 // In-memory (e.g. tests)
 const memoryOutput = new TaskOutputTabularRepository({
@@ -887,7 +888,8 @@ const fsGraph = new TaskGraphTabularRepository({
   ),
 });
 
-// SQLite
+// SQLite (await Sqlite.init() once before using a path or new Sqlite.Database)
+await Sqlite.init();
 const sqliteOutput = new TaskOutputTabularRepository({
   tabularRepository: new SqliteTabularStorage(
     ":memory:",

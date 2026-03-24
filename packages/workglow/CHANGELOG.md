@@ -17,6 +17,10 @@
 
 - enhance CLI integration with task and workflow commands
 
+#### storage
+
+- SQLite: **`await Sqlite.init()`** before opening a database; same entrypoint on Node, Bun, and browser (re-exported from `workglow`)
+
 ### Refactors
 
 #### debug

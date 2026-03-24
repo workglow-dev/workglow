@@ -90,9 +90,10 @@ await pgRepo.put("preferences:456", { lang: "en", fontSize: 16 });
 import { SqliteKvRepository } from "@workglow/storage/kv";
 import { Sqlite } from "@workglow/storage/sqlite";
 
-const db = new Sqlite(":memory:"); // In-memory database
+await Sqlite.init();
+const db = new Sqlite.Database(":memory:");
 const sqliteRepo = new SqliteKvRepository(
-  db, // SQLite connection
+  db, // Sqlite.Database instance or pass a file path string after Sqlite.init()
   "cache_data", // Table name
   "string", // Key type
   "string" // Value type (raw strings)

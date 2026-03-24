@@ -11,9 +11,9 @@ import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStora
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-const db = new Sqlite.Database(":memory:");
-
-describe("SqlitePrefixedQueueStorage", () => {
+describe("SqlitePrefixedQueueStorage", async () => {
+  await Sqlite.init();
+  const db = new Sqlite.Database(":memory:");
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericPrefixedQueueStorageTests(

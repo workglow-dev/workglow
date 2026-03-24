@@ -20,6 +20,9 @@ import {
   TaskOutputTabularRepository,
 } from "@workglow/task-graph";
 import { SqliteTabularStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
+
+await Sqlite.init();
 
 const outputRepo = new TaskOutputTabularRepository({
   tabularRepository: new SqliteTabularStorage(
@@ -55,6 +58,7 @@ import {
   InMemoryTabularStorage,
   SqliteTabularStorage,
 } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
 
 const fsRepo = new TaskGraphTabularRepository({
   tabularRepository: new FsFolderTabularStorage(
@@ -66,6 +70,8 @@ const fsRepo = new TaskGraphTabularRepository({
 const memoryRepo = new TaskGraphTabularRepository({
   tabularRepository: new InMemoryTabularStorage(TaskGraphSchema, TaskGraphPrimaryKeyNames),
 });
+
+await Sqlite.init();
 const sqliteRepo = new TaskGraphTabularRepository({
   tabularRepository: new SqliteTabularStorage(
     ":memory:",

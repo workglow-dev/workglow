@@ -142,6 +142,10 @@ The package uses conditional exports, so importing from `@workglow/storage` auto
 import { InMemoryKvStorage, SqliteTabularStorage } from "@workglow/storage";
 ```
 
+### SQLite setup (`@workglow/storage/sqlite`)
+
+Before you open SQLite with a **file path** or construct **`new Sqlite.Database(...)`**, call **`await Sqlite.init()`** once per runtime (Node.js, Bun, or browser). Export is available from **`workglow`** and **`@workglow/storage/sqlite`**. The call is idempotent. On the browser it loads the SQLite WASM build; on Node.js it loads `better-sqlite3`; on Bun it resolves `bun:sqlite`.
+
 ## Storage Types
 
 ### Key-Value Storage
@@ -171,7 +175,10 @@ const browserStore = new IndexedDbKvRepository("my-app-storage");
 
 // Node.js/Bun (using SQLite)
 import { SqliteKvRepository } from "@workglow/storage";
-// Pass a file path or a Database instance (see @workglow/storage/sqlite)
+import { Sqlite } from "@workglow/storage/sqlite";
+
+await Sqlite.init();
+// Pass a file path or a Sqlite.Database instance (see @workglow/storage/sqlite)
 const sqliteStore = new SqliteKvRepository("./data.db", "config_table");
 
 // PostgreSQL (Node.js/Bun)
@@ -390,7 +397,9 @@ await userRepo.deleteSearch({
 ```typescript
 // SQLite (Node.js/Bun)
 import { SqliteTabularStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
 
+await Sqlite.init();
 const sqliteUsers = new SqliteTabularStorage<typeof UserSchema, ["id"]>(
   "./users.db",
   "users",
@@ -554,11 +563,11 @@ import {
   PostgresQueueStorage,
   SupabaseTabularStorage,
 } from "@workglow/storage";
-
-import { Database } from "bun:sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { createClient } from "@supabase/supabase-js";
 
-const db = new Database("./app.db");
+await Sqlite.init();
+const db = new Sqlite.Database("./app.db");
 const data = new SqliteTabularStorage(db, "items", ItemSchema, ["id"]);
 
 // Or use Supabase for cloud storage

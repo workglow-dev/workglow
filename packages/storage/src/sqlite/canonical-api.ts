@@ -8,6 +8,8 @@
  * Canonical SQLite surface for `@workglow/storage/sqlite` across Node (better-sqlite3),
  * Bun (native, via adapter), and browser (WASM).
  *
+ * On every platform, call `await Sqlite.init()` once before `new Sqlite.Database(...)`.
+ *
  * **Generic order:** `prepare<BindParameters, Result>(sql)` — bindings first,
  * row/result second (better-sqlite3 order), not `bun:sqlite`’s reversed order.
  */

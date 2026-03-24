@@ -93,6 +93,8 @@ bun add pg                        # PostgreSQL
 bun add @supabase/supabase-js     # Supabase
 ```
 
+For SQLite-backed APIs, call **`await Sqlite.init()`** once before `new Sqlite.Database(...)` or any storage constructor that opens SQLite by file path. `Sqlite` is exported from the `workglow` package (and from `@workglow/storage/sqlite`).
+
 ## License
 
 Apache-2.0

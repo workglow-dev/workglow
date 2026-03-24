@@ -14,7 +14,7 @@ import {
   knowledgeBaseTableNames,
   registerKnowledgeBase,
 } from "@workglow/knowledge-base";
-import type { Sqlite } from "@workglow/storage/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { SqliteAiVectorStorage, SqliteTabularStorage } from "@workglow/storage";
 import type { TypedArray } from "@workglow/util/schema";
 
@@ -37,9 +37,10 @@ export interface CreateSqliteKnowledgeBaseOptions {
  *
  * @example
  * ```typescript
- * import Database from "better-sqlite3";
+ * import { Sqlite } from "workglow";
  *
- * const db = new Database("knowledge.db");
+ * await Sqlite.init();
+ * const db = new Sqlite.Database("knowledge.db");
  * const kb = await createSqliteKnowledgeBase({
  *   name: "my-kb",
  *   db,
@@ -50,6 +51,8 @@ export interface CreateSqliteKnowledgeBaseOptions {
 export async function createSqliteKnowledgeBase(
   options: CreateSqliteKnowledgeBaseOptions
 ): Promise<KnowledgeBase> {
+  await Sqlite.init();
+
   const {
     name,
     db,
