@@ -5,7 +5,7 @@
  */
 
 import type { DataPortSchemaObject } from "@workglow/util/schema";
-import { searchMcpRegistryPage, type McpSearchResultItem } from "@workglow/tasks";
+import { searchMcpRegistryPage, mcpAuthConfigSchema, type McpSearchResultItem } from "@workglow/tasks";
 import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
@@ -39,6 +39,7 @@ const mcpSchema = {
       },
       then: { required: ["server_url"] },
     },
+    ...mcpAuthConfigSchema.allOf,
   ],
 } as unknown as DataPortSchemaObject;
 
