@@ -48,8 +48,7 @@ export function normalize(vector: TypedArray, throwOnZero = true, float32 = fals
     return new Float32Array(normalized);
   }
 
-  // Preserve the original type only for float arrays; integer arrays would
-  // truncate the normalized [0,1] values to 0/1, so we return Float32Array.
+  // Preserve the original Vector type
   if (vector instanceof Float64Array) {
     return new Float64Array(normalized);
   }
@@ -59,7 +58,19 @@ export function normalize(vector: TypedArray, throwOnZero = true, float32 = fals
   if (vector instanceof Float32Array) {
     return new Float32Array(normalized);
   }
-  // For integer typed arrays, normalization produces floats — use Float32Array
+  if (vector instanceof Int8Array) {
+    return new Int8Array(normalized);
+  }
+  if (vector instanceof Uint8Array) {
+    return new Uint8Array(normalized);
+  }
+  if (vector instanceof Int16Array) {
+    return new Int16Array(normalized);
+  }
+  if (vector instanceof Uint16Array) {
+    return new Uint16Array(normalized);
+  }
+  // For other integer arrays, use Float32Array since normalization produces floats
   return new Float32Array(normalized);
 }
 
