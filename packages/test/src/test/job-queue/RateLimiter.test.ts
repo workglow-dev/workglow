@@ -108,7 +108,7 @@ describe("RateLimiter", () => {
     });
 
     it("should block when execution count meets limit", async () => {
-      (storage as any)._setExecutionCount(5);
+      storage._setExecutionCount(5);
       const limiter = new RateLimiter(storage, "queue", {
         maxExecutions: 5,
         windowSizeInSeconds: 60,
