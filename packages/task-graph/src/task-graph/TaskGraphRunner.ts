@@ -31,7 +31,6 @@ import {
   TaskConfigurationError,
   TaskError,
   TaskGraphTimeoutError,
-  TaskTimeoutError,
 } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
