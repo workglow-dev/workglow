@@ -43,7 +43,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
     promptLength: input.prompt?.length,
   });
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
   let results = await generateText(input.prompt, {
     streamer,
@@ -69,7 +69,7 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
   const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextGenerationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
 
   const pipelinePromise = generateText(input.prompt, {
     streamer,

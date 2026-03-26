@@ -32,7 +32,7 @@ export const HFT_TextRewriter: AiProviderRunFn<
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
   // This lib doesn't support this kind of rewriting with a separate prompt vs text
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
@@ -66,7 +66,7 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
   const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
 
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
 

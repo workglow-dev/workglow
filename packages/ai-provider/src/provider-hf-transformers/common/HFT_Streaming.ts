@@ -5,6 +5,7 @@
  */
 
 import type { TextStreamer } from "@huggingface/transformers";
+import { TaskAbortedError } from "@workglow/task-graph";
 import type { StreamEvent } from "@workglow/task-graph";
 
 export type StreamEventQueue<T> = {
@@ -78,12 +79,16 @@ export function createStreamEventQueue<T>(): StreamEventQueue<T> {
 export function createStreamingTextStreamer(
   tokenizer: any,
   queue: StreamEventQueue<StreamEvent<any>>,
-  textStreamer: typeof TextStreamer
+  textStreamer: typeof TextStreamer,
+  signal?: AbortSignal
 ) {
   return new textStreamer(tokenizer, {
     skip_prompt: true,
     decode_kwargs: { skip_special_tokens: true },
     callback_function: (text: string) => {
+      if (signal?.aborted) {
+        throw signal.reason ?? new TaskAbortedError("Generation aborted");
+      }
       queue.push({ type: "text-delta", port: "text", textDelta: text });
     },
   });
@@ -95,13 +100,17 @@ export function createStreamingTextStreamer(
 export function createTextStreamer(
   tokenizer: any,
   updateProgress: (progress: number, message?: string, details?: any) => void,
-  textStreamer: typeof TextStreamer
+  textStreamer: typeof TextStreamer,
+  signal?: AbortSignal
 ) {
   let count = 0;
   return new textStreamer(tokenizer, {
     skip_prompt: true,
     decode_kwargs: { skip_special_tokens: true },
     callback_function: (text: string) => {
+      if (signal?.aborted) {
+        throw signal.reason ?? new TaskAbortedError("Generation aborted");
+      }
       count++;
       const result = 100 * (1 - Math.exp(-0.05 * count));
       const progress = Math.round(Math.min(result, 100));
