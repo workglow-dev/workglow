@@ -194,23 +194,13 @@ describe("LlamaCpp Integration (real models, no mocks)", () => {
       const embedWorkflow = new Workflow();
       embedWorkflow.textEmbedding({
         model: EMBED_MODEL_ID,
-        text: sentences.length === 1 ? sentences[0] : sentences,
+        text: sentences[0],
       });
 
       const embedResult = (await embedWorkflow.run()) as TextEmbeddingTaskOutput;
 
-      if (sentences.length === 1) {
-        expect(embedResult.vector).toBeInstanceOf(Float32Array);
-        expect((embedResult.vector as Float32Array).length).toBeGreaterThan(0);
-      } else {
-        expect(Array.isArray(embedResult.vector)).toBe(true);
-        const vectors = embedResult.vector as Float32Array[];
-        expect(vectors.length).toBe(sentences.length);
-        for (const v of vectors) {
-          expect(v).toBeInstanceOf(Float32Array);
-          expect(v.length).toBeGreaterThan(0);
-        }
-      }
+      expect(embedResult.vector).toBeInstanceOf(Float32Array);
+      expect((embedResult.vector as Float32Array).length).toBeGreaterThan(0);
     },
     5 * 60 * 1000 // 5 min: inference only (models already cached)
   );

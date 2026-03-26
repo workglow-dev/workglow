@@ -20,7 +20,7 @@ import { getLlamaCppSdk, getOrCreateTextContext, loadSdk } from "./LlamaCpp_Runt
 function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
   const inputMessages = input.messages;
   if (!inputMessages || inputMessages.length === 0) {
-    return input.prompt;
+    return input.prompt as string;
   }
 
   const parts: string[] = [];
