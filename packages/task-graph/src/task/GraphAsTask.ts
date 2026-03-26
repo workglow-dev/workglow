@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getLogger } from "@workglow/util";
 import { compileSchema, type DataPortSchema, type SchemaNode } from "@workglow/util/schema";
 import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";
@@ -140,11 +141,12 @@ export class GraphAsTask<
         const schemaNode = Task.generateInputSchemaNode(dataPortSchema);
         this._inputSchemaNode = schemaNode;
       } catch (error) {
-        // If compilation fails, fall back to accepting any object structure
-        // This is a safety net for schemas that json-schema-library can't compile
-        console.warn(
-          `Failed to compile input schema for ${this.type}, falling back to permissive validation:`,
-          error
+        // If compilation fails, fall back to accepting any object structure.
+        // This is a safety net for schemas that json-schema-library can't compile.
+        getLogger().warn(
+          `GraphAsTask "${this.type}" (${this.id}): Failed to compile input schema, ` +
+            `falling back to permissive validation. Inputs will NOT be validated.`,
+          { error, taskType: this.type, taskId: this.id }
         );
         this._inputSchemaNode = compileSchema({});
       }

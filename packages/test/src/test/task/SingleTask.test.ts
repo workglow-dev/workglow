@@ -338,7 +338,7 @@ describe("SingleTask", () => {
         expect(errorEmitted).toBe(true);
         expect(task.status).toBe(TaskStatus.FAILED);
         expect(task.error).toBeDefined();
-        expect(task.error?.message).toBe("Test error");
+        expect(task.error?.message).toContain("Test error");
       });
     });
 

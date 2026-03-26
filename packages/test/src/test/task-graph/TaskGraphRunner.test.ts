@@ -10,8 +10,10 @@ import {
   DataflowArrow,
   ITask,
   TaskAbortedError,
+  TaskConfigurationError,
   TaskGraph,
   TaskGraphRunner,
+  TaskGraphTimeoutError,
   TaskOutput,
   TaskStatus,
 } from "@workglow/task-graph";
@@ -193,6 +195,73 @@ describe("TaskGraphRunner", () => {
       expect(dataflows[0].status).toBe(TaskStatus.ABORTING);
       expect(dataflows[0].error).toBeDefined();
       expect(dataflows[0].error).toBeInstanceOf(TaskAbortedError);
+    });
+  });
+
+  describe("Graph-level run limits", () => {
+    it("should throw TaskConfigurationError when task count exceeds maxTasks", async () => {
+      // graph already has 3 tasks (task0, task1, task2) from beforeEach
+      await expect(runner.runGraph({}, { maxTasks: 2 })).rejects.toThrow(TaskConfigurationError);
+      await expect(runner.runGraph({}, { maxTasks: 2 })).rejects.toThrow(
+        "exceeding the limit of 2"
+      );
+    });
+
+    it("should not throw when task count is within maxTasks", async () => {
+      // 3 tasks in the graph, limit is 5 — should succeed
+      const results = await runner.runGraph({}, { maxTasks: 5 });
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("should not throw when maxTasks is undefined (no limit)", async () => {
+      const results = await runner.runGraph({}, {});
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("should abort the graph run and throw TaskGraphTimeoutError when timeout expires", async () => {
+      const timeoutGraph = new TaskGraph();
+      const longTask = new LongRunningTask({}, { id: "long" });
+      timeoutGraph.addTask(longTask);
+      const timeoutRunner = new TaskGraphRunner(timeoutGraph);
+
+      await expect(timeoutRunner.runGraph({}, { timeout: 50 })).rejects.toThrow(
+        TaskGraphTimeoutError
+      );
+    });
+
+    it("TaskGraphTimeoutError message should describe graph timeout, not task timeout", async () => {
+      const timeoutGraph = new TaskGraph();
+      const longTask = new LongRunningTask({}, { id: "long" });
+      timeoutGraph.addTask(longTask);
+      const timeoutRunner = new TaskGraphRunner(timeoutGraph);
+
+      try {
+        await timeoutRunner.runGraph({}, { timeout: 50 });
+        expect.unreachable("Should have thrown");
+      } catch (err) {
+        expect(err).toBeInstanceOf(TaskGraphTimeoutError);
+        expect((err as TaskGraphTimeoutError).message).toContain("Graph execution timed out");
+        expect((err as TaskGraphTimeoutError).message).toContain("50ms");
+      }
+    });
+
+    it("should complete normally when the graph finishes before the timeout", async () => {
+      // Small graph with fast tasks, generous timeout
+      const results = await runner.runGraph({}, { timeout: 5000 });
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("should not arm a timer when timeout is 0", async () => {
+      // timeout: 0 should be ignored and the graph should run to completion
+      const results = await runner.runGraph({}, { timeout: 0 });
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("should enforce maxTasks in reactive run via runGraphReactive", async () => {
+      // 3 tasks, limit 1 — should throw TaskConfigurationError
+      await expect(runner.runGraphReactive({}, { maxTasks: 1 })).rejects.toThrow(
+        TaskConfigurationError
+      );
     });
   });
 });

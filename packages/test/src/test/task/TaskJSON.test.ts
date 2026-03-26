@@ -11,9 +11,10 @@ import {
   GraphAsTask,
   TASK_CONSTRUCTORS,
   TaskGraph,
+  TaskJSONError,
   TaskRegistry,
 } from "@workglow/task-graph";
-import type { TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import type { TaskDeserializationOptions, TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
@@ -384,6 +385,172 @@ describe("TaskJSON", () => {
       expect(restoredChildren).toHaveLength(2);
       expect(restoredChildren[0].id).toBe("child1");
       expect(restoredChildren[1].id).toBe("child2");
+    });
+  });
+
+  describe("TaskDeserializationOptions.allowedTypes", () => {
+    test("should instantiate a task when its type is in the allowedTypes set", () => {
+      const json: TaskGraphItemJson = {
+        id: "task1",
+        type: "DoubleToResultTask",
+        defaults: { value: 42 },
+        config: {},
+      };
+      const options: TaskDeserializationOptions = {
+        allowedTypes: new Set(["DoubleToResultTask"]),
+      };
+
+      const task = createTaskFromGraphJSON(json, registry, options);
+      expect(task.id).toBe("task1");
+      expect(task.type).toBe("DoubleToResultTask");
+    });
+
+    test("should instantiate a task when its type is in an array allowedTypes list", () => {
+      const json: TaskGraphItemJson = {
+        id: "task1",
+        type: "DoubleToResultTask",
+        defaults: { value: 10 },
+        config: {},
+      };
+      const options: TaskDeserializationOptions = {
+        allowedTypes: ["DoubleToResultTask", "TestTaskWithDefaults"],
+      };
+
+      const task = createTaskFromGraphJSON(json, registry, options);
+      expect(task.type).toBe("DoubleToResultTask");
+    });
+
+    test("should throw TaskJSONError when type is not in the allowedTypes set", () => {
+      const json: TaskGraphItemJson = {
+        id: "task1",
+        type: "DoubleToResultTask",
+        defaults: { value: 42 },
+        config: {},
+      };
+      const options: TaskDeserializationOptions = {
+        allowedTypes: new Set(["TestTaskWithDefaults"]), // DoubleToResultTask is NOT allowed
+      };
+
+      expect(() => createTaskFromGraphJSON(json, registry, options)).toThrow(TaskJSONError);
+      expect(() => createTaskFromGraphJSON(json, registry, options)).toThrow(
+        '"DoubleToResultTask" is not in the allowed types list'
+      );
+    });
+
+    test("should throw TaskJSONError for a disallowed type in an array allowlist", () => {
+      const json: TaskGraphItemJson = {
+        id: "task1",
+        type: "DoubleToResultTask",
+        defaults: {},
+        config: {},
+      };
+      const options: TaskDeserializationOptions = {
+        allowedTypes: ["TestTaskWithDefaults"],
+      };
+
+      expect(() => createTaskFromGraphJSON(json, registry, options)).toThrow(TaskJSONError);
+    });
+
+    test("should allow all types when allowedTypes is not provided", () => {
+      const json: TaskGraphItemJson = {
+        id: "task1",
+        type: "DoubleToResultTask",
+        defaults: { value: 99 },
+        config: {},
+      };
+
+      const task = createTaskFromGraphJSON(json, registry);
+      expect(task.type).toBe("DoubleToResultTask");
+    });
+
+    test("should propagate allowedTypes to nested subgraph tasks", () => {
+      const json: TaskGraphItemJson = {
+        id: "parent",
+        type: "TestGraphAsTask",
+        defaults: { input: "test" },
+        config: {},
+        subgraph: {
+          tasks: [
+            {
+              id: "child1",
+              type: "DoubleToResultTask",
+              defaults: { value: 5 },
+              config: {},
+            },
+          ],
+          dataflows: [],
+        },
+      };
+
+      // DoubleToResultTask in the subgraph should be blocked
+      const options: TaskDeserializationOptions = {
+        allowedTypes: new Set(["TestGraphAsTask"]), // child type NOT allowed
+      };
+
+      expect(() => createTaskFromGraphJSON(json, registry, options)).toThrow(TaskJSONError);
+      expect(() => createTaskFromGraphJSON(json, registry, options)).toThrow(
+        '"DoubleToResultTask" is not in the allowed types list'
+      );
+    });
+
+    test("should allow nested subgraph tasks when all types are allowlisted", () => {
+      const json: TaskGraphItemJson = {
+        id: "parent",
+        type: "TestGraphAsTask",
+        defaults: { input: "test" },
+        config: {},
+        subgraph: {
+          tasks: [
+            {
+              id: "child1",
+              type: "DoubleToResultTask",
+              defaults: { value: 5 },
+              config: {},
+            },
+          ],
+          dataflows: [],
+        },
+      };
+
+      const options: TaskDeserializationOptions = {
+        allowedTypes: new Set(["TestGraphAsTask", "DoubleToResultTask"]),
+      };
+
+      const task = createTaskFromGraphJSON(json, registry, options);
+      expect(task.id).toBe("parent");
+      const graphAsTask = task as GraphAsTask<any, any>;
+      expect(graphAsTask.subGraph).toBeDefined();
+      expect(graphAsTask.subGraph!.getTasks()).toHaveLength(1);
+    });
+
+    test("should propagate allowedTypes through createGraphFromGraphJSON", () => {
+      const json: TaskGraphJson = {
+        tasks: [
+          {
+            id: "task1",
+            type: "DoubleToResultTask",
+            defaults: { value: 10 },
+            config: {},
+          },
+          {
+            id: "task2",
+            type: "TestTaskWithDefaults",
+            defaults: { value: 20, multiplier: 2 },
+            config: {},
+          },
+        ],
+        dataflows: [],
+      };
+
+      // Only allow DoubleToResultTask — TestTaskWithDefaults should be rejected
+      const options: TaskDeserializationOptions = {
+        allowedTypes: new Set(["DoubleToResultTask"]),
+      };
+
+      expect(() => createGraphFromGraphJSON(json, registry, options)).toThrow(TaskJSONError);
+      expect(() => createGraphFromGraphJSON(json, registry, options)).toThrow(
+        '"TestTaskWithDefaults" is not in the allowed types list'
+      );
     });
   });
 });

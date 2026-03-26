@@ -9,6 +9,10 @@ import { BaseError } from "@workglow/util";
 
 export class TaskError extends BaseError {
   static readonly type: string = "TaskError";
+  /** The type of the task that produced this error, if available. */
+  public taskType?: string;
+  /** The ID of the task that produced this error, if available. */
+  public taskId?: unknown;
   constructor(message: string) {
     super(message);
   }
@@ -56,6 +60,23 @@ export class TaskTimeoutError extends TaskAbortedError {
   static readonly type: string = "TaskTimeoutError";
   constructor(timeoutMs?: number) {
     super(timeoutMs ? `Task timed out after ${timeoutMs}ms` : "Task timed out");
+  }
+}
+
+/**
+ * Thrown when graph-level execution exceeds the configured `timeout` in
+ * {@link TaskGraphRunConfig}. Distinct from {@link TaskTimeoutError} (which is
+ * thrown for individual-task timeouts) so callers can tell whether the timeout
+ * was on a single task or on the entire graph run.
+ */
+export class TaskGraphTimeoutError extends TaskTimeoutError {
+  static readonly type: string = "TaskGraphTimeoutError";
+  constructor(timeoutMs?: number) {
+    super(timeoutMs);
+    // Override the message set by TaskTimeoutError to make it graph-specific.
+    this.message = timeoutMs
+      ? `Graph execution timed out after ${timeoutMs}ms`
+      : "Graph execution timed out";
   }
 }
 

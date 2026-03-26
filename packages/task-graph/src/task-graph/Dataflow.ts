@@ -10,6 +10,7 @@ import { type StreamEvent } from "../task/StreamTypes";
 import { TaskError } from "../task/TaskError";
 import { DataflowJson } from "../task/TaskJSON";
 import { TaskIdType, TaskOutput, TaskStatus } from "../task/TaskTypes";
+import { Task } from "../task/Task";
 import {
   DataflowEventListener,
   DataflowEventListeners,
@@ -146,6 +147,7 @@ export class Dataflow {
     this.error = undefined;
     this.value = undefined;
     this.stream = undefined;
+    this._compatibilityCache = undefined;
     this.emit("reset");
     this.emit("status", this.status);
   }
@@ -210,13 +212,43 @@ export class Dataflow {
     };
   }
 
+  /**
+   * Cached result of the last semantic compatibility check.
+   * Invalidated by calling {@link invalidateCompatibilityCache}.
+   */
+  protected _compatibilityCache?: "static" | "runtime" | "incompatible";
+
+  /**
+   * Invalidates the cached semantic compatibility result so the next call
+   * to {@link semanticallyCompatible} recomputes it. Call this when
+   * either endpoint's schema changes (e.g., in response to a schemaChange event).
+   */
+  public invalidateCompatibilityCache(): void {
+    this._compatibilityCache = undefined;
+  }
+
   semanticallyCompatible(
     graph: TaskGraph,
     dataflow: Dataflow
   ): "static" | "runtime" | "incompatible" {
-    // TODO(str): this is inefficient
-    const targetSchema = graph.getTask(dataflow.targetTaskId)!.inputSchema();
-    const sourceSchema = graph.getTask(dataflow.sourceTaskId)!.outputSchema();
+    const sourceTask = graph.getTask(dataflow.sourceTaskId)!;
+    const targetTask = graph.getTask(dataflow.targetTaskId)!;
+
+    // Only use the cache when both endpoint tasks have stable (non-dynamic) schemas.
+    // Tasks with dynamic schemas may emit `schemaChange` events, which would make
+    // a cached result stale. Checking the static `hasDynamicSchemas` flag (defined
+    // on Task with a default of `false`) is sufficient because tasks with stable
+    // schemas never emit `schemaChange`. Unknown constructors default to no caching.
+    const shouldCache =
+      !((sourceTask.constructor as typeof Task).hasDynamicSchemas ?? true) &&
+      !((targetTask.constructor as typeof Task).hasDynamicSchemas ?? true);
+
+    if (shouldCache && this._compatibilityCache !== undefined) {
+      return this._compatibilityCache;
+    }
+
+    const targetSchema = targetTask.inputSchema();
+    const sourceSchema = sourceTask.outputSchema();
 
     if (typeof targetSchema === "boolean") {
       if (targetSchema === false) {
@@ -250,12 +282,11 @@ export class Dataflow {
       sourceSchemaProperty = true;
     }
 
-    const semanticallyCompatible = areSemanticallyCompatible(
-      sourceSchemaProperty,
-      targetSchemaProperty
-    );
-
-    return semanticallyCompatible;
+    const result = areSemanticallyCompatible(sourceSchemaProperty, targetSchemaProperty);
+    if (shouldCache) {
+      this._compatibilityCache = result;
+    }
+    return result;
   }
 
   // ========================================================================

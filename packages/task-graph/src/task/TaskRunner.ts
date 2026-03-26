@@ -5,6 +5,7 @@
  */
 
 import {
+  getLogger,
   getTelemetryProvider,
   globalServiceRegistry,
   ServiceRegistry,
@@ -157,6 +158,17 @@ export class TaskRunner<
       let outputs: Output | undefined;
 
       const isStreamable = isTaskStreamable(this.task);
+
+      // Warn if schema declares streaming but executeStream is not implemented
+      if (!isStreamable && typeof this.task.executeStream !== "function") {
+        const streamMode = getOutputStreamMode(this.task.outputSchema());
+        if (streamMode !== "none") {
+          getLogger().warn(
+            `Task "${this.task.type}" declares streaming output (x-stream: "${streamMode}") ` +
+              `but does not implement executeStream(). Falling back to non-streaming execute().`
+          );
+        }
+      }
 
       if (this.task.cacheable) {
         outputs = (await this.outputCache?.getOutput(this.task.type, inputs)) as Output;
@@ -549,6 +561,15 @@ export class TaskRunner<
       this.telemetrySpan = undefined;
     }
 
+    // Call optional cleanup method for resource release
+    if (typeof this.task.cleanup === "function") {
+      try {
+        await this.task.cleanup();
+      } catch {
+        // Cleanup errors are swallowed — abort must not throw from cleanup
+      }
+    }
+
     this.task.emit("abort", this.task.error);
     this.task.emit("status", this.task.status);
   }
@@ -614,8 +635,18 @@ export class TaskRunner<
     this.task.completedAt = new Date();
     this.task.progress = 100;
     this.task.status = TaskStatus.FAILED;
-    this.task.error =
-      err instanceof TaskError ? err : new TaskFailedError(err?.message || "Task failed");
+    if (err instanceof TaskError) {
+      this.task.error = err;
+    } else {
+      this.task.error = new TaskFailedError(
+        `Task "${this.task.type}" (${this.task.id}): ${err?.message || "Task failed"}`
+      );
+    }
+    // Attach task context to all TaskError instances for programmatic access
+    if (this.task.error instanceof TaskError) {
+      this.task.error.taskType ??= this.task.type;
+      this.task.error.taskId ??= this.task.id;
+    }
     this.abortController = undefined;
 
     if (this.telemetrySpan) {

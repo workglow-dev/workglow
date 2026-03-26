@@ -102,14 +102,36 @@ export interface TaskGraphJsonOptions {
   readonly withBoundaryNodes?: boolean;
 }
 
+/**
+ * Options for deserializing tasks from JSON.
+ */
+export interface TaskDeserializationOptions {
+  /**
+   * Optional allowlist of task type names. When provided, only task types
+   * in this set will be instantiated. Any other type throws TaskJSONError.
+   * Use this to restrict which tasks can be created from untrusted JSON.
+   */
+  readonly allowedTypes?: ReadonlySet<string> | readonly string[];
+}
+
 const createSingleTaskFromJSON = (
   item: JsonTaskItem | TaskGraphItemJson,
-  registry?: ServiceRegistry
+  registry?: ServiceRegistry,
+  options?: TaskDeserializationOptions
 ) => {
   if (!item.id) throw new TaskJSONError("Task id required");
   if (!item.type) throw new TaskJSONError("Task type required");
   if (item.defaults && Array.isArray(item.defaults))
     throw new TaskJSONError("Task defaults must be an object");
+
+  // Check allowlist if provided
+  if (options?.allowedTypes) {
+    const allowed =
+      options.allowedTypes instanceof Set ? options.allowedTypes : new Set(options.allowedTypes);
+    if (!allowed.has(item.type)) {
+      throw new TaskJSONError(`Task type "${item.type}" is not in the allowed types list`);
+    }
+  }
 
   const constructors = getTaskConstructors(registry);
   const taskClass = constructors.get(item.type);
@@ -141,13 +163,17 @@ const createSingleTaskFromJSON = (
  * @throws {TaskConfigurationError} If `subtasks` are provided for a task that is not
  *   a `GraphAsTask`.
  */
-export const createTaskFromDependencyJSON = (item: JsonTaskItem, registry?: ServiceRegistry) => {
-  const task = createSingleTaskFromJSON(item, registry);
+export const createTaskFromDependencyJSON = (
+  item: JsonTaskItem,
+  registry?: ServiceRegistry,
+  options?: TaskDeserializationOptions
+) => {
+  const task = createSingleTaskFromJSON(item, registry, options);
   if (item.subtasks && item.subtasks.length > 0) {
     if (!(task instanceof GraphAsTask)) {
       throw new TaskConfigurationError("Subgraph is only supported for CompoundTasks");
     }
-    task.subGraph = createGraphFromDependencyJSON(item.subtasks, registry);
+    task.subGraph = createGraphFromDependencyJSON(item.subtasks, registry, options);
   }
   return task;
 };
@@ -168,11 +194,12 @@ export const createTaskFromDependencyJSON = (item: JsonTaskItem, registry?: Serv
  */
 export const createGraphFromDependencyJSON = (
   jsonItems: JsonTaskItem[],
-  registry?: ServiceRegistry
+  registry?: ServiceRegistry,
+  options?: TaskDeserializationOptions
 ) => {
   const subGraph = new TaskGraph();
   for (const subitem of jsonItems) {
-    subGraph.addTask(createTaskFromDependencyJSON(subitem, registry));
+    subGraph.addTask(createTaskFromDependencyJSON(subitem, registry, options));
   }
   return subGraph;
 };
@@ -192,13 +219,17 @@ export const createGraphFromDependencyJSON = (
  * @throws {TaskConfigurationError} If a `subgraph` is provided for a task that is not
  *   a `GraphAsTask`.
  */
-export const createTaskFromGraphJSON = (item: TaskGraphItemJson, registry?: ServiceRegistry) => {
-  const task = createSingleTaskFromJSON(item, registry);
+export const createTaskFromGraphJSON = (
+  item: TaskGraphItemJson,
+  registry?: ServiceRegistry,
+  options?: TaskDeserializationOptions
+) => {
+  const task = createSingleTaskFromJSON(item, registry, options);
   if (item.subgraph) {
     if (!(task instanceof GraphAsTask)) {
       throw new TaskConfigurationError("Subgraph is only supported for GraphAsTask");
     }
-    task.subGraph = createGraphFromGraphJSON(item.subgraph, registry);
+    task.subGraph = createGraphFromGraphJSON(item.subgraph, registry, options);
   }
   return task;
 };
@@ -220,11 +251,12 @@ export const createTaskFromGraphJSON = (item: TaskGraphItemJson, registry?: Serv
  */
 export const createGraphFromGraphJSON = (
   graphJsonObj: TaskGraphJson,
-  registry?: ServiceRegistry
+  registry?: ServiceRegistry,
+  options?: TaskDeserializationOptions
 ) => {
   const subGraph = new TaskGraph();
   for (const subitem of graphJsonObj.tasks) {
-    subGraph.addTask(createTaskFromGraphJSON(subitem, registry));
+    subGraph.addTask(createTaskFromGraphJSON(subitem, registry, options));
   }
   for (const subitem of graphJsonObj.dataflows) {
     subGraph.addDataflow(

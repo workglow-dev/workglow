@@ -34,7 +34,17 @@ export class IteratorTaskRunner<
    */
 
   protected override async executeTask(input: Input): Promise<Output | undefined> {
-    const analysis = this.task.analyzeIterationInput(input);
+    let analysis = this.task.analyzeIterationInput(input);
+
+    // Enforce maxIterations limit from config
+    const maxIterations = this.task.config.maxIterations;
+    if (
+      maxIterations !== undefined &&
+      maxIterations > 0 &&
+      analysis.iterationCount > maxIterations
+    ) {
+      analysis = { ...analysis, iterationCount: maxIterations };
+    }
 
     if (analysis.iterationCount === 0) {
       const emptyResult = this.task.getEmptyResult();

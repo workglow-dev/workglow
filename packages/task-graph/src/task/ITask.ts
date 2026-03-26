@@ -138,6 +138,13 @@ export interface ITaskExecution<
    * Only available on tasks where the static `streamable` property is true.
    */
   executeStream?(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>>;
+
+  /**
+   * Optional cleanup method called when a task is aborted.
+   * Override this to release external resources (file handles, network connections, etc.)
+   * that won't be cleaned up by the abort signal alone.
+   */
+  cleanup?(): Promise<void> | void;
 }
 
 /**

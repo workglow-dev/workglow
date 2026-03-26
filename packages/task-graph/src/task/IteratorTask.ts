@@ -69,6 +69,7 @@ export const iteratorTaskConfigSchema = {
     ...graphAsTaskConfigSchema["properties"],
     concurrencyLimit: { type: "integer", minimum: 1 },
     batchSize: { type: "integer", minimum: 1 },
+    maxIterations: { type: "integer", minimum: 1 },
     iterationInputConfig: { type: "object", additionalProperties: true },
   },
   additionalProperties: false,
@@ -90,6 +91,12 @@ export type IteratorTaskConfig = GraphAsTaskConfig & {
    * @default undefined
    */
   readonly batchSize?: number;
+
+  /**
+   * Maximum number of iterations allowed. When set, the iteration count is capped
+   * to this value regardless of input array length. Prevents runaway iteration.
+   */
+  readonly maxIterations?: number;
 
   /**
    * User-defined iteration input schema configuration.
