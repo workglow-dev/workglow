@@ -18,12 +18,17 @@ export const LlamaCpp_TextEmbedding: AiProviderRunFn<
   update_progress(0, "Loading embedding model");
   const context = await getOrCreateEmbeddingContext(model);
 
+  const texts = Array.isArray(input.text) ? input.text : [input.text];
   update_progress(10, "Computing embeddings");
 
-  const embedding = await context.getEmbeddingFor(input.text);
-  const vector = new Float32Array(embedding.vector);
+  const embeddings = await Promise.all(
+    texts.map((text) => context.getEmbeddingFor(text).then((e) => new Float32Array(e.vector)))
+  );
 
   update_progress(100, "Embeddings complete");
 
-  return { vector };
+  if (Array.isArray(input.text)) {
+    return { vector: embeddings };
+  }
+  return { vector: embeddings[0] };
 };

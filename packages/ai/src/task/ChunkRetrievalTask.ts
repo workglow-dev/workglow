@@ -202,13 +202,11 @@ export class ChunkRetrievalTask extends Task<
           "Model is required when query is a string. Please provide a model with format 'model:TextEmbeddingTask'."
         );
       }
-      const queries = Array.isArray(query) ? query : [query];
-      queryVectors = [];
-      for (const q of queries) {
-        const embeddingTask = context.own(new TextEmbeddingTask({ text: q as string, model }));
-        const embeddingResult = await embeddingTask.run();
-        queryVectors.push(embeddingResult.vector);
-      }
+      const embeddingTask = context.own(new TextEmbeddingTask({ text: query, model }));
+      const embeddingResult = await embeddingTask.run();
+      queryVectors = Array.isArray(embeddingResult.vector)
+        ? embeddingResult.vector
+        : [embeddingResult.vector];
     } else if (isTypedArray(query) || (Array.isArray(query) && query.every(isTypedArray))) {
       queryVectors = Array.isArray(query) ? query : [query];
     } else {

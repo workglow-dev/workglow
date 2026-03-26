@@ -33,5 +33,12 @@ export const OpenAI_TextEmbedding: AiProviderRunFn<
   update_progress(100, "Completed OpenAI text embedding");
   logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name });
 
+  if (Array.isArray(input.text)) {
+    return {
+      vector: response.data.map(
+        (item: { embedding: number[] }) => new Float32Array(item.embedding)
+      ),
+    };
+  }
   return { vector: new Float32Array(response.data[0].embedding) };
 };

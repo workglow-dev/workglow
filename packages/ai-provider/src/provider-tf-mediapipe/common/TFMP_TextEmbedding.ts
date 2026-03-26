@@ -22,6 +22,22 @@ export const TFMP_TextEmbedding: AiProviderRunFn<
   const { TextEmbedder } = await loadTfmpTasksTextSDK();
   const textEmbedder = await getModelTask(model!, {}, onProgress, signal, TextEmbedder);
 
+  if (Array.isArray(input.text)) {
+    const embeddings = input.text.map((text) => {
+      const result = textEmbedder.embed(text);
+
+      if (!result.embeddings?.[0]?.floatEmbedding) {
+        throw new PermanentJobError("Failed to generate embedding: Empty result");
+      }
+
+      return Float32Array.from(result.embeddings[0].floatEmbedding);
+    });
+
+    return {
+      vector: embeddings,
+    };
+  }
+
   const result = textEmbedder.embed(input.text);
 
   if (!result.embeddings?.[0]?.floatEmbedding) {
