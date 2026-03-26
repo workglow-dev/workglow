@@ -174,7 +174,7 @@ export class IteratorTaskRunner<
   /**
    * Clones a TaskGraph by reconstructing each task from its constructor,
    * defaults, and config. This preserves non-serializable config such as
-   * function references (e.g. WhileTask condition functions).
+   * function references (e.g. WhileTask condition functions) via `getCloneConfig()`.
    */
   private cloneGraph(graph: TaskGraph): TaskGraph {
     const clone = new TaskGraph();
@@ -183,7 +183,7 @@ export class IteratorTaskRunner<
       const ctor = task.constructor as ITaskConstructor<any, any, any>;
       const newId = uuid4();
       idMap.set(task.config.id, newId);
-      const clonedConfig = { ...task.config, id: newId };
+      const clonedConfig = { ...(task as any).getCloneConfig(), id: newId };
       const newTask = new ctor(task.defaults, clonedConfig, task.runConfig);
       if (task.hasChildren()) {
         newTask.subGraph = this.cloneGraph(task.subGraph);

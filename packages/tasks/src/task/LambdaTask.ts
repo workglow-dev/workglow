@@ -112,6 +112,17 @@ export class LambdaTask<
     return `${this.type} contains native functions and cannot be serialized to JSON`;
   }
 
+  public override getCloneConfig(): Record<string, unknown> {
+    const base = super.getCloneConfig();
+    if (this._executeFn !== undefined) {
+      base.execute = this._executeFn;
+    }
+    if (this._executeReactiveFn !== undefined) {
+      base.executeReactive = this._executeReactiveFn;
+    }
+    return base;
+  }
+
   async execute(input: Input, context: IExecuteContext): Promise<Output> {
     if (typeof this._executeFn === "function") {
       return await this._executeFn(input, context);

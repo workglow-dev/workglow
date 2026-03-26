@@ -194,6 +194,14 @@ export class WhileTask<
     return true;
   }
 
+  public override getCloneConfig(): Record<string, unknown> {
+    const base = super.getCloneConfig();
+    if (this._conditionFn !== undefined) {
+      base.condition = this._conditionFn;
+    }
+    return base;
+  }
+
   // ========================================================================
   // TaskRunner Override
   // ========================================================================

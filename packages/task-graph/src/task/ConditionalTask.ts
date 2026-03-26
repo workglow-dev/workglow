@@ -257,6 +257,14 @@ export class ConditionalTask<
     return true;
   }
 
+  public override getCloneConfig(): Record<string, unknown> {
+    const base = super.getCloneConfig();
+    if (this._branches.length > 0) {
+      base.branches = this._branches;
+    }
+    return base;
+  }
+
   /**
    * Gets the branch definitions.
    */

@@ -440,8 +440,12 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
         config.conditionValue = rawConfig.conditionValue;
       }
       // Note: native condition functions are stored as class properties, not in config.
-      // If a WhileTask has only a native function (no serializable form), it cannot
-      // be serialized, so this code path only sees serializable conditions.
+      // If a WhileTask has only a native function (no serializable form), emit a null
+      // placeholder so the generated code preserves the `condition` key.
+      const whileCondition = (task as any).condition;
+      if (whileCondition && !rawConfig.conditionOperator) {
+        config.condition = null;
+      }
       break;
     }
   }

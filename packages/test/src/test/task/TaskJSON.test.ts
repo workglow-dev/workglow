@@ -495,12 +495,12 @@ describe("TaskJSON", () => {
     });
 
     test("toJSON should not include non-serializable config properties", () => {
-      // Introduce a non-serializable value into a schema-listed config property (title)
-      const badConfig = {
-        title: ((): void => {}) as unknown as string,
-      };
+      // Construct the task normally first
+      const task = new DoubleToResultTask({ value: 42 }, { id: "task1" });
 
-      const task = new DoubleToResultTask({ value: 42 }, badConfig as any);
+      // Inject a non-serializable value into a schema-listed config property
+      // after construction (bypassing schema validation) to test the safety net in toJSON()
+      (task.config as Record<string, unknown>)["title"] = (): void => {};
 
       // Task.toJSON should detect the non-serializable config property and throw
       expect(() => task.toJSON()).toThrow(TaskSerializationError);

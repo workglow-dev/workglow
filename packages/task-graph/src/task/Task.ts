@@ -920,6 +920,16 @@ export class Task<
   }
 
   /**
+   * Returns the config object used when cloning this task (e.g. in IteratorTaskRunner).
+   * Subclasses that store non-serializable values as class properties (e.g. WhileTask
+   * stores condition in `_conditionFn`) MUST override this to include those values,
+   * so cloned tasks retain their runtime behavior.
+   */
+  public getCloneConfig(): Record<string, unknown> {
+    return { ...(this.config as Record<string, unknown>) };
+  }
+
+  /**
    * Serializes the task and its subtasks into a format that can be stored
    * @param _options Options controlling serialization (used by subclasses)
    * @returns The serialized task and subtasks
