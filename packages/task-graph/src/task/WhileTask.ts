@@ -184,10 +184,7 @@ export class WhileTask<
 
   protected override canSerialize(): true | string {
     if (this._conditionFn) {
-      const hasSerializableCondition = !!(
-        this.config.conditionField || this.config.conditionOperator
-      );
-      if (!hasSerializableCondition) {
+      if (!this.config.conditionOperator) {
         return (
           `${this.type} has a native condition function with no serializable alternative. ` +
           `Use conditionField/conditionOperator/conditionValue for serializable conditions.`

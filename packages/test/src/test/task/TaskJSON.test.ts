@@ -22,10 +22,11 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
-import { DoubleToResultTask, TestGraphAsTask, TestTaskWithDefaults } from "./TestTasks";
+import { DoubleToResultJobTask, DoubleToResultTask, TestGraphAsTask, TestTaskWithDefaults } from "./TestTasks";
 
 // Register test tasks in the global registry (needed for toJSON serialization)
 TaskRegistry.registerTask(DoubleToResultTask);
+TaskRegistry.registerTask(DoubleToResultJobTask);
 TaskRegistry.registerTask(TestTaskWithDefaults);
 TaskRegistry.registerTask(TestGraphAsTask);
 
@@ -449,7 +450,7 @@ describe("TaskJSON", () => {
       expect(json.config?.conditionField).toBe("quality");
     });
 
-    test("ConditionalTask with native branch functions and no conditionConfig should throw", () => {
+    test("ConditionalTask with branches should throw because branch metadata is not serializable", () => {
       const task = new ConditionalTask(
         {},
         {
@@ -461,7 +462,7 @@ describe("TaskJSON", () => {
       );
 
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
-      expect(() => task.toJSON()).toThrow("conditionConfig");
+      expect(() => task.toJSON()).toThrow("branch wiring information");
     });
 
     test("ConditionalTask with conditionConfig should succeed", () => {
@@ -485,9 +486,8 @@ describe("TaskJSON", () => {
     });
 
     test("toJSON should not include queue property from JobQueueTask descendants", () => {
-      // DoubleToResultTask is a regular Task, but we can test that the
-      // config output doesn't contain queue for any task
-      const task = new DoubleToResultTask({ value: 42 }, { id: "task1" });
+      // Use a real JobQueueTask descendant to verify queue is not included in serialized config
+      const task = new DoubleToResultJobTask({ value: 42 }, { id: "task1", queue: "my-queue" });
       const json = task.toJSON();
 
       expect(json.config).toBeDefined();
@@ -495,13 +495,17 @@ describe("TaskJSON", () => {
     });
 
     test("toJSON should not include non-serializable config properties", () => {
-      // Verify that functions and symbols are not silently included
-      const task = new DoubleToResultTask({ value: 42 }, { id: "task1" });
-      const json = task.toJSON();
-      const jsonStr = JSON.stringify(json);
+      // Introduce a non-serializable value into a schema-listed config property (title)
+      const badConfig = {
+        title: ((): void => {}) as unknown as string,
+      };
 
-      // Should be valid JSON (no functions or symbols)
-      expect(() => JSON.parse(jsonStr)).not.toThrow();
+      const task = new DoubleToResultTask({ value: 42 }, badConfig as any);
+
+      // Task.toJSON should detect the non-serializable config property and throw
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+      // Error message should mention the offending property
+      expect(() => task.toJSON()).toThrow("title");
     });
   });
 });

@@ -243,13 +243,15 @@ export class ConditionalTask<
   }
 
   protected override canSerialize(): true | string {
-    const hasFunctionConditions = this._branches.some(
-      (b) => typeof b.condition === "function"
-    );
-    if (hasFunctionConditions && !this.config.conditionConfig) {
+    // Branch metadata (id/outputPort mapping) is stored only in the private
+    // `_branches` property and is not part of the serialized config schema.
+    // Allowing serialization when `_branches` is non-empty would drop that
+    // information, so we disallow serialization in that case.
+    if (this._branches.length > 0) {
       return (
-        `${this.type} has branches with native condition functions and no serializable ` +
-        `alternative. Use conditionConfig for serializable conditions.`
+        `${this.type} cannot be serialized because it has branches whose ` +
+        `metadata is not represented in the config schema. Serialization ` +
+        `would lose branch wiring information.`
       );
     }
     return true;

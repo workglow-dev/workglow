@@ -365,8 +365,11 @@ export class FetchUrlTask<
   }
 
   constructor(input: Partial<Input> = {} as Input, config: Config = {} as Config) {
-    const queue = (input as Record<string, unknown>)?.queue ?? false;
-    super(input, { ...config, queue } as Config & { queue?: boolean | string });
+    const queueFromInput = (input as Record<string, unknown>)?.queue;
+    const queueFromConfig = (config as Record<string, unknown>)?.queue;
+    const queue = (queueFromInput ?? queueFromConfig ?? false) as boolean | string;
+    const { queue: _discard, ...restConfig } = config as Record<string, unknown>;
+    super(input, { ...restConfig, queue } as Config & { queue?: boolean | string });
     this.jobClass = FetchUrlJob;
   }
 

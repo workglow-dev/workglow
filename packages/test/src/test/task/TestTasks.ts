@@ -15,6 +15,7 @@ import {
   GraphAsTask,
   IExecuteContext,
   IteratorTask,
+  JobQueueTask,
   Task,
   TaskAbortedError,
   TaskConfig,
@@ -1347,8 +1348,40 @@ export class DoubleToResultTask extends Task<{ value: number }, { result: number
 }
 
 /**
- * Task that squares a number (from IteratorTask tests)
+ * JobQueueTask subclass used for testing serialization behavior.
+ * Verifies that the queue property is extracted from config and not serialized.
  */
+export class DoubleToResultJobTask extends JobQueueTask<
+  { value: number },
+  { result: number }
+> {
+  static type = "DoubleToResultJobTask";
+  static canRunDirectly = true;
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        value: { type: "number", default: 0 },
+      },
+      required: ["value"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "number" },
+      },
+      required: ["result"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+}
+
+
 export class SquareTask extends Task<{ value: number }, { squared: number }> {
   static type = "SquareTask";
 
