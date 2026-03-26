@@ -30,7 +30,12 @@ export function inner(arr1: TypedArray, arr2: TypedArray): number {
  *
  * @param vector - The vector to normalize
  * @param throwOnZero - If true, throws an error for zero vectors. If false, returns the original vector.
- * @returns Normalized vector with the same type as input
+ * @param float32 - If true, always returns a Float32Array regardless of input type. When false (default),
+ *   the return type matches the input type. Note: for integer typed arrays (Int8Array, Uint8Array,
+ *   Int16Array, Uint16Array), normalized float values are truncated to integers when stored back in
+ *   the original type — use `float32=true` to preserve precision for integer inputs.
+ * @returns Normalized vector. Float arrays preserve their type. Integer arrays preserve their type
+ *   (with truncation). Pass `float32=true` to always get a Float32Array.
  */
 export function normalize(vector: TypedArray, throwOnZero = true, float32 = false): TypedArray {
   const mag = magnitude(vector);
@@ -48,7 +53,6 @@ export function normalize(vector: TypedArray, throwOnZero = true, float32 = fals
     return new Float32Array(normalized);
   }
 
-  // Preserve the original Vector type
   if (vector instanceof Float64Array) {
     return new Float64Array(normalized);
   }
@@ -70,7 +74,6 @@ export function normalize(vector: TypedArray, throwOnZero = true, float32 = fals
   if (vector instanceof Uint16Array) {
     return new Uint16Array(normalized);
   }
-  // For other integer arrays, use Float32Array since normalization produces floats
   return new Float32Array(normalized);
 }
 

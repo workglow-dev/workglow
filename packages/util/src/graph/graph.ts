@@ -133,6 +133,8 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
   protected adjacency: AdjacencyMatrix<Edge>;
   protected nodeIdentity: (t: Node) => NodeId;
   protected edgeIdentity: (t: Edge, n1: NodeId, n2: NodeId) => EdgeId;
+  /** O(1) lookup of node identity → adjacency matrix index. */
+  protected nodeIndexMap: Map<NodeId, number> = new Map();
 
   constructor(
     nodeIdentity: (node: Node) => NodeId,
@@ -142,6 +144,11 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
     this.adjacency = [];
     this.nodeIdentity = nodeIdentity;
     this.edgeIdentity = edgeIdentity;
+  }
+
+  /** Returns the adjacency matrix index for a node, or -1 if not found. */
+  protected getNodeIndex(nodeIdentity: NodeId): number {
+    return this.nodeIndexMap.get(nodeIdentity) ?? -1;
   }
 
   events = new EventEmitter<GraphEventListeners<NodeId, EdgeId>>();
@@ -178,6 +185,7 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
       throw new NodeAlreadyExistsError(node, this.nodes.get(id), id);
     }
 
+    this.nodeIndexMap.set(id, this.adjacency.length);
     this.nodes.set(id, node);
     this.adjacency.map((adj) => adj.push(null));
     this.adjacency.push(new Array<AdjacencyValue<Edge>>(this.adjacency.length + 1).fill(null));
@@ -222,6 +230,7 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
     this.nodes.set(id, node);
 
     if (!isOverwrite) {
+      this.nodeIndexMap.set(id, this.adjacency.length);
       this.adjacency.map((adj) => adj.push(null));
       this.adjacency.push(new Array<AdjacencyValue<Edge>>(this.adjacency.length + 1).fill(null));
       this.emit("node-added", id);
@@ -255,8 +264,8 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
       throw new NodeDoesntExistError(node2Identity);
     }
 
-    const node1Index = Array.from(this.nodes.keys()).indexOf(node1Identity);
-    const node2Index = Array.from(this.nodes.keys()).indexOf(node2Identity);
+    const node1Index = this.getNodeIndex(node1Identity);
+    const node2Index = this.getNodeIndex(node2Identity);
 
     if (this.adjacency[node1Index][node2Index] === null) {
       this.adjacency[node1Index][node2Index] = [edge];
@@ -334,7 +343,7 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
     node1Identity: NodeId
   ): Array<[node1Identity: NodeId, node2Identity: NodeId, edge: Edge]> {
     const nodeKeys = Array.from(this.nodes.keys());
-    const nodeIndex = nodeKeys.indexOf(node1Identity);
+    const nodeIndex = this.getNodeIndex(node1Identity);
 
     const toReturn: Array<[node1Identity: NodeId, node2Identity: NodeId, edge: Edge]> = [];
 
@@ -359,7 +368,7 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
     node2Identity: NodeId
   ): Array<[node1Identity: NodeId, node2Identity: NodeId, edge: Edge]> {
     const nodeKeys = Array.from(this.nodes.keys());
-    const node2Index = nodeKeys.indexOf(node2Identity);
+    const node2Index = this.getNodeIndex(node2Identity);
 
     const toReturn: Array<[node1Identity: NodeId, node2Identity: NodeId, edge: Edge]> = [];
 
@@ -405,8 +414,8 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
       throw new NodeDoesntExistError(node2Identity);
     }
 
-    const node1Index = Array.from(this.nodes.keys()).indexOf(node1Identity);
-    const node2Index = Array.from(this.nodes.keys()).indexOf(node2Identity);
+    const node1Index = this.getNodeIndex(node1Identity);
+    const node2Index = this.getNodeIndex(node2Identity);
 
     if (edgeIdentity === undefined) {
       this.adjacency[node1Index][node2Index] = null;
@@ -442,11 +451,19 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
       throw new NodeDoesntExistError(nodeIdentity);
     }
 
-    // Remove the node from the nodes map
-    this.nodes.delete(nodeIdentity);
+    // Find the index of the node in the adjacency matrix BEFORE deleting
+    const nodeIndex = this.getNodeIndex(nodeIdentity);
 
-    // Find the index of the node in the adjacency matrix
-    const nodeIndex = Array.from(this.nodes.keys()).indexOf(nodeIdentity);
+    // Remove the node from the nodes map and index map
+    this.nodes.delete(nodeIdentity);
+    this.nodeIndexMap.delete(nodeIdentity);
+
+    // Decrement indices for all nodes that came after the removed one
+    for (const [id, idx] of this.nodeIndexMap) {
+      if (idx > nodeIndex) {
+        this.nodeIndexMap.set(id, idx - 1);
+      }
+    }
 
     // Remove the corresponding row from the adjacency matrix
     this.adjacency.splice(nodeIndex, 1);
