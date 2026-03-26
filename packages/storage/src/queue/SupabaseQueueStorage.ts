@@ -132,14 +132,15 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
   }
 
   /**
-   * Regex for validating SQL identifier-safe strings.
-   * Only allows alphanumeric characters, underscores, hyphens, and periods.
+   * Regex for validating SQL literal-safe strings.
+   * Used for quoted values (e.g. queue names/IDs) and only allows alphanumeric
+   * characters, underscores, hyphens, colons, and periods.
    */
   private static readonly SAFE_SQL_VALUE_RE = /^[a-zA-Z0-9_\-.:]+$/;
 
   /**
-   * Validates that a string value is safe for use in SQL.
-   * Throws an error if the value contains potentially dangerous characters.
+   * Validates that a string value is safe for use as a quoted SQL literal.
+   * Throws an error if the value contains characters outside SAFE_SQL_VALUE_RE.
    */
   private validateSqlValue(value: string, context: string): string {
     if (!SupabaseQueueStorage.SAFE_SQL_VALUE_RE.test(value)) {
