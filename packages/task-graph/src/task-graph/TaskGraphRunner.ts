@@ -235,6 +235,13 @@ export class TaskGraphRunner {
     // Clean up stragglers to avoid unhandled promise rejections
     await Promise.allSettled(Array.from(this.inProgressFunctions.values()));
 
+    // Check graph-level timeout first — it is the root cause when tasks fail due
+    // to the graph abort signal, and should take precedence over any task-level
+    // TaskAbortedError that was placed in failedTaskErrors as a consequence.
+    if (this.pendingGraphTimeoutError) {
+      await this.handleAbort();
+      throw this.pendingGraphTimeoutError;
+    }
     if (this.failedTaskErrors.size > 0) {
       const latestError = this.failedTaskErrors.values().next().value!;
       this.handleError(latestError);
@@ -242,7 +249,7 @@ export class TaskGraphRunner {
     }
     if (this.abortController?.signal.aborted) {
       await this.handleAbort();
-      throw this.pendingGraphTimeoutError ?? new TaskAbortedError();
+      throw new TaskAbortedError();
     }
 
     await this.handleComplete();
