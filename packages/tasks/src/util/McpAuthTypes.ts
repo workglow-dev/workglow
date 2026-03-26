@@ -86,7 +86,6 @@ export const mcpAuthConfigSchema = {
       enum: mcpAuthTypes,
       title: "Auth Type",
       description: "Authentication method for connecting to the MCP server",
-      default: "none",
     },
     auth_token: {
       type: "string",

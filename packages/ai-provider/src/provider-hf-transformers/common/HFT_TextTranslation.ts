@@ -29,30 +29,18 @@ export const HFT_TextTranslation: AiProviderRunFn<
   TextTranslationTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const isArrayInput = Array.isArray(input.text);
-
   const translate: TranslationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
-  const streamer = isArrayInput
-    ? undefined
-    : createTextStreamer(translate.tokenizer, onProgress, TextStreamer, signal);
+  const streamer = createTextStreamer(translate.tokenizer, onProgress, TextStreamer, signal);
 
   const result = await translate(
-    input.text as any,
+    input.text,
     {
       src_lang: input.source_lang,
       tgt_lang: input.target_lang,
-      ...(streamer ? { streamer } : {}),
+      streamer,
     } as any
   );
-
-  if (isArrayInput) {
-    const batchResults = Array.isArray(result) ? result : [result];
-    return {
-      text: batchResults.map((r) => (r as TranslationOutput[number])?.translation_text || ""),
-      target_lang: input.target_lang,
-    };
-  }
 
   const translatedText = Array.isArray(result)
     ? (result[0] as TranslationOutput[number])?.translation_text || ""
@@ -77,7 +65,7 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
   const streamer = createStreamingTextStreamer(translate.tokenizer, queue, TextStreamer, signal);
 
   const pipelinePromise = translate(
-    input.text as string,
+    input.text,
     {
       src_lang: input.source_lang,
       tgt_lang: input.target_lang,

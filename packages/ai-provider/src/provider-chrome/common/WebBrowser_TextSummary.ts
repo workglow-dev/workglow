@@ -11,7 +11,7 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
+
 import {
   ensureAvailable,
   getApi,
@@ -33,32 +33,13 @@ export const WebBrowser_TextSummary: AiProviderRunFn<
   await ensureAvailable("Summarizer", factory);
   const config = getConfig(model);
 
-  if (Array.isArray(input.text)) {
-    getLogger().warn("WebBrowser_TextSummary: array input received; processing sequentially");
-    const results: string[] = [];
-    for (const item of input.text as string[]) {
-      const summarizer = await factory.create({
-        type: config.summary_type,
-        length: config.summary_length,
-        format: config.summary_format,
-      });
-      try {
-        results.push(await summarizer.summarize(item, { signal }));
-      } finally {
-        summarizer.destroy();
-      }
-    }
-    update_progress(100, "Completed text summarization");
-    return { text: results } as TextSummaryTaskOutput;
-  }
-
   const summarizer = await factory.create({
     type: config.summary_type,
     length: config.summary_length,
     format: config.summary_format,
   });
   try {
-    const text = await summarizer.summarize(input.text as string, { signal });
+    const text = await summarizer.summarize(input.text, { signal });
     update_progress(100, "Completed text summarization");
     return { text };
   } finally {
@@ -81,7 +62,7 @@ export const WebBrowser_TextSummary_Stream: AiProviderStreamFn<
     format: config.summary_format,
   });
   try {
-    const stream = summarizer.summarizeStreaming(input.text as string, { signal });
+    const stream = summarizer.summarizeStreaming(input.text, { signal });
     yield* snapshotStreamToTextDeltas<TextSummaryTaskOutput>(stream, "text", (text) => ({ text }));
   } finally {
     summarizer.destroy();

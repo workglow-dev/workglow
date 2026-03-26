@@ -14,23 +14,8 @@ export const HFT_TextFillMask: AiProviderRunFn<
   TextFillMaskTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const isArrayInput = Array.isArray(input.text);
-
   const unmasker: FillMaskPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const results = await unmasker(input.text as any);
-
-  if (isArrayInput) {
-    return {
-      predictions: (results as unknown as FillMaskOutput[]).map((perInput) => {
-        const items = Array.isArray(perInput) ? perInput : [perInput];
-        return items.map((prediction) => ({
-          entity: prediction.token_str,
-          score: prediction.score,
-          sequence: prediction.sequence,
-        }));
-      }),
-    };
-  }
+  const results = await unmasker(input.text);
 
   let predictions: FillMaskOutput = [];
   if (!Array.isArray(results)) {

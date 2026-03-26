@@ -15,24 +15,6 @@ export const Anthropic_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "Anthropic_TextRewriter: array input received; processing sequentially (no native batch support)"
-    );
-    const texts = input.text as string[];
-    const results: string[] = [];
-    for (const item of texts) {
-      const r = await Anthropic_TextRewriter(
-        { ...input, text: item },
-        model,
-        update_progress,
-        signal
-      );
-      results.push(r.text as string);
-    }
-    return { text: results };
-  }
-
   update_progress(0, "Starting Anthropic text rewriting");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -40,8 +22,8 @@ export const Anthropic_TextRewriter: AiProviderRunFn<
   const response = await client.messages.create(
     {
       model: modelName,
-      system: input.prompt as string,
-      messages: [{ role: "user", content: input.text as string }],
+      system: input.prompt,
+      messages: [{ role: "user", content: input.text }],
       max_tokens: getMaxTokens({}, model),
     },
     { signal }
@@ -64,8 +46,8 @@ export const Anthropic_TextRewriter_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(
     {
       model: modelName,
-      system: input.prompt as string,
-      messages: [{ role: "user", content: input.text as string }],
+      system: input.prompt,
+      messages: [{ role: "user", content: input.text }],
       max_tokens: getMaxTokens({}, model),
     },
     { signal }

@@ -29,27 +29,16 @@ export const HFT_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const isArrayInput = Array.isArray(input.text);
-
   const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
-  const streamer = isArrayInput
-    ? undefined
-    : createTextStreamer(generateSummary.tokenizer, onProgress, TextStreamer, signal);
+  const streamer = createTextStreamer(generateSummary.tokenizer, onProgress, TextStreamer, signal);
 
   const result = await generateSummary(
-    input.text as any,
+    input.text,
     {
-      ...(streamer ? { streamer } : {}),
+      streamer,
     } as any
   );
-
-  if (isArrayInput) {
-    const batchResults = Array.isArray(result) ? result : [result];
-    return {
-      text: batchResults.map((r) => (r as SummarizationOutput[number])?.summary_text || ""),
-    };
-  }
 
   let summaryText = "";
   if (Array.isArray(result)) {
@@ -81,7 +70,7 @@ export const HFT_TextSummary_Stream: AiProviderStreamFn<
   const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue, TextStreamer, signal);
 
   const pipelinePromise = generateSummary(
-    input.text as string,
+    input.text,
     {
       streamer,
     } as any

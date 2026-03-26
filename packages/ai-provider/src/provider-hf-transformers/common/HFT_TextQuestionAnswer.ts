@@ -33,8 +33,6 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
   TextQuestionAnswerTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const isArrayInput = Array.isArray(input.question);
-
   // Get the question answering pipeline
   const generateAnswer: QuestionAnsweringPipeline = await getPipeline(
     model!,
@@ -43,39 +41,12 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
     signal
   );
 
-  if (isArrayInput) {
-    const questions = input.question as string[];
-    const contexts = input.context as string[];
-    if (questions.length !== contexts.length) {
-      throw new Error(
-        `question[] and context[] must have the same length: ${questions.length} != ${contexts.length}`
-      );
-    }
-
-    const answers: string[] = [];
-    for (let i = 0; i < questions.length; i++) {
-      if (signal.aborted) {
-        throw signal.reason ?? new TaskAbortedError("Generation aborted");
-      }
-      const result = await generateAnswer(questions[i], contexts[i], {} as any);
-      let answerText = "";
-      if (Array.isArray(result)) {
-        answerText = (result[0] as DocumentQuestionAnsweringOutput[number])?.answer || "";
-      } else {
-        answerText = (result as DocumentQuestionAnsweringOutput[number])?.answer || "";
-      }
-      answers.push(answerText);
-    }
-
-    return { text: answers };
-  }
-
   const { TextStreamer } = await loadTransformersSDK();
   const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress, TextStreamer, signal);
 
   const result = await generateAnswer(
-    input.question as string,
-    input.context as string,
+    input.question,
+    input.context,
     {
       streamer,
     } as any
@@ -119,8 +90,8 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
     | DocumentQuestionAnsweringOutput
     | undefined;
   const pipelinePromise = generateAnswer(
-    input.question as string,
-    input.context as string,
+    input.question,
+    input.context,
     {
       streamer,
     } as any

@@ -6,6 +6,7 @@
 
 import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util/schema";
 import { getNestedValue } from "../util";
+import { evaluateConditionalRequired } from "./schema-conditions";
 import { deepMerge } from "./resolve-input";
 
 export interface PromptFieldDescriptor {
@@ -41,62 +42,6 @@ export function getMissingFields(
 
   collectMissingFields(properties, required, input, "", fields);
   return fields;
-}
-
-/**
- * Evaluate allOf if/then conditional rules against current input values.
- * Returns additional field names that are conditionally required.
- */
-function evaluateConditionalRequired(
-  input: Record<string, unknown>,
-  schema: DataPortSchemaObject
-): string[] {
-  const allOf = (schema as Record<string, unknown>).allOf;
-  if (!Array.isArray(allOf)) return [];
-
-  const additional: string[] = [];
-
-  for (const rule of allOf) {
-    if (typeof rule !== "object" || rule === null) continue;
-    const { if: condition, then: consequence } = rule as {
-      if?: Record<string, unknown>;
-      then?: Record<string, unknown>;
-    };
-    if (!condition || !consequence) continue;
-
-    // Check if the condition matches the current input
-    const condProps = condition.properties as Record<string, unknown> | undefined;
-    const condRequired = condition.required as string[] | undefined;
-    if (!condProps) continue;
-
-    let matches = true;
-    for (const [key, constraint] of Object.entries(condProps)) {
-      // Only evaluate if this key is required by the condition
-      if (condRequired && !condRequired.includes(key)) continue;
-
-      const inputValue = input[key];
-      if (inputValue === undefined) {
-        matches = false;
-        break;
-      }
-
-      if (typeof constraint === "object" && constraint !== null && "const" in constraint) {
-        if (inputValue !== (constraint as { const: unknown }).const) {
-          matches = false;
-          break;
-        }
-      }
-    }
-
-    if (matches) {
-      const thenRequired = consequence.required;
-      if (Array.isArray(thenRequired)) {
-        additional.push(...thenRequired);
-      }
-    }
-  }
-
-  return additional;
 }
 
 function collectMissingFields(

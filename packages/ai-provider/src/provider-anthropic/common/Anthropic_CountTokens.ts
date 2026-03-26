@@ -19,23 +19,10 @@ export const Anthropic_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   AnthropicModelConfig
 > = async (input, model, onProgress, signal) => {
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "Anthropic_CountTokens: array input received; processing sequentially (no native batch support)"
-    );
-    const texts = input.text as string[];
-    const counts: number[] = [];
-    for (const item of texts) {
-      const r = await Anthropic_CountTokens({ ...input, text: item }, model, onProgress, signal);
-      counts.push(r.count as number);
-    }
-    return { count: counts };
-  }
-
   const client = await getClient(model);
   const result = await client.messages.countTokens({
     model: getModelName(model),
-    messages: [{ role: "user", content: input.text as string }],
+    messages: [{ role: "user", content: input.text }],
   });
   return { count: result.input_tokens };
 };
@@ -45,8 +32,5 @@ export const Anthropic_CountTokens_Reactive: AiProviderReactiveRunFn<
   CountTokensTaskOutput,
   AnthropicModelConfig
 > = async (input, _output, _model) => {
-  if (Array.isArray(input.text)) {
-    return { count: (input.text as string[]).map((t) => Math.ceil(t.length / 4)) };
-  }
-  return { count: Math.ceil((input.text as string).length / 4) };
+  return { count: Math.ceil(input.text.length / 4) };
 };

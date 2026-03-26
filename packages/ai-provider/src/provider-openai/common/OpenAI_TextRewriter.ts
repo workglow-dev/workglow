@@ -6,7 +6,6 @@
 
 import type { AiProviderRunFn, AiProviderStreamFn, TextRewriterTaskInput, TextRewriterTaskOutput } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { getClient, getModelName } from "./OpenAI_Client";
 
@@ -15,19 +14,6 @@ export const OpenAI_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "OpenAI_TextRewriter: array input received; processing sequentially (no native batch support)"
-    );
-    const texts = input.text as string[];
-    const results: string[] = [];
-    for (const item of texts) {
-      const r = await OpenAI_TextRewriter({ ...input, text: item }, model, update_progress, signal);
-      results.push(r.text as string);
-    }
-    return { text: results };
-  }
-
   update_progress(0, "Starting OpenAI text rewriting");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -36,8 +22,8 @@ export const OpenAI_TextRewriter: AiProviderRunFn<
     {
       model: modelName,
       messages: [
-        { role: "system", content: input.prompt as string },
-        { role: "user", content: input.text as string },
+        { role: "system", content: input.prompt },
+        { role: "user", content: input.text },
       ],
     },
     { signal }
@@ -59,8 +45,8 @@ export const OpenAI_TextRewriter_Stream: AiProviderStreamFn<
     {
       model: modelName,
       messages: [
-        { role: "system", content: input.prompt as string },
-        { role: "user", content: input.text as string },
+        { role: "system", content: input.prompt },
+        { role: "user", content: input.text },
       ],
       stream: true,
     },

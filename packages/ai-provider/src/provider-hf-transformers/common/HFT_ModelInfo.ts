@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { DeviceType } from "@huggingface/transformers";
 import type { AiProviderRunFn, ModelInfoTaskInput, ModelInfoTaskOutput } from "@workglow/ai";
 import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
@@ -23,19 +24,15 @@ export const HFT_ModelInfo: AiProviderRunFn<
   const detail = input.detail;
   const is_loaded = hasCachedPipeline(getPipelineCacheKey(model!));
 
-  const { pipeline: pipelineType, model_path, dtype } = model!.provider_config;
+  const { pipeline: pipelineType, model_path, dtype, device } = model!.provider_config;
 
-  const cacheStatus = await ModelRegistry.is_pipeline_cached_files(pipelineType, model_path, {
+  const cacheOptions = {
     ...(dtype ? { dtype } : {}),
-  });
+    ...(device ? { device: device as DeviceType } : {}),
+  };
+  const cacheStatus = await ModelRegistry.is_pipeline_cached_files(pipelineType, model_path, cacheOptions);
   logger.debug("is_pipeline_cached", {
-    input: [
-      pipelineType,
-      model_path,
-      {
-        ...(dtype ? { dtype } : {}),
-      },
-    ],
+    input: [pipelineType, model_path, cacheOptions],
     result: cacheStatus,
   });
   const is_cached = is_loaded || cacheStatus.allCached;

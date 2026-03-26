@@ -35,34 +35,19 @@ export const HFT_TextGeneration: AiProviderRunFn<
   const timerLabel = `hft:TextGeneration:${model?.provider_config.model_path}`;
   logger.time(timerLabel, { model: model?.provider_config.model_path });
 
-  const isArrayInput = Array.isArray(input.prompt);
-
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
 
   logger.debug("HFT TextGeneration: pipeline ready, generating text", {
     model: model?.provider_config.model_path,
-    promptLength: isArrayInput ? (input.prompt as string[]).length : input.prompt?.length,
+    promptLength: input.prompt?.length,
   });
 
-  const streamer = isArrayInput
-    ? undefined
-    : createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
-  let results = await generateText(input.prompt as any, {
-    ...(streamer ? { streamer } : {}),
+  let results = await generateText(input.prompt, {
+    streamer,
   });
-
-  if (isArrayInput) {
-    // Batch result: results is an array, one entry per prompt
-    const batchResults = Array.isArray(results) ? results : [results];
-    const texts = batchResults.map((r) => {
-      const seqs = Array.isArray(r) ? r : [r];
-      return extractGeneratedText((seqs[0] as TextGenerationOutput[number])?.generated_text);
-    });
-    logger.timeEnd(timerLabel, { batchSize: texts.length });
-    return { text: texts };
-  }
 
   if (!Array.isArray(results)) {
     results = [results];
@@ -86,7 +71,7 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
   const queue = createStreamEventQueue<StreamEvent<TextGenerationTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
 
-  const pipelinePromise = generateText(input.prompt as string, {
+  const pipelinePromise = generateText(input.prompt, {
     streamer,
   }).then(
     () => queue.done(),

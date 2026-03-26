@@ -30,38 +30,15 @@ export const HFT_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const isArrayInput = Array.isArray(input.text);
-
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
-  const streamer = isArrayInput
-    ? undefined
-    : createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
-
-  if (isArrayInput) {
-    const texts = input.text as string[];
-    const promptedTexts = texts.map((t) => (input.prompt ? input.prompt + "\n" : "") + t);
-
-    let results = await generateText(promptedTexts, {});
-
-    const batchResults = Array.isArray(results) ? results : [results];
-    const outputTexts = batchResults.map((r, i) => {
-      const seqs = Array.isArray(r) ? r : [r];
-      const text = extractGeneratedText((seqs[0] as TextGenerationOutput[number])?.generated_text);
-      if (text === promptedTexts[i]) {
-        throw new Error("Rewriter failed to generate new text");
-      }
-      return text;
-    });
-
-    return { text: outputTexts };
-  }
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
   // This lib doesn't support this kind of rewriting with a separate prompt vs text
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
 
   let results = await generateText(promptedText, {
-    ...(streamer ? { streamer } : {}),
+    streamer,
   });
 
   if (!Array.isArray(results)) {
@@ -91,7 +68,7 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
   const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
   const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
 
-  const promptedText = (input.prompt ? input.prompt + "\n" : "") + (input.text as string);
+  const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
 
   const pipelinePromise = generateText(promptedText, {
     streamer,

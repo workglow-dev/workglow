@@ -15,24 +15,6 @@ export const HFI_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   HfInferenceModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "HFI_TextGeneration: array input received; processing sequentially (no native batch support)"
-    );
-    const prompts = input.prompt as string[];
-    const results: string[] = [];
-    for (const item of prompts) {
-      const r = await HFI_TextGeneration(
-        { ...input, prompt: item },
-        model,
-        update_progress,
-        signal
-      );
-      results.push(r.text as string);
-    }
-    return { text: results };
-  }
-
   const logger = getLogger();
   const timerLabel = `hfi:TextGeneration:${model?.provider_config?.model_name}`;
   logger.time(timerLabel, { model: model?.provider_config?.model_name });
@@ -45,7 +27,7 @@ export const HFI_TextGeneration: AiProviderRunFn<
   const response = await client.chatCompletion(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt as string }],
+      messages: [{ role: "user", content: input.prompt }],
       max_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
@@ -72,7 +54,7 @@ export const HFI_TextGeneration_Stream: AiProviderStreamFn<
   const stream = client.chatCompletionStream(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt as string }],
+      messages: [{ role: "user", content: input.prompt }],
       max_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
