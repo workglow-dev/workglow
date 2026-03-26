@@ -42,6 +42,16 @@ function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
   return parts.join("\n\n");
 }
 
+function buildSystemPrompt(input: ToolCallingTaskInput): string | undefined {
+  const base = input.systemPrompt;
+  if (input.toolChoice === "required") {
+    const instruction =
+      "You must call at least one tool from the provided tool list when answering.";
+    return base ? `${base}\n\n${instruction}` : instruction;
+  }
+  return base || undefined;
+}
+
 function buildLlamaCppFunctions(
   tools: ReadonlyArray<ToolDefinition>,
   capturedCalls: Array<{ name: string; input: Record<string, unknown> }>
@@ -82,9 +92,10 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   const sequence = context.getSequence();
   const { LlamaChatSession } = getLlamaCppSdk();
   const promptText = buildLlamaCppPrompt(input);
+  const systemPrompt = buildSystemPrompt(input);
   const session = new LlamaChatSession({
     contextSequence: sequence,
-    ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
+    ...(systemPrompt && { systemPrompt }),
   });
 
   try {
@@ -126,9 +137,10 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
   const sequence = context.getSequence();
   const { LlamaChatSession } = getLlamaCppSdk();
   const promptText = buildLlamaCppPrompt(input);
+  const systemPrompt = buildSystemPrompt(input);
   const session = new LlamaChatSession({
     contextSequence: sequence,
-    ...(input.systemPrompt && { systemPrompt: input.systemPrompt }),
+    ...(systemPrompt && { systemPrompt }),
   });
 
   const queue: string[] = [];

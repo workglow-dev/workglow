@@ -2,6 +2,8 @@
 
 [![License](https://img.shields.io/badge/license-Apache2-blue.svg)](https://github.com/workglow-dev/workglow/blob/main/LICENSE)
 
+[![Build & Test](https://github.com/workglow-dev/workglow/actions/workflows/test.yml/badge.svg)](https://github.com/workglow-dev/workglow/actions/workflows/test.yml)
+
 ## Overview
 
 Simple library to build linear and graph based workflows. It is designed to be simple to use and easy to extend, yet powerful enough to handle task rate limits, retries, etc.

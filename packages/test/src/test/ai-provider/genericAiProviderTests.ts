@@ -133,14 +133,14 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
     describe("ToolCalling", () => {
       it(
-        "should produce a tool call with toolChoice auto",
+        "should produce a tool call with toolChoice required",
         async () => {
           const workflow = new Workflow();
           workflow.toolCalling({
             model: setup.toolCallingModel,
             prompt: "What is the weather in San Francisco?",
             tools: [weatherTool],
-            toolChoice: "auto",
+            toolChoice: "required",
             maxTokens: setup.maxTokens,
           });
 
