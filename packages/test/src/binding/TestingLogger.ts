@@ -10,7 +10,7 @@ function getEnv(name: string): string | undefined {
   if (typeof process !== "undefined" && process.env) {
     return process.env[name];
   }
-  return import.meta.env[name];
+  return import.meta.env?.[name];
 }
 
 function isTruthy(value: string | undefined): boolean {
