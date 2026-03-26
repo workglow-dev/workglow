@@ -29,10 +29,6 @@ describe("NullLogger", () => {
 });
 
 describe("ConsoleLogger", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });
