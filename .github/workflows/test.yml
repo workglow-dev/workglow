@@ -103,7 +103,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: bun run test:bun:rag
 
-  test-bun-ai-provider:
+  test-bun-ai-provider-hft:
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -120,12 +120,52 @@ jobs:
         with:
           name: build-output
           path: packages
-      - name: Run ai provider tests via bun
+      - name: Run HuggingFace Transformers provider tests via bun
+        run: bun run test:bun:ai-provider-hft
+
+  test-bun-ai-provider-llamacpp:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+          path: packages
+      - name: Run LlamaCpp provider tests via bun
+        run: bun run test:bun:ai-provider-llamacpp
+
+  test-bun-ai-provider-api:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+          path: packages
+      - name: Run API provider tests via bun
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: bun run test:bun:ai-provider
+        run: bun run test:bun:ai-provider-api
 
   test-vitest-unit:
     runs-on: ubuntu-latest
@@ -219,10 +259,9 @@ jobs:
           path: vitest-rag-coverage.json
           retention-days: 1
 
-  test-vitest-ai-provider:
+  test-vitest-ai-provider-hft:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -237,19 +276,75 @@ jobs:
         with:
           name: build-output
           path: packages
-      - name: Run ai provider tests via vitest
+      - name: Run HuggingFace Transformers provider tests via vitest
+        run: bun run test:vitest:ai-provider-hft
+      - name: Copy Vitest coverage fragment
+        run: cp coverage/coverage-final.json vitest-ai-provider-hft-coverage.json
+      - name: Upload Vitest coverage fragment
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-vitest-ai-provider-hft
+          path: vitest-ai-provider-hft-coverage.json
+          retention-days: 1
+
+  test-vitest-ai-provider-llamacpp:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+          path: packages
+      - name: Run LlamaCpp provider tests via vitest
+        run: bun run test:vitest:ai-provider-llamacpp
+      - name: Copy Vitest coverage fragment
+        run: cp coverage/coverage-final.json vitest-ai-provider-llamacpp-coverage.json
+      - name: Upload Vitest coverage fragment
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-vitest-ai-provider-llamacpp
+          path: vitest-ai-provider-llamacpp-coverage.json
+          retention-days: 1
+
+  test-vitest-ai-provider-api:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+          path: packages
+      - name: Run API provider tests via vitest
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: bun run test:vitest:ai-provider
+        run: bun run test:vitest:ai-provider-api
       - name: Copy Vitest coverage fragment
-        run: cp coverage/coverage-final.json vitest-ai-provider-coverage.json
+        run: cp coverage/coverage-final.json vitest-ai-provider-api-coverage.json
       - name: Upload Vitest coverage fragment
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-vitest-ai-provider
-          path: vitest-ai-provider-coverage.json
+          name: coverage-vitest-ai-provider-api
+          path: vitest-ai-provider-api-coverage.json
           retention-days: 1
 
   merge-vitest-coverage:
@@ -258,7 +353,9 @@ jobs:
       - test-vitest-unit
       - test-vitest-integration
       - test-vitest-rag
-      - test-vitest-ai-provider
+      - test-vitest-ai-provider-hft
+      - test-vitest-ai-provider-llamacpp
+      - test-vitest-ai-provider-api
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -284,7 +381,15 @@ jobs:
           path: coverage-parts
       - uses: actions/download-artifact@v8
         with:
-          name: coverage-vitest-ai-provider
+          name: coverage-vitest-ai-provider-hft
+          path: coverage-parts
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-vitest-ai-provider-llamacpp
+          path: coverage-parts
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-vitest-ai-provider-api
           path: coverage-parts
       - name: Merge coverage (nyc) and emit HTML/LCOV
         run: |
@@ -308,7 +413,7 @@ jobs:
 
   cleanup:
     runs-on: ubuntu-latest
-    needs: [test-bun-unit, test-vitest-unit, test-bun-integration, test-vitest-integration, test-bun-rag, test-vitest-rag, test-bun-ai-provider, test-vitest-ai-provider]
+    needs: [test-bun-unit, test-vitest-unit, test-bun-integration, test-vitest-integration, test-bun-rag, test-vitest-rag, test-bun-ai-provider-hft, test-bun-ai-provider-llamacpp, test-bun-ai-provider-api, test-vitest-ai-provider-hft, test-vitest-ai-provider-llamacpp, test-vitest-ai-provider-api]
     steps:
       - uses: geekyeggo/delete-artifact@v6
         with:

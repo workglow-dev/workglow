@@ -30,10 +30,26 @@ const KNOWN_SECTIONS = [
   "util",
   "ai",
   "provider",
+  "provider-hft",
+  "provider-llamacpp",
+  "provider-api",
   "mcp",
   "rag",
 ] as const;
 type Section = (typeof KNOWN_SECTIONS)[number];
+
+const PROVIDER_HFT_FILES = [
+  "HFT_ArrayInput",
+  "HFT_Generic",
+  "HFTransformersBinding",
+  "DownloadModelAbort",
+  "TextEmbeddingTask",
+  "VisionTasks",
+  "ZeroShotTasks",
+  "ToolCallingTask",
+];
+
+const PROVIDER_LLAMACPP_FILES = ["LlamaCpp_Generic", "LlamaCppProviderIntegration"];
 
 const SECTION_DIRS: Record<Section, string[]> = {
   graph: [
@@ -53,6 +69,9 @@ const SECTION_DIRS: Record<Section, string[]> = {
   util: [join(TEST_BASE, "util")],
   ai: [join(TEST_BASE, "ai-model")],
   provider: [join(TEST_BASE, "ai-provider")],
+  "provider-hft": [join(TEST_BASE, "ai-provider")],
+  "provider-llamacpp": [join(TEST_BASE, "ai-provider")],
+  "provider-api": [join(TEST_BASE, "ai-provider")],
   mcp: [join(TEST_BASE, "mcp")],
   rag: [join(TEST_BASE, "rag")],
 };
@@ -91,16 +110,32 @@ function matchesKind(filePath: string, kinds: readonly Kind[]): boolean {
   return false;
 }
 
-function collectFiles(dirs: string[], kinds: readonly Kind[]): string[] {
+function matchesProviderSubsection(filePath: string, section: Section): boolean {
+  const base = filePath.split("/").pop() ?? filePath;
+  const stem = base.replace(/\..*$/, "");
+  if (section === "provider-hft") return PROVIDER_HFT_FILES.includes(stem);
+  if (section === "provider-llamacpp") return PROVIDER_LLAMACPP_FILES.includes(stem);
+  if (section === "provider-api") {
+    return !PROVIDER_HFT_FILES.includes(stem) && !PROVIDER_LLAMACPP_FILES.includes(stem);
+  }
+  return true;
+}
+
+function collectFiles(dirs: string[], kinds: readonly Kind[], sections: readonly Section[]): string[] {
   const seen = new Set<string>();
   const files: string[] = [];
   const glob = new Bun.Glob("**/*.test.ts");
+  const providerSubsections = sections.filter(
+    (s) => s === "provider-hft" || s === "provider-llamacpp" || s === "provider-api"
+  );
   for (const dir of dirs) {
     for (const file of glob.scanSync({ cwd: dir, absolute: true, onlyFiles: true })) {
-      if (!seen.has(file) && matchesKind(file, kinds)) {
-        seen.add(file);
-        files.push(file);
+      if (seen.has(file) || !matchesKind(file, kinds)) continue;
+      if (providerSubsections.length > 0 && file.includes("/ai-provider/")) {
+        if (!providerSubsections.some((s) => matchesProviderSubsection(file, s))) continue;
       }
+      seen.add(file);
+      files.push(file);
     }
   }
   return files;
@@ -179,7 +214,7 @@ const needsFileFilter = sections.length > 0 || kinds.length > 0;
 const dirs = sections.length > 0
   ? sections.flatMap((s) => SECTION_DIRS[s])
   : Object.values(SECTION_DIRS).flat();
-const files: string[] = needsFileFilter ? collectFiles(dirs, kinds) : [];
+const files: string[] = needsFileFilter ? collectFiles(dirs, kinds, sections) : [];
 
 if (needsFileFilter && files.length === 0) {
   const kindLabel = kinds.length > 0 ? kinds.join("+") : "all";
