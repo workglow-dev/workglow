@@ -11,7 +11,7 @@ import type {
   TextRewriterTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
+
 import {
   ensureAvailable,
   getApi,
@@ -29,37 +29,14 @@ export const WebBrowser_TextRewriter: AiProviderRunFn<
   await ensureAvailable("Rewriter", factory);
   const config = getConfig(model);
 
-  if (Array.isArray(input.text)) {
-    getLogger().warn("WebBrowser_TextRewriter: array input received; processing sequentially");
-    const results: string[] = [];
-    for (const item of input.text as string[]) {
-      const rewriter = await factory.create({
-        tone: config.rewriter_tone,
-        length: config.rewriter_length,
-      });
-      try {
-        results.push(
-          await rewriter.rewrite(item, {
-            signal,
-            context: input.prompt as string | undefined,
-          })
-        );
-      } finally {
-        rewriter.destroy();
-      }
-    }
-    update_progress(100, "Completed text rewriting");
-    return { text: results } as TextRewriterTaskOutput;
-  }
-
   const rewriter = await factory.create({
     tone: config.rewriter_tone,
     length: config.rewriter_length,
   });
   try {
-    const text = await rewriter.rewrite(input.text as string, {
+    const text = await rewriter.rewrite(input.text, {
       signal,
-      context: input.prompt as string | undefined,
+      context: input.prompt,
     });
     update_progress(100, "Completed text rewriting");
     return { text };
@@ -82,9 +59,9 @@ export const WebBrowser_TextRewriter_Stream: AiProviderStreamFn<
     length: config.rewriter_length,
   });
   try {
-    const stream = rewriter.rewriteStreaming(input.text as string, {
+    const stream = rewriter.rewriteStreaming(input.text, {
       signal,
-      context: input.prompt as string | undefined,
+      context: input.prompt,
     });
     yield* snapshotStreamToTextDeltas<TextRewriterTaskOutput>(stream, "text", (text) => ({ text }));
   } finally {

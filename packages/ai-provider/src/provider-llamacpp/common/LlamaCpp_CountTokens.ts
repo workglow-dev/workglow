@@ -10,7 +10,6 @@ import type {
   CountTokensTaskInput,
   CountTokensTaskOutput,
 } from "@workglow/ai";
-import { getLogger } from "@workglow/util/worker";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import { getOrLoadModel } from "./LlamaCpp_Runtime";
 
@@ -19,21 +18,8 @@ export const LlamaCpp_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, onProgress, signal) => {
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "LlamaCpp_CountTokens: array input received; processing sequentially (no native batch support)"
-    );
-    const texts = input.text as string[];
-    const counts: number[] = [];
-    for (const item of texts) {
-      const r = await LlamaCpp_CountTokens({ ...input, text: item }, model, onProgress, signal);
-      counts.push(r.count as number);
-    }
-    return { count: counts };
-  }
-
   const loadedModel = await getOrLoadModel(model!);
-  const tokens = loadedModel.tokenizer(input.text as string);
+  const tokens = loadedModel.tokenizer(input.text);
   return { count: tokens.length };
 };
 

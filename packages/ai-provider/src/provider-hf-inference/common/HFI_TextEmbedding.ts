@@ -22,26 +22,6 @@ export const HFI_TextEmbedding: AiProviderRunFn<
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  if (Array.isArray(input.text)) {
-    const embeddings = await Promise.all(
-      input.text.map((text) =>
-        client.featureExtraction(
-          {
-            model: modelName,
-            inputs: text,
-          },
-          { signal }
-        )
-      )
-    );
-
-    update_progress(100, "Completed HF Inference text embedding");
-    logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name, batch: true });
-    return {
-      vector: embeddings.map((embedding) => new Float32Array(embedding as unknown as number[])),
-    };
-  }
-
   const embedding = await client.featureExtraction(
     {
       model: modelName,

@@ -14,7 +14,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson } from "@workglow/util/worker";
+import { parsePartialJson } from "@workglow/util/worker";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 import { getOllamaModelName } from "./Ollama_ModelUtil";
 
@@ -44,21 +44,6 @@ export function createOllamaToolCalling(
     ToolCallingTaskOutput,
     OllamaModelConfig
   > = async (input, model, update_progress, _signal) => {
-    if (Array.isArray(input.prompt)) {
-      getLogger().warn(
-        "Ollama_ToolCalling: array input received; processing sequentially (no native batch support)"
-      );
-      const prompts = input.prompt as string[];
-      const texts: string[] = [];
-      const toolCallsList: ToolCalls[] = [];
-      for (const item of prompts) {
-        const r = await run({ ...input, prompt: item }, model, update_progress, _signal);
-        texts.push(r.text as string);
-        toolCallsList.push(r.toolCalls as ToolCalls);
-      }
-      return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
-    }
-
     update_progress(0, "Starting Ollama tool calling");
     const client = await getClient(model);
     const modelName = getOllamaModelName(model);

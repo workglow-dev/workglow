@@ -15,24 +15,6 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   AnthropicModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "Anthropic_TextGeneration: array input received; processing sequentially (no native batch support)"
-    );
-    const prompts = input.prompt as string[];
-    const results: string[] = [];
-    for (const item of prompts) {
-      const r = await Anthropic_TextGeneration(
-        { ...input, prompt: item },
-        model,
-        update_progress,
-        signal
-      );
-      results.push(r.text as string);
-    }
-    return { text: results };
-  }
-
   const logger = getLogger();
   const timerLabel = `anthropic:TextGeneration:${model?.provider_config?.model_name}`;
   logger.time(timerLabel, { model: model?.provider_config?.model_name });
@@ -44,7 +26,7 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
   const response = await client.messages.create(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt as string }],
+      messages: [{ role: "user", content: input.prompt }],
       max_tokens: getMaxTokens(input, model),
       temperature: input.temperature,
       top_p: input.topP,
@@ -70,7 +52,7 @@ export const Anthropic_TextGeneration_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(
     {
       model: modelName,
-      messages: [{ role: "user", content: input.prompt as string }],
+      messages: [{ role: "user", content: input.prompt }],
       max_tokens: getMaxTokens(input, model),
       temperature: input.temperature,
       top_p: input.topP,

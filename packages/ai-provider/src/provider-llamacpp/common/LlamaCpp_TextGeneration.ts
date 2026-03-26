@@ -11,7 +11,6 @@ import type {
   TextGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import { getOrCreateTextContext, loadSdk, streamFromSession } from "./LlamaCpp_Runtime";
 
@@ -20,24 +19,6 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
   TextGenerationTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "LlamaCpp_TextGeneration: array input received; processing sequentially (no native batch support)"
-    );
-    const prompts = input.prompt as string[];
-    const results: string[] = [];
-    for (const item of prompts) {
-      const r = await LlamaCpp_TextGeneration(
-        { ...input, prompt: item },
-        model,
-        update_progress,
-        signal
-      );
-      results.push(r.text as string);
-    }
-    return { text: results };
-  }
-
   if (!model) throw new Error("Model config is required for TextGenerationTask.");
 
   const { LlamaChatSession } = await loadSdk();
@@ -49,7 +30,7 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
   const sequence = context.getSequence();
   const session = new LlamaChatSession({ contextSequence: sequence });
   try {
-    const text = await session.prompt(input.prompt as string, {
+    const text = await session.prompt(input.prompt, {
       signal,
       ...(input.temperature !== undefined && { temperature: input.temperature }),
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
@@ -76,7 +57,7 @@ export const LlamaCpp_TextGeneration_Stream: AiProviderStreamFn<
   const session = new LlamaChatSession({ contextSequence: sequence });
   try {
     yield* streamFromSession<TextGenerationTaskOutput>((onTextChunk) => {
-      return session.prompt(input.prompt as string, {
+      return session.prompt(input.prompt, {
         signal,
         onTextChunk,
         ...(input.temperature !== undefined && { temperature: input.temperature }),

@@ -11,7 +11,7 @@ import type {
   TextGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
+
 import { ensureAvailable, getApi, snapshotStreamToTextDeltas } from "./WebBrowser_ChromeHelpers";
 import type { WebBrowserModelConfig } from "./WebBrowser_ModelSchema";
 
@@ -26,28 +26,11 @@ export const WebBrowser_TextGeneration: AiProviderRunFn<
   );
   await ensureAvailable("LanguageModel", factory);
 
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn("WebBrowser_TextGeneration: array input received; processing sequentially");
-    const results: string[] = [];
-    for (const item of input.prompt as string[]) {
-      const session = await factory.create({
-        temperature: input.temperature ?? undefined,
-      });
-      try {
-        results.push(await session.prompt(item, { signal }));
-      } finally {
-        session.destroy();
-      }
-    }
-    update_progress(100, "Completed text generation");
-    return { text: results } as TextGenerationTaskOutput;
-  }
-
   const session = await factory.create({
     temperature: input.temperature ?? undefined,
   });
   try {
-    const text = await session.prompt(input.prompt as string, { signal });
+    const text = await session.prompt(input.prompt, { signal });
     update_progress(100, "Completed text generation");
     return { text };
   } finally {
@@ -70,7 +53,7 @@ export const WebBrowser_TextGeneration_Stream: AiProviderStreamFn<
     temperature: input.temperature ?? undefined,
   });
   try {
-    const stream = session.promptStreaming(input.prompt as string, { signal });
+    const stream = session.promptStreaming(input.prompt, { signal });
     yield* snapshotStreamToTextDeltas<TextGenerationTaskOutput>(stream, "text", (text) => ({
       text,
     }));

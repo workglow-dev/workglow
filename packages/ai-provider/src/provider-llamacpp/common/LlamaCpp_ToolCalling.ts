@@ -14,14 +14,13 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import { getLlamaCppSdk, getOrCreateTextContext, loadSdk } from "./LlamaCpp_Runtime";
 
 function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
   const inputMessages = input.messages;
   if (!inputMessages || inputMessages.length === 0) {
-    return Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
+    return input.prompt;
   }
 
   const parts: string[] = [];
@@ -68,26 +67,6 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   LlamaCppModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "LlamaCpp_ToolCalling: array input received; processing sequentially (no native batch support)"
-    );
-    const prompts = input.prompt as string[];
-    const texts: string[] = [];
-    const toolCallsList: ToolCalls[] = [];
-    for (const item of prompts) {
-      const r = await LlamaCpp_ToolCalling(
-        { ...input, prompt: item },
-        model,
-        update_progress,
-        signal
-      );
-      texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as ToolCalls);
-    }
-    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
-  }
-
   if (!model) throw new Error("Model config is required for ToolCallingTask.");
 
   await loadSdk();

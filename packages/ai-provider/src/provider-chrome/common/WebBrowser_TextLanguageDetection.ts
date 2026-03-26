@@ -9,7 +9,7 @@ import type {
   TextLanguageDetectionTaskInput,
   TextLanguageDetectionTaskOutput,
 } from "@workglow/ai";
-import { getLogger } from "@workglow/util/worker";
+
 import { ensureAvailable, getApi } from "./WebBrowser_ChromeHelpers";
 import type { WebBrowserModelConfig } from "./WebBrowser_ModelSchema";
 
@@ -24,30 +24,9 @@ export const WebBrowser_TextLanguageDetection: AiProviderRunFn<
   );
   await ensureAvailable("LanguageDetector", factory);
 
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "WebBrowser_TextLanguageDetection: array input received; processing sequentially"
-    );
-    const allResults: Array<Array<{ language: string; score: number }>> = [];
-    for (const item of input.text as string[]) {
-      const detector = await factory.create();
-      try {
-        const detected = await detector.detect(item, { signal });
-        const mapped = detected
-          .map((d) => ({ language: d.detectedLanguage, score: d.confidence }))
-          .slice(0, input.maxLanguages ?? 5);
-        allResults.push(mapped);
-      } finally {
-        detector.destroy();
-      }
-    }
-    update_progress(100, "Completed language detection");
-    return { languages: allResults } as TextLanguageDetectionTaskOutput;
-  }
-
   const detector = await factory.create();
   try {
-    const detected = await detector.detect(input.text as string, { signal });
+    const detected = await detector.detect(input.text, { signal });
     const languages = detected
       .map((d) => ({ language: d.detectedLanguage, score: d.confidence }))
       .slice(0, input.maxLanguages ?? 5);

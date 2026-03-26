@@ -22,20 +22,13 @@ export function createOllamaTextEmbedding(
     const client = await getClient(model);
     const modelName = getOllamaModelName(model);
 
-    const texts = Array.isArray(input.text) ? input.text : [input.text];
-
     const response = await client.embed({
       model: modelName,
-      input: texts,
+      input: input.text,
     });
 
     update_progress(100, "Completed Ollama text embedding");
 
-    if (Array.isArray(input.text)) {
-      return {
-        vector: response.embeddings.map((e: number[]) => new Float32Array(e)),
-      };
-    }
     return { vector: new Float32Array(response.embeddings[0]) };
   };
 }

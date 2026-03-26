@@ -7,18 +7,18 @@
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
-import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const modelSchema = TypeModel("model:TextLanguageDetectionTask");
 
 export const TextLanguageDetectionInputSchema = {
   type: "object",
   properties: {
-    text: TypeSingleOrArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to detect the language of",
-    }),
+    },
     maxLanguages: {
       type: "number",
       minimum: 0,
@@ -71,7 +71,7 @@ export const TextLanguageDetectionInputSchema = {
 export const TextLanguageDetectionOutputSchema = {
   type: "object",
   properties: {
-    languages: TypeSingleOrArray({
+    languages: {
       type: "array",
       items: {
         type: "object",
@@ -92,7 +92,7 @@ export const TextLanguageDetectionOutputSchema = {
       },
       title: "Languages",
       description: "The languages with their scores",
-    }),
+    },
   },
   required: ["languages"],
   additionalProperties: false,

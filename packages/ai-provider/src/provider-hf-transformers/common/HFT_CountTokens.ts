@@ -18,21 +18,13 @@ export const HFT_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, _signal) => {
-  const isArrayInput = Array.isArray(input.text);
-
   const { AutoTokenizer } = await loadTransformersSDK();
   const tokenizer = await AutoTokenizer.from_pretrained(model!.provider_config.model_path, {
     progress_callback: (progress: any) => onProgress(progress?.progress ?? 0),
   });
 
-  if (isArrayInput) {
-    const texts = input.text as string[];
-    const counts = texts.map((t) => tokenizer.encode(t).length);
-    return { count: counts };
-  }
-
   // encode() returns number[] of token IDs for a single input string
-  const tokenIds = tokenizer.encode(input.text as string);
+  const tokenIds = tokenizer.encode(input.text);
   return { count: tokenIds.length };
 };
 

@@ -29,22 +29,8 @@ export const Gemini_TextEmbedding: AiProviderRunFn<
   const taskType =
     (model?.provider_config?.embedding_task_type as TaskType) || ("RETRIEVAL_DOCUMENT" as TaskType);
 
-  if (Array.isArray(input.text)) {
-    const result = await embeddingModel.batchEmbedContents({
-      requests: input.text.map((t) => ({
-        content: { role: "user", parts: [{ text: t }] },
-        taskType,
-      })),
-    });
-    update_progress(100, "Completed Gemini text embedding");
-    logger.timeEnd(timerLabel, { model: model?.provider_config?.model_name, batch: true });
-    return {
-      vector: result.embeddings.map((e) => new Float32Array(e.values)),
-    };
-  }
-
   const result = await embeddingModel.embedContent({
-    content: { role: "user", parts: [{ text: input.text as string }] },
+    content: { role: "user", parts: [{ text: input.text }] },
     taskType,
   });
 

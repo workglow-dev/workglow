@@ -6,7 +6,6 @@
 
 import type { AiProviderRunFn, AiProviderStreamFn, TextRewriterTaskInput, TextRewriterTaskOutput } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { getApiKey, getModelName, loadGeminiSDK } from "./Gemini_Client";
 
@@ -15,29 +14,16 @@ export const Gemini_TextRewriter: AiProviderRunFn<
   TextRewriterTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "Gemini_TextRewriter: array input received; processing sequentially (no native batch support)"
-    );
-    const texts = input.text as string[];
-    const results: string[] = [];
-    for (const item of texts) {
-      const r = await Gemini_TextRewriter({ ...input, text: item }, model, update_progress, signal);
-      results.push(r.text as string);
-    }
-    return { text: results };
-  }
-
   update_progress(0, "Starting Gemini text rewriting");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
-    systemInstruction: input.prompt as string,
+    systemInstruction: input.prompt,
   });
 
   const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.text as string }] }],
+    contents: [{ role: "user", parts: [{ text: input.text }] }],
   });
 
   const text = result.response.text();
@@ -54,11 +40,11 @@ export const Gemini_TextRewriter_Stream: AiProviderStreamFn<
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const genModel = genAI.getGenerativeModel({
     model: getModelName(model),
-    systemInstruction: input.prompt as string,
+    systemInstruction: input.prompt,
   });
 
   const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.text as string }] }] },
+    { contents: [{ role: "user", parts: [{ text: input.text }] }] },
     { signal }
   );
 

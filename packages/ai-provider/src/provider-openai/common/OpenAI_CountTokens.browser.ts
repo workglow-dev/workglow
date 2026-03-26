@@ -10,7 +10,6 @@ import type {
   CountTokensTaskInput,
   CountTokensTaskOutput,
 } from "@workglow/ai";
-import { getLogger } from "@workglow/util/worker";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { getModelName } from "./OpenAI_Client";
 import type { Tiktoken, TiktokenModel } from "js-tiktoken";
@@ -53,26 +52,8 @@ export const OpenAI_CountTokens: AiProviderRunFn<
   CountTokensTaskOutput,
   OpenAiModelConfig
 > = async (input, model) => {
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "OpenAI_CountTokens: array input received; processing sequentially (no native batch support)"
-    );
-    const texts = input.text as string[];
-    const counts: number[] = [];
-    for (const item of texts) {
-      const r = await OpenAI_CountTokens(
-        { ...input, text: item },
-        model,
-        () => {},
-        new AbortController().signal
-      );
-      counts.push(r.count as number);
-    }
-    return { count: counts };
-  }
-
   const enc = await getEncoder(getModelName(model));
-  const tokens = enc.encode(input.text as string);
+  const tokens = enc.encode(input.text);
   return { count: tokens.length };
 };
 

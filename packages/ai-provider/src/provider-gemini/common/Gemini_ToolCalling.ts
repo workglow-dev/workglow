@@ -15,7 +15,6 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { getApiKey, getModelName, loadGeminiSDK } from "./Gemini_Client";
 import { sanitizeSchemaForGemini } from "./Gemini_Schema";
@@ -124,26 +123,6 @@ export const Gemini_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "Gemini_ToolCalling: array input received; processing sequentially (no native batch support)"
-    );
-    const prompts = input.prompt as string[];
-    const texts: string[] = [];
-    const toolCallsList: ToolCalls[] = [];
-    for (const item of prompts) {
-      const r = await Gemini_ToolCalling(
-        { ...input, prompt: item },
-        model,
-        update_progress,
-        signal
-      );
-      texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as ToolCalls);
-    }
-    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
-  }
-
   update_progress(0, "Starting Gemini tool calling");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
