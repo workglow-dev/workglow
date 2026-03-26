@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, DownloadModelTaskRunInput, DownloadModelTaskRunOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  DownloadModelTaskRunInput,
+  DownloadModelTaskRunOutput,
+} from "@workglow/ai";
 import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline } from "./HFT_Pipeline";

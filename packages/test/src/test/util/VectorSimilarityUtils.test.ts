@@ -5,7 +5,12 @@
  */
 
 import { setLogger } from "@workglow/util";
-import { cosineSimilarity, hammingDistance, hammingSimilarity, jaccardSimilarity } from "@workglow/util/schema";
+import {
+  cosineSimilarity,
+  hammingDistance,
+  hammingSimilarity,
+  jaccardSimilarity,
+} from "@workglow/util/schema";
 import { describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

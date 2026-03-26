@@ -10,11 +10,7 @@ import type {
   UnloadModelTaskRunOutput,
 } from "@workglow/ai";
 import { TFMPModelConfig } from "./TFMP_ModelSchema";
-import {
-  modelTaskCache,
-  wasm_reference_counts,
-  wasm_tasks,
-} from "./TFMP_Runtime";
+import { modelTaskCache, wasm_reference_counts, wasm_tasks } from "./TFMP_Runtime";
 
 export const TFMP_Unload: AiProviderRunFn<
   UnloadModelTaskRunInput,

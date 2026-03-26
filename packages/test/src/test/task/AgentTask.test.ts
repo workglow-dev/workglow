@@ -29,9 +29,7 @@ const trimMessages = (AgentTask.prototype as any).trimMessages.bind(
 
 describe("AgentTask.trimMessages", () => {
   const initialUser = userMessage("Start");
-  const assist1 = assistantMessage("Response 1", [
-    { id: "tc_1", name: "tool", input: {} },
-  ]);
+  const assist1 = assistantMessage("Response 1", [{ id: "tc_1", name: "tool", input: {} }]);
   const tool1 = toolMessage([
     { toolCallId: "tc_1", toolName: "tool", output: { done: true }, isError: false },
   ]);
@@ -130,7 +128,7 @@ describe("Content block factories", () => {
     const msg = userMessage(blocks);
     expect(msg.role).toBe("user");
     expect(Array.isArray(msg.content)).toBe(true);
-    expect((msg.content as any[])).toHaveLength(2);
+    expect(msg.content as any[]).toHaveLength(2);
   });
 });
 
