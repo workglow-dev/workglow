@@ -4,6 +4,65 @@
     "module": "esnext",
     "target": "esnext",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@workglow/ai": ["./packages/ai/src/bun.ts"],
+      "@workglow/ai/worker": ["./packages/ai/src/worker.ts"],
+      "@workglow/ai-provider/anthropic": ["./packages/ai-provider/src/provider-anthropic/index.ts"],
+      "@workglow/ai-provider/anthropic/runtime": [
+        "./packages/ai-provider/src/provider-anthropic/runtime.ts"
+      ],
+      "@workglow/ai-provider/chrome": ["./packages/ai-provider/src/provider-chrome/index.ts"],
+      "@workglow/ai-provider/chrome/runtime": [
+        "./packages/ai-provider/src/provider-chrome/runtime.ts"
+      ],
+      "@workglow/ai-provider/gemini": ["./packages/ai-provider/src/provider-gemini/index.ts"],
+      "@workglow/ai-provider/gemini/runtime": [
+        "./packages/ai-provider/src/provider-gemini/runtime.ts"
+      ],
+      "@workglow/ai-provider/hf-inference": [
+        "./packages/ai-provider/src/provider-hf-inference/index.ts"
+      ],
+      "@workglow/ai-provider/hf-inference/runtime": [
+        "./packages/ai-provider/src/provider-hf-inference/runtime.ts"
+      ],
+      "@workglow/ai-provider/hf-transformers": [
+        "./packages/ai-provider/src/provider-hf-transformers/index.ts"
+      ],
+      "@workglow/ai-provider/hf-transformers/runtime": [
+        "./packages/ai-provider/src/provider-hf-transformers/runtime.ts"
+      ],
+      "@workglow/ai-provider/llamacpp": ["./packages/ai-provider/src/provider-llamacpp/index.ts"],
+      "@workglow/ai-provider/llamacpp/runtime": [
+        "./packages/ai-provider/src/provider-llamacpp/runtime.ts"
+      ],
+      "@workglow/ai-provider/ollama": ["./packages/ai-provider/src/provider-ollama/index.ts"],
+      "@workglow/ai-provider/ollama/runtime": [
+        "./packages/ai-provider/src/provider-ollama/runtime.ts"
+      ],
+      "@workglow/ai-provider/openai": ["./packages/ai-provider/src/provider-openai/index.ts"],
+      "@workglow/ai-provider/openai/runtime": [
+        "./packages/ai-provider/src/provider-openai/runtime.ts"
+      ],
+      "@workglow/ai-provider/tf-mediapipe": [
+        "./packages/ai-provider/src/provider-tf-mediapipe/index.ts"
+      ],
+      "@workglow/ai-provider/tf-mediapipe/runtime": [
+        "./packages/ai-provider/src/provider-tf-mediapipe/runtime.ts"
+      ],
+      "@workglow/job-queue": ["./packages/job-queue/src/bun.ts"],
+      "@workglow/knowledge-base": ["./packages/knowledge-base/src/bun.ts"],
+      "@workglow/storage": ["./packages/storage/src/bun.ts"],
+      "@workglow/storage/postgres": ["./packages/storage/src/postgres/node-bun.ts"],
+      "@workglow/storage/sqlite": ["./packages/storage/src/sqlite/bun.ts"],
+      "@workglow/task-graph": ["./packages/task-graph/src/bun.ts"],
+      "@workglow/util": ["./packages/util/src/bun.ts"],
+      "@workglow/util/compress": ["./packages/util/src/compress-node.ts"],
+      "@workglow/util/graph": ["./packages/util/src/graph-entry.ts"],
+      "@workglow/util/media": ["./packages/util/src/media-node.ts"],
+      "@workglow/util/schema": ["./packages/util/src/schema-entry.ts"],
+      "@workglow/util/worker": ["./packages/util/src/worker-bun.ts"]
+    },
     "moduleDetection": "force",
     "composite": true,
     "strict": true,
