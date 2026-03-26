@@ -36,7 +36,7 @@ export const HFT_TextRewriter: AiProviderRunFn<
   const { TextStreamer } = await loadTransformersSDK();
   const streamer = isArrayInput
     ? undefined
-    : createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+    : createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
   if (isArrayInput) {
     const texts = input.text as string[];
@@ -89,7 +89,7 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
   const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
 
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + (input.text as string);
 

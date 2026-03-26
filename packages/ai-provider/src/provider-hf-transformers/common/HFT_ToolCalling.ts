@@ -96,6 +96,9 @@ export const HFT_ToolCalling: AiProviderRunFn<
       [];
 
     for (const singlePrompt of prompts) {
+      if (signal.aborted) {
+        throw new DOMException("Generation aborted", "AbortError");
+      }
       const singleInput = { ...input, prompt: singlePrompt } as ToolCallingTaskInput;
       const messages = toTextFlatMessages(singleInput);
 
@@ -108,7 +111,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
         add_generation_prompt: true,
       }) as string;
 
-      const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+      const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
       let results = await generateText(prompt, {
         max_new_tokens: input.maxTokens ?? 1024,
@@ -146,7 +149,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
     add_generation_prompt: true,
   }) as string;
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
   let results = await generateText(prompt, {
     max_new_tokens: input.maxTokens ?? 1024,
@@ -193,7 +196,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   // the outer queue receives filtered text-delta events (markup stripped).
   const innerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
   const outerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, innerQueue, TextStreamer);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, innerQueue, TextStreamer, signal);
 
   let fullText = "";
   const filter = createToolCallMarkupFilter((text) => {

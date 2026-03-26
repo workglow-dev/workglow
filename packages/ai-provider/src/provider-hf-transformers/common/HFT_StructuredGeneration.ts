@@ -70,7 +70,7 @@ export const HFT_StructuredGeneration: AiProviderRunFn<
     add_generation_prompt: true,
   }) as string;
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
   let results = await generateText(formattedPrompt, {
     max_new_tokens: input.maxTokens ?? 1024,
@@ -114,7 +114,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
   }) as string;
 
   const queue = createStreamEventQueue<StreamEvent<StructuredGenerationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
 
   let fullText = "";
 

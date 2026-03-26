@@ -53,6 +53,9 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
 
     const answers: string[] = [];
     for (let i = 0; i < questions.length; i++) {
+      if (signal.aborted) {
+        throw new DOMException("Generation aborted", "AbortError");
+      }
       const result = await generateAnswer(questions[i], contexts[i], {} as any);
       let answerText = "";
       if (Array.isArray(result)) {
@@ -67,7 +70,7 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
   }
 
   const { TextStreamer } = await loadTransformersSDK();
-  const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress, TextStreamer);
+  const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress, TextStreamer, signal);
 
   const result = await generateAnswer(
     input.question as string,
@@ -108,7 +111,7 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
   const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextQuestionAnswerTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateAnswer.tokenizer, queue, TextStreamer);
+  const streamer = createStreamingTextStreamer(generateAnswer.tokenizer, queue, TextStreamer, signal);
 
   let pipelineResult:
     | DocumentQuestionAnsweringOutput[number]

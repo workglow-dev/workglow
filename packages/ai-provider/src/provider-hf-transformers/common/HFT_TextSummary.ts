@@ -35,7 +35,7 @@ export const HFT_TextSummary: AiProviderRunFn<
   const { TextStreamer } = await loadTransformersSDK();
   const streamer = isArrayInput
     ? undefined
-    : createTextStreamer(generateSummary.tokenizer, onProgress, TextStreamer);
+    : createTextStreamer(generateSummary.tokenizer, onProgress, TextStreamer, signal);
 
   const result = await generateSummary(
     input.text as any,
@@ -78,7 +78,7 @@ export const HFT_TextSummary_Stream: AiProviderStreamFn<
   const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextSummaryTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue, TextStreamer);
+  const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue, TextStreamer, signal);
 
   const pipelinePromise = generateSummary(
     input.text as string,

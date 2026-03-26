@@ -35,7 +35,7 @@ export const HFT_TextTranslation: AiProviderRunFn<
   const { TextStreamer } = await loadTransformersSDK();
   const streamer = isArrayInput
     ? undefined
-    : createTextStreamer(translate.tokenizer, onProgress, TextStreamer);
+    : createTextStreamer(translate.tokenizer, onProgress, TextStreamer, signal);
 
   const result = await translate(
     input.text as any,
@@ -74,7 +74,7 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
   const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextTranslationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(translate.tokenizer, queue, TextStreamer);
+  const streamer = createStreamingTextStreamer(translate.tokenizer, queue, TextStreamer, signal);
 
   const pipelinePromise = translate(
     input.text as string,
