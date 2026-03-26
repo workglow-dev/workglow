@@ -5,7 +5,7 @@
  */
 
 import { ConsoleLogger, NullLogger, getLogger, setLogger } from "@workglow/util";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("NullLogger", () => {
   it("should not throw on any method call", () => {
