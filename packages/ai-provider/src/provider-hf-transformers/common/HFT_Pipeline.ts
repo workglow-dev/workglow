@@ -295,7 +295,7 @@ const doGetPipeline = async (
       device = "wasm";
     }
     if (device !== "wasm" && device !== "webgpu") {
-      device = "webgpu";
+      device = "wasm";
     }
   } else {
     // we can trust the lib to make a choice for the device on the server

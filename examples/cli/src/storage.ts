@@ -34,7 +34,7 @@ export const McpServerRecordSchema = {
     auth_client_name: { type: "string" },
     auth_jwt_lifetime_seconds: { type: "number" },
   },
-  required: ["name", "transport"],
+  required: ["name", "transport", "auth_type"],
 } as const;
 
 export const McpServerPrimaryKeyNames = ["name"] as const;
@@ -68,10 +68,9 @@ export function createAgentRepository(config: CliConfig): TaskGraphTabularReposi
   });
 }
 
-export function createMcpStorage(config: CliConfig): FsFolderTabularStorage<
-  typeof McpServerRecordSchema,
-  typeof McpServerPrimaryKeyNames
-> {
+export function createMcpStorage(
+  config: CliConfig
+): FsFolderTabularStorage<typeof McpServerRecordSchema, typeof McpServerPrimaryKeyNames> {
   return new FsFolderTabularStorage(
     config.directories.mcps,
     McpServerRecordSchema,
