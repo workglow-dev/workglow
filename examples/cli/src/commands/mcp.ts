@@ -5,7 +5,7 @@
  */
 
 import type { DataPortSchemaObject } from "@workglow/util/schema";
-import { searchMcpRegistryPage, type McpSearchResultItem } from "@workglow/tasks";
+import { searchMcpRegistryPage, mcpAuthConfigSchema, type McpSearchResultItem } from "@workglow/tasks";
 import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
@@ -17,6 +17,17 @@ import type { SearchSelectItem } from "../ui/render";
 /** Extends stored record schema with if/then rules so interactive prompts ask for command / server_url after transport is chosen. */
 const mcpSchema = {
   ...McpServerRecordSchema,
+  properties: {
+    ...McpServerRecordSchema.properties,
+    // Override auth_type to remove the default so users are always prompted to choose.
+    auth_type: {
+      type: "string",
+      enum: mcpAuthConfigSchema.properties.auth_type.enum,
+      title: mcpAuthConfigSchema.properties.auth_type.title,
+      description: mcpAuthConfigSchema.properties.auth_type.description,
+    },
+  },
+  required: [...McpServerRecordSchema.required, "auth_type"],
   allOf: [
     {
       if: {
@@ -39,6 +50,7 @@ const mcpSchema = {
       },
       then: { required: ["server_url"] },
     },
+    ...mcpAuthConfigSchema.allOf,
   ],
 } as unknown as DataPortSchemaObject;
 
