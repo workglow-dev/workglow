@@ -11,7 +11,6 @@ import type {
   TextRewriterTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 import { getOllamaModelName } from "./Ollama_ModelUtil";
 
@@ -25,19 +24,6 @@ export function createOllamaTextRewriter(
     TextRewriterTaskOutput,
     OllamaModelConfig
   > = async (input, model, update_progress, _signal) => {
-    if (Array.isArray(input.text)) {
-      getLogger().warn(
-        "Ollama_TextRewriter: array input received; processing sequentially (no native batch support)"
-      );
-      const texts = input.text as string[];
-      const results: string[] = [];
-      for (const item of texts) {
-        const r = await run({ ...input, text: item }, model, update_progress, _signal);
-        results.push(r.text as string);
-      }
-      return { text: results };
-    }
-
     update_progress(0, "Starting Ollama text rewriting");
     const client = await getClient(model);
     const modelName = getOllamaModelName(model);
@@ -45,8 +31,8 @@ export function createOllamaTextRewriter(
     const response = await client.chat({
       model: modelName,
       messages: [
-        { role: "system", content: input.prompt as string },
-        { role: "user", content: input.text as string },
+        { role: "system", content: input.prompt },
+        { role: "user", content: input.text },
       ],
     });
 
@@ -70,8 +56,8 @@ export function createOllamaTextRewriterStream(
     const stream = await client.chat({
       model: modelName,
       messages: [
-        { role: "system", content: input.prompt as string },
-        { role: "user", content: input.text as string },
+        { role: "system", content: input.prompt },
+        { role: "user", content: input.text },
       ],
       stream: true,
     });

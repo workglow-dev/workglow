@@ -14,7 +14,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson } from "@workglow/util/worker";
+import { parsePartialJson } from "@workglow/util/worker";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
 import { getClient, getModelName, getProvider } from "./HFI_Client";
 
@@ -32,21 +32,6 @@ export const HFI_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   HfInferenceModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "HFI_ToolCalling: array input received; processing sequentially (no native batch support)"
-    );
-    const prompts = input.prompt as string[];
-    const texts: string[] = [];
-    const toolCallsList: ToolCalls[] = [];
-    for (const item of prompts) {
-      const r = await HFI_ToolCalling({ ...input, prompt: item }, model, update_progress, signal);
-      texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as ToolCalls);
-    }
-    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
-  }
-
   update_progress(0, "Starting HF Inference tool calling");
   const client = await getClient(model);
   const modelName = getModelName(model);

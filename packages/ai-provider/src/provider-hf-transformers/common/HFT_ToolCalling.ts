@@ -82,59 +82,9 @@ export const HFT_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
-  const isArrayInput = Array.isArray(input.prompt);
-
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
 
-  if (isArrayInput) {
-    const prompts = input.prompt as Array<
-      (typeof input)["prompt"] extends Array<infer T> ? T : unknown
-    >;
-    const texts: string[] = [];
-    const toolCallsList: Array<{ id: string; input: { [x: string]: unknown }; name: string }[]> =
-      [];
-
-    for (const singlePrompt of prompts) {
-      const singleInput = { ...input, prompt: singlePrompt } as ToolCallingTaskInput;
-      const messages = toTextFlatMessages(singleInput);
-
-      const tools = resolveHFTToolsAndMessages(singleInput, messages);
-
-      // Use the tokenizer's chat template to format the prompt with tool definitions
-      const prompt = (generateText.tokenizer as any).apply_chat_template(messages, {
-        tools,
-        tokenize: false,
-        add_generation_prompt: true,
-      }) as string;
-
-      const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
-
-      let results = await generateText(prompt, {
-        max_new_tokens: input.maxTokens ?? 1024,
-        temperature: input.temperature ?? undefined,
-        return_full_text: false,
-        streamer,
-      });
-
-      if (!Array.isArray(results)) {
-        results = [results];
-      }
-
-      const responseText = extractGeneratedText(
-        (results[0] as TextGenerationOutput[number])?.generated_text
-      ).trim();
-
-      const { text, toolCalls } = parseToolCallsFromText(responseText);
-      texts.push(text);
-      toolCallsList.push(filterValidToolCalls(toolCalls, singleInput.tools));
-    }
-
-    // When input.prompt is an array, return a single ToolCallingTaskOutput whose
-    // `text` and `toolCalls` fields are arrays aligned by index (TypeSingleOrArray behavior).
-    // FromSchema does not express array-of-arrays for toolCalls, so we assert the batch shape.
-    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
-  }
   const messages = toTextFlatMessages(input);
 
   const tools = resolveHFTToolsAndMessages(input, messages);

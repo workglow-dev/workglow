@@ -6,7 +6,6 @@
 
 import type { AiProviderRunFn, AiProviderStreamFn, TextSummaryTaskInput, TextSummaryTaskOutput } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { getApiKey, getModelName, loadGeminiSDK } from "./Gemini_Client";
 
@@ -15,19 +14,6 @@ export const Gemini_TextSummary: AiProviderRunFn<
   TextSummaryTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.text)) {
-    getLogger().warn(
-      "Gemini_TextSummary: array input received; processing sequentially (no native batch support)"
-    );
-    const texts = input.text as string[];
-    const results: string[] = [];
-    for (const item of texts) {
-      const r = await Gemini_TextSummary({ ...input, text: item }, model, update_progress, signal);
-      results.push(r.text as string);
-    }
-    return { text: results };
-  }
-
   update_progress(0, "Starting Gemini text summarization");
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
@@ -37,7 +23,7 @@ export const Gemini_TextSummary: AiProviderRunFn<
   });
 
   const result = await genModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: input.text as string }] }],
+    contents: [{ role: "user", parts: [{ text: input.text }] }],
   });
 
   const text = result.response.text();
@@ -58,7 +44,7 @@ export const Gemini_TextSummary_Stream: AiProviderStreamFn<
   });
 
   const result = await genModel.generateContentStream(
-    { contents: [{ role: "user", parts: [{ text: input.text as string }] }] },
+    { contents: [{ role: "user", parts: [{ text: input.text }] }] },
     { signal }
   );
 

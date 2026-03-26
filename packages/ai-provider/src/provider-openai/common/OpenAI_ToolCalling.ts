@@ -14,7 +14,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson } from "@workglow/util/worker";
+import { parsePartialJson } from "@workglow/util/worker";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { getClient, getModelName } from "./OpenAI_Client";
 
@@ -32,26 +32,6 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
   ToolCallingTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
-  if (Array.isArray(input.prompt)) {
-    getLogger().warn(
-      "OpenAI_ToolCalling: array input received; processing sequentially (no native batch support)"
-    );
-    const prompts = input.prompt as string[];
-    const texts: string[] = [];
-    const toolCallsList: ToolCalls[] = [];
-    for (const item of prompts) {
-      const r = await OpenAI_ToolCalling(
-        { ...input, prompt: item },
-        model,
-        update_progress,
-        signal
-      );
-      texts.push(r.text as string);
-      toolCallsList.push(r.toolCalls as ToolCalls);
-    }
-    return { text: texts, toolCalls: toolCallsList } as unknown as ToolCallingTaskOutput;
-  }
-
   update_progress(0, "Starting OpenAI tool calling");
   const client = await getClient(model);
   const modelName = getModelName(model);

@@ -66,7 +66,9 @@ export class AiVisionTask<
       ) {
         supports.push("VideoFrame");
       }
-      const image = await convertImageDataToUseableForm(input.image, supports);
+      const image = Array.isArray(input.image)
+        ? await Promise.all(input.image.map((img) => convertImageDataToUseableForm(img, supports)))
+        : await convertImageDataToUseableForm(input.image, supports);
       // @ts-ignore
       jobInput.taskInput.image = image;
     }

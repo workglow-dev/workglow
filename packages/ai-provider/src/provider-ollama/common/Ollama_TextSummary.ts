@@ -11,7 +11,6 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 import { getOllamaModelName } from "./Ollama_ModelUtil";
 
@@ -25,19 +24,6 @@ export function createOllamaTextSummary(
     TextSummaryTaskOutput,
     OllamaModelConfig
   > = async (input, model, update_progress, _signal) => {
-    if (Array.isArray(input.text)) {
-      getLogger().warn(
-        "Ollama_TextSummary: array input received; processing sequentially (no native batch support)"
-      );
-      const texts = input.text as string[];
-      const results: string[] = [];
-      for (const item of texts) {
-        const r = await run({ ...input, text: item }, model, update_progress, _signal);
-        results.push(r.text as string);
-      }
-      return { text: results };
-    }
-
     update_progress(0, "Starting Ollama text summarization");
     const client = await getClient(model);
     const modelName = getOllamaModelName(model);
@@ -46,7 +32,7 @@ export function createOllamaTextSummary(
       model: modelName,
       messages: [
         { role: "system", content: "Summarize the following text concisely." },
-        { role: "user", content: input.text as string },
+        { role: "user", content: input.text },
       ],
     });
 
@@ -67,7 +53,7 @@ export function createOllamaTextSummaryStream(
       model: modelName,
       messages: [
         { role: "system", content: "Summarize the following text concisely." },
-        { role: "user", content: input.text as string },
+        { role: "user", content: input.text },
       ],
       stream: true,
     });

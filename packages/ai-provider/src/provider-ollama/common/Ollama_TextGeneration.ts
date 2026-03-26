@@ -11,7 +11,6 @@ import type {
   TextGenerationTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 import { getOllamaModelName } from "./Ollama_ModelUtil";
 
@@ -25,26 +24,13 @@ export function createOllamaTextGeneration(
     TextGenerationTaskOutput,
     OllamaModelConfig
   > = async (input, model, update_progress, _signal) => {
-    if (Array.isArray(input.prompt)) {
-      getLogger().warn(
-        "Ollama_TextGeneration: array input received; processing sequentially (no native batch support)"
-      );
-      const prompts = input.prompt as string[];
-      const results: string[] = [];
-      for (const item of prompts) {
-        const r = await run({ ...input, prompt: item }, model, update_progress, _signal);
-        results.push(r.text as string);
-      }
-      return { text: results };
-    }
-
     update_progress(0, "Starting Ollama text generation");
     const client = await getClient(model);
     const modelName = getOllamaModelName(model);
 
     const response = await client.chat({
       model: modelName,
-      messages: [{ role: "user", content: input.prompt as string }],
+      messages: [{ role: "user", content: input.prompt }],
       options: {
         temperature: input.temperature,
         top_p: input.topP,
@@ -73,7 +59,7 @@ export function createOllamaTextGenerationStream(
 
     const stream = await client.chat({
       model: modelName,
-      messages: [{ role: "user", content: input.prompt as string }],
+      messages: [{ role: "user", content: input.prompt }],
       options: {
         temperature: input.temperature,
         top_p: input.topP,

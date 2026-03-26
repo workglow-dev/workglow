@@ -12,7 +12,7 @@ import type {
 } from "@workglow/ai";
 import { PermanentJobError } from "@workglow/job-queue";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
+
 import { AIAvailability } from "./WebBrowser_ChromeAI";
 import { ensureAvailable, getApi, snapshotStreamToSnapshots } from "./WebBrowser_ChromeHelpers";
 import type { WebBrowserModelConfig } from "./WebBrowser_ModelSchema";
@@ -26,8 +26,8 @@ export const WebBrowser_TextTranslation: AiProviderRunFn<
   await ensureAvailable("Translator", factory);
 
   const translationAvailability = await factory.availability({
-    sourceLanguage: input.source_lang as string,
-    targetLanguage: input.target_lang as string,
+    sourceLanguage: input.source_lang,
+    targetLanguage: input.target_lang,
   });
   if (!translationAvailability || translationAvailability === "unavailable") {
     throw new PermanentJobError(
@@ -36,30 +36,13 @@ export const WebBrowser_TextTranslation: AiProviderRunFn<
       )} -> ${String(input.target_lang)}`
     );
   }
-  if (Array.isArray(input.text)) {
-    getLogger().warn("WebBrowser_TextTranslation: array input received; processing sequentially");
-    const results: string[] = [];
-    for (const item of input.text as string[]) {
-      const translator = await factory.create({
-        sourceLanguage: input.source_lang as string,
-        targetLanguage: input.target_lang as string,
-      });
-      try {
-        results.push(await translator.translate(item, { signal }));
-      } finally {
-        translator.destroy();
-      }
-    }
-    update_progress(100, "Completed text translation");
-    return { text: results, target_lang: input.target_lang } as TextTranslationTaskOutput;
-  }
 
   const translator = await factory.create({
-    sourceLanguage: input.source_lang as string,
-    targetLanguage: input.target_lang as string,
+    sourceLanguage: input.source_lang,
+    targetLanguage: input.target_lang,
   });
   try {
-    const text = await translator.translate(input.text as string, { signal });
+    const text = await translator.translate(input.text, { signal });
     update_progress(100, "Completed text translation");
     return { text, target_lang: input.target_lang };
   } finally {
@@ -76,8 +59,8 @@ export const WebBrowser_TextTranslation_Stream: AiProviderStreamFn<
   let status: AIAvailability;
   try {
     status = await factory.availability({
-      sourceLanguage: input.source_lang as string,
-      targetLanguage: input.target_lang as string,
+      sourceLanguage: input.source_lang,
+      targetLanguage: input.target_lang,
     });
   } catch {
     throw new PermanentJobError(
@@ -93,11 +76,11 @@ export const WebBrowser_TextTranslation_Stream: AiProviderStreamFn<
   }
 
   const translator = await factory.create({
-    sourceLanguage: input.source_lang as string,
-    targetLanguage: input.target_lang as string,
+    sourceLanguage: input.source_lang,
+    targetLanguage: input.target_lang,
   });
   try {
-    const stream = translator.translateStreaming(input.text as string, { signal });
+    const stream = translator.translateStreaming(input.text, { signal });
     yield* snapshotStreamToSnapshots<TextTranslationTaskOutput>(stream, (text) => ({
       text,
       target_lang: input.target_lang,
