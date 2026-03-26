@@ -52,7 +52,7 @@ export class InMemoryTabularStorage<
   /** Counter for auto-incrementing integer keys */
   private autoIncrementCounter = 0;
   /** Tracks whether the last put was an insert (new key) or update (existing key) */
-  public _lastPutWasInsert = false;
+  private _lastPutWasInsert = false;
 
   /**
    * Creates a new InMemoryTabularStorage instance
