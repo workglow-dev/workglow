@@ -15,6 +15,7 @@ import type {
   TextQuestionAnswerTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { TaskAbortedError } from "@workglow/task-graph";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
 import {
@@ -54,7 +55,7 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
     const answers: string[] = [];
     for (let i = 0; i < questions.length; i++) {
       if (signal.aborted) {
-        throw new DOMException("Generation aborted", "AbortError");
+        throw signal.reason ?? new TaskAbortedError("Generation aborted");
       }
       const result = await generateAnswer(questions[i], contexts[i], {} as any);
       let answerText = "";

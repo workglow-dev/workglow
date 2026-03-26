@@ -18,6 +18,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
+import { TaskAbortedError } from "@workglow/task-graph";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
 import {
@@ -97,7 +98,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
 
     for (const singlePrompt of prompts) {
       if (signal.aborted) {
-        throw new DOMException("Generation aborted", "AbortError");
+        throw signal.reason ?? new TaskAbortedError("Generation aborted");
       }
       const singleInput = { ...input, prompt: singlePrompt } as ToolCallingTaskInput;
       const messages = toTextFlatMessages(singleInput);
