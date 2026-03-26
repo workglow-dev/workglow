@@ -10,7 +10,7 @@ import { promisify } from "util";
 import zlib from "zlib";
 
 export async function compress(
-  input: string | Buffer,
+  input: string | Uint8Array,
   algorithm: "gzip" | "br" = "gzip"
 ): Promise<Uint8Array> {
   const compressFn = algorithm === "br" ? zlib.brotliCompress : zlib.gzip;

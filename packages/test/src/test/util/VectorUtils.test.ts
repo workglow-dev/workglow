@@ -199,44 +199,45 @@ describe("VectorUtils", () => {
       expect(magnitude(result)).toBeCloseTo(1, 5);
     });
 
-    test("should normalize Int8Array to unit length", () => {
+    test("should normalize Int8Array to Float32Array to avoid truncation", () => {
       const vector = new Int8Array([3, 4]);
       const result = normalize(vector);
-      expect(result).toBeInstanceOf(Int8Array);
+      // Integer arrays return Float32Array since normalization produces floats
+      expect(result).toBeInstanceOf(Float32Array);
       expect(result.length).toBe(2);
-      // Int8Array will truncate the decimal values (0.6, 0.8 -> 0, 0)
-      // So magnitude will be 0, which is expected behavior for integer arrays
-      expect(magnitude(result)).toBe(0);
+      expect(result[0]).toBeCloseTo(0.6, 5);
+      expect(result[1]).toBeCloseTo(0.8, 5);
+      expect(magnitude(result)).toBeCloseTo(1, 5);
     });
 
-    test("should normalize Uint8Array to unit length", () => {
+    test("should normalize Uint8Array to Float32Array to avoid truncation", () => {
       const vector = new Uint8Array([3, 4]);
       const result = normalize(vector);
-      expect(result).toBeInstanceOf(Uint8Array);
+      expect(result).toBeInstanceOf(Float32Array);
       expect(result.length).toBe(2);
-      // Uint8Array will truncate the decimal values (0.6, 0.8 -> 0, 0)
-      // So magnitude will be 0, which is expected behavior for integer arrays
-      expect(magnitude(result)).toBe(0);
+      expect(result[0]).toBeCloseTo(0.6, 5);
+      expect(result[1]).toBeCloseTo(0.8, 5);
+      expect(magnitude(result)).toBeCloseTo(1, 5);
     });
 
-    test("should normalize Int16Array to unit length", () => {
+    test("should normalize Int16Array to Float32Array to avoid truncation", () => {
       const vector = new Int16Array([3, 4]);
       const result = normalize(vector);
-      expect(result).toBeInstanceOf(Int16Array);
+      expect(result).toBeInstanceOf(Float32Array);
       expect(result.length).toBe(2);
-      // Int16Array will truncate the decimal values (0.6, 0.8 -> 0, 0)
-      // So magnitude will be 0, which is expected behavior for integer arrays
-      expect(magnitude(result)).toBe(0);
+      expect(result[0]).toBeCloseTo(0.6, 5);
+      expect(result[1]).toBeCloseTo(0.8, 5);
+      expect(magnitude(result)).toBeCloseTo(1, 5);
     });
 
-    test("should normalize Uint16Array to unit length", () => {
+    test("should normalize Uint16Array to Float32Array to avoid truncation", () => {
       const vector = new Uint16Array([3, 4]);
       const result = normalize(vector);
-      expect(result).toBeInstanceOf(Uint16Array);
+      expect(result).toBeInstanceOf(Float32Array);
       expect(result.length).toBe(2);
-      // Uint16Array will truncate the decimal values (0.6, 0.8 -> 0, 0)
-      // So magnitude will be 0, which is expected behavior for integer arrays
-      expect(magnitude(result)).toBe(0);
+      expect(result[0]).toBeCloseTo(0.6, 5);
+      expect(result[1]).toBeCloseTo(0.8, 5);
+      expect(magnitude(result)).toBeCloseTo(1, 5);
     });
 
     test("should normalize Float16Array and convert to Float32Array", () => {

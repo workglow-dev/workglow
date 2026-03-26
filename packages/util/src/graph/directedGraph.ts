@@ -22,7 +22,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
   EdgeId
 > {
   /** Caches if the graph contains a cycle. If `undefined` then it is unknown. */
-  protected hasCycle: boolean | undefined = false;
+  protected hasCycle: boolean | undefined = undefined;
 
   /**
    * Returns `true` if there are no cycles in the graph.
@@ -49,7 +49,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
         continue;
       }
 
-      const nodeIndex = nodeIndices.indexOf(cur[0]);
+      const nodeIndex = this.getNodeIndex(cur[0]);
       this.adjacency[nodeIndex].forEach((hasAdj, index) => {
         if (hasAdj !== null) {
           const currentInDegree = nodeInDegrees.get(nodeIndices[index]);
@@ -78,8 +78,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
    * @param nodeID The string of the node identity of the node to calculate indegree for.
    */
   indegreeOfNode(nodeID: NodeId): number {
-    const nodeIdentities = Array.from(this.nodes.keys());
-    const indexOfNode = nodeIdentities.indexOf(nodeID);
+    const indexOfNode = this.getNodeIndex(nodeID);
 
     if (indexOfNode === -1) {
       throw new NodeDoesntExistError(nodeID);
@@ -126,9 +125,9 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
    * @param endNode The string identity of the node we are attempting to reach.
    */
   canReachFrom(startNode: NodeId, endNode: NodeId): boolean {
-    const nodeIdentities = Array.from(this.nodes.keys());
-    const startNodeIndex = nodeIdentities.indexOf(startNode);
-    const endNodeIndex = nodeIdentities.indexOf(endNode);
+    const nodeKeys = Array.from(this.nodes.keys());
+    const startNodeIndex = this.getNodeIndex(startNode);
+    const endNodeIndex = this.getNodeIndex(endNode);
 
     if (this.adjacency[startNodeIndex][endNodeIndex] != null) {
       return true;
@@ -139,7 +138,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
         return carry;
       }
 
-      return this.canReachFrom(nodeIdentities[index], endNode);
+      return this.canReachFrom(nodeKeys[index], endNode);
     }, false);
   }
 
@@ -174,7 +173,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
 
     const recur = (startNodeIdentity: NodeId, nodesToInclude: Node[]): Node[] => {
       let toReturn = [...nodesToInclude];
-      const nodeIndex = nodeIndices.indexOf(startNodeIdentity);
+      const nodeIndex = this.getNodeIndex(startNodeIdentity);
       this.adjacency[nodeIndex].forEach((hasAdj, index) => {
         if (
           hasAdj !== null &&

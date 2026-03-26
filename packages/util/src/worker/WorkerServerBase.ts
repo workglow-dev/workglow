@@ -106,12 +106,14 @@ export class WorkerServerBase {
     postMessage({ id, type: "complete", data: result }, uniqueTransferables);
   };
 
-  private postError = (id: string, errorMessage: string) => {
+  private postError = (id: string, error: string | { message: string; name?: string }) => {
     if (this.completedRequests.has(id)) {
       return; // Already responded to this request
     }
     this.completedRequests.add(id);
-    postMessage({ id, type: "error", data: errorMessage });
+    const data =
+      typeof error === "string" ? { message: error, name: "Error" } : error;
+    postMessage({ id, type: "error", data });
   };
 
   private postStreamChunk = (id: string, event: any) => {
@@ -213,7 +215,7 @@ export class WorkerServerBase {
       const result = await fn(input, output, model);
       this.postResult(id, result);
     } catch (error: any) {
-      this.postError(id, error.message);
+      this.postError(id, { message: error.message, name: error.name ?? "Error" });
     }
   }
 
@@ -237,14 +239,10 @@ export class WorkerServerBase {
       const result = await fn(input, model, postProgress, abortController.signal);
       this.postResult(id, result);
     } catch (error: any) {
-      this.postError(id, error.message);
+      this.postError(id, { message: error.message, name: error.name ?? "Error" });
     } finally {
       this.requestControllers.delete(id);
-      // Clean up completed requests set after a delay to handle any race conditions
-      // where abort message might arrive shortly after completion
-      setTimeout(() => {
-        this.completedRequests.delete(id);
-      }, 1000);
+      this.scheduleCompletedRequestCleanup(id);
     }
   }
 
@@ -270,12 +268,10 @@ export class WorkerServerBase {
 
         this.postResult(id, undefined);
       } catch (error: any) {
-        this.postError(id, error.message);
+        this.postError(id, { message: error.message, name: error.name ?? "Error" });
       } finally {
         this.requestControllers.delete(id);
-        setTimeout(() => {
-          this.completedRequests.delete(id);
-        }, 1000);
+        this.scheduleCompletedRequestCleanup(id);
       }
     } else if (functionName in this.functions) {
       // Fallback: run regular function and wrap result as a finish stream event
@@ -290,15 +286,34 @@ export class WorkerServerBase {
         this.postStreamChunk(id, { type: "finish", data: result });
         this.postResult(id, undefined);
       } catch (error: any) {
-        this.postError(id, error.message);
+        this.postError(id, { message: error.message, name: error.name ?? "Error" });
       } finally {
         this.requestControllers.delete(id);
-        setTimeout(() => {
-          this.completedRequests.delete(id);
-        }, 1000);
+        this.scheduleCompletedRequestCleanup(id);
       }
     } else {
       this.postError(id, `Function ${functionName} not found`);
+    }
+  }
+
+  /**
+   * Schedule cleanup of a completed request ID. Uses a 5-second delay to
+   * handle late-arriving abort messages, and caps the completed set size
+   * to prevent unbounded growth.
+   */
+  private scheduleCompletedRequestCleanup(id: string): void {
+    setTimeout(() => {
+      this.completedRequests.delete(id);
+    }, 5000);
+
+    // Safety cap: if the set grows too large, clear the oldest entries
+    if (this.completedRequests.size > 10000) {
+      const iter = this.completedRequests.values();
+      for (let i = 0; i < 5000; i++) {
+        const entry = iter.next();
+        if (entry.done) break;
+        this.completedRequests.delete(entry.value);
+      }
     }
   }
 }

@@ -42,10 +42,28 @@ export class WorkerManager {
       console.error("Worker message error:", event);
     });
 
-    const readyPromise = new Promise<void>((resolve) => {
+    const readyPromise = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        worker.removeEventListener("message", handleReady);
+        worker.removeEventListener("error", handleError);
+        reject(new Error(`Worker "${name}" did not become ready within 10s`));
+      }, 10_000);
+
+      const handleError = (event: ErrorEvent) => {
+        clearTimeout(timeout);
+        worker.removeEventListener("message", handleReady);
+        reject(
+          new Error(
+            `Worker "${name}" initialization error: ${event.message ?? "unknown error"}`
+          )
+        );
+      };
+
       const handleReady = (event: MessageEvent) => {
         if (event.data?.type === "ready") {
+          clearTimeout(timeout);
           worker.removeEventListener("message", handleReady);
+          worker.removeEventListener("error", handleError);
           this.workerFunctions.set(name, new Set(event.data.functions ?? []));
           this.workerStreamFunctions.set(name, new Set(event.data.streamFunctions ?? []));
           this.workerReactiveFunctions.set(name, new Set(event.data.reactiveFunctions ?? []));
@@ -54,6 +72,7 @@ export class WorkerManager {
       };
 
       worker.addEventListener("message", handleReady);
+      worker.addEventListener("error", handleError);
     });
 
     this.readyWorkers.set(name, readyPromise);
@@ -131,7 +150,13 @@ export class WorkerManager {
         } else if (type === "error") {
           cleanup();
           getLogger().debug(`Worker ${workerName} function ${functionName} error.`, { data });
-          reject(new Error(data));
+          const err =
+            typeof data === "object" && data !== null
+              ? Object.assign(new Error(data.message ?? String(data)), {
+                  name: data.name ?? "Error",
+                })
+              : new Error(String(data));
+          reject(err);
         }
       };
 
