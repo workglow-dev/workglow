@@ -147,10 +147,11 @@ describe("CompositeLimiter", () => {
   it("should return latest getNextAvailableTime across limiters", async () => {
     const delay1 = new DelayLimiter(10);
     const delay2 = new DelayLimiter(1000);
+    const before = Date.now();
     await delay2.recordJobStart();
     const limiter = new CompositeLimiter([delay1, delay2]);
     const nextTime = await limiter.getNextAvailableTime();
-    expect(nextTime.getTime()).toBeGreaterThan(Date.now() + 500);
+    expect(nextTime.getTime()).toBeGreaterThan(before + 500);
   });
 
   it("should propagate clear to all limiters", async () => {
