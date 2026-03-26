@@ -18,7 +18,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -39,7 +38,6 @@ jobs:
   test-bun-unit:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -60,7 +58,6 @@ jobs:
   test-bun-integration:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -85,7 +82,6 @@ jobs:
   test-bun-rag:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -110,7 +106,6 @@ jobs:
   test-bun-ai-provider:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -135,7 +130,6 @@ jobs:
   test-vitest-unit:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -152,11 +146,18 @@ jobs:
           path: packages
       - name: Run unit tests via vitest
         run: bun run test:vitest:unit
+      - name: Copy Vitest coverage fragment
+        run: cp coverage/coverage-final.json vitest-unit-coverage.json
+      - name: Upload Vitest coverage fragment
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-vitest-unit
+          path: vitest-unit-coverage.json
+          retention-days: 1
 
   test-vitest-integration:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -177,13 +178,18 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: bun run test:vitest:integration
-      - name: Report Coverage
-        uses: davelosert/vitest-coverage-report-action@v2
+      - name: Copy Vitest coverage fragment
+        run: cp coverage/coverage-final.json vitest-integration-coverage.json
+      - name: Upload Vitest coverage fragment
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-vitest-integration
+          path: vitest-integration-coverage.json
+          retention-days: 1
 
   test-vitest-rag:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -203,7 +209,15 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: bun run test:bun:rag
+        run: bun run test:vitest:rag
+      - name: Copy Vitest coverage fragment
+        run: cp coverage/coverage-final.json vitest-rag-coverage.json
+      - name: Upload Vitest coverage fragment
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-vitest-rag
+          path: vitest-rag-coverage.json
+          retention-days: 1
 
   test-vitest-ai-provider:
     runs-on: ubuntu-latest
@@ -229,11 +243,72 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: bun run test:vitest:ai-provider
+      - name: Copy Vitest coverage fragment
+        run: cp coverage/coverage-final.json vitest-ai-provider-coverage.json
+      - name: Upload Vitest coverage fragment
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-vitest-ai-provider
+          path: vitest-ai-provider-coverage.json
+          retention-days: 1
+
+  merge-vitest-coverage:
+    runs-on: ubuntu-latest
+    needs:
+      - test-vitest-unit
+      - test-vitest-integration
+      - test-vitest-rag
+      - test-vitest-ai-provider
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - name: Download Vitest coverage fragments
+        run: mkdir -p coverage-parts
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-vitest-unit
+          path: coverage-parts
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-vitest-integration
+          path: coverage-parts
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-vitest-rag
+          path: coverage-parts
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-vitest-ai-provider
+          path: coverage-parts
+      - name: Merge coverage (nyc) and emit HTML/LCOV
+        run: |
+          bunx nyc merge coverage-parts merged.json
+          mkdir -p .nyc_output
+          cp merged.json .nyc_output/out.json
+          bunx nyc report --reporter=json --reporter=json-summary --reporter=html --reporter=lcov --reporter=text-summary --report-dir=coverage --temp-dir=.nyc_output
+      - name: Upload merged Vitest coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: vitest-coverage-merged
+          path: coverage
+          retention-days: 1
+      - name: Report Coverage
+        uses: davelosert/vitest-coverage-report-action@v2
+      - name: Delete Vitest coverage fragments
+        if: always()
+        uses: geekyeggo/delete-artifact@v6
+        with:
+          name: coverage-vitest-*
 
   cleanup:
     runs-on: ubuntu-latest
     needs: [test-bun-unit, test-vitest-unit, test-bun-integration, test-vitest-integration, test-bun-rag, test-vitest-rag, test-bun-ai-provider, test-vitest-ai-provider]
-
     steps:
       - uses: geekyeggo/delete-artifact@v6
         with:
