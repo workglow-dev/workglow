@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject } from "@workglow/util/schema";
-import { searchMcpRegistryPage, mcpAuthConfigSchema, type McpSearchResultItem } from "@workglow/tasks";
+import { searchMcpRegistryPage, type McpSearchResultItem } from "@workglow/tasks";
 import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
@@ -13,46 +12,6 @@ import { parseDynamicFlags, generateSchemaHelpText, resolveInput, validateInput 
 import { createMcpStorage, McpServerRecordSchema } from "../storage";
 import { formatError, formatTable } from "../util";
 import type { SearchSelectItem } from "../ui/render";
-
-/** Extends stored record schema with if/then rules so interactive prompts ask for command / server_url after transport is chosen. */
-const mcpSchema = {
-  ...McpServerRecordSchema,
-  properties: {
-    ...McpServerRecordSchema.properties,
-    // Override auth_type to remove the default so users are always prompted to choose.
-    auth_type: {
-      type: "string",
-      enum: mcpAuthConfigSchema.properties.auth_type.enum,
-      title: mcpAuthConfigSchema.properties.auth_type.title,
-      description: mcpAuthConfigSchema.properties.auth_type.description,
-    },
-  },
-  required: [...McpServerRecordSchema.required, "auth_type"],
-  allOf: [
-    {
-      if: {
-        properties: { transport: { const: "stdio" } },
-        required: ["transport"],
-      },
-      then: { required: ["command"] },
-    },
-    {
-      if: {
-        properties: { transport: { const: "sse" } },
-        required: ["transport"],
-      },
-      then: { required: ["server_url"] },
-    },
-    {
-      if: {
-        properties: { transport: { const: "streamable-http" } },
-        required: ["transport"],
-      },
-      then: { required: ["server_url"] },
-    },
-    ...mcpAuthConfigSchema.allOf,
-  ],
-} as unknown as DataPortSchemaObject;
 
 interface McpSearchSelectItem extends SearchSelectItem {
   readonly result: McpSearchResultItem;
@@ -171,24 +130,24 @@ export function registerMcpCommand(program: Command): void {
       if (opts.help) {
         add.outputHelp();
         console.log("\nInput flags (from MCP server schema):");
-        console.log(generateSchemaHelpText(mcpSchema));
+        console.log(generateSchemaHelpText(McpServerRecordSchema));
         process.exit(0);
       }
 
-      const dynamicFlags = parseDynamicFlags(process.argv, mcpSchema);
+      const dynamicFlags = parseDynamicFlags(process.argv, McpServerRecordSchema);
       let input = await resolveInput({
         inputJson: opts.inputJson as string | undefined,
         inputJsonFile: opts.inputJsonFile as string | undefined,
         dynamicFlags,
-        schema: mcpSchema,
+        schema: McpServerRecordSchema,
       });
 
       if (process.stdin.isTTY) {
         const { promptMissingInput } = await import("../input/prompt");
-        input = await promptMissingInput(input, mcpSchema);
+        input = await promptMissingInput(input, McpServerRecordSchema);
       }
 
-      const validation = validateInput(input, mcpSchema);
+      const validation = validateInput(input, McpServerRecordSchema);
       if (!validation.valid) {
         console.error("Input validation failed:");
         for (const err of validation.errors) {
@@ -289,7 +248,7 @@ export function registerMcpCommand(program: Command): void {
         process.exit(1);
       }
 
-      const validation = validateInput(input, mcpSchema);
+      const validation = validateInput(input, McpServerRecordSchema);
       if (!validation.valid) {
         console.error("Validation failed:");
         for (const err of validation.errors) {
@@ -346,9 +305,9 @@ export function registerMcpCommand(program: Command): void {
       let input = selected.result.config;
 
       const { promptMissingInput } = await import("../input/prompt");
-      input = await promptMissingInput(input, mcpSchema);
+      input = await promptMissingInput(input, McpServerRecordSchema);
 
-      const validation = validateInput(input, mcpSchema);
+      const validation = validateInput(input, McpServerRecordSchema);
       if (!validation.valid) {
         console.error("Input validation failed:");
         for (const err of validation.errors) {

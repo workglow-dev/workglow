@@ -7,6 +7,7 @@
 import { readFile } from "fs/promises";
 import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util/schema";
 import { readStdin } from "../util";
+import { evaluateConditionalRequired } from "./schema-conditions";
 
 function parseJson(source: string, label: string): unknown {
   try {
@@ -96,9 +97,7 @@ export async function readJsonInput(opts: {
       return parseJson(stdinContent, "stdin");
     }
   }
-  throw new Error(
-    "No input provided. Use --input-json, --input-json-file, or pipe JSON to stdin."
-  );
+  throw new Error("No input provided. Use --input-json, --input-json-file, or pipe JSON to stdin.");
 }
 
 /**
@@ -137,61 +136,6 @@ export function applySchemaDefaults(
   return result;
 }
 
-/**
- * Evaluate allOf if/then conditional rules against current input values.
- * Returns additional field names that are conditionally required.
- * Mirrors the logic in prompt.ts's evaluateConditionalRequired.
- */
-function evaluateConditionalRequired(
-  input: Record<string, unknown>,
-  schema: DataPortSchemaObject
-): string[] {
-  const allOf = (schema as Record<string, unknown>).allOf;
-  if (!Array.isArray(allOf)) return [];
-
-  const additional: string[] = [];
-
-  for (const rule of allOf) {
-    if (typeof rule !== "object" || rule === null) continue;
-    const { if: condition, then: consequence } = rule as {
-      if?: Record<string, unknown>;
-      then?: Record<string, unknown>;
-    };
-    if (!condition || !consequence) continue;
-
-    const condProps = condition.properties as Record<string, unknown> | undefined;
-    const condRequired = condition.required as string[] | undefined;
-    if (!condProps) continue;
-
-    let matches = true;
-    for (const [key, constraint] of Object.entries(condProps)) {
-      if (condRequired && !condRequired.includes(key)) continue;
-
-      const inputValue = input[key];
-      if (inputValue === undefined) {
-        matches = false;
-        break;
-      }
-
-      if (typeof constraint === "object" && constraint !== null && "const" in constraint) {
-        if (inputValue !== (constraint as { const: unknown }).const) {
-          matches = false;
-          break;
-        }
-      }
-    }
-
-    if (matches) {
-      const thenRequired = consequence.required;
-      if (Array.isArray(thenRequired)) {
-        additional.push(...thenRequired);
-      }
-    }
-  }
-
-  return additional;
-}
-
 export interface ValidationResult {
   readonly valid: boolean;
   readonly errors: string[];
@@ -200,7 +144,7 @@ export interface ValidationResult {
 /**
  * Validate input against a DataPortSchemaObject.
  * Checks required properties and basic type matching.
- * Also evaluates allOf if/then conditional required rules.
+ * Conditional required fields use {@link evaluateConditionalRequired} (same as prompting).
  */
 export function validateInput(
   input: Record<string, unknown>,

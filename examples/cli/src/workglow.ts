@@ -42,18 +42,37 @@ const workglowDir = path.join(homedir(), ".workglow");
 const credentialsDir = path.join(workglowDir, "credentials");
 const credentialKeyPath = path.join(workglowDir, ".credential-key");
 
+function isFsCode(err: unknown, code: string): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: string }).code === code
+  );
+}
+
 async function resolveCredentialPassphrase(): Promise<string> {
   if (process.env.WORKGLOW_CREDENTIAL_PASSPHRASE) {
     return process.env.WORKGLOW_CREDENTIAL_PASSPHRASE;
   }
   try {
     return (await readFile(credentialKeyPath, "utf-8")).trim();
-  } catch {
-    // Key file doesn't exist yet — generate and persist a new random key.
+  } catch (err) {
+    if (!isFsCode(err, "ENOENT")) {
+      throw err;
+    }
+    // Key file missing — create exclusively so concurrent CLIs agree on one key (wx + EEXIST → re-read).
     const key = randomBytes(32).toString("hex");
     await mkdir(path.dirname(credentialKeyPath), { recursive: true });
-    await writeFile(credentialKeyPath, key, { mode: 0o600 });
-    return key;
+    try {
+      await writeFile(credentialKeyPath, key, { mode: 0o600, flag: "wx" });
+      return key;
+    } catch (writeErr) {
+      if (isFsCode(writeErr, "EEXIST")) {
+        return (await readFile(credentialKeyPath, "utf-8")).trim();
+      }
+      throw writeErr;
+    }
   }
 }
 
