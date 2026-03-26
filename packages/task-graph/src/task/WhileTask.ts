@@ -407,9 +407,23 @@ export class WhileTask<
       try {
         shouldContinue = condition(currentOutput, this._currentIteration);
       } catch (err) {
-        throw new TaskFailedError(
-          `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${err instanceof Error ? err.message : String(err)}`
-        );
+        // Rethrow TaskFailedError instances unchanged so their type, message,
+        // and stack are preserved for the caller.
+        if (err instanceof TaskFailedError) {
+          throw err;
+        }
+        const message = `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${
+          err instanceof Error ? err.message : String(err)
+        }`;
+        const wrappedError = new TaskFailedError(message);
+        if (err instanceof Error && err.stack) {
+          if (wrappedError.stack) {
+            wrappedError.stack += `\nCaused by original error:\n${err.stack}`;
+          } else {
+            wrappedError.stack = err.stack;
+          }
+        }
+        throw wrappedError;
       }
       if (!shouldContinue) {
         break;

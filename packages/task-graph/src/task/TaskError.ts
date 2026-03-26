@@ -64,6 +64,23 @@ export class TaskTimeoutError extends TaskAbortedError {
 }
 
 /**
+ * Thrown when graph-level execution exceeds the configured `timeout` in
+ * {@link TaskGraphRunConfig}. Distinct from {@link TaskTimeoutError} (which is
+ * thrown for individual-task timeouts) so callers can tell whether the timeout
+ * was on a single task or on the entire graph run.
+ */
+export class TaskGraphTimeoutError extends TaskTimeoutError {
+  static readonly type: string = "TaskGraphTimeoutError";
+  constructor(timeoutMs?: number) {
+    super(timeoutMs);
+    // Override the message set by TaskTimeoutError to make it graph-specific.
+    this.message = timeoutMs
+      ? `Graph execution timed out after ${timeoutMs}ms`
+      : "Graph execution timed out";
+  }
+}
+
+/**
  * A task error that is caused by a task failing
  *
  * Examples: task.run() threw an error

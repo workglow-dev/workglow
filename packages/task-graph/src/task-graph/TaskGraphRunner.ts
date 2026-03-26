@@ -30,6 +30,7 @@ import {
   TaskAbortedError,
   TaskConfigurationError,
   TaskError,
+  TaskGraphTimeoutError,
   TaskTimeoutError,
 } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
@@ -131,7 +132,7 @@ export class TaskGraphRunner {
    * When a graph-level timeout fires, this stores the error so handleAbort()
    * can surface the correct error type.
    */
-  protected pendingGraphTimeoutError?: TaskTimeoutError;
+  protected pendingGraphTimeoutError?: TaskGraphTimeoutError;
 
   /**
    * Constructor for TaskGraphRunner
@@ -976,7 +977,7 @@ export class TaskGraphRunner {
     if (config?.timeout !== undefined && config.timeout > 0) {
       this.pendingGraphTimeoutError = undefined;
       this.graphTimeoutTimer = setTimeout(() => {
-        this.pendingGraphTimeoutError = new TaskTimeoutError(config.timeout);
+        this.pendingGraphTimeoutError = new TaskGraphTimeoutError(config.timeout);
         this.abortController?.abort();
       }, config.timeout);
     }
@@ -1026,6 +1027,20 @@ export class TaskGraphRunner {
     if (config?.registry !== undefined) {
       this.registry = config.registry;
     }
+
+    // Validate graph size limits (same as handleStart)
+    if (config?.maxTasks !== undefined && config.maxTasks > 0) {
+      const taskCount = this.graph.getTasks().length;
+      if (taskCount > config.maxTasks) {
+        throw new TaskConfigurationError(
+          `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
+        );
+      }
+    }
+
+    // Note: `timeout` is not enforced for reactive runs. Reactive execution is
+    // event-driven with no single completion point, so a graph-level timeout
+    // does not apply. Use per-task timeouts for individual task time limits.
 
     this.reactiveScheduler.reset();
     this.reactiveRunning = true;

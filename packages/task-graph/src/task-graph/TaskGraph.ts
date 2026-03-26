@@ -131,6 +131,7 @@ export class TaskGraph implements ITaskGraph {
       accumulateLeafOutputs: config?.accumulateLeafOutputs,
       registry: config?.registry,
       timeout: config?.timeout,
+      maxTasks: config?.maxTasks,
     });
   }
 
