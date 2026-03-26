@@ -82,13 +82,13 @@ export class AiProviderRegistry {
   unregisterProvider(name: string): void {
     this.providers.delete(name);
     // Remove all run functions for this provider
-    for (const [taskType, providerMap] of this.runFnRegistry) {
+    for (const [, providerMap] of this.runFnRegistry) {
       providerMap.delete(name);
     }
-    for (const [taskType, providerMap] of this.streamFnRegistry) {
+    for (const [, providerMap] of this.streamFnRegistry) {
       providerMap.delete(name);
     }
-    for (const [taskType, providerMap] of this.reactiveRunFnRegistry) {
+    for (const [, providerMap] of this.reactiveRunFnRegistry) {
       providerMap.delete(name);
     }
   }
