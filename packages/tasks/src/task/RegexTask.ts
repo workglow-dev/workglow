@@ -14,6 +14,9 @@ import {
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
+/** Maximum number of '[' characters allowed in a regex pattern before rejecting (ReDoS guard). */
+const MAX_BRACKET_COUNT = 100;
+
 /**
  * Detects regex patterns prone to catastrophic backtracking (ReDoS).
  * Checks for nested quantifiers like (a+)+, (a*)+, (a+)*, etc.
@@ -94,6 +97,14 @@ export class RegexTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
+    const bracketCount = (input.pattern.match(/\[/g) ?? []).length;
+    if (bracketCount > MAX_BRACKET_COUNT) {
+      throw new TaskInvalidInputError(
+        "Regex pattern rejected: too many '[' characters (potential ReDoS). " +
+          "Simplify the pattern to reduce complexity."
+      );
+    }
+
     if (hasNestedQuantifiers(input.pattern)) {
       throw new TaskInvalidInputError(
         "Regex pattern rejected: nested quantifiers detected (potential ReDoS). " +
