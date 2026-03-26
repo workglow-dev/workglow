@@ -20,3 +20,4 @@ export * from "./common/HFT_ToolMarkup";
 export * from "./registerHuggingFaceTransformersInline";
 export * from "./registerHuggingFaceTransformersWorker";
 export * from "./common/HFT_Pipeline";
+export * from "./common/HFT_Streaming";

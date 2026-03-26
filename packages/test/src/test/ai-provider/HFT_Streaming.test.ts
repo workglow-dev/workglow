@@ -10,7 +10,7 @@ import {
   createStreamEventQueue,
   createStreamingTextStreamer,
   createTextStreamer,
-} from "@workglow/ai-provider/src/provider-hf-transformers/common/HFT_Streaming";
+} from "@workglow/ai-provider/hf-transformers/runtime";
 
 /**
  * Minimal mock for the TextStreamer class. Captures the callback_function
