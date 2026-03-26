@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -181,7 +181,7 @@ export type FaceLandmarkerTaskOutput = FromSchema<typeof FaceLandmarkerOutputSch
 export class FaceLandmarkerTask extends AiVisionTask<
   FaceLandmarkerTaskInput,
   FaceLandmarkerTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "FaceLandmarkerTask";
   public static category = "AI Vision Model";
@@ -202,17 +202,13 @@ export class FaceLandmarkerTask extends AiVisionTask<
  * @param input The input parameters for face landmark detection (image, model, and optional configuration)
  * @returns Promise resolving to the detected facial landmarks, blendshapes, and transformation matrices
  */
-export const faceLandmarker = (input: FaceLandmarkerTaskInput, config?: JobQueueTaskConfig) => {
+export const faceLandmarker = (input: FaceLandmarkerTaskInput, config?: TaskConfig) => {
   return new FaceLandmarkerTask({} as FaceLandmarkerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    faceLandmarker: CreateWorkflow<
-      FaceLandmarkerTaskInput,
-      FaceLandmarkerTaskOutput,
-      JobQueueTaskConfig
-    >;
+    faceLandmarker: CreateWorkflow<FaceLandmarkerTaskInput, FaceLandmarkerTaskOutput, TaskConfig>;
   }
 }
 

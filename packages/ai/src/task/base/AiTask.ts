@@ -5,16 +5,18 @@
  */
 
 /**
- * @description This file contains the implementation of the JobQueueTask class and its derived classes.
+ * @description Base class for AI tasks that delegate execution to a
+ * provider-registered strategy (direct or queued).
  */
 
-import { Job, JobClass } from "@workglow/job-queue";
+import { Job } from "@workglow/job-queue";
 import {
-  type IExecuteReactiveContext,
-  JobQueueTask,
-  JobQueueTaskConfig,
+  Task,
   TaskConfigurationError,
   TaskInput,
+  type IExecuteContext,
+  type IExecuteReactiveContext,
+  type TaskConfig,
   type TaskOutput,
   hasStructuredOutput,
 } from "@workglow/task-graph";
@@ -38,8 +40,8 @@ export interface AiSingleTaskInput extends TaskInput {
 }
 
 /**
- * A base class for AI related tasks that run in a job queue.
- * Extends the JobQueueTask class to provide LLM-specific functionality.
+ * A base class for AI related tasks that use an execution strategy
+ * (direct or queued) determined by the provider at registration time.
  *
  * Model resolution is handled automatically by the TaskRunner before execution.
  * By the time execute() is called, input.model is always a ModelConfig object.
@@ -47,17 +49,27 @@ export interface AiSingleTaskInput extends TaskInput {
 export class AiTask<
   Input extends AiSingleTaskInput = AiSingleTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends JobQueueTaskConfig = JobQueueTaskConfig,
-> extends JobQueueTask<Input, Output, Config> {
+  Config extends TaskConfig = TaskConfig,
+> extends Task<Input, Output, Config> {
   public static type: string = "AiTask";
 
-  /**
-   * Creates a new AiTask instance
-   * @param config - Configuration object for the task
-   */
-  constructor(input: Partial<Input> = {}, config: Config = {} as Config) {
-    super(input, config);
-    this.jobClass = AiJob as JobClass<AiJobInput<Input>, Output>;
+  // ========================================================================
+  // Execution
+  // ========================================================================
+
+  async execute(input: Input, executeContext: IExecuteContext): Promise<Output | undefined> {
+    const model = input.model as ModelConfig;
+    if (!model || typeof model !== "object") {
+      throw new TaskConfigurationError(
+        "AiTask: Model was not resolved to ModelConfig - this indicates a bug in the resolution system"
+      );
+    }
+
+    const jobInput = await this.getJobInput(input);
+    const strategy = getAiProviderRegistry().getStrategy(model);
+
+    const output = await strategy.execute(jobInput, executeContext, this.runConfig.runnerId);
+    return output as Output;
   }
 
   // ========================================================================
@@ -65,23 +77,11 @@ export class AiTask<
   // ========================================================================
 
   /**
-   * Get the input to submit to the job queue.
+   * Get the input to submit to the job queue (or direct execution).
    * Transforms the task input to AiJobInput format.
-   *
-   * Note: By the time this is called, input.model has already been resolved
-   * to a ModelConfig by the TaskRunner's input resolution system.
-   *
-   * @param input - The task input (with resolved model)
-   * @returns The AiJobInput to submit to the queue
    */
-  protected override async getJobInput(input: Input): Promise<AiJobInput<Input>> {
-    // Model is guaranteed to be resolved by TaskRunner before this is called
+  protected async getJobInput(input: Input): Promise<AiJobInput<Input>> {
     const model = input.model as ModelConfig;
-    if (!model || typeof model !== "object") {
-      throw new TaskConfigurationError(
-        "AiTask: Model was not resolved to ModelConfig - this indicates a bug in the resolution system"
-      );
-    }
 
     const runtype = (this.constructor as any).runtype ?? (this.constructor as any).type;
 
@@ -92,9 +92,6 @@ export class AiTask<
     };
 
     // Attach structured output schema if the task declares it.
-    // If the input has an explicit `outputSchema`, prefer that (dynamic case);
-    // otherwise fall back to the task's static outputSchema() if it has
-    // x-structured-output annotations.
     const inputOutputSchema = (input as any).outputSchema;
     if (
       inputOutputSchema &&
@@ -115,22 +112,16 @@ export class AiTask<
 
   /**
    * Creates a new Job instance for direct execution (without a queue).
-   * @param input - The task input
-   * @param queueName - The queue name (if any)
-   * @returns Promise<Job> - The created job
    */
-  override async createJob(
-    input: Input,
-    queueName?: string
-  ): Promise<Job<AiJobInput<Input>, Output>> {
+  async createJob(input: Input, queueName?: string): Promise<Job<AiJobInput<Input>, Output>> {
     const jobInput = await this.getJobInput(input);
     const resolvedQueueName = queueName ?? (await this.getDefaultQueueName(input));
     if (!resolvedQueueName) {
-      throw new TaskConfigurationError("JobQueueTask: Unable to determine queue for AI provider");
+      throw new TaskConfigurationError("AiTask: Unable to determine queue for AI provider");
     }
     const job = new AiJob<AiJobInput<Input>, Output>({
       queueName: resolvedQueueName,
-      jobRunId: this.runConfig.runnerId, // could be undefined
+      jobRunId: this.runConfig.runnerId,
       input: jobInput,
     });
     return job;
@@ -138,19 +129,19 @@ export class AiTask<
 
   /**
    * Gets the default queue name based on the model's provider.
-   * After TaskRunner resolution, input.model is a ModelConfig.
    */
-  protected override async getDefaultQueueName(input: Input): Promise<string | undefined> {
+  protected async getDefaultQueueName(input: Input): Promise<string | undefined> {
     const model = input.model as ModelConfig;
     return model?.provider;
   }
 
+  // ========================================================================
+  // Reactive execution
+  // ========================================================================
+
   /**
    * Delegates to a provider-registered reactive run function if one exists,
-   * otherwise falls back to the default Task.executeReactive() (returns output unchanged).
-   *
-   * Individual task subclasses that override executeReactive() directly take full
-   * precedence -- this base implementation is only reached when no subclass override exists.
+   * otherwise falls back to the default Task.executeReactive().
    */
   override async executeReactive(
     input: Input,
@@ -171,14 +162,12 @@ export class AiTask<
     return super.executeReactive(input, output, context);
   }
 
+  // ========================================================================
+  // Validation
+  // ========================================================================
+
   /**
    * Validates that model inputs are valid ModelConfig objects.
-   *
-   * Note: By the time this is called, string model IDs have already been
-   * resolved to ModelConfig objects by the TaskRunner's input resolution system.
-   *
-   * @param input The input to validate
-   * @returns True if the input is valid
    */
   async validateInput(input: Input): Promise<boolean> {
     const inputSchema = this.inputSchema();
@@ -189,7 +178,6 @@ export class AiTask<
       return true;
     }
 
-    // Find properties with model:TaskName format - need task compatibility check
     const modelTaskProperties = Object.entries<JsonSchema>(
       (inputSchema.properties || {}) as Record<string, JsonSchema>
     ).filter(([key, schema]) => schemaFormat(schema)?.startsWith("model:"));
@@ -197,7 +185,6 @@ export class AiTask<
     for (const [key] of modelTaskProperties) {
       const model = input[key];
       if (typeof model === "object" && model !== null) {
-        // Check task compatibility if tasks array is specified
         const tasks = (model as ModelConfig).tasks;
         if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
           const modelId = (model as ModelConfig).model_id ?? "(inline config)";
@@ -207,7 +194,6 @@ export class AiTask<
           );
         }
       } else if (model !== undefined && model !== null) {
-        // Should be a ModelConfig object after resolution
         throw new TaskConfigurationError(
           `AiTask: Invalid model for '${key}' - expected ModelConfig object but got ${typeof model}. ` +
             `Ensure the model ID was registered in the ModelRepository before running the task.`
@@ -215,7 +201,6 @@ export class AiTask<
       }
     }
 
-    // Find properties with plain model format - just ensure they're objects
     const modelPlainProperties = Object.entries<JsonSchema>(
       (inputSchema.properties || {}) as Record<string, JsonSchema>
     ).filter(([key, schema]) => schemaFormat(schema) === "model");
@@ -233,8 +218,6 @@ export class AiTask<
     return super.validateInput(input);
   }
 
-  // dataflows can strip some models that are incompatible with the target task
-  // if all of them are stripped, then the task will fail in validateInput
   async narrowInput(input: Input, registry: ServiceRegistry): Promise<Input> {
     const inputSchema = this.inputSchema();
     if (typeof inputSchema === "boolean") {
@@ -258,13 +241,11 @@ export class AiTask<
         const requestedModel = input[key];
 
         if (typeof requestedModel === "string") {
-          // Verify string model ID is compatible
           const found = taskModels?.find((m) => m.model_id === requestedModel);
           if (!found) {
             (input as any)[key] = undefined;
           }
         } else if (typeof requestedModel === "object" && requestedModel !== null) {
-          // Verify inline config is compatible
           const model = requestedModel as ModelConfig;
           const tasks = model.tasks;
           if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {

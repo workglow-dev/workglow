@@ -75,11 +75,10 @@ describe("HFTransformersBinding", () => {
       });
 
       client.attach(server);
-      clearPipelineCache();
-      await registerHuggingFaceTransformersInline({
-        queue: { autoCreate: false },
-      });
+      // Register custom queue BEFORE the provider so QueuedExecutionStrategy.ensureQueue() finds it
       queueRegistry.registerQueue({ server, client, storage });
+      clearPipelineCache();
+      await registerHuggingFaceTransformersInline();
 
       const model: HfTransformersOnnxModelRecord = {
         model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
@@ -91,6 +90,7 @@ describe("HFTransformersBinding", () => {
           pipeline: "text2text-generation",
           model_path: "Xenova/LaMini-Flan-T5-783M",
           dtype: "q8",
+          device: "webgpu",
         },
         metadata: {},
       };
@@ -150,11 +150,10 @@ describe("HFTransformersBinding", () => {
       });
 
       client.attach(server);
-
-      await registerHuggingFaceTransformersInline({
-        queue: { autoCreate: false },
-      });
+      // Register custom queue BEFORE the provider so QueuedExecutionStrategy.ensureQueue() finds it
       queueRegistry.registerQueue({ server, client, storage });
+
+      await registerHuggingFaceTransformersInline();
 
       setGlobalModelRepository(new InMemoryModelRepository());
       const model: HfTransformersOnnxModelRecord = {
@@ -167,6 +166,7 @@ describe("HFTransformersBinding", () => {
           pipeline: "text2text-generation",
           model_path: "Xenova/LaMini-Flan-T5-783M",
           dtype: "q8",
+          device: "webgpu",
         },
         metadata: {},
       };

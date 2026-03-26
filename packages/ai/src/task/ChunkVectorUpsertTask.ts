@@ -5,13 +5,7 @@
  */
 
 import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -86,7 +80,7 @@ export type VectorStoreUpsertTaskOutput = FromSchema<typeof outputSchema>;
 export class ChunkVectorUpsertTask extends Task<
   VectorStoreUpsertTaskInput,
   VectorStoreUpsertTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ChunkVectorUpsertTask";
   public static category = "Vector Store";
@@ -161,10 +155,7 @@ export class ChunkVectorUpsertTask extends Task<
   }
 }
 
-export const chunkVectorUpsert = (
-  input: VectorStoreUpsertTaskInput,
-  config?: JobQueueTaskConfig
-) => {
+export const chunkVectorUpsert = (input: VectorStoreUpsertTaskInput, config?: TaskConfig) => {
   return new ChunkVectorUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
 };
 
@@ -173,7 +164,7 @@ declare module "@workglow/task-graph" {
     chunkVectorUpsert: CreateWorkflow<
       VectorStoreUpsertTaskInput,
       VectorStoreUpsertTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

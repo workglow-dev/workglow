@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { QueuedAiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai";
+import { AiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai";
 import { TENSORFLOW_MEDIAPIPE, TFMP_DEFAULT_TASK_TYPES } from "./common/TFMP_Constants";
 import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 
-/** Main-thread registration (inline or worker-backed); creates the default job queue. */
-export class TensorFlowMediaPipeQueuedProvider extends QueuedAiProvider<TFMPModelConfig> {
+/** Main-thread registration (inline or worker-backed). WASM-only — uses direct execution. */
+export class TensorFlowMediaPipeQueuedProvider extends AiProvider<TFMPModelConfig> {
   readonly name = TENSORFLOW_MEDIAPIPE;
   readonly displayName = "TensorFlow MediaPipe";
   readonly isLocal = true;

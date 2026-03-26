@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Task, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -100,7 +100,7 @@ export type VectorQuantizeTaskOutput = FromSchema<typeof outputSchema, TypedArra
 export class VectorQuantizeTask extends Task<
   VectorQuantizeTaskInput,
   VectorQuantizeTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "VectorQuantizeTask";
   public static category = "Vector";
@@ -232,17 +232,13 @@ export class VectorQuantizeTask extends Task<
   }
 }
 
-export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: JobQueueTaskConfig) => {
+export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: TaskConfig) => {
   return new VectorQuantizeTask({} as VectorQuantizeTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    vectorQuantize: CreateWorkflow<
-      VectorQuantizeTaskInput,
-      VectorQuantizeTaskOutput,
-      JobQueueTaskConfig
-    >;
+    vectorQuantize: CreateWorkflow<VectorQuantizeTaskInput, VectorQuantizeTaskOutput, TaskConfig>;
   }
 }
 

@@ -13,13 +13,7 @@ import {
   type DocumentNode,
   type TokenBudget,
 } from "@workglow/knowledge-base";
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
 import { CountTokensTask } from "./CountTokensTask";
@@ -118,7 +112,7 @@ export type HierarchicalChunkerTaskOutput = FromSchema<typeof outputSchema>;
 export class HierarchicalChunkerTask extends Task<
   HierarchicalChunkerTaskInput,
   HierarchicalChunkerTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "HierarchicalChunkerTask";
   public static category = "Document";
@@ -341,10 +335,7 @@ export class HierarchicalChunkerTask extends Task<
   }
 }
 
-export const hierarchicalChunker = (
-  input: HierarchicalChunkerTaskInput,
-  config?: JobQueueTaskConfig
-) => {
+export const hierarchicalChunker = (input: HierarchicalChunkerTaskInput, config?: TaskConfig) => {
   return new HierarchicalChunkerTask({} as HierarchicalChunkerTaskInput, config).run(input);
 };
 
@@ -353,7 +344,7 @@ declare module "@workglow/task-graph" {
     hierarchicalChunker: CreateWorkflow<
       HierarchicalChunkerTaskInput,
       HierarchicalChunkerTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

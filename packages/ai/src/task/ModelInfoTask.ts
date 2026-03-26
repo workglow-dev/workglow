@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  CreateWorkflow,
-  type IExecuteContext,
-  JobQueueTaskConfig,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, type IExecuteContext, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
@@ -69,11 +64,7 @@ export type ModelInfoTaskOutput = FromSchema<typeof ModelInfoOutputSchema>;
 /**
  * Retrieve runtime metadata about a model: locality, browser support, cache status, and file sizes.
  */
-export class ModelInfoTask extends AiTask<
-  ModelInfoTaskInput,
-  ModelInfoTaskOutput,
-  JobQueueTaskConfig
-> {
+export class ModelInfoTask extends AiTask<ModelInfoTaskInput, ModelInfoTaskOutput, TaskConfig> {
   public static type = "ModelInfoTask";
   public static category = "AI Model";
   public static cacheable = false;
@@ -105,13 +96,13 @@ export class ModelInfoTask extends AiTask<
  * @param input - Input containing the model to query
  * @returns Promise resolving to model info including locality and cache status
  */
-export const modelInfo = (input: ModelInfoTaskInput, config?: JobQueueTaskConfig) => {
+export const modelInfo = (input: ModelInfoTaskInput, config?: TaskConfig) => {
   return new ModelInfoTask({} as ModelInfoTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    modelInfo: CreateWorkflow<ModelInfoTaskInput, ModelInfoTaskOutput, JobQueueTaskConfig>;
+    modelInfo: CreateWorkflow<ModelInfoTaskInput, ModelInfoTaskOutput, TaskConfig>;
   }
 }
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeBoundingBox, TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -87,7 +87,7 @@ export type ObjectDetectionTaskOutput = FromSchema<typeof ObjectDetectionOutputS
 export class ObjectDetectionTask extends AiVisionTask<
   ObjectDetectionTaskInput,
   ObjectDetectionTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ObjectDetectionTask";
   public static category = "AI Vision Model";
@@ -108,7 +108,7 @@ export class ObjectDetectionTask extends AiVisionTask<
  * @param input The input parameters for object detection (image, model, and optional labels)
  * @returns Promise resolving to the detected objects with labels, scores, and bounding boxes
  */
-export const objectDetection = (input: ObjectDetectionTaskInput, config?: JobQueueTaskConfig) => {
+export const objectDetection = (input: ObjectDetectionTaskInput, config?: TaskConfig) => {
   return new ObjectDetectionTask({} as ObjectDetectionTaskInput, config).run(input);
 };
 
@@ -117,7 +117,7 @@ declare module "@workglow/task-graph" {
     objectDetection: CreateWorkflow<
       ObjectDetectionTaskInput,
       ObjectDetectionTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }
