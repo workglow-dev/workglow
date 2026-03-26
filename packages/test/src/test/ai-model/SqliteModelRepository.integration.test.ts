@@ -4,13 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uuid4, setLogger } from "@workglow/util";
+import { Sqlite } from "@workglow/storage/sqlite";
+import { setLogger, uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { SqliteModelRepository } from "../../binding/SqliteModelRepository";
 import { runGenericModelRepositoryTests } from "./genericModelRepositoryTests";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-describe("SqliteModelRepository", () => {
+describe("SqliteModelRepository", async () => {
+  await Sqlite.init();
+
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericModelRepositoryTests(async () => {

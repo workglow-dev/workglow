@@ -350,7 +350,14 @@ const repo = new InMemoryTabularStorage<
 - Embedded SQLite database
 - File-based or in-memory
 
+Call **`await Sqlite.init()`** once (from `@workglow/storage/sqlite` or `workglow`) before opening a database by **path** or constructing **`new Sqlite.Database(...)`**.
+
 ```typescript
+import { SqliteTabularStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
+
+await Sqlite.init();
+
 const repo = new SqliteTabularStorage<
   typeof schema,
   typeof primaryKeys,
@@ -372,7 +379,7 @@ const repo = new SqliteTabularStorage<
 - Connection pooling support
 
 ```typescript
-import { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 
 const pool = new Pool({
   /* config */

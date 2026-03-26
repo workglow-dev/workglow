@@ -5,7 +5,7 @@
  */
 
 import { Job, JobClass } from "@workglow/job-queue";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
 import { IExecuteContext } from "./ITask";
 import { getJobQueueFactory } from "./JobQueueFactory";

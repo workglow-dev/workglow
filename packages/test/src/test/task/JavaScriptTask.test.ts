@@ -286,13 +286,12 @@ describe("JavaScriptTask", () => {
     expect(results.output).toBe(60);
   });
 
-  test("handles syntax errors gracefully", async () => {
-    // The task catches errors and logs them, but still returns output
-    const result = await javaScript({
-      javascript_code: "var x = ;", // Invalid syntax
-    });
-    // Error is caught and logged, output will be undefined
-    expect(result.output).toBeUndefined();
+  test("throws on syntax errors", async () => {
+    await expect(
+      javaScript({
+        javascript_code: "var x = ;", // Invalid syntax
+      })
+    ).rejects.toThrow("JavaScript execution failed");
   });
 
   test("executes code with nested functions", async () => {

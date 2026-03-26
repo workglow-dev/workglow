@@ -2,7 +2,8 @@
 // previous fork: https://github.com/sroussey/typescript-graph
 // license: MIT
 
-import { DirectedAcyclicGraph, DirectedGraph, Graph, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { DirectedAcyclicGraph, DirectedGraph, Graph } from "@workglow/util/graph";
 import { describe, expect, it } from "vitest";
 import { edgeIdentity } from "./graph.test";
 import { getTestingLogger } from "../../binding/TestingLogger";

@@ -5,7 +5,7 @@
  */
 
 import { registerAiTasks } from "@workglow/ai";
-import { installDevToolsFormatters, isDarkMode } from "@workglow/debug";
+import { installDevToolsFormatters, isDarkMode } from "@workglow/task-graph";
 import { registerBaseTasks, Workflow } from "@workglow/task-graph";
 import { registerCommonTasks } from "@workglow/tasks";
 import ReactDOM from "react-dom/client";
@@ -23,7 +23,7 @@ installDevToolsFormatters();
 const tasks = [...registerBaseTasks()];
 [Workflow, ...registerBaseTasks(), ...registerCommonTasks(), ...registerAiTasks()].forEach(
   (item) => {
-    window[item.name] = item;
+    (window as any)[item.name] = item;
   }
 );
 
@@ -48,7 +48,7 @@ console.log(
   workflow.%crename%c(%c'*'%c, %c'console'%c);
   workflow.%cdebugLog%c({ %clevel%c: %c'info'%c });
   
-  console.log(JSON.stringify(workflow.toDependencyJSON(),null,2));
+  console.log(JSON.stringify(workflow.toDependencyJSON({ withBoundaryNodes: false }),null,2));
   `,
   `color: ${grey}; font-weight: normal;`,
   `color: ${yellow}; font-weight: normal;`,
@@ -89,5 +89,5 @@ console.log(
   `color: ${grey}; font-weight: normal;`
 );
 setTimeout(() => {
-  console.log("console.log(workflow):", window["workflow"]);
+  console.log("console.log(workflow):", (window as any)["workflow"]);
 }, 100);

@@ -399,7 +399,6 @@ export function areSemanticallyCompatible(
 
     // Check if all required target properties are present and compatible in source
     const targetRequired = targetSchema.required || [];
-    let hasStatic = true;
     let hasRuntime = false;
 
     for (const propName of targetRequired) {
@@ -418,7 +417,6 @@ export function areSemanticallyCompatible(
           return "incompatible";
         } else if (propCompatibility === "runtime") {
           hasRuntime = true;
-          hasStatic = false;
         }
       }
     }

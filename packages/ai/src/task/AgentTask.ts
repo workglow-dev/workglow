@@ -13,13 +13,14 @@ import {
   type TaskConfig,
 } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { assistantMessage, toolMessage, toolSourceDefinitions, userMessage } from "./AgentTypes";
 import type { AgentHooks, ChatMessage, ToolSource, UserContentBlock } from "./AgentTypes";
 import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { ToolCallingTask, ToolDefinitionSchema } from "./ToolCallingTask";
-import type { ToolCallingTaskInput, ToolCalls, ToolDefinition } from "./ToolCallingTask";
+import type { ToolCallingTaskInput } from "./ToolCallingTask";
+import type { ToolCalls, ToolDefinition } from "./ToolCallingUtils";
 
 // ========================================================================
 // Config

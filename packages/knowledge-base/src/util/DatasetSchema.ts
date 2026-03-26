@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { JsonSchema } from "@workglow/util";
+import type { JsonSchema } from "@workglow/util/schema";
 
 /**
  * Creates a JSON schema for a tabular dataset input.

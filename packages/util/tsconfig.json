@@ -1,12 +1,28 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/common.ts", "src/*/**/*"],
-  "files": ["./src/types.ts"],
+  "include": [
+    "src/common.ts",
+    "src/worker-entry.ts",
+    "src/schema-entry.ts",
+    "src/graph-entry.ts",
+    "src/*/**/*"
+  ],
+  "files": [
+    "./src/node.ts",
+    "./src/browser.ts",
+    "./src/bun.ts",
+    "./src/worker-entry.ts",
+    "./src/schema-entry.ts",
+    "./src/graph-entry.ts",
+    "./src/media-browser.ts",
+    "./src/media-node.ts",
+    "./src/compress-browser.ts",
+    "./src/compress-node.ts"
+  ],
   "exclude": ["dist", "node_modules"],
   "compilerOptions": {
     "composite": true,
     "outDir": "./dist",
-    "baseUrl": "./src",
     "rootDir": "./src"
   }
 }

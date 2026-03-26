@@ -150,7 +150,7 @@ await repo.putMany([
 ### PostgreSQL with pgvector
 
 ```typescript
-import { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 import { PostgresVectorStorage } from "@workglow/storage";
 import { TypedArraySchema } from "@workglow/util";
 
@@ -293,7 +293,10 @@ Register and retrieve chunk vector repositories globally:
 
 ```typescript
 import { getChunkVectorRepository, getGlobalChunkVectorRepositories } from "@workglow/storage";
-import { registerChunkVectorRepository, getGlobalChunkVectorRepositories } from "@workglow/knowledge-base";
+import {
+  registerChunkVectorRepository,
+  getGlobalChunkVectorRepositories,
+} from "@workglow/knowledge-base";
 
 // Register a repository
 registerChunkVectorRepository("my-chunks", repo);
@@ -350,10 +353,7 @@ The chunk vector repository works alongside `KnowledgeBase` for hierarchical doc
 
 ```typescript
 import { KnowledgeBase, DocumentStorageSchema } from "@workglow/knowledge-base";
-import {
-  InMemoryChunkVectorStorage,
-  InMemoryTabularStorage,
-} from "@workglow/storage";
+import { InMemoryChunkVectorStorage, InMemoryTabularStorage } from "@workglow/storage";
 
 // Initialize storage backends
 const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, ["doc_id"]);

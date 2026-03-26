@@ -5,7 +5,7 @@
  */
 
 import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
-import { globalServiceRegistry, WORKER_MANAGER, type JsonSchema } from "@workglow/util";
+import { globalServiceRegistry, WORKER_MANAGER, type JsonSchema } from "@workglow/util/worker";
 import type { ModelConfig } from "../model/ModelSchema";
 import type { AiProvider } from "./AiProvider";
 
@@ -88,6 +88,25 @@ export class AiProviderRegistry {
    */
   getProviders(): Map<string, AiProvider<any>> {
     return new Map(this.providers);
+  }
+
+  /**
+   * Stable-sorted ids of all {@link AiProvider} instances currently registered
+   * via {@link registerProvider} (typically after {@link AiProvider.register}).
+   */
+  getInstalledProviderIds(): string[] {
+    return [...this.providers.keys()].sort();
+  }
+
+  /**
+   * Stable-sorted provider ids that have a direct run function registered for `taskType`.
+   * Use this when the UI or validation should only offer providers that can execute a task
+   * (e.g. {@link ModelSearchTask}).
+   */
+  getProviderIdsForTask(taskType: string): string[] {
+    const taskMap = this.runFnRegistry.get(taskType);
+    if (!taskMap) return [];
+    return [...taskMap.keys()].sort();
   }
 
   /**

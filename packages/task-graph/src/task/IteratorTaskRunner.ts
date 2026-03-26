@@ -8,7 +8,7 @@ import { uuid4 } from "@workglow/util";
 import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
-import type { ITaskConstructor } from "./ITask";
+import type { ITask, ITaskConstructor } from "./ITask";
 import type { IterationAnalysisResult, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
 import type { TaskInput, TaskOutput } from "./TaskTypes";
 
@@ -23,6 +23,11 @@ export class IteratorTaskRunner<
   Config extends IteratorTaskConfig = IteratorTaskConfig,
 > extends GraphAsTaskRunner<Input, Output, Config> {
   declare task: IteratorTask<Input, Output, Config>;
+
+  /** When true, {@link executeSubgraphIteration} folds inner progress into parent MapTask %. */
+  private aggregatingParentMapProgress = false;
+  private mapPartialProgress: number[] = [];
+  private mapPartialIterationCount = 0;
 
   /**
    * For iterator tasks, reactive runs use full execution for correctness.
@@ -68,47 +73,63 @@ export class IteratorTaskRunner<
       : [];
     const completionOrderResults: TaskOutput[] = [];
 
-    let completedCount = 0;
+    this.aggregatingParentMapProgress = true;
+    this.mapPartialIterationCount = iterationCount;
+    this.mapPartialProgress = new Array(iterationCount).fill(0);
 
-    for (let batchStart = 0; batchStart < iterationCount; batchStart += batchSize) {
-      if (this.abortController?.signal.aborted) {
-        break;
+    try {
+      for (let batchStart = 0; batchStart < iterationCount; batchStart += batchSize) {
+        if (this.abortController?.signal.aborted) {
+          break;
+        }
+
+        const batchEnd = Math.min(batchStart + batchSize, iterationCount);
+        const batchIndices = Array.from(
+          { length: batchEnd - batchStart },
+          (_, i) => batchStart + i
+        );
+
+        const batchResults = await this.executeBatch(
+          batchIndices,
+          analysis,
+          iterationCount,
+          concurrency,
+          undefined
+        );
+
+        for (const { index, result } of batchResults) {
+          if (result === undefined) continue;
+
+          if (preserveOrder) {
+            orderedResults[index] = result;
+          } else {
+            completionOrderResults.push(result);
+          }
+        }
       }
 
-      const batchEnd = Math.min(batchStart + batchSize, iterationCount);
-      const batchIndices = Array.from({ length: batchEnd - batchStart }, (_, i) => batchStart + i);
+      const collected = preserveOrder
+        ? orderedResults.filter((result): result is TaskOutput => result !== undefined)
+        : completionOrderResults;
 
-      const batchResults = await this.executeBatch(
-        batchIndices,
-        analysis,
-        iterationCount,
-        concurrency,
-        async () => {
-          completedCount++;
-          const progress = Math.round((completedCount / iterationCount) * 100);
-          await this.handleProgress(
-            progress,
-            `Completed ${completedCount}/${iterationCount} iterations`
-          );
-        }
-      );
-
-      for (const { index, result } of batchResults) {
-        if (result === undefined) continue;
-
-        if (preserveOrder) {
-          orderedResults[index] = result;
-        } else {
-          completionOrderResults.push(result);
-        }
-      }
+      return this.task.collectResults(collected);
+    } finally {
+      this.aggregatingParentMapProgress = false;
     }
+  }
 
-    const collected = preserveOrder
-      ? orderedResults.filter((result): result is TaskOutput => result !== undefined)
-      : completionOrderResults;
-
-    return this.task.collectResults(collected);
+  /**
+   * Updates parent MapTask / workflow progress from per-iteration partial completion (0–100 each).
+   */
+  private emitMapParentProgressFromPartials(childMessage?: string): void {
+    const n = this.mapPartialIterationCount;
+    if (n <= 0) return;
+    const sum = this.mapPartialProgress.reduce((a, b) => a + b, 0);
+    const overall = Math.round(sum / n);
+    const done = this.mapPartialProgress.filter((v) => v >= 100).length;
+    const base = `Map ${done}/${n}`;
+    const msg = childMessage ? `${base} — ${childMessage}` : `${base} iterations`;
+    void this.handleProgress(overall, msg);
   }
 
   protected async executeReduceIterations(analysis: IterationAnalysisResult): Promise<Output> {
@@ -124,7 +145,11 @@ export class IteratorTaskRunner<
         accumulator,
       });
 
-      const iterationResult = await this.executeSubgraphIteration(iterationInput);
+      const iterationResult = await this.executeSubgraphIteration(
+        iterationInput,
+        index,
+        iterationCount
+      );
       accumulator = this.task.mergeIterationIntoAccumulator(accumulator, iterationResult, index);
 
       const progress = Math.round(((index + 1) / iterationCount) * 100);
@@ -161,7 +186,7 @@ export class IteratorTaskRunner<
 
         const index = indices[position];
         const iterationInput = this.task.buildIterationRunInput(analysis, index, iterationCount);
-        const result = await this.executeSubgraphIteration(iterationInput);
+        const result = await this.executeSubgraphIteration(iterationInput, index, iterationCount);
         results.push({ index, result });
         await onItemComplete?.();
       }
@@ -204,7 +229,9 @@ export class IteratorTaskRunner<
   }
 
   protected async executeSubgraphIteration(
-    input: Record<string, unknown>
+    input: Record<string, unknown>,
+    index: number,
+    iterationCount: number
   ): Promise<TaskOutput | undefined> {
     if (this.abortController?.signal.aborted) {
       return undefined;
@@ -212,19 +239,50 @@ export class IteratorTaskRunner<
 
     const graphClone = this.cloneGraph(this.task.subGraph);
 
-    const results = await graphClone.run<TaskOutput>(input as TaskInput, {
-      parentSignal: this.abortController?.signal,
-      outputCache: this.outputCache,
-      registry: this.registry,
-    });
+    this.task.emit("iteration_start", index, iterationCount);
 
-    if (results.length === 0) {
-      return undefined;
+    /**
+     * Per-task `progress` (0–100), not {@link TaskGraph}'s `graph_progress`, which averages
+     * `task.progress` across nodes when `getTasks().length > 1` (e.g. one task at 100% and
+     * three at 0% becomes 25% — wrong for iteration sub-rows).
+     */
+    const taskProgressUnsubs: Array<{ task: ITask; fn: (p: number, m?: string) => void }> = [];
+    for (const t of graphClone.getTasks()) {
+      const fn = (p: number, message?: string): void => {
+        this.task.emit("iteration_progress", index, iterationCount, p, message);
+        if (this.aggregatingParentMapProgress && this.mapPartialIterationCount > 0) {
+          this.mapPartialProgress[index] = Math.max(this.mapPartialProgress[index] ?? 0, p);
+          this.emitMapParentProgressFromPartials(message);
+        }
+      };
+      t.events.on("progress", fn);
+      taskProgressUnsubs.push({ task: t, fn });
     }
 
-    return graphClone.mergeExecuteOutputsToRunOutput(
-      results,
-      this.task.compoundMerge
-    ) as TaskOutput;
+    try {
+      const results = await graphClone.run<TaskOutput>(input as TaskInput, {
+        parentSignal: this.abortController?.signal,
+        outputCache: this.outputCache,
+        registry: this.registry,
+      });
+
+      if (results.length === 0) {
+        return undefined;
+      }
+
+      return graphClone.mergeExecuteOutputsToRunOutput(
+        results,
+        this.task.compoundMerge
+      ) as TaskOutput;
+    } finally {
+      for (const { task, fn } of taskProgressUnsubs) {
+        task.events.off("progress", fn);
+      }
+      if (this.aggregatingParentMapProgress && this.mapPartialIterationCount > 0) {
+        this.mapPartialProgress[index] = 100;
+        this.emitMapParentProgressFromPartials();
+      }
+      this.task.emit("iteration_complete", index, iterationCount);
+    }
   }
 }

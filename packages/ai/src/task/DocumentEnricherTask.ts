@@ -18,7 +18,7 @@ import {
   Task,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ModelConfig } from "../model/ModelSchema";
 import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
 import { TextSummaryTask } from "./TextSummaryTask";

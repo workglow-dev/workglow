@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai";
-import { DataPortSchemaObject, FromSchema } from "@workglow/util";
+import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai/worker";
+import { DataPortSchemaObject, FromSchema } from "@workglow/util/worker";
 import { OPENAI } from "./OpenAI_Constants";
 
 export const OpenAiModelSchema = {

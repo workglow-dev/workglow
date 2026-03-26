@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Sqlite } from "@workglow/sqlite";
+import type { Sqlite } from "@workglow/storage/sqlite";
 import { createServiceToken, makeFingerprint, sleep, uuid4 } from "@workglow/util";
 import {
   IQueueStorage,
@@ -18,6 +18,12 @@ import {
 
 export const SQLITE_QUEUE_STORAGE =
   createServiceToken<IQueueStorage<any, any>>("jobqueue.storage.sqlite");
+
+type JobRowWithJsonStrings<Input, Output> = JobStorageFormat<Input, Output> & {
+  input: string;
+  output: string | null;
+  progress_details: string | null;
+};
 
 /**
  * Extended options for SQLite queue storage including prefix support
@@ -179,7 +185,7 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
       VALUES (${prefixPlaceholders}?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING id`;
 
-    const stmt = this.db.prepare<{ id: string }, Array<string | number | null>>(AddQuery);
+    const stmt = this.db.prepare<unknown[], { id: string }>(AddQuery);
 
     const result = stmt.get(
       ...prefixParamValues,
@@ -215,12 +221,12 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
         WHERE id = ? AND queue = ?${prefixConditions}
         LIMIT 1`;
     const stmt = this.db.prepare<
+      unknown[],
       JobStorageFormat<Input, Output> & {
         input: string;
         output: string | null;
         progress_details: string | null;
-      },
-      Array<string | number>
+      }
     >(JobQuery);
     const result = stmt.get(String(id), this.queueName, ...prefixParams);
     if (!result) return undefined;
@@ -253,15 +259,15 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
         ORDER BY run_after ASC
         LIMIT ${num}`;
     const stmt = this.db.prepare<
+      unknown[],
       JobStorageFormat<Input, Output> & {
         input: string;
         output: string | null;
         progress_details: string | null;
-      },
-      Array<string | number>
+      }
     >(FutureJobQuery);
     const result = stmt.all(this.queueName, status, ...prefixParams);
-    return (result || []).map((details) => {
+    return (result || []).map((details: JobRowWithJsonStrings<Input, Output>) => {
       // Parse JSON fields
       if (details.input) details.input = JSON.parse(details.input);
       if (details.output) details.output = JSON.parse(details.output);
@@ -303,15 +309,15 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
         FROM ${this.tableName}
         WHERE job_run_id = ? AND queue = ?${prefixConditions}`;
     const stmt = this.db.prepare<
+      unknown[],
       JobStorageFormat<Input, Output> & {
         input: string;
         output: string | null;
         progress_details: string | null;
-      },
-      Array<string | number>
+      }
     >(JobsByRunIdQuery);
     const result = stmt.all(job_run_id, this.queueName, ...prefixParams);
-    return (result || []).map((details) => {
+    return (result || []).map((details: JobRowWithJsonStrings<Input, Output>) => {
       // Parse JSON fields
       if (details.input) details.input = JSON.parse(details.input);
       if (details.output) details.output = JSON.parse(details.output);
@@ -335,12 +341,12 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
 
     // Then, get the next job to process
     const stmt = this.db.prepare<
+      unknown[],
       JobStorageFormat<Input, Output> & {
         input: string;
         output: string | null;
         progress_details: string | null;
-      },
-      Array<string | number | JobStatus | null>
+      }
     >(
       `
       UPDATE ${this.tableName} 
@@ -389,7 +395,7 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
         FROM ${this.tableName}
         WHERE queue = ?
         AND status = ?${prefixConditions}`;
-    const stmt = this.db.prepare<{ count: number }, Array<string | number>>(sizeQuery);
+    const stmt = this.db.prepare<unknown[], { count: number }>(sizeQuery);
     const result = stmt.get(this.queueName, status, ...prefixParams) as any;
     return result.count;
   }
@@ -476,7 +482,7 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
       SELECT output
         FROM ${this.tableName}
         WHERE queue = ? AND fingerprint = ? AND status = ?${prefixConditions}`;
-    const stmt = this.db.prepare<{ output: string }, Array<string | number>>(OutputQuery);
+    const stmt = this.db.prepare<unknown[], { output: string }>(OutputQuery);
     const result = stmt.get(this.queueName, fingerprint, JobStatus.COMPLETED, ...prefixParams);
     return result?.output ? JSON.parse(result.output) : null;
   }

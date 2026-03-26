@@ -4,28 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ToolCall, ToolCallingTaskOutput } from "@workglow/ai";
 import {
   DownloadModelTask,
   getGlobalModelRepository,
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
-import {
-  HF_TRANSFORMERS_ONNX,
-  type HfTransformersOnnxModelRecord,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
+import type { ToolCall, ToolCallingTaskOutput } from "@workglow/ai";
 import {
   clearPipelineCache,
   createToolCallMarkupFilter,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
+  HF_TRANSFORMERS_ONNX,
   parseToolCallsFromText,
-} from "@workglow/ai-provider/hf-transformers";
+  type HfTransformersOnnxModelRecord,
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
-import { JsonSchema, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { JsonSchema } from "@workglow/util/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -139,7 +135,7 @@ describe("parseToolCallsFromText", () => {
 describe("createToolCallMarkupFilter", () => {
   function runFilter(tokens: string[]): string {
     let output = "";
-    const filter = createToolCallMarkupFilter((text) => {
+    const filter = createToolCallMarkupFilter((text: string) => {
       output += text;
     });
     for (const token of tokens) {
@@ -235,11 +231,7 @@ describe("ToolCallingTask with HFT models", () => {
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(
-      HFT_TASKS,
-      HFT_STREAM_TASKS,
-      HFT_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerHuggingFaceTransformersInline();
   });
 
   afterAll(async () => {

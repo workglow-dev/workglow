@@ -7,7 +7,7 @@
 import { JobQueueClient, JobQueueServer, RateLimiter } from "@workglow/job-queue";
 import { IndexedDbQueueStorage, InMemoryRateLimiterStorage } from "@workglow/storage";
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
-import { uuid4, setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import "fake-indexeddb/auto";
 import { describe } from "vitest";
 import { runGenericTaskGraphJobQueueTests, TestJob } from "./genericTaskGraphJobQueueTests";

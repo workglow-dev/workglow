@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Sqlite } from "@workglow/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { SqliteAiVectorStorage } from "@workglow/storage";
 import { setLogger } from "@workglow/util";
-import type { DataPortSchemaObject } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -44,7 +44,9 @@ type VectorEntity = {
 
 const VectorPrimaryKey = ["chunk_id"] as const;
 
-describe.skipIf(!sqliteVectorAvailable)("SqliteAiVectorStorage", () => {
+describe.skipIf(!sqliteVectorAvailable)("SqliteAiVectorStorage", async () => {
+  await Sqlite.init();
+
   const logger = getTestingLogger();
   setLogger(logger);
   let db: InstanceType<typeof Sqlite.Database>;

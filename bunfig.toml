@@ -2,5 +2,5 @@
 # Explicitly set the linker to isolated
 linker = "isolated"
 [test]
-retry = 2
+retry = 1
 root = "./packages/test/src/test"

@@ -9,8 +9,9 @@ import type {
   FromSchema,
   TypedArray,
   TypedArraySchemaOptions,
-} from "@workglow/util";
-import { cosineSimilarity, createServiceToken } from "@workglow/util";
+} from "@workglow/util/schema";
+import { cosineSimilarity } from "@workglow/util/schema";
+import { createServiceToken } from "@workglow/util";
 import { IndexedDbTabularStorage } from "../tabular/IndexedDbTabularStorage";
 import type { ClientProvidedKeysOption } from "../tabular/BaseTabularStorage";
 import type { AnyVectorStorage } from "./IVectorStorage";

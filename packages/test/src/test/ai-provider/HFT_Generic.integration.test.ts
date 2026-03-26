@@ -11,16 +11,11 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
+  clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
   type HfTransformersOnnxModelRecord,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
-import {
-  clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
-} from "@workglow/ai-provider/hf-transformers";
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 
@@ -54,11 +49,7 @@ runGenericAiProviderTests({
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(
-      HFT_TASKS,
-      HFT_STREAM_TASKS,
-      HFT_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerHuggingFaceTransformersInline();
 
     await getGlobalModelRepository().addModel(model);
 

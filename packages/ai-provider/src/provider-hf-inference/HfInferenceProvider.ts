@@ -9,7 +9,7 @@ import {
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai";
+} from "@workglow/ai/worker";
 import { HF_INFERENCE } from "./common/HFI_Constants";
 import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
 
@@ -22,26 +22,10 @@ import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
  * Task run functions are injected via the constructor so that the `@huggingface/inference` SDK
  * is only imported where actually needed (inline mode, worker server), not on
  * the main thread in worker mode.
- *
- * @example
- * ```typescript
- * // Worker mode (main thread) -- lightweight, no SDK import:
- * await new HfInferenceProvider().register({
- *   mode: "worker",
- *   worker: new Worker(new URL("./worker_hfi.ts", import.meta.url), { type: "module" }),
- * });
- *
- * // Inline mode -- caller provides the tasks:
- * import { HFI_TASKS } from "@workglow/ai-provider/hf-inference";
- * await new HfInferenceProvider(HFI_TASKS).register({ mode: "inline" });
- *
- * // Worker side -- caller provides the tasks:
- * import { HFI_TASKS } from "@workglow/ai-provider/hf-inference";
- * new HfInferenceProvider(HFI_TASKS).registerOnWorkerServer(workerServer);
- * ```
  */
 export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
   readonly name = HF_INFERENCE;
+  readonly displayName = "Hugging Face Inference";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 
@@ -52,6 +36,7 @@ export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

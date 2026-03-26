@@ -5,7 +5,7 @@
  */
 
 import type { HybridSearchOptions, VectorSearchOptions } from "@workglow/storage";
-import type { TypedArray } from "@workglow/util";
+import type { TypedArray } from "@workglow/util/schema";
 import type { ChunkRecord } from "../chunk/ChunkSchema";
 import type {
   ChunkSearchResult,

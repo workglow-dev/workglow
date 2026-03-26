@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { compileSchema, SchemaNode } from "@workglow/util";
-import type { DataPortSchema } from "@workglow/util";
+import { compileSchema, type DataPortSchema, type SchemaNode } from "@workglow/util/schema";
 import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
-import type { CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
+import type { CreateLoopWorkflow } from "../task-graph/Workflow";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";

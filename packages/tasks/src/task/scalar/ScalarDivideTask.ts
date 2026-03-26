@@ -4,8 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  Task,
+  TaskConfig,
+  TaskInvalidInputError,
+  Workflow,
+} from "@workglow/task-graph";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
   type: "object",
@@ -60,6 +67,9 @@ export class ScalarDivideTask<
   }
 
   async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+    if (input.b === 0) {
+      throw new TaskInvalidInputError("Division by zero: denominator (b) cannot be zero");
+    }
     return { result: input.a / input.b } as Output;
   }
 }

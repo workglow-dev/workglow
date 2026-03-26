@@ -4,12 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  DataPortSchemaObject,
-  EventParameters,
-  FromSchema,
-  TypedArraySchemaOptions,
-} from "@workglow/util";
+import { DataPortSchemaObject, FromSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
+import { EventParameters } from "@workglow/util";
 
 // Generic type for possible value types in the repository
 export type ValueOptionType = string | number | bigint | boolean | null | Uint8Array;

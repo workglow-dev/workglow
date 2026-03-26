@@ -17,16 +17,7 @@ import {
   RetryableJobError,
 } from "@workglow/job-queue";
 import { IQueueStorage } from "@workglow/storage";
-import {
-  BaseError,
-  type ISpan,
-  type ITelemetryProvider,
-  NoopTelemetryProvider,
-  setTelemetryProvider,
-  sleep,
-  SpanStatusCode,
-  uuid4,
-} from "@workglow/util";
+import { type ISpan, type ITelemetryProvider, BaseError, NoopTelemetryProvider, SpanStatusCode, setTelemetryProvider, sleep, uuid4 } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 class RecordingSpan implements ISpan {

@@ -5,7 +5,5 @@
  */
 
 export * from "./common/Ollama_Constants";
-export * from "./common/Ollama_JobRunFns";
 export * from "./common/Ollama_ModelSchema";
-export * from "./Ollama_Worker";
-export * from "./OllamaProvider";
+export * from "./registerOllama";

@@ -4,30 +4,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  HuggingFaceTransformersProvider,
-  TensorFlowMediaPipeProvider,
-} from "@workglow/ai-provider";
+import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
+import { registerTensorFlowMediaPipe } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, JsonTaskItem, TaskGraph, Workflow } from "@workglow/task-graph";
 import { JsonTask } from "@workglow/tasks";
-import { IndexedDbTaskGraphRepository, IndexedDbTaskOutputRepository } from "@workglow/test";
+import { IndexedDbTaskGraphRepository, IndexedDbTaskOutputRepository } from "./storage";
 import { ReactFlowProvider } from "@xyflow/react";
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./Resize";
-import { JsonEditor } from "./editor/JsonEditor";
-import { RunGraphFlow } from "./graph/RunGraphFlow";
-import { registerHuggingfaceLocalModels, registerMediaPipeTfJsLocalModels } from "./modelSamples";
+import {
+  dependencyJsonHasBoundaryTasks,
+  graphFromDependencyJsonItems,
+  stripBoundaryTasksFromDependencyJson,
+} from "./dependencyJson";
 import { GraphStoreStatus } from "./status/GraphStoreStatus";
 import { OutputRepositoryStatus } from "./status/OutputRepositoryStatus";
 import { QueuesStatus } from "./status/QueueStatus";
 
-await new TensorFlowMediaPipeProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./worker_tfmp.ts", import.meta.url), { type: "module" }),
+const JsonEditor = lazy(async () => {
+  const { JsonEditor } = await import("./editor/JsonEditor");
+  return { default: JsonEditor };
 });
-await new HuggingFaceTransformersProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+
+const RunGraphFlow = lazy(async () => {
+  const { RunGraphFlow } = await import("./graph/RunGraphFlow");
+  return { default: RunGraphFlow };
+});
+
+await registerTensorFlowMediaPipe({
+  worker: () => new Worker(new URL("./worker_tfmp.ts", import.meta.url), { type: "module" }),
+});
+await registerHuggingFaceTransformers({
+  worker: () => new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
 });
 
 const queueRegistry = getTaskQueueRegistry();
@@ -36,15 +44,37 @@ await queueRegistry.startQueues();
 const taskOutputCache = new IndexedDbTaskOutputRepository();
 const taskGraphRepo = new IndexedDbTaskGraphRepository();
 const resetGraph = () => {
-  const workflow = window["workflow"];
+  const workflow = (window as any)["workflow"] as Workflow;
   workflow
     .reset()
-    .downloadModel({ model: "onnx:Xenova/LaMini-Flan-T5-783M:q8" })
+    .downloadModel({
+      model: {
+        tasks: ["TextGenerationTask", "TextRewriterTask"],
+        provider: "HF_TRANSFORMERS_ONNX",
+        provider_config: {
+          pipeline: "text2text-generation",
+          model_path: "Xenova/LaMini-Flan-T5-783M",
+          dtype: "q8",
+          device: "wasm",
+        },
+      },
+    })
     .textRewriter({
       text: "The quick brown fox jumps over the lazy dog.",
       prompt: "Rewrite the following text in reverse:",
     })
-    .downloadModel({ model: "onnx:Xenova/m2m100_418M:q8" })
+    .downloadModel({
+      model: {
+        tasks: ["TextTranslationTask"],
+        provider: "HF_TRANSFORMERS_ONNX",
+        provider_config: {
+          pipeline: "translation",
+          model_path: "Xenova/m2m100_418M",
+          language_style: "ISO-639",
+          dtype: "q8",
+        },
+      },
+    })
     .textTranslation({
       source_lang: "en",
       target_lang: "es",
@@ -54,25 +84,33 @@ const resetGraph = () => {
   taskGraphRepo.saveTaskGraph("default", workflow.graph);
 };
 
-window["workflow"] = new Workflow(taskOutputCache);
+(window as any)["workflow"] = new Workflow(taskOutputCache);
 let graph: TaskGraph | undefined;
 try {
   graph = await taskGraphRepo.getTaskGraph("default");
-} catch (error) {
+} catch (error: any) {
   console.error("Task graph loading error, going to reset:", error.message);
   resetGraph();
-  graph = window["workflow"].graph;
+  graph = (window as any)["workflow"].graph;
 }
 
+const wfForLoad = (window as any)["workflow"] as Workflow;
 if (graph) {
-  window["workflow"].graph = graph;
+  wfForLoad.graph = graph;
 } else {
   resetGraph();
 }
 
+const dependencyJsonOpts = { withBoundaryNodes: false };
+const depItems = wfForLoad.graph.toDependencyJSON(dependencyJsonOpts);
+if (dependencyJsonHasBoundaryTasks(depItems)) {
+  wfForLoad.graph = graphFromDependencyJsonItems(stripBoundaryTasksFromDependencyJson(depItems));
+  taskGraphRepo.saveTaskGraph("default", wfForLoad.graph);
+}
+
 // console access. what happens there will be reflected in the UI
 const setupWorkflow = async () => {
-  const workflow = window["workflow"];
+  const workflow = (window as any)["workflow"] as Workflow;
   const run = workflow.run.bind(workflow);
   workflow.run = async () => {
     console.log("Running task graph...");
@@ -80,7 +118,7 @@ const setupWorkflow = async () => {
       const result = await run();
       console.log("Task graph complete.", workflow);
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Task graph error:", error.message, error.errors, error);
       throw error;
     }
@@ -97,16 +135,14 @@ const setupWorkflow = async () => {
   });
 };
 setupWorkflow();
-let workflow: Workflow = window["workflow"];
+let workflow: Workflow = (window as any)["workflow"] as Workflow;
 
-const initialJsonObj: JsonTaskItem[] = workflow.toDependencyJSON();
+const initialJsonObj: JsonTaskItem[] = workflow.toDependencyJSON(dependencyJsonOpts);
 const initialJson = JSON.stringify(initialJsonObj, null, 2);
-await registerHuggingfaceLocalModels();
-await registerMediaPipeTfJsLocalModels();
 
 export const App = () => {
   const [graph, setGraph] = useState<TaskGraph>(workflow.graph);
-  const [w, setWorkflow] = useState<Workflow>(window["workflow"]);
+  const [w, setWorkflow] = useState<Workflow>((window as any)["workflow"] as Workflow);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isAborting, setIsAborting] = useState<boolean>(false);
   const [jsonData, setJsonData] = useState<string>(initialJson);
@@ -131,8 +167,11 @@ export const App = () => {
   // changes coming from workflow in console
   useEffect(() => {
     const interval = setInterval(() => {
-      if (workflow !== window["workflow"] && window["workflow"] instanceof Workflow) {
-        workflow = window["workflow"];
+      if (
+        workflow !== (window as any)["workflow"] &&
+        (window as any)["workflow"] instanceof Workflow
+      ) {
+        workflow = (window as any)["workflow"] as Workflow;
         setWorkflow(workflow);
         const cache = cacheEnabled ? taskOutputCache : undefined;
         workflow.graph.outputCache = cache;
@@ -142,8 +181,8 @@ export const App = () => {
     }, 10);
 
     function listen() {
-      setJsonData(JSON.stringify(w.toDependencyJSON(), null, 2));
-      setGraph(w.graph);
+      setJsonData(JSON.stringify(workflow.toDependencyJSON(dependencyJsonOpts), null, 2));
+      setGraph(workflow.graph);
     }
     workflow.on("changed", listen);
     workflow.on("reset", listen);
@@ -195,23 +234,29 @@ export const App = () => {
     <ResizablePanelGroup direction="horizontal">
       <ResizablePanel>
         <ReactFlowProvider>
-          <RunGraphFlow graph={graph} />
+          <Suspense fallback={<div className="p-4 text-sm text-neutral-400">Loading graph…</div>}>
+            <RunGraphFlow graph={graph} />
+          </Suspense>
         </ReactFlowProvider>
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel defaultSize={30}>
         <ResizablePanelGroup direction="vertical">
           <ResizablePanel defaultSize={82}>
-            <JsonEditor
-              json={jsonData}
-              onJsonChange={setNewJson}
-              run={() => {
-                workflow.run();
-              }}
-              stop={() => workflow.abort()}
-              running={isRunning}
-              aborting={isAborting}
-            />
+            <Suspense
+              fallback={<div className="p-4 text-sm text-neutral-400">Loading editor…</div>}
+            >
+              <JsonEditor
+                json={jsonData}
+                onJsonChange={setNewJson}
+                run={() => {
+                  workflow.run();
+                }}
+                stop={() => workflow.abort()}
+                running={isRunning}
+                aborting={isAborting}
+              />
+            </Suspense>
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel style={{ backgroundColor: "#222", color: "#bbb", padding: "10px" }}>

@@ -27,7 +27,7 @@ Bun workspaces + Turborepo. All packages live in `packages/`. Build order is man
 ### Dependency graph
 
 ```
-util, sqlite                          (foundation, no workglow deps)
+util, sqlite                          (foundation)
     ↓
 storage                               (KV, Tabular, Queue, Vector abstractions)
     ↓
@@ -48,7 +48,7 @@ debug                                 (Chrome DevTools formatters)
 
 ### Per-package build
 
-Each package builds three runtime targets via `bun build --splitting --target=X`:
+Each package builds three runtime targets via `bun build --target=X`:
 
 - `src/browser.ts` → `dist/browser.js`
 - `src/node.ts` → `dist/node.js`
@@ -58,6 +58,14 @@ Each package builds three runtime targets via `bun build --splitting --target=X`
 Types built with `tsc` (composite + incremental). Conditional exports in `package.json` resolve automatically per runtime.
 
 Exception: `ai-provider` builds per-provider sub-paths (`./anthropic`, `./openai`, `./google-gemini`, etc.) instead of browser/node/bun.
+
+Exception: `util` has multiple named exports beyond `"."`:
+- `@workglow/util` — core infrastructure (DI, events, logging, telemetry, credentials, crypto, utilities)
+- `@workglow/util/schema` — JSON Schema types/validation + vector/tensor types and math
+- `@workglow/util/graph` — graph data structures (Graph, DirectedGraph, DAG)
+- `@workglow/util/worker` — lightweight worker entry (re-exports DI, logging, worker infra)
+- `@workglow/util/media` — platform-specific image handling
+- `@workglow/util/compress` — platform-specific compression
 
 ## Code style
 
@@ -161,7 +169,7 @@ Each provider is a separate sub-export with optional peer dependencies:
 
 - `@workglow/ai-provider/anthropic` — Claude
 - `@workglow/ai-provider/openai` — OpenAI
-- `@workglow/ai-provider/google-gemini` — Gemini
+- `@workglow/ai-provider/gemini` — Gemini
 - `@workglow/ai-provider/ollama` — Ollama (browser + node)
 - `@workglow/ai-provider/hf-transformers` — HuggingFace Transformers.js
 - `@workglow/ai-provider/hf-inference` — HuggingFace Inference API

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, FromSchema } from "@workglow/util";
+import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 /**
  * Node kind discriminator for hierarchical document structure

@@ -22,10 +22,10 @@
     "**/*.tsbuildinfo": true,
     "**/node_modules": true
   },
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit",
-    "source.organizeImports": "explicit"
-  },
+  // "editor.codeActionsOnSave": {
+  //   "source.fixAll.eslint": "explicit",
+  //   "source.organizeImports": "explicit"
+  // },
   "eslint.codeActionsOnSave.rules": null,
   "explorer.autoRevealExclude": {
     "data-out/**": true,
@@ -50,7 +50,6 @@
   "bun.debugTerminal.enabled": true,
   "markdown.extension.toc.levels": "2..6",
   "js/ts.implicitProjectConfig.target": "ESNext",
-  "typescript.tsdk": "./node_modules/typescript/lib",
   "typescript.suggest.paths": false,
   "javascript.suggest.paths": false
 }

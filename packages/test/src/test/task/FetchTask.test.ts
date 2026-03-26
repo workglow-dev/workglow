@@ -536,7 +536,10 @@ describe("FetchUrlTask", () => {
     });
 
     test("outputSchema updates when response_type changes", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: null });
+      const task = new FetchUrlTask<FetchUrlTaskInput>({
+        url: "https://api.example.com/test",
+        response_type: null,
+      });
       let schema = task.outputSchema();
 
       // Initially should have all types (4 response types + metadata)
@@ -575,7 +578,10 @@ describe("FetchUrlTask", () => {
     });
 
     test("emits schemaChange event when response_type changes", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: null });
+      const task = new FetchUrlTask<FetchUrlTaskInput>({
+        url: "https://api.example.com/test",
+        response_type: null,
+      });
 
       let schemaChangeEmitted = false;
       let receivedInputSchema: any;
@@ -608,7 +614,10 @@ describe("FetchUrlTask", () => {
     });
 
     test("emits schemaChange event when response_type changes from json to text", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: "json" });
+      const task = new FetchUrlTask<FetchUrlTaskInput>({
+        url: "https://api.example.com/test",
+        response_type: "json",
+      });
 
       let schemaChangeEmitted = false;
       let receivedOutputSchema: any;

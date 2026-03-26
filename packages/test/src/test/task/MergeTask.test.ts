@@ -80,8 +80,8 @@ describe("MergeTask", () => {
       input_1: "one",
       input_2: "two",
     });
-    // Sorted lexicographically: input_1, input_10, input_2
-    expect(result.output).toEqual(["one", "ten", "two"]);
+    // Sorted with natural numeric ordering: input_1, input_2, input_10
+    expect(result.output).toEqual(["one", "two", "ten"]);
   });
 
   test("handles keys with underscores and dashes", async () => {

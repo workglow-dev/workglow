@@ -17,7 +17,7 @@ import {
   FromSchema,
   TypedArraySchema,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 import { TypeSingleOrArray } from "./base/AiTaskSchemas";
 
 const inputSchema = {

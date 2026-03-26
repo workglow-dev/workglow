@@ -257,7 +257,7 @@ Bob,35,Paris`;
     expect(result.csv).toEqual([]);
   });
 
-  test("throws error when content fails to load", async () => {
+  test("handles empty text file without error", async () => {
     mockFetch.mockImplementation(() =>
       Promise.resolve(
         new Response("", {
@@ -267,8 +267,10 @@ Bob,35,Paris`;
     );
 
     const task = new FileLoaderTask({ url: "https://example.com/empty.txt" });
+    const result = await task.run();
 
-    await expect(task.run()).rejects.toThrow("Failed to load content");
+    expect(result.text).toBe("");
+    expect(result.metadata.format).toBe("text");
   });
 
   test("handles empty image file gracefully", async () => {

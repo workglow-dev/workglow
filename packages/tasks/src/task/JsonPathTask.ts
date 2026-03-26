@@ -11,7 +11,7 @@ import {
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
   type: "object",
@@ -56,10 +56,12 @@ function resolvePath(obj: unknown, segments: readonly string[]): unknown {
 
   if (head === "*") {
     if (Array.isArray(obj)) {
-      return obj.map((item) => resolvePath(item, tail));
+      const results = obj.map((item) => resolvePath(item, tail));
+      return tail.length > 0 ? results.flat() : results;
     }
     if (obj !== null && typeof obj === "object") {
-      return Object.values(obj).map((v) => resolvePath(v, tail));
+      const results = Object.values(obj).map((v) => resolvePath(v, tail));
+      return tail.length > 0 ? results.flat() : results;
     }
     return undefined;
   }

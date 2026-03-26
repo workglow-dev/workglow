@@ -1,12 +1,21 @@
 {
   "extends": "../../tsconfig.json",
   "include": ["src/common.ts", "src/common-server.ts", "src/*/**/*"],
-  "files": ["./src/types.ts"],
+  "files": [
+    "./src/browser.ts",
+    "./src/node.ts",
+    "./src/bun.ts",
+    "./src/sqlite/canonical-api.ts",
+    "./src/sqlite/browser.ts",
+    "./src/sqlite/node.ts",
+    "./src/sqlite/bun.ts",
+    "./src/postgres/browser.ts",
+    "./src/postgres/node-bun.ts"
+  ],
   "exclude": ["dist", "node_modules"],
   "compilerOptions": {
     "composite": true,
     "outDir": "./dist",
-    "baseUrl": "./src",
     "rootDir": "./src"
   }
 }

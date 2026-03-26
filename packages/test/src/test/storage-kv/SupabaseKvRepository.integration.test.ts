@@ -10,7 +10,7 @@ import {
   SupabaseKvStorage,
   SupabaseTabularStorage,
 } from "@workglow/storage";
-import { uuid4, setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { afterAll, describe } from "vitest";
 import { createSupabaseMockClient } from "../helpers/SupabaseMockClient";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";

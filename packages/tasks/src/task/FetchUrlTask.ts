@@ -20,7 +20,50 @@ import {
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+const PRIVATE_IP_RANGES = [
+  /^127\./, // loopback
+  /^10\./, // Class A private
+  /^172\.(1[6-9]|2\d|3[01])\./, // Class B private
+  /^192\.168\./, // Class C private
+  /^169\.254\./, // link-local
+  /^0\./, // current network
+  /^fc00:/i, // IPv6 unique local
+  /^fe80:/i, // IPv6 link-local
+  /^::1$/, // IPv6 loopback
+  /^::$/,  // IPv6 unspecified
+];
+
+const PRIVATE_HOSTNAMES = new Set([
+  "localhost",
+  "metadata.google.internal",
+  "metadata.internal",
+]);
+
+function isPrivateUrl(urlStr: string): boolean {
+  if (globalThis?.process?.env?.WORKGLOW_ALLOW_PRIVATE_URLS === "true") {
+    return false;
+  }
+  try {
+    const parsed = new URL(urlStr);
+    const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+    if (PRIVATE_HOSTNAMES.has(hostname) || hostname.endsWith(".local")) {
+      return true;
+    }
+
+    for (const range of PRIVATE_IP_RANGES) {
+      if (range.test(hostname)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 const inputSchema = {
   type: "object",
@@ -197,6 +240,13 @@ export class FetchUrlJob<
    * Executes the job using the provided function.
    */
   async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
+    if (isPrivateUrl(input.url!)) {
+      throw new PermanentJobError(
+        `Requests to private/internal networks are not allowed: ${input.url}. ` +
+          `Set WORKGLOW_ALLOW_PRIVATE_URLS=true to override.`
+      );
+    }
+
     const response = await fetchWithProgress(
       input.url!,
       {
@@ -222,35 +272,34 @@ export class FetchUrlJob<
       };
 
       // Infer response type from response headers if not specified
-      let responseType = input.response_type;
-      if (!responseType) {
+      let resolvedResponseType = input.response_type;
+      if (!resolvedResponseType) {
         if (contentType.includes("application/json")) {
-          responseType = "json";
+          resolvedResponseType = "json";
         } else if (contentType.includes("text/")) {
-          responseType = "text";
+          resolvedResponseType = "text";
         } else if (contentType.includes("application/octet-stream")) {
-          responseType = "arraybuffer";
+          resolvedResponseType = "arraybuffer";
         } else if (
           contentType.includes("application/pdf") ||
           contentType.includes("image/") ||
           contentType.includes("application/zip")
         ) {
-          responseType = "blob";
+          resolvedResponseType = "blob";
         } else {
-          responseType = "json"; // Default fallback
+          resolvedResponseType = "json"; // Default fallback
         }
-        input.response_type = responseType;
       }
-      if (responseType === "json") {
+      if (resolvedResponseType === "json") {
         return { json: await response.json(), metadata } as Output;
-      } else if (responseType === "text") {
+      } else if (resolvedResponseType === "text") {
         return { text: await response.text(), metadata } as Output;
-      } else if (responseType === "blob") {
+      } else if (resolvedResponseType === "blob") {
         return { blob: await response.blob(), metadata } as Output;
-      } else if (responseType === "arraybuffer") {
+      } else if (resolvedResponseType === "arraybuffer") {
         return { arraybuffer: await response.arrayBuffer(), metadata } as Output;
       }
-      throw new TaskInvalidInputError(`Invalid response type: ${responseType}`);
+      throw new TaskInvalidInputError(`Invalid response type: ${resolvedResponseType}`);
     } else {
       if (
         response.status === 429 ||
@@ -260,16 +309,15 @@ export class FetchUrlJob<
         let retryDate: Date | undefined;
         const retryAfterStr = response.headers.get("Retry-After");
         if (retryAfterStr) {
-          // Try parsing as HTTP date first
-          const parsedDate = new Date(retryAfterStr);
-          if (!isNaN(parsedDate.getTime()) && parsedDate > new Date()) {
-            // Only use the date if it's in the future
-            retryDate = parsedDate;
+          // Try parsing as seconds first (the common case)
+          const seconds = Number(retryAfterStr);
+          if (Number.isFinite(seconds) && seconds > 0) {
+            retryDate = new Date(Date.now() + seconds * 1000);
           } else {
-            // If not a valid future date, treat as seconds
-            const retryAfterSeconds = parseInt(retryAfterStr) * 1000;
-            if (!isNaN(retryAfterSeconds)) {
-              retryDate = new Date(Date.now() + retryAfterSeconds);
+            // Fall back to HTTP date parsing
+            const parsedDate = new Date(retryAfterStr);
+            if (!isNaN(parsedDate.getTime()) && parsedDate > new Date()) {
+              retryDate = parsedDate;
             }
           }
         }
@@ -395,7 +443,7 @@ export class FetchUrlTask<
    * Override setInput to detect when response_type changes and emit schemaChange event.
    * This ensures that consumers of the task are notified when the output schema changes.
    */
-  public override setInput(input: Record<string, any>): void {
+  public override setInput(input: Partial<Input>): void {
     // Only check for changes if response_type is being set
     if (!("response_type" in input)) {
       super.setInput(input);

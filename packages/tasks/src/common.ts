@@ -26,6 +26,7 @@ export * from "./task/TemplateTask";
 export * from "./task/mcp/McpListTask";
 export * from "./task/mcp/McpPromptGetTask";
 export * from "./task/mcp/McpResourceReadTask";
+export * from "./task/mcp/McpSearchTask";
 export * from "./task/mcp/McpToolCallTask";
 export * from "./mcp-server/McpServerSchema";
 export * from "./mcp-server/McpServerRepository";
@@ -90,6 +91,7 @@ import { TemplateTask } from "./task/TemplateTask";
 import { McpListTask } from "./task/mcp/McpListTask";
 import { McpPromptGetTask } from "./task/mcp/McpPromptGetTask";
 import { McpResourceReadTask } from "./task/mcp/McpResourceReadTask";
+import { McpSearchTask } from "./task/mcp/McpSearchTask";
 import { McpToolCallTask } from "./task/mcp/McpToolCallTask";
 import { ScalarAbsTask } from "./task/scalar/ScalarAbsTask";
 import { ScalarAddTask } from "./task/scalar/ScalarAddTask";
@@ -150,6 +152,7 @@ export let registerCommonTasks = () => {
     McpToolCallTask,
     McpResourceReadTask,
     McpPromptGetTask,
+    McpSearchTask,
     McpListTask,
     StringConcatTask,
     StringIncludesTask,

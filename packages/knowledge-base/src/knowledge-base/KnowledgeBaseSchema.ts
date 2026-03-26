@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject, FromSchema } from "@workglow/util";
+import type { DataPortSchemaObject, FromSchema } from "@workglow/util/schema";
 
 /**
  * Schema for persisting KnowledgeBase metadata to tabular storage.

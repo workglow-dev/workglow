@@ -5,7 +5,7 @@
  */
 
 import { createServiceToken, makeFingerprint, uuid4 } from "@workglow/util";
-import type { Pool } from "pg";
+import type { Pool } from "@workglow/storage/postgres";
 import {
   IQueueStorage,
   JobStatus,

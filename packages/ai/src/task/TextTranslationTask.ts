@@ -5,27 +5,27 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
-import { TypeLanguage, TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { TypeLanguage, TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const modelSchema = TypeModel("model:TextTranslationTask");
 
-const translationTextSchema = TypeSingleOrArray({
+const translationTextSchema = {
   type: "string",
   title: "Text",
   description: "The translated text",
   "x-stream": "replace",
-});
+} as const;
 
 export const TextTranslationInputSchema = {
   type: "object",
   properties: {
-    text: TypeSingleOrArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to translate",
-    }),
+    },
     source_lang: TypeLanguage({
       title: "Source Language",
       description: "The source language",

@@ -7,10 +7,10 @@
 import {
   createAuthProvider,
   CredentialStoreOAuthProvider,
-  InMemoryCredentialStore,
   resolveAuthSecrets,
-} from "@workglow/util";
-import type { McpAuthConfig } from "@workglow/util";
+  type McpAuthConfig,
+} from "@workglow/tasks";
+import { InMemoryCredentialStore } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 
 const SERVER_URL = "https://mcp.example.com/api";

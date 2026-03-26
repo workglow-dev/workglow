@@ -1,5 +1,96 @@
 # @workglow/util
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+## 0.0.125
+
+### Features
+
+#### task-graph
+
+- integrate Chrome DevTools formatters and update imports into task-graph, which is what it is used for. done moving this around now.
+
+### Refactors
+
+#### debug
+
+- remove @workglow/debug package and integrate debug utilities into @workglow/util
+
+## 0.0.124
+
+### Refactors
+
+#### task
+
+- clean up input handling and improve parameter naming
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+#### schema
+
+- remove @workglow/schema package move to back to util
+
+## 0.0.122
+
+### Features
+
+- enhance CLI with MCP support and input handling
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- more moving around to make workers smaller (95% smaller now)
+- ai provider
+
+#### util
+
+- reorganize MCP-related and toolcalling related code
+- fixed WorkerServer based on each platform
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- enhance Workflow input handling for manual schemas
+- add chrome web browser provider (#303)
+
+### Refactors
+
+- update MCP task schemas to use properties and allOf from mcpServerConfigSchema
+- move prototype assignments to Workflow.ts to resolve circular dependency issues
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+- update telemetry provider handling and GitHub Actions workflow
+
 ## 0.0.118
 
 ### Features

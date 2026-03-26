@@ -9,7 +9,7 @@
  */
 
 import { JobQueueTaskConfig, TaskInput, type TaskOutput } from "@workglow/task-graph";
-import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util";
+import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";
 import type { ModelConfig } from "../../model/ModelSchema";
@@ -53,12 +53,22 @@ export class AiVisionTask<
     // └─────────────────────────┴──────────────────────────────────────────────────────────────┴────────────────────────────────────────────┘
     const supports: ImageDataSupport[] = ["Blob"];
     if (input.image) {
-      if (queueName === "TENSORFLOW_MEDIAPIPE" && "ImageBitmap" in globalThis) {
+      if (
+        typeof queueName === "string" &&
+        queueName.startsWith("TENSORFLOW_MEDIAPIPE") &&
+        "ImageBitmap" in globalThis
+      ) {
         supports.push("ImageBitmap");
-      } else if (queueName === "TENSORFLOW_MEDIAPIPE" && "VideoFrame" in globalThis) {
+      } else if (
+        typeof queueName === "string" &&
+        queueName.startsWith("TENSORFLOW_MEDIAPIPE") &&
+        "VideoFrame" in globalThis
+      ) {
         supports.push("VideoFrame");
       }
-      const image = await convertImageDataToUseableForm(input.image, supports);
+      const image = Array.isArray(input.image)
+        ? await Promise.all(input.image.map((img) => convertImageDataToUseableForm(img, supports)))
+        : await convertImageDataToUseableForm(input.image, supports);
       // @ts-ignore
       jobInput.taskInput.image = image;
     }

@@ -5,8 +5,8 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
-import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 
 const modelSchema = TypeModel("model:TextSummaryTask");
@@ -14,11 +14,11 @@ const modelSchema = TypeModel("model:TextSummaryTask");
 export const TextSummaryInputSchema = {
   type: "object",
   properties: {
-    text: TypeSingleOrArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text to summarize",
-    }),
+    },
     model: modelSchema,
   },
   required: ["text", "model"],
@@ -28,12 +28,12 @@ export const TextSummaryInputSchema = {
 export const TextSummaryOutputSchema = {
   type: "object",
   properties: {
-    text: TypeSingleOrArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The summarized text",
       "x-stream": "append",
-    }),
+    },
   },
   required: ["text"],
   additionalProperties: false,

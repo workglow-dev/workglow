@@ -12,7 +12,7 @@ import {
   TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 import { sumPrecise } from "../scalar/sumPrecise";
 
 const inputSchema = {

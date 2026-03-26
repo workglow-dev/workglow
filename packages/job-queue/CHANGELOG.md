@@ -1,5 +1,68 @@
 # @workglow/job-queue
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
+## 0.0.125
+
+### Documentation
+
+- README: `SqliteQueueStorage` takes an opened **`Sqlite.Database`**; call **`await Sqlite.init()`** first (see `@workglow/storage`).
+
+## 0.0.124
+
+## 0.0.123
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+### Refactors
+
+- update package exports to use source files instead of dist
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Bug Fixes
+
+#### job-queue
+
+- improve error handling during job deletion in JobQueueServer
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+
 ## 0.0.118
 
 ### Features

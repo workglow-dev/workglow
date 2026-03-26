@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util";
+import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util/schema";
 import { setNestedValue } from "../util";
 
 type SchemaProperty = DataPortSchemaNonBoolean;

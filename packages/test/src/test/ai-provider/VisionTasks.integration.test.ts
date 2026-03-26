@@ -15,17 +15,11 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
-  HF_TRANSFORMERS_ONNX,
-  HuggingFaceTransformersProvider,
-  type HfTransformersOnnxModelRecord,
-} from "@workglow/ai-provider";
-import {
   clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
-} from "@workglow/ai-provider/hf-transformers";
-// import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
+  HF_TRANSFORMERS_ONNX,
+  type HfTransformersOnnxModelRecord,
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -41,11 +35,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
   beforeEach(async () => {
     await setTaskQueueRegistry(null);
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(
-      HFT_TASKS,
-      HFT_STREAM_TASKS,
-      HFT_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerHuggingFaceTransformersInline();
     setGlobalModelRepository(new InMemoryModelRepository());
   });
   afterEach(async () => {
@@ -175,6 +165,39 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       expect(result.vector).toBeInstanceOf(Float32Array);
       expect(result.vector.length).toBeGreaterThan(0);
     }, 30000);
+
+    it("should generate image embeddings for an array of images using HFT", async () => {
+      const model: HfTransformersOnnxModelRecord = {
+        model_id: "onnx:Xenova/clip-vit-base-patch32:q8",
+        title: "CLIP ViT Base Patch32",
+        description: "Image embedding model",
+        tasks: ["ImageEmbeddingTask"],
+        provider: HF_TRANSFORMERS_ONNX,
+        provider_config: {
+          pipeline: "image-feature-extraction",
+          model_path: "Xenova/clip-vit-base-patch32",
+        },
+        metadata: {},
+      };
+      await getGlobalModelRepository().addModel(model);
+
+      const images = [TEST_IMAGE_BASE64, TEST_IMAGE_BASE64];
+
+      const result = await imageEmbedding({
+        image: images,
+        model: "onnx:Xenova/clip-vit-base-patch32:q8",
+      });
+
+      expect(result).toBeDefined();
+      expect(result.vector).toBeDefined();
+      expect(Array.isArray(result.vector)).toBe(true);
+      const vectors = result.vector as Float32Array[];
+      expect(vectors).toHaveLength(images.length);
+      for (const v of vectors) {
+        expect(v).toBeInstanceOf(Float32Array);
+        expect(v.length).toBeGreaterThan(0);
+      }
+    }, 30000);
   });
 
   describe("ObjectDetectionTask", () => {
@@ -242,7 +265,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
 
 //   beforeEach(async () => {
 //     await setTaskQueueRegistry(null);
-//     await new TensorFlowMediaPipeProvider(TFMP_TASKS).register({ mode: "inline" });
+//     await registerTensorFlowMediaPipeInline();
 //     setGlobalModelRepository(new InMemoryModelRepository());
 //   });
 //   afterEach(async () => {

@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DirectedAcyclicGraph, EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
+import { DirectedAcyclicGraph } from "@workglow/util/graph";
+import { EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";

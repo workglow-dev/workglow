@@ -12,39 +12,8 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import {
-  DataPortSchema,
-  FromSchema,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  type McpServerConfig,
-} from "@workglow/util";
-
-const mcpServerConfigKeys = Object.keys(mcpServerConfigSchema.properties);
-
-const configSchema = {
-  type: "object",
-  properties: {
-    ...TaskConfigSchema["properties"],
-    server: {
-      type: "string",
-      format: "mcp-server",
-      title: "MCP Server",
-      description: "Server ID from the MCP server registry (alternative to inline config)",
-    },
-    ...mcpServerConfigSchema.properties,
-    resource_uri: {
-      type: "string",
-      title: "Resource URI",
-      description: "The URI of the resource to read",
-      format: "string:uri:mcp-resourceuri",
-    },
-  },
-  required: ["resource_uri"],
-  anyOf: [{ required: ["server"] }, { required: ["transport"] }],
-  allOf: mcpServerConfigSchema.allOf,
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
+import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const contentItemSchema = {
   anyOf: [
@@ -93,7 +62,7 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type McpResourceReadTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
+export type McpResourceReadTaskConfig = TaskConfig & Record<string, unknown>;
 export type McpResourceReadTaskInput = FromSchema<typeof inputSchema>;
 export type McpResourceReadTaskOutput = FromSchema<typeof outputSchema>;
 
@@ -117,16 +86,40 @@ export class McpResourceReadTask extends Task<
     return outputSchema;
   }
 
-  public static configSchema() {
-    return configSchema;
+  public static configSchema(): DataPortSchema {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
+    return {
+      type: "object",
+      properties: {
+        ...TaskConfigSchema["properties"],
+        server: {
+          type: "string",
+          format: "mcp-server",
+          title: "MCP Server",
+          description: "Server ID from the MCP server registry (alternative to inline config)",
+        },
+        ...mcpServerConfigSchema.properties,
+        resource_uri: {
+          type: "string",
+          title: "Resource URI",
+          description: "The URI of the resource to read",
+          format: "string:uri:mcp-resourceuri",
+        },
+      },
+      required: ["resource_uri"],
+      anyOf: [{ required: ["server"] }, { required: ["transport"] }],
+      allOf: mcpServerConfigSchema.allOf,
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
 
   private getMcpServerConfig(): McpServerConfig {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
     const server = this.config.server as Record<string, unknown> | string | undefined;
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
     // Merge all MCP config keys from inline config; inline values override registry base
-    for (const key of mcpServerConfigKeys) {
+    for (const key of Object.keys(mcpServerConfigSchema.properties)) {
       if ((this.config as Record<string, unknown>)[key] !== undefined) {
         merged[key] = (this.config as Record<string, unknown>)[key];
       }
@@ -141,9 +134,12 @@ export class McpResourceReadTask extends Task<
     _input: McpResourceReadTaskInput,
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {
+    const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(this.getMcpServerConfig(), context.signal);
     try {
-      const result = await client.readResource({ uri: this.config.resource_uri });
+      const result = await client.readResource({
+        uri: String(this.config.resource_uri ?? ""),
+      });
       return { contents: result.contents };
     } finally {
       await client.close();

@@ -7,10 +7,19 @@
  */
 
 import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
 import { registerBaseTasks } from "@workglow/task-graph";
 import { registerCommonTasks } from "@workglow/tasks";
+import {
+  ChainedCredentialStore,
+  EnvCredentialStore,
+  setGlobalCredentialStore,
+} from "@workglow/util";
+import { EncryptedKvCredentialStore, FsFolderJsonKvStorage } from "@workglow/storage";
 import { program } from "commander";
+import { randomBytes } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 import { registerAgentCommand } from "./commands/agent";
 import { registerInitCommand } from "./commands/init";
@@ -20,14 +29,64 @@ import { registerTaskCommand } from "./commands/task";
 import { registerWorkflowCommand } from "./commands/workflow";
 import { loadConfig } from "./config";
 import { createModelRepository } from "./storage";
+import { detectCliTheme, setCliTheme } from "./terminal/detectTerminalTheme";
 
 // Register all task types so TaskRegistry is populated
 registerBaseTasks();
 registerCommonTasks();
 registerAiTasks();
 
+// Resolve or generate a persistent passphrase for the encrypted credential store.
+// Priority: WORKGLOW_CREDENTIAL_PASSPHRASE env var → persisted key file → generate and save.
+const workglowDir = path.join(homedir(), ".workglow");
+const credentialsDir = path.join(workglowDir, "credentials");
+const credentialKeyPath = path.join(workglowDir, ".credential-key");
+
+function isFsCode(err: unknown, code: string): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: string }).code === code
+  );
+}
+
+async function resolveCredentialPassphrase(): Promise<string> {
+  if (process.env.WORKGLOW_CREDENTIAL_PASSPHRASE) {
+    return process.env.WORKGLOW_CREDENTIAL_PASSPHRASE;
+  }
+  try {
+    return (await readFile(credentialKeyPath, "utf-8")).trim();
+  } catch (err) {
+    if (!isFsCode(err, "ENOENT")) {
+      throw err;
+    }
+    // Key file missing — create exclusively so concurrent CLIs agree on one key (wx + EEXIST → re-read).
+    const key = randomBytes(32).toString("hex");
+    await mkdir(path.dirname(credentialKeyPath), { recursive: true });
+    try {
+      await writeFile(credentialKeyPath, key, { mode: 0o600, flag: "wx" });
+      return key;
+    } catch (writeErr) {
+      if (isFsCode(writeErr, "EEXIST")) {
+        return (await readFile(credentialKeyPath, "utf-8")).trim();
+      }
+      throw writeErr;
+    }
+  }
+}
+
+// Set up global credential store: encrypted file-based (for persistent credential storage) + env var fallback
+const credentialPassphrase = await resolveCredentialPassphrase();
+const encryptedStore = new EncryptedKvCredentialStore(
+  new FsFolderJsonKvStorage(credentialsDir),
+  credentialPassphrase
+);
+setGlobalCredentialStore(new ChainedCredentialStore([encryptedStore, new EnvCredentialStore()]));
+
 // Set up global model repository backed by filesystem
 const config = await loadConfig();
+setCliTheme(await detectCliTheme());
 const modelRepo = createModelRepository(config);
 await modelRepo.setupDatabase();
 setGlobalModelRepository(modelRepo);
@@ -35,9 +94,8 @@ setGlobalModelRepository(modelRepo);
 // Expose model cache path to the HFT worker via env var
 process.env.WORKGLOW_MODEL_CACHE = path.join(config.directories.cache, "onnx");
 
-await new HuggingFaceTransformersProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+await registerHuggingFaceTransformers({
+  worker: () => new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
 });
 
 program.version("2.0.0").description("Workglow CLI — manage models, workflows, agents, and tasks");

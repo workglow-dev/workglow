@@ -4,11 +4,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
+import path from "node:path";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, Static } from "ink";
+import type { TaskGraph } from "@workglow/task-graph";
+import {
+  sortCliTaskLinesForDisplay,
+  startGraphTaskPoll,
+  startTaskInstancePoll,
+  type TaskFileProgressRow,
+} from "./cliTaskUi";
+import { CLI_SPINNER_FRAMES } from "./components/CliSpinner";
 import { ProgressBar } from "./components/ProgressBar";
 import { StreamOutput } from "./components/StreamOutput";
-import { TaskStatusLine } from "./components/TaskStatusLine";
+import { TaskStatusProgressRow } from "./components/TaskStatusProgressRow";
+import { useCliTheme } from "./CliThemeContext";
+import type { CliTaskLine, IterationSlotRow } from "./taskGraphCliSubscriptions";
+import {
+  iterationSlotToTaskStatus,
+  sortIterationSlotsForDisplay,
+  subscribeTaskGraphForCli,
+} from "./taskGraphCliSubscriptions";
 
 interface TaskRunAppProps {
   readonly task: {
@@ -27,22 +43,94 @@ interface LogLine {
   readonly text: string;
 }
 
-export function TaskRunApp({ task, taskType, onComplete, onError }: TaskRunAppProps): React.ReactElement {
+/** Batched progress UI when there is no per-file download list (keeps Ink calm). */
+interface TaskRunDisplayBatch {
+  readonly spin: number;
+  readonly progress: number;
+  readonly message: string | undefined;
+}
+
+const SPINNER_MOD = CLI_SPINNER_FRAMES.length;
+
+function mapTaskFiles(task: unknown): TaskFileProgressRow[] {
+  const t = task as { files?: TaskFileProgressRow[] };
+  return Array.isArray(t.files) ? t.files.map((f) => ({ file: f.file, progress: f.progress })) : [];
+}
+
+function fileListsEqual(
+  a: readonly TaskFileProgressRow[],
+  b: readonly TaskFileProgressRow[]
+): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].file !== b[i].file || a[i].progress !== b[i].progress) return false;
+  }
+  return true;
+}
+
+/** Matches per-file {@link ProgressBar} width in download mode. */
+const DOWNLOAD_PROGRESS_BAR_WIDTH = 10;
+
+export function TaskRunApp({
+  task,
+  taskType,
+  onComplete,
+  onError,
+}: TaskRunAppProps): React.ReactElement {
+  const theme = useCliTheme();
+  const bodyColor = theme.level === "advanced" ? theme.fg : undefined;
   const [status, setStatus] = useState("PENDING");
-  const [progress, setProgress] = useState<number | undefined>(undefined);
-  const [progressMessage, setProgressMessage] = useState<string | undefined>(undefined);
+  const progressRef = useRef({ prog: 0, msg: undefined as string | undefined });
+  const [batch, setBatch] = useState<TaskRunDisplayBatch>({
+    spin: 0,
+    progress: 0,
+    message: undefined,
+  });
+  const [downloadFiles, setDownloadFiles] = useState<TaskFileProgressRow[]>([]);
   const [streamText, setStreamText] = useState("");
   const [logs, setLogs] = useState<LogLine[]>([]);
+  const [subTaskInfos, setSubTaskInfos] = useState<Map<string, CliTaskLine>>(new Map());
+  const [subOverallProgress, setSubOverallProgress] = useState<number | undefined>(undefined);
+  const [subIterationSlots, setSubIterationSlots] = useState<Map<string, IterationSlotRow[]>>(
+    new Map()
+  );
+
+  const showFileDownloadList = downloadFiles.length > 0;
+  /** One header row + optional file list — avoids a pre-files row (default bar width) then a second row after `files` appears. */
+  const isDownloadModelTask = taskType === "DownloadModelTask";
+
   useEffect(() => {
     let logCounter = 0;
+
+    const flushTaskDisplay = (): void => {
+      const fileList = mapTaskFiles(task);
+      const t = task as unknown as { progress?: number };
+      const prog = typeof t.progress === "number" ? t.progress : progressRef.current.prog;
+      const msg = progressRef.current.msg;
+      if (fileList.length > 0) {
+        setDownloadFiles((prev) => (fileListsEqual(prev, fileList) ? prev : fileList));
+        setBatch((prev) => ({
+          spin: (prev.spin + 1) % SPINNER_MOD,
+          progress: prog,
+          message: msg,
+        }));
+        return;
+      }
+      setDownloadFiles([]);
+      setBatch((prev) => ({
+        spin: (prev.spin + 1) % SPINNER_MOD,
+        progress: prog,
+        message: msg,
+      }));
+    };
 
     task.events.on("status", (newStatus: string) => {
       setStatus(newStatus);
     });
 
     task.events.on("progress", (prog: number, msg?: string) => {
-      setProgress(prog);
-      if (msg) setProgressMessage(msg);
+      progressRef.current.prog = prog;
+      if (msg) progressRef.current.msg = msg;
     });
 
     task.events.on("stream_chunk", (event: { type: string; text?: string }) => {
@@ -60,31 +148,165 @@ export function TaskRunApp({ task, taskType, onComplete, onError }: TaskRunAppPr
       });
     });
 
+    const stopPollTask = startTaskInstancePoll(
+      () => task as unknown as { status?: string },
+      setStatus
+    );
+
+    let unsubSubgraph: (() => void) | undefined;
+    let stopSubPoll: (() => void) | undefined;
+
+    /** Attach once when `hasChildren()` becomes true (may happen after `run()` starts). */
+    const tryAttachSubgraph = (): void => {
+      if (unsubSubgraph) return;
+      const compound = task as unknown as { hasChildren?: () => boolean; subGraph?: TaskGraph };
+      if (
+        typeof compound.hasChildren !== "function" ||
+        !compound.hasChildren() ||
+        !compound.subGraph
+      ) {
+        return;
+      }
+      unsubSubgraph = subscribeTaskGraphForCli(
+        compound.subGraph,
+        setSubTaskInfos,
+        undefined,
+        setSubOverallProgress,
+        setSubIterationSlots
+      );
+      stopSubPoll = startGraphTaskPoll(compound.subGraph, setSubTaskInfos);
+    };
+
+    tryAttachSubgraph();
+    const attachInterval = setInterval(tryAttachSubgraph, 150);
+
+    flushTaskDisplay();
+    /** 200ms batches high-frequency download updates so Ink stays responsive. */
+    const displayInterval = setInterval(flushTaskDisplay, 200);
+
     task
       .run()
       .then((result) => onComplete(result))
       .catch((err) => onError(err));
+
+    return () => {
+      clearInterval(attachInterval);
+      clearInterval(displayInterval);
+      stopPollTask();
+      unsubSubgraph?.();
+      stopSubPoll?.();
+    };
   }, []);
+
+  const subOrder =
+    typeof (task as unknown as { hasChildren?: () => boolean }).hasChildren === "function" &&
+    (task as unknown as { hasChildren: () => boolean }).hasChildren() &&
+    (task as unknown as { subGraph?: TaskGraph }).subGraph
+      ? new Map(
+          (task as unknown as { subGraph: TaskGraph }).subGraph
+            .getTasks()
+            .map((t, i) => [String(t.id), i])
+        )
+      : new Map<string, number>();
+  const orderedSubTasks = sortCliTaskLinesForDisplay(Array.from(subTaskInfos.values()), subOrder);
+  /** One child with the same type as the parent is usually the same logical work (e.g. job mirror); hide to avoid duplicate rows. */
+  const subgraphIsRedundantDuplicate =
+    orderedSubTasks.length === 1 && orderedSubTasks[0]?.type === taskType;
+  /** Job queue may register multiple subgraph tasks of the same type (mirrors); hide when all match the parent. */
+  const subgraphIsAllSameTypeMirror =
+    isDownloadModelTask &&
+    orderedSubTasks.length > 1 &&
+    orderedSubTasks.every((t) => t.type === taskType);
+  /** Per-file download UI already reflects progress; subgraph rows duplicate the parent row (often another DownloadModelTask). */
+  const hideSubtasksWhileDownloadFileUi = isDownloadModelTask && showFileDownloadList;
+  const showSubtasksSection =
+    !hideSubtasksWhileDownloadFileUi &&
+    !subgraphIsRedundantDuplicate &&
+    !subgraphIsAllSameTypeMirror &&
+    (subTaskInfos.size > 0 || subOverallProgress !== undefined);
 
   return (
     <Box flexDirection="column">
       <Static items={logs}>
         {(log) => (
-          <Text key={log.id}>{log.text}</Text>
+          <Text key={log.id} color={bodyColor}>
+            {log.text}
+          </Text>
         )}
       </Static>
 
       <Box flexDirection="column">
-        <TaskStatusLine
+        <TaskStatusProgressRow
           type={taskType}
           status={status}
-          progress={progress}
-          message={progressMessage}
+          message={isDownloadModelTask ? undefined : batch.message}
+          barProgress={batch.progress}
+          spinnerFrame={batch.spin}
+          progressBarWidth={isDownloadModelTask ? DOWNLOAD_PROGRESS_BAR_WIDTH : undefined}
         />
-        {progress !== undefined && status === "PROCESSING" && (
-          <ProgressBar progress={progress} />
+        {showFileDownloadList && (
+          <Box paddingLeft={2} flexDirection="column">
+            {downloadFiles.map((f) => (
+              <Box key={f.file} flexDirection="row" flexWrap="nowrap" alignItems="center">
+                <Box flexGrow={1} minWidth={0} overflow="hidden" marginRight={1}>
+                  <Text dimColor wrap="truncate-end">
+                    {path.basename(f.file)}
+                  </Text>
+                </Box>
+                <Box flexShrink={0}>
+                  <ProgressBar progress={f.progress} width={DOWNLOAD_PROGRESS_BAR_WIDTH} />
+                </Box>
+              </Box>
+            ))}
+          </Box>
         )}
         {streamText && <StreamOutput text={streamText} />}
+        {showSubtasksSection && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text dimColor>Subtasks</Text>
+            <Box paddingLeft={2} flexDirection="column">
+              {subOverallProgress !== undefined && (
+                <Box flexDirection="row" justifyContent="space-between" width="100%">
+                  <Text color={bodyColor}>Subgraph: </Text>
+                  <Box flexShrink={0} marginLeft={1}>
+                    <ProgressBar progress={subOverallProgress} />
+                  </Box>
+                </Box>
+              )}
+              {orderedSubTasks.map((t) => {
+                const slots = subIterationSlots.get(t.id);
+                const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
+                return (
+                  <Box key={t.id} flexDirection="column">
+                    <TaskStatusProgressRow
+                      type={t.type}
+                      status={t.status}
+                      message={t.message}
+                      barProgress={t.progress ?? 0}
+                    />
+                    {sortedSlots.map((slot) => (
+                      <Box
+                        key={`${t.id}-iter-${slot.index}`}
+                        flexDirection="column"
+                        paddingLeft={2}
+                      >
+                        <TaskStatusProgressRow
+                          type={`#${slot.index + 1}`}
+                          status={iterationSlotToTaskStatus(slot.status)}
+                          message={slot.status === "completed" ? undefined : slot.message}
+                          barProgress={slot.progress ?? 0}
+                          suppressProgressBar={
+                            slot.status !== "running" || slot.progress === undefined
+                          }
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
       </Box>
     </Box>
   );

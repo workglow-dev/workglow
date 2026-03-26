@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, EventEmitter, ServiceRegistry } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import type { EventEmitter, ServiceRegistry } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ITaskGraph } from "../task-graph/ITaskGraph";
 import { IWorkflow } from "../task-graph/IWorkflow";
@@ -172,13 +173,13 @@ export interface ITaskIO<Input extends TaskInput> {
   get title(): string; // gets local access for static title property
   get description(): string; // gets local access for static description property
 
-  setDefaults(defaults: Record<string, any>): void;
+  setDefaults(defaults: Partial<Input>): void;
   resetInputData(): void;
-  setInput(input: Record<string, any>): void;
-  addInput(overrides: Record<string, any> | undefined): boolean;
-  validateInput(input: Record<string, any>): Promise<boolean>;
+  setInput(input: Partial<Input>): void;
+  addInput(overrides: Partial<Input> | undefined): boolean;
+  validateInput(input: Input): Promise<boolean>;
   get cacheable(): boolean;
-  narrowInput(input: Record<string, any>, registry: ServiceRegistry): Promise<Record<string, any>>;
+  narrowInput(input: Partial<Input>, registry: ServiceRegistry): Promise<Partial<Input>>;
 }
 
 export interface ITaskInternalGraph {

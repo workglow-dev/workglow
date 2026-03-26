@@ -10,14 +10,11 @@ import {
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
-import { LOCAL_LLAMACPP, type LlamaCppModelRecord } from "@workglow/ai-provider";
+import { LOCAL_LLAMACPP, type LlamaCppModelRecord } from "@workglow/ai-provider/llamacpp";
 import {
   disposeLlamaCppResources,
-  LLAMACPP_REACTIVE_TASKS,
-  LLAMACPP_STREAM_TASKS,
-  LLAMACPP_TASKS,
-  LlamaCppProvider,
-} from "@workglow/ai-provider/llamacpp";
+  registerLlamaCppInline,
+} from "@workglow/ai-provider/llamacpp/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 
@@ -60,11 +57,7 @@ runGenericAiProviderTests({
     setLogger(logger);
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
-    await new LlamaCppProvider(
-      LLAMACPP_TASKS,
-      LLAMACPP_STREAM_TASKS,
-      LLAMACPP_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerLlamaCppInline();
 
     await getGlobalModelRepository().addModel(model);
 

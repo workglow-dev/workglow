@@ -148,11 +148,22 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
   ) {
     const listeners: EventListeners<EventListenerTypes, Event> | undefined = this.listeners[event];
     if (listeners) {
-      listeners.forEach(({ listener }) => {
-        listener(...args);
-      });
+      // Snapshot the listener array to avoid issues with concurrent modification
+      const snapshot = [...listeners];
+      const errors: unknown[] = [];
+      for (const { listener } of snapshot) {
+        try {
+          listener(...args);
+        } catch (e) {
+          errors.push(e);
+        }
+      }
       // Remove once listeners we just called
       this.listeners[event] = listeners.filter((l) => !l.once);
+      // Re-throw the first error after all listeners have been called
+      if (errors.length > 0) {
+        throw errors[0];
+      }
     }
   }
 

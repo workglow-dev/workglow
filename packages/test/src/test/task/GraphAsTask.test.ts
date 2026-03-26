@@ -5,7 +5,8 @@
  */
 
 import { Dataflow, GraphAsTask, TaskGraph } from "@workglow/task-graph";
-import { Container, DataPortSchema, ServiceRegistry, setLogger } from "@workglow/util";
+import { Container, ServiceRegistry, setLogger } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {

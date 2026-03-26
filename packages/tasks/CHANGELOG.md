@@ -1,5 +1,86 @@
 # @workglow/tasks
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+## 0.0.125
+
+## 0.0.124
+
+### Refactors
+
+#### task
+
+- enhance input handling with Partial types
+- clean up input handling and improve parameter naming
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- implement CLI task UI components and subscription handling
+
+#### mcp
+
+- move implemention of MCP search functionality into new McpSearchTask and integrate with CLI
+
+### Refactors
+
+- update package exports to use source files instead of dist
+
+#### util
+
+- reorganize MCP-related and toolcalling related code
+
+#### mcp
+
+- enhance MCP search functionality with pagination support
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+- introduce AgentTask for multi-turn agentic loops
+
+### Refactors
+
+- update MCP task schemas to use properties and allOf from mcpServerConfigSchema
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+
 ## 0.0.118
 
 ### Features

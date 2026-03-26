@@ -43,6 +43,7 @@ export class DirectedAcyclicGraph<
 
     toRet.nodes = (graph as any).nodes;
     toRet.adjacency = (graph as any).adjacency;
+    toRet.nodeIndexMap = (graph as any).nodeIndexMap;
 
     return toRet;
   }
@@ -128,9 +129,9 @@ export class DirectedAcyclicGraph<
       }
       toReturn.push(curNode);
 
-      adjCopy[nodeIndices.indexOf(n[0])]?.forEach((edge, index) => {
+      adjCopy[this.getNodeIndex(n[0])]?.forEach((edge, index) => {
         if (edge !== null) {
-          adjCopy[nodeIndices.indexOf(n[0])][index] = null;
+          adjCopy[this.getNodeIndex(n[0])][index] = null;
           const target = nodeInDegrees.get(nodeIndices[index]);
           if (target !== undefined) {
             nodeInDegrees.set(nodeIndices[index], target - 1);

@@ -12,23 +12,18 @@ import {
   setGlobalModelRepository,
 } from "@workglow/ai";
 import {
+  clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
   type HfTransformersOnnxModelRecord,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
-import {
-  clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
-} from "@workglow/ai-provider/hf-transformers";
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 import {
   ConcurrencyLimiter,
   JobQueueClient,
   JobQueueServer,
   RateLimiter,
 } from "@workglow/job-queue";
-import { Sqlite } from "@workglow/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import {
   InMemoryQueueStorage,
   SqliteQueueStorage,
@@ -45,6 +40,7 @@ import { setLogger, sleep } from "@workglow/util";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
+await Sqlite.init();
 const db = new Sqlite.Database(":memory:");
 
 describe("HFTransformersBinding", () => {
@@ -80,12 +76,7 @@ describe("HFTransformersBinding", () => {
 
       client.attach(server);
       clearPipelineCache();
-      await new HuggingFaceTransformersProvider(
-        HFT_TASKS,
-        HFT_STREAM_TASKS,
-        HFT_REACTIVE_TASKS
-      ).register({
-        mode: "inline",
+      await registerHuggingFaceTransformersInline({
         queue: { autoCreate: false },
       });
       queueRegistry.registerQueue({ server, client, storage });
@@ -159,12 +150,7 @@ describe("HFTransformersBinding", () => {
 
       client.attach(server);
 
-      await new HuggingFaceTransformersProvider(
-        HFT_TASKS,
-        HFT_STREAM_TASKS,
-        HFT_REACTIVE_TASKS
-      ).register({
-        mode: "inline",
+      await registerHuggingFaceTransformersInline({
         queue: { autoCreate: false },
       });
       queueRegistry.registerQueue({ server, client, storage });

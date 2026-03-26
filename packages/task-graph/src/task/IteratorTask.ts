@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, PropertySchema } from "@workglow/util";
+import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
@@ -189,6 +189,8 @@ export function createArraySchema(baseSchema: PropertySchema): PropertySchema {
 
 /**
  * Extracts the base (scalar) schema from a potentially wrapped schema.
+ * Only unwraps flexible schemas (T | T[]) and plain arrays.
+ * Preserves discriminated unions (oneOf/anyOf) that aren't flexible wrappers.
  */
 export function extractBaseSchema(schema: PropertySchema): PropertySchema {
   const schemaType = (schema as Record<string, unknown>).type;
@@ -199,22 +201,38 @@ export function extractBaseSchema(schema: PropertySchema): PropertySchema {
   const variants =
     (schema as Record<string, unknown>).oneOf ?? (schema as Record<string, unknown>).anyOf;
   if (Array.isArray(variants)) {
+    // Only unwrap if this is a flexible schema (T | T[]) pattern.
+    // Discriminated unions (e.g., oneOf: [string, object]) should be preserved as-is.
+    let hasScalar = false;
+    let hasArray = false;
+    let scalarVariant: PropertySchema | undefined;
+    let arrayVariant: PropertySchema | undefined;
+
     for (const variant of variants) {
       if (typeof variant === "object") {
-        const variantType = (variant as Record<string, unknown>).type;
-        if (variantType !== "array") {
-          return variant as PropertySchema;
+        const v = variant as Record<string, unknown>;
+        if (v.type === "array" || "items" in v) {
+          hasArray = true;
+          arrayVariant = variant as PropertySchema;
+        } else {
+          hasScalar = true;
+          scalarVariant = variant as PropertySchema;
         }
       }
     }
-    for (const variant of variants) {
-      if (typeof variant === "object") {
-        const variantType = (variant as Record<string, unknown>).type;
-        if (variantType === "array" && (variant as Record<string, unknown>).items) {
-          return (variant as Record<string, unknown>).items as PropertySchema;
-        }
-      }
+
+    if (hasScalar && hasArray && variants.length === 2) {
+      // This is a flexible (T | T[]) wrapper — extract the scalar base
+      return scalarVariant!;
     }
+
+    if (!hasScalar && hasArray && arrayVariant) {
+      // All variants are arrays — extract items from the first array variant
+      return (arrayVariant as Record<string, unknown>).items as PropertySchema;
+    }
+
+    // Not a flexible wrapper — preserve the union as-is
+    return schema;
   }
 
   return schema;

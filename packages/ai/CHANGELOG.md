@@ -1,5 +1,100 @@
 # @workglow/ai
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### ai
+
+- refine model search output schema with specific model type
+- enhance model search functionality with query filtering
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
+## 0.0.125
+
+## 0.0.124
+
+### Features
+
+#### ai-provider
+
+- add displayName property to AiProvider and its implementations
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- more moving around to make workers smaller (95% smaller now)
+- split the sdk off to worker only
+- ai provider
+
+#### ai-provider
+
+- introduce queued providers for various AI models
+
+#### util
+
+- reorganize MCP-related and toolcalling related code
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+- enhance AgentTask and content block handling enabling multimedia
+- introduce AgentTask for multi-turn agentic loops
+
+### Bug Fixes
+
+- handle content block arrays in prompt for message conversion (#302)
+- improve type imports and message handling in AgentTask and tests
+
+### Refactors
+
+- unify tool call handling across providers
+- enhance tool handling and message conversion
+
+### Chores
+
+- release 14 packages
+- update dependencies and account for api changes
+- update tsconfig to avoid node_modules
+- update VSCode settings and refactor task categories
+
 ## 0.0.118
 
 ### Features

@@ -12,7 +12,7 @@ import {
 } from "@workglow/ai";
 import type { ToolDefinition } from "@workglow/ai";
 import { Task, TaskRegistry } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 const sampleTools: ToolDefinition[] = [
@@ -94,9 +94,7 @@ describe("ToolCallingTask shared utilities", () => {
     });
 
     test("should return empty array when all names are unknown", () => {
-      const toolCalls = [
-        { id: "call_0", name: "unknown", input: {} },
-      ];
+      const toolCalls = [{ id: "call_0", name: "unknown", input: {} }];
 
       const result = filterValidToolCalls(toolCalls, sampleTools);
       expect(result).toHaveLength(0);
@@ -108,9 +106,7 @@ describe("ToolCallingTask shared utilities", () => {
     });
 
     test("should handle entries without name property", () => {
-      const toolCalls = [
-        { id: "call_0", name: "", input: {} },
-      ];
+      const toolCalls = [{ id: "call_0", name: "", input: {} }];
 
       const result = filterValidToolCalls(toolCalls, sampleTools);
       expect(result).toHaveLength(0);

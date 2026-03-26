@@ -12,16 +12,11 @@ import {
   TextEmbeddingTaskOutput,
 } from "@workglow/ai";
 import {
+  clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
   type HfTransformersOnnxModelRecord,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
-import {
-  clearPipelineCache,
-  HFT_REACTIVE_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_TASKS,
-} from "@workglow/ai-provider/hf-transformers";
+  registerHuggingFaceTransformersInline,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
@@ -37,11 +32,7 @@ describe("TextEmbeddingTask with real models", () => {
     await setTaskQueueRegistry(null);
     setGlobalModelRepository(new InMemoryModelRepository());
     clearPipelineCache();
-    await new HuggingFaceTransformersProvider(
-      HFT_TASKS,
-      HFT_STREAM_TASKS,
-      HFT_REACTIVE_TASKS
-    ).register({ mode: "inline" });
+    await registerHuggingFaceTransformersInline();
   });
 
   afterAll(async () => {
@@ -153,6 +144,46 @@ describe("TextEmbeddingTask with real models", () => {
       // Verify the vector has meaningful values
       const vectorSum = Array.from(vector).reduce((sum, val) => sum + Math.abs(val as number), 0);
       expect(vectorSum).toBeGreaterThan(0);
+    }, 120000);
+
+    it("should generate embeddings for a direct array of texts (batch)", async () => {
+      // Reuses the gte-small model registered and downloaded by the first test
+      const texts = [
+        "The quick brown fox jumps over the lazy dog",
+        "Machine learning is a subset of artificial intelligence",
+        "Embeddings capture semantic meaning of text",
+      ];
+
+      const embeddingWorkflow = new Workflow();
+      embeddingWorkflow.textEmbedding({
+        model: "onnx:Xenova/gte-small:q8",
+        text: texts,
+      });
+
+      const result = (await embeddingWorkflow.run()) as TextEmbeddingTaskOutput;
+
+      // Should produce an array of embeddings (one per input text)
+      expect(result).toBeDefined();
+      expect(result.vector).toBeDefined();
+      expect(Array.isArray(result.vector)).toBe(true);
+      const vectors = result.vector as Float32Array[];
+      expect(vectors).toHaveLength(texts.length);
+
+      // Each embedding should be the correct dimension and non-trivial
+      for (let i = 0; i < texts.length; i++) {
+        const vector = vectors[i];
+        expect(vector instanceof Float32Array).toBe(true);
+        expect(vector.length).toBe(384);
+
+        const vectorSum = Array.from(vector).reduce((sum, val) => sum + Math.abs(val), 0);
+        expect(vectorSum).toBeGreaterThan(0);
+      }
+
+      // Verify different texts produce different embeddings
+      const v0 = Array.from(vectors[0]);
+      const v1 = Array.from(vectors[1]);
+      const diff = v0.reduce((sum, val, i) => sum + Math.abs(val - v1[i]), 0);
+      expect(diff).toBeGreaterThan(0);
     }, 120000);
 
     it("should generate embeddings for an array of texts using map", async () => {

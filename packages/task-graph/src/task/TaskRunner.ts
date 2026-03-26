@@ -156,7 +156,8 @@ export class TaskRunner<
         { registry: this.registry }
       )) as Input;
 
-      const isValid = await this.task.validateInput(this.task.runInputData);
+      const inputs: Input = this.task.runInputData as Input;
+      const isValid = await this.task.validateInput(inputs);
       if (!isValid) {
         throw new TaskInvalidInputError("Invalid input data");
       }
@@ -166,7 +167,6 @@ export class TaskRunner<
         throw new TaskAbortedError("Promise for task created and aborted before run");
       }
 
-      const inputs: Input = this.task.runInputData as Input;
       let outputs: Output | undefined;
 
       const isStreamable = isTaskStreamable(this.task);
@@ -257,13 +257,14 @@ export class TaskRunner<
     await this.handleStartReactive();
 
     try {
-      const isValid = await this.task.validateInput(this.task.runInputData);
+      const inputs: Input = this.task.runInputData as Input;
+      const isValid = await this.task.validateInput(inputs);
       if (!isValid) {
         throw new TaskInvalidInputError("Invalid input data");
       }
 
       const resultReactive = await this.executeTaskReactive(
-        this.task.runInputData as Input,
+        inputs,
         this.task.runOutputData as Output
       );
 
@@ -558,10 +559,10 @@ export class TaskRunner<
     this.task.emit("status", this.task.status);
   }
   private updateProgress = async (
-    task: ITask,
-    progress: number,
-    message?: string,
-    ...args: any[]
+    _task: ITask,
+    _progress: number,
+    _message?: string,
+    ..._args: any[]
   ) => {};
 
   protected async handleStartReactive(): Promise<void> {
@@ -694,7 +695,8 @@ export class TaskRunner<
     ...args: any[]
   ): Promise<void> {
     this.task.progress = progress;
-    await this.updateProgress(this.task, progress, message, ...args);
+    // Emit before graph-level work (e.g. pushOutputFromNodeToEdges) so listeners are not stalled.
     this.task.emit("progress", progress, message, ...args);
+    await this.updateProgress(this.task, progress, message, ...args);
   }
 }

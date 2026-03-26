@@ -12,7 +12,8 @@ import {
   Task,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema, uuid4 } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { uuid4 } from "@workglow/util";
 
 const inputSchema = {
   type: "object",

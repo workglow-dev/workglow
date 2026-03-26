@@ -5,7 +5,7 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
 
@@ -44,7 +44,7 @@ export class DownloadModelTask extends AiTask<
   JobQueueTaskConfig
 > {
   public static type = "DownloadModelTask";
-  public static category = "AI Text Model";
+  public static category = "AI Model";
   public static title = "Download Model";
   public static description = "Downloads and caches AI models locally with progress tracking";
   public static inputSchema(): DataPortSchema {
@@ -74,9 +74,28 @@ export class DownloadModelTask extends AiTask<
   processProgress(
     progress: number,
     message: string = "",
-    details?: { file?: string; progress: number; text?: number }
+    details?: {
+      file?: string;
+      progress?: number;
+      /** Full snapshot (e.g. Hugging Face transformers pipeline); per-file % derived from loaded/total */
+      files?: Record<string, { loaded: number; total: number }>;
+      text?: number;
+    }
   ): void {
-    if (details?.file) {
+    if (details?.files && typeof details.files === "object") {
+      const entries = Object.entries(details.files);
+      if (entries.length > 0) {
+        this.files = entries
+          .map(([file, info]) => ({
+            file,
+            progress: info.total > 0 ? (info.loaded / info.total) * 100 : 0,
+          }))
+          .sort((a, b) => a.file.localeCompare(b.file));
+        this.progress = progress;
+        return;
+      }
+    }
+    if (details?.file !== undefined && details.progress !== undefined) {
       const file = this.files.find((f) => f.file === details.file);
       if (file) {
         file.progress = details.progress;

@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, type DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { getLogger } from "@workglow/util";
 import { evaluateCondition, getNestedValue, type UIConditionConfig } from "./ConditionUtils";
 import type { IExecuteContext } from "./ITask";
 import { Task } from "./Task";

@@ -1,5 +1,154 @@
 # @workglow/test
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### storage
+
+- move @workglow/sqlite package into @workglow/storage/sqlite and add @workglow/storage/postgresql
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
+## 0.0.125
+
+### Chores
+
+#### dependencies
+
+- update various package versions for improved stability and features
+
+#### test
+
+- mark test package as private and remove publish configuration
+
+### Updated Dependencies
+
+- `vitest`: ^4.1.1
+
+## 0.0.124
+
+### Features
+
+#### ai-provider
+
+- add displayName property to AiProvider and its implementations
+
+### Refactors
+
+#### task
+
+- enhance input handling with Partial types
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+#### schema
+
+- remove @workglow/schema package move to back to util
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- add detail commands for agent, MCP, model, task, and workflow
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- ai provider
+
+#### ai-provider
+
+- introduce queued providers for various AI models
+
+#### util
+
+- reorganize MCP-related and toolcalling related code
+
+#### task
+
+- improve JSON serialization logic in Task class
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- update dependencies and enhance Vite configuration
+- add @typescript/native-preview package and make updates for tsgo
+- rename tests to represent storage
+
+### Updated Dependencies
+
+- `@electric-sql/pglite`: ^0.4.1
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+- add Structured Generation support to HFT and LlamaCpp providers
+- add generic AI provider integration test suite
+
+### Bug Fixes
+
+- handle content block arrays in prompt for message conversion (#302)
+- resolve ai-provider test failures from mock leakage and env var … (#299)
+- OpenAI schema compatibility for structured generation and stop tool
+- revert streaming accumulation, keep test-only changes
+- accumulate text in streaming finish events, add comprehensive provider tests
+- improve type imports and message handling in AgentTask and tests
+
+#### test
+
+- enhance error handling in DownloadModelAbort integration test
+
+### Refactors
+
+- unify tool call handling across providers
+- simplify test gating and clean up documentation
+- enhance tool handling and message conversion
+
+### Chores
+
+- update bun version and improve test cleanup
+- update dependencies including upgrade to vite 8
+- release 14 packages
+- update dependencies in bun.lock and package.json
+- update dependencies and account for api changes
+- update tsconfig to avoid node_modules
+- update telemetry provider handling and GitHub Actions workflow
+
+### Updated Dependencies
+
+- `@electric-sql/pglite`: ^0.4.0
+- `vitest`: ^4.1.0
+
 ## 0.0.118
 
 ### Features

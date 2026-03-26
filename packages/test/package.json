@@ -1,89 +1,30 @@
 {
   "name": "@workglow/test",
   "type": "module",
-  "version": "0.0.118",
+  "private": true,
+  "version": "0.0.126",
   "description": "Testing utilities and test suites for Workglow packages, providing comprehensive testing infrastructure.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
     "watch-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun'",
-    "watch-browser": "bun build --splitting --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist/ ./src/browser.ts",
-    "watch-node": "bun build --splitting --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist/ ./src/node.ts",
-    "watch-bun": "bun build --splitting --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --outdir ./dist/ ./src/bun.ts",
+    "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist/ ./src/browser.ts",
+    "watch-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist/ ./src/node.ts",
+    "watch-bun": "bun build --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --outdir ./dist/ ./src/bun.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "concurrently -c 'auto' -n 'browser,node,bun,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-types'",
     "build-js": "concurrently -c 'auto' -n 'browser,node,bun' 'bun run build-browser' 'bun run build-node' 'bun run build-bun'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
-    "build-browser": "bun build --splitting --target=browser --sourcemap=external --packages=external --outdir ./dist/ ./src/browser.ts",
-    "build-node": "bun build --splitting --target=node --sourcemap=external --packages=external --outdir ./dist/ ./src/node.ts",
-    "build-bun": "bun build --splitting --target=bun --sourcemap=external --packages=external --outdir ./dist/ ./src/bun.ts",
-    "build-types": "rm -f tsconfig.tsbuildinfo && tsc",
+    "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist/ ./src/browser.ts",
+    "build-node": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist/ ./src/node.ts",
+    "build-bun": "bun build --target=bun --sourcemap=external --packages=external --outdir ./dist/ ./src/bun.ts",
+    "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test",
     "test-concurrently": "bash -c 'cmds=(); for d in ./src/test/*/; do cmds+=(\"cd $d && bun test\"); done; concurrently \"${cmds[@]}\"'"
   },
-  "exports": {
-    ".": {
-      "react-native": "./dist/browser.js",
-      "browser": "./dist/browser.js",
-      "bun": "./dist/bun.js",
-      "types": "./dist/types.d.ts",
-      "import": "./dist/node.js"
-    }
-  },
-  "files": [
-    "dist",
-    "src/**/*.md"
-  ],
-  "peerDependencies": {
-    "@workglow/ai": "workspace:*",
-    "@workglow/ai-provider": "workspace:*",
-    "@workglow/knowledge-base": "workspace:*",
-    "@workglow/job-queue": "workspace:*",
-    "@workglow/storage": "workspace:*",
-    "@workglow/task-graph": "workspace:*",
-    "@workglow/tasks": "workspace:*",
-    "@workglow/util": "workspace:*",
-    "@workglow/sqlite": "workspace:*",
-    "@electric-sql/pglite": "^0.4.0",
-    "pg": "catalog:",
-    "@supabase/supabase-js": "catalog:",
-    "@modelcontextprotocol/sdk": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "@workglow/ai": {
-      "optional": false
-    },
-    "@workglow/ai-provider": {
-      "optional": false
-    },
-    "@workglow/knowledge-base": {
-      "optional": false
-    },
-    "@workglow/job-queue": {
-      "optional": false
-    },
-    "@workglow/storage": {
-      "optional": false
-    },
-    "@workglow/task-graph": {
-      "optional": false
-    },
-    "@workglow/tasks": {
-      "optional": false
-    },
-    "@workglow/util": {
-      "optional": false
-    },
-    "@workglow/sqlite": {
-      "optional": false
-    },
-    "@modelcontextprotocol/sdk": {
-      "optional": false
-    }
-  },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",
-    "@electric-sql/pglite": "^0.4.0",
+    "@electric-sql/pglite": "catalog:",
     "@google/generative-ai": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "@huggingface/transformers": "catalog:",
@@ -92,7 +33,6 @@
     "@workglow/ai-provider": "workspace:*",
     "@workglow/knowledge-base": "workspace:*",
     "@workglow/job-queue": "workspace:*",
-    "@workglow/sqlite": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
     "@workglow/tasks": "workspace:*",
@@ -102,10 +42,7 @@
     "ollama": "catalog:",
     "openai": "catalog:",
     "pg": "catalog:",
-    "vitest": "^4.1.0",
+    "vitest": "^4.1.1",
     "@modelcontextprotocol/sdk": "catalog:"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

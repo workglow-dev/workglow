@@ -13,7 +13,7 @@ import {
   type StreamEvent,
   type StreamFinish,
 } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 
 export type InputTaskInput = Record<string, unknown>;
 export type InputTaskOutput = Record<string, unknown>;
@@ -49,10 +49,6 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
 
   public outputSchema(): DataPortSchema {
     return this.config?.outputSchema ?? (this.constructor as typeof InputTask).outputSchema();
-  }
-
-  public async execute(input: InputTaskInput) {
-    return input as InputTaskOutput;
   }
 
   public async executeReactive(input: InputTaskInput) {

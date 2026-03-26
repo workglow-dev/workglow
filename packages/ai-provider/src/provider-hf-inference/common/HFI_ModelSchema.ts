@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai";
-import { DataPortSchemaObject, FromSchema } from "@workglow/util";
+import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai/worker";
+import { DataPortSchemaObject, FromSchema } from "@workglow/util/worker";
 import { HF_INFERENCE } from "./HFI_Constants";
 
 export const HfInferenceModelSchema = {

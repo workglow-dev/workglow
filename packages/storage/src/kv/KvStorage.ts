@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createServiceToken, EventEmitter, JsonSchema, makeFingerprint } from "@workglow/util";
+import { JsonSchema } from "@workglow/util/schema";
+import { createServiceToken, EventEmitter, makeFingerprint } from "@workglow/util";
 import { JSONValue } from "../tabular/ITabularStorage";
 import {
   IKvStorage,

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util";
-import type { GraphAsTask } from "../task/GraphAsTask";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { GraphAsTask } from "../task/GraphAsTask";
 import type { IExecuteContext, ITask } from "../task/ITask";
 import { Task } from "../task/Task";
 import type { DataPorts } from "../task/TaskTypes";
@@ -30,8 +30,9 @@ export type Taskish<A extends DataPorts = DataPorts, B extends DataPorts = DataP
   | IWorkflow<A, B>;
 
 // ============================================================================
-// Wrapper classes (lazily initialized to avoid circular dependency with
-// GraphAsTask — which transitively imports Workflow which imports this file)
+// Wrapper classes (lazily initialized so GraphAsTask is not needed until
+// ensureTask wraps a graph/workflow; GraphAsTask imports TaskGraph, which
+// imports this module — deferring construction avoids init-order issues)
 // ============================================================================
 
 type GraphAsTaskConstructor = typeof GraphAsTask;
@@ -43,11 +44,7 @@ let _ConvWorkflowTask: GraphAsTaskConstructor;
 
 function getWrapperClasses() {
   if (!_OwnGraphTask) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const GaT = (require("../task/GraphAsTask") as { GraphAsTask: GraphAsTaskConstructor })
-      .GraphAsTask;
-
-    class ListeningGraphAsTask extends GaT<any, any> {
+    class ListeningGraphAsTask extends GraphAsTask<any, any> {
       constructor(input: any, config: any) {
         super(input, config);
         this.subGraph.on("start", () => {
@@ -70,11 +67,11 @@ function getWrapperClasses() {
       public static readonly type = "Own[Workflow]";
     }
 
-    class GraphTask extends GaT {
+    class GraphTask extends GraphAsTask {
       public static readonly type = "Graph";
     }
 
-    class ConvWorkflowTask extends GaT {
+    class ConvWorkflowTask extends GraphAsTask {
       public static readonly type = "Workflow";
     }
 

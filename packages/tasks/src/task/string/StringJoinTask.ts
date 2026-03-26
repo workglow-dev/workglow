@@ -11,7 +11,7 @@ import {
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
   type: "object",
@@ -69,7 +69,7 @@ export class StringJoinTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     const separator = input.separator ?? "";

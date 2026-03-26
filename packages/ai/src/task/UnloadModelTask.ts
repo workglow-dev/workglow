@@ -5,7 +5,7 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
 
@@ -44,7 +44,7 @@ export class UnloadModelTask extends AiTask<
   JobQueueTaskConfig
 > {
   public static type = "UnloadModelTask";
-  public static category = "Hidden";
+  public static category = "AI Model";
   public static title = "Unload Model";
   public static description = "Unloads and clears cached AI models from memory and storage";
   public static inputSchema(): DataPortSchema {

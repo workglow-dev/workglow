@@ -37,26 +37,31 @@ import {
 import { Workflow, getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-graph";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import { HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS, HF_TRANSFORMERS_ONNX, HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
 // 1. Set up a model repository
 const modelRepo = new InMemoryModelRepository();
 setGlobalModelRepository(modelRepo);
 
 // 2. Add a local ONNX model (Hugging Face Transformers)
+
 await modelRepo.addModel({
   model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
-  tasks: ["TextGenerationTask","TextRewriterTask"],
-  title: "LaMini-Flan-T5-783M",
-  description: "LaMini-Flan-T5-783M quantized to 8bit",
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text2text-generation",
-    model_path: "Xenova/LaMini-Flan-T5-783M"
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+  tasks: ["TextGenerationTask", "TextRewriterTask"],
+  title: "LaMini-Flan-T5-783M",
+  description: "LaMini-Flan-T5-783M quantized to 8bit",
+  metadata: {},
 });
 
-// 3. Register provider (inline mode requires HFT_TASKS via constructor, creates queue automatically)
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register({ mode: "inline" });
+// 3. Register provider (inline: full ONNX stack in this bundle; creates queue automatically)
+await registerHuggingFaceTransformersInline();
 
 // 4. Or manually set up job queue (when queue.autoCreate: false)
 const queueName = HF_TRANSFORMERS_ONNX;
@@ -102,9 +107,19 @@ Generates text based on prompts using language models.
 
 ```typescript
 import { TextGenerationTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const gpt2ModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "Xenova/gpt2",
+    dtype: "q8",
+  },
+} as const;
 
 const task = new TextGenerationTask({
-  model: "onnx:Xenova/gpt2:q8",
+  model: gpt2ModelConfig,
   prompt: "Explain quantum computing in simple terms",
 });
 
@@ -118,9 +133,20 @@ Generates vector embeddings for text using embedding models.
 
 ```typescript
 import { TextEmbeddingTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const embeddingModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+} as const;
 
 const task = new TextEmbeddingTask({
-  model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+  model: embeddingModelConfig,
   text: "This is a sample text for embedding",
 });
 
@@ -152,9 +178,19 @@ Generates summaries of longer text content.
 
 ```typescript
 import { TextSummaryTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const summarizationModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "summarization",
+    model_path: "Falconsai/text_summarization",
+    dtype: "fp32",
+  },
+} as const;
 
 const task = new TextSummaryTask({
-  model: "onnx:Falconsai/text_summarization:fp32",
+  model: summarizationModelConfig,
   text: "Long article content here...",
   maxLength: 100,
 });
@@ -169,9 +205,19 @@ Rewrites text in different styles or tones.
 
 ```typescript
 import { TextRewriterTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const laMiniModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text2text-generation",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+} as const;
 
 const task = new TextRewriterTask({
-  model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+  model: laMiniModelConfig,
   text: "This is a formal business proposal.",
   style: "casual",
 });
@@ -186,9 +232,19 @@ Answers questions based on provided context.
 
 ```typescript
 import { TextQuestionAnswerTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const squadModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "question-answering",
+    model_path: "Xenova/distilbert-base-uncased-distilled-squad",
+    dtype: "q8",
+  },
+} as const;
 
 const task = new TextQuestionAnswerTask({
-  model: "onnx:Xenova/distilbert-base-uncased-distilled-squad:q8",
+  model: squadModelConfig,
   context: "The capital of France is Paris. It has a population of about 2.1 million.",
   question: "What is the population of Paris?",
 });
@@ -205,9 +261,20 @@ Computes similarity between texts or embeddings.
 
 ```typescript
 import { VectorSimilarityTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const gteSmallConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Supabase/gte-small",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+} as const;
 
 const task = new VectorSimilarityTask({
-  model: "onnx:Supabase/gte-small:q8",
+  model: gteSmallConfig,
   text1: "I love programming",
   text2: "Coding is my passion",
 });
@@ -224,17 +291,21 @@ Downloads and prepares AI models for use.
 
 ```typescript
 import { DownloadModelTask } from "@workglow/ai";
-
-import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
 
 const task = new DownloadModelTask({
-  modelName: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
-  modelUrl: "Xenova/LaMini-Flan-T5-783M",
-  provider: HF_TRANSFORMERS_ONNX,
+  model: {
+    provider: HF_TRANSFORMERS_ONNX,
+    provider_config: {
+      pipeline: "text2text-generation",
+      model_path: "Xenova/LaMini-Flan-T5-783M",
+      dtype: "q8",
+    },
+  },
 });
 
 const result = await task.run();
-// Output: { status: "downloaded", path: "/models/..." }
+// Output includes resolved model config after download
 ```
 
 ## Model Management
@@ -265,7 +336,9 @@ setGlobalModelRepository(modelRepo);
 
 ```typescript
 import { SqliteModelRepository, setGlobalModelRepository } from "@workglow/ai";
+import { Sqlite } from "@workglow/storage/sqlite";
 
+await Sqlite.init();
 const modelRepo = new SqliteModelRepository("./models.db");
 setGlobalModelRepository(modelRepo);
 ```
@@ -292,22 +365,31 @@ setGlobalModelRepository(modelRepo);
 
 ```typescript
 import { getGlobalModelRepository } from "@workglow/ai";
-import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
 
 const modelRepo = getGlobalModelRepository();
 
+const gpt2ModelRecord = {
+  model_id: "onnx:Xenova/gpt2:q8",
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "Xenova/gpt2",
+    dtype: "q8",
+  },
+} as const;
+
 // Add an ONNX model from Hugging Face
 await modelRepo.addModel({
-  name: "onnx:Xenova/gpt2:q8",
-  url: "Xenova/gpt2",
-  provider: HF_TRANSFORMERS_ONNX,
-  availableOnBrowser: true,
-  availableOnServer: true,
-  contextWindow: 8192,
+  ...gpt2ModelRecord,
+  tasks: ["TextGenerationTask"],
+  title: "GPT-2",
+  description: "GPT-2 ONNX",
+  metadata: {},
 });
 
 // Connect model to specific tasks
-await modelRepo.connectTaskToModel("TextGenerationTask", "onnx:Xenova/gpt2:q8");
+await modelRepo.connectTaskToModel("TextGenerationTask", gpt2ModelRecord.model_id);
 
 // Find models for a specific task
 const textGenModels = await modelRepo.findModelsByTask("TextGenerationTask");
@@ -320,17 +402,10 @@ AI providers handle the actual execution of AI tasks. You need to register provi
 ### Basic Provider Registration
 
 ```typescript
-import {
-  HFT_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_REACTIVE_TASKS,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
-// Registers run functions for all supported AI tasks on the current thread (inline mode requires HFT_TASKS)
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
-  { mode: "inline" }
-);
+// Inline: run functions registered on the current thread (tasks wired inside the provider)
+await registerHuggingFaceTransformersInline();
 ```
 
 ### Worker-Based Provider Registration
@@ -338,13 +413,12 @@ await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACT
 For compute-intensive tasks that should run in workers:
 
 ```typescript
-import { HuggingFaceTransformersProvider } from "@workglow/ai-provider";
+import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
 
-await new HuggingFaceTransformersProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
+await registerHuggingFaceTransformers({
+  worker: () => new Worker(new URL("./worker_hft.ts", import.meta.url), { type: "module" }),
 });
-// Worker file must call HFT_WORKER_JOBRUN_REGISTER() from @workglow/ai-provider
+// Worker file must call registerHuggingFaceTransformersWorker() from @workglow/ai-provider/hf-transformers/runtime
 ```
 
 ### Job Queue Setup
@@ -356,7 +430,7 @@ import { getTaskQueueRegistry, TaskInput, TaskOutput } from "@workglow/task-grap
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { AiJob, AiJobInput } from "@workglow/ai";
-import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
 
 const queueName = HF_TRANSFORMERS_ONNX;
 const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(queueName);
@@ -383,22 +457,41 @@ AI tasks integrate seamlessly with Workglow workflows:
 
 ```typescript
 import { Workflow } from "@workglow/task-graph";
-import { TextGenerationTask, TextEmbeddingTask, VectorSimilarityTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const gpt2ModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "Xenova/gpt2",
+    dtype: "q8",
+  },
+} as const;
+
+const gteSmallConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Supabase/gte-small",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+} as const;
 
 const workflow = new Workflow();
 
 // Chain AI tasks together
 const result = await workflow
   .textGeneration({
-    model: "onnx:Xenova/gpt2:q8",
+    model: gpt2ModelConfig,
     prompt: "Write about artificial intelligence",
   })
   .textEmbedding({
-    model: "onnx:Supabase/gte-small:q8",
+    model: gteSmallConfig,
     text: workflow.previous().text, // Use previous task output
   })
   .similarity({
-    model: "onnx:Supabase/gte-small:q8",
+    model: gteSmallConfig,
     text1: "artificial intelligence",
     embedding2: workflow.previous().vector, // Use embedding from previous task
   })
@@ -423,12 +516,12 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 ### Vector and Storage Tasks
 
-| Task                    | Description                              |
-| ----------------------- | ---------------------------------------- |
+| Task                    | Description                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
 | `ChunkToVectorTask`     | Transforms chunks to vector store format (input: `vector` + `chunks`, output: `vectors`) |
-| `ChunkVectorUpsertTask` | Stores vectors in a KnowledgeBase (input: `knowledgeBase` + `vectors`) |
-| `ChunkVectorSearchTask` | Searches vectors by similarity           |
-| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency |
+| `ChunkVectorUpsertTask` | Stores vectors in a KnowledgeBase (input: `knowledgeBase` + `vectors`)                   |
+| `ChunkVectorSearchTask` | Searches vectors by similarity                                                           |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency                                                 |
 
 ### Retrieval and Generation Tasks
 
@@ -446,6 +539,41 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 ```typescript
 import { Workflow } from "@workglow/task-graph";
 import { createKnowledgeBase } from "@workglow/knowledge-base";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+// 1. Set up a model repository
+const modelRepo = new InMemoryModelRepository();
+setGlobalModelRepository(modelRepo);
+
+// 2. Add a local ONNX model (Hugging Face Transformers)
+await modelRepo.addModel({
+  model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text2text-generation",
+    model_path: "Xenova/LaMini-Flan-T5-783M",
+    dtype: "q8",
+  },
+  tasks: ["TextGenerationTask", "TextRewriterTask"],
+  title: "LaMini-Flan-T5-783M",
+  description: "LaMini-Flan-T5-783M quantized to 8bit",
+  metadata: {},
+});
+
+await modelRepo.addModel({
+  model_id: "onnx:Xenova/all-MiniLM-L6-v2:q8",
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "feature-extraction",
+    model_path: "Xenova/all-MiniLM-L6-v2",
+    dtype: "q8",
+    native_dimensions: 384,
+  },
+  tasks: ["TextEmbeddingTask"],
+  title: "All MiniLM L6 V2 384D",
+  description: "Xenova/all-MiniLM-L6-v2",
+  metadata: {},
+});
 
 // Create a KnowledgeBase (auto-registers globally as "my-kb")
 const kb = await createKnowledgeBase({
@@ -470,7 +598,7 @@ await new Workflow()
     strategy: "hierarchical",
   })
   .textEmbedding({
-    model: "Xenova/all-MiniLM-L6-v2",
+    model: "onnx:Xenova/all-MiniLM-L6-v2:q8",
   })
   .chunkToVector()
   .chunkVectorUpsert({
@@ -483,7 +611,7 @@ const result = await new Workflow()
   .chunkRetrieval({
     knowledgeBase: "my-kb",
     query: "What is transfer learning?",
-    model: "Xenova/all-MiniLM-L6-v2",
+    model: "onnx:Xenova/all-MiniLM-L6-v2:q8",
     topK: 10,
   })
   .reranker({
@@ -496,7 +624,7 @@ const result = await new Workflow()
   })
   .textQuestionAnswer({
     question: "What is transfer learning?",
-    model: "Xenova/LaMini-Flan-T5-783M",
+    model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
   })
   .run();
 ```
@@ -570,26 +698,24 @@ AI tasks accept model inputs as either string identifiers or direct `ModelConfig
 
 ```typescript
 import { TextGenerationTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
 
-// Using a model ID (resolved from ModelRepository)
-const task1 = new TextGenerationTask({
-  model: "onnx:Xenova/gpt2:q8",
-  prompt: "Generate text",
-});
-
-// Using a direct ModelConfig object
-const task2 = new TextGenerationTask({
-  model: {
-    model_id: "onnx:Xenova/gpt2:q8",
-    provider: "hf-transformers-onnx",
-    tasks: ["TextGenerationTask"],
-    title: "GPT-2",
-    provider_config: { pipeline: "text-generation" },
+const gpt2ModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "Xenova/gpt2",
+    dtype: "q8",
   },
+} as const;
+
+// Inline ModelConfig (provider + provider_config)
+const task = new TextGenerationTask({
+  model: gpt2ModelConfig,
   prompt: "Generate text",
 });
 
-// Both approaches work identically
+// Registered model_id strings (e.g. onnx:org/model:q8) are still resolved via ModelRepository when you pass a string instead
 ```
 
 This resolution is handled by the input resolver system, which inspects schema `format` annotations (like `"model"` or `"model:TextGenerationTask"`) to determine how string values should be resolved.
@@ -609,9 +735,21 @@ This resolution is handled by the input resolver system, which inspects schema `
 Tasks automatically validate that specified models exist and are compatible:
 
 ```typescript
+import { TextGenerationTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const gpt2ModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "Xenova/gpt2",
+    dtype: "q8",
+  },
+} as const;
+
 // Models are validated before task execution
 const task = new TextGenerationTask({
-  model: "onnx:Xenova/gpt2:q8", // Must exist in ModelRepository and be connected to TextGenerationTask
+  model: gpt2ModelConfig,
   prompt: "Generate text",
 });
 
@@ -623,8 +761,20 @@ const task = new TextGenerationTask({
 Monitor AI task progress:
 
 ```typescript
+import { TextGenerationTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const gpt2ModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "Xenova/gpt2",
+    dtype: "q8",
+  },
+} as const;
+
 const task = new TextGenerationTask({
-  model: "onnx:Xenova/gpt2:q8",
+  model: gpt2ModelConfig,
   prompt: "Long generation task...",
 });
 
@@ -640,10 +790,22 @@ const result = await task.run();
 All AI tasks support cancellation via AbortSignal:
 
 ```typescript
+import { TextGenerationTask } from "@workglow/ai";
+import { HF_TRANSFORMERS_ONNX } from "@workglow/ai-provider/hf-transformers";
+
+const gpt2ModelConfig = {
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "Xenova/gpt2",
+    dtype: "q8",
+  },
+} as const;
+
 const controller = new AbortController();
 
 const task = new TextGenerationTask({
-  model: "onnx:Xenova/gpt2:q8",
+  model: gpt2ModelConfig,
   prompt: "Generate text...",
 });
 
@@ -674,7 +836,9 @@ const modelRepo = new IndexedDbModelRepository();
 
 ```typescript
 import { SqliteModelRepository } from "@workglow/ai";
+import { Sqlite } from "@workglow/storage/sqlite";
 
+await Sqlite.init();
 // Use SQLite for server-side storage
 const modelRepo = new SqliteModelRepository("./models.db");
 ```

@@ -5,7 +5,7 @@
  */
 
 import { IndexedDbQueueStorage, IndexedDbTabularStorage } from "@workglow/storage";
-import { sleep, uuid4, setLogger } from "@workglow/util";
+import { setLogger, sleep, uuid4 } from "@workglow/util";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";

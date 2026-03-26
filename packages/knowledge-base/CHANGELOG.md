@@ -1,5 +1,66 @@
 # @workglow/knowledge-base
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### storage
+
+- move @workglow/sqlite package into @workglow/storage/sqlite and add @workglow/storage/postgresql
+
+## 0.0.125
+
+## 0.0.124
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+### Refactors
+
+- update package exports to use source files instead of dist
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Refactors
+
+- update KnowledgeBaseRepository to use ITabularStorage type
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+
 ## 0.0.118
 
 ### Features

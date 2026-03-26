@@ -7,7 +7,7 @@
 import { hierarchicalChunker } from "@workglow/ai";
 import { estimateTokens, StructuralParser } from "@workglow/knowledge-base";
 import { Workflow } from "@workglow/task-graph";
-import { uuid4, setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

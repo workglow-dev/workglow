@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { JsonSchema, type DataPortSchema } from "@workglow/util/schema";
 import {
   EventEmitter,
   getLogger,
-  JsonSchema,
   ServiceRegistry,
   uuid4,
-  type DataPortSchema,
   type EventParameters,
 } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";

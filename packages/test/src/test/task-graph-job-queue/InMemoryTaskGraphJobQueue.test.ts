@@ -7,7 +7,7 @@
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
-import { uuid4, setLogger } from "@workglow/util";
+import { setLogger, uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { runGenericTaskGraphJobQueueTests, TestJob } from "./genericTaskGraphJobQueueTests";
 import { getTestingLogger } from "../../binding/TestingLogger";

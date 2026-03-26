@@ -4,9 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, Task, TaskConfig, TaskConfigSchema, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import {
+  CreateWorkflow,
+  Task,
+  TaskConfig,
+  TaskConfigSchema,
+  TaskInvalidInputError,
+  Workflow,
+} from "@workglow/task-graph";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { Interpreter } from "../util/interpreter";
+
+const isValidIdentifier = (key: string) => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
 
 const configSchema = {
   type: "object",
@@ -101,18 +110,22 @@ export class JavaScriptTask extends Task<
   }
 
   async executeReactive(input: JavaScriptTaskInput, output: JavaScriptTaskOutput) {
-    if (this.config.javascript_code || input.javascript_code) {
+    const code = input.javascript_code || this.config.javascript_code;
+    if (code) {
       try {
-        const inputVariables = Object.keys(input).filter((key) => key !== "javascript_code");
+        const inputVariables = Object.keys(input)
+          .filter((key) => key !== "javascript_code")
+          .filter(isValidIdentifier);
         const inputVariablesString = inputVariables
           .map((key) => `var ${key} = ${JSON.stringify(input[key])};`)
           .join("\n");
-        const myInterpreter = new Interpreter(`${inputVariablesString} ${input.javascript_code}`);
+        const myInterpreter = new Interpreter(`${inputVariablesString} ${code}`);
         myInterpreter.run();
         output.output = myInterpreter.value;
-        // console.log("output", output.output);
       } catch (e) {
-        // console.error("error", e);
+        throw new TaskInvalidInputError(
+          `JavaScript execution failed: ${e instanceof Error ? e.message : String(e)}`
+        );
       }
     }
     return output;

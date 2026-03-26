@@ -5,7 +5,7 @@
  */
 
 import { ITabularStorage } from "@workglow/storage";
-import { DataPortSchemaObject, FromSchema } from "@workglow/util";
+import { DataPortSchemaObject, FromSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 export const CompoundPrimaryKeyNames = ["name", "type"] as const;

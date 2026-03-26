@@ -7,10 +7,10 @@
 import {
   DataPortSchemaNonBoolean,
   TypedArray,
-  uuid4,
   VectorFromSchema,
   type DataPortSchema,
-} from "@workglow/util";
+} from "@workglow/util/schema";
+import { uuid4 } from "@workglow/util";
 
 import {
   GraphAsTask,
@@ -25,18 +25,19 @@ import {
   TaskOutput,
 } from "@workglow/task-graph";
 
-export const TypeReplicateArray = <const T extends DataPortSchemaNonBoolean>(
+export function TypeReplicateArray<const T extends DataPortSchemaNonBoolean>(
   type: T,
   annotations: Record<string, unknown> = {}
-) =>
-  ({
+): DataPortSchemaNonBoolean {
+  return {
     oneOf: [type, { type: "array", items: type }],
     title: type.title,
     description: type.description,
     ...(type.format ? { format: type.format } : {}),
     ...annotations,
     "x-replicate": true,
-  }) as const;
+  };
+}
 
 /**
  * Removes array types from a union, leaving only non-array types.

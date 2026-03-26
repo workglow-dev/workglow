@@ -1,5 +1,99 @@
 # workglow
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### storage
+
+- move @workglow/sqlite package into @workglow/storage/sqlite and add @workglow/storage/postgresql
+
+#### example-web
+
+- refactor storage implementation and update model imports
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
+## 0.0.125
+
+### Features
+
+#### workglow
+
+- implement custom build script and update package.json for improved build process
+- add worker entry points for browser, Bun, and Node environments in consolidated workglow bundle
+
+#### task-graph
+
+- integrate Chrome DevTools formatters and update imports into task-graph, which is what it is used for. done moving this around now.
+
+#### cli
+
+- enhance CLI integration with task and workflow commands
+
+#### storage
+
+- SQLite: **`await Sqlite.init()`** before opening a database; same entrypoint on Node, Bun, and browser (re-exported from `workglow`)
+
+### Refactors
+
+#### debug
+
+- remove @workglow/debug package and integrate debug utilities into @workglow/util
+
+## 0.0.124
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+### Refactors
+
+- update package exports to use source files instead of dist
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- ai provider
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Chores
+
+- release 14 packages
+
 ## 0.0.118
 
 ### Features

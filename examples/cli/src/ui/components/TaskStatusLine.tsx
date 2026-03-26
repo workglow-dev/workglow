@@ -6,35 +6,49 @@
 
 import React from "react";
 import { Text } from "ink";
+import { cliTaskShowsProgressBar, cliTaskStatusGlyph, cliTaskStatusGlyphColor } from "../cliTaskUi";
+import { useCliTheme } from "../CliThemeContext";
+import { CliSpinner } from "./CliSpinner";
 
 interface TaskStatusLineProps {
   readonly type: string;
   readonly status: string;
-  readonly progress?: number;
   readonly message?: string;
+  /**
+   * When false, use a static status column (no {@link CliSpinner}) even while running.
+   * Avoids multiple spinners + frequent redraws that can confuse Ink/log-update.
+   */
+  readonly animateStatus?: boolean;
+  /** When set with animation, parent supplies spinner frame (batched refresh). */
+  readonly spinnerFrame?: number;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: "gray",
-  PROCESSING: "yellow",
-  COMPLETED: "green",
-  FAILED: "red",
-  ABORTED: "red",
-};
 
 export function TaskStatusLine({
   type,
   status,
-  progress,
   message,
+  animateStatus = true,
+  spinnerFrame,
 }: TaskStatusLineProps): React.ReactElement {
-  const color = STATUS_COLORS[status] ?? "white";
-  const progressText = progress !== undefined ? ` ${Math.round(progress)}%` : "";
+  const theme = useCliTheme();
+  const glyph = cliTaskStatusGlyph(status);
+  const color = theme.level === "advanced" ? cliTaskStatusGlyphColor(status) : undefined;
+  const bodyColor = theme.level === "advanced" ? theme.fg : undefined;
   const msgText = message ? ` — ${message}` : "";
+  const showSpinner = cliTaskShowsProgressBar(status) && animateStatus;
 
   return (
-    <Text>
-      <Text color={color}>[{status}]</Text> {type}{progressText}{msgText}
+    <Text wrap="truncate-end">
+      {showSpinner ? (
+        <CliSpinner color={color} frameIndex={spinnerFrame} />
+      ) : (
+        <Text color={color}>{glyph}</Text>
+      )}
+      <Text color={bodyColor}>
+        {" "}
+        {type}
+        {msgText}
+      </Text>
     </Text>
   );
 }

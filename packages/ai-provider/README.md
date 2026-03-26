@@ -41,24 +41,11 @@ npm install @mediapipe/tasks-text @mediapipe/tasks-vision @mediapipe/tasks-audio
 ### 1. Basic Setup
 
 ```typescript
-import {
-  HFT_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_REACTIVE_TASKS,
-  HuggingFaceTransformersProvider,
-  TFMP_TASKS,
-  TFMP_STREAM_TASKS,
-  TFMP_REACTIVE_TASKS,
-  TensorFlowMediaPipeProvider,
-} from "@workglow/ai-provider";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
+import { registerTensorFlowMediaPipeInline } from "@workglow/ai-provider/tf-mediapipe/runtime";
 
-// Register AI providers (inline mode requires task maps via constructor)
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
-  { mode: "inline" }
-);
-await new TensorFlowMediaPipeProvider(TFMP_TASKS, TFMP_STREAM_TASKS, TFMP_REACTIVE_TASKS).register({
-  mode: "inline",
-});
+await registerHuggingFaceTransformersInline();
+await registerTensorFlowMediaPipeInline();
 ```
 
 ### 2. Using AI Tasks in Workflows
@@ -90,6 +77,10 @@ const result = await workflow
   )
   .run();
 ```
+
+## Main entry vs `…/runtime`
+
+Each provider export (for example `@workglow/ai-provider/openai`) exposes schemas, constants, and the **lightweight** `register*` helper that attaches a `Worker` factory. SDK client modules (`*Client.ts`), MediaPipe loaders (`TFMP_Client`), and LlamaCpp runtime helpers (`LlamaCpp_Runtime`) live under **`@workglow/ai-provider/<name>/runtime`** together with `register*Inline` / `register*Worker` (which pull in `*JobRunFns`). Import those from `runtime`, not from the main barrel, so the main bundle stays small.
 
 ## Available Providers
 
@@ -247,21 +238,15 @@ For better performance, especially in browser environments, run AI inference in 
 #### Main Thread Setup
 
 ```typescript
-import {
-  HuggingFaceTransformersProvider,
-  TensorFlowMediaPipeProvider,
-} from "@workglow/ai-provider";
+import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
+import { registerTensorFlowMediaPipe } from "@workglow/ai-provider/tf-mediapipe";
 
-// Register HuggingFace Transformers with worker (no task map needed on main thread)
-await new HuggingFaceTransformersProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./hft-worker.ts", import.meta.url), { type: "module" }),
+await registerHuggingFaceTransformers({
+  worker: () => new Worker(new URL("./hft-worker.ts", import.meta.url), { type: "module" }),
 });
 
-// Register MediaPipe with worker (no task map needed on main thread)
-await new TensorFlowMediaPipeProvider().register({
-  mode: "worker",
-  worker: new Worker(new URL("./tfmp-worker.ts", import.meta.url), { type: "module" }),
+await registerTensorFlowMediaPipe({
+  worker: () => new Worker(new URL("./tfmp-worker.ts", import.meta.url), { type: "module" }),
 });
 ```
 
@@ -270,19 +255,17 @@ await new TensorFlowMediaPipeProvider().register({
 **hft-worker.ts:**
 
 ```typescript
-import { HFT_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider";
+import { registerHuggingFaceTransformersWorker } from "@workglow/ai-provider/hf-transformers/runtime";
 
-// Register HuggingFace Transformers worker functions
-HFT_WORKER_JOBRUN_REGISTER();
+registerHuggingFaceTransformersWorker();
 ```
 
 **tfmp-worker.ts:**
 
 ```typescript
-import { TFMP_WORKER_JOBRUN_REGISTER } from "@workglow/ai-provider";
+import { registerTensorFlowMediaPipeWorker } from "@workglow/ai-provider/tf-mediapipe/runtime";
 
-// Register MediaPipe worker functions
-TFMP_WORKER_JOBRUN_REGISTER();
+registerTensorFlowMediaPipeWorker();
 ```
 
 ### Model Management
@@ -304,28 +287,17 @@ await downloadTask.execute();
 ### Custom Job Queue Configuration
 
 ```typescript
-import {
-  HFT_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_REACTIVE_TASKS,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 
 // Register with custom queue concurrency (provider creates queue with concurrency: 2)
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
-  {
-    mode: "inline",
-    queue: { concurrency: 2 },
-  }
-);
+await registerHuggingFaceTransformersInline({
+  queue: { concurrency: 2 },
+});
 
 // Or skip auto-creation and use your own queue:
-await new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS, HFT_REACTIVE_TASKS).register(
-  {
-    mode: "inline",
-    queue: { autoCreate: false },
-  }
-);
+await registerHuggingFaceTransformersInline({
+  queue: { autoCreate: false },
+});
 // Then register your custom queue with getTaskQueueRegistry().registerQueue(...)
 ```
 
@@ -369,22 +341,13 @@ await task.execute();
 ## Complete Working Example
 
 ```typescript
-import {
-  HFT_TASKS,
-  HFT_STREAM_TASKS,
-  HFT_REACTIVE_TASKS,
-  HuggingFaceTransformersProvider,
-} from "@workglow/ai-provider";
+import { registerHuggingFaceTransformersInline } from "@workglow/ai-provider/hf-transformers/runtime";
 import { TextGenerationTask, TextEmbeddingTask } from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
 
 async function main() {
-  // 1. Register the AI provider (inline mode requires HFT_TASKS via constructor)
-  await new HuggingFaceTransformersProvider(
-    HFT_TASKS,
-    HFT_STREAM_TASKS,
-    HFT_REACTIVE_TASKS
-  ).register({ mode: "inline" });
+  // 1. Register the AI provider (inline ONNX in this bundle)
+  await registerHuggingFaceTransformersInline();
 
   // 2. Create and run workflow
   const workflow = new Workflow();

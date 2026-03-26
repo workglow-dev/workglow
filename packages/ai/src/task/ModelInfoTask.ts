@@ -4,8 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import {
+  CreateWorkflow,
+  type IExecuteContext,
+  JobQueueTaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { ModelConfig } from "../model/ModelSchema";
+import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
 
@@ -36,6 +43,12 @@ const ModelInfoOutputSchema = {
     is_cached: { type: "boolean" },
     is_loaded: { type: "boolean" },
     file_sizes: {},
+    quantizations: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Available quantization variants (e.g. fp32, fp16, q8). Only present for models with quantization options.",
+    },
   },
   required: [
     "model",
@@ -62,7 +75,8 @@ export class ModelInfoTask extends AiTask<
   JobQueueTaskConfig
 > {
   public static type = "ModelInfoTask";
-  public static category = "Hidden";
+  public static category = "AI Model";
+  public static cacheable = false;
   public static title = "Model Info";
   public static description =
     "Returns runtime information about a model including locality, cache status, and file sizes";
@@ -72,7 +86,17 @@ export class ModelInfoTask extends AiTask<
   public static outputSchema(): DataPortSchema {
     return ModelInfoOutputSchema satisfies DataPortSchema;
   }
-  public static cacheable = false;
+
+  async execute(input: ModelInfoTaskInput, context: IExecuteContext): Promise<ModelInfoTaskOutput> {
+    const model = input.model as ModelConfig;
+    const registry = getAiProviderRegistry();
+    const noop = () => {};
+    const runFn = registry.getDirectRunFn<ModelInfoTaskInput, ModelInfoTaskOutput>(
+      model.provider,
+      "ModelInfoTask"
+    );
+    return runFn(input, model, noop, context.signal);
+  }
 }
 
 /**

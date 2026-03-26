@@ -22,14 +22,7 @@ import {
   VectorSubtractTask,
   VectorSumTask,
 } from "@workglow/tasks";
-import {
-  Container,
-  getLogger,
-  NullLogger,
-  ServiceRegistry,
-  setLogger,
-  sleep,
-} from "@workglow/util";
+import { Container, NullLogger, ServiceRegistry, getLogger, setLogger, sleep } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   NumberTask,

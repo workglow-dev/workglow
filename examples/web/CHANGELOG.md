@@ -1,5 +1,103 @@
 # @workglow/web
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### storage
+
+- move @workglow/sqlite package into @workglow/storage/sqlite and add @workglow/storage/postgresql
+
+#### example-web
+
+- refactor storage implementation and update model imports
+
+## 0.0.125
+
+### Features
+
+#### task-graph
+
+- integrate Chrome DevTools formatters and update imports into task-graph, which is what it is used for. done moving this around now.
+
+### Refactors
+
+#### debug
+
+- remove @workglow/debug package and integrate debug utilities into @workglow/util
+
+### Chores
+
+#### dependencies
+
+- update various package versions for improved stability and features
+
+### Updated Dependencies
+
+- `vite`: ^8.0.2
+
+## 0.0.124
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+## 0.0.122
+
+### Refactors
+
+- split the sdk off to worker only
+- reorg ai-provider a bit more
+- ai provider
+
+#### ai-provider
+
+- introduce queued providers for various AI models
+
+### Chores
+
+- update dependencies and enhance Vite configuration
+- makes example/web build types and code at the same time
+- add rollup-plugin-visualizer for bundle analysis
+- add @typescript/native-preview package and make updates for tsgo
+
+### Updated Dependencies
+
+- `@vitejs/plugin-react`: ^6.0.1
+
+## 0.0.121
+
+### Chores
+
+- updated "@huggingface/transformers" to version 4.0.0-next.8.
+
+### Updated Dependencies
+
+- `vite`: ^8.0.1
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Chores
+
+- update dependencies including upgrade to vite 8
+- release 14 packages
+
+### Updated Dependencies
+
+- `vite`: ^8.0.0
+
 ## 0.0.118
 
 ### Features

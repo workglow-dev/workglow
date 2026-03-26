@@ -26,7 +26,10 @@ All implementations extend `TaskOutputRepository` abstract class and provide:
 - Event emitters for storage operations
 
 ```typescript
-// Example usage
+// Example usage (SQLite bindings require Sqlite.init first)
+import { Sqlite } from "@workglow/storage/sqlite";
+
+await Sqlite.init();
 const outputRepo = new SqliteTaskOutputRepository(":memory:");
 await outputRepo.saveOutput("MyTaskType", { param: "value" }, { result: "data" });
 ```

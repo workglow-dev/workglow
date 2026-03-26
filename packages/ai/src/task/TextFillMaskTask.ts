@@ -5,20 +5,20 @@
  */
 
 import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
-import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 
 const modelSchema = TypeModel("model:TextFillMaskTask");
 
 export const TextFillMaskInputSchema = {
   type: "object",
   properties: {
-    text: TypeSingleOrArray({
+    text: {
       type: "string",
       title: "Text",
       description: "The text with a mask token to fill",
-    }),
+    },
     model: modelSchema,
   },
   required: ["text", "model"],
@@ -28,7 +28,7 @@ export const TextFillMaskInputSchema = {
 export const TextFillMaskOutputSchema = {
   type: "object",
   properties: {
-    predictions: TypeSingleOrArray({
+    predictions: {
       type: "array",
       items: {
         type: "object",
@@ -54,7 +54,7 @@ export const TextFillMaskOutputSchema = {
       },
       title: "Predictions",
       description: "The predicted tokens to fill the mask with their scores and complete sequences",
-    }),
+    },
   },
   required: ["predictions"],
   additionalProperties: false,

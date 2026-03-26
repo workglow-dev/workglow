@@ -11,3 +11,13 @@ export {
   createAgentRepository,
   createMcpServerRepository,
 } from "./storage";
+export {
+  withCli,
+  type Tasklike,
+  type WithCliGraphHandle,
+  type WithCliHandle,
+  type WithCliOptions,
+  type WithCliTaskHandle,
+  type WithCliWorkflowHandle,
+} from "./run-interactive";
+export { renderTaskInstanceRun, renderTaskRun, renderWorkflowRun } from "./ui/render";

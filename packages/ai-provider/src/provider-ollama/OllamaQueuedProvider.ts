@@ -1,0 +1,40 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  QueuedAiProvider,
+  type AiProviderReactiveRunFn,
+  type AiProviderRunFn,
+  type AiProviderStreamFn,
+} from "@workglow/ai";
+import { OLLAMA } from "./common/Ollama_Constants";
+import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
+
+/** Main-thread registration (inline or worker-backed); creates the default job queue. */
+export class OllamaQueuedProvider extends QueuedAiProvider<OllamaModelConfig> {
+  readonly name = OLLAMA;
+  readonly displayName = "Ollama";
+  readonly isLocal = true;
+  readonly supportsBrowser = true;
+
+  readonly taskTypes = [
+    "ModelInfoTask",
+    "TextGenerationTask",
+    "TextEmbeddingTask",
+    "TextRewriterTask",
+    "TextSummaryTask",
+    "ToolCallingTask",
+    "ModelSearchTask",
+  ] as const;
+
+  constructor(
+    tasks?: Record<string, AiProviderRunFn<any, any, OllamaModelConfig>>,
+    streamTasks?: Record<string, AiProviderStreamFn<any, any, OllamaModelConfig>>,
+    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, OllamaModelConfig>>
+  ) {
+    super(tasks, streamTasks, reactiveTasks);
+  }
+}

@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema, ServiceRegistry } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import type { ServiceRegistry } from "@workglow/util";
 import { getInputResolvers } from "@workglow/util";
 
 /**

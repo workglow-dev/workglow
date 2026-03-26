@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TaskRegistry } from "@workglow/task-graph";
-import type { DataPortSchemaObject } from "@workglow/util";
+import { TaskRegistry, type ITask } from "@workglow/task-graph";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
 import { formatError, formatTable, outputResult } from "../util";
 import {
@@ -25,7 +25,10 @@ type TaskConstructor = {
   readonly description?: string;
   inputSchema(): unknown;
   configSchema?(): unknown;
-  new (input: Record<string, unknown>, config: Record<string, unknown>): {
+  new (
+    input: Record<string, unknown>,
+    config: Record<string, unknown>
+  ): {
     run(overrides?: Record<string, unknown>): Promise<unknown>;
     events: {
       on(event: string, fn: (...args: any[]) => void): void;
@@ -212,17 +215,10 @@ export function registerTaskCommand(program: Command): void {
       }
 
       try {
-        if (process.stdout.isTTY) {
-          const { renderTaskRun } = await import("../ui/render");
-          await renderTaskRun(Ctor, input, {
-            outputJsonFile: opts.outputJsonFile as string | undefined,
-            config: taskConfig,
-          });
-        } else {
-          const instance = new Ctor(input, taskConfig);
-          const result = await instance.run();
-          await outputResult(result, opts.outputJsonFile as string | undefined);
-        }
+        const { withCli } = await import("../run-interactive");
+        const instance = new Ctor(input, taskConfig) as ITask;
+        const result = await withCli(instance, { suppressResultOutput: true }).run();
+        await outputResult(result, opts.outputJsonFile as string | undefined);
       } catch (err) {
         console.error(`Error: ${formatError(err)}`);
         process.exit(1);

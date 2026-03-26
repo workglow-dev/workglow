@@ -14,8 +14,25 @@ TaskOutputRepository is a repository for task caching. If a task has the same in
 
 ```typescript
 // Example usage
-import { SqliteTaskOutputRepository } from "@workglow/test"; // pre-bound implementation for sqlite
-const outputRepo = new SqliteTaskOutputRepository(":memory:");
+import {
+  TaskOutputPrimaryKeyNames,
+  TaskOutputSchema,
+  TaskOutputTabularRepository,
+} from "@workglow/task-graph";
+import { SqliteTabularStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
+
+await Sqlite.init();
+
+const outputRepo = new TaskOutputTabularRepository({
+  tabularRepository: new SqliteTabularStorage(
+    ":memory:",
+    "task_outputs",
+    TaskOutputSchema,
+    TaskOutputPrimaryKeyNames,
+    ["createdAt"]
+  ),
+});
 await outputRepo.saveOutput("MyTaskType", { param: "value" }, { result: "data" });
 ```
 
@@ -31,9 +48,38 @@ The `TaskGraphRepository` class provides:
 
 ```typescript
 // Example usage
-import { SqliteTaskGraphRepository } from "@workglow/test"; // pre-bound implementation for sqlite
-const fsRepo = new FsFolderTaskGraphRepository("./storage");
-const memoryRepo = new InMemoryTaskGraphRepository();
+import {
+  TaskGraphPrimaryKeyNames,
+  TaskGraphSchema,
+  TaskGraphTabularRepository,
+} from "@workglow/task-graph";
+import {
+  FsFolderTabularStorage,
+  InMemoryTabularStorage,
+  SqliteTabularStorage,
+} from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
+
+const fsRepo = new TaskGraphTabularRepository({
+  tabularRepository: new FsFolderTabularStorage(
+    "./storage",
+    TaskGraphSchema,
+    TaskGraphPrimaryKeyNames
+  ),
+});
+const memoryRepo = new TaskGraphTabularRepository({
+  tabularRepository: new InMemoryTabularStorage(TaskGraphSchema, TaskGraphPrimaryKeyNames),
+});
+
+await Sqlite.init();
+const sqliteRepo = new TaskGraphTabularRepository({
+  tabularRepository: new SqliteTabularStorage(
+    ":memory:",
+    "task_graphs",
+    TaskGraphSchema,
+    TaskGraphPrimaryKeyNames
+  ),
+});
 ```
 
 ## Testing

@@ -6,7 +6,7 @@
 
 import { IndexedDbTabularStorage } from "@workglow/storage";
 import { setLogger, uuid4 } from "@workglow/util";
-import type { DataPortSchemaObject, FromSchema } from "@workglow/util";
+import type { DataPortSchemaObject, FromSchema } from "@workglow/util/schema";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

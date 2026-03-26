@@ -4,14 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  createServiceToken,
-  DataPortSchemaObject,
-  FromSchema,
-  makeFingerprint,
-  TypedArraySchemaOptions,
-  uuid4,
-} from "@workglow/util";
+import { DataPortSchemaObject, FromSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
+import { createServiceToken, makeFingerprint, uuid4 } from "@workglow/util";
 import {
   BaseTabularStorage,
   ClientProvidedKeysOption,

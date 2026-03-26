@@ -4,15 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Sqlite } from "@workglow/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import {
-  createServiceToken,
   DataPortSchemaObject,
   FromSchema,
   JsonSchema,
   TypedArraySchemaOptions,
-  uuid4,
-} from "@workglow/util";
+} from "@workglow/util/schema";
+import { createServiceToken, uuid4 } from "@workglow/util";
 import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import { ClientProvidedKeysOption, KeyGenerationStrategy } from "./BaseTabularStorage";
 import {
@@ -36,8 +35,6 @@ type ExcludeDateKeyOptionType = Exclude<string | number | bigint, Date>;
 export const SQLITE_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.sqlite"
 );
-
-const Database = Sqlite.Database;
 
 // SqliteTabularStorage is a key-value store that uses SQLite as the backend for
 // in app data.
@@ -87,7 +84,7 @@ export class SqliteTabularStorage<
   ) {
     super(table, schema, primaryKeyNames, indexes, clientProvidedKeys);
     if (typeof dbOrPath === "string") {
-      this.db = new Database(dbOrPath);
+      this.db = new Sqlite.Database(dbOrPath);
     } else {
       this.db = dbOrPath;
     }
@@ -770,7 +767,7 @@ export class SqliteTabularStorage<
    */
   async size(): Promise<number> {
     const db = this.db;
-    const stmt = db.prepare<{ count: number }, []>(`
+    const stmt = db.prepare<unknown[], { count: number }>(`
       SELECT COUNT(*) AS count FROM \`${this.table}\`
     `);
     return stmt.get()?.count || 0;
@@ -787,7 +784,7 @@ export class SqliteTabularStorage<
     const orderByClause = this.primaryKeyColumns()
       .map((col) => `\`${String(col)}\``)
       .join(", ");
-    const stmt = db.prepare<Entity, [number, number]>(`
+    const stmt = db.prepare<[number, number], Entity>(`
       SELECT * FROM \`${this.table}\` ORDER BY ${orderByClause} LIMIT ? OFFSET ?
     `);
     const rows = stmt.all(limit, offset);

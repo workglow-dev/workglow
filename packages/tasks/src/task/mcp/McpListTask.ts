@@ -5,40 +5,10 @@
  */
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import {
-  DataPortSchema,
-  FromSchema,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  type McpServerConfig,
-} from "@workglow/util";
+import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
-const mcpServerConfigKeys = Object.keys(mcpServerConfigSchema.properties);
-
-const inputSchema = {
-  type: "object",
-  properties: {
-    server: {
-      type: "string",
-      format: "mcp-server",
-      title: "MCP Server",
-      description: "Server ID from the MCP server registry (alternative to inline config)",
-    },
-    ...mcpServerConfigSchema.properties,
-    list_type: {
-      type: "string",
-      enum: mcpListTypes,
-      title: "List Type",
-      description: "The type of items to list from the MCP server",
-    },
-  },
-  required: ["list_type"],
-  anyOf: [{ required: ["server"] }, { required: ["transport"] }],
-  allOf: mcpServerConfigSchema.allOf,
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
-
 const iconSchema = {
   type: "object",
   properties: {
@@ -198,8 +168,10 @@ const outputSchemaAll = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type McpListTaskInput = FromSchema<typeof inputSchema>;
 export type McpListTaskOutput = FromSchema<typeof outputSchemaAll>;
+
+/** MCP list input (transport + server config fields, plus task-specific fields like list_type). */
+export type McpListTaskInput = Record<string, unknown>;
 
 export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskConfig> {
   public static type = "McpListTask";
@@ -209,8 +181,30 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   static readonly cacheable = false;
   public static hasDynamicSchemas: boolean = true;
 
-  public static inputSchema() {
-    return inputSchema;
+  public static inputSchema(): DataPortSchema {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
+    return {
+      type: "object",
+      properties: {
+        server: {
+          type: "string",
+          format: "mcp-server",
+          title: "MCP Server",
+          description: "Server ID from the MCP server registry (alternative to inline config)",
+        },
+        ...mcpServerConfigSchema.properties,
+        list_type: {
+          type: "string",
+          enum: mcpListTypes,
+          title: "List Type",
+          description: "The type of items to list from the MCP server",
+        },
+      },
+      required: ["list_type"],
+      anyOf: [{ required: ["server"] }, { required: ["transport"] }],
+      allOf: mcpServerConfigSchema.allOf,
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
 
   public static outputSchema() {
@@ -236,7 +230,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     }
   }
 
-  public override setInput(input: Record<string, unknown>): void {
+  public override setInput(input: Partial<McpListTaskInput>): void {
     if (!("list_type" in input)) {
       super.setInput(input);
       return;
@@ -252,6 +246,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   }
 
   private getMcpServerConfig(input: McpListTaskInput): McpServerConfig {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
     const server = (input as Record<string, unknown>).server as
       | Record<string, unknown>
       | string
@@ -259,7 +254,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
     // Merge all MCP config keys from inline input; inline values override registry base
-    for (const key of mcpServerConfigKeys) {
+    for (const key of Object.keys(mcpServerConfigSchema.properties)) {
       const val = (input as Record<string, unknown>)[key];
       if (val !== undefined) {
         merged[key] = val;
@@ -272,12 +267,11 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   }
 
   async execute(input: McpListTaskInput, context: IExecuteContext): Promise<McpListTaskOutput> {
-    const { client } = await mcpClientFactory.create(
-      this.getMcpServerConfig(input),
-      context.signal
-    );
+    const { mcpClientFactory } = getMcpTaskDeps();
+    const { client } = await mcpClientFactory.create(this.getMcpServerConfig(input), context.signal);
+    const listType = input.list_type;
     try {
-      switch (input.list_type) {
+      switch (listType) {
         case "tools": {
           const result = await client.listTools();
           return { tools: result.tools };
@@ -291,7 +285,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
           return { prompts: result.prompts };
         }
         default:
-          throw new Error(`Unsupported list type: ${input.list_type}`);
+          throw new Error(`Unsupported list type: ${String(listType)}`);
       }
     } finally {
       await client.close();

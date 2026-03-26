@@ -5,16 +5,16 @@
  */
 
 import { RateLimiter } from "@workglow/job-queue";
-import { Sqlite } from "@workglow/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { SqliteQueueStorage, SqliteRateLimiterStorage } from "@workglow/storage";
 import { describe } from "vitest";
 import { runGenericJobQueueTests } from "./genericJobQueueTests";
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-const db = new Sqlite.Database(":memory:");
-
-describe("SqliteJobQueue", () => {
+describe("SqliteJobQueue", async () => {
+  await Sqlite.init();
+  const db = new Sqlite.Database(":memory:");
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericJobQueueTests(

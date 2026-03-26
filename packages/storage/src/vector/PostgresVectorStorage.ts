@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cosineSimilarity } from "@workglow/util";
+import { cosineSimilarity } from "@workglow/util/schema";
 import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
   TypedArraySchemaOptions,
-} from "@workglow/util";
-import type { Pool } from "pg";
+} from "@workglow/util/schema";
+import type { Pool } from "@workglow/storage/postgres";
 import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
 import {
   getMetadataProperty,

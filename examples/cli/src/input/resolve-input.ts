@@ -5,8 +5,9 @@
  */
 
 import { readFile } from "fs/promises";
-import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util";
+import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util/schema";
 import { readStdin } from "../util";
+import { evaluateConditionalRequired } from "./schema-conditions";
 
 function parseJson(source: string, label: string): unknown {
   try {
@@ -96,9 +97,7 @@ export async function readJsonInput(opts: {
       return parseJson(stdinContent, "stdin");
     }
   }
-  throw new Error(
-    "No input provided. Use --input-json, --input-json-file, or pipe JSON to stdin."
-  );
+  throw new Error("No input provided. Use --input-json, --input-json-file, or pipe JSON to stdin.");
 }
 
 /**
@@ -145,6 +144,7 @@ export interface ValidationResult {
 /**
  * Validate input against a DataPortSchemaObject.
  * Checks required properties and basic type matching.
+ * Conditional required fields use {@link evaluateConditionalRequired} (same as prompting).
  */
 export function validateInput(
   input: Record<string, unknown>,
@@ -152,7 +152,13 @@ export function validateInput(
 ): ValidationResult {
   const errors: string[] = [];
   const properties = schema.properties ?? {};
-  const required = (schema.required as readonly string[] | undefined) ?? [];
+  const required = new Set((schema.required as readonly string[] | undefined) ?? []);
+
+  // Evaluate allOf if/then conditions to find conditionally required fields
+  const conditionalRequired = evaluateConditionalRequired(input, schema);
+  for (const name of conditionalRequired) {
+    required.add(name);
+  }
 
   // Check required properties
   for (const name of required) {

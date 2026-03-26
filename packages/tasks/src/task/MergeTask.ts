@@ -5,7 +5,7 @@
  */
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
   type: "object",
@@ -64,7 +64,7 @@ export class MergeTask<
 
   async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     // Get all input keys and sort them for deterministic order
-    const keys = Object.keys(input).sort();
+    const keys = Object.keys(input).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
     // Collect values in sorted order
     const values = keys.map((key) => input[key]);

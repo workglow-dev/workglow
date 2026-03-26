@@ -5,8 +5,7 @@
  */
 
 import { toOpenAIMessages, toTextFlatMessages } from "@workglow/ai";
-import type { ToolCallingTaskInput } from "@workglow/ai";
-import type { ToolDefinition } from "@workglow/ai";
+import type { ToolCallingTaskInput, ToolDefinition } from "@workglow/ai";
 import { describe, expect, test } from "vitest";
 
 const dummyTools: ToolDefinition[] = [
@@ -223,10 +222,7 @@ describe("toOpenAIMessages", () => {
 
   test("should promote inline string items in mixed prompt array to text parts", () => {
     const input = makeInput({
-      prompt: [
-        "Plain text",
-        { type: "image", mimeType: "image/jpeg", data: "imgdata" },
-      ] as any,
+      prompt: ["Plain text", { type: "image", mimeType: "image/jpeg", data: "imgdata" }] as any,
     });
     const msgs = toOpenAIMessages(input);
 
@@ -316,9 +312,7 @@ describe("toTextFlatMessages", () => {
       messages: [
         {
           role: "tool",
-          content: [
-            { type: "tool_result", tool_use_id: "tc_1", content: "result data" },
-          ],
+          content: [{ type: "tool_result", tool_use_id: "tc_1", content: "result data" }],
         },
       ],
     });

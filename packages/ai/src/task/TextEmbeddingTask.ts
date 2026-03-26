@@ -10,7 +10,7 @@ import {
   FromSchema,
   TypedArraySchema,
   TypedArraySchemaOptions,
-} from "@workglow/util";
+} from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
 

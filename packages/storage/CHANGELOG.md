@@ -1,5 +1,83 @@
 # @workglow/storage
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### tests
+
+- enhance testing framework with unit and integration test scripts separated for github actions
+
+#### storage
+
+- move @workglow/sqlite package into @workglow/storage/sqlite and add @workglow/storage/postgresql
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
+## 0.0.125
+
+### Features
+
+#### sqlite
+
+- Unified **`Sqlite.init()`** on Node (dynamic `import` of `better-sqlite3`), Bun (`bun:sqlite`), and browser (WASM). Call it once before **`new Sqlite.Database(...)`** or any storage that opens SQLite by file path.
+
+## 0.0.124
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- implement nested object value manipulation functions
+
+### Refactors
+
+- update package exports to use source files instead of dist
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+- rename tests to represent storage
+
+## 0.0.121
+
+## 0.0.120
+
+## 0.0.119
+
+### Features
+
+- add chrome web browser provider (#303)
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+
 ## 0.0.118
 
 ### Features

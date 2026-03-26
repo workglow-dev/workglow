@@ -1,5 +1,137 @@
 # @workglow/task-graph
 
+## 0.0.126
+
+### Features
+
+- update TypeScript configurations and package exports for improved module resolution
+
+#### example-web
+
+- refactor storage implementation and update model imports
+
+### Refactors
+
+#### docs
+
+- update import paths to use "workglow" instead of "@workglow" for consistency, sqlite all get init()
+
+## 0.0.125
+
+### Features
+
+#### task-graph
+
+- integrate Chrome DevTools formatters and update imports into task-graph, which is what it is used for. done moving this around now.
+
+### Documentation
+
+- Storage examples: **`await Sqlite.init()`** before `SqliteTabularStorage` with a path (see `src/storage/README.md` and package README).
+
+## 0.0.124
+
+### Refactors
+
+#### task
+
+- enhance input handling with Partial types
+- clean up input handling and improve parameter naming
+
+## 0.0.123
+
+### Refactors
+
+#### imports
+
+- update imports to utilize @workglow/util/schema
+
+#### schema
+
+- remove @workglow/schema package move to back to util
+
+## 0.0.122
+
+### Features
+
+#### schema
+
+- introduce @workglow/schema package for schema validation utilities
+
+#### cli
+
+- implement CLI task UI components and subscription handling
+
+#### task
+
+- optimize JSON serialization in Task class
+
+### Bug Fixes
+
+#### task-graph
+
+- improve output handling in TaskGraphRunner
+- add registry parameter to task runners
+
+### Refactors
+
+- update package exports to use source files instead of dist
+
+#### task
+
+- improve JSON serialization logic in Task class
+
+### Build
+
+- no real point to splitting in the libs
+
+### Chores
+
+- add @typescript/native-preview package and make updates for tsgo
+
+## 0.0.121
+
+## 0.0.120
+
+### Bug Fixes
+
+#### task-graph
+
+- filter toJSON config through configSchema to prevent node property issues (#322)
+
+## 0.0.119
+
+### Features
+
+- enhance Workflow input handling for manual schemas
+- add chrome web browser provider (#303)
+
+#### task
+
+- optimize JSON serialization in Task class
+
+#### task-graph
+
+- make context.own() propagate registry and abort signal to owned tasks (#296)
+
+### Bug Fixes
+
+#### task-graph
+
+- improve task abortion handling in TaskGraphRunner
+- improve output handling in TaskGraphRunner
+- add registry parameter to task runners
+
+### Refactors
+
+- move prototype assignments to Workflow.ts to resolve circular dependency issues
+- unify tool call handling across providers
+
+### Chores
+
+- release 14 packages
+- update tsconfig to avoid node_modules
+- update VSCode settings and refactor task categories
+
 ## 0.0.118
 
 ### Features

@@ -15,7 +15,8 @@ import {
   WhileTask,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, test } from "vitest";
 
 import {

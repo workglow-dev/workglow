@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Sqlite } from "@workglow/sqlite";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { SqliteQueueStorage } from "@workglow/storage";
 import { describe } from "vitest";
 import { runGenericPrefixedQueueStorageTests } from "./genericPrefixedQueueStorageTests";
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-const db = new Sqlite.Database(":memory:");
-
-describe("SqlitePrefixedQueueStorage", () => {
+describe("SqlitePrefixedQueueStorage", async () => {
+  await Sqlite.init();
+  const db = new Sqlite.Database(":memory:");
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericPrefixedQueueStorageTests(

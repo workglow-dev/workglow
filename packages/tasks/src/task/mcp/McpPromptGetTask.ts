@@ -12,40 +12,9 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import {
-  DataPortSchema,
-  FromSchema,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  type McpServerConfig,
-} from "@workglow/util";
+import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { mcpList, type McpListTaskInput } from "./McpListTask";
-
-const mcpServerConfigKeys = Object.keys(mcpServerConfigSchema.properties);
-
-const configSchema = {
-  type: "object",
-  properties: {
-    ...TaskConfigSchema["properties"],
-    server: {
-      type: "string",
-      format: "mcp-server",
-      title: "MCP Server",
-      description: "Server ID from the MCP server registry (alternative to inline config)",
-    },
-    ...mcpServerConfigSchema.properties,
-    prompt_name: {
-      type: "string",
-      title: "Prompt Name",
-      description: "The name of the prompt to get",
-      format: "string:mcp-promptname",
-    },
-  },
-  required: ["prompt_name"],
-  anyOf: [{ required: ["server"] }, { required: ["transport"] }],
-  allOf: mcpServerConfigSchema.allOf,
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
 
 const annotationsSchema = {
   type: "object",
@@ -183,7 +152,7 @@ const fallbackInputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type McpPromptGetTaskConfig = TaskConfig & FromSchema<typeof configSchema>;
+export type McpPromptGetTaskConfig = TaskConfig & Record<string, unknown>;
 export type McpPromptGetTaskInput = Record<string, unknown>;
 export type McpPromptGetTaskOutput = FromSchema<typeof fallbackOutputSchema>;
 
@@ -208,8 +177,31 @@ export class McpPromptGetTask extends Task<
     return fallbackOutputSchema;
   }
 
-  public static configSchema() {
-    return configSchema;
+  public static configSchema(): DataPortSchema {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
+    return {
+      type: "object",
+      properties: {
+        ...TaskConfigSchema["properties"],
+        server: {
+          type: "string",
+          format: "mcp-server",
+          title: "MCP Server",
+          description: "Server ID from the MCP server registry (alternative to inline config)",
+        },
+        ...mcpServerConfigSchema.properties,
+        prompt_name: {
+          type: "string",
+          title: "Prompt Name",
+          description: "The name of the prompt to get",
+          format: "string:mcp-promptname",
+        },
+      },
+      required: ["prompt_name"],
+      anyOf: [{ required: ["server"] }, { required: ["transport"] }],
+      allOf: mcpServerConfigSchema.allOf,
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
 
   public override inputSchema(): DataPortSchema {
@@ -223,11 +215,12 @@ export class McpPromptGetTask extends Task<
   private _schemasDiscovering = false;
 
   private getMcpServerConfig(): McpServerConfig | undefined {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
     const server = this.config.server as Record<string, unknown> | string | undefined;
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
     // Merge all MCP config keys from inline config; inline values override registry base
-    for (const key of mcpServerConfigKeys) {
+    for (const key of Object.keys(mcpServerConfigSchema.properties)) {
       if ((this.config as Record<string, unknown>)[key] !== undefined) {
         merged[key] = (this.config as Record<string, unknown>)[key];
       }
@@ -236,7 +229,7 @@ export class McpPromptGetTask extends Task<
     return merged as unknown as McpServerConfig;
   }
 
-  async discoverSchemas(signal?: AbortSignal): Promise<void> {
+  async discoverSchemas(_signal?: AbortSignal): Promise<void> {
     if (this.config.inputSchema) return;
     if (this._schemasDiscovering) return;
     if (!this.config.prompt_name) return;
@@ -287,10 +280,11 @@ export class McpPromptGetTask extends Task<
     if (!serverConfig) {
       throw new Error("MCP server transport is required (provide inline or via server registry)");
     }
+    const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(serverConfig, context.signal);
     try {
       const result = await client.getPrompt({
-        name: this.config.prompt_name,
+        name: String(this.config.prompt_name ?? ""),
         arguments: input as Record<string, string>,
       });
       return {

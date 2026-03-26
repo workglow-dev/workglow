@@ -12,40 +12,9 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import {
-  DataPortSchema,
-  FromSchema,
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  type McpServerConfig,
-} from "@workglow/util";
+import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { DataPortSchema } from "@workglow/util/schema";
 import { mcpList, type McpListTaskInput } from "./McpListTask";
-
-const mcpServerConfigKeys = Object.keys(mcpServerConfigSchema.properties);
-
-const configSchema = {
-  type: "object",
-  properties: {
-    ...TaskConfigSchema["properties"],
-    server: {
-      type: "string",
-      format: "mcp-server",
-      title: "MCP Server",
-      description: "Server ID from the MCP server registry (alternative to inline config)",
-    },
-    ...mcpServerConfigSchema.properties,
-    tool_name: {
-      type: "string",
-      title: "Tool Name",
-      description: "The name of the tool to call",
-      format: "string:mcp-toolname",
-    },
-  },
-  required: ["tool_name"],
-  anyOf: [{ required: ["server"] }, { required: ["transport"] }],
-  allOf: mcpServerConfigSchema.allOf,
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
 
 const annotationsSchema = {
   type: "object",
@@ -175,16 +144,11 @@ const fallbackInputSchema = {
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
-/** Base config from schema; inputSchema/outputSchema overridden to DataPortSchema so constructor accepts TaskConfig from registry. */
-type McpToolCallConfigFromSchema = Omit<
-  FromSchema<typeof configSchema>,
-  "inputSchema" | "outputSchema"
->;
-export type McpToolCallTaskConfig = TaskConfig &
-  McpToolCallConfigFromSchema & {
-    inputSchema?: DataPortSchema;
-    outputSchema?: DataPortSchema;
-  };
+/** Config includes MCP connection fields (transport-dependent shape is registered per platform). */
+export type McpToolCallTaskConfig = TaskConfig & {
+  inputSchema?: DataPortSchema;
+  outputSchema?: DataPortSchema;
+} & Record<string, unknown>;
 export type McpToolCallTaskInput = Record<string, unknown>;
 export type McpToolCallTaskOutput = Record<string, unknown>;
 
@@ -209,8 +173,31 @@ export class McpToolCallTask extends Task<
     return fallbackOutputSchema;
   }
 
-  public static configSchema() {
-    return configSchema;
+  public static configSchema(): DataPortSchema {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
+    return {
+      type: "object",
+      properties: {
+        ...TaskConfigSchema["properties"],
+        server: {
+          type: "string",
+          format: "mcp-server",
+          title: "MCP Server",
+          description: "Server ID from the MCP server registry (alternative to inline config)",
+        },
+        ...mcpServerConfigSchema.properties,
+        tool_name: {
+          type: "string",
+          title: "Tool Name",
+          description: "The name of the tool to call",
+          format: "string:mcp-toolname",
+        },
+      },
+      required: ["tool_name"],
+      anyOf: [{ required: ["server"] }, { required: ["transport"] }],
+      allOf: mcpServerConfigSchema.allOf,
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
 
   public override inputSchema(): DataPortSchema {
@@ -224,11 +211,12 @@ export class McpToolCallTask extends Task<
   private _schemasDiscovering = false;
 
   private getMcpServerConfig(): McpServerConfig | undefined {
+    const { mcpServerConfigSchema } = getMcpTaskDeps();
     const server = this.config.server as Record<string, unknown> | string | undefined;
     const base = typeof server === "object" && server !== null ? server : {};
     const merged = { ...base } as Record<string, unknown>;
     // Merge all MCP config keys from inline config; inline values override registry base
-    for (const key of mcpServerConfigKeys) {
+    for (const key of Object.keys(mcpServerConfigSchema.properties)) {
       if ((this.config as Record<string, unknown>)[key] !== undefined) {
         merged[key] = (this.config as Record<string, unknown>)[key];
       }
@@ -237,7 +225,7 @@ export class McpToolCallTask extends Task<
     return merged as unknown as McpServerConfig;
   }
 
-  async discoverSchemas(signal?: AbortSignal): Promise<void> {
+  async discoverSchemas(_signal?: AbortSignal): Promise<void> {
     if (this.config.inputSchema && this.config.outputSchema) return;
     if (this._schemasDiscovering) return;
     if (!this.config.tool_name) return;
@@ -279,10 +267,11 @@ export class McpToolCallTask extends Task<
     if (!serverConfig) {
       throw new Error("MCP server transport is required (provide inline or via server registry)");
     }
+    const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(serverConfig, context.signal);
     try {
       const result = await client.callTool({
-        name: this.config.tool_name,
+        name: String(this.config.tool_name ?? ""),
         arguments: input as Record<string, unknown>,
       });
       if (!("content" in result) || !Array.isArray(result.content)) {

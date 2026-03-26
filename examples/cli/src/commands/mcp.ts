@@ -4,167 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject } from "@workglow/util";
-import type { McpServerRecord } from "@workglow/tasks";
+import { searchMcpRegistryPage, type McpSearchResultItem, type McpServerRecord, McpServerRecordSchema } from "@workglow/tasks";
 import type { Command } from "commander";
+import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
-import {
-  parseDynamicFlags,
-  generateSchemaHelpText,
-  resolveInput,
-  validateInput,
-} from "../input";
-import { McpServerRecordSchema } from "@workglow/tasks";
+import { parseDynamicFlags, generateSchemaHelpText, resolveInput, validateInput } from "../input";
 import { createMcpServerRepository } from "../storage";
-import { formatTable } from "../util";
-import type { SearchPage, SearchSelectItem } from "../ui/render";
+import { formatError, formatTable } from "../util";
+import type { SearchSelectItem } from "../ui/render";
 
-const mcpSchema = McpServerRecordSchema as unknown as DataPortSchemaObject;
-
-interface McpRegistryServer {
-  name: string;
-  title?: string;
-  description: string;
-  version: string;
-  packages?: Array<{
-    registryType: string;
-    identifier: string;
-    transport: { type: string };
-    environmentVariables?: Array<{
-      name: string;
-      description?: string;
-      isRequired?: boolean;
-    }>;
-    runtimeArguments?: Array<{
-      type: string;
-      name: string;
-      value?: string;
-      isRequired?: boolean;
-      description?: string;
-    }>;
-    packageArguments?: Array<{
-      type: string;
-      name: string;
-      value?: string;
-      isRequired?: boolean;
-      description?: string;
-    }>;
-  }>;
-  remotes?: Array<{
-    type: string;
-    url: string;
-  }>;
-}
-
-interface McpSearchResult extends SearchSelectItem {
-  readonly server: McpRegistryServer;
-}
-
-const MCP_REGISTRY_BASE = "https://registry.modelcontextprotocol.io/v0.1";
-
-async function searchMcpRegistry(
-  query: string,
-  cursor: string | undefined
-): Promise<SearchPage<McpSearchResult>> {
-  const params = new URLSearchParams({
-    search: query,
-    limit: "20",
-    version: "latest",
-  });
-  if (cursor) params.set("cursor", cursor);
-
-  const res = await fetch(`${MCP_REGISTRY_BASE}/servers?${params}`);
-  if (!res.ok) throw new Error(`Registry returned ${res.status}`);
-
-  const data = await res.json();
-  const items: McpSearchResult[] = (data.servers ?? []).map(
-    (entry: { server: McpRegistryServer }) => {
-      const s = entry.server;
-      const pkg = s.packages?.[0];
-      const remote = s.remotes?.[0];
-      const badges = [pkg?.registryType, pkg?.transport?.type ?? remote?.type]
-        .filter(Boolean)
-        .join(" | ");
-
-      return {
-        id: `${s.name}:${s.version}`,
-        label: `${s.title ?? s.name}${badges ? `  ${badges}` : ""}`,
-        description: s.description,
-        server: s,
-      };
-    }
-  );
-
-  return {
-    items,
-    nextCursor: data.metadata?.nextCursor ?? undefined,
-  };
-}
-
-function mapMcpRegistryResult(server: McpRegistryServer): Record<string, unknown> {
-  const serverId = server.name.split("/").pop() ?? server.name;
-  const title = server.title ?? serverId;
-
-  if (server.remotes && server.remotes.length > 0) {
-    const remote = server.remotes[0];
-    return {
-      server_id: serverId,
-      title,
-      description: server.description,
-      transport: remote.type,
-      server_url: remote.url,
-    };
-  }
-
-  const pkg = server.packages?.[0];
-  if (!pkg) return { server_id: serverId, title, description: server.description };
-
-  let command: string;
-  let args: string[];
-
-  switch (pkg.registryType) {
-    case "npm":
-      command = "npx";
-      args = ["-y", pkg.identifier];
-      break;
-    case "pypi":
-      command = "uvx";
-      args = [pkg.identifier];
-      break;
-    case "oci":
-      command = "docker";
-      args = ["run", "-i", "--rm", pkg.identifier];
-      break;
-    default:
-      command = pkg.identifier;
-      args = [];
-  }
-
-  if (pkg.runtimeArguments) {
-    for (const arg of pkg.runtimeArguments) {
-      if (arg.name) args.push(arg.name);
-      if (arg.value) args.push(arg.value);
-    }
-  }
-
-  const result: Record<string, unknown> = {
-    server_id: serverId,
-    title,
-    description: server.description,
-    transport: "stdio",
-    command,
-    args,
-  };
-
-  if (pkg.environmentVariables && pkg.environmentVariables.length > 0) {
-    const env: Record<string, string> = {};
-    for (const envVar of pkg.environmentVariables) {
-      env[envVar.name] = "";
-    }
-    result.env = env;
-  }
-
-  return result;
+interface McpSearchSelectItem extends SearchSelectItem {
+  readonly result: McpSearchResultItem;
 }
 
 export function registerMcpCommand(program: Command): void {
@@ -281,24 +131,24 @@ export function registerMcpCommand(program: Command): void {
       if (opts.help) {
         add.outputHelp();
         console.log("\nInput flags (from MCP server schema):");
-        console.log(generateSchemaHelpText(mcpSchema));
+        console.log(generateSchemaHelpText(McpServerRecordSchema));
         process.exit(0);
       }
 
-      const dynamicFlags = parseDynamicFlags(process.argv, mcpSchema);
+      const dynamicFlags = parseDynamicFlags(process.argv, McpServerRecordSchema);
       let input = await resolveInput({
         inputJson: opts.inputJson as string | undefined,
         inputJsonFile: opts.inputJsonFile as string | undefined,
         dynamicFlags,
-        schema: mcpSchema,
+        schema: McpServerRecordSchema,
       });
 
       if (process.stdin.isTTY) {
         const { promptMissingInput } = await import("../input/prompt");
-        input = await promptMissingInput(input, mcpSchema);
+        input = await promptMissingInput(input, McpServerRecordSchema);
       }
 
-      const validation = validateInput(input, mcpSchema);
+      const validation = validateInput(input, McpServerRecordSchema);
       if (!validation.valid) {
         console.error("Input validation failed:");
         for (const err of validation.errors) {
@@ -332,6 +182,97 @@ export function registerMcpCommand(program: Command): void {
     });
 
   mcp
+    .command("edit")
+    .argument("[id]", "MCP server name to edit")
+    .description(
+      "Edit MCP server JSON in $GIT_EDITOR, $VISUAL, or $EDITOR; save to apply, or quit without saving to cancel"
+    )
+    .action(async (id: string | undefined) => {
+      const config = await loadConfig();
+      const repo = createMcpServerRepository(config);
+      await repo.setupDatabase();
+
+      let targetId = id;
+      if (!targetId) {
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await repo.enumerateAllServers();
+        if (!all || all.length === 0) {
+          console.log("No MCP servers found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: `${e.server_id}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
+          value: String(e.server_id),
+        }));
+        const selected = await renderSelectPrompt(options, "Select MCP server to edit:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const entry = await repo.findByName(targetId);
+      if (!entry) {
+        console.error(`MCP server "${targetId}" not found.`);
+        process.exit(1);
+      }
+
+      const initial = JSON.stringify(entry, null, 2);
+
+      const result = editStringInExternalEditor(
+        initial,
+        `${String(targetId).replace(/[^\w.-]+/g, "_")}.json`
+      );
+
+      if (result.status === "unchanged") {
+        console.log("Aborted: file unchanged (quit the editor without saving).");
+        return;
+      }
+
+      if (result.status === "editor_error") {
+        console.error(`Editor failed: ${result.message}`);
+        process.exit(1);
+      }
+
+      let input: Record<string, unknown>;
+      try {
+        input = JSON.parse(result.content) as Record<string, unknown>;
+      } catch (e) {
+        console.error(`Invalid JSON: ${formatError(e)}`);
+        process.exit(1);
+      }
+
+      if (String(input.server_id ?? "") !== targetId) {
+        console.error(`server_id must remain "${targetId}" when editing this entry.`);
+        process.exit(1);
+      }
+
+      const validation = validateInput(input, McpServerRecordSchema);
+      if (!validation.valid) {
+        console.error("Validation failed:");
+        for (const err of validation.errors) {
+          console.error(`  - ${err}`);
+        }
+        process.exit(1);
+      }
+
+      const transport = input.transport as string;
+      if (transport === "stdio" && !input.command) {
+        console.error('Transport "stdio" requires command.');
+        process.exit(1);
+      }
+      if ((transport === "sse" || transport === "streamable-http") && !input.server_url) {
+        console.error(`Transport "${transport}" requires server_url.`);
+        process.exit(1);
+      }
+
+      await repo.updateServer(input as McpServerRecord);
+      console.log(`MCP server "${targetId}" saved.`);
+    });
+
+  mcp
     .command("find")
     .argument("[query]", "Initial search term")
     .option("--dry-run", "Validate and print result without saving")
@@ -343,22 +284,31 @@ export function registerMcpCommand(program: Command): void {
       }
 
       const { renderSearchSelect } = await import("../ui/render");
-      const selected = await renderSearchSelect<McpSearchResult>({
+      const selected = await renderSearchSelect<McpSearchSelectItem>({
         initialQuery: query,
         placeholder: "Search MCP servers",
-        onSearch: searchMcpRegistry,
+        onSearch: async (q, cursor) => {
+          const page = await searchMcpRegistryPage(q, { cursor });
+          const items: McpSearchSelectItem[] = page.results.map((r) => ({
+            id: r.id,
+            label: r.label,
+            description: r.description,
+            result: r,
+          }));
+          return { items, nextCursor: page.nextCursor };
+        },
       });
 
       if (!selected) {
         return;
       }
 
-      let input = mapMcpRegistryResult(selected.server);
+      let input = selected.result.config;
 
       const { promptMissingInput } = await import("../input/prompt");
-      input = await promptMissingInput(input, mcpSchema);
+      input = await promptMissingInput(input, McpServerRecordSchema);
 
-      const validation = validateInput(input, mcpSchema);
+      const validation = validateInput(input, McpServerRecordSchema);
       if (!validation.valid) {
         console.error("Input validation failed:");
         for (const err of validation.errors) {

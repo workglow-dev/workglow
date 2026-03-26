@@ -11,7 +11,7 @@ import {
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
   type: "object",
@@ -48,6 +48,10 @@ const outputSchema = {
 export type StringTemplateTaskInput = FromSchema<typeof inputSchema>;
 export type StringTemplateTaskOutput = FromSchema<typeof outputSchema>;
 
+/**
+ * @deprecated Use {@link TemplateTask} instead, which supports dot-notation paths
+ * and `{{key|default}}` fallback syntax.
+ */
 export class StringTemplateTask<
   Input extends StringTemplateTaskInput = StringTemplateTaskInput,
   Output extends StringTemplateTaskOutput = StringTemplateTaskOutput,
@@ -68,7 +72,7 @@ export class StringTemplateTask<
 
   async executeReactive(
     input: Input,
-    output: Output,
+    _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     let result = input.template;

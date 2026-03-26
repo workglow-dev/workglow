@@ -17,12 +17,8 @@ import type {
   ToolSource,
 } from "./AgentTypes";
 import { taskTypesToTools } from "./ToolCallingTask";
-import type {
-  ToolCall,
-  ToolCalls,
-  ToolDefinition,
-  ToolDefinitionWithTaskType,
-} from "./ToolCallingTask";
+import type { ToolDefinitionWithTaskType } from "./ToolCallingTask";
+import type { ToolCall, ToolCalls, ToolDefinition } from "./ToolCallingUtils";
 
 // ========================================================================
 // Tool source resolution

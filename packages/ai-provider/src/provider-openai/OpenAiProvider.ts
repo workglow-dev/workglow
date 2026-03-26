@@ -9,7 +9,7 @@ import {
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
-} from "@workglow/ai";
+} from "@workglow/ai/worker";
 import { OPENAI } from "./common/OpenAI_Constants";
 import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
 
@@ -22,26 +22,10 @@ import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
  * Task run functions are injected via the constructor so that the `openai` SDK
  * is only imported where actually needed (inline mode, worker server), not on
  * the main thread in worker mode.
- *
- * @example
- * ```typescript
- * // Worker mode (main thread) -- lightweight, no SDK import:
- * await new OpenAiProvider().register({
- *   mode: "worker",
- *   worker: new Worker(new URL("./worker_openai.ts", import.meta.url), { type: "module" }),
- * });
- *
- * // Inline mode -- caller provides the tasks:
- * import { OPENAI_TASKS } from "@workglow/ai-provider/openai";
- * await new OpenAiProvider(OPENAI_TASKS).register({ mode: "inline" });
- *
- * // Worker side -- caller provides the tasks:
- * import { OPENAI_TASKS } from "@workglow/ai-provider/openai";
- * new OpenAiProvider(OPENAI_TASKS).registerOnWorkerServer(workerServer);
- * ```
  */
 export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
   readonly name = OPENAI;
+  readonly displayName = "OpenAI";
   readonly isLocal = false;
   readonly supportsBrowser = true;
 
@@ -54,6 +38,7 @@ export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
     "ModelInfoTask",
     "StructuredGenerationTask",
     "ToolCallingTask",
+    "ModelSearchTask",
   ] as const;
 
   constructor(

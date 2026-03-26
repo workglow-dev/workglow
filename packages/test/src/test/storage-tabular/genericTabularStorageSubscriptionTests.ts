@@ -5,7 +5,8 @@
  */
 
 import { ITabularStorage, TabularChangePayload } from "@workglow/storage";
-import { FromSchema, sleep } from "@workglow/util";
+import { sleep } from "@workglow/util";
+import { FromSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CompoundPrimaryKeyNames, CompoundSchema } from "./genericTabularStorageTests";
 

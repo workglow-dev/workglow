@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { env } from "@huggingface/transformers";
-import { HFT_WORKER_JOBRUN_REGISTER, setHftCacheDir } from "@workglow/ai-provider/hf-transformers";
-
-env.backends!.onnx!.wasm!.proxy = true;
+import {
+  setHftCacheDir,
+  registerHuggingFaceTransformersWorker,
+  loadTransformersSDK,
+} from "@workglow/ai-provider/hf-transformers/runtime";
 
 if (process.env.WORKGLOW_MODEL_CACHE) {
   setHftCacheDir(process.env.WORKGLOW_MODEL_CACHE);
 }
 
-HFT_WORKER_JOBRUN_REGISTER();
+registerHuggingFaceTransformersWorker();

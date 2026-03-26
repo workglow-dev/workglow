@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/types.ts", "src/common.ts", "src/*/**/*"],
-  "files": ["./src/types.ts"],
+  "include": ["src/worker.ts", "src/common.ts", "src/*/**/*"],
+  "files": ["./src/worker.ts", "./src/browser.ts", "./src/node.ts", "./src/bun.ts"],
   "exclude": ["dist", "node_modules"],
   "compilerOptions": {
     "composite": true,

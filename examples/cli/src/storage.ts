@@ -17,7 +17,6 @@ import {
   McpServerPrimaryKeyNames,
 } from "@workglow/tasks";
 import type { CliConfig } from "./config";
-
 export function createModelRepository(config: CliConfig): ModelRepository {
   const storage = new FsFolderTabularStorage(
     config.directories.models,

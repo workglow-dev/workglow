@@ -76,7 +76,7 @@ It is common practice to have an output, and in a case like this, we can add an 
 Below we write the schemas first so we can use `FromSchema` to make types and not need to define the input and output multiple times (you could use Typebox or Zod4 for this as well).
 
 ```ts
-import {DataPortSchemaObject} from "@workglow/util";
+import {DataPortSchemaObject} from "workglow";
 const SimpleDebugLogTaskInputSchema = {
   type: "object",
   properties: {
@@ -132,7 +132,7 @@ export const simpleDebug = (input: DebugLogTaskInput) => {
   return new SimpleDebugTask({} as DebugLogTaskInput, {}).run(input);
 };
 
-declare module "@workglow/task-graph" {
+declare module "workglow" {
   interface Workflow {
     simpleDebug: CreateWorkflow<DebugLogTaskInput, DebugLogTaskOutput, TaskConfig>;
   }
@@ -160,9 +160,9 @@ The system supports several format annotations out of the box:
 ### Example: Using Format Annotations
 
 ```typescript
-import { Task, type DataPortSchema } from "@workglow/task-graph";
-import { TypeTabularStorage } from "@workglow/storage";
-import { FromSchema } from "@workglow/util";
+import { Task, type DataPortSchema } from "workglow";
+import { TypeTabularStorage } from "workglow";
+import { FromSchema } from "workglow";
 
 const MyTaskInputSchema = {
   type: "object",
@@ -208,7 +208,7 @@ export class MyTask extends Task<MyTaskInput> {
 You can extend the resolution system by registering custom resolvers:
 
 ```typescript
-import { registerInputResolver } from "@workglow/util";
+import { registerInputResolver } from "workglow";
 
 // Register a resolver for "template:*" formats
 registerInputResolver("template", async (id, format, registry) => {
@@ -260,7 +260,7 @@ Tasks can be reactive at a certain level. This means that they can be triggered 
 
 ## AI and RAG Tasks
 
-The `@workglow/ai` package provides a comprehensive set of tasks for building RAG (Retrieval-Augmented Generation) pipelines. These tasks are designed to chain together in workflows without requiring external loops.
+The `workglow` package provides a comprehensive set of tasks for building RAG (Retrieval-Augmented Generation) pipelines. These tasks are designed to chain together in workflows without requiring external loops.
 
 ### Document Processing Tasks
 
@@ -300,8 +300,8 @@ The `@workglow/ai` package provides a comprehensive set of tasks for building RA
 Tasks chain together through compatible input/output schemas:
 
 ```typescript
-import { Workflow } from "@workglow/task-graph";
-import { createKnowledgeBase } from "@workglow/knowledge-base";
+import { Workflow } from "workglow";
+import { createKnowledgeBase } from "workglow";
 
 // Create a KnowledgeBase (auto-registers globally as "my-kb")
 const kb = await createKnowledgeBase({

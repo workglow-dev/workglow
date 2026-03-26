@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uuid4, type DataPortSchema } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { uuid4 } from "@workglow/util";
 import { DATAFLOW_ALL_PORTS } from "./Dataflow";
 import type { TaskGraph } from "./TaskGraph";
 import type { TaskIdType } from "../task/TaskTypes";

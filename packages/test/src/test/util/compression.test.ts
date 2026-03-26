@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { compress, decompress, setLogger } from "@workglow/util";
+import { setLogger } from "@workglow/util";
+import { compress, decompress } from "@workglow/util/compress";
 import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

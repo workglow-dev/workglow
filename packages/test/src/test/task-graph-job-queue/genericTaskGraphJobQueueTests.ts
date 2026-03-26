@@ -12,7 +12,7 @@ import {
   TaskInput,
   TaskOutput,
 } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util";
+import { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 export class TestJob extends Job<TaskInput, TaskOutput> {

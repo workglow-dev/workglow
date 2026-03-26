@@ -5,12 +5,14 @@
  */
 
 import { SqliteKvStorage } from "@workglow/storage";
-import { uuid4, setLogger } from "@workglow/util";
+import { Sqlite } from "@workglow/storage/sqlite";
+import { setLogger, uuid4 } from "@workglow/util";
 import { describe } from "vitest";
 import { runGenericKvRepositoryTests } from "./genericKvRepositoryTests";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-describe("SqliteKvStorage", () => {
+describe("SqliteKvStorage", async () => {
+  await Sqlite.init();
   let logger = getTestingLogger();
   setLogger(logger);
   runGenericKvRepositoryTests(

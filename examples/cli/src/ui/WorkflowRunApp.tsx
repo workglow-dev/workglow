@@ -5,28 +5,28 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Box, Text, Static } from "ink";
+import { Box, Text } from "ink";
 import type { TaskGraph } from "@workglow/task-graph";
+import { sortCliTaskLinesForDisplay, startGraphTaskPoll } from "./cliTaskUi";
 import { ProgressBar } from "./components/ProgressBar";
-import { TaskStatusLine } from "./components/TaskStatusLine";
-
-interface TaskInfo {
-  readonly id: string;
-  readonly type: string;
-  status: string;
-  progress?: number;
-  message?: string;
-}
-
-interface LogLine {
-  readonly id: number;
-  readonly text: string;
-}
+import { TaskStatusProgressRow } from "./components/TaskStatusProgressRow";
+import { useCliTheme } from "./CliThemeContext";
+import type { CliTaskLine, IterationSlotRow } from "./taskGraphCliSubscriptions";
+import {
+  iterationSlotToTaskStatus,
+  sortIterationSlotsForDisplay,
+  subscribeTaskGraphForCli,
+} from "./taskGraphCliSubscriptions";
 
 interface WorkflowRunAppProps {
   readonly graph: TaskGraph;
   readonly input: Record<string, unknown>;
   readonly config?: Record<string, unknown>;
+  /**
+   * When set (e.g. from {@link Workflow.run}), runs this instead of `graph.run(input, config)` so
+   * abort/output-cache/merge semantics match the Workflow API.
+   */
+  readonly runExecutor?: () => Promise<unknown>;
   readonly onComplete: (result: unknown) => void;
   readonly onError: (error: Error) => void;
 }
@@ -35,91 +35,73 @@ export function WorkflowRunApp({
   graph,
   input,
   config,
+  runExecutor,
   onComplete,
   onError,
 }: WorkflowRunAppProps): React.ReactElement {
-  const [taskInfos, setTaskInfos] = useState<Map<string, TaskInfo>>(new Map());
+  const theme = useCliTheme();
+  const bodyColor = theme.level === "advanced" ? theme.fg : undefined;
+  const [taskInfos, setTaskInfos] = useState<Map<string, CliTaskLine>>(new Map());
   const [overallProgress, setOverallProgress] = useState<number | undefined>(undefined);
-  const [completedLogs, setCompletedLogs] = useState<LogLine[]>([]);
+  const [iterationSlots, setIterationSlots] = useState<Map<string, IterationSlotRow[]>>(new Map());
   useEffect(() => {
-    let logCounter = 0;
-    const tasks = graph.getTasks();
+    const unsub = subscribeTaskGraphForCli(
+      graph,
+      setTaskInfos,
+      undefined,
+      setOverallProgress,
+      setIterationSlots
+    );
+    const stopPoll = startGraphTaskPoll(graph, setTaskInfos);
 
-    // Initialize task status map
-    const initial = new Map<string, TaskInfo>();
-    for (const task of tasks) {
-      const taskId = String(task.id);
-      const taskType = (task as any).type ?? "Unknown";
-      initial.set(taskId, { id: taskId, type: taskType, status: "PENDING" });
+    const runPromise = runExecutor ? runExecutor() : graph.run(input, config);
+    runPromise.then((result) => onComplete(result)).catch((err) => onError(err));
 
-      task.events.on("status", (status: string) => {
-        setTaskInfos((prev) => {
-          const next = new Map(prev);
-          const info = next.get(taskId);
-          if (info) {
-            next.set(taskId, { ...info, status });
-            if (status === "COMPLETED") {
-              setCompletedLogs((logs) => [
-                ...logs,
-                { id: logCounter++, text: `[COMPLETED] ${taskType}` },
-              ]);
-            }
-          }
-          return next;
-        });
-      });
-
-      task.events.on("progress", (progress: number, message?: string) => {
-        setTaskInfos((prev) => {
-          const next = new Map(prev);
-          const info = next.get(taskId);
-          if (info) {
-            next.set(taskId, { ...info, progress, message });
-          }
-          return next;
-        });
-      });
-    }
-    setTaskInfos(initial);
-
-    graph.on("graph_progress", (progress: number) => {
-      setOverallProgress(progress);
-    });
-
-    graph
-      .run(input, config)
-      .then((result) => onComplete(result))
-      .catch((err) => onError(err));
+    return () => {
+      stopPoll();
+      unsub();
+    };
   }, []);
 
-  const activeTasks = Array.from(taskInfos.values()).filter(
-    (t) => t.status !== "PENDING" && t.status !== "COMPLETED"
-  );
+  const order = new Map(graph.getTasks().map((t, i) => [String(t.id), i]));
+  const orderedTasks = sortCliTaskLinesForDisplay(Array.from(taskInfos.values()), order);
 
   return (
     <Box flexDirection="column">
-      <Static items={completedLogs}>
-        {(log) => (
-          <Text key={log.id}>{log.text}</Text>
-        )}
-      </Static>
-
       <Box flexDirection="column">
         {overallProgress !== undefined && (
-          <Box>
-            <Text>Workflow: </Text>
-            <ProgressBar progress={overallProgress} />
+          <Box flexDirection="row" justifyContent="space-between" width="100%">
+            <Text color={bodyColor}>Workflow: </Text>
+            <Box flexShrink={0} marginLeft={1}>
+              <ProgressBar progress={overallProgress} />
+            </Box>
           </Box>
         )}
-        {activeTasks.map((t) => (
-          <TaskStatusLine
-            key={t.id}
-            type={t.type}
-            status={t.status}
-            progress={t.progress}
-            message={t.message}
-          />
-        ))}
+        {orderedTasks.map((t) => {
+          const slots = iterationSlots.get(t.id);
+          const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
+          return (
+            <Box key={t.id} flexDirection="column">
+              <TaskStatusProgressRow
+                type={t.type}
+                status={t.status}
+                message={t.message}
+                barProgress={t.progress ?? 0}
+              />
+              {sortedSlots.map((slot) => (
+                <Box key={`${t.id}-iter-${slot.index}`} flexDirection="column" paddingLeft={2}>
+                  <TaskStatusProgressRow
+                    type={`#${slot.index + 1}`}
+                    status={iterationSlotToTaskStatus(slot.status)}
+                    message={slot.status === "completed" ? undefined : slot.message}
+                    barProgress={slot.progress ?? 0}
+                    suppressProgressBar={slot.status !== "running" || slot.progress === undefined}
+                  />
+                </Box>
+              ))}
+            </Box>
+          );
+        })}
       </Box>
     </Box>
   );

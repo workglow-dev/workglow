@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DataPortSchemaObject, EventParameters } from "@workglow/util";
+import { DataPortSchemaObject } from "@workglow/util/schema";
+import { EventParameters } from "@workglow/util";
 import { JSONValue } from "../tabular/ITabularStorage";
 
 /**

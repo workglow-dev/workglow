@@ -5,7 +5,8 @@
  */
 
 import type { OAuthClientMetadata, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { CredentialStoreOAuthProvider, InMemoryCredentialStore } from "@workglow/util";
+import { CredentialStoreOAuthProvider } from "@workglow/tasks";
+import { InMemoryCredentialStore } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 
 const TEST_SERVER_URL = "https://mcp.example.com/api";

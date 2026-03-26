@@ -11,7 +11,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
-import type { JsonSchema } from "@workglow/util";
+import type { JsonSchema } from "@workglow/util/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // ========================================================================

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai";
-import { DataPortSchemaObject, FromSchema } from "@workglow/util";
+import { ModelConfigSchema, ModelRecordSchema } from "@workglow/ai/worker";
+import { DataPortSchemaObject, FromSchema } from "@workglow/util/worker";
 import { OLLAMA, OLLAMA_DEFAULT_BASE_URL } from "./Ollama_Constants";
 
 export const OllamaModelSchema = {

@@ -32,6 +32,10 @@ bun add @workglow/task-graph
 yarn add @workglow/task-graph
 ```
 
+### Browser debugging
+
+For Chrome DevTools custom formatters (`Workflow`, `TaskGraph`, `Task`, etc.), import `installDevToolsFormatters` from **`@workglow/task-graph`** (browser build only). See [`src/debug/README.md`](./src/debug/README.md).
+
 ## Quick Start
 
 Here's a simple example that demonstrates the core concepts:
@@ -711,9 +715,16 @@ const result = await workflow.run();
 Output caching lets repeat executions with identical inputs return instantly without redoing work.
 
 ```typescript
-import { Task, TaskGraph, Workflow } from "@workglow/task-graph";
+import {
+  Task,
+  TaskGraph,
+  Workflow,
+  TaskOutputPrimaryKeyNames,
+  TaskOutputSchema,
+  TaskOutputTabularRepository,
+} from "@workglow/task-graph";
+import { InMemoryTabularStorage } from "@workglow/storage";
 import { DataPortSchema } from "@workglow/util";
-import { InMemoryTaskOutputRepository } from "@workglow/test";
 
 // A cacheable task that simulates expensive work
 class ExpensiveTask extends Task<{ n: number }, { result: number }> {
@@ -750,7 +761,11 @@ class ExpensiveTask extends Task<{ n: number }, { result: number }> {
 }
 
 // Create an output cache
-const outputCache = new InMemoryTaskOutputRepository();
+const outputCache = new TaskOutputTabularRepository({
+  tabularRepository: new InMemoryTabularStorage(TaskOutputSchema, TaskOutputPrimaryKeyNames, [
+    "createdAt",
+  ]),
+});
 
 // Example 1: TaskGraph caching (second run is near-instant)
 const graph = new TaskGraph({ outputCache });
@@ -799,10 +814,22 @@ console.log({ wfFirstMs, wfSecondMs });
 ### Task Graph Persistence
 
 ```typescript
-import { FsFolderTaskGraphRepository } from "@workglow/test";
+import {
+  TaskGraph,
+  TaskGraphPrimaryKeyNames,
+  TaskGraphSchema,
+  TaskGraphTabularRepository,
+} from "@workglow/task-graph";
+import { FsFolderTabularStorage } from "@workglow/storage";
 
 // Create repository
-const repository = new FsFolderTaskGraphRepository("./task-graphs");
+const repository = new TaskGraphTabularRepository({
+  tabularRepository: new FsFolderTabularStorage(
+    "./task-graphs",
+    TaskGraphSchema,
+    TaskGraphPrimaryKeyNames
+  ),
+});
 
 // Save task graph
 const graph = new TaskGraph();
@@ -816,18 +843,87 @@ const results = await loadedGraph.run();
 
 ### Different Storage Options
 
+Wire `TaskOutputTabularRepository` / `TaskGraphTabularRepository` from `@workglow/task-graph` to a `*TabularStorage` from `@workglow/storage`:
+
 ```typescript
-// In-memory (for testing)
-import { InMemoryTaskOutputRepository, InMemoryTaskGraphRepository } from "@workglow/test";
+import {
+  TaskGraphPrimaryKeyNames,
+  TaskGraphSchema,
+  TaskGraphTabularRepository,
+  TaskOutputPrimaryKeyNames,
+  TaskOutputSchema,
+  TaskOutputTabularRepository,
+} from "@workglow/task-graph";
+import {
+  FsFolderTabularStorage,
+  InMemoryTabularStorage,
+  IndexedDbTabularStorage,
+  SqliteTabularStorage,
+} from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
+
+// In-memory (e.g. tests)
+const memoryOutput = new TaskOutputTabularRepository({
+  tabularRepository: new InMemoryTabularStorage(TaskOutputSchema, TaskOutputPrimaryKeyNames, [
+    "createdAt",
+  ]),
+});
+const memoryGraph = new TaskGraphTabularRepository({
+  tabularRepository: new InMemoryTabularStorage(TaskGraphSchema, TaskGraphPrimaryKeyNames),
+});
 
 // File system
-import { FsFolderTaskOutputRepository, FsFolderTaskGraphRepository } from "@workglow/test";
+const fsOutput = new TaskOutputTabularRepository({
+  tabularRepository: new FsFolderTabularStorage(
+    "./task-output-cache",
+    TaskOutputSchema,
+    TaskOutputPrimaryKeyNames
+  ),
+});
+const fsGraph = new TaskGraphTabularRepository({
+  tabularRepository: new FsFolderTabularStorage(
+    "./task-graphs",
+    TaskGraphSchema,
+    TaskGraphPrimaryKeyNames
+  ),
+});
 
-// SQLite
-import { SqliteTaskOutputRepository, SqliteTaskGraphRepository } from "@workglow/test";
+// SQLite (await Sqlite.init() once before using a path or new Sqlite.Database)
+await Sqlite.init();
+const sqliteOutput = new TaskOutputTabularRepository({
+  tabularRepository: new SqliteTabularStorage(
+    ":memory:",
+    "task_outputs",
+    TaskOutputSchema,
+    TaskOutputPrimaryKeyNames,
+    ["createdAt"]
+  ),
+});
+const sqliteGraph = new TaskGraphTabularRepository({
+  tabularRepository: new SqliteTabularStorage(
+    ":memory:",
+    "task_graphs",
+    TaskGraphSchema,
+    TaskGraphPrimaryKeyNames
+  ),
+});
 
-// IndexedDB (browser)
-import { IndexedDbTaskOutputRepository, IndexedDbTaskGraphRepository } from "@workglow/test";
+// IndexedDB (browser) — the `@workglow/web` example under `examples/web` includes small helpers
+const idbOutput = new TaskOutputTabularRepository({
+  tabularRepository: new IndexedDbTabularStorage(
+    "task_outputs",
+    TaskOutputSchema,
+    TaskOutputPrimaryKeyNames,
+    ["createdAt"]
+  ),
+});
+const idbGraph = new TaskGraphTabularRepository({
+  tabularRepository: new IndexedDbTabularStorage(
+    "task_graphs",
+    TaskGraphSchema,
+    TaskGraphPrimaryKeyNames
+  ),
+});
 ```
 
 ## Error Handling
