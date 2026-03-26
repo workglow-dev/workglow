@@ -29,6 +29,11 @@ export const HfTransformersOnnxModelSchema = {
           type: "string",
           description: "Filesystem path or URI for the ONNX model.",
         },
+        revision: {
+          type: "string",
+          description: "Git revision (branch, tag, or commit hash) of the model repository.",
+          default: "main",
+        },
         dtype: {
           type: "string",
           enum: Object.values(QuantizationDataType),

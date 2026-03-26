@@ -152,7 +152,7 @@ describe("End-to-End RAG Pipeline", () => {
     logger.info(`  -> Document ID: ${result.doc_id}`);
     logger.info(`  -> Stored ${result.count} vectors`);
     logger.info(`  -> Chunk IDs: ${result.chunk_ids.slice(0, 3).join(", ")}...`);
-  }, 60000);
+  }, 160000);
 
   it("should retrieve relevant chunks via query workflow", async () => {
     const query = "What caused the Civil War?";

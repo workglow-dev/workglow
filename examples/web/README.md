@@ -65,7 +65,16 @@ const workflow = new Workflow();
 
 workflow
   .DownloadModel({
-    model: ["onnx:Xenova/LaMini-Flan-T5-783M:q8"],
+    model: [
+      {
+        provider: "HF_TRANSFORMERS_ONNX",
+        provider_config: {
+          pipeline: "text2text-generation",
+          model_path: "Xenova/LaMini-Flan-T5-783M",
+          dtype: "q8",
+        },
+      },
+    ],
   })
   .TextRewriter({
     text: "The quick brown fox jumps over the lazy dog.",

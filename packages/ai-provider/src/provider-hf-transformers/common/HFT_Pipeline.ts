@@ -93,9 +93,10 @@ function isBrowserEnv(): boolean {
  * that affect pipeline creation (model_path, pipeline, dtype, device)
  */
 export function getPipelineCacheKey(model: HfTransformersOnnxModelConfig): string {
-  const dtype = model.provider_config.dtype || "q8";
+  const dtype = model.provider_config.dtype || "";
   const device = model.provider_config.device || "";
-  return `${model.provider_config.model_path}:${model.provider_config.pipeline}:${dtype}:${device}`;
+  const revision = model.provider_config.revision || "main";
+  return `${model.provider_config.model_path}:${model.provider_config.pipeline}:${dtype}:${device}:${revision}`;
 }
 
 /**
@@ -295,7 +296,7 @@ const doGetPipeline = async (
       device = "wasm";
     }
     if (device !== "wasm" && device !== "webgpu") {
-      device = "webgpu";
+      device = "wasm";
     }
   } else {
     // we can trust the lib to make a choice for the device on the server
@@ -304,11 +305,13 @@ const doGetPipeline = async (
     }
   }
 
+  const dtype = model.provider_config.dtype || "";
   const pipelineOptions: PretrainedModelOptions = {
-    dtype: model.provider_config.dtype || "q8",
+    revision: model.provider_config.revision || "main",
     ...(model.provider_config.use_external_data_format
       ? { useExternalDataFormat: model.provider_config.use_external_data_format }
       : {}),
+    ...(dtype ? { dtype: dtype as any } : {}),
     ...(device ? { device: device as any } : {}),
     ...options,
     progress_callback: progressCallback,
