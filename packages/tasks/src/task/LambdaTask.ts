@@ -118,16 +118,6 @@ export class LambdaTask<
   }
 }
 
-export function process(value: string): string;
-export function process(value: number): number;
-export function process(value: boolean): string;
-
-// Implementation
-export function process(value: string | number | boolean): string | number {
-  if (typeof value === "string") return `Processed: ${value}`;
-  if (typeof value === "number") return value * 2;
-  return value ? "True" : "False";
-}
 /**
  * Convenience function to create and run a LambdaTask
  */
