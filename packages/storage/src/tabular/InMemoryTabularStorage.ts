@@ -51,6 +51,8 @@ export class InMemoryTabularStorage<
   values = new Map<string, Entity>();
   /** Counter for auto-incrementing integer keys */
   private autoIncrementCounter = 0;
+  /** Tracks whether the last put was an insert (new key) or update (existing key) */
+  public _lastPutWasInsert = false;
 
   /**
    * Creates a new InMemoryTabularStorage instance
@@ -130,6 +132,7 @@ export class InMemoryTabularStorage<
 
     const { key } = this.separateKeyValueFromCombined(entityToStore);
     const id = await makeFingerprint(key);
+    this._lastPutWasInsert = !this.values.has(id);
     this.values.set(id, entityToStore);
     this.events.emit("put", entityToStore);
     return entityToStore;
@@ -398,8 +401,7 @@ export class InMemoryTabularStorage<
     options?: TabularSubscribeOptions
   ): () => void {
     const handlePut = (entity: Entity) => {
-      // InMemory can't distinguish INSERT vs UPDATE without tracking
-      callback({ type: "UPDATE", new: entity });
+      callback({ type: this._lastPutWasInsert ? "INSERT" : "UPDATE", new: entity });
     };
 
     const handleDelete = (_key: keyof Entity) => {

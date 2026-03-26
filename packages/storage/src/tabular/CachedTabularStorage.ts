@@ -47,6 +47,7 @@ export class CachedTabularStorage<
   public readonly cache: ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private durable: ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private cacheInitialized = false;
+  private cacheInitPromise: Promise<void> | null = null;
 
   /**
    * Creates a new CachedTabularStorage instance
@@ -118,21 +119,32 @@ export class CachedTabularStorage<
   }
 
   /**
-   * Initializes the cache by loading all data from the durable repository
+   * Initializes the cache by loading all data from the durable repository.
+   * Uses a promise-based lock so concurrent callers await the same initialization.
    */
   private async initializeCache(): Promise<void> {
     if (this.cacheInitialized) return;
 
-    try {
-      const all = await this.durable.getAll();
-      if (all && all.length > 0) {
-        await this.cache.putBulk(all);
-      }
-      this.cacheInitialized = true;
-    } catch (error) {
-      getLogger().warn("Failed to initialize cache from durable repository:", { error });
-      this.cacheInitialized = true; // Mark as initialized even on error to avoid retry loops
+    if (this.cacheInitPromise) {
+      return this.cacheInitPromise;
     }
+
+    this.cacheInitPromise = (async () => {
+      try {
+        const all = await this.durable.getAll();
+        if (all && all.length > 0) {
+          await this.cache.putBulk(all);
+        }
+        this.cacheInitialized = true;
+      } catch (error) {
+        getLogger().warn("Failed to initialize cache from durable repository:", { error });
+        // Don't mark as initialized on error — allow retry on next access
+      } finally {
+        this.cacheInitPromise = null;
+      }
+    })();
+
+    return this.cacheInitPromise;
   }
 
   /**

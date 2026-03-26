@@ -44,14 +44,23 @@ export function getChildren(node: DocumentNode): DocumentNode[] {
   return [];
 }
 
+/** Maximum recursion depth for tree traversal to prevent stack overflow */
+const MAX_TRAVERSAL_DEPTH = 200;
+
 /**
  * Traverse document tree depth-first
  */
-export function* traverseDepthFirst(node: DocumentNode): Generator<DocumentNode> {
+export function* traverseDepthFirst(
+  node: DocumentNode,
+  depth: number = 0
+): Generator<DocumentNode> {
+  if (depth > MAX_TRAVERSAL_DEPTH) {
+    throw new Error(`Document tree exceeds maximum depth of ${MAX_TRAVERSAL_DEPTH}`);
+  }
   yield node;
   if (hasChildren(node)) {
     for (const child of node.children) {
-      yield* traverseDepthFirst(child);
+      yield* traverseDepthFirst(child, depth + 1);
     }
   }
 }
@@ -62,14 +71,17 @@ export function* traverseDepthFirst(node: DocumentNode): Generator<DocumentNode>
 export function getNodePath(root: DocumentNode, targetNodeId: string): string[] | undefined {
   const path: string[] = [];
 
-  function search(node: DocumentNode): boolean {
+  function search(node: DocumentNode, depth: number): boolean {
+    if (depth > MAX_TRAVERSAL_DEPTH) {
+      throw new Error(`Document tree exceeds maximum depth of ${MAX_TRAVERSAL_DEPTH}`);
+    }
     path.push(node.nodeId);
     if (node.nodeId === targetNodeId) {
       return true;
     }
     if (hasChildren(node)) {
       for (const child of node.children) {
-        if (search(child)) {
+        if (search(child, depth + 1)) {
           return true;
         }
       }
@@ -78,7 +90,7 @@ export function getNodePath(root: DocumentNode, targetNodeId: string): string[] 
     return false;
   }
 
-  return search(root) ? path : undefined;
+  return search(root, 0) ? path : undefined;
 }
 
 /**

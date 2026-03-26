@@ -177,7 +177,7 @@ export class InMemoryVectorStorage<
       const vectorScore = cosineSimilarity(query, vector);
 
       // Calculate text relevance (simple keyword matching)
-      const metadataText = Object.values(metadata).join(" ").toLowerCase();
+      const metadataText = JSON.stringify(metadata).toLowerCase();
       const textScore = textRelevance(metadataText, textQuery);
 
       // Combine scores

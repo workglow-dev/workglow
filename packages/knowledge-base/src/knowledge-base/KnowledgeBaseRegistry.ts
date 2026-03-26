@@ -74,7 +74,6 @@ export function setGlobalKnowledgeBaseRepository(repository: KnowledgeBaseReposi
  */
 export async function registerKnowledgeBase(id: string, kb: KnowledgeBase): Promise<void> {
   const kbs = getGlobalKnowledgeBases();
-  kbs.set(id, kb);
 
   const now = new Date().toISOString();
   const tableNames = knowledgeBaseTableNames(id);
@@ -88,8 +87,13 @@ export async function registerKnowledgeBase(id: string, kb: KnowledgeBase): Prom
     created_at: now,
     updated_at: now,
   };
+
+  // Write to persistent repository first so a failure doesn't leave stale in-memory state
   const repo = getGlobalKnowledgeBaseRepository();
   await repo.addKnowledgeBase(record);
+
+  // Only add to live map after successful persistence
+  kbs.set(id, kb);
 }
 
 /**

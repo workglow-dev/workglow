@@ -241,6 +241,13 @@ export class KnowledgeBase {
   }
 
   /**
+   * Check if the configured storage backend supports hybrid search
+   */
+  supportsHybridSearch(): boolean {
+    return typeof this.chunkStorage.hybridSearch === "function";
+  }
+
+  /**
    * Hybrid search combining vector similarity and full-text search
    */
   async hybridSearch(

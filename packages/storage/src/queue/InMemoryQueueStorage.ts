@@ -233,13 +233,20 @@ export class InMemoryQueueStorage<Input, Output> implements IQueueStorage<Input,
    */
   public async complete(job: JobStorageFormat<Input, Output>) {
     await sleep(0);
-    const index = this.jobQueue.findIndex((j) => j.id === job.id);
+    const jobWithPrefixes = job as JobStorageFormat<Input, Output> & Record<string, unknown>;
+    const index = this.jobQueue.findIndex(
+      (j) => j.id === job.id && this.matchesPrefixes(j)
+    );
     if (index !== -1) {
       const existing = this.jobQueue[index];
       const currentAttempts = existing?.run_attempts ?? 0;
-      job.run_attempts = currentAttempts + 1;
-      this.jobQueue[index] = job;
-      this.events.emit("change", { type: "UPDATE", old: existing, new: job });
+      jobWithPrefixes.run_attempts = currentAttempts + 1;
+      // Preserve prefix values from the existing job
+      for (const [key, value] of Object.entries(this.prefixValues)) {
+        jobWithPrefixes[key] = value;
+      }
+      this.jobQueue[index] = jobWithPrefixes;
+      this.events.emit("change", { type: "UPDATE", old: existing, new: jobWithPrefixes });
     }
   }
 

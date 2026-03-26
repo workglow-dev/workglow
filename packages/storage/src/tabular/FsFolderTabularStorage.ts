@@ -5,7 +5,7 @@
  */
 
 import { DataPortSchemaObject, FromSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
-import { createServiceToken, makeFingerprint, sleep, uuid4 } from "@workglow/util";
+import { createServiceToken, getLogger, makeFingerprint, sleep, uuid4 } from "@workglow/util";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PollingSubscriptionManager } from "../util/PollingSubscriptionManager";
@@ -149,12 +149,14 @@ export class FsFolderTabularStorage<
     try {
       await writeFile(filePath, JSON.stringify(entityToStore));
     } catch (error) {
+      // CI system sometimes has issues temporarily — retry once
+      await sleep(1);
       try {
-        // CI system sometimes has issues temporarily
-        await sleep(1);
-        await writeFile(filePath, JSON.stringify(entity));
-      } catch (error) {
-        console.error("Error writing file", filePath, error);
+        await writeFile(filePath, JSON.stringify(entityToStore));
+      } catch (retryError) {
+        throw new Error(
+          `Failed to write file "${filePath}" after retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`
+        );
       }
     }
     this.events.emit("put", entityToStore);
@@ -285,14 +287,22 @@ export class FsFolderTabularStorage<
       return undefined;
     }
 
-    // Read all files in parallel
-    const allEntities = await Promise.all(
+    // Read all files in parallel, skipping corrupted files
+    const results = await Promise.allSettled(
       jsonFiles.map(async (file) => {
         const filePath = path.join(this.folderPath, file);
         const content = await readFile(filePath, "utf8");
         return JSON.parse(content) as Entity;
       })
     );
+    const allEntities: Entity[] = [];
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        allEntities.push(result.value);
+      } else {
+        getLogger().warn("Skipping corrupted file in getBulk:", { error: result.reason });
+      }
+    }
 
     // Sort by primary key to ensure deterministic ordering
     // TODO: rethink this, it's not efficient to sort all entities every time

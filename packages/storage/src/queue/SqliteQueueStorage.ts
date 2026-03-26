@@ -247,7 +247,7 @@ export class SqliteQueueStorage<Input, Output> implements IQueueStorage<Input, O
     status: JobStatus = JobStatus.PENDING,
     num: number = 100
   ): Promise<Array<JobStorageFormat<Input, Output>>> {
-    num = Number(num) || 100; // TS does not validate, so ensure it is a number since we put directly in SQL string
+    num = Math.max(1, Math.min(10000, Math.floor(Number(num) || 100))); // Validate and clamp to safe range
     const prefixConditions = this.buildPrefixWhereClause();
     const prefixParams = this.getPrefixParamValues();
 

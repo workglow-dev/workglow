@@ -118,12 +118,36 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
       .map((p) => {
         const value = this.prefixValues[p.name];
         if (p.type === "uuid") {
-          return `${p.name} = '${this.escapeSqlString(String(value))}'`;
+          const validated = this.validateSqlValue(String(value), `prefix "${p.name}"`);
+          return `${p.name} = '${this.escapeSqlString(validated)}'`;
         }
-        return `${p.name} = ${Number(value ?? 0)}`;
+        const numValue = Number(value ?? 0);
+        if (!Number.isFinite(numValue)) {
+          throw new Error(`Invalid numeric prefix value for "${p.name}": ${value}`);
+        }
+        return `${p.name} = ${numValue}`;
       })
       .join(" AND ");
     return " AND " + conditions;
+  }
+
+  /**
+   * Regex for validating SQL identifier-safe strings.
+   * Only allows alphanumeric characters, underscores, hyphens, and periods.
+   */
+  private static readonly SAFE_SQL_VALUE_RE = /^[a-zA-Z0-9_\-.:]+$/;
+
+  /**
+   * Validates that a string value is safe for use in SQL.
+   * Throws an error if the value contains potentially dangerous characters.
+   */
+  private validateSqlValue(value: string, context: string): string {
+    if (!SupabaseQueueStorage.SAFE_SQL_VALUE_RE.test(value)) {
+      throw new Error(
+        `Unsafe value for ${context}: "${value}". Values must match /^[a-zA-Z0-9_\\-.:]+$/.`
+      );
+    }
+    return value;
   }
 
   /**
@@ -300,8 +324,10 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
    */
   public async next(workerId: string): Promise<JobStorageFormat<Input, Output> | undefined> {
     const prefixConditions = this.buildPrefixWhereSql();
-    const escapedQueueName = this.escapeSqlString(this.queueName);
-    const escapedWorkerId = this.escapeSqlString(workerId);
+    const validatedQueueName = this.validateSqlValue(this.queueName, "queueName");
+    const validatedWorkerId = this.validateSqlValue(workerId, "workerId");
+    const escapedQueueName = this.escapeSqlString(validatedQueueName);
+    const escapedWorkerId = this.escapeSqlString(validatedWorkerId);
 
     // Use the same atomic UPDATE...WHERE id = (SELECT...FOR UPDATE SKIP LOCKED) pattern as PostgresQueueStorage
     const sql = `

@@ -17,7 +17,10 @@ import {
  */
 export class StructuralParser {
   /**
-   * Parse markdown text into a hierarchical document tree
+   * Parse markdown text into a hierarchical document tree.
+   *
+   * Note: Offsets are measured in UTF-16 code units (consistent with
+   * `String.prototype.length` and `String.prototype.slice()`).
    */
   static async parseMarkdown(
     doc_id: string,
@@ -74,14 +77,15 @@ export class StructuralParser {
         const level = headerMatch[1].length;
         const headerTitle = headerMatch[2];
 
-        // Pop stack until we find appropriate parent
+        // Pop stack until we find appropriate parent — set endOffset to currentOffset
+        // (the start of this new header line) rather than text.length
         while (
           currentParentStack.length > 1 &&
           currentParentStack[currentParentStack.length - 1].kind === NodeKind.SECTION &&
           (currentParentStack[currentParentStack.length - 1] as SectionNode).level >= level
         ) {
           const poppedSection = currentParentStack.pop() as SectionNode;
-          // Update endOffset of popped section
+          // Update endOffset of popped section to where the next section begins
           const updatedSection: SectionNode = {
             ...poppedSection,
             range: {
@@ -102,6 +106,7 @@ export class StructuralParser {
           title: headerTitle,
           range: {
             startOffset: sectionStartOffset,
+            // Will be updated to the correct endOffset when popped or at end of parsing
             endOffset: text.length,
           },
           text: headerTitle,
@@ -123,7 +128,7 @@ export class StructuralParser {
 
     await flushTextBuffer();
 
-    // Close any remaining sections
+    // Close any remaining sections — final sections extend to the end of the text
     while (currentParentStack.length > 1) {
       const section = currentParentStack.pop() as SectionNode;
       const updatedSection: SectionNode = {
