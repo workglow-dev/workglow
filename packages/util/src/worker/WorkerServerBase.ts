@@ -106,13 +106,19 @@ export class WorkerServerBase {
     postMessage({ id, type: "complete", data: result }, uniqueTransferables);
   };
 
-  private postError = (id: string, error: string | { message: string; name?: string }) => {
+  private postError = (id: string, error: unknown) => {
     if (this.completedRequests.has(id)) {
       return; // Already responded to this request
     }
     this.completedRequests.add(id);
-    const data =
-      typeof error === "string" ? { message: error, name: "Error" } : error;
+    let data: { message: string; name: string };
+    if (typeof error === "string") {
+      data = { message: error, name: "Error" };
+    } else if (error instanceof Error) {
+      data = { message: error.message, name: error.name };
+    } else {
+      data = { message: String(error), name: "Error" };
+    }
     postMessage({ id, type: "error", data });
   };
 
@@ -194,6 +200,7 @@ export class WorkerServerBase {
       this.requestControllers.delete(id);
       // Send error response back to main thread so the promise rejects
       this.postError(id, "Operation aborted");
+      this.scheduleCompletedRequestCleanup(id);
     }
   }
 
@@ -214,8 +221,8 @@ export class WorkerServerBase {
       const fn = this.reactiveFunctions[functionName];
       const result = await fn(input, output, model);
       this.postResult(id, result);
-    } catch (error: any) {
-      this.postError(id, { message: error.message, name: error.name ?? "Error" });
+    } catch (error) {
+      this.postError(id, error);
     }
   }
 
@@ -238,8 +245,8 @@ export class WorkerServerBase {
       };
       const result = await fn(input, model, postProgress, abortController.signal);
       this.postResult(id, result);
-    } catch (error: any) {
-      this.postError(id, { message: error.message, name: error.name ?? "Error" });
+    } catch (error) {
+      this.postError(id, error);
     } finally {
       this.requestControllers.delete(id);
       this.scheduleCompletedRequestCleanup(id);
@@ -267,8 +274,8 @@ export class WorkerServerBase {
         }
 
         this.postResult(id, undefined);
-      } catch (error: any) {
-        this.postError(id, { message: error.message, name: error.name ?? "Error" });
+      } catch (error) {
+        this.postError(id, error);
       } finally {
         this.requestControllers.delete(id);
         this.scheduleCompletedRequestCleanup(id);
@@ -285,8 +292,8 @@ export class WorkerServerBase {
 
         this.postStreamChunk(id, { type: "finish", data: result });
         this.postResult(id, undefined);
-      } catch (error: any) {
-        this.postError(id, { message: error.message, name: error.name ?? "Error" });
+      } catch (error) {
+        this.postError(id, error);
       } finally {
         this.requestControllers.delete(id);
         this.scheduleCompletedRequestCleanup(id);
