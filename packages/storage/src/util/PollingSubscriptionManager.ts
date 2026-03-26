@@ -83,6 +83,9 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
   /** Whether the manager has been initialized with a state fetch */
   private initialized = false;
 
+  /** Whether initialization is currently in progress (guards against poll/init race) */
+  private initializing = false;
+
   /** Function to fetch current state */
   private readonly fetchState: StateFetcher<Item, Key>;
 
@@ -145,7 +148,8 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
       // Run initial poll if this is the first subscriber ever
       if (!this.initialized) {
         this.initialized = true;
-        this.initAndPoll(subscribers, subscription);
+        this.initializing = true;
+        this.initAndPoll(subscription);
       } else {
         // Run immediate poll for new subscriber
         this.pollForNewSubscriber(subscription);
@@ -175,10 +179,7 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
   /**
    * Initialize state and run first poll
    */
-  private async initAndPoll(
-    subscribers: Set<Subscription<ChangePayload>>,
-    newSubscription: Subscription<ChangePayload>
-  ): Promise<void> {
+  private async initAndPoll(newSubscription: Subscription<ChangePayload>): Promise<void> {
     try {
       this.lastKnownState = await this.fetchState();
       // Notify the new subscriber of initial state as INSERTs
@@ -192,6 +193,8 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
       }
     } catch {
       // Ignore fetch errors during initialization
+    } finally {
+      this.initializing = false;
     }
   }
 
@@ -215,6 +218,8 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
    */
   private async poll(subscribers: Set<Subscription<ChangePayload>>): Promise<void> {
     if (subscribers.size === 0) return;
+    // Skip polling while initAndPoll is still running to avoid racing on lastKnownState
+    if (this.initializing) return;
 
     try {
       const currentState = await this.fetchState();
@@ -283,5 +288,6 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
     this.intervals.clear();
     this.lastKnownState.clear();
     this.initialized = false;
+    this.initializing = false;
   }
 }

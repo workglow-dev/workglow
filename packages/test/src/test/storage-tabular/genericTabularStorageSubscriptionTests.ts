@@ -30,9 +30,10 @@ export function runGenericTabularStorageSubscriptionTests(
   const usesPolling = options?.usesPolling ?? false;
   const pollingIntervalMs = options?.pollingIntervalMs ?? 1;
   // Add buffer time for polling-based implementations
-  // Need to wait for at least one full polling cycle after operations complete
-  const waitTime = usesPolling ? Math.max(pollingIntervalMs * 3, 100) : 50;
-  const initWaitTime = usesPolling ? Math.max(pollingIntervalMs * 4, 150) : 10;
+  // Need to wait for several full polling cycles after operations complete.
+  // Under CI load, setInterval callbacks can drift significantly, so use generous multipliers.
+  const waitTime = usesPolling ? Math.max(pollingIntervalMs * 8, 200) : 50;
+  const initWaitTime = usesPolling ? Math.max(pollingIntervalMs * 10, 300) : 10;
 
   describe("Subscription Tests", () => {
     let repository: ITabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>;
