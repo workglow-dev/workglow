@@ -93,7 +93,7 @@ function isBrowserEnv(): boolean {
  * that affect pipeline creation (model_path, pipeline, dtype, device)
  */
 export function getPipelineCacheKey(model: HfTransformersOnnxModelConfig): string {
-  const dtype = model.provider_config.dtype || "q8";
+  const dtype = model.provider_config.dtype || "";
   const device = model.provider_config.device || "";
   return `${model.provider_config.model_path}:${model.provider_config.pipeline}:${dtype}:${device}`;
 }
@@ -304,11 +304,12 @@ const doGetPipeline = async (
     }
   }
 
+  const dtype = model.provider_config.dtype || "";
   const pipelineOptions: PretrainedModelOptions = {
-    dtype: model.provider_config.dtype || "q8",
     ...(model.provider_config.use_external_data_format
       ? { useExternalDataFormat: model.provider_config.use_external_data_format }
       : {}),
+    ...(dtype ? { dtype: dtype as any } : {}),
     ...(device ? { device: device as any } : {}),
     ...options,
     progress_callback: progressCallback,
