@@ -447,10 +447,7 @@ export class FileLoaderTask extends Task<
     }
 
     // text, markdown, or html
-    const content = response.text || "";
-    if (!content) {
-      throw new Error(`Failed to load content from ${url}`);
-    }
+    const content = response.text ?? "";
     const mimeType =
       responseMimeType ||
       (detectedFormat === "markdown"

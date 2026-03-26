@@ -48,6 +48,10 @@ const outputSchema = {
 export type StringTemplateTaskInput = FromSchema<typeof inputSchema>;
 export type StringTemplateTaskOutput = FromSchema<typeof outputSchema>;
 
+/**
+ * @deprecated Use {@link TemplateTask} instead, which supports dot-notation paths
+ * and `{{key|default}}` fallback syntax.
+ */
 export class StringTemplateTask<
   Input extends StringTemplateTaskInput = StringTemplateTaskInput,
   Output extends StringTemplateTaskOutput = StringTemplateTaskOutput,
