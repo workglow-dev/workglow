@@ -183,7 +183,7 @@ export class IteratorTaskRunner<
       const ctor = task.constructor as ITaskConstructor<any, any, any>;
       const newId = uuid4();
       idMap.set(task.config.id, newId);
-      const clonedConfig = { ...(task as any).getCloneConfig(), id: newId };
+      const clonedConfig = { ...task.getCloneConfig(), id: newId };
       const newTask = new ctor(task.defaults, clonedConfig, task.runConfig);
       if (task.hasChildren()) {
         newTask.subGraph = this.cloneGraph(task.subGraph);

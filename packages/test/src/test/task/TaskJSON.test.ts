@@ -495,12 +495,13 @@ describe("TaskJSON", () => {
     });
 
     test("toJSON should not include non-serializable config properties", () => {
-      // Construct the task normally first
+      // Construct the task normally first (schema validation would reject a function at construction)
       const task = new DoubleToResultTask({ value: 42 }, { id: "task1" });
 
-      // Inject a non-serializable value into a schema-listed config property
-      // after construction (bypassing schema validation) to test the safety net in toJSON()
-      (task.config as Record<string, unknown>)["title"] = (): void => {};
+      // Intentionally break the type contract by injecting a non-serializable function
+      // directly into config after construction, simulating a value that slipped through.
+      // This tests the safety net in Task.toJSON() that catches such values.
+      (task.config as any)["title"] = (): void => {};
 
       // Task.toJSON should detect the non-serializable config property and throw
       expect(() => task.toJSON()).toThrow(TaskSerializationError);

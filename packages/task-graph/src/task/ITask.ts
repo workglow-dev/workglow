@@ -208,6 +208,12 @@ export interface ITaskSerialization {
   toJSON(options?: TaskGraphJsonOptions): JsonTaskItem | TaskGraphItemJson;
   toDependencyJSON(options?: TaskGraphJsonOptions): JsonTaskItem;
   get id(): unknown;
+  /**
+   * Returns the config used when cloning this task instance.
+   * Includes non-serializable class properties (e.g. condition functions) that
+   * should be preserved across clones even though they are not in `toJSON()`.
+   */
+  getCloneConfig(): Record<string, unknown>;
 }
 
 /**
