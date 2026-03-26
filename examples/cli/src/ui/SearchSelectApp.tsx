@@ -167,9 +167,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
   const defaultRenderItem = (item: T, isFocused: boolean): React.ReactElement => (
     <Box key={item.id} flexDirection="column">
       <Box>
-        <Text color={isFocused ? "cyan" : "gray"}>
-          {isFocused ? "\u25B8 " : "  "}
-        </Text>
+        <Text color={isFocused ? "cyan" : "gray"}>{isFocused ? "\u25B8 " : "  "}</Text>
         <Text bold={isFocused}>{item.label}</Text>
       </Box>
       {item.description && (
@@ -182,7 +180,10 @@ export function SearchSelectApp<T extends SearchSelectItem>({
 
   const itemRenderer = renderItem ?? defaultRenderItem;
 
-  const windowStart = Math.max(0, Math.min(highlightIndex - Math.floor(maxVisibleItems / 2), items.length - maxVisibleItems));
+  const windowStart = Math.max(
+    0,
+    Math.min(highlightIndex - Math.floor(maxVisibleItems / 2), items.length - maxVisibleItems)
+  );
   const windowEnd = Math.min(items.length, windowStart + maxVisibleItems);
   const visibleItems = items.slice(windowStart, windowEnd);
 
@@ -190,7 +191,8 @@ export function SearchSelectApp<T extends SearchSelectItem>({
     <Box flexDirection="column">
       <Box>
         <Text bold color="cyan">
-          {placeholder ?? "Search"}: </Text>
+          {placeholder ?? "Search"}:{" "}
+        </Text>
         <TextInput
           defaultValue={initialQuery}
           onChange={handleQueryChange}
@@ -199,43 +201,37 @@ export function SearchSelectApp<T extends SearchSelectItem>({
       </Box>
 
       <Box flexDirection="column" marginTop={1}>
-        {isLoading && items.length === 0 && (
-          <Spinner label="Searching..." />
-        )}
+        {isLoading && items.length === 0 && <Spinner label="Searching..." />}
 
-        {error && (
-          <Text color="red">  Search failed: {error}</Text>
-        )}
+        {error && <Text color="red"> Search failed: {error}</Text>}
 
         {!isLoading && hasSearched && items.length === 0 && !error && (
-          <Text dimColor>  No results found.</Text>
+          <Text dimColor> No results found.</Text>
         )}
 
-        {!hasSearched && !isLoading && (
-          <Text dimColor>  Type to search...</Text>
-        )}
+        {!hasSearched && !isLoading && <Text dimColor> Type to search...</Text>}
 
         {windowStart > 0 && (
-          <Text dimColor>  {"\u2191"} {windowStart} more above</Text>
+          <Text dimColor>
+            {" "}
+            {"\u2191"} {windowStart} more above
+          </Text>
         )}
 
-        {visibleItems.map((item, i) =>
-          itemRenderer(item, windowStart + i === highlightIndex)
-        )}
+        {visibleItems.map((item, i) => itemRenderer(item, windowStart + i === highlightIndex))}
 
         {windowEnd < items.length && (
-          <Text dimColor>  {"\u2193"} {items.length - windowEnd} more below</Text>
+          <Text dimColor>
+            {" "}
+            {"\u2193"} {items.length - windowEnd} more below
+          </Text>
         )}
 
-        {isLoadingMore && (
-          <Spinner label="Loading more..." />
-        )}
+        {isLoadingMore && <Spinner label="Loading more..." />}
       </Box>
 
       <Box marginTop={1}>
-        <Text dimColor>
-          {"\u2191\u2193"} navigate  Enter select  Esc cancel
-        </Text>
+        <Text dimColor>{"\u2191\u2193"} navigate Enter select Esc cancel</Text>
       </Box>
     </Box>
   );

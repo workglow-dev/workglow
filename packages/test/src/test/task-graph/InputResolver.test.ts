@@ -12,7 +12,12 @@ import {
   registerTabularRepository,
 } from "@workglow/storage";
 import { IExecuteContext, resolveSchemaInputs, Task, TaskRegistry } from "@workglow/task-graph";
-import { getInputResolvers, globalServiceRegistry, registerInputResolver, setLogger } from "@workglow/util";
+import {
+  getInputResolvers,
+  globalServiceRegistry,
+  registerInputResolver,
+  setLogger,
+} from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";

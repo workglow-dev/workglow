@@ -5,7 +5,11 @@
  */
 
 import { InMemoryQueueStorage, TelemetryQueueStorage } from "@workglow/storage";
-import { ConsoleTelemetryProvider, NoopTelemetryProvider, setTelemetryProvider } from "@workglow/util";
+import {
+  ConsoleTelemetryProvider,
+  NoopTelemetryProvider,
+  setTelemetryProvider,
+} from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("TelemetryQueueStorage", () => {

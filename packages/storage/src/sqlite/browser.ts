@@ -22,9 +22,7 @@ let initPromise: Promise<void> | undefined;
 
 function assertWasmLoaded(): WasmSqliteModule {
   if (!wasmModule) {
-    throw new Error(
-      "SQLite is not ready. Await Sqlite.init() before using new Sqlite.Database()."
-    );
+    throw new Error("SQLite is not ready. Await Sqlite.init() before using new Sqlite.Database().");
   }
   return wasmModule;
 }
