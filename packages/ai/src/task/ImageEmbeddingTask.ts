@@ -11,7 +11,7 @@ import {
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
-import { TypeImageInput, TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
+import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
 
 const modelSchema = TypeModel("model:ImageEmbeddingTask");
@@ -19,7 +19,7 @@ const modelSchema = TypeModel("model:ImageEmbeddingTask");
 export const ImageEmbeddingInputSchema = {
   type: "object",
   properties: {
-    image: TypeSingleOrArray(TypeImageInput),
+    image: TypeImageInput,
     model: modelSchema,
   },
   required: ["image", "model"],
@@ -29,12 +29,10 @@ export const ImageEmbeddingInputSchema = {
 export const ImageEmbeddingOutputSchema = {
   type: "object",
   properties: {
-    vector: TypeSingleOrArray(
-      TypedArraySchema({
-        title: "Embedding",
-        description: "The image embedding vector",
-      })
-    ),
+    vector: TypedArraySchema({
+      title: "Embedding",
+      description: "The image embedding vector",
+    }),
   },
   required: ["vector"],
   additionalProperties: false,
