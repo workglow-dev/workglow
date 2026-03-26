@@ -95,7 +95,8 @@ function isBrowserEnv(): boolean {
 export function getPipelineCacheKey(model: HfTransformersOnnxModelConfig): string {
   const dtype = model.provider_config.dtype || "q8";
   const device = model.provider_config.device || "";
-  return `${model.provider_config.model_path}:${model.provider_config.pipeline}:${dtype}:${device}`;
+  const revision = model.provider_config.revision || "main";
+  return `${model.provider_config.model_path}:${model.provider_config.pipeline}:${dtype}:${device}:${revision}`;
 }
 
 /**
@@ -306,6 +307,7 @@ const doGetPipeline = async (
 
   const pipelineOptions: PretrainedModelOptions = {
     dtype: model.provider_config.dtype || "q8",
+    revision: model.provider_config.revision || "main",
     ...(model.provider_config.use_external_data_format
       ? { useExternalDataFormat: model.provider_config.use_external_data_format }
       : {}),
