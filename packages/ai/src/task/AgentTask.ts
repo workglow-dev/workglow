@@ -298,8 +298,8 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
         `Agent iteration ${iteration + 1}`
       );
 
-      // Trim context window if needed
-      const contextMessages = this.trimMessages(messages, input.maxContextMessages);
+      // Trim context window — default to 50 messages to prevent context overflow
+      const contextMessages = this.trimMessages(messages, input.maxContextMessages ?? 50);
 
       // Call the LLM and stream its output
       const llmTask = context.own(new ToolCallingTask({}, {}));
@@ -423,14 +423,14 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
 
     // Walk backwards from the end to find the earliest message we can keep
     // while respecting the limit. Never split an assistant+tool pair: if
-    // the cut point lands on a "tool" message, include the preceding
-    // "assistant" message as well.
+    // the cut point lands on a "tool" message, walk back until we find a
+    // non-tool message to keep the pair intact.
     const tail = messages.slice(1); // everything after the initial user prompt
     let startIdx = tail.length - (maxContextMessages - 1);
     if (startIdx < 0) startIdx = 0;
 
-    // If the cut starts on a tool message, back up to include its assistant
-    if (startIdx > 0 && startIdx < tail.length && tail[startIdx].role === "tool") {
+    // Walk backwards past any consecutive tool messages to keep pairs intact
+    while (startIdx > 0 && startIdx < tail.length && tail[startIdx].role === "tool") {
       startIdx -= 1;
     }
 

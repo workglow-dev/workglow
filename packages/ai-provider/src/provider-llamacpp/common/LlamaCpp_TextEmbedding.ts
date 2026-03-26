@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, TextEmbeddingTaskInput, TextEmbeddingTaskOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  TextEmbeddingTaskInput,
+  TextEmbeddingTaskOutput,
+} from "@workglow/ai";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import { getOrCreateEmbeddingContext } from "./LlamaCpp_Runtime";
 

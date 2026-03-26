@@ -74,29 +74,87 @@ export function buildToolSources(
           taskType,
         } satisfies RegistryToolSource);
       }
-    } else if (tool.execute) {
-      // Tool with a custom executor function
-      const { execute, configSchema: _cs, config: _c, ...definition } = tool;
+    } else if (tool.type === "function" || (!tool.type && tool.execute)) {
+      // Explicit function type or has execute — use as custom executor
+      if (!tool.execute) {
+        getLogger().warn(
+          `AgentTask: Tool "${tool.name}" has type "function" but no execute function — will throw on invocation`
+        );
+      }
+      const { execute, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
       sources.push({
         type: "function",
         definition,
-        run: execute,
+        run:
+          execute ??
+          (async () => {
+            throw new Error(`No execute function for tool "${tool.name}"`);
+          }),
       } satisfies FunctionToolSource);
-    } else {
-      // Check if the tool name matches a registered task type via scoped registry
+    } else if (tool.type === "task") {
+      // Explicit task type — look up in registry
       const ctor = constructors.get(tool.name);
-      if (ctor) {
-        // Registry-backed tool — config is passed through for task instantiation
-        const { execute: _e, configSchema: _cs, config: _c, ...definition } = tool;
+      if (!ctor) {
+        getLogger().warn(
+          `AgentTask: Tool "${tool.name}" has type "task" but is not in TaskRegistry — will throw on invocation`
+        );
+        const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
+        sources.push({
+          type: "function",
+          definition,
+          run: async () => {
+            throw new Error(`Task "${tool.name}" not found in TaskRegistry`);
+          },
+        } satisfies FunctionToolSource);
+      } else {
+        const taskConfigSchema = (ctor as any).configSchema?.();
+        const safeConfig =
+          tool.config && taskConfigSchema
+            ? tool.config
+            : tool.config && !taskConfigSchema
+              ? {}
+              : tool.config;
+        if (tool.config && !taskConfigSchema) {
+          getLogger().warn(
+            `AgentTask: Tool "${tool.name}" provided config but task has no configSchema — config ignored`
+          );
+        }
+        const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
         sources.push({
           type: "registry",
           definition,
           taskType: tool.name,
-          config: tool.config,
+          config: safeConfig,
+        } satisfies RegistryToolSource);
+      }
+    } else {
+      // No discriminator — duck-type: check if name matches a registered task
+      const ctor = constructors.get(tool.name);
+      if (ctor) {
+        // Registry-backed tool — config is passed through for task instantiation.
+        // Only pass config if the task actually declares a configSchema.
+        const taskConfigSchema = (ctor as any).configSchema?.();
+        const safeConfig =
+          tool.config && taskConfigSchema
+            ? tool.config
+            : tool.config && !taskConfigSchema
+              ? {}
+              : tool.config;
+        if (tool.config && !taskConfigSchema) {
+          getLogger().warn(
+            `AgentTask: Tool "${tool.name}" provided config but task has no configSchema — config ignored`
+          );
+        }
+        const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
+        sources.push({
+          type: "registry",
+          definition,
+          taskType: tool.name,
+          config: safeConfig,
         } satisfies RegistryToolSource);
       } else {
         // No executor and not in registry — create a stub that throws
-        const { execute: _e, configSchema: _cs, config: _c, ...definition } = tool;
+        const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
         sources.push({
           type: "function",
           definition,

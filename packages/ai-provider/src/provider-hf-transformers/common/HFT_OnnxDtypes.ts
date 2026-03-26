@@ -17,7 +17,9 @@ export const ONNX_QUANTIZATION_SUFFIX_MAPPING = {
 
 export type OnnxQuantization = keyof typeof ONNX_QUANTIZATION_SUFFIX_MAPPING;
 
-const SUFFIXES_LONGEST_FIRST = (Object.entries(ONNX_QUANTIZATION_SUFFIX_MAPPING) as [OnnxQuantization, string][])
+const SUFFIXES_LONGEST_FIRST = (
+  Object.entries(ONNX_QUANTIZATION_SUFFIX_MAPPING) as [OnnxQuantization, string][]
+)
   .filter(([, suffix]) => suffix !== "")
   .sort((a, b) => b[1].length - a[1].length);
 

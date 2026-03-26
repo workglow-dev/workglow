@@ -38,6 +38,13 @@ export interface AiSingleTaskInput extends TaskInput {
 }
 
 /**
+ * Simple TTL cache for narrowInput model lookups.
+ * Entries expire after 5 seconds to stay fresh while avoiding repeated DB queries.
+ */
+const narrowInputCache = new Map<string, { models: ModelConfig[]; timestamp: number }>();
+const NARROW_INPUT_CACHE_TTL_MS = 5_000;
+
+/**
  * A base class for AI related tasks that run in a job queue.
  * Extends the JobQueueTask class to provide LLM-specific functionality.
  *
@@ -96,7 +103,12 @@ export class AiTask<
     // otherwise fall back to the task's static outputSchema() if it has
     // x-structured-output annotations.
     const inputOutputSchema = (input as any).outputSchema;
-    if (inputOutputSchema && typeof inputOutputSchema === "object") {
+    if (
+      inputOutputSchema &&
+      typeof inputOutputSchema === "object" &&
+      !Array.isArray(inputOutputSchema) &&
+      typeof inputOutputSchema.type === "string"
+    ) {
       jobInput.outputSchema = inputOutputSchema;
     } else {
       const taskOutputSchema = this.outputSchema();
@@ -195,14 +207,17 @@ export class AiTask<
         // Check task compatibility if tasks array is specified
         const tasks = (model as ModelConfig).tasks;
         if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
+          const modelId = (model as ModelConfig).model_id ?? "(inline config)";
           throw new TaskConfigurationError(
-            `AiTask: Model for '${key}' is not compatible with task '${this.type}'`
+            `AiTask: Model "${modelId}" for '${key}' is not compatible with task '${this.type}'. ` +
+              `Model supports: [${tasks.join(", ")}]`
           );
         }
       } else if (model !== undefined && model !== null) {
         // Should be a ModelConfig object after resolution
         throw new TaskConfigurationError(
-          `AiTask: Invalid model for '${key}' - expected ModelConfig object`
+          `AiTask: Invalid model for '${key}' - expected ModelConfig object but got ${typeof model}. ` +
+            `Ensure the model ID was registered in the ModelRepository before running the task.`
         );
       }
     }
@@ -216,7 +231,8 @@ export class AiTask<
       const model = input[key];
       if (model !== undefined && model !== null && typeof model !== "object") {
         throw new TaskConfigurationError(
-          `AiTask: Invalid model for '${key}' - expected ModelConfig object`
+          `AiTask: Invalid model for '${key}' - expected ModelConfig object but got ${typeof model}. ` +
+            `Ensure the model ID was registered in the ModelRepository before running the task.`
         );
       }
     }
@@ -227,7 +243,6 @@ export class AiTask<
   // dataflows can strip some models that are incompatible with the target task
   // if all of them are stripped, then the task will fail in validateInput
   async narrowInput(input: Input, registry: ServiceRegistry): Promise<Input> {
-    // TODO(str): this is very inefficient, we should cache the results, including intermediate results
     const inputSchema = this.inputSchema();
     if (typeof inputSchema === "boolean") {
       if (inputSchema === false) {
@@ -240,7 +255,18 @@ export class AiTask<
     ).filter(([key, schema]) => schemaFormat(schema)?.startsWith("model:"));
     if (modelTaskProperties.length > 0) {
       const modelRepo = registry.get<ModelRepository>(MODEL_REPOSITORY);
-      const taskModels = await modelRepo.findModelsByTask(this.type);
+
+      // Use a TTL cache for model lookups to avoid repeated DB queries
+      const cacheKey = this.type;
+      const cached = narrowInputCache.get(cacheKey);
+      let taskModels: ModelConfig[];
+      if (cached && Date.now() - cached.timestamp < NARROW_INPUT_CACHE_TTL_MS) {
+        taskModels = cached.models;
+      } else {
+        taskModels = (await modelRepo.findModelsByTask(this.type)) ?? [];
+        narrowInputCache.set(cacheKey, { models: taskModels, timestamp: Date.now() });
+      }
+
       for (const [key, propSchema] of modelTaskProperties) {
         const requestedModel = input[key];
 

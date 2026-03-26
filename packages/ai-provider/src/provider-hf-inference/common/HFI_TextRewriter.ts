@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, AiProviderStreamFn, TextRewriterTaskInput, TextRewriterTaskOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  AiProviderStreamFn,
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
+} from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
 import { getClient, getModelName, getProvider } from "./HFI_Client";
@@ -56,11 +61,13 @@ export const HFI_TextRewriter_Stream: AiProviderStreamFn<
     { signal }
   );
 
+  let accumulatedText = "";
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
+      accumulatedText += delta;
       yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
-  yield { type: "finish", data: {} as TextRewriterTaskOutput };
+  yield { type: "finish", data: { text: accumulatedText } as TextRewriterTaskOutput };
 };

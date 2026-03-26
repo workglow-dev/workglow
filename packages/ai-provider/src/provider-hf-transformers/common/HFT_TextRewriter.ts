@@ -77,7 +77,13 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
     (err: Error) => queue.error(err)
   );
 
-  yield* queue.iterable;
+  let accumulatedText = "";
+  for await (const event of queue.iterable) {
+    if (event.type === "text-delta") {
+      accumulatedText += event.textDelta;
+    }
+    yield event;
+  }
   await pipelinePromise;
-  yield { type: "finish", data: {} as TextRewriterTaskOutput };
+  yield { type: "finish", data: { text: accumulatedText } as TextRewriterTaskOutput };
 };

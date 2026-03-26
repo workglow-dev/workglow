@@ -30,7 +30,11 @@ export const HFT_ModelInfo: AiProviderRunFn<
     ...(dtype ? { dtype } : {}),
     ...(device ? { device: device as DeviceType } : {}),
   };
-  const cacheStatus = await ModelRegistry.is_pipeline_cached_files(pipelineType, model_path, cacheOptions);
+  const cacheStatus = await ModelRegistry.is_pipeline_cached_files(
+    pipelineType,
+    model_path,
+    cacheOptions
+  );
   logger.debug("is_pipeline_cached", {
     input: [pipelineType, model_path, cacheOptions],
     result: cacheStatus,

@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, AiProviderStreamFn, TextGenerationTaskInput, TextGenerationTaskOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  AiProviderStreamFn,
+  TextGenerationTaskInput,
+  TextGenerationTaskOutput,
+} from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util/worker";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
@@ -60,10 +65,12 @@ export const Anthropic_TextGeneration_Stream: AiProviderStreamFn<
     { signal }
   );
 
+  let accumulatedText = "";
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      accumulatedText += event.delta.text;
       yield { type: "text-delta", port: "text", textDelta: event.delta.text };
     }
   }
-  yield { type: "finish", data: {} as TextGenerationTaskOutput };
+  yield { type: "finish", data: { text: accumulatedText } as TextGenerationTaskOutput };
 };

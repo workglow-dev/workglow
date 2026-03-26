@@ -75,6 +75,25 @@ export class AiProviderRegistry {
   }
 
   /**
+   * Removes a previously registered provider and all of its run/stream/reactive functions.
+   * Used for cleanup when provider initialization fails partway through.
+   * @param name - The provider name to unregister
+   */
+  unregisterProvider(name: string): void {
+    this.providers.delete(name);
+    // Remove all run functions for this provider
+    for (const [taskType, providerMap] of this.runFnRegistry) {
+      providerMap.delete(name);
+    }
+    for (const [taskType, providerMap] of this.streamFnRegistry) {
+      providerMap.delete(name);
+    }
+    for (const [taskType, providerMap] of this.reactiveRunFnRegistry) {
+      providerMap.delete(name);
+    }
+  }
+
+  /**
    * Retrieves a registered AiProvider instance by name.
    * @param name - The provider name (e.g., "HF_TRANSFORMERS_ONNX")
    * @returns The provider instance, or undefined if not found
@@ -273,8 +292,16 @@ export class AiProviderRegistry {
     const taskTypeMap = this.runFnRegistry.get(taskType);
     const runFn = taskTypeMap?.get(modelProvider) as AiProviderRunFn<Input, Output> | undefined;
     if (!runFn) {
+      const installedProviders = this.getInstalledProviderIds();
+      const providersForTask = this.getProviderIdsForTask(taskType);
+      const hint =
+        providersForTask.length > 0
+          ? ` Providers supporting "${taskType}": [${providersForTask.join(", ")}].`
+          : installedProviders.length > 0
+            ? ` Installed providers: [${installedProviders.join(", ")}] (none support "${taskType}").`
+            : " No providers are registered. Call provider.register() before running AI tasks.";
       throw new Error(
-        `No run function found for task type ${taskType} and model provider ${modelProvider}`
+        `No run function found for task type "${taskType}" and provider "${modelProvider}".${hint}`
       );
     }
     return runFn;
@@ -282,9 +309,8 @@ export class AiProviderRegistry {
 }
 
 // Singleton instance management for the ProviderRegistry
-let providerRegistry: AiProviderRegistry;
+let providerRegistry: AiProviderRegistry = new AiProviderRegistry();
 export function getAiProviderRegistry() {
-  if (!providerRegistry) providerRegistry = new AiProviderRegistry();
   return providerRegistry;
 }
 export function setAiProviderRegistry(pr: AiProviderRegistry) {

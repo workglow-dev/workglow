@@ -234,7 +234,14 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
 
     registry.registerProvider(this);
 
-    await this.afterRegister(options);
+    try {
+      await this.afterRegister(options);
+    } catch (err) {
+      // Clean up the partially-registered provider so the registry isn't left
+      // in an inconsistent state (e.g., functions registered but no queue).
+      registry.unregisterProvider(this.name);
+      throw err;
+    }
   }
 
   /**
