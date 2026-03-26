@@ -7,7 +7,7 @@
 import { TaskStatus } from "@workglow/task-graph";
 import { InputTask, OutputTask } from "@workglow/tasks";
 import { setLogger } from "@workglow/util";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("InputTask", () => {
