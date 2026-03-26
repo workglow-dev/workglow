@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -59,7 +59,7 @@ export type TextQuestionAnswerTaskOutput = FromSchema<typeof TextQuestionAnswerO
 export class TextQuestionAnswerTask extends StreamingAiTask<
   TextQuestionAnswerTaskInput,
   TextQuestionAnswerTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "TextQuestionAnswerTask";
   public static category = "AI Text Model";
@@ -79,10 +79,7 @@ export class TextQuestionAnswerTask extends StreamingAiTask<
  * @param input The input parameters for text question answer (context, question, and model)
  * @returns Promise resolving to the generated answer(s)
  */
-export const textQuestionAnswer = (
-  input: TextQuestionAnswerTaskInput,
-  config?: JobQueueTaskConfig
-) => {
+export const textQuestionAnswer = (input: TextQuestionAnswerTaskInput, config?: TaskConfig) => {
   return new TextQuestionAnswerTask({} as TextQuestionAnswerTaskInput, config).run(input);
 };
 
@@ -91,7 +88,7 @@ declare module "@workglow/task-graph" {
     textQuestionAnswer: CreateWorkflow<
       TextQuestionAnswerTaskInput,
       TextQuestionAnswerTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

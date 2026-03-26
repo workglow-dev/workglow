@@ -200,17 +200,19 @@ describe("AiProvider", () => {
       expect(registeredQueue).toBeUndefined();
     });
 
-    test("should auto-create a job queue by default (QueuedAiProvider)", async () => {
+    test("should register a strategy resolver by default (QueuedAiProvider)", async () => {
       const provider = new TestQueuedProvider({
         TextGenerationTask: mock(() => Promise.resolve({ text: "hello" })),
       });
 
       await provider.register();
 
-      const registeredQueue = getTaskQueueRegistry().getQueue(TEST_PROVIDER_NAME);
-      expect(registeredQueue).toBeDefined();
-      expect(registeredQueue!.server).toBeDefined();
-      expect(registeredQueue!.client).toBeDefined();
+      // QueuedAiProvider registers a strategy resolver (queue is created lazily on first use)
+      const strategy = aiProviderRegistry.getStrategy({
+        provider: TEST_PROVIDER_NAME,
+      } as any);
+      expect(strategy).toBeDefined();
+      expect(strategy).not.toBe((aiProviderRegistry as any).defaultStrategy);
     });
 
     test("should skip queue creation when autoCreate is false", async () => {

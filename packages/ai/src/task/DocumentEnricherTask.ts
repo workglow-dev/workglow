@@ -11,13 +11,7 @@ import {
   type Entity,
   type NodeEnrichment,
 } from "@workglow/knowledge-base";
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ModelConfig } from "../model/ModelSchema";
 import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
@@ -104,7 +98,7 @@ export type DocumentEnricherTaskOutput = FromSchema<typeof outputSchema>;
 export class DocumentEnricherTask extends Task<
   DocumentEnricherTaskInput,
   DocumentEnricherTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "DocumentEnricherTask";
   public static category = "Document";
@@ -399,7 +393,7 @@ export class DocumentEnricherTask extends Task<
   }
 }
 
-export const documentEnricher = (input: DocumentEnricherTaskInput, config?: JobQueueTaskConfig) => {
+export const documentEnricher = (input: DocumentEnricherTaskInput, config?: TaskConfig) => {
   return new DocumentEnricherTask({} as DocumentEnricherTaskInput, config).run(input);
 };
 
@@ -408,7 +402,7 @@ declare module "@workglow/task-graph" {
     documentEnricher: CreateWorkflow<
       DocumentEnricherTaskInput,
       DocumentEnricherTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

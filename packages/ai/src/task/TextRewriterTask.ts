@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -72,13 +72,13 @@ export class TextRewriterTask extends StreamingAiTask<
  * @param input The input parameters for text rewriting (text, prompt, and model)
  * @returns Promise resolving to the rewritten text output(s)
  */
-export const textRewriter = (input: TextRewriterTaskInput, config?: JobQueueTaskConfig) => {
+export const textRewriter = (input: TextRewriterTaskInput, config?: TaskConfig) => {
   return new TextRewriterTask({} as TextRewriterTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    textRewriter: CreateWorkflow<TextRewriterTaskInput, TextRewriterTaskOutput, JobQueueTaskConfig>;
+    textRewriter: CreateWorkflow<TextRewriterTaskInput, TextRewriterTaskOutput, TaskConfig>;
   }
 }
 

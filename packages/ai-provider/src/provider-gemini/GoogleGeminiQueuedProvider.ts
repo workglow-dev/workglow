@@ -5,7 +5,7 @@
  */
 
 import {
-  QueuedAiProvider,
+  AiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
@@ -13,8 +13,8 @@ import {
 import { GOOGLE_GEMINI } from "./common/Gemini_Constants";
 import type { GeminiModelConfig } from "./common/Gemini_ModelSchema";
 
-/** Main-thread registration (inline or worker-backed); creates the default job queue. */
-export class GoogleGeminiQueuedProvider extends QueuedAiProvider<GeminiModelConfig> {
+/** Main-thread registration (inline or worker-backed). No queue — uses direct execution. */
+export class GoogleGeminiQueuedProvider extends AiProvider<GeminiModelConfig> {
   readonly name = GOOGLE_GEMINI;
   readonly displayName = "Google Gemini";
   readonly isLocal = false;

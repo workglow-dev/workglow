@@ -5,7 +5,7 @@
  */
 
 import {
-  QueuedAiProvider,
+  AiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
@@ -13,8 +13,8 @@ import {
 import { ANTHROPIC } from "./common/Anthropic_Constants";
 import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
 
-/** Main-thread registration (inline or worker-backed); creates the default job queue. */
-export class AnthropicQueuedProvider extends QueuedAiProvider<AnthropicModelConfig> {
+/** Main-thread registration (inline or worker-backed). No queue — uses direct execution. */
+export class AnthropicQueuedProvider extends AiProvider<AnthropicModelConfig> {
   readonly name = ANTHROPIC;
   readonly displayName = "Anthropic";
   readonly isLocal = false;

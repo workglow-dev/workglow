@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -41,7 +41,7 @@ export type UnloadModelTaskRunOutput = FromSchema<typeof UnloadModelOutputSchema
 export class UnloadModelTask extends AiTask<
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "UnloadModelTask";
   public static category = "AI Model";
@@ -62,17 +62,13 @@ export class UnloadModelTask extends AiTask<
  * @param input - Input containing model(s) to unload
  * @returns Promise resolving to the unloaded model(s)
  */
-export const unloadModel = (input: UnloadModelTaskRunInput, config?: JobQueueTaskConfig) => {
+export const unloadModel = (input: UnloadModelTaskRunInput, config?: TaskConfig) => {
   return new UnloadModelTask({} as UnloadModelTaskRunInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    unloadModel: CreateWorkflow<
-      UnloadModelTaskRunInput,
-      UnloadModelTaskRunOutput,
-      JobQueueTaskConfig
-    >;
+    unloadModel: CreateWorkflow<UnloadModelTaskRunInput, UnloadModelTaskRunOutput, TaskConfig>;
   }
 }
 

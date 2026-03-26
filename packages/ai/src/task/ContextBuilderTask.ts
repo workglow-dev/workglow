@@ -8,7 +8,7 @@ import { estimateTokens } from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  JobQueueTaskConfig,
+  TaskConfig,
   Task,
   Workflow,
 } from "@workglow/task-graph";
@@ -138,7 +138,7 @@ export type ContextBuilderTaskOutput = FromSchema<typeof outputSchema>;
 export class ContextBuilderTask extends Task<
   ContextBuilderTaskInput,
   ContextBuilderTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ContextBuilderTask";
   public static category = "RAG";
@@ -376,17 +376,13 @@ export class ContextBuilderTask extends Task<
   }
 }
 
-export const contextBuilder = (input: ContextBuilderTaskInput, config?: JobQueueTaskConfig) => {
+export const contextBuilder = (input: ContextBuilderTaskInput, config?: TaskConfig) => {
   return new ContextBuilderTask({} as ContextBuilderTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    contextBuilder: CreateWorkflow<
-      ContextBuilderTaskInput,
-      ContextBuilderTaskOutput,
-      JobQueueTaskConfig
-    >;
+    contextBuilder: CreateWorkflow<ContextBuilderTaskInput, ContextBuilderTaskOutput, TaskConfig>;
   }
 }
 

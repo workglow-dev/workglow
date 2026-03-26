@@ -10,10 +10,10 @@
  */
 
 import {
-  JobQueueTaskConfig,
   getStreamingPorts,
   type IExecuteContext,
   type StreamEvent,
+  type TaskConfig,
   type TaskOutput,
 } from "@workglow/task-graph";
 
@@ -39,7 +39,7 @@ import { AiSingleTaskInput, AiTask } from "./AiTask";
 export class StreamingAiTask<
   Input extends AiSingleTaskInput = AiSingleTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends JobQueueTaskConfig = JobQueueTaskConfig,
+  Config extends TaskConfig = TaskConfig,
 > extends AiTask<Input, Output, Config> {
   public static type: string = "StreamingAiTask";
 

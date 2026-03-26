@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeLanguage, TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -87,7 +87,7 @@ export class TextTranslationTask extends StreamingAiTask<
  * @param input The input parameters for text translation (text, model, source_lang, and target_lang)
  * @returns Promise resolving to the translated text output(s)
  */
-export const textTranslation = (input: TextTranslationTaskInput, config?: JobQueueTaskConfig) => {
+export const textTranslation = (input: TextTranslationTaskInput, config?: TaskConfig) => {
   return new TextTranslationTask({} as TextTranslationTaskInput, config).run(input);
 };
 
@@ -96,7 +96,7 @@ declare module "@workglow/task-graph" {
     textTranslation: CreateWorkflow<
       TextTranslationTaskInput,
       TextTranslationTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

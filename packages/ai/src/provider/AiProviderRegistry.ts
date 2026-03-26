@@ -6,6 +6,8 @@
 
 import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
 import { globalServiceRegistry, WORKER_MANAGER, type JsonSchema } from "@workglow/util/worker";
+import { DirectExecutionStrategy } from "../execution/DirectExecutionStrategy";
+import type { IAiExecutionStrategy, AiStrategyResolver } from "../execution/IAiExecutionStrategy";
 import type { ModelConfig } from "../model/ModelSchema";
 import type { AiProvider } from "./AiProvider";
 
@@ -65,6 +67,8 @@ export class AiProviderRegistry {
   streamFnRegistry: Map<string, Map<string, AiProviderStreamFn<any, any>>> = new Map();
   reactiveRunFnRegistry: Map<string, Map<string, AiProviderReactiveRunFn<any, any>>> = new Map();
   private providers: Map<string, AiProvider<any>> = new Map();
+  private strategyResolvers: Map<string, AiStrategyResolver> = new Map();
+  private defaultStrategy: IAiExecutionStrategy = new DirectExecutionStrategy();
 
   /**
    * Registers an AiProvider instance for lifecycle management and introspection.
@@ -96,6 +100,25 @@ export class AiProviderRegistry {
    */
   getInstalledProviderIds(): string[] {
     return [...this.providers.keys()].sort();
+  }
+
+  /**
+   * Registers a strategy resolver for a provider. The resolver receives the full
+   * ModelConfig at execution time and returns the appropriate execution strategy.
+   * This allows model-aware decisions (e.g., HFT WebGPU → queued, HFT WASM → direct).
+   */
+  registerStrategyResolver(providerName: string, resolver: AiStrategyResolver): void {
+    this.strategyResolvers.set(providerName, resolver);
+  }
+
+  /**
+   * Resolves the execution strategy for a given model config.
+   * Falls back to DirectExecutionStrategy if no resolver is registered.
+   */
+  getStrategy(model: ModelConfig): IAiExecutionStrategy {
+    const resolver = this.strategyResolvers.get(model.provider);
+    if (resolver) return resolver(model);
+    return this.defaultStrategy;
   }
 
   /**
