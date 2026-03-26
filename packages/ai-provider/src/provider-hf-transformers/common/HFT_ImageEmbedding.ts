@@ -10,7 +10,7 @@ import type {
   ImageEmbeddingTaskInput,
   ImageEmbeddingTaskOutput,
 } from "@workglow/ai";
-import { getLogger } from "@workglow/util/worker";
+import { getLogger, TypedArray } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline } from "./HFT_Pipeline";
 
@@ -37,10 +37,20 @@ export const HFT_ImageEmbedding: AiProviderRunFn<
     model: model?.provider_config.model_path,
   });
 
+  if (Array.isArray(input.image)) {
+    const vectors: TypedArray[] = [];
+    for (const image of input.image) {
+      const result: any = await embedder(image as string);
+      vectors.push(result.data as TypedArray);
+    }
+    logger.timeEnd(timerLabel, { count: vectors.length });
+    return { vector: vectors } as ImageEmbeddingTaskOutput;
+  }
+
   const result: any = await embedder(input.image as string);
 
   logger.timeEnd(timerLabel, { dimensions: result?.data?.length });
   return {
-    vector: result.data,
+    vector: result.data as TypedArray,
   } as ImageEmbeddingTaskOutput;
 };
