@@ -1381,7 +1381,6 @@ export class DoubleToResultJobTask extends JobQueueTask<
   }
 }
 
-
 export class SquareTask extends Task<{ value: number }, { squared: number }> {
   static type = "SquareTask";
 

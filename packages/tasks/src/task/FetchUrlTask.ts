@@ -368,7 +368,7 @@ export class FetchUrlTask<
     const queueFromInput = (input as Record<string, unknown>)?.queue;
     const queueFromConfig = (config as Record<string, unknown>)?.queue;
     const queue = (queueFromInput ?? queueFromConfig ?? false) as boolean | string;
-    const { queue: _discard, ...restConfig } = config as Record<string, unknown>;
+    const { queue: _existingQueue, ...restConfig } = config as Record<string, unknown>;
     super(input, { ...restConfig, queue } as Config & { queue?: boolean | string });
     this.jobClass = FetchUrlJob;
   }
