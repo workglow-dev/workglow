@@ -77,7 +77,7 @@ export type TaskEventListeners = {
   stream_chunk: (event: StreamEvent) => void;
 
   /** Fired when a streaming task finishes (carries final output) */
-  stream_end: (output: Record<string, any>) => void;
+  stream_end: (output: Record<string, unknown>) => void;
 };
 /** Union type of all possible task event names */
 

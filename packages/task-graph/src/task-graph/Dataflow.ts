@@ -146,6 +146,7 @@ export class Dataflow {
     this.error = undefined;
     this.value = undefined;
     this.stream = undefined;
+    this._compatibilityCache = undefined;
     this.emit("reset");
     this.emit("status", this.status);
   }
@@ -210,11 +211,29 @@ export class Dataflow {
     };
   }
 
+  /**
+   * Cached result of the last semantic compatibility check.
+   * Invalidated by calling {@link invalidateCompatibilityCache}.
+   */
+  protected _compatibilityCache?: "static" | "runtime" | "incompatible";
+
+  /**
+   * Invalidates the cached semantic compatibility result so the next call
+   * to {@link semanticallyCompatible} recomputes it. Call this when
+   * either endpoint's schema changes (e.g., in response to a schemaChange event).
+   */
+  public invalidateCompatibilityCache(): void {
+    this._compatibilityCache = undefined;
+  }
+
   semanticallyCompatible(
     graph: TaskGraph,
     dataflow: Dataflow
   ): "static" | "runtime" | "incompatible" {
-    // TODO(str): this is inefficient
+    if (this._compatibilityCache !== undefined) {
+      return this._compatibilityCache;
+    }
+
     const targetSchema = graph.getTask(dataflow.targetTaskId)!.inputSchema();
     const sourceSchema = graph.getTask(dataflow.sourceTaskId)!.outputSchema();
 
@@ -250,12 +269,9 @@ export class Dataflow {
       sourceSchemaProperty = true;
     }
 
-    const semanticallyCompatible = areSemanticallyCompatible(
-      sourceSchemaProperty,
-      targetSchemaProperty
-    );
-
-    return semanticallyCompatible;
+    const result = areSemanticallyCompatible(sourceSchemaProperty, targetSchemaProperty);
+    this._compatibilityCache = result;
+    return result;
   }
 
   // ========================================================================

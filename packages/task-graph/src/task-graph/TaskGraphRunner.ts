@@ -26,7 +26,12 @@ import {
   type StreamEvent,
 } from "../task/StreamTypes";
 import { Task } from "../task/Task";
-import { TaskAbortedError, TaskConfigurationError, TaskError } from "../task/TaskError";
+import {
+  TaskAbortedError,
+  TaskConfigurationError,
+  TaskError,
+  TaskTimeoutError,
+} from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./TaskGraph";
@@ -109,13 +114,24 @@ export class TaskGraphRunner {
    * Maps to track task execution state
    */
   protected inProgressTasks: Map<unknown, Promise<TaskOutput>> = new Map();
-  protected inProgressFunctions: Map<unknown, Promise<any>> = new Map();
+  protected inProgressFunctions: Map<unknown, Promise<void>> = new Map();
   protected failedTaskErrors: Map<unknown, TaskError> = new Map();
 
   /**
    * Active telemetry span for the current graph run.
    */
   protected telemetrySpan?: ISpan;
+
+  /**
+   * Timer handle for graph-level timeout. Cleared on completion, error, or abort.
+   */
+  protected graphTimeoutTimer?: ReturnType<typeof setTimeout>;
+
+  /**
+   * When a graph-level timeout fires, this stores the error so handleAbort()
+   * can surface the correct error type.
+   */
+  protected pendingGraphTimeoutError?: TaskTimeoutError;
 
   /**
    * Constructor for TaskGraphRunner
@@ -226,7 +242,7 @@ export class TaskGraphRunner {
     }
     if (this.abortController?.signal.aborted) {
       await this.handleAbort();
-      throw new TaskAbortedError();
+      throw this.pendingGraphTimeoutError ?? new TaskAbortedError();
     }
 
     await this.handleComplete();
@@ -388,6 +404,8 @@ export class TaskGraphRunner {
    */
   protected copyInputFromEdgesToNode(task: ITask) {
     const dataflows = this.graph.getSourceDataflows(task.id);
+    // Sort by dataflow id for deterministic input merging regardless of insertion order
+    dataflows.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     for (const dataflow of dataflows) {
       this.addInputData(task, dataflow.getPortData());
     }
@@ -933,6 +951,16 @@ export class TaskGraphRunner {
       }
       this.graph.outputCache = this.outputCache;
     }
+    // Validate graph size limits
+    if (config?.maxTasks !== undefined && config.maxTasks > 0) {
+      const taskCount = this.graph.getTasks().length;
+      if (taskCount > config.maxTasks) {
+        throw new TaskConfigurationError(
+          `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
+        );
+      }
+    }
+
     // Prevent reentrancy
     if (this.running || this.reactiveRunning) {
       throw new TaskConfigurationError("Graph is already running");
@@ -943,6 +971,15 @@ export class TaskGraphRunner {
     this.abortController.signal.addEventListener("abort", () => {
       this.handleAbort();
     });
+
+    // Set up graph-level timeout if configured
+    if (config?.timeout !== undefined && config.timeout > 0) {
+      this.pendingGraphTimeoutError = undefined;
+      this.graphTimeoutTimer = setTimeout(() => {
+        this.pendingGraphTimeoutError = new TaskTimeoutError(config.timeout);
+        this.abortController?.abort();
+      }, config.timeout);
+    }
 
     if (config?.parentSignal?.aborted) {
       this.abortController.abort(); // Immediately abort if the parent is already aborted
@@ -997,7 +1034,18 @@ export class TaskGraphRunner {
   /**
    * Handles the completion of task graph execution
    */
+  /**
+   * Clears the graph-level timeout timer if active.
+   */
+  protected clearGraphTimeout(): void {
+    if (this.graphTimeoutTimer !== undefined) {
+      clearTimeout(this.graphTimeoutTimer);
+      this.graphTimeoutTimer = undefined;
+    }
+  }
+
   protected async handleComplete(): Promise<void> {
+    this.clearGraphTimeout();
     this.running = false;
 
     if (this.telemetrySpan) {
@@ -1017,6 +1065,7 @@ export class TaskGraphRunner {
    * Handles errors during task graph execution
    */
   protected async handleError(error: TaskError): Promise<void> {
+    this.clearGraphTimeout();
     await Promise.allSettled(
       this.graph.getTasks().map(async (task: ITask) => {
         if (task.status === TaskStatus.PROCESSING || task.status === TaskStatus.STREAMING) {
@@ -1044,6 +1093,7 @@ export class TaskGraphRunner {
    * Handles task graph abortion
    */
   protected async handleAbort(): Promise<void> {
+    this.clearGraphTimeout();
     await Promise.allSettled(
       this.graph.getTasks().map(async (task: ITask) => {
         if (task.status === TaskStatus.PROCESSING || task.status === TaskStatus.STREAMING) {

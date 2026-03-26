@@ -49,6 +49,16 @@ export interface TaskGraphRunConfig {
    * subscriptions and does not rely on the return value for stream data.
    */
   accumulateLeafOutputs?: boolean;
+  /**
+   * Maximum time in milliseconds for the entire graph execution.
+   * When exceeded, all in-progress tasks are aborted and a TaskTimeoutError is thrown.
+   */
+  timeout?: number;
+  /**
+   * Maximum number of tasks allowed in the graph. Validated before execution starts.
+   * Defaults to no limit. Set this to prevent runaway graph construction.
+   */
+  maxTasks?: number;
 }
 
 export interface TaskGraphRunReactiveConfig extends TaskGraphRunConfig {
@@ -120,6 +130,7 @@ export class TaskGraph implements ITaskGraph {
       parentSignal: config?.parentSignal || undefined,
       accumulateLeafOutputs: config?.accumulateLeafOutputs,
       registry: config?.registry,
+      timeout: config?.timeout,
     });
   }
 
@@ -240,22 +251,12 @@ export class TaskGraph implements ITaskGraph {
    * @returns The data flow with the given id, or undefined if not found
    */
   public getDataflow(id: DataflowIdType): Dataflow | undefined {
-    // @ts-ignore
-    for (const i in this._dag.adjacency) {
-      // @ts-ignore
-      for (const j in this._dag.adjacency[i]) {
-        // @ts-ignore
-        const maybeEdges = this._dag.adjacency[i][j];
-        if (maybeEdges !== null) {
-          for (const edge of maybeEdges) {
-            // @ts-ignore
-            if (this._dag.edgeIdentity(edge, "", "") == id) {
-              return edge;
-            }
-          }
-        }
+    for (const [, , edge] of this._dag.getEdges()) {
+      if (edge.id === id) {
+        return edge;
       }
     }
+    return undefined;
   }
 
   /**
@@ -609,14 +610,14 @@ export class TaskGraph implements ITaskGraph {
    */
   emit<E extends GraphEventDagEvents>(name: E, ...args: GraphEventDagParameters<E>): void;
   emit<E extends TaskGraphStatusEvents>(name: E, ...args: TaskGraphEventStatusParameters<E>): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   emit(name: string, ...args: any[]): void {
     const dagEvent = EventTaskGraphToDagMapping[name as keyof typeof EventTaskGraphToDagMapping];
     if (dagEvent) {
-      // @ts-ignore
-      return this.emit_dag(name, ...args);
+      // Safe: overload signatures guarantee correct arg types at call sites
+      return (this.emit_dag as Function).call(this, name, ...args);
     } else {
-      // @ts-ignore
-      return this.emit_local(name, ...args);
+      return (this.emit_local as Function).call(this, name, ...args);
     }
   }
 

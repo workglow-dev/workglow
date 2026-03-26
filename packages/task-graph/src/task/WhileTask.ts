@@ -10,7 +10,7 @@ import { evaluateCondition, getNestedValue } from "./ConditionUtils";
 import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
-import { TaskConfigurationError } from "./TaskError";
+import { TaskConfigurationError, TaskFailedError } from "./TaskError";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 import { WhileTaskRunner } from "./WhileTaskRunner";
 
@@ -401,8 +401,17 @@ export class WhileTask<
         this.compoundMerge
       ) as Output;
 
-      // Check condition
-      if (!condition(currentOutput, this._currentIteration)) {
+      // Check condition — wrap in try/catch so a throwing condition doesn't
+      // leave the task in an inconsistent state without progress cleanup.
+      let shouldContinue: boolean;
+      try {
+        shouldContinue = condition(currentOutput, this._currentIteration);
+      } catch (err) {
+        throw new TaskFailedError(
+          `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+      if (!shouldContinue) {
         break;
       }
 
@@ -476,7 +485,15 @@ export class WhileTask<
         this.compoundMerge
       ) as Output;
 
-      if (!condition(currentOutput, this._currentIteration)) {
+      let shouldContinue: boolean;
+      try {
+        shouldContinue = condition(currentOutput, this._currentIteration);
+      } catch (err) {
+        throw new TaskFailedError(
+          `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+      if (!shouldContinue) {
         // This was the final iteration -- but we already ran it non-streaming.
         // Emit the finish event with the collected output.
         break;

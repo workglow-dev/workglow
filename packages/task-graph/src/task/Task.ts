@@ -863,9 +863,12 @@ export class Task<
         const path = e.data.pointer || "";
         return `${e.message}${path ? ` (${path})` : ""}`;
       });
-      throw new TaskInvalidInputError(
-        `Input ${JSON.stringify(Object.keys(input))} does not match schema: ${errorMessages.join(", ")}`
+      const err = new TaskInvalidInputError(
+        `Task "${this.type}" (${this.id}): Input ${JSON.stringify(Object.keys(input))} does not match schema: ${errorMessages.join(", ")}`
       );
+      err.taskType = this.type;
+      err.taskId = this.id;
+      throw err;
     }
 
     return true;

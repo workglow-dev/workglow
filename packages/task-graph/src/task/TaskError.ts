@@ -9,6 +9,10 @@ import { BaseError } from "@workglow/util";
 
 export class TaskError extends BaseError {
   static readonly type: string = "TaskError";
+  /** The type of the task that produced this error, if available. */
+  public taskType?: string;
+  /** The ID of the task that produced this error, if available. */
+  public taskId?: unknown;
   constructor(message: string) {
     super(message);
   }

@@ -506,8 +506,7 @@ export class Workflow<
     };
 
     // Copy metadata from the task class
-    // @ts-expect-error - using internals
-    helper.type = taskClass.runtype ?? taskClass.type;
+    helper.type = (taskClass as unknown as { runtype?: string }).runtype ?? taskClass.type;
     helper.category = taskClass.category;
     helper.inputSchema = taskClass.inputSchema;
     helper.outputSchema = taskClass.outputSchema;
