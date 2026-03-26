@@ -16,7 +16,11 @@ import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvid
 import { loadTransformersSDK } from "./common/HFT_Pipeline";
 
 export async function registerHuggingFaceTransformersWorker(): Promise<void> {
-  const { env } = await loadTransformersSDK();
+  const sdk = await loadTransformersSDK();
+
+  (globalThis as any).__HFT__ = sdk;
+
+  const { env } = sdk;
   env.backends!.onnx!.wasm!.proxy = true;
   const workerServer = globalServiceRegistry.get(WORKER_SERVER);
   new HuggingFaceTransformersProvider(

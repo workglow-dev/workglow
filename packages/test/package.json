@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",
-    "@electric-sql/pglite": "^0.4.1",
+    "@electric-sql/pglite": "catalog:",
     "@google/generative-ai": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "@huggingface/transformers": "catalog:",
