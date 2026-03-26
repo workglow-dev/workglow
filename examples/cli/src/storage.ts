@@ -11,21 +11,17 @@ import {
   TaskGraphSchema,
   TaskGraphPrimaryKeyNames,
 } from "@workglow/task-graph";
-import { mcpAuthConfigSchema } from "@workglow/tasks";
+import { mcpServerConfigSchema } from "@workglow/tasks";
 import type { CliConfig } from "./config";
 
 export const McpServerRecordSchema = {
   type: "object",
   properties: {
     name: { type: "string", "x-auto-generated": false },
-    transport: { type: "string", enum: ["stdio", "sse", "streamable-http"] },
-    server_url: { type: "string" },
-    command: { type: "string" },
-    args: { type: "array", items: { type: "string" } },
-    env: { type: "object", additionalProperties: { type: "string" } },
-    ...mcpAuthConfigSchema.properties,
+    ...mcpServerConfigSchema.properties,
   },
   required: ["name", "transport"],
+  allOf: [...mcpServerConfigSchema.allOf],
 } as const;
 
 export const McpServerPrimaryKeyNames = ["name"] as const;

@@ -5,7 +5,11 @@
  */
 
 import type { DataPortSchemaObject } from "@workglow/util/schema";
-import { searchMcpRegistryPage, mcpAuthConfigSchema, type McpSearchResultItem } from "@workglow/tasks";
+import {
+  searchMcpRegistryPage,
+  mcpAuthConfigSchema,
+  type McpSearchResultItem,
+} from "@workglow/tasks";
 import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
@@ -14,7 +18,7 @@ import { createMcpStorage, McpServerRecordSchema } from "../storage";
 import { formatError, formatTable } from "../util";
 import type { SearchSelectItem } from "../ui/render";
 
-/** Extends stored record schema with if/then rules so interactive prompts ask for command / server_url after transport is chosen. */
+/** Extends stored record schema so interactive prompts always ask for auth_type (no default). */
 const mcpSchema = {
   ...McpServerRecordSchema,
   properties: {
@@ -28,30 +32,6 @@ const mcpSchema = {
     },
   },
   required: [...McpServerRecordSchema.required, "auth_type"],
-  allOf: [
-    {
-      if: {
-        properties: { transport: { const: "stdio" } },
-        required: ["transport"],
-      },
-      then: { required: ["command"] },
-    },
-    {
-      if: {
-        properties: { transport: { const: "sse" } },
-        required: ["transport"],
-      },
-      then: { required: ["server_url"] },
-    },
-    {
-      if: {
-        properties: { transport: { const: "streamable-http" } },
-        required: ["transport"],
-      },
-      then: { required: ["server_url"] },
-    },
-    ...mcpAuthConfigSchema.allOf,
-  ],
 } as unknown as DataPortSchemaObject;
 
 interface McpSearchSelectItem extends SearchSelectItem {
