@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  AiProviderRunFn,
-  AiProviderStreamFn,
-  TextGenerationTaskInput,
-  TextGenerationTaskOutput,
-} from "@workglow/ai";
+import type { AiProviderRunFn, AiProviderStreamFn, TextGenerationTaskInput, TextGenerationTaskOutput } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util/worker";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
@@ -68,13 +63,11 @@ export const OpenAI_TextGeneration_Stream: AiProviderStreamFn<
     { signal }
   );
 
-  let accumulatedText = "";
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      accumulatedText += delta;
       yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
-  yield { type: "finish", data: { text: accumulatedText } as TextGenerationTaskOutput };
+  yield { type: "finish", data: {} as TextGenerationTaskOutput };
 };

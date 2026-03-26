@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  AiProviderRunFn,
-  AiProviderStreamFn,
-  TextGenerationTaskInput,
-  TextGenerationTaskOutput,
-} from "@workglow/ai";
+import type { AiProviderRunFn, AiProviderStreamFn, TextGenerationTaskInput, TextGenerationTaskOutput } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util/worker";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
@@ -67,13 +62,11 @@ export const Gemini_TextGeneration_Stream: AiProviderStreamFn<
     { signal }
   );
 
-  let accumulatedText = "";
   for await (const chunk of result.stream) {
     const text = chunk.text();
     if (text) {
-      accumulatedText += text;
       yield { type: "text-delta", port: "text", textDelta: text };
     }
   }
-  yield { type: "finish", data: { text: accumulatedText } as TextGenerationTaskOutput };
+  yield { type: "finish", data: {} as TextGenerationTaskOutput };
 };

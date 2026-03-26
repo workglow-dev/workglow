@@ -137,13 +137,10 @@ export async function* streamFromSession<T extends Record<string, unknown>>(
       notifyWaiter();
     });
 
-  let accumulatedText = "";
   try {
     while (true) {
       while (queue.length > 0) {
-        const delta = queue.shift()!;
-        accumulatedText += delta;
-        yield { type: "text-delta", port: "text", textDelta: delta };
+        yield { type: "text-delta", port: "text", textDelta: queue.shift()! };
       }
       if (isComplete) break;
       await new Promise<void>((r) => {
@@ -151,9 +148,7 @@ export async function* streamFromSession<T extends Record<string, unknown>>(
       });
     }
     while (queue.length > 0) {
-      const delta = queue.shift()!;
-      accumulatedText += delta;
-      yield { type: "text-delta", port: "text", textDelta: delta };
+      yield { type: "text-delta", port: "text", textDelta: queue.shift()! };
     }
   } finally {
     await promptPromise.catch(() => {});
@@ -164,7 +159,7 @@ export async function* streamFromSession<T extends Record<string, unknown>>(
     throw completionError;
   }
 
-  yield { type: "finish", data: { text: accumulatedText } as unknown as T };
+  yield { type: "finish", data: {} as T };
 }
 
 export async function disposeLlamaCppResources(): Promise<void> {

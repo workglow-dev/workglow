@@ -55,7 +55,6 @@ export async function* snapshotStreamToTextDeltas<Output>(
 ): AsyncIterable<StreamEvent<Output>> {
   const reader = stream.getReader();
   let previousSnapshot = "";
-  let accumulatedText = "";
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -64,19 +63,17 @@ export async function* snapshotStreamToTextDeltas<Output>(
         const delta = value.slice(previousSnapshot.length);
         previousSnapshot = value;
         if (delta) {
-          accumulatedText += delta;
           yield { type: "text-delta", port, textDelta: delta };
         }
       } else {
         previousSnapshot = value;
-        accumulatedText = value;
         yield { type: "snapshot", data: buildFallbackOutput(value) };
       }
     }
   } finally {
     reader.releaseLock();
   }
-  yield { type: "finish", data: buildFallbackOutput(accumulatedText) };
+  yield { type: "finish", data: {} as Output };
 }
 
 /**
@@ -87,16 +84,14 @@ export async function* snapshotStreamToSnapshots<Output>(
   buildOutput: (text: string) => Output
 ): AsyncIterable<StreamEvent<Output>> {
   const reader = stream.getReader();
-  let lastSnapshot = "";
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      lastSnapshot = value;
       yield { type: "snapshot", data: buildOutput(value) };
     }
   } finally {
     reader.releaseLock();
   }
-  yield { type: "finish", data: buildOutput(lastSnapshot) };
+  yield { type: "finish", data: {} as Output };
 }

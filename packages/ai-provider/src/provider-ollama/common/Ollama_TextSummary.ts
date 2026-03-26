@@ -60,16 +60,14 @@ export function createOllamaTextSummaryStream(
 
     const onAbort = () => stream.abort();
     signal.addEventListener("abort", onAbort, { once: true });
-    let accumulatedText = "";
     try {
       for await (const chunk of stream) {
         const delta = chunk.message.content;
         if (delta) {
-          accumulatedText += delta;
           yield { type: "text-delta", port: "text", textDelta: delta };
         }
       }
-      yield { type: "finish", data: { text: accumulatedText } as TextSummaryTaskOutput };
+      yield { type: "finish", data: {} as TextSummaryTaskOutput };
     } finally {
       signal.removeEventListener("abort", onAbort);
     }

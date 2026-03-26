@@ -79,13 +79,7 @@ export const HFT_TextSummary_Stream: AiProviderStreamFn<
     (err: Error) => queue.error(err)
   );
 
-  let accumulatedText = "";
-  for await (const event of queue.iterable) {
-    if (event.type === "text-delta") {
-      accumulatedText += event.textDelta;
-    }
-    yield event;
-  }
+  yield* queue.iterable;
   await pipelinePromise;
-  yield { type: "finish", data: { text: accumulatedText } as TextSummaryTaskOutput };
+  yield { type: "finish", data: {} as TextSummaryTaskOutput };
 };

@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  AiProviderRunFn,
-  AiProviderStreamFn,
-  TextSummaryTaskInput,
-  TextSummaryTaskOutput,
-} from "@workglow/ai";
+import type { AiProviderRunFn, AiProviderStreamFn, TextSummaryTaskInput, TextSummaryTaskOutput } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { getClient, getModelName } from "./OpenAI_Client";
@@ -58,13 +53,11 @@ export const OpenAI_TextSummary_Stream: AiProviderStreamFn<
     { signal }
   );
 
-  let accumulatedText = "";
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta) {
-      accumulatedText += delta;
       yield { type: "text-delta", port: "text", textDelta: delta };
     }
   }
-  yield { type: "finish", data: { text: accumulatedText } as TextSummaryTaskOutput };
+  yield { type: "finish", data: {} as TextSummaryTaskOutput };
 };
