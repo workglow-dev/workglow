@@ -155,7 +155,8 @@ export class FsFolderTabularStorage<
         await writeFile(filePath, JSON.stringify(entityToStore));
       } catch (retryError) {
         throw new Error(
-          `Failed to write file "${filePath}" after retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`
+          `Failed to write file "${filePath}" after retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`,
+          { cause: retryError }
         );
       }
     }
