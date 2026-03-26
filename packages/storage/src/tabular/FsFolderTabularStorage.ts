@@ -292,8 +292,13 @@ export class FsFolderTabularStorage<
     const results = await Promise.allSettled(
       jsonFiles.map(async (file) => {
         const filePath = path.join(this.folderPath, file);
-        const content = await readFile(filePath, "utf8");
-        return JSON.parse(content) as Entity;
+        try {
+          const content = await readFile(filePath, "utf8");
+          return JSON.parse(content) as Entity;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`Failed to read or parse "${filePath}": ${message}`);
+        }
       })
     );
     const allEntities: Entity[] = [];
@@ -301,7 +306,7 @@ export class FsFolderTabularStorage<
       if (result.status === "fulfilled") {
         allEntities.push(result.value);
       } else {
-        getLogger().warn("Skipping corrupted file in getBulk:", { error: result.reason });
+        getLogger().warn(`Skipping corrupted file in getBulk: ${result.reason?.message ?? result.reason}`);
       }
     }
 

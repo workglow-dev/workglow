@@ -13,6 +13,7 @@ import type {
 } from "@workglow/util/schema";
 import type { Pool } from "@workglow/storage/postgres";
 import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
+import { StorageValidationError } from "../tabular/StorageError";
 import {
   getMetadataProperty,
   getVectorProperty,
@@ -117,7 +118,7 @@ export class PostgresVectorStorage<
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
           if (!SAFE_IDENTIFIER_RE.test(key)) {
-            throw new Error(`Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`);
+            throw new StorageValidationError(`Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`);
           }
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
@@ -157,7 +158,7 @@ export class PostgresVectorStorage<
 
       return results;
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("Invalid metadata filter key")) {
+      if (error instanceof StorageValidationError) {
         throw error; // Don't swallow validation errors
       }
       // Fall back to in-memory similarity calculation if pgvector is not available
@@ -198,7 +199,7 @@ export class PostgresVectorStorage<
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
           if (!SAFE_IDENTIFIER_RE.test(key)) {
-            throw new Error(`Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`);
+            throw new StorageValidationError(`Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`);
           }
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
@@ -241,7 +242,7 @@ export class PostgresVectorStorage<
 
       return results;
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("Invalid metadata filter key")) {
+      if (error instanceof StorageValidationError) {
         throw error; // Don't swallow validation errors
       }
       // Fall back to in-memory hybrid search
