@@ -78,6 +78,7 @@ describe("Zero-Shot Classification Tasks", () => {
         provider_config: {
           pipeline: "zero-shot-classification",
           model_path: "Xenova/mobilebert-uncased-mnli",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -139,6 +140,7 @@ describe("Zero-Shot Classification Tasks", () => {
         provider_config: {
           pipeline: "image-classification",
           model_path: "Xenova/vit-base-patch16-224",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -195,6 +197,7 @@ describe("Zero-Shot Classification Tasks", () => {
         provider_config: {
           pipeline: "zero-shot-image-classification",
           model_path: "Xenova/clip-vit-base-patch32",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -261,6 +264,7 @@ describe("Zero-Shot Classification Tasks", () => {
         provider_config: {
           pipeline: "zero-shot-object-detection",
           model_path: "Xenova/owlvit-base-patch32",
+          dtype: "q8",
         },
         metadata: {},
       };

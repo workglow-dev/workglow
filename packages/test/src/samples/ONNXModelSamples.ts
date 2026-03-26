@@ -29,6 +29,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "Xenova/bge-base-en-v1.5",
+        dtype: "q8",
         native_dimensions: 768,
       },
       metadata: {},
@@ -42,6 +43,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "Xenova/gte-small",
+        dtype: "q8",
         native_dimensions: 384,
       },
       metadata: {},
@@ -55,6 +57,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "onnx-community/bert_uncased_L-2_H-128_A-2-ONNX",
+        dtype: "q8",
         native_dimensions: 128,
       },
       metadata: {},
@@ -69,6 +72,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
         pipeline: "feature-extraction",
         model_path: "Xenova/paraphrase-albert-base-v2",
         native_dimensions: 768,
+        dtype: "q8",
       },
       metadata: {},
     },
@@ -81,6 +85,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "feature-extraction",
         model_path: "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+        dtype: "q8",
         native_dimensions: 1024,
         mrl: true,
       },
@@ -95,6 +100,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "token-classification",
         model_path: "onnx-community/NeuroBERT-NER-ONNX",
+        dtype: "q8",
       },
       metadata: {},
     },
@@ -107,6 +113,7 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       provider_config: {
         pipeline: "question-answering",
         model_path: "Xenova/distilbert-base-uncased-distilled-squad",
+        dtype: "q8",
       },
       metadata: {},
     },

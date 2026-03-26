@@ -111,6 +111,7 @@ describe("TextEmbeddingTask with real models", () => {
         provider_config: {
           pipeline: "feature-extraction",
           model_path: "Xenova/bge-base-en-v1.5",
+          dtype: "q8",
           native_dimensions: 768,
         },
         metadata: {},

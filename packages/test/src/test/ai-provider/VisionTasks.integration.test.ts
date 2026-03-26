@@ -55,6 +55,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
         provider_config: {
           pipeline: "image-segmentation",
           model_path: "Xenova/segformer-b0-finetuned-ade-512-512",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -88,6 +89,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
         provider_config: {
           pipeline: "image-classification",
           model_path: "Xenova/vit-base-patch16-224",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -119,6 +121,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
         provider_config: {
           pipeline: "zero-shot-image-classification",
           model_path: "Xenova/clip-vit-base-patch32",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -149,6 +152,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
         provider_config: {
           pipeline: "image-feature-extraction",
           model_path: "Xenova/clip-vit-base-patch32",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -176,6 +180,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
         provider_config: {
           pipeline: "image-feature-extraction",
           model_path: "Xenova/clip-vit-base-patch32",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -211,6 +216,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
         provider_config: {
           pipeline: "object-detection",
           model_path: "Xenova/detr-resnet-50",
+          dtype: "q8",
         },
         metadata: {},
       };
@@ -240,6 +246,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
         provider_config: {
           pipeline: "image-to-text",
           model_path: "Xenova/vit-gpt2-image-captioning",
+          dtype: "q8",
         },
         metadata: {},
       };
