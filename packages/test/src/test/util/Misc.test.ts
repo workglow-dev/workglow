@@ -13,7 +13,7 @@ import {
   sortObject,
   serialize,
 } from "@workglow/util";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("forceArray", () => {
   it("should wrap a single value in an array", () => {
@@ -30,11 +30,20 @@ describe("forceArray", () => {
 });
 
 describe("sleep", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   it("should resolve after the specified time", async () => {
-    const start = Date.now();
-    await sleep(50);
-    const elapsed = Date.now() - start;
-    expect(elapsed).toBeGreaterThanOrEqual(40);
+    let resolved = false;
+    const sleepPromise = sleep(50).then(() => {
+      resolved = true;
+    });
+    vi.advanceTimersByTime(50);
+    await sleepPromise;
+    expect(resolved).toBe(true);
   });
 });
 

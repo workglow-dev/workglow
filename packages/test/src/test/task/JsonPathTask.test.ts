@@ -80,7 +80,7 @@ describe("JsonPathTask", () => {
     expect(result.result).toBeUndefined();
   });
 
-  it("should return the whole value for empty path segments", async () => {
+  it("should return undefined for empty path (accessing non-existent key)", async () => {
     const result = await task.run({
       value: { a: 1 },
       path: "",
