@@ -48,7 +48,7 @@ export async function getClient(model: OpenAiModelConfig | undefined) {
       organization: config?.organization || undefined,
       dangerouslyAllowBrowser:
         typeof globalThis.document !== "undefined" ||
-        typeof globalThis.WorkerGlobalScope !== "undefined",
+        "WorkerGlobalScope" in globalThis,
     });
   } catch (err) {
     throw new Error(

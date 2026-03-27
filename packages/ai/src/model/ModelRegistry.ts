@@ -59,15 +59,7 @@ async function resolveModelFromRegistry(
 
   const model = await modelRepo.findByName(id);
   if (!model) {
-    // Build a helpful error message listing available models
-    const allModels = (await modelRepo.enumerateAllModels()) ?? [];
-    const available = allModels.slice(0, 10).map((m) => m.model_id);
-    const taskHint = format.startsWith("model:") ? ` for task "${format.slice(6)}"` : "";
-    const availableHint =
-      available.length > 0
-        ? ` Available models: ${available.join(", ")}${allModels.length > 10 ? ` (and ${allModels.length - 10} more)` : ""}.`
-        : " No models are currently registered. Register models with the ModelRepository before running AI tasks.";
-    throw new Error(`Model "${id}" not found in repository${taskHint}.${availableHint}`);
+    throw new Error(`Model "${id}" not found in repository`);
   }
   return model;
 }
