@@ -54,9 +54,9 @@ export function setGlobalMcpServerRepository(repository: McpServerRepository): v
   globalServiceRegistry.registerInstance(MCP_SERVER_REPOSITORY, repository);
 }
 
-export async function registerMcpServer(id: string, config: McpServerRecord): Promise<void> {
+export async function registerMcpServer(config: McpServerRecord): Promise<void> {
   const servers = getGlobalMcpServers();
-  servers.set(id, { config });
+  servers.set(config.server_id, { config });
 
   const repo = getGlobalMcpServerRepository();
   await repo.addServer(config);

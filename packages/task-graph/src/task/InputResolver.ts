@@ -84,6 +84,24 @@ function getFormatPrefix(format: string): string {
 }
 
 /**
+ * Returns true if the schema has any properties with format annotations
+ * (direct or in oneOf/anyOf variants). Used as a fast-path check to skip
+ * resolution when no format-annotated properties exist.
+ */
+export function schemaHasFormatAnnotations(schema: DataPortSchema): boolean {
+  if (typeof schema === "boolean") return false;
+
+  const properties = schema.properties;
+  if (!properties || typeof properties !== "object") return false;
+
+  for (const propSchema of Object.values(properties)) {
+    if (getSchemaFormat(propSchema) !== undefined) return true;
+    if (getObjectSchema(propSchema)) return true;
+  }
+  return false;
+}
+
+/**
  * Resolves schema-annotated inputs by looking up string IDs from registries.
  * String values with matching format annotations are resolved to their instances.
  * Non-string values (objects/instances) are passed through unchanged.

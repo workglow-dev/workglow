@@ -14,7 +14,7 @@ import {
 } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
-import { resolveSchemaInputs } from "./InputResolver";
+import { resolveSchemaInputs, schemaHasFormatAnnotations } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
 import {
@@ -144,12 +144,14 @@ export class TaskRunner<
 
       // Resolve config schema annotations (e.g. mcp-server references) without mutating config
       const configSchema = (this.task.constructor as typeof Task).configSchema();
-      const resolvedConfig = await resolveSchemaInputs(
-        { ...this.task.config } as Record<string, unknown>,
-        configSchema,
-        { registry: this.registry }
-      );
-      this.resolvedConfig = Object.freeze(resolvedConfig);
+      if (schemaHasFormatAnnotations(configSchema)) {
+        const resolvedConfig = await resolveSchemaInputs(
+          { ...this.task.config } as Record<string, unknown>,
+          configSchema,
+          { registry: this.registry }
+        );
+        this.resolvedConfig = Object.freeze(resolvedConfig);
+      }
 
       // Resolve schema-annotated inputs (models, repositories) before validation
       const schema = (this.task.constructor as typeof Task).inputSchema();
@@ -236,12 +238,14 @@ export class TaskRunner<
 
     // Resolve config schema annotations without mutating config
     const configSchema = (this.task.constructor as typeof Task).configSchema();
-    const resolvedConfig = await resolveSchemaInputs(
-      { ...this.task.config } as Record<string, unknown>,
-      configSchema,
-      { registry: this.registry }
-    );
-    this.resolvedConfig = Object.freeze(resolvedConfig);
+    if (schemaHasFormatAnnotations(configSchema)) {
+      const resolvedConfig = await resolveSchemaInputs(
+        { ...this.task.config } as Record<string, unknown>,
+        configSchema,
+        { registry: this.registry }
+      );
+      this.resolvedConfig = Object.freeze(resolvedConfig);
+    }
 
     // Resolve schema-annotated inputs (models, repositories) before validation
     const schema = (this.task.constructor as typeof Task).inputSchema();

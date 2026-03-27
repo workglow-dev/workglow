@@ -113,6 +113,18 @@ describe("McpServerRepository", () => {
     expect(events).toEqual([serverA]);
   });
 
+  test("emits server_updated event on overwrite", async () => {
+    const added: McpServerRecord[] = [];
+    const updated: McpServerRecord[] = [];
+    repo.on("server_added", (record) => added.push(record));
+    repo.on("server_updated", (record) => updated.push(record));
+    await repo.addServer(serverA);
+    const updatedRecord: McpServerRecord = { ...serverA, label: "Updated A" };
+    await repo.addServer(updatedRecord);
+    expect(added).toEqual([serverA]);
+    expect(updated).toEqual([updatedRecord]);
+  });
+
   test("emits server_removed event", async () => {
     const events: McpServerRecord[] = [];
     repo.on("server_removed", (record) => events.push(record));
@@ -128,8 +140,8 @@ describe("McpServerRegistry", () => {
   });
 
   test("registerMcpServer adds to live map and repository", async () => {
-    await registerMcpServer("test-server", serverA);
-    expect(getMcpServer("test-server")?.config).toEqual(serverA);
+    await registerMcpServer(serverA);
+    expect(getMcpServer("server-a")?.config).toEqual(serverA);
 
     const repo = getGlobalMcpServerRepository();
     const record = await repo.getServer("server-a");
@@ -141,16 +153,16 @@ describe("McpServerRegistry", () => {
   });
 
   test("scoped registries are independent", async () => {
-    await registerMcpServer("shared", serverA);
+    await registerMcpServer(serverA);
 
     const child = new ServiceRegistry(new Container());
     const scopedMap = new Map();
     child.registerInstance(MCP_SERVERS, scopedMap);
 
     const scopedServers = child.get(MCP_SERVERS);
-    expect(scopedServers.get("shared")).toBeUndefined();
+    expect(scopedServers.get("server-a")).toBeUndefined();
 
-    expect(getMcpServer("shared")?.config).toEqual(serverA);
+    expect(getMcpServer("server-a")?.config).toEqual(serverA);
   });
 });
 
@@ -160,7 +172,7 @@ describe("mcp-server input resolver", () => {
   });
 
   test("resolves string server ID to config record", async () => {
-    await registerMcpServer("my-server", serverA);
+    await registerMcpServer(serverA);
 
     const schema = {
       type: "object" as const,
@@ -168,7 +180,7 @@ describe("mcp-server input resolver", () => {
         server: { type: "string" as const, format: "mcp-server" },
       },
     };
-    const input = { server: "my-server" };
+    const input = { server: "server-a" };
     const resolved = await resolveSchemaInputs(input, schema, {
       registry: globalServiceRegistry,
     });
@@ -211,11 +223,11 @@ describe("mcp-server input resolver", () => {
   });
 
   test("scoped registry takes precedence over global", async () => {
-    await registerMcpServer("my-server", serverA);
+    await registerMcpServer(serverA);
 
     const child = new ServiceRegistry(new Container());
     const scopedMap = new Map();
-    scopedMap.set("my-server", { config: serverB });
+    scopedMap.set("server-a", { config: serverB });
     child.registerInstance(MCP_SERVERS, scopedMap);
 
     const schema = {
@@ -224,7 +236,7 @@ describe("mcp-server input resolver", () => {
         server: { type: "string" as const, format: "mcp-server" },
       },
     };
-    const input = { server: "my-server" };
+    const input = { server: "server-a" };
     const resolved = await resolveSchemaInputs(input, schema, {
       registry: child,
     });
@@ -358,8 +370,8 @@ describe("TaskRunner config resolution", () => {
   });
 
   test("resolvedConfig is populated in IExecuteContext", async () => {
-    await registerMcpServer("test-srv", serverA);
-    const task = new ConfigResolverTestTask({}, { server: "test-srv" });
+    await registerMcpServer(serverA);
+    const task = new ConfigResolverTestTask({}, { server: "server-a" });
     const output = await task.run({ value: "hello" });
 
     expect(output.receivedResolvedConfig).toBeDefined();
@@ -368,12 +380,12 @@ describe("TaskRunner config resolution", () => {
   });
 
   test("original task.config is not mutated", async () => {
-    await registerMcpServer("test-srv", serverA);
-    const task = new ConfigResolverTestTask({}, { server: "test-srv" });
+    await registerMcpServer(serverA);
+    const task = new ConfigResolverTestTask({}, { server: "server-a" });
     await task.run({ value: "hello" });
 
     // Config should still have the string ID, not the resolved object
-    expect(task.config.server).toBe("test-srv");
+    expect(task.config.server).toBe("server-a");
   });
 
   test("resolvedConfig is empty when config has no format annotations", async () => {
@@ -436,7 +448,7 @@ describe("MCP tasks with server registry", () => {
   });
 
   test("McpToolCallTask with server ID in config", async () => {
-    await registerMcpServer("my-server", serverA);
+    await registerMcpServer(serverA);
     const mockClient = createMockClient({
       callTool: fn().mockResolvedValue({
         content: [{ type: "text", text: "hello" }],
@@ -447,7 +459,7 @@ describe("MCP tasks with server registry", () => {
 
     const task = new McpToolCallTask(
       {},
-      { server: "my-server", tool_name: "greet" }
+      { server: "server-a", tool_name: "greet" }
     );
     const result = await task.run({ name: "world" });
 
@@ -495,7 +507,7 @@ describe("MCP tasks with server registry", () => {
   });
 
   test("inline config overrides registry values", async () => {
-    await registerMcpServer("my-server", serverA);
+    await registerMcpServer(serverA);
     const mockClient = createMockClient({
       callTool: fn().mockResolvedValue({
         content: [{ type: "text", text: "ok" }],
@@ -511,7 +523,7 @@ describe("MCP tasks with server registry", () => {
     const task = new McpToolCallTask(
       {},
       {
-        server: "my-server",
+        server: "server-a",
         server_url: "http://override.com",
         tool_name: "greet",
       }
@@ -527,7 +539,7 @@ describe("MCP tasks with server registry", () => {
   });
 
   test("McpListTask with server ID in input", async () => {
-    await registerMcpServer("my-server", serverA);
+    await registerMcpServer(serverA);
     const tools = [{ name: "greet", inputSchema: {} }];
     const mockClient = createMockClient({
       listTools: fn().mockResolvedValue({ tools }),
@@ -536,7 +548,7 @@ describe("MCP tasks with server registry", () => {
 
     const task = new McpListTask();
     const result = await task.run({
-      server: "my-server",
+      server: "server-a",
       list_type: "tools",
     });
 

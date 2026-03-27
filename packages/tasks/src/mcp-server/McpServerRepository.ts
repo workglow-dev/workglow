@@ -67,8 +67,9 @@ export class McpServerRepository {
   }
 
   async addServer(record: McpServerRecord): Promise<McpServerRecord> {
+    const existing = await this.storage.get({ server_id: record.server_id });
     await this.storage.put(record);
-    this.events.emit("server_added", record);
+    this.events.emit(existing ? "server_updated" : "server_added", record);
     return record;
   }
 
