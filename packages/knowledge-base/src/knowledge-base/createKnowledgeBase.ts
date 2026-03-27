@@ -45,6 +45,17 @@ export async function createKnowledgeBase(
     description,
   } = options;
 
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
+    throw new Error("createKnowledgeBase: 'name' must be a non-empty string");
+  }
+  if (
+    typeof vectorDimensions !== "number" ||
+    !Number.isInteger(vectorDimensions) ||
+    vectorDimensions < 1
+  ) {
+    throw new Error("createKnowledgeBase: 'vectorDimensions' must be a positive integer");
+  }
+
   const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
   await tabularStorage.setupDatabase();
 

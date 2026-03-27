@@ -393,6 +393,32 @@ Paragraph.`;
       const retrieved = await kb.getDocument(inserted.doc_id!);
       expect(retrieved).toBeDefined();
     });
+
+    describe("createKnowledgeBase validation", () => {
+      it("should throw when name is empty", async () => {
+        await expect(
+          createKnowledgeBase({ name: "", vectorDimensions: 3, register: false })
+        ).rejects.toThrow("createKnowledgeBase: 'name' must be a non-empty string");
+      });
+
+      it("should throw when name is whitespace-only", async () => {
+        await expect(
+          createKnowledgeBase({ name: "   ", vectorDimensions: 3, register: false })
+        ).rejects.toThrow("createKnowledgeBase: 'name' must be a non-empty string");
+      });
+
+      it("should throw when vectorDimensions is not a positive integer", async () => {
+        await expect(
+          createKnowledgeBase({ name: "kb", vectorDimensions: 0, register: false })
+        ).rejects.toThrow("createKnowledgeBase: 'vectorDimensions' must be a positive integer");
+        await expect(
+          createKnowledgeBase({ name: "kb", vectorDimensions: -1, register: false })
+        ).rejects.toThrow("createKnowledgeBase: 'vectorDimensions' must be a positive integer");
+        await expect(
+          createKnowledgeBase({ name: "kb", vectorDimensions: 1.5, register: false })
+        ).rejects.toThrow("createKnowledgeBase: 'vectorDimensions' must be a positive integer");
+      });
+    });
   });
 
   describe("Document", () => {
@@ -520,6 +546,39 @@ Paragraph.`;
 
       const result = doc.findChunksByNodeId("any-node");
       expect(result).toEqual([]);
+    });
+
+    it("should throw on invalid JSON object in fromJSON", () => {
+      expect(() => Document.fromJSON("null")).toThrow("Document.fromJSON: expected a JSON object");
+      expect(() => Document.fromJSON('"just a string"')).toThrow(
+        "Document.fromJSON: expected a JSON object"
+      );
+    });
+
+    it("should throw on missing or invalid root node in fromJSON", () => {
+      expect(() => Document.fromJSON(JSON.stringify({ metadata: { title: "T" }, chunks: [] }))).toThrow(
+        "Document.fromJSON: missing or invalid 'root' node"
+      );
+      expect(() =>
+        Document.fromJSON(JSON.stringify({ root: {}, metadata: { title: "T" }, chunks: [] }))
+      ).toThrow("Document.fromJSON: missing or invalid 'root' node");
+    });
+
+    it("should throw on missing or invalid metadata in fromJSON", () => {
+      const stub = { root: { kind: "root" } };
+      expect(() => Document.fromJSON(JSON.stringify({ ...stub, chunks: [] }))).toThrow(
+        "Document.fromJSON: missing or invalid 'metadata'"
+      );
+      expect(() =>
+        Document.fromJSON(JSON.stringify({ ...stub, metadata: { title: 42 }, chunks: [] }))
+      ).toThrow("Document.fromJSON: missing or invalid 'metadata'");
+    });
+
+    it("should throw when chunks is not an array in fromJSON", () => {
+      const stub = { root: { kind: "root" }, metadata: { title: "T" } };
+      expect(() => Document.fromJSON(JSON.stringify({ ...stub, chunks: "not-an-array" }))).toThrow(
+        "Document.fromJSON: 'chunks' must be an array if present"
+      );
     });
   });
 });

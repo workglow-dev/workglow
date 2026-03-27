@@ -81,6 +81,18 @@ export class Document {
    */
   static fromJSON(json: string, doc_id?: string): Document {
     const obj = JSON.parse(json);
+    if (!obj || typeof obj !== "object") {
+      throw new Error("Document.fromJSON: expected a JSON object");
+    }
+    if (!obj.root || typeof obj.root !== "object" || !obj.root.kind) {
+      throw new Error("Document.fromJSON: missing or invalid 'root' node");
+    }
+    if (!obj.metadata || typeof obj.metadata !== "object" || typeof obj.metadata.title !== "string") {
+      throw new Error("Document.fromJSON: missing or invalid 'metadata' (requires 'title' string)");
+    }
+    if (obj.chunks !== undefined && !Array.isArray(obj.chunks)) {
+      throw new Error("Document.fromJSON: 'chunks' must be an array if present");
+    }
     return new Document(obj.root, obj.metadata, obj.chunks, doc_id);
   }
 }

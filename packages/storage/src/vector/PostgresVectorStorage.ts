@@ -13,6 +13,7 @@ import type {
 } from "@workglow/util/schema";
 import type { Pool } from "@workglow/storage/postgres";
 import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
+import { StorageValidationError } from "../tabular/StorageError";
 import {
   getMetadataProperty,
   getVectorProperty,
@@ -33,6 +34,12 @@ import {
  * @template Metadata - The metadata type
  * @template Vector - The vector type
  */
+/**
+ * Regex for validating metadata filter keys to prevent SQL injection.
+ * Only allows alphanumeric characters and underscores, starting with a letter or underscore.
+ */
+const SAFE_IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 export class PostgresVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
@@ -110,6 +117,11 @@ export class PostgresVectorStorage<
       if (filter && Object.keys(filter).length > 0 && metadataCol) {
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
+          if (!SAFE_IDENTIFIER_RE.test(key)) {
+            throw new StorageValidationError(
+              `Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`
+            );
+          }
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
           paramIndex++;
@@ -148,8 +160,11 @@ export class PostgresVectorStorage<
 
       return results;
     } catch (error) {
+      if (error instanceof StorageValidationError) {
+        throw error; // Don't swallow validation errors
+      }
       // Fall back to in-memory similarity calculation if pgvector is not available
-      console.warn("pgvector query failed, falling back to in-memory search:", error);
+      console.error("pgvector query failed, falling back to in-memory search:", error);
       return this.searchFallback(query, options);
     }
   }
@@ -164,7 +179,8 @@ export class PostgresVectorStorage<
     try {
       // Try native hybrid search with pgvector + full-text
       const queryVector = `[${Array.from(query).join(",")}]`;
-      const tsQuery = textQuery.split(/\s+/).join(" & ");
+      // Use plainto_tsquery via parameterized query to avoid tsquery injection
+      const tsQueryText = textQuery;
       const vectorCol = String(this.vectorPropertyName);
       const metadataCol = this.metadataPropertyName ? String(this.metadataPropertyName) : null;
 
@@ -173,17 +189,22 @@ export class PostgresVectorStorage<
           *,
           (
             $2 * (1 - (${vectorCol} <=> $1::vector)) +
-            $3 * ts_rank(to_tsvector('english', ${metadataCol || "''"}::text), to_tsquery('english', $4))
+            $3 * ts_rank(to_tsvector('english', ${metadataCol || "''"}::text), plainto_tsquery('english', $4))
           ) as score
         FROM "${this.table}"
       `;
 
-      const params: any[] = [queryVector, vectorWeight, 1 - vectorWeight, tsQuery];
+      const params: any[] = [queryVector, vectorWeight, 1 - vectorWeight, tsQueryText];
       let paramIndex = 5;
 
       if (filter && Object.keys(filter).length > 0 && metadataCol) {
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
+          if (!SAFE_IDENTIFIER_RE.test(key)) {
+            throw new StorageValidationError(
+              `Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`
+            );
+          }
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
           paramIndex++;
@@ -195,7 +216,7 @@ export class PostgresVectorStorage<
         sql += filter ? " AND" : " WHERE";
         sql += ` (
           $2 * (1 - (${vectorCol} <=> $1::vector)) +
-          $3 * ts_rank(to_tsvector('english', ${metadataCol || "''"}::text), to_tsquery('english', $4))
+          $3 * ts_rank(to_tsvector('english', ${metadataCol || "''"}::text), plainto_tsquery('english', $4))
         ) >= $${paramIndex}`;
         params.push(scoreThreshold);
         paramIndex++;
@@ -225,8 +246,11 @@ export class PostgresVectorStorage<
 
       return results;
     } catch (error) {
+      if (error instanceof StorageValidationError) {
+        throw error; // Don't swallow validation errors
+      }
       // Fall back to in-memory hybrid search
-      console.warn("pgvector hybrid query failed, falling back to in-memory search:", error);
+      console.error("pgvector hybrid query failed, falling back to in-memory search:", error);
       return this.hybridSearchFallback(query, options);
     }
   }
@@ -284,7 +308,7 @@ export class PostgresVectorStorage<
       }
 
       const vectorScore = cosineSimilarity(query, vector);
-      const metadataText = JSON.stringify(metadata).toLowerCase();
+      const metadataText = Object.values(metadata ?? {}).join(" ").toLowerCase();
       let textScore = 0;
       if (queryWords.length > 0) {
         let matches = 0;
