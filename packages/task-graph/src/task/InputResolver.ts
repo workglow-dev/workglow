@@ -84,21 +84,49 @@ function getFormatPrefix(format: string): string {
 }
 
 /**
+ * Recursively checks whether a schema (or any nested schema) contains a format annotation.
+ * Returns true only when a `format` keyword is actually present somewhere in the tree.
+ */
+function hasFormatInSchema(schema: unknown): boolean {
+  if (typeof schema === "boolean" || typeof schema !== "object" || schema === null) {
+    return false;
+  }
+
+  const s = schema as Record<string, unknown>;
+
+  const properties = s.properties;
+  if (properties && typeof properties === "object") {
+    for (const propSchema of Object.values(properties as Record<string, unknown>)) {
+      if (getSchemaFormat(propSchema) !== undefined) {
+        return true;
+      }
+
+      const objectSchema = getObjectSchema(propSchema);
+      if (objectSchema && hasFormatInSchema(objectSchema)) {
+        return true;
+      }
+    }
+  }
+
+  const variants = (s.oneOf ?? s.anyOf) as unknown[] | undefined;
+  if (Array.isArray(variants)) {
+    for (const variant of variants) {
+      if (hasFormatInSchema(variant)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Returns true if the schema has any properties with format annotations
- * (direct or in oneOf/anyOf variants). Used as a fast-path check to skip
+ * (direct, nested, or in oneOf/anyOf variants). Used as a fast-path check to skip
  * resolution when no format-annotated properties exist.
  */
 export function schemaHasFormatAnnotations(schema: DataPortSchema): boolean {
-  if (typeof schema === "boolean") return false;
-
-  const properties = schema.properties;
-  if (!properties || typeof properties !== "object") return false;
-
-  for (const propSchema of Object.values(properties)) {
-    if (getSchemaFormat(propSchema) !== undefined) return true;
-    if (getObjectSchema(propSchema)) return true;
-  }
-  return false;
+  return hasFormatInSchema(schema);
 }
 
 /**

@@ -86,7 +86,7 @@ async function resolveServerFromRegistry(
 
   const record = await repo.getServer(id);
   if (!record) {
-    throw new Error(`MCP server "${id}" not found in registry`);
+    throw new Error(`MCP server "${id}" not found`);
   }
   return record;
 }

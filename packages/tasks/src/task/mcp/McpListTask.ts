@@ -195,6 +195,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
               type: "object",
               format: "mcp-server",
               properties: mcpServerConfigSchema.properties,
+              additionalProperties: false,
             },
           ],
           title: "Server",
@@ -209,6 +210,16 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
         },
       },
       required: ["list_type"],
+      anyOf: [{ required: ["server"] }, { required: ["transport"] }] as readonly Record<
+        string,
+        unknown
+      >[],
+      allOf: [
+        {
+          if: { required: ["transport"] },
+          then: { allOf: mcpServerConfigSchema.allOf },
+        },
+      ] as readonly Record<string, unknown>[],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }

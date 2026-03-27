@@ -21,6 +21,28 @@ export const McpServerRecordSchema = {
     ...mcpAuthConfigSchema.properties,
   },
   required: ["server_id", "transport"],
+  allOf: [
+    {
+      if: {
+        properties: {
+          transport: { const: "stdio" },
+        },
+      },
+      then: {
+        required: ["command"],
+      },
+    },
+    {
+      if: {
+        properties: {
+          transport: { enum: ["sse", "streamable-http"] },
+        },
+      },
+      then: {
+        required: ["server_url"],
+      },
+    },
+  ] as readonly Record<string, unknown>[],
   additionalProperties: false,
 } as const satisfies DataPortSchemaObject;
 

@@ -64,9 +64,7 @@ export function getMcpServerConfig(
   }
 
   if (!base.transport) {
-    throw new Error(
-      "MCP server config must include a transport (from server reference or inline config)"
-    );
+    throw new Error("MCP server config must include a transport");
   }
 
   return base as unknown as McpServerConfig;
