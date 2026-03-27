@@ -256,16 +256,10 @@ export class AiTask<
     if (modelTaskProperties.length > 0) {
       const modelRepo = registry.get<ModelRepository>(MODEL_REPOSITORY);
 
-      // Use a TTL cache for model lookups to avoid repeated DB queries
-      const cacheKey = this.type;
-      const cached = narrowInputCache.get(cacheKey);
-      let taskModels: ModelConfig[];
-      if (cached && Date.now() - cached.timestamp < NARROW_INPUT_CACHE_TTL_MS) {
-        taskModels = cached.models;
-      } else {
-        taskModels = (await modelRepo.findModelsByTask(this.type)) ?? [];
-        narrowInputCache.set(cacheKey, { models: taskModels, timestamp: Date.now() });
-      }
+      // Fetch models for this task type from the repository associated with the given registry.
+      // Note: we intentionally avoid using a shared cache here to prevent mixing results
+      // from different ServiceRegistry / ModelRepository instances.
+      const taskModels: ModelConfig[] = (await modelRepo.findModelsByTask(this.type)) ?? [];
 
       for (const [key, propSchema] of modelTaskProperties) {
         const requestedModel = input[key];
