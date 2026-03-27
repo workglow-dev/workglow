@@ -138,11 +138,6 @@ export class AiJob<
           input.aiProvider,
           input.taskType
         );
-        if (!fn) {
-          throw new PermanentJobError(
-            `No run function found for task type ${input.taskType} and model provider ${input.aiProvider}`
-          );
-        }
         const model = input.taskInput.model;
         // Second abort check after resolving run function (covers async gap)
         if (context.signal?.aborted) {
@@ -178,8 +173,10 @@ export class AiJob<
   /**
    * Streaming execution: yields StreamEvents from the provider's stream function.
    * Falls back to non-streaming execute() if no stream function is registered.
-   * On mid-stream errors, logs the failure and yields a finish event with any
-   * partial data accumulated so far.
+   * On mid-stream errors, logs the failure, yields a finish event with the last
+   * finish payload received (or an empty object if none was received), then
+   * re-throws the classified error. Delta accumulation is the responsibility of
+   * the caller (e.g. TaskRunner).
    */
   async *executeStream(
     input: Input,
@@ -203,11 +200,16 @@ export class AiJob<
     const model = input.taskInput.model;
     let lastFinishData: Output | undefined;
 
+    // Apply timeout via AbortSignal.timeout combined with the caller's signal
+    const timeoutMs = input.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS;
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    const combinedSignal = AbortSignal.any([context.signal, timeoutSignal]);
+
     try {
       for await (const event of streamFn(
         input.taskInput,
         model,
-        context.signal,
+        combinedSignal,
         input.outputSchema
       )) {
         if (event.type === "finish") {
