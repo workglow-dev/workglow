@@ -116,7 +116,9 @@ describe("HFTransformersBinding", () => {
       setGlobalModelRepository(new InMemoryModelRepository());
       await getGlobalModelRepository().addModel(model);
 
-      const registeredQueue = queueRegistry.getQueue(HF_TRANSFORMERS_ONNX);
+      const registeredQueue = queueRegistry.getQueue<AiJobInput<TaskInput>, TaskOutput>(
+        HF_TRANSFORMERS_ONNX
+      );
       expect(registeredQueue).toBeDefined();
       expect(registeredQueue!.server.queueName).toEqual(HF_TRANSFORMERS_ONNX);
 
@@ -186,7 +188,9 @@ describe("HFTransformersBinding", () => {
 
       await getGlobalModelRepository().addModel(model);
 
-      const registeredQueue = queueRegistry.getQueue(HF_TRANSFORMERS_ONNX);
+      const registeredQueue = queueRegistry.getQueue<AiJobInput<TaskInput>, TaskOutput>(
+        HF_TRANSFORMERS_ONNX
+      );
       expect(registeredQueue).toBeDefined();
       expect(registeredQueue?.server.queueName).toEqual(HF_TRANSFORMERS_ONNX);
 
