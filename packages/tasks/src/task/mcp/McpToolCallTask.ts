@@ -256,8 +256,7 @@ export class McpToolCallTask extends Task<
     context: IExecuteContext
   ): Promise<McpToolCallTaskOutput> {
     const serverConfig = getMcpServerConfig(
-      this.config as Record<string, unknown>,
-      context.resolvedConfig
+      this.config as Record<string, unknown>
     );
 
     await this.discoverSchemas(context.signal, serverConfig);

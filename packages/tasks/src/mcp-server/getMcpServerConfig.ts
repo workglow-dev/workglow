@@ -27,33 +27,20 @@ const SERVER_CONFIG_KEYS: readonly string[] = [
 ] as const;
 
 /**
- * Merges resolved server config with inline overrides to produce a McpServerConfig.
+ * Extracts a McpServerConfig from a task's config or input object.
  *
- * Resolution order:
- * 1. If `resolvedConfig.server` is an object (resolved from registry), use it as base
- * 2. If `configOrInput.server` is an object (inline), use it as base (when no resolver ran)
- * 3. Overlay any explicit inline properties from configOrInput
- * 4. Validate that transport is available
+ * If `configOrInput.server` is an object (resolved from registry or inline),
+ * it is used as the base. Inline transport/server_url/command/etc properties
+ * on configOrInput override the server object's values.
  */
 export function getMcpServerConfig(
-  configOrInput: Readonly<Record<string, unknown>>,
-  resolvedConfig: Readonly<Record<string, unknown>> | undefined
+  configOrInput: Readonly<Record<string, unknown>>
 ): McpServerConfig {
   let base: Record<string, unknown> = {};
 
-  const resolvedServer = resolvedConfig?.server;
-  if (resolvedServer && typeof resolvedServer === "object" && !Array.isArray(resolvedServer)) {
-    base = { ...(resolvedServer as Record<string, unknown>) };
-  }
-
-  const inlineServer = configOrInput.server;
-  if (
-    Object.keys(base).length === 0 &&
-    inlineServer &&
-    typeof inlineServer === "object" &&
-    !Array.isArray(inlineServer)
-  ) {
-    base = { ...(inlineServer as Record<string, unknown>) };
+  const server = configOrInput.server;
+  if (server && typeof server === "object" && !Array.isArray(server)) {
+    base = { ...(server as Record<string, unknown>) };
   }
 
   for (const key of SERVER_CONFIG_KEYS) {

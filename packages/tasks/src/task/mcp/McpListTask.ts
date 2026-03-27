@@ -252,7 +252,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   }
 
   async execute(input: McpListTaskInput, context: IExecuteContext): Promise<McpListTaskOutput> {
-    const serverConfig = getMcpServerConfig(input as Record<string, unknown>, undefined);
+    const serverConfig = getMcpServerConfig(input as Record<string, unknown>);
 
     const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(serverConfig, context.signal);

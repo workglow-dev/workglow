@@ -125,8 +125,7 @@ export class McpResourceReadTask extends Task<
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {
     const serverConfig = getMcpServerConfig(
-      this.config as Record<string, unknown>,
-      context.resolvedConfig
+      this.config as Record<string, unknown>
     );
 
     const { mcpClientFactory } = getMcpTaskDeps();
