@@ -17,6 +17,10 @@ import { getAiProviderRegistry } from "./AiProviderRegistry";
  * Subclasses can override {@link getStrategyForModel} to make the decision
  * model-aware (e.g., HFT returns queued for WebGPU but direct for WASM).
  *
+ * When `queue.autoCreate` is `false` (default: `true`), the strategy resolver
+ * is still registered but the queue is not auto-created — execution will succeed
+ * only if a matching queue was pre-registered in the {@link TaskQueueRegistry}.
+ *
  * Web worker entrypoints should use a provider that extends {@link AiProvider} only
  * (no queue / storage), so bundles for `registerOnWorkerServer` stay lean.
  */
@@ -26,12 +30,15 @@ export abstract class QueuedAiProvider<
   protected queuedStrategy: QueuedExecutionStrategy | undefined;
 
   protected override async afterRegister(options: AiProviderRegisterOptions): Promise<void> {
-    if (options.queue?.autoCreate !== false) {
-      this.queuedStrategy = new QueuedExecutionStrategy(this.name, options.queue?.concurrency ?? 1);
-      getAiProviderRegistry().registerStrategyResolver(this.name, (model) =>
-        this.getStrategyForModel(model)
-      );
-    }
+    const autoCreate = options.queue?.autoCreate !== false;
+    this.queuedStrategy = new QueuedExecutionStrategy(
+      this.name,
+      options.queue?.concurrency ?? 1,
+      autoCreate
+    );
+    getAiProviderRegistry().registerStrategyResolver(this.name, (model) =>
+      this.getStrategyForModel(model)
+    );
   }
 
   /**
