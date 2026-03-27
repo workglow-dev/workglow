@@ -551,7 +551,7 @@ export class SqliteAiVectorStorage<
         }
 
         // Calculate text relevance
-        const metadataText = Object.values(metadata).join(" ").toLowerCase();
+        const metadataText = Object.values(metadata ?? {}).join(" ").toLowerCase();
         let textScore = 0;
         if (queryWords.length > 0) {
           let matches = 0;
@@ -631,7 +631,7 @@ export class SqliteAiVectorStorage<
       }
 
       const vectorScore = cosineSimilarity(query, vector);
-      const metadataText = Object.values(metadata).join(" ").toLowerCase();
+      const metadataText = Object.values(metadata ?? {}).join(" ").toLowerCase();
       let textScore = 0;
       if (queryWords.length > 0) {
         let matches = 0;
