@@ -389,7 +389,7 @@ describe("TaskRunner config resolution", () => {
 
     // But toJSON should use the original snapshot with the string ID
     const json = task.toJSON();
-    expect(json.config?.server).toBe("server-a");
+    expect((json.config as Record<string, unknown> | undefined)?.server).toBe("server-a");
   });
 
   test("config resolution is a no-op when config has no format annotations", async () => {
