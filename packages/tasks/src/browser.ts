@@ -7,14 +7,22 @@
 export * from "./common";
 export * from "./util/McpAuthTypes";
 export * from "./util/McpAuthProvider";
-export * from "./util/McpClientUtil.browser";
+export * from "./util/McpClientUtil";
 export * from "./util/McpTaskDeps";
 export * from "./task/FileLoaderTask";
 
-import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil.browser";
+import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil";
 import { registerMcpTaskDeps } from "./util/McpTaskDeps";
 
-registerMcpTaskDeps({ mcpClientFactory, mcpServerConfigSchema });
+registerMcpTaskDeps({
+  mcpClientFactory,
+  mcpServerConfigSchema,
+  createStdioTransport: () => {
+    throw new Error(
+      "stdio transport is not available in the browser. Use streamable-http or sse instead."
+    );
+  },
+});
 
 import { TaskRegistry } from "@workglow/task-graph";
 import { registerCommonTasks as registerCommonTasksFn } from "./common";
