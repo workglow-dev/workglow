@@ -96,7 +96,6 @@ export function schemaHasFormatAnnotations(schema: DataPortSchema): boolean {
 
   for (const propSchema of Object.values(properties)) {
     if (getSchemaFormat(propSchema) !== undefined) return true;
-    if (getObjectSchema(propSchema)) return true;
   }
   return false;
 }
