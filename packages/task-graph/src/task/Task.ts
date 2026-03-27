@@ -306,10 +306,10 @@ export class Task<
   config: Config;
 
   /**
-   * Frozen snapshot of config at construction time, used by toJSON.
-   * Runtime mutations to this.config do not affect serialized output.
+   * Frozen snapshot of config at construction time, used by toJSON and
+   * as the resolution source for re-runs (so fresh lookups use original IDs).
    */
-  protected _originalConfig: Readonly<Record<string, unknown>> | undefined;
+  readonly originalConfig: Readonly<Record<string, unknown>> | undefined;
 
   /**
    * Task id from config (read-only).
@@ -396,13 +396,13 @@ export class Task<
     }
     this.config = this.validateAndApplyConfigDefaults(baseConfig);
     try {
-      this._originalConfig = Object.freeze(
+      this.originalConfig = Object.freeze(
         structuredClone(this.config) as Record<string, unknown>
       );
     } catch {
       // Config contains non-cloneable values (e.g. functions).
       // canSerializeConfig() should return false for such tasks.
-      this._originalConfig = undefined;
+      this.originalConfig = undefined;
     }
 
     // Store runtime configuration
@@ -939,7 +939,7 @@ export class Task<
   public toJSON(_options?: TaskGraphJsonOptions): TaskGraphItemJson {
     const ctor = this.constructor as typeof Task;
 
-    if (!this.canSerializeConfig()) {
+    if (!this.canSerializeConfig() || !this.originalConfig) {
       throw new TaskSerializationError(this.type);
     }
 
@@ -967,7 +967,7 @@ export class Task<
       ) {
         continue;
       }
-      const value = (this._originalConfig as Record<string, unknown>)[key];
+      const value = (this.originalConfig as Record<string, unknown>)[key];
       if (value === undefined) continue;
       // Skip non-serializable values (functions, symbols, etc.)
       if (typeof value === "function" || typeof value === "symbol") continue;

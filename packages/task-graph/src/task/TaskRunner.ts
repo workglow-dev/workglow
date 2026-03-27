@@ -137,11 +137,13 @@ export class TaskRunner<
       this.task.setInput(overrides);
 
       // Resolve config schema annotations (e.g. mcp-server references) by mutating task.config.
-      // The original config is preserved in task._originalConfig for serialization.
+      // Always resolve from originalConfig so re-runs use the original string IDs, not
+      // previously resolved objects. The original config is preserved for serialization.
       const configSchema = (this.task.constructor as typeof Task).configSchema();
       if (schemaHasFormatAnnotations(configSchema)) {
+        const source = (this.task as unknown as Task).originalConfig ?? this.task.config;
         const resolved = await resolveSchemaInputs(
-          { ...this.task.config } as Record<string, unknown>,
+          { ...source } as Record<string, unknown>,
           configSchema,
           { registry: this.registry }
         );
@@ -234,8 +236,9 @@ export class TaskRunner<
     // Resolve config schema annotations by mutating task.config directly
     const configSchema = (this.task.constructor as typeof Task).configSchema();
     if (schemaHasFormatAnnotations(configSchema)) {
+      const source = (this.task as unknown as Task).originalConfig ?? this.task.config;
       const resolved = await resolveSchemaInputs(
-        { ...this.task.config } as Record<string, unknown>,
+        { ...source } as Record<string, unknown>,
         configSchema,
         { registry: this.registry }
       );
