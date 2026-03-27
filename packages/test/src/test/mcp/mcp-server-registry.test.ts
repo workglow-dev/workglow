@@ -12,6 +12,7 @@ import {
   getMcpServer,
   getGlobalMcpServers,
   getGlobalMcpServerRepository,
+  getMcpServerConfig,
   MCP_SERVERS,
 } from "@workglow/tasks";
 import type { McpServerRecord } from "@workglow/tasks";
@@ -225,5 +226,77 @@ describe("mcp-server input resolver", () => {
     });
 
     expect(resolved.server).toEqual(serverB);
+  });
+});
+
+describe("getMcpServerConfig", () => {
+  test("returns server config from resolved server object", () => {
+    const resolvedConfig = {
+      server: {
+        server_id: "a",
+        transport: "streamable-http",
+        server_url: "http://localhost:3000/mcp",
+      },
+    };
+    const result = getMcpServerConfig({}, resolvedConfig);
+    expect(result.transport).toBe("streamable-http");
+    expect(result.server_url).toBe("http://localhost:3000/mcp");
+  });
+
+  test("inline config values override resolved server", () => {
+    const resolvedConfig = {
+      server: {
+        server_id: "a",
+        transport: "sse",
+        server_url: "http://registry-url.com",
+      },
+    };
+    const config = { transport: "streamable-http", server_url: "http://override.com" };
+    const result = getMcpServerConfig(config, resolvedConfig);
+    expect(result.transport).toBe("streamable-http");
+    expect(result.server_url).toBe("http://override.com");
+  });
+
+  test("works with inline-only config (no server reference)", () => {
+    const config = {
+      transport: "stdio",
+      command: "node",
+      args: ["server.js"],
+    };
+    const result = getMcpServerConfig(config, undefined);
+    expect(result.transport).toBe("stdio");
+    expect(result.command).toBe("node");
+  });
+
+  test("works when server is an inline object in config", () => {
+    const config = {
+      server: {
+        transport: "sse",
+        server_url: "http://inline.com",
+      },
+    };
+    const result = getMcpServerConfig(config, undefined);
+    expect(result.transport).toBe("sse");
+    expect(result.server_url).toBe("http://inline.com");
+  });
+
+  test("throws when no transport is available from any source", () => {
+    expect(() => getMcpServerConfig({}, undefined)).toThrow(
+      "MCP server config must include a transport"
+    );
+  });
+
+  test("merges auth fields from resolved server", () => {
+    const resolvedConfig = {
+      server: {
+        server_id: "a",
+        transport: "streamable-http",
+        server_url: "http://localhost:3000",
+        auth_type: "bearer",
+        auth_token: "secret-token",
+      },
+    };
+    const result = getMcpServerConfig({}, resolvedConfig);
+    expect((result as Record<string, unknown>).auth_type).toBe("bearer");
   });
 });
