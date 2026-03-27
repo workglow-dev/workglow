@@ -76,11 +76,11 @@ McpListTask (input-based) calls: `getMcpServerConfig(input as Record<string, unk
 
 ### canSerializeConfig
 
-Static method on Task that subclasses override to declare whether their config is serializable:
+Instance method on Task that subclasses override to declare whether their config is serializable:
 
 ```ts
 class Task {
-  static canSerializeConfig(): boolean {
+  canSerializeConfig(): boolean {
     return true;
   }
 }
@@ -91,7 +91,7 @@ Tasks with functions in config override:
 ```ts
 // LambdaTask — always has a function, never serializable
 class LambdaTask {
-  static canSerializeConfig(): boolean {
+  canSerializeConfig(): boolean {
     return false;
   }
 }
@@ -111,8 +111,6 @@ class ConditionalTask {
   }
 }
 ```
-
-Note: WhileTask and ConditionalTask need instance-level `canSerializeConfig()` (not static) because serializability depends on the specific config values. The base class provides both static and instance versions — instance delegates to static by default.
 
 ### TaskSerializationError
 
@@ -145,7 +143,7 @@ public toJSON(): TaskGraphItemJson {
 ## Changes Summary
 
 ### task-graph package
-- `Task.ts`: add `_originalConfig` snapshot in constructor, `canSerializeConfig()` (static + instance), update `toJSON` to read from `_originalConfig` and throw on non-serializable
+- `Task.ts`: add `_originalConfig` snapshot in constructor, `canSerializeConfig()` instance method, update `toJSON` to read from `_originalConfig` and throw on non-serializable
 - `TaskError.ts`: add `TaskSerializationError`
 - `TaskRunner.ts`: resolve config by mutating `task.config` directly, remove `resolvedConfig` from context, remove `schemaHasFormatAnnotations` guard (keep it — still useful as fast-path)
 - `ITask.ts`: remove `resolvedConfig` from `IExecuteContext`
