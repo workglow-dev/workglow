@@ -37,7 +37,7 @@ export default defineConfig({
             {
               name: "react",
               priority: 20,
-              test: /node_modules[\\/](?:react(?:-dom)?[\\/]|@xyflow[\\/]react|react-hotkeys-hook|react-resizable-panels)/,
+              test: /node_modules[\\/](?:react(?:-dom)?[\\/]|@xyflow[\\/]react|react-resizable-panels)/,
             },
             {
               name: "mediapipe",
