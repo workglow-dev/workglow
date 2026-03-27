@@ -202,7 +202,15 @@ export class McpToolCallTask extends Task<
         },
       },
       required: ["tool_name"],
-      allOf: mcpServerConfigSchema.allOf,
+      allOf: [
+        ...(mcpServerConfigSchema.allOf ?? []),
+        {
+          anyOf: [
+            { required: ["server"] },
+            { required: ["transport"] },
+          ],
+        },
+      ],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }

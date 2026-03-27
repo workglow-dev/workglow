@@ -50,9 +50,23 @@ export function getMcpServerConfig(
     }
   }
 
-  if (!base.transport) {
+  const transport = base.transport as string | undefined;
+
+  if (!transport) {
     throw new Error(
       "MCP server config must include a transport (from server reference or inline config)"
+    );
+  }
+
+  if (transport === "stdio" && !base.command) {
+    throw new Error(
+      "MCP server config for stdio transport must include a 'command' (from server reference or inline config)"
+    );
+  }
+
+  if ((transport === "sse" || transport === "streamable-http") && !base.server_url) {
+    throw new Error(
+      "MCP server config for sse/streamable-http transport must include a 'server_url' (from server reference or inline config)"
     );
   }
 

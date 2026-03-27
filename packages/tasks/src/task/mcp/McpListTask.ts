@@ -195,6 +195,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
               type: "object",
               format: "mcp-server",
               properties: mcpServerConfigSchema.properties,
+              additionalProperties: false,
             },
           ],
           title: "Server",

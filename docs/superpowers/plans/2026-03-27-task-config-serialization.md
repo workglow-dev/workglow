@@ -4,7 +4,7 @@
 
 **Goal:** Fix task config serialization by snapshotting original config for toJSON, mutating config directly for resolution, and adding explicit serializability checks.
 
-**Architecture:** Task constructor deep-copies config into `_originalConfig` for serialization. `toJSON` reads from `_originalConfig` and throws `TaskSerializationError` when `canSerializeConfig()` returns false. TaskRunner resolves format-annotated config by mutating `task.config` directly (safe because `_originalConfig` preserves the original). `IExecuteContext.resolvedConfig` is removed.
+**Architecture:** Task constructor deep-copies config into `originalConfig` for serialization. `toJSON` reads from `originalConfig` and throws `TaskSerializationError` when `canSerializeConfig()` returns false. TaskRunner resolves format-annotated config by mutating `task.config` directly (safe because `originalConfig` preserves the original). `IExecuteContext.resolvedConfig` is removed.
 
 **Tech Stack:** TypeScript, vitest
 
@@ -12,7 +12,7 @@
 
 ---
 
-### Task 1: TaskSerializationError + canSerializeConfig + _originalConfig
+### Task 1: TaskSerializationError + canSerializeConfig + originalConfig
 
 **Files:**
 - Modify: `packages/task-graph/src/task/TaskError.ts`
@@ -31,7 +31,7 @@ import type { DataPortSchema } from "@workglow/util/schema";
 Then append these test blocks inside the existing `describe("TaskJSON", ...)` block, after the last existing test:
 
 ```ts
-  describe("canSerializeConfig and _originalConfig", () => {
+  describe("canSerializeConfig and originalConfig", () => {
     class NonSerializableTask extends Task<{ value: string }, { result: string }> {
       static readonly type = "NonSerializableTask";
       static readonly category = "Test";
@@ -96,7 +96,7 @@ Then append these test blocks inside the existing `describe("TaskJSON", ...)` bl
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
 
-    test("toJSON uses _originalConfig, not mutated this.config", async () => {
+    test("toJSON uses originalConfig, not mutated this.config", async () => {
       const task = new MutableConfigTask({}, { id: "mc1" });
       await task.run({ value: "hello" });
 
@@ -144,13 +144,13 @@ export class TaskSerializationError extends TaskError {
 }
 ```
 
-- [ ] **Step 4: Add _originalConfig and canSerializeConfig to Task.ts**
+- [ ] **Step 4: Add originalConfig and canSerializeConfig to Task.ts**
 
 In `packages/task-graph/src/task/Task.ts`:
 
 1. Add import for `TaskSerializationError` (it should already be in the same package, find where other TaskError imports are).
 
-2. Add the `_originalConfig` field after the `config` field declaration (around line 305):
+2. Add the `originalConfig` field after the `config` field declaration (around line 305):
 
 ```ts
   /**
@@ -162,14 +162,14 @@ In `packages/task-graph/src/task/Task.ts`:
    * Frozen snapshot of config at construction time, used by toJSON.
    * Runtime mutations to this.config do not affect serialized output.
    */
-  protected _originalConfig: Readonly<Record<string, unknown>>;
+  readonly originalConfig: Readonly<Record<string, unknown>>;
 ```
 
 3. In the constructor, after `this.config = this.validateAndApplyConfigDefaults(baseConfig);` (line 390), add the snapshot:
 
 ```ts
     this.config = this.validateAndApplyConfigDefaults(baseConfig);
-    this._originalConfig = Object.freeze(structuredClone(this.config) as Record<string, unknown>);
+    this.originalConfig = Object.freeze(structuredClone(this.config) as Record<string, unknown>);
 ```
 
 4. Add `canSerializeConfig` instance method. Place it near `toJSON` (before it):
@@ -185,7 +185,7 @@ In `packages/task-graph/src/task/Task.ts`:
   }
 ```
 
-5. Update `toJSON` to check canSerializeConfig and read from `_originalConfig`:
+5. Update `toJSON` to check canSerializeConfig and read from `originalConfig`:
 
 Replace the line:
 ```ts
@@ -193,7 +193,7 @@ Replace the line:
 ```
 with:
 ```ts
-      const value = (this._originalConfig as Record<string, unknown>)[key];
+      const value = (this.originalConfig as Record<string, unknown>)[key];
 ```
 
 And add the canSerializeConfig check at the top of `toJSON`, right after `const ctor = ...`:
@@ -226,7 +226,7 @@ Expected: All tests PASS (existing + 3 new)
 git add packages/task-graph/src/task/TaskError.ts \
        packages/task-graph/src/task/Task.ts \
        packages/test/src/test/task/TaskJSON.test.ts
-git commit -m "feat(task-graph): add _originalConfig snapshot, canSerializeConfig, and TaskSerializationError"
+git commit -m "feat(task-graph): add originalConfig snapshot, canSerializeConfig, and TaskSerializationError"
 ```
 
 ---
@@ -395,7 +395,7 @@ In `packages/task-graph/src/task/TaskRunner.ts`:
 2. In `run()`, replace the config resolution block (lines 145-154) with:
 ```ts
       // Resolve config schema annotations (e.g. mcp-server references) by mutating task.config.
-      // The original config is preserved in task._originalConfig for serialization.
+      // The original config is preserved in task.originalConfig for serialization.
       const configSchema = (this.task.constructor as typeof Task).configSchema();
       if (schemaHasFormatAnnotations(configSchema)) {
         const resolved = await resolveSchemaInputs(

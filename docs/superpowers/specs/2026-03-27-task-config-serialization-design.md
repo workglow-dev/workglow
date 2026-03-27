@@ -12,36 +12,36 @@ Fix two problems with how Task handles config serialization and runtime state.
 
 ### Original config snapshot for toJSON
 
-At construction, Task deep-copies config into a private `_originalConfig` field. `toJSON` reads from `_originalConfig` instead of `this.config`. This preserves the user's original intent regardless of runtime mutations.
+At construction, Task deep-copies config into a public `originalConfig` field. `toJSON` reads from `originalConfig` instead of `this.config`. This preserves the user's original intent regardless of runtime mutations.
 
 ```ts
 class Task {
-  protected _originalConfig: Readonly<Record<string, unknown>>;
+  readonly originalConfig: Readonly<Record<string, unknown>>;
   config: Config; // mutable at runtime
 
   constructor(input, config, runConfig) {
     // ... existing setup ...
     this.config = this.validateAndApplyConfigDefaults(baseConfig);
-    this._originalConfig = Object.freeze(structuredClone(this.config));
+    this.originalConfig = Object.freeze(structuredClone(this.config));
   }
 }
 ```
 
-`toJSON` changes from reading `this.config` to reading `this._originalConfig`:
+`toJSON` changes from reading `this.config` to reading `this.originalConfig`:
 
 ```ts
 public toJSON(): TaskGraphItemJson {
   const ctor = this.constructor as typeof Task;
   const schema = ctor.configSchema();
-  // ... existing schema filtering logic, but reads from this._originalConfig ...
-  const value = (this._originalConfig as Record<string, unknown>)[key];
+  // ... existing schema filtering logic, but reads from this.originalConfig ...
+  const value = (this.originalConfig as Record<string, unknown>)[key];
   // ...
 }
 ```
 
 ### Config resolution moves to task.config mutation
 
-Remove `IExecuteContext.resolvedConfig`. Instead, TaskRunner resolves format-annotated config properties by writing directly onto `this.task.config` — the same pattern used for `runInputData`. This is safe because `_originalConfig` preserves the original for serialization.
+Remove `IExecuteContext.resolvedConfig`. Instead, TaskRunner resolves format-annotated config properties by writing directly onto `this.task.config` — the same pattern used for `runInputData`. This is safe because `originalConfig` preserves the original for serialization.
 
 In TaskRunner.run() and runReactive():
 
@@ -136,14 +136,14 @@ public toJSON(): TaskGraphItemJson {
   if (!this.canSerializeConfig()) {
     throw new TaskSerializationError(this.type);
   }
-  // ... existing logic reading from _originalConfig ...
+  // ... existing logic reading from originalConfig ...
 }
 ```
 
 ## Changes Summary
 
 ### task-graph package
-- `Task.ts`: add `_originalConfig` snapshot in constructor, `canSerializeConfig()` instance method, update `toJSON` to read from `_originalConfig` and throw on non-serializable
+- `Task.ts`: add `originalConfig` snapshot in constructor, `canSerializeConfig()` instance method, update `toJSON` to read from `originalConfig` and throw on non-serializable
 - `TaskError.ts`: add `TaskSerializationError`
 - `TaskRunner.ts`: resolve config by mutating `task.config` directly, remove `resolvedConfig` from context, remove `schemaHasFormatAnnotations` guard (keep it — still useful as fast-path)
 - `ITask.ts`: remove `resolvedConfig` from `IExecuteContext`
@@ -158,7 +158,7 @@ public toJSON(): TaskGraphItemJson {
 - `ConditionalTask.ts`: override instance `canSerializeConfig` to check for function branches
 
 ### Tests
-- Test that `toJSON` uses `_originalConfig` (mutating config at runtime doesn't affect serialized output)
+- Test that `toJSON` uses `originalConfig` (mutating config at runtime doesn't affect serialized output)
 - Test that `toJSON` throws `TaskSerializationError` for LambdaTask
 - Test that WhileTask with function condition throws, but with conditionField config serializes fine
 - Test that ConditionalTask with function branches throws, but with conditionConfig serializes fine

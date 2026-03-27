@@ -115,7 +115,15 @@ export class McpResourceReadTask extends Task<
         },
       },
       required: ["resource_uri"],
-      allOf: mcpServerConfigSchema.allOf,
+      allOf: [
+        ...(mcpServerConfigSchema.allOf ?? []),
+        {
+          anyOf: [
+            { required: ["server"] },
+            { required: ["transport"] },
+          ],
+        },
+      ],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }

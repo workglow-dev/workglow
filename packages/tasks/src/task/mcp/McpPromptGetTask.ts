@@ -206,7 +206,15 @@ export class McpPromptGetTask extends Task<
         },
       },
       required: ["prompt_name"],
-      allOf: mcpServerConfigSchema.allOf,
+      allOf: [
+        ...(mcpServerConfigSchema.allOf ?? []),
+        {
+          anyOf: [
+            { required: ["server"] },
+            { required: ["transport"] },
+          ],
+        },
+      ],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }

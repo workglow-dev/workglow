@@ -12,6 +12,7 @@ import {
   getMcpServer,
   getGlobalMcpServers,
   getGlobalMcpServerRepository,
+  setGlobalMcpServerRepository,
   getMcpServerConfig,
   MCP_SERVERS,
   McpToolCallTask,
@@ -137,6 +138,7 @@ describe("McpServerRepository", () => {
 describe("McpServerRegistry", () => {
   beforeEach(() => {
     getGlobalMcpServers().clear();
+    setGlobalMcpServerRepository(new InMemoryMcpServerRepository());
   });
 
   test("registerMcpServer adds to live map and repository", async () => {
@@ -169,6 +171,7 @@ describe("McpServerRegistry", () => {
 describe("mcp-server input resolver", () => {
   beforeEach(() => {
     getGlobalMcpServers().clear();
+    setGlobalMcpServerRepository(new InMemoryMcpServerRepository());
   });
 
   test("resolves string server ID to config record", async () => {
@@ -303,6 +306,24 @@ describe("getMcpServerConfig", () => {
     );
   });
 
+  test("throws when stdio transport is missing command", () => {
+    expect(() => getMcpServerConfig({ transport: "stdio" })).toThrow(
+      "MCP server config for stdio transport must include a 'command'"
+    );
+  });
+
+  test("throws when sse transport is missing server_url", () => {
+    expect(() => getMcpServerConfig({ transport: "sse" })).toThrow(
+      "MCP server config for sse/streamable-http transport must include a 'server_url'"
+    );
+  });
+
+  test("throws when streamable-http transport is missing server_url", () => {
+    expect(() => getMcpServerConfig({ transport: "streamable-http" })).toThrow(
+      "MCP server config for sse/streamable-http transport must include a 'server_url'"
+    );
+  });
+
   test("merges auth fields from server object", () => {
     const config = {
       server: {
@@ -368,6 +389,7 @@ class ConfigResolverTestTask extends Task<
 describe("TaskRunner config resolution", () => {
   beforeEach(() => {
     getGlobalMcpServers().clear();
+    setGlobalMcpServerRepository(new InMemoryMcpServerRepository());
   });
 
   test("config.server is resolved to full record on task.config", async () => {
@@ -441,6 +463,7 @@ function mockFactory(mockClient: ReturnType<typeof createMockClient>) {
 describe("MCP tasks with server registry", () => {
   beforeEach(() => {
     getGlobalMcpServers().clear();
+    setGlobalMcpServerRepository(new InMemoryMcpServerRepository());
     mcpClientFactory.create = originalCreate;
   });
 
