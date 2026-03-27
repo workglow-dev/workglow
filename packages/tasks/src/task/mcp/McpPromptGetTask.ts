@@ -15,6 +15,7 @@ import {
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { mcpList, type McpListTaskInput } from "./McpListTask";
+import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 
 const annotationsSchema = {
   type: "object",
@@ -183,6 +184,19 @@ export class McpPromptGetTask extends Task<
       type: "object",
       properties: {
         ...TaskConfigSchema["properties"],
+        server: {
+          oneOf: [
+            { type: "string", format: "mcp-server" },
+            {
+              type: "object",
+              format: "mcp-server",
+              properties: mcpServerConfigSchema.properties,
+              additionalProperties: false,
+            },
+          ],
+          title: "Server",
+          description: "MCP server reference (ID or inline config)",
+        },
         ...mcpServerConfigSchema.properties,
         prompt_name: {
           type: "string",
@@ -191,10 +205,7 @@ export class McpPromptGetTask extends Task<
           format: "string:mcp-promptname",
         },
       },
-      required: ["transport", "prompt_name"],
-      if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-      then: { required: ["command"] },
-      else: { required: ["server_url"] },
+      required: ["prompt_name"],
       allOf: mcpServerConfigSchema.allOf,
       additionalProperties: false,
     } as const satisfies DataPortSchema;
@@ -210,19 +221,20 @@ export class McpPromptGetTask extends Task<
 
   private _schemasDiscovering = false;
 
-  async discoverSchemas(_signal?: AbortSignal): Promise<void> {
+  async discoverSchemas(_signal?: AbortSignal, serverConfig?: McpServerConfig): Promise<void> {
     if (this.config.inputSchema) return;
     if (this._schemasDiscovering) return;
-    if (!this.config.transport || !this.config.prompt_name) return;
+    const transport = serverConfig?.transport ?? this.config.transport;
+    if (!transport || !this.config.prompt_name) return;
 
     this._schemasDiscovering = true;
     try {
       const result = await mcpList({
-        transport: this.config.transport,
-        server_url: this.config.server_url,
-        command: this.config.command,
-        args: this.config.args,
-        env: this.config.env,
+        transport,
+        server_url: serverConfig?.server_url ?? this.config.server_url,
+        command: serverConfig?.command ?? this.config.command,
+        args: serverConfig?.args ?? this.config.args,
+        env: serverConfig?.env ?? this.config.env,
         list_type: "prompts",
       } as McpListTaskInput);
 
@@ -256,13 +268,15 @@ export class McpPromptGetTask extends Task<
     input: McpPromptGetTaskInput,
     context: IExecuteContext
   ): Promise<McpPromptGetTaskOutput> {
-    await this.discoverSchemas(context.signal);
+    const serverConfig = getMcpServerConfig(
+      this.config as Record<string, unknown>,
+      context.resolvedConfig
+    );
+
+    await this.discoverSchemas(context.signal, serverConfig);
 
     const { mcpClientFactory } = getMcpTaskDeps();
-    const { client } = await mcpClientFactory.create(
-      this.config as McpServerConfig,
-      context.signal
-    );
+    const { client } = await mcpClientFactory.create(serverConfig, context.signal);
     try {
       const result = await client.getPrompt({
         name: String(this.config.prompt_name ?? ""),

@@ -14,6 +14,9 @@ import {
   getGlobalMcpServerRepository,
   getMcpServerConfig,
   MCP_SERVERS,
+  McpToolCallTask,
+  McpListTask,
+  mcpClientFactory,
 } from "@workglow/tasks";
 import type { McpServerRecord } from "@workglow/tasks";
 import { resolveSchemaInputs, Task, type IExecuteContext, type TaskConfig } from "@workglow/task-graph";
@@ -380,5 +383,163 @@ describe("TaskRunner config resolution", () => {
     const rc = output.receivedResolvedConfig as Record<string, unknown>;
     expect(rc).toBeDefined();
     expect(rc.server).toBeUndefined();
+  });
+});
+
+// Mock helpers (same pattern as existing mcp.test.ts)
+function fn() {
+  const calls: unknown[][] = [];
+  const mock = (...args: unknown[]) => {
+    calls.push(args);
+    return mock._result;
+  };
+  mock.calls = calls;
+  mock._result = undefined as unknown;
+  mock.mockResolvedValue = (val: unknown) => {
+    mock._result = Promise.resolve(val);
+    return mock;
+  };
+  return mock;
+}
+
+function createMockClient(overrides: Record<string, unknown> = {}) {
+  return {
+    callTool: fn(),
+    readResource: fn(),
+    getPrompt: fn(),
+    listTools: fn().mockResolvedValue({ tools: [] }),
+    listResources: fn().mockResolvedValue({ resources: [] }),
+    listPrompts: fn().mockResolvedValue({ prompts: [] }),
+    close: fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+const originalCreate = mcpClientFactory.create;
+
+function mockFactory(mockClient: ReturnType<typeof createMockClient>) {
+  mcpClientFactory.create = (() =>
+    Promise.resolve({
+      client: mockClient,
+      transport: {},
+    })) as unknown as typeof mcpClientFactory.create;
+}
+
+describe("MCP tasks with server registry", () => {
+  beforeEach(() => {
+    getGlobalMcpServers().clear();
+    mcpClientFactory.create = originalCreate;
+  });
+
+  afterEach(() => {
+    mcpClientFactory.create = originalCreate;
+  });
+
+  test("McpToolCallTask with server ID in config", async () => {
+    await registerMcpServer("my-server", serverA);
+    const mockClient = createMockClient({
+      callTool: fn().mockResolvedValue({
+        content: [{ type: "text", text: "hello" }],
+        isError: false,
+      }),
+    });
+    mockFactory(mockClient);
+
+    const task = new McpToolCallTask(
+      {},
+      { server: "my-server", tool_name: "greet" }
+    );
+    const result = await task.run({ name: "world" });
+
+    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(result.isError).toBe(false);
+  });
+
+  test("McpToolCallTask with inline server object in config", async () => {
+    const mockClient = createMockClient({
+      callTool: fn().mockResolvedValue({
+        content: [{ type: "text", text: "hi" }],
+        isError: false,
+      }),
+    });
+    mockFactory(mockClient);
+
+    const task = new McpToolCallTask(
+      {},
+      {
+        server: { transport: "streamable-http", server_url: "http://inline.com" },
+        tool_name: "greet",
+      }
+    );
+    const result = await task.run({});
+
+    expect(result.content).toEqual([{ type: "text", text: "hi" }]);
+  });
+
+  test("McpToolCallTask backward compatible with inline transport", async () => {
+    const mockClient = createMockClient({
+      callTool: fn().mockResolvedValue({
+        content: [{ type: "text", text: "ok" }],
+        isError: false,
+      }),
+    });
+    mockFactory(mockClient);
+
+    const task = new McpToolCallTask(
+      {},
+      { transport: "stdio", command: "test-server", tool_name: "greet" }
+    );
+    const result = await task.run({});
+
+    expect(result.content).toEqual([{ type: "text", text: "ok" }]);
+  });
+
+  test("inline config overrides registry values", async () => {
+    await registerMcpServer("my-server", serverA);
+    const mockClient = createMockClient({
+      callTool: fn().mockResolvedValue({
+        content: [{ type: "text", text: "ok" }],
+        isError: false,
+      }),
+    });
+    let capturedConfig: unknown;
+    mcpClientFactory.create = ((config: unknown) => {
+      capturedConfig = config;
+      return Promise.resolve({ client: mockClient, transport: {} });
+    }) as unknown as typeof mcpClientFactory.create;
+
+    const task = new McpToolCallTask(
+      {},
+      {
+        server: "my-server",
+        server_url: "http://override.com",
+        tool_name: "greet",
+      }
+    );
+    await task.run({});
+
+    expect((capturedConfig as Record<string, unknown>).server_url).toBe(
+      "http://override.com"
+    );
+    expect((capturedConfig as Record<string, unknown>).transport).toBe(
+      "streamable-http"
+    );
+  });
+
+  test("McpListTask with server ID in input", async () => {
+    await registerMcpServer("my-server", serverA);
+    const tools = [{ name: "greet", inputSchema: {} }];
+    const mockClient = createMockClient({
+      listTools: fn().mockResolvedValue({ tools }),
+    });
+    mockFactory(mockClient);
+
+    const task = new McpListTask();
+    const result = await task.run({
+      server: "my-server",
+      list_type: "tools",
+    });
+
+    expect((result as { tools: unknown }).tools).toEqual(tools);
   });
 });

@@ -7,6 +7,7 @@
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
 
@@ -187,6 +188,18 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     return {
       type: "object",
       properties: {
+        server: {
+          oneOf: [
+            { type: "string", format: "mcp-server" },
+            {
+              type: "object",
+              format: "mcp-server",
+              properties: mcpServerConfigSchema.properties,
+            },
+          ],
+          title: "Server",
+          description: "MCP server reference (ID or inline config)",
+        },
         ...mcpServerConfigSchema.properties,
         list_type: {
           type: "string",
@@ -195,8 +208,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
           description: "The type of items to list from the MCP server",
         },
       },
-      required: ["transport", "list_type"],
-      allOf: mcpServerConfigSchema.allOf,
+      required: ["list_type"],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
@@ -240,8 +252,10 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   }
 
   async execute(input: McpListTaskInput, context: IExecuteContext): Promise<McpListTaskOutput> {
+    const serverConfig = getMcpServerConfig(input as Record<string, unknown>, undefined);
+
     const { mcpClientFactory } = getMcpTaskDeps();
-    const { client } = await mcpClientFactory.create(input as McpServerConfig, context.signal);
+    const { client } = await mcpClientFactory.create(serverConfig, context.signal);
     const listType = input.list_type;
     try {
       switch (listType) {

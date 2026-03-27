@@ -14,6 +14,7 @@ import {
 } from "@workglow/task-graph";
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 
 const contentItemSchema = {
   anyOf: [
@@ -92,6 +93,19 @@ export class McpResourceReadTask extends Task<
       type: "object",
       properties: {
         ...TaskConfigSchema["properties"],
+        server: {
+          oneOf: [
+            { type: "string", format: "mcp-server" },
+            {
+              type: "object",
+              format: "mcp-server",
+              properties: mcpServerConfigSchema.properties,
+              additionalProperties: false,
+            },
+          ],
+          title: "Server",
+          description: "MCP server reference (ID or inline config)",
+        },
         ...mcpServerConfigSchema.properties,
         resource_uri: {
           type: "string",
@@ -100,10 +114,7 @@ export class McpResourceReadTask extends Task<
           format: "string:uri:mcp-resourceuri",
         },
       },
-      required: ["transport", "resource_uri"],
-      if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-      then: { required: ["command"] },
-      else: { required: ["server_url"] },
+      required: ["resource_uri"],
       allOf: mcpServerConfigSchema.allOf,
       additionalProperties: false,
     } as const satisfies DataPortSchema;
@@ -113,11 +124,13 @@ export class McpResourceReadTask extends Task<
     _input: McpResourceReadTaskInput,
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {
-    const { mcpClientFactory } = getMcpTaskDeps();
-    const { client } = await mcpClientFactory.create(
-      this.config as McpServerConfig,
-      context.signal
+    const serverConfig = getMcpServerConfig(
+      this.config as Record<string, unknown>,
+      context.resolvedConfig
     );
+
+    const { mcpClientFactory } = getMcpTaskDeps();
+    const { client } = await mcpClientFactory.create(serverConfig, context.signal);
     try {
       const result = await client.readResource({
         uri: String(this.config.resource_uri ?? ""),
