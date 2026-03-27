@@ -118,7 +118,9 @@ export class PostgresVectorStorage<
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
           if (!SAFE_IDENTIFIER_RE.test(key)) {
-            throw new StorageValidationError(`Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`);
+            throw new StorageValidationError(
+              `Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`
+            );
           }
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
@@ -199,7 +201,9 @@ export class PostgresVectorStorage<
         const conditions: string[] = [];
         for (const [key, value] of Object.entries(filter)) {
           if (!SAFE_IDENTIFIER_RE.test(key)) {
-            throw new StorageValidationError(`Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`);
+            throw new StorageValidationError(
+              `Invalid metadata filter key: "${key}". Keys must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`
+            );
           }
           conditions.push(`${metadataCol}->>'${key}' = $${paramIndex}`);
           params.push(String(value));
@@ -304,7 +308,7 @@ export class PostgresVectorStorage<
       }
 
       const vectorScore = cosineSimilarity(query, vector);
-      const metadataText = JSON.stringify(metadata).toLowerCase();
+      const metadataText = Object.values(metadata).join(" ").toLowerCase();
       let textScore = 0;
       if (queryWords.length > 0) {
         let matches = 0;
