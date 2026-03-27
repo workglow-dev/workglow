@@ -4,12 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, test, beforeEach } from "vitest";
+import { describe, expect, test, beforeEach, afterEach } from "vitest";
 import {
   InMemoryMcpServerRepository,
   McpServerRepository,
+  registerMcpServer,
+  getMcpServer,
+  getGlobalMcpServers,
+  getGlobalMcpServerRepository,
+  MCP_SERVERS,
 } from "@workglow/tasks";
 import type { McpServerRecord } from "@workglow/tasks";
+import { resolveSchemaInputs } from "@workglow/task-graph";
+import { globalServiceRegistry, ServiceRegistry, Container } from "@workglow/util";
 
 const serverA: McpServerRecord = {
   server_id: "server-a",
@@ -107,5 +114,116 @@ describe("McpServerRepository", () => {
     await repo.addServer(serverA);
     await repo.removeServer("server-a");
     expect(events).toEqual([serverA]);
+  });
+});
+
+describe("McpServerRegistry", () => {
+  beforeEach(() => {
+    getGlobalMcpServers().clear();
+  });
+
+  test("registerMcpServer adds to live map and repository", async () => {
+    await registerMcpServer("test-server", serverA);
+    expect(getMcpServer("test-server")?.config).toEqual(serverA);
+
+    const repo = getGlobalMcpServerRepository();
+    const record = await repo.getServer("server-a");
+    expect(record).toEqual(serverA);
+  });
+
+  test("getMcpServer returns undefined for unknown ID", () => {
+    expect(getMcpServer("nonexistent")).toBeUndefined();
+  });
+
+  test("scoped registries are independent", async () => {
+    await registerMcpServer("shared", serverA);
+
+    const child = new ServiceRegistry(new Container());
+    const scopedMap = new Map();
+    child.registerInstance(MCP_SERVERS, scopedMap);
+
+    const scopedServers = child.get(MCP_SERVERS);
+    expect(scopedServers.get("shared")).toBeUndefined();
+
+    expect(getMcpServer("shared")?.config).toEqual(serverA);
+  });
+});
+
+describe("mcp-server input resolver", () => {
+  beforeEach(() => {
+    getGlobalMcpServers().clear();
+  });
+
+  test("resolves string server ID to config record", async () => {
+    await registerMcpServer("my-server", serverA);
+
+    const schema = {
+      type: "object" as const,
+      properties: {
+        server: { type: "string" as const, format: "mcp-server" },
+      },
+    };
+    const input = { server: "my-server" };
+    const resolved = await resolveSchemaInputs(input, schema, {
+      registry: globalServiceRegistry,
+    });
+
+    expect(resolved.server).toEqual(serverA);
+  });
+
+  test("throws for unknown server ID", async () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        server: { type: "string" as const, format: "mcp-server" },
+      },
+    };
+    const input = { server: "nonexistent" };
+    await expect(
+      resolveSchemaInputs(input, schema, { registry: globalServiceRegistry })
+    ).rejects.toThrow('MCP server "nonexistent" not found');
+  });
+
+  test("non-string values pass through unchanged", async () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        server: {
+          oneOf: [
+            { type: "string" as const, format: "mcp-server" },
+            { type: "object" as const, format: "mcp-server" },
+          ],
+        },
+      },
+    };
+    const inlineConfig = { transport: "sse", server_url: "http://example.com" };
+    const input = { server: inlineConfig };
+    const resolved = await resolveSchemaInputs(input, schema, {
+      registry: globalServiceRegistry,
+    });
+
+    expect(resolved.server).toEqual(inlineConfig);
+  });
+
+  test("scoped registry takes precedence over global", async () => {
+    await registerMcpServer("my-server", serverA);
+
+    const child = new ServiceRegistry(new Container());
+    const scopedMap = new Map();
+    scopedMap.set("my-server", { config: serverB });
+    child.registerInstance(MCP_SERVERS, scopedMap);
+
+    const schema = {
+      type: "object" as const,
+      properties: {
+        server: { type: "string" as const, format: "mcp-server" },
+      },
+    };
+    const input = { server: "my-server" };
+    const resolved = await resolveSchemaInputs(input, schema, {
+      registry: child,
+    });
+
+    expect(resolved.server).toEqual(serverB);
   });
 });
