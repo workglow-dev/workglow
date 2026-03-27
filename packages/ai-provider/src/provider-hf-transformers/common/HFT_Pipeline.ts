@@ -64,6 +64,31 @@ const pipelines = new Map<string, any>();
 const pipelineLoadPromises = new Map<string, Promise<any>>();
 
 /**
+ * Vision/image pipeline types that require an image processor to be loaded.
+ * If the processor is null after pipeline creation the model cache is incomplete
+ * (e.g. `preprocessor_config.json` was not downloaded) and the load should be
+ * treated as a retriable failure so the missing files are re-fetched.
+ */
+const IMAGE_PIPELINE_TYPES = new Set([
+  "image-classification",
+  "image-segmentation",
+  "object-detection",
+  "image-to-text",
+  "image-feature-extraction",
+  "zero-shot-image-classification",
+  "depth-estimation",
+  "mask-generation",
+]);
+
+/**
+ * Error message prefix used when an image pipeline's processor failed to
+ * initialize (null processor after load). The prefix is checked in
+ * `AiJob.classifyProviderError()` to produce a `RetryableJobError` so the
+ * queue re-downloads missing processor config files.
+ */
+export const HFT_NULL_PROCESSOR_PREFIX = "HFT_NULL_PROCESSOR:";
+
+/**
  * Clear all cached pipelines
  */
 export function clearPipelineCache(): void {
@@ -361,13 +386,28 @@ const doGetPipeline = async (
       throw new Error("Operation aborted after pipeline creation");
     }
 
+    // For image/vision pipelines the processor must be initialized. A null processor
+    // means the model cache is incomplete (e.g. preprocessor_config.json was not
+    // downloaded, likely because a previous download was aborted). Throw a specific
+    // error so the job queue can retry and re-fetch the missing files.
+    if (IMAGE_PIPELINE_TYPES.has(pipelineType) && result.processor == null) {
+      throw new Error(
+        `${HFT_NULL_PROCESSOR_PREFIX} Image processor not initialized for ` +
+          `${pipelineType}/${modelPath}. Model cache may be incomplete.`
+      );
+    }
+
     logger.timeEnd(pipelineTimerLabel, { status: "loaded" });
     pipelines.set(cacheKey, result);
     return result;
   } catch (error: any) {
     logger.timeEnd(pipelineTimerLabel, { status: "error", error: String(error) });
-    // If aborted, throw a clean abort error rather than internal stream errors
-    if (abortSignal?.aborted || modelController.signal.aborted) {
+    // If aborted, throw a clean abort error rather than internal stream errors.
+    // Preserve processor-initialization errors so they propagate with their original message.
+    if (
+      !String(error).startsWith(HFT_NULL_PROCESSOR_PREFIX) &&
+      (abortSignal?.aborted || modelController.signal.aborted)
+    ) {
       throw new Error("Pipeline download aborted");
     }
     throw error;

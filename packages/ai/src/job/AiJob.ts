@@ -56,6 +56,28 @@ function classifyProviderError(err: unknown, taskType: string, provider: string)
   if (err instanceof DOMException && err.name === "AbortError") {
     return new AbortSignalJobError(`Provider call aborted for ${taskType} (${provider})`);
   }
+  if (err instanceof DOMException && err.name === "TimeoutError") {
+    return new AbortSignalJobError(`Provider call timed out for ${taskType} (${provider})`);
+  }
+  // Catch abort patterns re-thrown as plain Errors (e.g. "Pipeline download aborted" from HFT)
+  if (
+    message.includes("Pipeline download aborted") ||
+    message.includes("Operation aborted") ||
+    message.includes("operation was aborted") ||
+    message.includes("The operation was aborted")
+  ) {
+    return new AbortSignalJobError(
+      `Provider call aborted for ${taskType} (${provider}): ${message}`
+    );
+  }
+
+  // Incomplete model cache (e.g. missing preprocessor_config.json) — let the queue retry
+  // so the provider re-downloads missing files on the next attempt.
+  // The "HFT_NULL_PROCESSOR:" prefix is produced by HFT_Pipeline.ts
+  // (HFT_NULL_PROCESSOR_PREFIX constant) when an image processor fails to initialize.
+  if (message.startsWith("HFT_NULL_PROCESSOR:")) {
+    return new RetryableJobError(message);
+  }
 
   // Rate limiting (429) — retryable with backoff
   if (status === 429) {
