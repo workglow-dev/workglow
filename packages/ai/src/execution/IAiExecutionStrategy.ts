@@ -19,7 +19,7 @@ export interface IAiExecutionStrategy {
     runnerId: string | undefined
   ): Promise<TaskOutput>;
 
-  abort(jobId: unknown): void;
+  abort(): void;
 }
 
 /**

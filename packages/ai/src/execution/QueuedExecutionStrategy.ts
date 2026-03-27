@@ -25,11 +25,20 @@ import type { IAiExecutionStrategy } from "./IAiExecutionStrategy";
  * global TaskQueueRegistry for deduplication.
  */
 export class QueuedExecutionStrategy implements IAiExecutionStrategy {
-  private currentJobId: unknown;
+  /**
+   * Memoized initialization promise so that concurrent calls to ensureQueue()
+   * within the same strategy instance share a single queue-creation flow.
+   */
+  private initPromise: Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> | null = null;
 
   constructor(
     private readonly queueName: string,
-    private readonly concurrency: number = 1
+    private readonly concurrency: number = 1,
+    /**
+     * When false, the strategy will use a pre-registered queue and throw if
+     * none exists. When true (default), it auto-creates the queue on first use.
+     */
+    private readonly autoCreate: boolean = true
   ) {}
 
   async execute(
@@ -37,46 +46,79 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
     context: IExecuteContext,
     runnerId: string | undefined
   ): Promise<TaskOutput> {
+    // Bail early to avoid submitting a job that's already been cancelled.
+    if (context.signal.aborted) {
+      throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    }
+
     const registeredQueue = await this.ensureQueue();
     const { client } = registeredQueue;
 
-    const handle = await client.submit(jobInput as unknown as TaskInput, {
+    const handle = await client.submit(jobInput, {
       jobRunId: runnerId,
       maxRetries: 10,
     });
 
-    this.currentJobId = handle.id;
+    // Wire the task abort signal to the queued job so that aborting the task
+    // (e.g., via TaskRunner timeout) also cancels the in-flight queue job.
+    const onAbort = () => {
+      handle.abort().catch((err) => {
+        console.warn(`Failed to abort queued job`, err);
+      });
+    };
+    context.signal.addEventListener("abort", onAbort);
 
-    const cleanup = handle.onProgress(
+    const cleanupProgress = handle.onProgress(
       (progress: number, message: string | undefined, details: Record<string, any> | null) => {
         context.updateProgress(progress, message, details);
       }
     );
 
     try {
+      // Re-check after registering the listener to close the race window
+      // between submit and listener registration.
+      if (context.signal.aborted) {
+        throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      }
       const output = await handle.waitFor();
       return output as TaskOutput;
     } finally {
-      cleanup();
+      cleanupProgress();
+      context.signal.removeEventListener("abort", onAbort);
     }
   }
 
-  abort(jobId?: unknown): void {
-    const id = jobId ?? this.currentJobId;
-    if (!id) return;
+  abort(): void {
+    // No-op — abort is handled via the AbortSignal wired in execute().
+  }
 
-    const registeredQueue = getTaskQueueRegistry().getQueue(this.queueName);
-    if (registeredQueue) {
-      registeredQueue.client.abort(id).catch((err) => {
-        console.warn(`Failed to abort remote job ${id}`, err);
+  private ensureQueue(): Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> {
+    if (!this.initPromise) {
+      this.initPromise = this.createQueue().catch((err) => {
+        // Reset so next execution retries (e.g., transient storage error or late queue registration).
+        this.initPromise = null;
+        throw err;
       });
     }
+    return this.initPromise;
   }
 
-  private async ensureQueue(): Promise<RegisteredQueue<TaskInput, TaskOutput>> {
+  private async createQueue(): Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> {
     const registry = getTaskQueueRegistry();
-    const existing = registry.getQueue<TaskInput, TaskOutput>(this.queueName);
-    if (existing) return existing;
+    const existing = registry.getQueue<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
+    if (existing) {
+      if (!existing.server.isRunning()) {
+        await existing.server.start();
+      }
+      return existing;
+    }
+
+    if (!this.autoCreate) {
+      throw new Error(
+        `Queue "${this.queueName}" is not registered and autoCreate is disabled. ` +
+          `Register the queue before executing tasks with this provider.`
+      );
+    }
 
     const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
     await storage.setupDatabase();
@@ -94,17 +136,24 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
 
     client.attach(server);
 
-    const registeredQueue = { server, client, storage } as unknown as RegisteredQueue<
-      TaskInput,
-      TaskOutput
-    >;
+    const registeredQueue: RegisteredQueue<AiJobInput<TaskInput>, TaskOutput> = {
+      server,
+      client,
+      storage,
+    };
 
     try {
       registry.registerQueue(registeredQueue);
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes("already exists")) {
-        const raced = registry.getQueue<TaskInput, TaskOutput>(this.queueName);
-        if (raced) return raced;
+        // Another strategy instance won the race; use its queue.
+        const raced = registry.getQueue<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
+        if (raced) {
+          if (!raced.server.isRunning()) {
+            await raced.server.start();
+          }
+          return raced;
+        }
       }
       throw err;
     }
