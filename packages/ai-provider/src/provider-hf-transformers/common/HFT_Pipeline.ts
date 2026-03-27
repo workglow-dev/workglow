@@ -390,7 +390,7 @@ const doGetPipeline = async (
     // means the model cache is incomplete (e.g. preprocessor_config.json was not
     // downloaded, likely because a previous download was aborted). Throw a specific
     // error so the job queue can retry and re-fetch the missing files.
-    if (IMAGE_PIPELINE_TYPES.has(pipelineType) && result.processor == null) {
+    if (IMAGE_PIPELINE_TYPES.has(pipelineType) && (result as any).processor == null) {
       throw new Error(
         `${HFT_NULL_PROCESSOR_PREFIX} Image processor not initialized for ` +
           `${pipelineType}/${modelPath}. Model cache may be incomplete.`
