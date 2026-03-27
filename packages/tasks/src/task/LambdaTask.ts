@@ -90,6 +90,10 @@ export class LambdaTask<
     return outputSchema;
   }
 
+  public canSerializeConfig(): boolean {
+    return false;
+  }
+
   constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
     if (!config.execute && !config.executeReactive) {
       throw new TaskConfigurationError(

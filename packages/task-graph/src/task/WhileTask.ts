@@ -170,6 +170,10 @@ export class WhileTask<
    */
   protected _currentIteration: number = 0;
 
+  public canSerializeConfig(): boolean {
+    return typeof this.config.condition !== "function";
+  }
+
   constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
     super(input, config as Config);
   }

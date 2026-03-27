@@ -5,6 +5,7 @@
  */
 
 import {
+  ConditionalTask,
   createGraphFromGraphJSON,
   createTaskFromGraphJSON,
   Dataflow,
@@ -15,7 +16,9 @@ import {
   TaskJSONError,
   TaskRegistry,
   TaskSerializationError,
+  WhileTask,
 } from "@workglow/task-graph";
+import { LambdaTask } from "@workglow/tasks";
 import type { TaskConfig, TaskDeserializationOptions, TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -643,6 +646,73 @@ describe("TaskJSON", () => {
     test("canSerializeConfig returns true by default", () => {
       const task = new DoubleToResultTask({ value: 1 }, { id: "d1" });
       expect(task.canSerializeConfig()).toBe(true);
+    });
+  });
+
+  describe("canSerializeConfig overrides", () => {
+    test("LambdaTask.canSerializeConfig always returns false", () => {
+      const task = new LambdaTask(
+        {},
+        { execute: async (input: any) => input }
+      );
+      expect(task.canSerializeConfig()).toBe(false);
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+    });
+
+    test("WhileTask with function condition is not serializable", () => {
+      const task = new WhileTask(
+        {},
+        { condition: (_output: any, _i: number) => true }
+      );
+      expect(task.canSerializeConfig()).toBe(false);
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+    });
+
+    test("WhileTask with declarative condition is serializable", () => {
+      const task = new WhileTask(
+        {},
+        {
+          conditionField: "done",
+          conditionOperator: "equals",
+          conditionValue: "false",
+        }
+      );
+      expect(task.canSerializeConfig()).toBe(true);
+      expect(() => task.toJSON()).not.toThrow();
+    });
+
+    test("ConditionalTask with function branches is not serializable", () => {
+      const task = new ConditionalTask(
+        {},
+        {
+          branches: [
+            { id: "a", condition: (_input: any) => true, outputPort: "out_a" },
+          ],
+        }
+      );
+      expect(task.canSerializeConfig()).toBe(false);
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+    });
+
+    test("ConditionalTask with conditionConfig is serializable", () => {
+      const task = new ConditionalTask(
+        {},
+        {
+          conditionConfig: {
+            branches: [
+              {
+                id: "a",
+                field: "x",
+                operator: "equals",
+                value: "1",
+              },
+            ],
+            exclusive: true,
+          },
+        }
+      );
+      expect(task.canSerializeConfig()).toBe(true);
+      expect(() => task.toJSON()).not.toThrow();
     });
   });
 });

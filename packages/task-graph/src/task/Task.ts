@@ -309,7 +309,7 @@ export class Task<
    * Frozen snapshot of config at construction time, used by toJSON.
    * Runtime mutations to this.config do not affect serialized output.
    */
-  protected _originalConfig: Readonly<Record<string, unknown>>;
+  protected _originalConfig: Readonly<Record<string, unknown>> | undefined;
 
   /**
    * Task id from config (read-only).
@@ -395,7 +395,15 @@ export class Task<
       (baseConfig as Record<string, unknown>).id = uuid4();
     }
     this.config = this.validateAndApplyConfigDefaults(baseConfig);
-    this._originalConfig = Object.freeze(structuredClone(this.config) as Record<string, unknown>);
+    try {
+      this._originalConfig = Object.freeze(
+        structuredClone(this.config) as Record<string, unknown>
+      );
+    } catch {
+      // Config contains non-cloneable values (e.g. functions).
+      // canSerializeConfig() should return false for such tasks.
+      this._originalConfig = undefined;
+    }
 
     // Store runtime configuration
     this.runConfig = runConfig;
