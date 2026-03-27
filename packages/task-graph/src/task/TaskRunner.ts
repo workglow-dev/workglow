@@ -106,6 +106,12 @@ export class TaskRunner<
   protected shouldAccumulate: boolean = true;
 
   /**
+   * Config schema properties resolved by TaskRunner (e.g. format: "mcp-server").
+   * Read-only -- task.config is never mutated.
+   */
+  protected resolvedConfig?: Readonly<Record<string, unknown>>;
+
+  /**
    * Active telemetry span for the current task run.
    */
   protected telemetrySpan?: ISpan;
@@ -135,6 +141,15 @@ export class TaskRunner<
 
     try {
       this.task.setInput(overrides);
+
+      // Resolve config schema annotations (e.g. mcp-server references) without mutating config
+      const configSchema = (this.task.constructor as typeof Task).configSchema();
+      const resolvedConfig = await resolveSchemaInputs(
+        { ...this.task.config } as Record<string, unknown>,
+        configSchema,
+        { registry: this.registry }
+      );
+      this.resolvedConfig = Object.freeze(resolvedConfig);
 
       // Resolve schema-annotated inputs (models, repositories) before validation
       const schema = (this.task.constructor as typeof Task).inputSchema();
@@ -219,6 +234,15 @@ export class TaskRunner<
     }
     this.task.setInput(overrides);
 
+    // Resolve config schema annotations without mutating config
+    const configSchema = (this.task.constructor as typeof Task).configSchema();
+    const resolvedConfig = await resolveSchemaInputs(
+      { ...this.task.config } as Record<string, unknown>,
+      configSchema,
+      { registry: this.registry }
+    );
+    this.resolvedConfig = Object.freeze(resolvedConfig);
+
     // Resolve schema-annotated inputs (models, repositories) before validation
     const schema = (this.task.constructor as typeof Task).inputSchema();
     this.task.runInputData = (await resolveSchemaInputs(
@@ -288,6 +312,7 @@ export class TaskRunner<
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
       registry: this.registry,
+      resolvedConfig: this.resolvedConfig,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
   }
@@ -349,6 +374,7 @@ export class TaskRunner<
       own: this.own,
       registry: this.registry,
       inputStreams: this.inputStreams,
+      resolvedConfig: this.resolvedConfig,
     });
 
     for await (const event of stream) {

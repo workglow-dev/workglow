@@ -16,7 +16,8 @@ import {
   MCP_SERVERS,
 } from "@workglow/tasks";
 import type { McpServerRecord } from "@workglow/tasks";
-import { resolveSchemaInputs } from "@workglow/task-graph";
+import { resolveSchemaInputs, Task, type IExecuteContext, type TaskConfig } from "@workglow/task-graph";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { globalServiceRegistry, ServiceRegistry, Container } from "@workglow/util";
 
 const serverA: McpServerRecord = {
@@ -298,5 +299,86 @@ describe("getMcpServerConfig", () => {
     };
     const result = getMcpServerConfig({}, resolvedConfig);
     expect((result as Record<string, unknown>).auth_type).toBe("bearer");
+  });
+});
+
+class ConfigResolverTestTask extends Task<
+  { value: string },
+  { result: string; receivedResolvedConfig: unknown },
+  TaskConfig & { server?: unknown }
+> {
+  static readonly type = "ConfigResolverTestTask";
+  static readonly category = "Test";
+
+  static inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { value: { type: "string" } },
+      required: ["value"],
+    } as const satisfies DataPortSchema;
+  }
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "string" },
+        receivedResolvedConfig: { type: "object", additionalProperties: true },
+      },
+      required: ["result"],
+    } as const satisfies DataPortSchema;
+  }
+
+  static configSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        server: { type: "string", format: "mcp-server" },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async execute(
+    input: { value: string },
+    context: IExecuteContext
+  ): Promise<{ result: string; receivedResolvedConfig: unknown }> {
+    return {
+      result: input.value,
+      receivedResolvedConfig: context.resolvedConfig,
+    };
+  }
+}
+
+describe("TaskRunner config resolution", () => {
+  beforeEach(() => {
+    getGlobalMcpServers().clear();
+  });
+
+  test("resolvedConfig is populated in IExecuteContext", async () => {
+    await registerMcpServer("test-srv", serverA);
+    const task = new ConfigResolverTestTask({}, { server: "test-srv" });
+    const output = await task.run({ value: "hello" });
+
+    expect(output.receivedResolvedConfig).toBeDefined();
+    const rc = output.receivedResolvedConfig as Record<string, unknown>;
+    expect(rc.server).toEqual(serverA);
+  });
+
+  test("original task.config is not mutated", async () => {
+    await registerMcpServer("test-srv", serverA);
+    const task = new ConfigResolverTestTask({}, { server: "test-srv" });
+    await task.run({ value: "hello" });
+
+    // Config should still have the string ID, not the resolved object
+    expect(task.config.server).toBe("test-srv");
+  });
+
+  test("resolvedConfig is empty when config has no format annotations", async () => {
+    const task = new ConfigResolverTestTask({}, {});
+    const output = await task.run({ value: "hello" });
+
+    const rc = output.receivedResolvedConfig as Record<string, unknown>;
+    expect(rc).toBeDefined();
+    expect(rc.server).toBeUndefined();
   });
 });
