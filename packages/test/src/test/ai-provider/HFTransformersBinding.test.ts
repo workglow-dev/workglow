@@ -26,6 +26,7 @@ import {
 import { Sqlite } from "@workglow/storage/sqlite";
 import {
   InMemoryQueueStorage,
+  JobStatus,
   SqliteQueueStorage,
   SqliteRateLimiterStorage,
 } from "@workglow/storage";
@@ -43,6 +44,23 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 await Sqlite.init();
 const db = new Sqlite.Database(":memory:");
 
+async function waitForQueueActivity(
+  client: JobQueueClient<AiJobInput<TaskInput>, TaskOutput>
+): Promise<number> {
+  let total = 0;
+  for (let i = 0; i < 100; i++) {
+    const [pending, processing, completed] = await Promise.all([
+      client.size(JobStatus.PENDING),
+      client.size(JobStatus.PROCESSING),
+      client.size(JobStatus.COMPLETED),
+    ]);
+    total = pending + processing + completed;
+    if (total > 0) break;
+    await sleep(10);
+  }
+  return total;
+}
+
 describe("HFTransformersBinding", () => {
   let logger = getTestingLogger();
   setLogger(logger);
@@ -51,7 +69,7 @@ describe("HFTransformersBinding", () => {
   });
 
   describe("InMemoryJobQueue", () => {
-    it("Should have an item queued", async () => {
+    it("Should use the pre-registered queue", async () => {
       const queueRegistry = getTaskQueueRegistry();
 
       const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(
@@ -107,23 +125,18 @@ describe("HFTransformersBinding", () => {
         model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       });
       workflow.run().catch(() => {});
-      // Poll until the job appears in the queue (the async chain from run() to
-      // storage.add() includes multiple async hops that can't be reliably covered
-      // by a fixed sleep duration)
-      let size = 0;
-      for (let i = 0; i < 100; i++) {
-        size = (await registeredQueue?.client.size()) ?? 0;
-        if (size > 0) break;
-        await sleep(10);
-      }
-      expect(size).toEqual(1);
+      // The provider should submit work to the pre-registered queue. Since
+      // QueuedExecutionStrategy now starts an existing queue automatically,
+      // the job may move from PENDING to PROCESSING/COMPLETED before we sample.
+      const total = await waitForQueueActivity(registeredQueue!.client);
+      expect(total).toBeGreaterThan(0);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
     });
   });
 
   describe("SqliteJobQueue", () => {
-    it("Should have an item queued", async () => {
+    it("Should use the pre-registered queue", async () => {
       const queueRegistry = getTaskQueueRegistry();
       const storage = new SqliteQueueStorage<AiJobInput<TaskInput>, TaskOutput>(db, "test");
       await storage.setupDatabase();
@@ -182,16 +195,11 @@ describe("HFTransformersBinding", () => {
         model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       });
       workflow.run().catch(() => {});
-      // Poll until the job appears in the queue (the async chain from run() to
-      // storage.add() includes multiple async hops that can't be reliably covered
-      // by a fixed sleep duration)
-      let size = 0;
-      for (let i = 0; i < 100; i++) {
-        size = (await registeredQueue?.client.size()) ?? 0;
-        if (size > 0) break;
-        await sleep(10);
-      }
-      expect(size).toEqual(1);
+      // The provider should submit work to the pre-registered queue. Since
+      // QueuedExecutionStrategy now starts an existing queue automatically,
+      // the job may move from PENDING to PROCESSING/COMPLETED before we sample.
+      const total = await waitForQueueActivity(registeredQueue!.client);
+      expect(total).toBeGreaterThan(0);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
     });
