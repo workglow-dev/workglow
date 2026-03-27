@@ -8,6 +8,7 @@ import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@wo
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
+import { mcpServerReferenceObjectProperties } from "../../mcp-server/mcpServerReferenceObjectSchema";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
 
@@ -183,6 +184,13 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   static readonly cacheable = false;
   public static hasDynamicSchemas: boolean = true;
 
+  public override getDefaultInputsFromStaticInputDefinitions(): Partial<McpListTaskInput> {
+    // Root-level connection props duplicate `server` in the input schema. Materializing schema
+    // defaults here (e.g. first `transport` enum) would override values from a resolved
+    // `server` object in getMcpServerConfig.
+    return {};
+  }
+
   public static inputSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();
     return {
@@ -194,7 +202,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
             {
               type: "object",
               format: "mcp-server",
-              properties: mcpServerConfigSchema.properties,
+              properties: mcpServerReferenceObjectProperties,
               additionalProperties: false,
             },
           ],

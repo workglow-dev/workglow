@@ -16,6 +16,7 @@ import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema } from "@workglow/util/schema";
 import { mcpList, type McpListTaskInput } from "./McpListTask";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
+import { mcpServerReferenceObjectProperties } from "../../mcp-server/mcpServerReferenceObjectSchema";
 
 const annotationsSchema = {
   type: "object",
@@ -186,7 +187,7 @@ export class McpToolCallTask extends Task<
             {
               type: "object",
               format: "mcp-server",
-              properties: mcpServerConfigSchema.properties,
+              properties: mcpServerReferenceObjectProperties,
               additionalProperties: false,
             },
           ],
@@ -205,10 +206,7 @@ export class McpToolCallTask extends Task<
       allOf: [
         ...(mcpServerConfigSchema.allOf ?? []),
         {
-          anyOf: [
-            { required: ["server"] },
-            { required: ["transport"] },
-          ],
+          anyOf: [{ required: ["server"] }, { required: ["transport"] }],
         },
       ],
       additionalProperties: false,
@@ -263,9 +261,7 @@ export class McpToolCallTask extends Task<
     input: McpToolCallTaskInput,
     context: IExecuteContext
   ): Promise<McpToolCallTaskOutput> {
-    const serverConfig = getMcpServerConfig(
-      this.config as Record<string, unknown>
-    );
+    const serverConfig = getMcpServerConfig(this.config as Record<string, unknown>);
 
     await this.discoverSchemas(context.signal, serverConfig);
 

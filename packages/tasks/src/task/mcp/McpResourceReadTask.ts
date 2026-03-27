@@ -15,6 +15,7 @@ import {
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
+import { mcpServerReferenceObjectProperties } from "../../mcp-server/mcpServerReferenceObjectSchema";
 
 const contentItemSchema = {
   anyOf: [
@@ -99,7 +100,7 @@ export class McpResourceReadTask extends Task<
             {
               type: "object",
               format: "mcp-server",
-              properties: mcpServerConfigSchema.properties,
+              properties: mcpServerReferenceObjectProperties,
               additionalProperties: false,
             },
           ],
@@ -118,10 +119,7 @@ export class McpResourceReadTask extends Task<
       allOf: [
         ...(mcpServerConfigSchema.allOf ?? []),
         {
-          anyOf: [
-            { required: ["server"] },
-            { required: ["transport"] },
-          ],
+          anyOf: [{ required: ["server"] }, { required: ["transport"] }],
         },
       ],
       additionalProperties: false,
@@ -132,9 +130,7 @@ export class McpResourceReadTask extends Task<
     _input: McpResourceReadTaskInput,
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {
-    const serverConfig = getMcpServerConfig(
-      this.config as Record<string, unknown>
-    );
+    const serverConfig = getMcpServerConfig(this.config as Record<string, unknown>);
 
     const { mcpClientFactory } = getMcpTaskDeps();
     const { client } = await mcpClientFactory.create(serverConfig, context.signal);
