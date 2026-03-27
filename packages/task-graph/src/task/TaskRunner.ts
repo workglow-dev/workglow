@@ -106,12 +106,6 @@ export class TaskRunner<
   protected shouldAccumulate: boolean = true;
 
   /**
-   * Config schema properties resolved by TaskRunner (e.g. format: "mcp-server").
-   * Read-only -- task.config is never mutated.
-   */
-  protected resolvedConfig?: Readonly<Record<string, unknown>>;
-
-  /**
    * Active telemetry span for the current task run.
    */
   protected telemetrySpan?: ISpan;
@@ -142,15 +136,16 @@ export class TaskRunner<
     try {
       this.task.setInput(overrides);
 
-      // Resolve config schema annotations (e.g. mcp-server references) without mutating config
+      // Resolve config schema annotations (e.g. mcp-server references) by mutating task.config.
+      // The original config is preserved in task._originalConfig for serialization.
       const configSchema = (this.task.constructor as typeof Task).configSchema();
       if (schemaHasFormatAnnotations(configSchema)) {
-        const resolvedConfig = await resolveSchemaInputs(
+        const resolved = await resolveSchemaInputs(
           { ...this.task.config } as Record<string, unknown>,
           configSchema,
           { registry: this.registry }
         );
-        this.resolvedConfig = Object.freeze(resolvedConfig);
+        Object.assign(this.task.config, resolved);
       }
 
       // Resolve schema-annotated inputs (models, repositories) before validation
@@ -236,15 +231,15 @@ export class TaskRunner<
     }
     this.task.setInput(overrides);
 
-    // Resolve config schema annotations without mutating config
+    // Resolve config schema annotations by mutating task.config directly
     const configSchema = (this.task.constructor as typeof Task).configSchema();
     if (schemaHasFormatAnnotations(configSchema)) {
-      const resolvedConfig = await resolveSchemaInputs(
+      const resolved = await resolveSchemaInputs(
         { ...this.task.config } as Record<string, unknown>,
         configSchema,
         { registry: this.registry }
       );
-      this.resolvedConfig = Object.freeze(resolvedConfig);
+      Object.assign(this.task.config, resolved);
     }
 
     // Resolve schema-annotated inputs (models, repositories) before validation
@@ -316,7 +311,6 @@ export class TaskRunner<
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
       registry: this.registry,
-      resolvedConfig: this.resolvedConfig,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
   }
@@ -378,7 +372,6 @@ export class TaskRunner<
       own: this.own,
       registry: this.registry,
       inputStreams: this.inputStreams,
-      resolvedConfig: this.resolvedConfig,
     });
 
     for await (const event of stream) {

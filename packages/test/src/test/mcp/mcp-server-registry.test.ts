@@ -319,7 +319,7 @@ describe("getMcpServerConfig", () => {
 
 class ConfigResolverTestTask extends Task<
   { value: string },
-  { result: string; receivedResolvedConfig: unknown },
+  { result: string; configServer: unknown },
   TaskConfig & { server?: unknown }
 > {
   static readonly type = "ConfigResolverTestTask";
@@ -338,7 +338,7 @@ class ConfigResolverTestTask extends Task<
       type: "object",
       properties: {
         result: { type: "string" },
-        receivedResolvedConfig: { type: "object", additionalProperties: true },
+        configServer: { type: "object", additionalProperties: true },
       },
       required: ["result"],
     } as const satisfies DataPortSchema;
@@ -355,11 +355,11 @@ class ConfigResolverTestTask extends Task<
 
   async execute(
     input: { value: string },
-    context: IExecuteContext
-  ): Promise<{ result: string; receivedResolvedConfig: unknown }> {
+    _context: IExecuteContext
+  ): Promise<{ result: string; configServer: unknown }> {
     return {
       result: input.value,
-      receivedResolvedConfig: context.resolvedConfig,
+      configServer: (this.config as Record<string, unknown>).server,
     };
   }
 }
@@ -369,32 +369,32 @@ describe("TaskRunner config resolution", () => {
     getGlobalMcpServers().clear();
   });
 
-  test("resolvedConfig is populated in IExecuteContext", async () => {
+  test("config.server is resolved to full record on task.config", async () => {
     await registerMcpServer(serverA);
     const task = new ConfigResolverTestTask({}, { server: "server-a" });
     const output = await task.run({ value: "hello" });
 
-    expect(output.receivedResolvedConfig).toBeDefined();
-    const rc = output.receivedResolvedConfig as Record<string, unknown>;
-    expect(rc.server).toEqual(serverA);
+    // execute() reads from this.config.server — it should be the resolved object
+    expect(output.configServer).toEqual(serverA);
   });
 
-  test("original task.config is not mutated", async () => {
+  test("original config is preserved for toJSON", async () => {
     await registerMcpServer(serverA);
     const task = new ConfigResolverTestTask({}, { server: "server-a" });
     await task.run({ value: "hello" });
 
-    // Config should still have the string ID, not the resolved object
-    expect(task.config.server).toBe("server-a");
+    // task.config.server was mutated to the resolved object
+    expect((task.config as Record<string, unknown>).server).toEqual(serverA);
+
+    // But toJSON should use the original snapshot with the string ID
+    const json = task.toJSON();
+    expect(json.config?.server).toBe("server-a");
   });
 
-  test("resolvedConfig is empty when config has no format annotations", async () => {
+  test("config resolution is a no-op when config has no format annotations", async () => {
     const task = new ConfigResolverTestTask({}, {});
     const output = await task.run({ value: "hello" });
-
-    const rc = output.receivedResolvedConfig as Record<string, unknown>;
-    expect(rc).toBeDefined();
-    expect(rc.server).toBeUndefined();
+    expect(output.configServer).toBeUndefined();
   });
 });
 

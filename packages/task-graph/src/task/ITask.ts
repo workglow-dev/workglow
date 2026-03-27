@@ -32,11 +32,6 @@ export interface IExecuteContext {
   own: <T extends ITask | ITaskGraph | IWorkflow>(i: T) => T;
   registry: ServiceRegistry;
   /**
-   * Config schema properties resolved by TaskRunner (e.g. format: "mcp-server").
-   * Read-only -- task.config is never mutated.
-   */
-  resolvedConfig?: Readonly<Record<string, unknown>>;
-  /**
    * Input streams for pass-through streaming tasks. Keyed by input port name.
    * Provided when the graph runner detects that a task has streaming input edges
    * and the task implements executeStream(). The task's executeStream() can read
