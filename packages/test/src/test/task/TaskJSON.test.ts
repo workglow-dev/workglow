@@ -9,12 +9,15 @@ import {
   createTaskFromGraphJSON,
   Dataflow,
   GraphAsTask,
+  Task,
   TASK_CONSTRUCTORS,
   TaskGraph,
   TaskJSONError,
   TaskRegistry,
+  TaskSerializationError,
 } from "@workglow/task-graph";
-import type { TaskDeserializationOptions, TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import type { TaskConfig, TaskDeserializationOptions, TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
@@ -551,6 +554,95 @@ describe("TaskJSON", () => {
       expect(() => createGraphFromGraphJSON(json, registry, options)).toThrow(
         '"TestTaskWithDefaults" is not in the allowed types list'
       );
+    });
+  });
+
+  describe("canSerializeConfig and _originalConfig", () => {
+    class NonSerializableTask extends Task<{ value: string }, { result: string }> {
+      static readonly type = "NonSerializableTask";
+      static readonly category = "Test";
+      static inputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: { value: { type: "string" } },
+        } as const satisfies DataPortSchema;
+      }
+      static outputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: { result: { type: "string" } },
+        } as const satisfies DataPortSchema;
+      }
+      canSerializeConfig(): boolean {
+        return false;
+      }
+      async execute(input: { value: string }) {
+        return { result: input.value };
+      }
+    }
+
+    class MutableConfigTask extends Task<
+      { value: string },
+      { result: string },
+      TaskConfig & { inputSchema?: unknown; discovered?: boolean }
+    > {
+      static readonly type = "MutableConfigTask";
+      static readonly category = "Test";
+      static inputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: { value: { type: "string" } },
+        } as const satisfies DataPortSchema;
+      }
+      static outputSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: { result: { type: "string" } },
+        } as const satisfies DataPortSchema;
+      }
+      static configSchema(): DataPortSchema {
+        return {
+          type: "object",
+          properties: {
+            inputSchema: { type: "object", additionalProperties: true },
+            discovered: { type: "boolean" },
+          },
+        } as const satisfies DataPortSchema;
+      }
+      async execute(input: { value: string }) {
+        // Simulate runtime config mutation (like MCP discoverSchemas)
+        (this.config as Record<string, unknown>).discovered = true;
+        (this.config as Record<string, unknown>).inputSchema = {
+          type: "object",
+          properties: { name: { type: "string" } },
+        };
+        return { result: input.value };
+      }
+    }
+
+    test("toJSON throws TaskSerializationError when canSerializeConfig returns false", () => {
+      const task = new NonSerializableTask({}, { id: "ns1" });
+      expect(() => task.toJSON()).toThrow(TaskSerializationError);
+    });
+
+    test("toJSON uses _originalConfig, not mutated this.config", async () => {
+      const task = new MutableConfigTask({}, { id: "mc1" });
+      await task.run({ value: "hello" });
+
+      // Config was mutated at runtime
+      expect((task.config as Record<string, unknown>).discovered).toBe(true);
+      expect((task.config as Record<string, unknown>).inputSchema).toBeDefined();
+
+      // But toJSON should use the original snapshot
+      const json = task.toJSON();
+      const jsonConfig = json.config as Record<string, unknown> | undefined;
+      expect(jsonConfig?.discovered).toBeUndefined();
+      expect(jsonConfig?.inputSchema).toBeUndefined();
+    });
+
+    test("canSerializeConfig returns true by default", () => {
+      const task = new DoubleToResultTask({ value: 1 }, { id: "d1" });
+      expect(task.canSerializeConfig()).toBe(true);
     });
   });
 });

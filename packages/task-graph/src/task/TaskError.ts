@@ -122,3 +122,18 @@ export class TaskInvalidInputError extends TaskError {
     super(message);
   }
 }
+
+/**
+ * Thrown when toJSON is called on a task whose config contains non-serializable
+ * values (e.g. functions). Tasks should override canSerializeConfig() to declare
+ * whether they support serialization.
+ */
+export class TaskSerializationError extends TaskError {
+  static readonly type: string = "TaskSerializationError";
+  constructor(taskType: string) {
+    super(
+      `Task "${taskType}" cannot be serialized: config contains non-serializable values. ` +
+        `Use a declarative config alternative or remove function-valued config properties.`
+    );
+  }
+}
