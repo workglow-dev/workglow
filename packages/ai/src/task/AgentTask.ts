@@ -92,6 +92,8 @@ export interface AgentTaskOutput {
 // Schemas
 // ========================================================================
 
+const MAX_CONTEXT_MESSAGES = 1000;
+
 const modelSchema = TypeModel("model:ToolCallingTask");
 
 export const AgentInputSchema = {
@@ -299,7 +301,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
       );
 
       // Trim context window — default to 50 messages to prevent context overflow
-      const contextMessages = this.trimMessages(messages, input.maxContextMessages ?? 50);
+      const contextMessages = this.trimMessages(messages, input.maxContextMessages ?? MAX_CONTEXT_MESSAGES);
 
       // Call the LLM and stream its output
       const llmTask = context.own(new ToolCallingTask({}, {}));
