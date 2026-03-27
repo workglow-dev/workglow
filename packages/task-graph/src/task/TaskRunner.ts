@@ -151,6 +151,8 @@ export class TaskRunner<
           { registry: this.registry }
         );
         this.resolvedConfig = Object.freeze(resolvedConfig);
+      } else {
+        this.resolvedConfig = undefined;
       }
 
       // Resolve schema-annotated inputs (models, repositories) before validation
