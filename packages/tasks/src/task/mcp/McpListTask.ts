@@ -6,8 +6,10 @@
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { mcpTransportTypes } from "../../util/McpClientUtil";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
+import { McpServerRecordSchema } from "../../mcp-server/McpServerSchema";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
 
@@ -185,6 +187,11 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
 
   public static inputSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();
+    const inlineTransportProvidedCondition = mcpTransportTypes.map((transport) => ({
+      properties: { transport: { const: transport } },
+      required: ["transport"],
+    })) as readonly Record<string, unknown>[];
+
     return {
       type: "object",
       properties: {
@@ -195,6 +202,14 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
               type: "object",
               format: "mcp-server",
               properties: mcpServerConfigSchema.properties,
+              additionalProperties: false,
+            },
+            {
+              type: "object",
+              format: "mcp-server",
+              properties: McpServerRecordSchema.properties,
+              required: ["server_id", "transport"],
+              allOf: McpServerRecordSchema.allOf,
               additionalProperties: false,
             },
           ],
@@ -210,13 +225,15 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
         },
       },
       required: ["list_type"],
-      anyOf: [{ required: ["server"] }, { required: ["transport"] }] as readonly Record<
-        string,
-        unknown
-      >[],
+      anyOf: [
+        { required: ["server"] },
+        {
+          anyOf: inlineTransportProvidedCondition,
+        },
+      ] as readonly Record<string, unknown>[],
       allOf: [
         {
-          if: { required: ["transport"] },
+          if: { anyOf: inlineTransportProvidedCondition },
           then: { allOf: mcpServerConfigSchema.allOf },
         },
       ] as readonly Record<string, unknown>[],
