@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -104,7 +104,7 @@ export class TextNamedEntityRecognitionTask extends AiTask<
  */
 export const textNamedEntityRecognition = (
   input: TextNamedEntityRecognitionTaskInput,
-  config?: JobQueueTaskConfig
+  config?: TaskConfig
 ) => {
   return new TextNamedEntityRecognitionTask({} as TextNamedEntityRecognitionTaskInput, config).run(
     input
@@ -116,7 +116,7 @@ declare module "@workglow/task-graph" {
     textNamedEntityRecognition: CreateWorkflow<
       TextNamedEntityRecognitionTaskInput,
       TextNamedEntityRecognitionTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

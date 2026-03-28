@@ -5,7 +5,7 @@
  */
 
 import {
-  QueuedAiProvider,
+  AiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
@@ -13,8 +13,8 @@ import {
 import { OPENAI } from "./common/OpenAI_Constants";
 import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
 
-/** Main-thread registration (inline or worker-backed); creates the default job queue. */
-export class OpenAiQueuedProvider extends QueuedAiProvider<OpenAiModelConfig> {
+/** Main-thread registration (inline or worker-backed). No queue — uses direct execution. */
+export class OpenAiQueuedProvider extends AiProvider<OpenAiModelConfig> {
   readonly name = OPENAI;
   readonly displayName = "OpenAI";
   readonly isLocal = false;

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -176,7 +176,7 @@ export type PoseLandmarkerTaskOutput = FromSchema<typeof PoseLandmarkerOutputSch
 export class PoseLandmarkerTask extends AiVisionTask<
   PoseLandmarkerTaskInput,
   PoseLandmarkerTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "PoseLandmarkerTask";
   public static category = "AI Vision Model";
@@ -197,17 +197,13 @@ export class PoseLandmarkerTask extends AiVisionTask<
  * @param input The input parameters for pose landmark detection (image, model, and optional configuration)
  * @returns Promise resolving to the detected pose landmarks and optional segmentation masks
  */
-export const poseLandmarker = (input: PoseLandmarkerTaskInput, config?: JobQueueTaskConfig) => {
+export const poseLandmarker = (input: PoseLandmarkerTaskInput, config?: TaskConfig) => {
   return new PoseLandmarkerTask({} as PoseLandmarkerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    poseLandmarker: CreateWorkflow<
-      PoseLandmarkerTaskInput,
-      PoseLandmarkerTaskOutput,
-      JobQueueTaskConfig
-    >;
+    poseLandmarker: CreateWorkflow<PoseLandmarkerTaskInput, PoseLandmarkerTaskOutput, TaskConfig>;
   }
 }
 

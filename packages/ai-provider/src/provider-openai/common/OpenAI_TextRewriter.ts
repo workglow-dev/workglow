@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, AiProviderStreamFn, TextRewriterTaskInput, TextRewriterTaskOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  AiProviderStreamFn,
+  TextRewriterTaskInput,
+  TextRewriterTaskOutput,
+} from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { getClient, getModelName } from "./OpenAI_Client";

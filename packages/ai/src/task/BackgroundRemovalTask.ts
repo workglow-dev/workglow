@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -67,10 +67,7 @@ export class BackgroundRemovalTask extends AiVisionTask<
  * @param input The input parameters for background removal (image and model)
  * @returns Promise resolving to the image with transparent background
  */
-export const backgroundRemoval = (
-  input: BackgroundRemovalTaskInput,
-  config?: JobQueueTaskConfig
-) => {
+export const backgroundRemoval = (input: BackgroundRemovalTaskInput, config?: TaskConfig) => {
   return new BackgroundRemovalTask({} as BackgroundRemovalTaskInput, config).run(input);
 };
 
@@ -79,7 +76,7 @@ declare module "@workglow/task-graph" {
     backgroundRemoval: CreateWorkflow<
       BackgroundRemovalTaskInput,
       BackgroundRemovalTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

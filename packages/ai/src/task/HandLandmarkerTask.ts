@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -159,7 +159,7 @@ export type HandLandmarkerTaskOutput = FromSchema<typeof HandLandmarkerOutputSch
 export class HandLandmarkerTask extends AiVisionTask<
   HandLandmarkerTaskInput,
   HandLandmarkerTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "HandLandmarkerTask";
   public static category = "AI Vision Model";
@@ -180,17 +180,13 @@ export class HandLandmarkerTask extends AiVisionTask<
  * @param input The input parameters for hand landmark detection (image, model, and optional configuration)
  * @returns Promise resolving to the detected hand landmarks and handedness
  */
-export const handLandmarker = (input: HandLandmarkerTaskInput, config?: JobQueueTaskConfig) => {
+export const handLandmarker = (input: HandLandmarkerTaskInput, config?: TaskConfig) => {
   return new HandLandmarkerTask({} as HandLandmarkerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    handLandmarker: CreateWorkflow<
-      HandLandmarkerTaskInput,
-      HandLandmarkerTaskOutput,
-      JobQueueTaskConfig
-    >;
+    handLandmarker: CreateWorkflow<HandLandmarkerTaskInput, HandLandmarkerTaskOutput, TaskConfig>;
   }
 }
 

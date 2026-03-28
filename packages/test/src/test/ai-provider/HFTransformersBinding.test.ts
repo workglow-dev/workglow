@@ -26,6 +26,7 @@ import {
 import { Sqlite } from "@workglow/storage/sqlite";
 import {
   InMemoryQueueStorage,
+  JobStatus,
   SqliteQueueStorage,
   SqliteRateLimiterStorage,
 } from "@workglow/storage";
@@ -43,6 +44,26 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 await Sqlite.init();
 const db = new Sqlite.Database(":memory:");
 
+async function waitForQueueActivity(
+  client: JobQueueClient<AiJobInput<TaskInput>, TaskOutput>
+): Promise<number> {
+  let total = 0;
+  for (let i = 0; i < 100; i++) {
+    const [pending, processing, completed, failed, aborting, disabled] = await Promise.all([
+      client.size(JobStatus.PENDING),
+      client.size(JobStatus.PROCESSING),
+      client.size(JobStatus.COMPLETED),
+      client.size(JobStatus.FAILED),
+      client.size(JobStatus.ABORTING),
+      client.size(JobStatus.DISABLED),
+    ]);
+    total = pending + processing + completed + failed + aborting + disabled;
+    if (total > 0) break;
+    await sleep(10);
+  }
+  return total;
+}
+
 describe("HFTransformersBinding", () => {
   let logger = getTestingLogger();
   setLogger(logger);
@@ -51,7 +72,7 @@ describe("HFTransformersBinding", () => {
   });
 
   describe("InMemoryJobQueue", () => {
-    it("Should have an item queued", async () => {
+    it("Should use the pre-registered queue", async () => {
       const queueRegistry = getTaskQueueRegistry();
 
       const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(
@@ -75,11 +96,10 @@ describe("HFTransformersBinding", () => {
       });
 
       client.attach(server);
-      clearPipelineCache();
-      await registerHuggingFaceTransformersInline({
-        queue: { autoCreate: false },
-      });
+      // Register custom queue BEFORE the provider so QueuedExecutionStrategy.ensureQueue() finds it
       queueRegistry.registerQueue({ server, client, storage });
+      clearPipelineCache();
+      await registerHuggingFaceTransformersInline();
 
       const model: HfTransformersOnnxModelRecord = {
         model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
@@ -91,6 +111,7 @@ describe("HFTransformersBinding", () => {
           pipeline: "text2text-generation",
           model_path: "Xenova/LaMini-Flan-T5-783M",
           dtype: "q8",
+          device: "webgpu",
         },
         metadata: {},
       };
@@ -98,7 +119,9 @@ describe("HFTransformersBinding", () => {
       setGlobalModelRepository(new InMemoryModelRepository());
       await getGlobalModelRepository().addModel(model);
 
-      const registeredQueue = queueRegistry.getQueue(HF_TRANSFORMERS_ONNX);
+      const registeredQueue = queueRegistry.getQueue<AiJobInput<TaskInput>, TaskOutput>(
+        HF_TRANSFORMERS_ONNX
+      );
       expect(registeredQueue).toBeDefined();
       expect(registeredQueue!.server.queueName).toEqual(HF_TRANSFORMERS_ONNX);
 
@@ -107,23 +130,18 @@ describe("HFTransformersBinding", () => {
         model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       });
       workflow.run().catch(() => {});
-      // Poll until the job appears in the queue (the async chain from run() to
-      // storage.add() includes multiple async hops that can't be reliably covered
-      // by a fixed sleep duration)
-      let size = 0;
-      for (let i = 0; i < 100; i++) {
-        size = (await registeredQueue?.client.size()) ?? 0;
-        if (size > 0) break;
-        await sleep(10);
-      }
-      expect(size).toEqual(1);
+      // The provider should submit work to the pre-registered queue. Since
+      // QueuedExecutionStrategy now starts an existing queue automatically,
+      // the job may move from PENDING to PROCESSING/COMPLETED before we sample.
+      const total = await waitForQueueActivity(registeredQueue!.client);
+      expect(total).toBeGreaterThan(0);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
     });
   });
 
   describe("SqliteJobQueue", () => {
-    it("Should have an item queued", async () => {
+    it("Should use the pre-registered queue", async () => {
       const queueRegistry = getTaskQueueRegistry();
       const storage = new SqliteQueueStorage<AiJobInput<TaskInput>, TaskOutput>(db, "test");
       await storage.setupDatabase();
@@ -150,11 +168,10 @@ describe("HFTransformersBinding", () => {
       });
 
       client.attach(server);
-
-      await registerHuggingFaceTransformersInline({
-        queue: { autoCreate: false },
-      });
+      // Register custom queue BEFORE the provider so QueuedExecutionStrategy.ensureQueue() finds it
       queueRegistry.registerQueue({ server, client, storage });
+
+      await registerHuggingFaceTransformersInline();
 
       setGlobalModelRepository(new InMemoryModelRepository());
       const model: HfTransformersOnnxModelRecord = {
@@ -167,13 +184,16 @@ describe("HFTransformersBinding", () => {
           pipeline: "text2text-generation",
           model_path: "Xenova/LaMini-Flan-T5-783M",
           dtype: "q8",
+          device: "webgpu",
         },
         metadata: {},
       };
 
       await getGlobalModelRepository().addModel(model);
 
-      const registeredQueue = queueRegistry.getQueue(HF_TRANSFORMERS_ONNX);
+      const registeredQueue = queueRegistry.getQueue<AiJobInput<TaskInput>, TaskOutput>(
+        HF_TRANSFORMERS_ONNX
+      );
       expect(registeredQueue).toBeDefined();
       expect(registeredQueue?.server.queueName).toEqual(HF_TRANSFORMERS_ONNX);
 
@@ -182,16 +202,11 @@ describe("HFTransformersBinding", () => {
         model: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
       });
       workflow.run().catch(() => {});
-      // Poll until the job appears in the queue (the async chain from run() to
-      // storage.add() includes multiple async hops that can't be reliably covered
-      // by a fixed sleep duration)
-      let size = 0;
-      for (let i = 0; i < 100; i++) {
-        size = (await registeredQueue?.client.size()) ?? 0;
-        if (size > 0) break;
-        await sleep(10);
-      }
-      expect(size).toEqual(1);
+      // The provider should submit work to the pre-registered queue. Since
+      // QueuedExecutionStrategy now starts an existing queue automatically,
+      // the job may move from PENDING to PROCESSING/COMPLETED before we sample.
+      const total = await waitForQueueActivity(registeredQueue!.client);
+      expect(total).toBeGreaterThan(0);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
     });

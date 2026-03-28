@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 import { ModelConfig } from "../model/ModelSchema";
@@ -127,7 +121,7 @@ interface RankedItem {
  * Note: Cross-encoder reranking requires a model to be loaded.
  * For now, this implements simple heuristic-based reranking.
  */
-export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, JobQueueTaskConfig> {
+export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, TaskConfig> {
   public static type = "RerankerTask";
   public static category = "RAG";
   public static title = "Reranker";
@@ -334,13 +328,13 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Jo
   }
 }
 
-export const reranker = (input: RerankerTaskInput, config?: JobQueueTaskConfig) => {
+export const reranker = (input: RerankerTaskInput, config?: TaskConfig) => {
   return new RerankerTask({} as RerankerTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    reranker: CreateWorkflow<RerankerTaskInput, RerankerTaskOutput, JobQueueTaskConfig>;
+    reranker: CreateWorkflow<RerankerTaskInput, RerankerTaskOutput, TaskConfig>;
   }
 }
 

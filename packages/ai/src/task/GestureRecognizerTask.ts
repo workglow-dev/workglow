@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -187,7 +187,7 @@ export type GestureRecognizerTaskOutput = FromSchema<typeof GestureRecognizerOut
 export class GestureRecognizerTask extends AiVisionTask<
   GestureRecognizerTaskInput,
   GestureRecognizerTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "GestureRecognizerTask";
   public static category = "AI Vision Model";
@@ -208,10 +208,7 @@ export class GestureRecognizerTask extends AiVisionTask<
  * @param input The input parameters for gesture recognition (image, model, and optional configuration)
  * @returns Promise resolving to the detected gestures with landmarks and handedness
  */
-export const gestureRecognizer = (
-  input: GestureRecognizerTaskInput,
-  config?: JobQueueTaskConfig
-) => {
+export const gestureRecognizer = (input: GestureRecognizerTaskInput, config?: TaskConfig) => {
   return new GestureRecognizerTask({} as GestureRecognizerTaskInput, config).run(input);
 };
 
@@ -220,7 +217,7 @@ declare module "@workglow/task-graph" {
     gestureRecognizer: CreateWorkflow<
       GestureRecognizerTaskInput,
       GestureRecognizerTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -57,7 +57,7 @@ export type ImageToTextTaskOutput = FromSchema<typeof ImageToTextOutputSchema>;
 export class ImageToTextTask extends AiVisionTask<
   ImageToTextTaskInput,
   ImageToTextTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ImageToTextTask";
   public static category = "AI Vision Model";
@@ -78,13 +78,13 @@ export class ImageToTextTask extends AiVisionTask<
  * @param input The input parameters for image to text (image and model)
  * @returns Promise resolving to the generated text description
  */
-export const imageToText = (input: ImageToTextTaskInput, config?: JobQueueTaskConfig) => {
+export const imageToText = (input: ImageToTextTaskInput, config?: TaskConfig) => {
   return new ImageToTextTask({} as ImageToTextTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    imageToText: CreateWorkflow<ImageToTextTaskInput, ImageToTextTaskOutput, JobQueueTaskConfig>;
+    imageToText: CreateWorkflow<ImageToTextTaskInput, ImageToTextTaskOutput, TaskConfig>;
   }
 }
 

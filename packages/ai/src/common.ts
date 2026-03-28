@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export * from "./execution/IAiExecutionStrategy";
+export * from "./execution/DirectExecutionStrategy";
+export * from "./execution/QueuedExecutionStrategy";
+
 export * from "./job/AiJob";
 
 export * from "./task/ToolCallingUtils";

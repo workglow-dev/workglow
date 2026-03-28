@@ -5,13 +5,7 @@
  */
 
 import { ChunkRecordSchema, type ChunkRecord } from "@workglow/knowledge-base";
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -101,7 +95,7 @@ export type ChunkToVectorTaskOutput = FromSchema<typeof outputSchema, TypedArray
 export class ChunkToVectorTask extends Task<
   ChunkToVectorTaskInput,
   ChunkToVectorTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ChunkToVectorTask";
   public static category = "Document";
@@ -165,17 +159,13 @@ export class ChunkToVectorTask extends Task<
   }
 }
 
-export const chunkToVector = (input: ChunkToVectorTaskInput, config?: JobQueueTaskConfig) => {
+export const chunkToVector = (input: ChunkToVectorTaskInput, config?: TaskConfig) => {
   return new ChunkToVectorTask({} as ChunkToVectorTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    chunkToVector: CreateWorkflow<
-      ChunkToVectorTaskInput,
-      ChunkToVectorTaskOutput,
-      JobQueueTaskConfig
-    >;
+    chunkToVector: CreateWorkflow<ChunkToVectorTaskInput, ChunkToVectorTaskOutput, TaskConfig>;
   }
 }
 

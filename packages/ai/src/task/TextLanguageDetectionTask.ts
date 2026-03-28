@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -128,7 +128,7 @@ export class TextLanguageDetectionTask extends AiTask<
  */
 export const textLanguageDetection = (
   input: TextLanguageDetectionTaskInput,
-  config?: JobQueueTaskConfig
+  config?: TaskConfig
 ) => {
   return new TextLanguageDetectionTask({} as TextLanguageDetectionTaskInput, config).run(input);
 };
@@ -138,7 +138,7 @@ declare module "@workglow/task-graph" {
     textLanguageDetection: CreateWorkflow<
       TextLanguageDetectionTaskInput,
       TextLanguageDetectionTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

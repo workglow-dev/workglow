@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, AiProviderStreamFn, TextSummaryTaskInput, TextSummaryTaskOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  AiProviderStreamFn,
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
+} from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util/worker";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";

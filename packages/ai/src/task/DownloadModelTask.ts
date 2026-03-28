@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -41,7 +41,7 @@ export type DownloadModelTaskRunOutput = FromSchema<typeof DownloadModelOutputSc
 export class DownloadModelTask extends AiTask<
   DownloadModelTaskRunInput,
   DownloadModelTaskRunOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "DownloadModelTask";
   public static category = "AI Model";
@@ -57,7 +57,7 @@ export class DownloadModelTask extends AiTask<
 
   public files: { file: string; progress: number }[] = [];
 
-  constructor(input: Partial<DownloadModelTaskRunInput>, config: JobQueueTaskConfig = {}) {
+  constructor(input: Partial<DownloadModelTaskRunInput>, config: TaskConfig = {}) {
     super(input as DownloadModelTaskRunInput, config);
     this.on("progress", this.processProgress.bind(this));
     this.on("start", () => {
@@ -115,7 +115,7 @@ export class DownloadModelTask extends AiTask<
  * @param input - Input containing model(s) to download
  * @returns Promise resolving to the downloaded model(s)
  */
-export const downloadModel = (input: DownloadModelTaskRunInput, config?: JobQueueTaskConfig) => {
+export const downloadModel = (input: DownloadModelTaskRunInput, config?: TaskConfig) => {
   return new DownloadModelTask({} as DownloadModelTaskRunInput, config).run(input);
 };
 
@@ -124,7 +124,7 @@ declare module "@workglow/task-graph" {
     downloadModel: CreateWorkflow<
       DownloadModelTaskRunInput,
       DownloadModelTaskRunOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }
