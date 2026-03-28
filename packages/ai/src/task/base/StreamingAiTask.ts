@@ -11,14 +11,16 @@
 
 import {
   getStreamingPorts,
+  TaskConfigurationError,
   type IExecuteContext,
   type StreamEvent,
   type TaskConfig,
   type TaskOutput,
 } from "@workglow/task-graph";
 
-import { AiJob, AiJobInput } from "../../job/AiJob";
 import { AiSingleTaskInput, AiTask } from "./AiTask";
+import { getAiProviderRegistry } from "../../provider/AiProviderRegistry";
+import type { ModelConfig } from "../../model/ModelSchema";
 
 /**
  * A base class for streaming AI tasks.
@@ -44,19 +46,22 @@ export class StreamingAiTask<
   public static type: string = "StreamingAiTask";
 
   /**
-   * Streaming execution: creates an AiJob and yields StreamEvents from it.
+   * Streaming execution: resolves the provider strategy and yields StreamEvents from it.
+   * Routes through the same strategy as execute() (queued vs direct) so GPU
+   * serialization is respected even for streaming tasks.
+   *
    * Wraps port-less text-delta and object-delta events from providers with
    * the port determined by the task's output schema `x-stream` annotations.
    */
   async *executeStream(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>> {
+    const model = input.model as ModelConfig;
+    if (!model || typeof model !== "object") {
+      throw new TaskConfigurationError(
+        "StreamingAiTask: Model was not resolved to ModelConfig - this indicates a bug in the resolution system"
+      );
+    }
     const jobInput = await this.getJobInput(input);
-    const queueName = await this.getDefaultQueueName(input);
-
-    const job = new AiJob<AiJobInput<Input>, Output>({
-      queueName: queueName ?? this.type,
-      jobRunId: this.runConfig.runnerId,
-      input: jobInput,
-    });
+    const strategy = getAiProviderRegistry().getStrategy(model);
 
     // Resolve the streaming port(s) from the output schema for wrapping.
     // Falls back to the first property in the output schema rather than
@@ -73,16 +78,13 @@ export class StreamingAiTask<
       }
     }
 
-    for await (const event of job.executeStream(jobInput, {
-      signal: context.signal,
-      updateProgress: context.updateProgress.bind(this),
-    })) {
+    for await (const event of strategy.executeStream(jobInput, context, this.runConfig.runnerId)) {
       if (event.type === "text-delta") {
         yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
       } else if (event.type === "object-delta") {
         yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
       } else {
-        yield event;
+        yield event as StreamEvent<Output>;
       }
     }
   }

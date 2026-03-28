@@ -5,6 +5,7 @@
  */
 
 import type { IExecuteContext, TaskInput, TaskOutput } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import type { AiJobInput } from "../job/AiJob";
 import type { ModelConfig } from "../model/ModelSchema";
 
@@ -18,6 +19,20 @@ export interface IAiExecutionStrategy {
     context: IExecuteContext,
     runnerId: string | undefined
   ): Promise<TaskOutput>;
+
+  /**
+   * Streaming execution path. Implementations route the job appropriately
+   * (direct or queued) and yield StreamEvents.
+   *
+   * Providers that cannot natively stream (e.g. queued GPU providers) should
+   * fall back to `execute()` and yield a single `finish` event so that
+   * GPU-serialization is still respected.
+   */
+  executeStream(
+    jobInput: AiJobInput<TaskInput>,
+    context: IExecuteContext,
+    runnerId: string | undefined
+  ): AsyncIterable<StreamEvent<TaskOutput>>;
 
   abort(): void;
 }

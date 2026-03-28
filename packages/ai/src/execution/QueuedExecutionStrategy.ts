@@ -8,11 +8,13 @@ import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/jo
 import { InMemoryQueueStorage } from "@workglow/storage";
 import {
   getTaskQueueRegistry,
+  TaskConfigurationError,
   type RegisteredQueue,
   type IExecuteContext,
   type TaskInput,
   type TaskOutput,
 } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import { AiJob, type AiJobInput } from "../job/AiJob";
 import type { IAiExecutionStrategy } from "./IAiExecutionStrategy";
 
@@ -92,6 +94,22 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
     // No-op — abort is handled via the AbortSignal wired in execute().
   }
 
+  /**
+   * Streaming execution for queued providers. Because the job queue does not
+   * support streaming outputs, this method routes through `execute()` so that
+   * GPU serialization is preserved, then yields a single `finish` event with
+   * the result. Callers that need true token-by-token streaming should use a
+   * DirectExecutionStrategy provider instead.
+   */
+  async *executeStream(
+    jobInput: AiJobInput<TaskInput>,
+    context: IExecuteContext,
+    runnerId: string | undefined
+  ): AsyncIterable<StreamEvent<TaskOutput>> {
+    const result = await this.execute(jobInput, context, runnerId);
+    yield { type: "finish", data: result } as StreamEvent<TaskOutput>;
+  }
+
   private ensureQueue(): Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> {
     if (!this.initPromise) {
       this.initPromise = this.createQueue().catch((err) => {
@@ -114,7 +132,7 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
     }
 
     if (!this.autoCreate) {
-      throw new Error(
+      throw new TaskConfigurationError(
         `Queue "${this.queueName}" is not registered and autoCreate is disabled. ` +
           `Register the queue before executing tasks with this provider.`
       );

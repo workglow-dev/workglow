@@ -49,12 +49,15 @@ async function waitForQueueActivity(
 ): Promise<number> {
   let total = 0;
   for (let i = 0; i < 100; i++) {
-    const [pending, processing, completed] = await Promise.all([
+    const [pending, processing, completed, failed, aborting, disabled] = await Promise.all([
       client.size(JobStatus.PENDING),
       client.size(JobStatus.PROCESSING),
       client.size(JobStatus.COMPLETED),
+      client.size(JobStatus.FAILED),
+      client.size(JobStatus.ABORTING),
+      client.size(JobStatus.DISABLED),
     ]);
-    total = pending + processing + completed;
+    total = pending + processing + completed + failed + aborting + disabled;
     if (total > 0) break;
     await sleep(10);
   }

@@ -85,6 +85,7 @@ export class AiProviderRegistry {
    */
   unregisterProvider(name: string): void {
     this.providers.delete(name);
+    this.strategyResolvers.delete(name);
     // Remove all run functions for this provider
     for (const [, providerMap] of this.runFnRegistry) {
       providerMap.delete(name);

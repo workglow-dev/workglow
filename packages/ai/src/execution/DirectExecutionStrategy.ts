@@ -5,6 +5,7 @@
  */
 
 import type { IExecuteContext, TaskInput, TaskOutput } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import { AiJob, type AiJobInput } from "../job/AiJob";
 import type { IAiExecutionStrategy } from "./IAiExecutionStrategy";
 
@@ -39,6 +40,23 @@ export class DirectExecutionStrategy implements IAiExecutionStrategy {
     } finally {
       cleanup();
     }
+  }
+
+  async *executeStream(
+    jobInput: AiJobInput<TaskInput>,
+    context: IExecuteContext,
+    runnerId: string | undefined
+  ): AsyncIterable<StreamEvent<TaskOutput>> {
+    const job = new AiJob({
+      queueName: jobInput.aiProvider,
+      jobRunId: runnerId,
+      input: jobInput,
+    });
+
+    yield* job.executeStream(jobInput, {
+      signal: context.signal,
+      updateProgress: context.updateProgress,
+    });
   }
 
   abort(): void {
