@@ -60,6 +60,7 @@ Types built with `tsc` (composite + incremental). Conditional exports in `packag
 Exception: `ai-provider` builds per-provider sub-paths (`./anthropic`, `./openai`, `./google-gemini`, etc.) instead of browser/node/bun.
 
 Exception: `util` has multiple named exports beyond `"."`:
+
 - `@workglow/util` — core infrastructure (DI, events, logging, telemetry, credentials, crypto, utilities)
 - `@workglow/util/schema` — JSON Schema types/validation + vector/tensor types and math
 - `@workglow/util/graph` — graph data structures (Graph, DirectedGraph, DAG)
@@ -206,3 +207,11 @@ class TestTask extends Task<TestInput, TestOutput> {
   async execute(input: TestInput) { return { result: input.value }; }
 }
 ```
+
+### Test runner script
+
+```sh
+bun scripts/test.ts [--all] [kinds...] [sections...] [runners...] [options]
+```
+
+When making code changes, run the tests on that section only, and pass vitest only. Otherwise tests are very slow. For example, if you are making changes to the McpServer, run `bun scripts/test.ts mcp vitest`.
