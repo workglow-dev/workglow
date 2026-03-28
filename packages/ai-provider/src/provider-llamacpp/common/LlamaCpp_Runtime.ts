@@ -77,6 +77,13 @@ export async function getOrLoadModel(model: LlamaCppModelConfig): Promise<LlamaM
   return loadedModel;
 }
 
+/** Spread into `LlamaChatSession.prompt` options when `provider_config.seed` is set. */
+export function llamaCppSeedPromptSpread(
+  provider_config: LlamaCppModelConfig["provider_config"]
+): { seed: number } | Record<string, never> {
+  return provider_config.seed !== undefined ? { seed: provider_config.seed } : {};
+}
+
 export async function getOrCreateTextContext(model: LlamaCppModelConfig): Promise<LlamaContext> {
   const modelPath = getActualModelPath(model);
   const cached = llamaCppTextContexts.get(modelPath);

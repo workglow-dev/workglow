@@ -48,6 +48,12 @@ export const LlamaCppModelSchema = {
           description: "Enable flash attention for improved performance where supported.",
           default: true,
         },
+        seed: {
+          type: "integer",
+          description:
+            "RNG seed passed to node-llama-cpp sampling. Omit for time-based seeding; set for reproducible generation.",
+          minimum: 0,
+        },
         embedding: {
           type: "boolean",
           description: "Whether this model is used for text embedding (vs text generation).",

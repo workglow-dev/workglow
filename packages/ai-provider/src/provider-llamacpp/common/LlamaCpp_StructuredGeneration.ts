@@ -17,6 +17,7 @@ import {
   getLlamaCppSdk,
   getLlamaInstance,
   getOrCreateTextContext,
+  llamaCppSeedPromptSpread,
   loadSdk,
 } from "./LlamaCpp_Runtime";
 
@@ -43,6 +44,7 @@ export const LlamaCpp_StructuredGeneration: AiProviderRunFn<
     const text = await session.prompt(input.prompt as string, {
       signal,
       grammar,
+      ...llamaCppSeedPromptSpread(model.provider_config),
       ...(input.temperature !== undefined && { temperature: input.temperature }),
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
     });
@@ -97,6 +99,7 @@ export const LlamaCpp_StructuredGeneration_Stream: AiProviderStreamFn<
     .prompt(input.prompt as string, {
       signal,
       grammar,
+      ...llamaCppSeedPromptSpread(model.provider_config),
       onTextChunk: (chunk: string) => {
         queue.push(chunk);
         notifyWaiter();

@@ -12,7 +12,12 @@ import type {
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
-import { getOrCreateTextContext, loadSdk, streamFromSession } from "./LlamaCpp_Runtime";
+import {
+  getOrCreateTextContext,
+  llamaCppSeedPromptSpread,
+  loadSdk,
+  streamFromSession,
+} from "./LlamaCpp_Runtime";
 
 export const LlamaCpp_TextGeneration: AiProviderRunFn<
   TextGenerationTaskInput,
@@ -32,6 +37,7 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
   try {
     const text = await session.prompt(input.prompt, {
       signal,
+      ...llamaCppSeedPromptSpread(model.provider_config),
       ...(input.temperature !== undefined && { temperature: input.temperature }),
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
       ...(input.topP !== undefined && { topP: input.topP }),
@@ -60,6 +66,7 @@ export const LlamaCpp_TextGeneration_Stream: AiProviderStreamFn<
       return session.prompt(input.prompt, {
         signal,
         onTextChunk,
+        ...llamaCppSeedPromptSpread(model.provider_config),
         ...(input.temperature !== undefined && { temperature: input.temperature }),
         ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
         ...(input.topP !== undefined && { topP: input.topP }),
