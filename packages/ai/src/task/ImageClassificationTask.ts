@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeCategory, TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -66,7 +66,7 @@ export type ImageClassificationTaskOutput = FromSchema<typeof ImageClassificatio
 export class ImageClassificationTask extends AiVisionTask<
   ImageClassificationTaskInput,
   ImageClassificationTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ImageClassificationTask";
   public static category = "AI Vision Model";
@@ -87,10 +87,7 @@ export class ImageClassificationTask extends AiVisionTask<
  * @param input The input parameters for image classification (image, model, and optional categories)
  * @returns Promise resolving to the classification categories with scores
  */
-export const imageClassification = (
-  input: ImageClassificationTaskInput,
-  config?: JobQueueTaskConfig
-) => {
+export const imageClassification = (input: ImageClassificationTaskInput, config?: TaskConfig) => {
   return new ImageClassificationTask({} as ImageClassificationTaskInput, config).run(input);
 };
 
@@ -99,7 +96,7 @@ declare module "@workglow/task-graph" {
     imageClassification: CreateWorkflow<
       ImageClassificationTaskInput,
       ImageClassificationTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

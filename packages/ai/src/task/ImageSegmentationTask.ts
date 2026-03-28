@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -90,7 +90,7 @@ export type ImageSegmentationTaskOutput = FromSchema<typeof ImageSegmentationOut
 export class ImageSegmentationTask extends AiVisionTask<
   ImageSegmentationTaskInput,
   ImageSegmentationTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ImageSegmentationTask";
   public static category = "AI Vision Model";
@@ -111,10 +111,7 @@ export class ImageSegmentationTask extends AiVisionTask<
  * @param input The input parameters for image segmentation (image and model)
  * @returns Promise resolving to the segmentation masks with labels and scores
  */
-export const imageSegmentation = (
-  input: ImageSegmentationTaskInput,
-  config?: JobQueueTaskConfig
-) => {
+export const imageSegmentation = (input: ImageSegmentationTaskInput, config?: TaskConfig) => {
   return new ImageSegmentationTask({} as ImageSegmentationTaskInput, config).run(input);
 };
 
@@ -123,7 +120,7 @@ declare module "@workglow/task-graph" {
     imageSegmentation: CreateWorkflow<
       ImageSegmentationTaskInput,
       ImageSegmentationTaskOutput,
-      JobQueueTaskConfig
+      TaskConfig
     >;
   }
 }

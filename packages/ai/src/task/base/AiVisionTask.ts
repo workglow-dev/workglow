@@ -4,11 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @description This file contains the implementation of the JobQueueTask class and its derived classes.
- */
-
-import { JobQueueTaskConfig, TaskInput, type TaskOutput } from "@workglow/task-graph";
+import { TaskInput, type TaskConfig, type TaskOutput } from "@workglow/task-graph";
 import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";
@@ -20,26 +16,23 @@ export interface AiVisionTaskSingleInput extends TaskInput {
 }
 
 /**
- * A base class for AI related tasks that run in a job queue.
- * Extends the JobQueueTask class to provide LLM-specific functionality.
+ * A base class for AI vision tasks.
+ * Handles image format conversion based on the target provider's capabilities.
  */
 export class AiVisionTask<
   Input extends AiVisionTaskSingleInput = AiVisionTaskSingleInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends JobQueueTaskConfig = JobQueueTaskConfig,
+  Config extends TaskConfig = TaskConfig,
 > extends AiTask<Input, Output, Config> {
   public static type: string = "AiVisionTask";
+
   /**
-   * Get the input to submit to the job queue.
-   * Transforms the task input to AiJobInput format.
-   * @param input - The task input
-   * @returns The AiJobInput to submit to the queue
+   * Get the input to submit for execution.
+   * Converts image data to a format supported by the target provider.
    */
   protected override async getJobInput(input: Input): Promise<AiJobInput<Input>> {
     const jobInput = await super.getJobInput(input);
-    // TODO: if the queue is not memory based, we need to convert to base64 (or blob?)
-    const registeredQueue = await this.resolveQueue(input);
-    const queueName = registeredQueue?.server.queueName;
+    const providerName = (input.model as ModelConfig).provider;
 
     // Image format support by model type and platform, that are transferable:
     // ┌─────────────────────────┬──────────────────────────────────────────────────────────────┬────────────────────────────────────────────┐
@@ -54,14 +47,14 @@ export class AiVisionTask<
     const supports: ImageDataSupport[] = ["Blob"];
     if (input.image) {
       if (
-        typeof queueName === "string" &&
-        queueName.startsWith("TENSORFLOW_MEDIAPIPE") &&
+        typeof providerName === "string" &&
+        providerName.startsWith("TENSORFLOW_MEDIAPIPE") &&
         "ImageBitmap" in globalThis
       ) {
         supports.push("ImageBitmap");
       } else if (
-        typeof queueName === "string" &&
-        queueName.startsWith("TENSORFLOW_MEDIAPIPE") &&
+        typeof providerName === "string" &&
+        providerName.startsWith("TENSORFLOW_MEDIAPIPE") &&
         "VideoFrame" in globalThis
       ) {
         supports.push("VideoFrame");

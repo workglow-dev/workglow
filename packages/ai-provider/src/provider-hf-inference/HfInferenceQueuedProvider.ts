@@ -5,7 +5,7 @@
  */
 
 import {
-  QueuedAiProvider,
+  AiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
@@ -13,8 +13,8 @@ import {
 import { HF_INFERENCE } from "./common/HFI_Constants";
 import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
 
-/** Main-thread registration (inline or worker-backed); creates the default job queue. */
-export class HfInferenceQueuedProvider extends QueuedAiProvider<HfInferenceModelConfig> {
+/** Main-thread registration (inline or worker-backed). No queue — uses direct execution. */
+export class HfInferenceQueuedProvider extends AiProvider<HfInferenceModelConfig> {
   readonly name = HF_INFERENCE;
   readonly displayName = "Hugging Face Inference";
   readonly isLocal = false;

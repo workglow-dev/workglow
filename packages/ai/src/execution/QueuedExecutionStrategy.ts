@@ -1,0 +1,182 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
+import { InMemoryQueueStorage } from "@workglow/storage";
+import {
+  getTaskQueueRegistry,
+  TaskConfigurationError,
+  type RegisteredQueue,
+  type IExecuteContext,
+  type TaskInput,
+  type TaskOutput,
+} from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
+import { AiJob, type AiJobInput } from "../job/AiJob";
+import type { IAiExecutionStrategy } from "./IAiExecutionStrategy";
+
+/**
+ * Executes AI jobs through a job queue with concurrency control.
+ * Used by providers that need GPU serialization (e.g., HFT with WebGPU,
+ * LlamaCpp).
+ *
+ * The queue is created lazily on first use and registered in the
+ * global TaskQueueRegistry for deduplication.
+ */
+export class QueuedExecutionStrategy implements IAiExecutionStrategy {
+  /**
+   * Memoized initialization promise so that concurrent calls to ensureQueue()
+   * within the same strategy instance share a single queue-creation flow.
+   */
+  private initPromise: Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> | null = null;
+
+  constructor(
+    private readonly queueName: string,
+    private readonly concurrency: number = 1,
+    /**
+     * When false, the strategy will use a pre-registered queue and throw if
+     * none exists. When true (default), it auto-creates the queue on first use.
+     */
+    private readonly autoCreate: boolean = true
+  ) {}
+
+  async execute(
+    jobInput: AiJobInput<TaskInput>,
+    context: IExecuteContext,
+    runnerId: string | undefined
+  ): Promise<TaskOutput> {
+    // Bail early to avoid submitting a job that's already been cancelled.
+    if (context.signal.aborted) {
+      throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    }
+
+    const registeredQueue = await this.ensureQueue();
+    const { client } = registeredQueue;
+
+    const handle = await client.submit(jobInput, {
+      jobRunId: runnerId,
+      maxRetries: 10,
+    });
+
+    // Wire the task abort signal to the queued job so that aborting the task
+    // (e.g., via TaskRunner timeout) also cancels the in-flight queue job.
+    const onAbort = () => {
+      handle.abort().catch((err) => {
+        console.warn(`Failed to abort queued job`, err);
+      });
+    };
+    context.signal.addEventListener("abort", onAbort);
+
+    const cleanupProgress = handle.onProgress(
+      (progress: number, message: string | undefined, details: Record<string, any> | null) => {
+        context.updateProgress(progress, message, details);
+      }
+    );
+
+    try {
+      // Re-check after registering the listener to close the race window
+      // between submit and listener registration.
+      if (context.signal.aborted) {
+        throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      }
+      const output = await handle.waitFor();
+      return output as TaskOutput;
+    } finally {
+      cleanupProgress();
+      context.signal.removeEventListener("abort", onAbort);
+    }
+  }
+
+  abort(): void {
+    // No-op — abort is handled via the AbortSignal wired in execute().
+  }
+
+  /**
+   * Streaming execution for queued providers. Because the job queue does not
+   * support streaming outputs, this method routes through `execute()` so that
+   * GPU serialization is preserved, then yields a single `finish` event with
+   * the result. Callers that need true token-by-token streaming should use a
+   * DirectExecutionStrategy provider instead.
+   */
+  async *executeStream(
+    jobInput: AiJobInput<TaskInput>,
+    context: IExecuteContext,
+    runnerId: string | undefined
+  ): AsyncIterable<StreamEvent<TaskOutput>> {
+    const result = await this.execute(jobInput, context, runnerId);
+    yield { type: "finish", data: result } as StreamEvent<TaskOutput>;
+  }
+
+  private ensureQueue(): Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> {
+    if (!this.initPromise) {
+      this.initPromise = this.createQueue().catch((err) => {
+        // Reset so next execution retries (e.g., transient storage error or late queue registration).
+        this.initPromise = null;
+        throw err;
+      });
+    }
+    return this.initPromise;
+  }
+
+  private async createQueue(): Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> {
+    const registry = getTaskQueueRegistry();
+    const existing = registry.getQueue<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
+    if (existing) {
+      if (!existing.server.isRunning()) {
+        await existing.server.start();
+      }
+      return existing;
+    }
+
+    if (!this.autoCreate) {
+      throw new TaskConfigurationError(
+        `Queue "${this.queueName}" is not registered and autoCreate is disabled. ` +
+          `Register the queue before executing tasks with this provider.`
+      );
+    }
+
+    const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
+    await storage.setupDatabase();
+
+    const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
+      storage,
+      queueName: this.queueName,
+      limiter: new ConcurrencyLimiter(this.concurrency),
+    });
+
+    const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
+      storage,
+      queueName: this.queueName,
+    });
+
+    client.attach(server);
+
+    const registeredQueue: RegisteredQueue<AiJobInput<TaskInput>, TaskOutput> = {
+      server,
+      client,
+      storage,
+    };
+
+    try {
+      registry.registerQueue(registeredQueue);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes("already exists")) {
+        // Another strategy instance won the race; use its queue.
+        const raced = registry.getQueue<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
+        if (raced) {
+          if (!raced.server.isRunning()) {
+            await raced.server.start();
+          }
+          return raced;
+        }
+      }
+      throw err;
+    }
+
+    await server.start();
+    return registeredQueue;
+  }
+}

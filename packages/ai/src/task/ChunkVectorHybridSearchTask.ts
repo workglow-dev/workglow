@@ -5,13 +5,7 @@
  */
 
 import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/knowledge-base";
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -143,7 +137,7 @@ export type HybridSearchTaskOutput = FromSchema<typeof outputSchema, TypedArrayS
 export class ChunkVectorHybridSearchTask extends Task<
   HybridSearchTaskInput,
   HybridSearchTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "ChunkVectorHybridSearchTask";
   public static category = "RAG";
@@ -214,14 +208,14 @@ export class ChunkVectorHybridSearchTask extends Task<
 
 export const hybridSearch = async (
   input: HybridSearchTaskInput,
-  config?: JobQueueTaskConfig
+  config?: TaskConfig
 ): Promise<HybridSearchTaskOutput> => {
   return new ChunkVectorHybridSearchTask({} as HybridSearchTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    hybridSearch: CreateWorkflow<HybridSearchTaskInput, HybridSearchTaskOutput, JobQueueTaskConfig>;
+    hybridSearch: CreateWorkflow<HybridSearchTaskInput, HybridSearchTaskOutput, TaskConfig>;
   }
 }
 

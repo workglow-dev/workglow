@@ -5,7 +5,7 @@
  */
 
 import {
-  QueuedAiProvider,
+  AiProvider,
   type AiProviderReactiveRunFn,
   type AiProviderRunFn,
   type AiProviderStreamFn,
@@ -13,8 +13,8 @@ import {
 import { OLLAMA } from "./common/Ollama_Constants";
 import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
 
-/** Main-thread registration (inline or worker-backed); creates the default job queue. */
-export class OllamaQueuedProvider extends QueuedAiProvider<OllamaModelConfig> {
+/** Main-thread registration (inline or worker-backed). No queue — uses direct execution. */
+export class OllamaQueuedProvider extends AiProvider<OllamaModelConfig> {
   readonly name = OLLAMA;
   readonly displayName = "Ollama";
   readonly isLocal = true;

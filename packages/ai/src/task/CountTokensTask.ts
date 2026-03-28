@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, JobQueueTaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -68,13 +68,13 @@ export class CountTokensTask extends AiTask<CountTokensTaskInput, CountTokensTas
  * @param input - Input containing text and model for token counting
  * @returns Promise resolving to the token count
  */
-export const countTokens = async (input: CountTokensTaskInput, config?: JobQueueTaskConfig) => {
+export const countTokens = async (input: CountTokensTaskInput, config?: TaskConfig) => {
   return new CountTokensTask({} as CountTokensTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    countTokens: CreateWorkflow<CountTokensTaskInput, CountTokensTaskOutput, JobQueueTaskConfig>;
+    countTokens: CreateWorkflow<CountTokensTaskInput, CountTokensTaskOutput, TaskConfig>;
   }
 }
 

@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const SegmentationMethod = {
@@ -101,7 +95,7 @@ export type TopicSegmenterTaskOutput = FromSchema<typeof outputSchema>;
 export class TopicSegmenterTask extends Task<
   TopicSegmenterTaskInput,
   TopicSegmenterTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "TopicSegmenterTask";
   public static category = "Document";
@@ -419,17 +413,13 @@ export class TopicSegmenterTask extends Task<
   }
 }
 
-export const topicSegmenter = (input: TopicSegmenterTaskInput, config?: JobQueueTaskConfig) => {
+export const topicSegmenter = (input: TopicSegmenterTaskInput, config?: TaskConfig) => {
   return new TopicSegmenterTask({} as TopicSegmenterTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    topicSegmenter: CreateWorkflow<
-      TopicSegmenterTaskInput,
-      TopicSegmenterTaskOutput,
-      JobQueueTaskConfig
-    >;
+    topicSegmenter: CreateWorkflow<TopicSegmenterTaskInput, TopicSegmenterTaskOutput, TaskConfig>;
   }
 }
 

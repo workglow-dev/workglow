@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  JobQueueTaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const QueryExpansionMethod = {
@@ -97,7 +91,7 @@ export type QueryExpanderTaskOutput = FromSchema<typeof outputSchema>;
 export class QueryExpanderTask extends Task<
   QueryExpanderTaskInput,
   QueryExpanderTaskOutput,
-  JobQueueTaskConfig
+  TaskConfig
 > {
   public static type = "QueryExpanderTask";
   public static category = "RAG";
@@ -298,17 +292,13 @@ export class QueryExpanderTask extends Task<
   }
 }
 
-export const queryExpander = (input: QueryExpanderTaskInput, config?: JobQueueTaskConfig) => {
+export const queryExpander = (input: QueryExpanderTaskInput, config?: TaskConfig) => {
   return new QueryExpanderTask({} as QueryExpanderTaskInput, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    queryExpander: CreateWorkflow<
-      QueryExpanderTaskInput,
-      QueryExpanderTaskOutput,
-      JobQueueTaskConfig
-    >;
+    queryExpander: CreateWorkflow<QueryExpanderTaskInput, QueryExpanderTaskOutput, TaskConfig>;
   }
 }
 
