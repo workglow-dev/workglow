@@ -5,10 +5,10 @@
  */
 
 import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
-import { mcpServerReferenceObjectProperties } from "../../mcp-server/mcpServerReferenceObjectSchema";
+import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
 
@@ -184,32 +184,12 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   static readonly cacheable = false;
   public static hasDynamicSchemas: boolean = true;
 
-  public override getDefaultInputsFromStaticInputDefinitions(): Partial<McpListTaskInput> {
-    // Root-level connection props duplicate `server` in the input schema. Materializing schema
-    // defaults here (e.g. first `transport` enum) would override values from a resolved
-    // `server` object in getMcpServerConfig.
-    return {};
-  }
-
   public static inputSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();
     return {
       type: "object",
       properties: {
-        server: {
-          oneOf: [
-            { type: "string", format: "mcp-server" },
-            {
-              type: "object",
-              format: "mcp-server",
-              properties: mcpServerReferenceObjectProperties,
-              additionalProperties: false,
-            },
-          ],
-          title: "Server",
-          description: "MCP server reference (ID or inline config)",
-        },
-        ...mcpServerConfigSchema.properties,
+        server: TypeMcpServer(mcpServerConfigSchema),
         list_type: {
           type: "string",
           enum: mcpListTypes,
@@ -217,7 +197,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
           description: "The type of items to list from the MCP server",
         },
       },
-      required: ["list_type"],
+      required: ["server", "list_type"],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }

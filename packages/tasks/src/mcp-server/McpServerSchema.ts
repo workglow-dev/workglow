@@ -5,32 +5,17 @@
  */
 
 import type { DataPortSchemaObject, FromSchema } from "@workglow/util/schema";
-import { mcpAuthConfigSchema } from "../util/McpAuthTypes";
+import { mcpServerConfigSchema } from "../util/McpClientUtil";
+import { mcpServerRecordMetadataProperties } from "./mcpServerReferenceObjectSchema";
 
 export const McpServerRecordSchema = {
   type: "object",
   properties: {
-    server_id: { type: "string" },
-    label: { type: "string" },
-    description: { type: "string" },
-    transport: { type: "string", enum: ["stdio", "sse", "streamable-http"] },
-    server_url: { type: "string" },
-    command: { type: "string" },
-    args: { type: "array", items: { type: "string" } },
-    env: { type: "object", additionalProperties: { type: "string" } },
-    ...mcpAuthConfigSchema.properties,
+    ...mcpServerRecordMetadataProperties,
+    ...mcpServerConfigSchema.properties,
   },
   required: ["server_id", "transport"],
-  allOf: [
-    {
-      if: { properties: { transport: { const: "stdio" } } },
-      then: { required: ["command"] },
-    },
-    {
-      if: { properties: { transport: { enum: ["sse", "streamable-http"] } } },
-      then: { required: ["server_url"] },
-    },
-  ],
+  allOf: mcpServerConfigSchema.allOf,
   additionalProperties: false,
 } as const satisfies DataPortSchemaObject;
 

@@ -3,15 +3,16 @@
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  *
- * JSON Schema properties for the object branch of task `server` oneOf (string ID | object).
- * Includes optional registry metadata so resolved {@link McpServerRecord} values validate.
+ * Builds the JSON Schema for the `server` object in MCP task config/input schemas.
+ * Uses the platform-injected {@link McpTaskDeps.mcpServerConfigSchema} so browser
+ * builds get the correct (stdio-free) transport enum.
  */
 
-import type { DataPortSchemaObject } from "@workglow/util/schema";
-import { mcpServerConfigSchema } from "../util/McpClientUtil";
+import type { DataPortSchemaObject, JsonSchema } from "@workglow/util/schema";
+import type { McpTaskDeps } from "../util/McpTaskDeps";
 
 /** Optional fields from {@link McpServerRecordSchema} not present on {@link mcpServerConfigSchema}. */
-const mcpServerRecordMetadataProperties = {
+export const mcpServerRecordMetadataProperties = {
   server_id: {
     type: "string",
     title: "Server ID",
@@ -31,10 +32,30 @@ const mcpServerRecordMetadataProperties = {
 } as const satisfies DataPortSchemaObject["properties"];
 
 /**
- * Properties allowed on the inline/resolved `server` object in MCP task config or input.
- * Superset of connection fields plus optional repository metadata.
+ * Builds the complete `server` oneOf schema for MCP task config/input schemas.
+ *
+ * Accepts the platform-injected `mcpServerConfigSchema` so that the transport
+ * enum and conditional validation rules match the current runtime.
  */
-export const mcpServerReferenceObjectProperties = {
-  ...mcpServerConfigSchema.properties,
-  ...mcpServerRecordMetadataProperties,
-} as const satisfies DataPortSchemaObject["properties"];
+export function TypeMcpServer(
+  mcpServerConfigSchema: McpTaskDeps["mcpServerConfigSchema"]
+): JsonSchema {
+  return {
+    oneOf: [
+      { type: "string", format: "mcp-server" },
+      {
+        type: "object",
+        format: "mcp-server",
+        properties: {
+          ...mcpServerConfigSchema.properties,
+          ...mcpServerRecordMetadataProperties,
+        },
+        required: ["transport"],
+        allOf: mcpServerConfigSchema.allOf,
+        additionalProperties: false,
+      },
+    ],
+    title: "Server",
+    description: "MCP server reference (ID or inline config)",
+  } as const;
+}

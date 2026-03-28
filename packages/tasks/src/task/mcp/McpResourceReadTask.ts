@@ -12,10 +12,10 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
+import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
-import { mcpServerReferenceObjectProperties } from "../../mcp-server/mcpServerReferenceObjectSchema";
+import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
 
 const contentItemSchema = {
   anyOf: [
@@ -94,20 +94,7 @@ export class McpResourceReadTask extends Task<
       type: "object",
       properties: {
         ...TaskConfigSchema["properties"],
-        server: {
-          oneOf: [
-            { type: "string", format: "mcp-server" },
-            {
-              type: "object",
-              format: "mcp-server",
-              properties: mcpServerReferenceObjectProperties,
-              additionalProperties: false,
-            },
-          ],
-          title: "Server",
-          description: "MCP server reference (ID or inline config)",
-        },
-        ...mcpServerConfigSchema.properties,
+        server: TypeMcpServer(mcpServerConfigSchema),
         resource_uri: {
           type: "string",
           title: "Resource URI",
@@ -115,13 +102,7 @@ export class McpResourceReadTask extends Task<
           format: "string:uri:mcp-resourceuri",
         },
       },
-      required: ["resource_uri"],
-      allOf: [
-        ...(mcpServerConfigSchema.allOf ?? []),
-        {
-          anyOf: [{ required: ["server"] }, { required: ["transport"] }],
-        },
-      ],
+      required: ["server", "resource_uri"],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }

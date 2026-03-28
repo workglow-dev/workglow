@@ -5,7 +5,7 @@
  *
  * Test runner script. Supports filtering by kind and section.
  *
- * Usage: bun scripts/test.ts [kinds...] [sections...] [--bun-only] [--vitest-only] [--help]
+ * Usage: bun scripts/test.ts [--all] [kinds...] [sections...] [--help]
  *
  * Kinds:    unit, integration, end2end (default: all)
  * Sections: graph, task, storage, queue, util, ai, provider, mcp, rag (default: all)
@@ -84,17 +84,18 @@ Sections: ${KNOWN_SECTIONS.join(", ")} (default: all)
 Runners:  ${KNOWN_RUNNERS.join(", ")} (default: both)
 
 Options:
+  --all          Run full suite (bun + vitest, no filters, very slow)
   --help         Show this usage message
 
 Examples:
-  bun scripts/test.ts                       # Run all tests
+  bun scripts/test.ts --all                 # Run all tests
   bun scripts/test.ts unit                  # Run only unit tests
   bun scripts/test.ts integration           # Run only integration tests
   bun scripts/test.ts storage               # Run only storage tests
   bun scripts/test.ts storage unit          # Run only unit tests in storage dirs
   bun scripts/test.ts graph task unit       # Run unit tests in graph + task dirs
-  bun scripts/test.ts bun                   # Run only tests using bun
-  bun scripts/test.ts vitest                # Run only tests using vitest
+  bun scripts/test.ts bun --all             # Run only tests using bun
+  bun scripts/test.ts vitest --all          # Run only tests using vitest
   bun scripts/test.ts bun graph unit        # Run tests using bun in graph dirs
 `);
 }
@@ -121,7 +122,11 @@ function matchesProviderSubsection(filePath: string, section: Section): boolean 
   return true;
 }
 
-function collectFiles(dirs: string[], kinds: readonly Kind[], sections: readonly Section[]): string[] {
+function collectFiles(
+  dirs: string[],
+  kinds: readonly Kind[],
+  sections: readonly Section[]
+): string[] {
   const seen = new Set<string>();
   const files: string[] = [];
   const glob = new Bun.Glob("**/*.test.ts");
@@ -180,14 +185,22 @@ if (rawArgs.includes("--help")) {
   process.exit(0);
 }
 
-const bunOnly = rawArgs.includes("bun");
-const vitestOnly = rawArgs.includes("vitest");
+const runAll = rawArgs.includes("--all");
+const filteredArgs = rawArgs.filter((a) => a !== "--all");
+
+if (!runAll && filteredArgs.length === 0) {
+  showHelp();
+  process.exit(0);
+}
+
+const bunOnly = filteredArgs.includes("bun");
+const vitestOnly = filteredArgs.includes("vitest");
 const runners: Runner[] = [];
 const kinds: Kind[] = [];
 const sections: Section[] = [];
 const unknown: string[] = [];
 
-for (const arg of rawArgs) {
+for (const arg of filteredArgs) {
   if ((KNOWN_KINDS as readonly string[]).includes(arg)) {
     kinds.push(arg as Kind);
   } else if ((KNOWN_SECTIONS as readonly string[]).includes(arg)) {
@@ -211,9 +224,10 @@ if (unknown.length > 0) {
 // ── Collect test files (when section or kind filter is given) ──────────────────
 
 const needsFileFilter = sections.length > 0 || kinds.length > 0;
-const dirs = sections.length > 0
-  ? sections.flatMap((s) => SECTION_DIRS[s])
-  : Object.values(SECTION_DIRS).flat();
+const dirs =
+  sections.length > 0
+    ? sections.flatMap((s) => SECTION_DIRS[s])
+    : Object.values(SECTION_DIRS).flat();
 const files: string[] = needsFileFilter ? collectFiles(dirs, kinds, sections) : [];
 
 if (needsFileFilter && files.length === 0) {

@@ -262,32 +262,6 @@ describe("getMcpServerConfig", () => {
     expect(result.server_url).toBe("http://localhost:3000/mcp");
   });
 
-  test("inline config values override server object", () => {
-    const config = {
-      server: {
-        server_id: "a",
-        transport: "sse",
-        server_url: "http://registry-url.com",
-      },
-      transport: "streamable-http",
-      server_url: "http://override.com",
-    };
-    const result = getMcpServerConfig(config);
-    expect(result.transport).toBe("streamable-http");
-    expect(result.server_url).toBe("http://override.com");
-  });
-
-  test("works with inline-only config (no server reference)", () => {
-    const config = {
-      transport: "stdio",
-      command: "node",
-      args: ["server.js"],
-    };
-    const result = getMcpServerConfig(config);
-    expect(result.transport).toBe("stdio");
-    expect(result.command).toBe("node");
-  });
-
   test("works when server is an inline object", () => {
     const config = {
       server: {
@@ -300,31 +274,47 @@ describe("getMcpServerConfig", () => {
     expect(result.server_url).toBe("http://inline.com");
   });
 
-  test("throws when no transport is available from any source", () => {
+  test("throws when server is missing", () => {
     expect(() => getMcpServerConfig({})).toThrow(
-      "MCP server config must include a transport"
+      "MCP server config must include a 'server' property"
     );
+  });
+
+  test("throws when server is a string (unresolved)", () => {
+    expect(() => getMcpServerConfig({ server: "server-a" })).toThrow(
+      "should have been resolved to an object"
+    );
+  });
+
+  test("throws when server object has no transport", () => {
+    expect(() =>
+      getMcpServerConfig({ server: { server_url: "http://example.com" } })
+    ).toThrow("MCP server config must include a transport");
   });
 
   test("throws when stdio transport is missing command", () => {
-    expect(() => getMcpServerConfig({ transport: "stdio" })).toThrow(
-      "MCP server config for stdio transport must include a 'command'"
-    );
+    expect(() =>
+      getMcpServerConfig({ server: { transport: "stdio" } })
+    ).toThrow("MCP server config for stdio transport must include a 'command'");
   });
 
   test("throws when sse transport is missing server_url", () => {
-    expect(() => getMcpServerConfig({ transport: "sse" })).toThrow(
+    expect(() =>
+      getMcpServerConfig({ server: { transport: "sse" } })
+    ).toThrow(
       "MCP server config for sse/streamable-http transport must include a 'server_url'"
     );
   });
 
   test("throws when streamable-http transport is missing server_url", () => {
-    expect(() => getMcpServerConfig({ transport: "streamable-http" })).toThrow(
+    expect(() =>
+      getMcpServerConfig({ server: { transport: "streamable-http" } })
+    ).toThrow(
       "MCP server config for sse/streamable-http transport must include a 'server_url'"
     );
   });
 
-  test("merges auth fields from server object", () => {
+  test("includes auth fields from server object", () => {
     const config = {
       server: {
         server_id: "a",
@@ -512,7 +502,7 @@ describe("MCP tasks with server registry", () => {
     expect(result.content).toEqual([{ type: "text", text: "hi" }]);
   });
 
-  test("McpToolCallTask backward compatible with inline transport", async () => {
+  test("McpToolCallTask with inline server object", async () => {
     const mockClient = createMockClient({
       callTool: fn().mockResolvedValue({
         content: [{ type: "text", text: "ok" }],
@@ -523,43 +513,14 @@ describe("MCP tasks with server registry", () => {
 
     const task = new McpToolCallTask(
       {},
-      { transport: "stdio", command: "test-server", tool_name: "greet" }
+      {
+        server: { transport: "stdio", command: "test-server" },
+        tool_name: "greet",
+      }
     );
     const result = await task.run({});
 
     expect(result.content).toEqual([{ type: "text", text: "ok" }]);
-  });
-
-  test("inline config overrides registry values", async () => {
-    await registerMcpServer(serverA);
-    const mockClient = createMockClient({
-      callTool: fn().mockResolvedValue({
-        content: [{ type: "text", text: "ok" }],
-        isError: false,
-      }),
-    });
-    let capturedConfig: unknown;
-    mcpClientFactory.create = ((config: unknown) => {
-      capturedConfig = config;
-      return Promise.resolve({ client: mockClient, transport: {} });
-    }) as unknown as typeof mcpClientFactory.create;
-
-    const task = new McpToolCallTask(
-      {},
-      {
-        server: "server-a",
-        server_url: "http://override.com",
-        tool_name: "greet",
-      }
-    );
-    await task.run({});
-
-    expect((capturedConfig as Record<string, unknown>).server_url).toBe(
-      "http://override.com"
-    );
-    expect((capturedConfig as Record<string, unknown>).transport).toBe(
-      "streamable-http"
-    );
   });
 
   test("McpListTask with server ID in input", async () => {
