@@ -38,13 +38,6 @@ export interface AiSingleTaskInput extends TaskInput {
 }
 
 /**
- * Simple TTL cache for narrowInput model lookups.
- * Entries expire after 5 seconds to stay fresh while avoiding repeated DB queries.
- */
-const narrowInputCache = new Map<string, { models: ModelConfig[]; timestamp: number }>();
-const NARROW_INPUT_CACHE_TTL_MS = 5_000;
-
-/**
  * A base class for AI related tasks that run in a job queue.
  * Extends the JobQueueTask class to provide LLM-specific functionality.
  *

@@ -300,7 +300,6 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
         `Agent iteration ${iteration + 1}`
       );
 
-      // Trim context window — default to 50 messages to prevent context overflow
       const contextMessages = this.trimMessages(messages, input.maxContextMessages ?? MAX_CONTEXT_MESSAGES);
 
       // Call the LLM and stream its output

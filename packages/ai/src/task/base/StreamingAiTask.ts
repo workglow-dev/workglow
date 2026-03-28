@@ -61,12 +61,12 @@ export class StreamingAiTask<
     // Resolve the streaming port(s) from the output schema for wrapping.
     // Falls back to the first property in the output schema rather than
     // hardcoding "text", so non-text streaming tasks work correctly.
-    const ports = getStreamingPorts(this.outputSchema());
+    const outSchema = this.outputSchema();
+    const ports = getStreamingPorts(outSchema);
     let defaultPort = "text";
     if (ports.length > 0) {
       defaultPort = ports[0].port;
     } else {
-      const outSchema = this.outputSchema();
       if (typeof outSchema === "object" && outSchema.properties) {
         const firstProp = Object.keys(outSchema.properties)[0];
         if (firstProp) defaultPort = firstProp;

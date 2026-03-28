@@ -24,6 +24,20 @@ import type { ToolCall, ToolCalls, ToolDefinition } from "./ToolCallingUtils";
 // Tool source resolution
 // ========================================================================
 
+function resolveToolConfig(
+  toolName: string,
+  config: DataPorts | undefined,
+  taskConfigSchema: unknown
+): DataPorts | undefined {
+  if (config && !taskConfigSchema) {
+    getLogger().warn(
+      `AgentTask: Tool "${toolName}" provided config but task has no configSchema — config ignored`
+    );
+    return {} as DataPorts;
+  }
+  return config;
+}
+
 /**
  * Builds an array of {@link ToolSource} entries from a unified tools list.
  *
@@ -107,18 +121,11 @@ export function buildToolSources(
           },
         } satisfies FunctionToolSource);
       } else {
-        const taskConfigSchema = (ctor as any).configSchema?.();
-        const safeConfig =
-          tool.config && taskConfigSchema
-            ? tool.config
-            : tool.config && !taskConfigSchema
-              ? {}
-              : tool.config;
-        if (tool.config && !taskConfigSchema) {
-          getLogger().warn(
-            `AgentTask: Tool "${tool.name}" provided config but task has no configSchema — config ignored`
-          );
-        }
+        const safeConfig = resolveToolConfig(
+          tool.name,
+          tool.config,
+          (ctor as any).configSchema?.()
+        );
         const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
         sources.push({
           type: "registry",
@@ -133,18 +140,11 @@ export function buildToolSources(
       if (ctor) {
         // Registry-backed tool — config is passed through for task instantiation.
         // Only pass config if the task actually declares a configSchema.
-        const taskConfigSchema = (ctor as any).configSchema?.();
-        const safeConfig =
-          tool.config && taskConfigSchema
-            ? tool.config
-            : tool.config && !taskConfigSchema
-              ? {}
-              : tool.config;
-        if (tool.config && !taskConfigSchema) {
-          getLogger().warn(
-            `AgentTask: Tool "${tool.name}" provided config but task has no configSchema — config ignored`
-          );
-        }
+        const safeConfig = resolveToolConfig(
+          tool.name,
+          tool.config,
+          (ctor as any).configSchema?.()
+        );
         const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
         sources.push({
           type: "registry",

@@ -49,8 +49,15 @@ function classifyProviderError(err: unknown, taskType: string, provider: string)
   }
 
   const message = err instanceof Error ? err.message : String(err);
-  const statusMatch = message.match(/\b([45]\d{2})\b/);
-  const status = statusMatch ? parseInt(statusMatch[1], 10) : undefined;
+  const status =
+    typeof (err as any)?.status === "number"
+      ? (err as any).status
+      : typeof (err as any)?.statusCode === "number"
+        ? (err as any).statusCode
+        : (() => {
+            const m = message.match(/\b([45]\d{2})\b/);
+            return m ? parseInt(m[1], 10) : undefined;
+          })();
 
   // Check for abort/cancellation
   if (err instanceof DOMException && err.name === "AbortError") {
@@ -162,7 +169,7 @@ export class AiJob<
         );
         const model = input.taskInput.model;
         // Second abort check after resolving run function (covers async gap)
-        if (context.signal?.aborted) {
+        if (context.signal.aborted) {
           throw new AbortSignalJobError("Job aborted");
         }
 

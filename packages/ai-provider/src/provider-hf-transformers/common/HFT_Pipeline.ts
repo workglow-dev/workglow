@@ -405,7 +405,7 @@ const doGetPipeline = async (
     // If aborted, throw a clean abort error rather than internal stream errors.
     // Preserve processor-initialization errors so they propagate with their original message.
     if (
-      !String(error).startsWith(HFT_NULL_PROCESSOR_PREFIX) &&
+      !error?.message?.startsWith(HFT_NULL_PROCESSOR_PREFIX) &&
       (abortSignal?.aborted || modelController.signal.aborted)
     ) {
       throw new Error("Pipeline download aborted");
