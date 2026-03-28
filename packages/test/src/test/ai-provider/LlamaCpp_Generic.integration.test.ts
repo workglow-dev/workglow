@@ -45,6 +45,8 @@ const model: LlamaCppModelRecord = {
     models_dir: "./models",
     context_size: 2048,
     flash_attention: true,
+    /** node-llama-cpp defaults to time-based sampling when unset; fixes stochastic test flakes. */
+    seed: 42,
   },
   metadata: {},
 };

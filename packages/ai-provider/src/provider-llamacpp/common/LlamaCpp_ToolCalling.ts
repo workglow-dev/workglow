@@ -15,7 +15,12 @@ import type {
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
-import { getLlamaCppSdk, getOrCreateTextContext, loadSdk } from "./LlamaCpp_Runtime";
+import {
+  getLlamaCppSdk,
+  getOrCreateTextContext,
+  llamaCppSeedPromptSpread,
+  loadSdk,
+} from "./LlamaCpp_Runtime";
 
 function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
   const inputMessages = input.messages;
@@ -101,6 +106,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   try {
     const text = await session.prompt(promptText, {
       signal,
+      ...llamaCppSeedPromptSpread(model.provider_config),
       ...(functions && { functions }),
       ...(input.temperature !== undefined && { temperature: input.temperature }),
       ...(input.maxTokens !== undefined && { maxTokens: input.maxTokens }),
@@ -157,6 +163,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
   const promptPromise = session
     .prompt(promptText, {
       signal,
+      ...llamaCppSeedPromptSpread(model.provider_config),
       ...(functions && { functions }),
       onTextChunk: (chunk: string) => {
         queue.push(chunk);
