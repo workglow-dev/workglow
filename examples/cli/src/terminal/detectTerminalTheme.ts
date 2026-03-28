@@ -78,6 +78,11 @@ function responseComplete(buf: Buffer): boolean {
   return s.includes("\x07") || /\x1b\\/.test(s);
 }
 
+/** Readable `data` events may emit strings when an encoding is set (or in some runtimes). */
+function dataChunkToBuffer(chunk: string | Buffer): Buffer {
+  return typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk;
+}
+
 function readOscReply(timeoutMs: number): Promise<Buffer> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
@@ -86,8 +91,8 @@ function readOscReply(timeoutMs: number): Promise<Buffer> {
       resolve(Buffer.concat(chunks));
     }, timeoutMs);
 
-    const onData = (data: Buffer): void => {
-      chunks.push(data);
+    const onData = (data: string | Buffer): void => {
+      chunks.push(dataChunkToBuffer(data));
       if (responseComplete(Buffer.concat(chunks))) {
         cleanup();
         resolve(Buffer.concat(chunks));
