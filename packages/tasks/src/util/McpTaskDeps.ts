@@ -40,6 +40,7 @@ export interface McpTaskDeps {
     readonly properties: DataPortSchemaObject["properties"];
     readonly allOf: NonNullable<DataPortSchemaObject["allOf"]>;
   };
+  readonly createStdioTransport: (config: McpServerConfig) => Promise<Transport>;
 }
 
 export const MCP_TASK_DEPS = createServiceToken<McpTaskDeps>("@workglow/tasks/mcp");

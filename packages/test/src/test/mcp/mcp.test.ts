@@ -49,7 +49,7 @@ function createMockClient(overrides: Record<string, unknown> = {}) {
 
 const originalCreate = mcpClientFactory.create;
 
-const baseInput = { transport: "stdio" as const, command: "test-server" };
+const baseServer = { transport: "stdio" as const, command: "test-server" };
 
 function mockFactory(mockClient: ReturnType<typeof createMockClient>) {
   mcpClientFactory.create = (() =>
@@ -72,7 +72,7 @@ describe("MCP", () => {
   setLogger(logger);
 
   describe("McpToolCallTask", () => {
-    const toolCallConfig = { ...baseInput, tool_name: "greet" };
+    const toolCallConfig = { server: baseServer, tool_name: "greet" };
 
     test("calls a tool and returns content", async () => {
       const mockClient = createMockClient({
@@ -104,7 +104,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpToolCallTask({}, { ...baseInput, tool_name: "fail" });
+      const task = new McpToolCallTask({}, { server: baseServer, tool_name: "fail" });
       const result = await task.run({});
 
       expect(result.isError).toBe(true);
@@ -116,7 +116,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpToolCallTask({}, { ...baseInput, tool_name: "broken" });
+      const task = new McpToolCallTask({}, { server: baseServer, tool_name: "broken" });
       await expect(task.run({})).rejects.toThrow("connection lost");
       // discoverSchemas (mcpList) + execute each create a client; both get closed
       expect(mockClient.close.calls.length).toBeGreaterThanOrEqual(1);
@@ -182,7 +182,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpResourceReadTask({}, { ...baseInput, resource_uri: "file:///test.txt" });
+      const task = new McpResourceReadTask({}, { server: baseServer, resource_uri: "file:///test.txt" });
       const result = await task.run({});
 
       expect(result.contents).toEqual([{ uri: "file:///test.txt", text: "file contents" }]);
@@ -210,7 +210,7 @@ describe("MCP", () => {
       const task = new McpPromptGetTask(
         {},
         {
-          ...baseInput,
+          server: baseServer,
           prompt_name: "greeting",
           inputSchema: {
             type: "object",
@@ -245,7 +245,7 @@ describe("MCP", () => {
       mockFactory(mockClient);
 
       const task = new McpListTask();
-      const result = await task.run({ ...baseInput, list_type: "tools" });
+      const result = await task.run({ server: baseServer, list_type: "tools" });
 
       expect((result as { tools: unknown }).tools).toEqual(tools);
       expect(mockClient.listTools.calls.length).toBe(1);
@@ -260,7 +260,7 @@ describe("MCP", () => {
       mockFactory(mockClient);
 
       const task = new McpListTask();
-      const result = await task.run({ ...baseInput, list_type: "resources" });
+      const result = await task.run({ server: baseServer, list_type: "resources" });
 
       expect((result as { resources: unknown }).resources).toEqual(resources);
     });
@@ -273,7 +273,7 @@ describe("MCP", () => {
       mockFactory(mockClient);
 
       const task = new McpListTask();
-      const result = await task.run({ ...baseInput, list_type: "prompts" });
+      const result = await task.run({ server: baseServer, list_type: "prompts" });
 
       expect((result as { prompts: unknown }).prompts).toEqual(prompts);
     });

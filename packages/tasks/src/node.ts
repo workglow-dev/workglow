@@ -7,14 +7,27 @@
 export * from "./common";
 export * from "./util/McpAuthTypes";
 export * from "./util/McpAuthProvider";
-export * from "./util/McpClientUtil.node";
+export * from "./util/McpClientUtil";
 export * from "./util/McpTaskDeps";
 export * from "./task/FileLoaderTask.server";
 
-import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil.node";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil";
 import { registerMcpTaskDeps } from "./util/McpTaskDeps";
+import type { McpServerConfig } from "./util/McpTaskDeps";
 
-registerMcpTaskDeps({ mcpClientFactory, mcpServerConfigSchema });
+registerMcpTaskDeps({
+  mcpClientFactory,
+  mcpServerConfigSchema,
+  createStdioTransport: (config: McpServerConfig) =>
+    Promise.resolve(
+      new StdioClientTransport({
+        command: config.command!,
+        args: config.args,
+        env: config.env,
+      })
+    ),
+});
 
 import { TaskRegistry } from "@workglow/task-graph";
 import { registerCommonTasks as registerCommonTasksFn } from "./common";

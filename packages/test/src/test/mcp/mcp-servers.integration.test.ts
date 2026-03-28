@@ -95,8 +95,7 @@ describe("MCP servers integration", () => {
       const listTask = new McpListTask();
       const result: McpListTaskOutput = asListOutput<McpListTaskOutput>(
         await listTask.run({
-          transport: transportForUrl(url),
-          server_url: url,
+          server: { transport: transportForUrl(url), server_url: url },
           list_type: "tools",
         })
       );
@@ -116,8 +115,7 @@ describe("MCP servers integration", () => {
           outputSchema?: Record<string, unknown>;
         };
         const toolCallConfig = {
-          transport: transportForUrl(url),
-          server_url: url,
+          server: { transport: transportForUrl(url), server_url: url },
           tool_name: first.name,
         } as McpToolCallTaskConfig;
         const toolCallTask = new McpToolCallTask({}, toolCallConfig);
@@ -142,8 +140,7 @@ describe("MCP servers integration", () => {
       try {
         const result = asListOutput<McpListTaskOutput>(
           await listTask.run({
-            transport: transportForUrl(url),
-            server_url: url,
+            server: { transport: transportForUrl(url), server_url: url },
             list_type: "resources",
           })
         ) as McpListTaskOutput;
@@ -158,8 +155,7 @@ describe("MCP servers integration", () => {
             mimeType?: string;
           };
           const resourceReadConfig = {
-            transport: transportForUrl(url),
-            server_url: url,
+            server: { transport: transportForUrl(url), server_url: url },
             resource_uri: first.uri,
           } as McpResourceReadTaskConfig;
           const resourceReadTask = new McpResourceReadTask({}, resourceReadConfig);
@@ -196,8 +192,7 @@ describe("MCP servers integration", () => {
       try {
         const result = asListOutput<McpListTaskOutput>(
           await listTask.run({
-            transport: transportForUrl(url),
-            server_url: url,
+            server: { transport: transportForUrl(url), server_url: url },
             list_type: "prompts",
           })
         ) as McpListTaskOutput;
@@ -211,8 +206,7 @@ describe("MCP servers integration", () => {
             arguments?: Array<{ name: string; description?: string; required?: boolean }>;
           };
           const promptGetConfig = {
-            transport: transportForUrl(url),
-            server_url: url,
+            server: { transport: transportForUrl(url), server_url: url },
             prompt_name: first.name,
           } as McpPromptGetTaskConfig;
           const promptGetTask = new McpPromptGetTask({}, promptGetConfig);

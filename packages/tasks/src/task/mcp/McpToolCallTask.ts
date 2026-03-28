@@ -15,6 +15,8 @@ import {
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema } from "@workglow/util/schema";
 import { mcpList, type McpListTaskInput } from "./McpListTask";
+import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
+import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
 
 const annotationsSchema = {
   type: "object",
@@ -179,7 +181,7 @@ export class McpToolCallTask extends Task<
       type: "object",
       properties: {
         ...TaskConfigSchema["properties"],
-        ...mcpServerConfigSchema.properties,
+        server: TypeMcpServer(mcpServerConfigSchema),
         tool_name: {
           type: "string",
           title: "Tool Name",
@@ -187,11 +189,7 @@ export class McpToolCallTask extends Task<
           format: "string:mcp-toolname",
         },
       },
-      required: ["transport", "tool_name"],
-      if: { properties: { transport: { const: "stdio" } }, required: ["transport"] },
-      then: { required: ["command"] },
-      else: { required: ["server_url"] },
-      allOf: mcpServerConfigSchema.allOf,
+      required: ["server", "tool_name"],
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
@@ -206,19 +204,16 @@ export class McpToolCallTask extends Task<
 
   private _schemasDiscovering = false;
 
-  async discoverSchemas(_signal?: AbortSignal): Promise<void> {
+  async discoverSchemas(_signal?: AbortSignal, serverConfig?: McpServerConfig): Promise<void> {
     if (this.config.inputSchema && this.config.outputSchema) return;
     if (this._schemasDiscovering) return;
-    if (!this.config.transport || !this.config.tool_name) return;
+    const resolved = serverConfig ?? getMcpServerConfig(this.config as Record<string, unknown>);
+    if (!resolved.transport || !this.config.tool_name) return;
 
     this._schemasDiscovering = true;
     try {
       const result = await mcpList({
-        transport: this.config.transport,
-        server_url: this.config.server_url,
-        command: this.config.command,
-        args: this.config.args,
-        env: this.config.env,
+        server: resolved,
         list_type: "tools",
       } as McpListTaskInput);
 
@@ -243,13 +238,12 @@ export class McpToolCallTask extends Task<
     input: McpToolCallTaskInput,
     context: IExecuteContext
   ): Promise<McpToolCallTaskOutput> {
-    await this.discoverSchemas(context.signal);
+    const serverConfig = getMcpServerConfig(this.config as Record<string, unknown>);
+
+    await this.discoverSchemas(context.signal, serverConfig);
 
     const { mcpClientFactory } = getMcpTaskDeps();
-    const { client } = await mcpClientFactory.create(
-      this.config as McpServerConfig,
-      context.signal
-    );
+    const { client } = await mcpClientFactory.create(serverConfig, context.signal);
     try {
       const result = await client.callTool({
         name: String(this.config.tool_name ?? ""),

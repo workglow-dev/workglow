@@ -219,6 +219,11 @@ export class ConditionalTask<
     return conditionalTaskConfigSchema;
   }
 
+  public canSerializeConfig(): boolean {
+    if (!this.config.branches) return true;
+    return !this.config.branches.some((b) => typeof b.condition === "function");
+  }
+
   /**
    * Set of branch IDs that are currently active after execution.
    * Populated during execute() and used by the graph runner to

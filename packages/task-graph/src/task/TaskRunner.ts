@@ -14,7 +14,7 @@ import {
 } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ensureTask, type Taskish } from "../task-graph/Conversions";
-import { resolveSchemaInputs } from "./InputResolver";
+import { resolveSchemaInputs, schemaHasFormatAnnotations } from "./InputResolver";
 import { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
 import {
@@ -136,6 +136,20 @@ export class TaskRunner<
     try {
       this.task.setInput(overrides);
 
+      // Resolve config schema annotations (e.g. mcp-server references) by mutating task.config.
+      // Always resolve from originalConfig so re-runs use the original string IDs, not
+      // previously resolved objects. The original config is preserved for serialization.
+      const configSchema = (this.task.constructor as typeof Task).configSchema();
+      if (schemaHasFormatAnnotations(configSchema)) {
+        const source = (this.task as unknown as Task).originalConfig ?? this.task.config;
+        const resolved = await resolveSchemaInputs(
+          { ...source } as Record<string, unknown>,
+          configSchema,
+          { registry: this.registry }
+        );
+        Object.assign(this.task.config, resolved);
+      }
+
       // Resolve schema-annotated inputs (models, repositories) before validation
       const schema = (this.task.constructor as typeof Task).inputSchema();
       this.task.runInputData = (await resolveSchemaInputs(
@@ -218,6 +232,18 @@ export class TaskRunner<
       return this.task.runOutputData as Output;
     }
     this.task.setInput(overrides);
+
+    // Resolve config schema annotations by mutating task.config directly
+    const configSchema = (this.task.constructor as typeof Task).configSchema();
+    if (schemaHasFormatAnnotations(configSchema)) {
+      const source = (this.task as unknown as Task).originalConfig ?? this.task.config;
+      const resolved = await resolveSchemaInputs(
+        { ...source } as Record<string, unknown>,
+        configSchema,
+        { registry: this.registry }
+      );
+      Object.assign(this.task.config, resolved);
+    }
 
     // Resolve schema-annotated inputs (models, repositories) before validation
     const schema = (this.task.constructor as typeof Task).inputSchema();

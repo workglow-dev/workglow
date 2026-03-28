@@ -3,12 +3,11 @@
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  *
- * Node/Bun MCP client util. Supports stdio, sse, and streamable-http.
- * stdio is not available in the browser.
+ * Unified MCP client util. Full schema is available on all platforms.
+ * stdio transport is injected via McpTaskDeps and only available on Node/Bun.
  */
 
 import { Client } from "@modelcontextprotocol/sdk/client";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 // eslint-disable-next-line deprecation/deprecation
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -17,6 +16,7 @@ import { getGlobalCredentialStore, getLogger } from "@workglow/util";
 import { createAuthProvider, resolveAuthSecrets } from "./McpAuthProvider";
 import { buildAuthConfig, mcpAuthConfigSchema } from "./McpAuthTypes";
 import type { McpAuthConfig } from "./McpAuthTypes";
+import { getMcpTaskDeps } from "./McpTaskDeps";
 import type { McpServerConfig } from "./McpTaskDeps";
 
 export const mcpTransportTypes = ["stdio", "sse", "streamable-http"] as const;
@@ -31,7 +31,7 @@ export const mcpServerConfigSchema = {
     },
     server_url: {
       type: "string",
-      format: "string:uri",
+      format: "uri",
       title: "Server URL",
       description: "The URL of the MCP server (for sse and streamable-http transports)",
     },
@@ -101,6 +101,7 @@ export async function createMcpClient(
   const headers: Record<string, string> = {
     ...(auth?.type === "bearer" ? { Authorization: `Bearer ${auth.token}` } : {}),
   };
+  const requestInit = { headers };
 
   switch (config.transport) {
     case "stdio":
@@ -110,24 +111,19 @@ export async function createMcpClient(
             "Use env vars to pass credentials to stdio servers."
         );
       }
-      transport = new StdioClientTransport({
-        command: config.command!,
-        args: config.args,
-        env: config.env,
-      });
+      transport = await getMcpTaskDeps().createStdioTransport(config);
       break;
     case "sse": {
-      // SSEClientTransport is deprecated but still needed for legacy servers
       transport = new SSEClientTransport(new URL(config.server_url!), {
         authProvider,
-        requestInit: { headers },
+        requestInit,
       });
       break;
     }
     case "streamable-http": {
       transport = new StreamableHTTPClientTransport(new URL(config.server_url!), {
         authProvider,
-        requestInit: { headers },
+        requestInit,
       });
       break;
     }
@@ -147,41 +143,7 @@ export async function createMcpClient(
     );
   }
 
-  // try {
   await client.connect(transport);
-  // } catch (err) {
-  //   const message = err instanceof Error ? err.message : String(err);
-  //   const url = config.server_url ?? "";
-  //   const is405 =
-  //     message.includes("405") ||
-  //     message.includes("Method Not Allowed") ||
-  //     (typeof err === "object" &&
-  //       err !== null &&
-  //       "status" in err &&
-  //       (err as { status: number }).status === 405);
-  //   if (is405) {
-  //     throw new Error(
-  //       `MCP connection failed with 405 Method Not Allowed for ${url}. ` +
-  //         `This usually means the server does not accept GET requests. `,
-  //       { cause: err }
-  //     );
-  //   }
-  //   const is406 =
-  //     message.includes("406") ||
-  //     message.includes("Not Acceptable") ||
-  //     (typeof err === "object" &&
-  //       err !== null &&
-  //       "code" in err &&
-  //       (err as { code: number }).code === 406);
-  //   if (is406) {
-  //     throw new Error(
-  //       `MCP connection failed with 406 Not Acceptable for ${url}. ` +
-  //         `Try using transport "sse" instead of "streamable-http", or ensure the server accepts the request format (Accept: application/json, text/event-stream and MCP-Protocol-Version).`,
-  //       { cause: err }
-  //     );
-  //   }
-  //   throw err;
-  // }
   return { client, transport };
 }
 

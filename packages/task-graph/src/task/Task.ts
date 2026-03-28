@@ -14,6 +14,7 @@ import {
   TaskConfigurationError,
   TaskError,
   TaskInvalidInputError,
+  TaskSerializationError,
 } from "./TaskError";
 import {
   type TaskEventListener,
@@ -305,6 +306,12 @@ export class Task<
   config: Config;
 
   /**
+   * Frozen snapshot of config at construction time, used by toJSON and
+   * as the resolution source for re-runs (so fresh lookups use original IDs).
+   */
+  readonly originalConfig: Readonly<Record<string, unknown>> | undefined;
+
+  /**
    * Task id from config (read-only).
    */
   public get id(): unknown {
@@ -388,6 +395,15 @@ export class Task<
       (baseConfig as Record<string, unknown>).id = uuid4();
     }
     this.config = this.validateAndApplyConfigDefaults(baseConfig);
+    try {
+      this.originalConfig = Object.freeze(
+        structuredClone(this.config) as Record<string, unknown>
+      );
+    } catch {
+      // Config contains non-cloneable values (e.g. functions).
+      // canSerializeConfig() should return false for such tasks.
+      this.originalConfig = undefined;
+    }
 
     // Store runtime configuration
     this.runConfig = runConfig;
@@ -907,12 +923,25 @@ export class Task<
   }
 
   /**
+   * Returns whether the task's config can be serialized to JSON.
+   * Override in subclasses that store non-serializable values (functions) in config.
+   * Called by toJSON — if false, toJSON throws TaskSerializationError.
+   */
+  public canSerializeConfig(): boolean {
+    return true;
+  }
+
+  /**
    * Serializes the task and its subtasks into a format that can be stored
    * @param _options Options controlling serialization (used by subclasses)
    * @returns The serialized task and subtasks
    */
   public toJSON(_options?: TaskGraphJsonOptions): TaskGraphItemJson {
     const ctor = this.constructor as typeof Task;
+
+    if (!this.canSerializeConfig() || !this.originalConfig) {
+      throw new TaskSerializationError(this.type);
+    }
 
     // Build config by extracting only serializable properties defined in the configSchema.
     // We filter through the schema to avoid accidentally including non-serializable
@@ -938,7 +967,7 @@ export class Task<
       ) {
         continue;
       }
-      const value = (this.config as Record<string, unknown>)[key];
+      const value = (this.originalConfig as Record<string, unknown>)[key];
       if (value === undefined) continue;
       // Skip non-serializable values (functions, symbols, etc.)
       if (typeof value === "function" || typeof value === "symbol") continue;
