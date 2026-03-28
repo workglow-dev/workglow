@@ -7,10 +7,14 @@
 import { IJobExecuteContext, Job } from "@workglow/job-queue";
 import {
   getTaskQueueRegistry,
-  JobQueueTask,
+  JobTaskFailedError,
   RegisteredQueue,
-  TaskInput,
-  TaskOutput,
+  Task,
+  TaskConfigSchema,
+  type IExecuteContext,
+  type TaskConfig,
+  type TaskInput,
+  type TaskOutput,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, expect, it } from "vitest";
@@ -21,8 +25,32 @@ export class TestJob extends Job<TaskInput, TaskOutput> {
   }
 }
 
-export class TestJobTask extends JobQueueTask<{ a: number; b: number }, { result: number }> {
+type TestJobTaskConfig = TaskConfig & { queue?: boolean | string };
+
+const testJobTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...TaskConfigSchema["properties"],
+    queue: {
+      oneOf: [{ type: "boolean" }, { type: "string" }],
+      description: "Queue handling: false=run inline, true=use default, string=explicit queue name",
+      "x-ui-hidden": true,
+    },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export class TestJobTask extends Task<
+  { a: number; b: number },
+  { result: number },
+  TestJobTaskConfig
+> {
   static readonly type: string = "TestJobTask";
+
+  static configSchema(): DataPortSchema {
+    return testJobTaskConfigSchema;
+  }
+
   static readonly inputSchema = (): DataPortSchema =>
     ({
       type: "object",
@@ -42,6 +70,57 @@ export class TestJobTask extends JobQueueTask<{ a: number; b: number }, { result
       additionalProperties: false,
       required: ["result"],
     }) as const satisfies DataPortSchema;
+
+  async execute(
+    input: { a: number; b: number },
+    executeContext: IExecuteContext
+  ): Promise<{ result: number } | undefined> {
+    const queuePref = this.config.queue ?? false;
+    let cleanup: () => void = () => {};
+
+    try {
+      if (queuePref === false) {
+        const job = new TestJob({ input });
+        cleanup = job.onJobProgress(
+          (progress: number, message: string, details: Record<string, any> | null) => {
+            executeContext.updateProgress(progress, message, details);
+          }
+        );
+        return (await job.execute(input, {
+          signal: executeContext.signal,
+          updateProgress: executeContext.updateProgress.bind(this),
+        })) as { result: number };
+      }
+
+      const queueName = typeof queuePref === "string" ? queuePref : this.type;
+      const registry = getTaskQueueRegistry();
+      const registeredQueue = registry.getQueue<{ a: number; b: number }, { result: number }>(
+        queueName
+      );
+
+      if (!registeredQueue) {
+        throw new Error(`Queue "${queueName}" not found`);
+      }
+
+      const handle = await registeredQueue.client.submit(input, {
+        jobRunId: this.runConfig.runnerId,
+        maxRetries: 10,
+      });
+
+      cleanup = handle.onProgress(
+        (progress: number, message: string | undefined, details: Record<string, any> | null) => {
+          executeContext.updateProgress(progress, message, details);
+        }
+      );
+
+      const output = await handle.waitFor();
+      return output as { result: number };
+    } catch (err: any) {
+      throw new JobTaskFailedError(err);
+    } finally {
+      cleanup();
+    }
+  }
 }
 
 export function runGenericTaskGraphJobQueueTests(

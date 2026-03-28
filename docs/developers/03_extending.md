@@ -238,13 +238,16 @@ const inputSchema = {
 
 When a task runs with `{ emailTemplate: "welcome-email" }`, the resolver automatically converts it to the template object before execution.
 
-## Job Queues and LLM tasks
+## Execution Strategies and AI tasks
 
-We separate any long running tasks as Jobs. Jobs could potentially be run anywhere, either locally in the same thread, in separate threads, or on a remote server. A job queue will manage these for a single provider (like OpenAI, or a local Transformers.js ONNX runtime), and handle backoff, retries, etc.
+AI tasks delegate execution to an `IAiExecutionStrategy` resolved per-model at runtime. Two built-in strategies exist:
 
-A subclass of `JobQueueTask` will dispatch the job to the correct queue, and wait for the result. The `run()` method will return the result of the job.
+- **`DirectExecutionStrategy`** — runs the job inline (API providers like OpenAI, Anthropic, or local WASM runtimes).
+- **`QueuedExecutionStrategy`** — submits the job to a job queue with concurrency control (GPU-bound providers like HuggingFace Transformers with WebGPU, LlamaCpp).
 
-Subclasses of `AiTask` are organized around a specific task. Which model is used will determine the queue to use, and is required. This abstract class will look up the model and determine the queue to use based on `AiProviderRegistry`.
+Providers register a strategy resolver in the `AiProviderRegistry` during registration. `AiTask` extends `Task` directly and calls `strategy.execute()` / `strategy.executeStream()` in its `execute()` method.
+
+Subclasses of `AiTask` are organized around a specific task. Which model is used will determine the execution strategy, and is required. This abstract class will look up the model and determine the strategy to use based on `AiProviderRegistry`.
 
 To add a new embedding source, for example, you would not create a new task, but a new job queue for the new provider and then register how to run the embedding service in the `AiProviderRegistry` for the specific task, in this case `TextEmbeddingTask`. Then you use the existing `TextEmbeddingTask` with your new model name. This allows swapping out the model without changing the task, running multiple models in parallel, and so on.
 

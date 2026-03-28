@@ -8,8 +8,8 @@ import {
   Dataflow,
   IExecuteContext,
   ITask,
-  JobQueueTask,
   PROPERTY_ARRAY,
+  Task,
   TaskConfig,
   TaskGraph,
   TaskInput,
@@ -227,7 +227,7 @@ interface JobQueueTestOutput extends TaskOutput {
   result: number;
 }
 
-class JobQueueReactiveTask extends JobQueueTask<
+class JobQueueReactiveTask extends Task<
   ConvertAllToOptionalArray<JobQueueTestInput>,
   ConvertAllToOptionalArray<JobQueueTestOutput>
 > {
@@ -272,7 +272,7 @@ class JobQueueReactiveTask extends JobQueueTask<
   }
 }
 
-class JobQueueReactiveTask2 extends JobQueueTask<JobQueueTestInput, JobQueueTestOutput> {
+class JobQueueReactiveTask2 extends Task<JobQueueTestInput, JobQueueTestOutput> {
   public static type = "JobQueueReactiveTask2";
 
   public static inputSchema(): DataPortSchema {
@@ -777,9 +777,8 @@ describe("ArrayTask", () => {
   //   expect(task.error).toBeDefined();
   // });
 
-  test("JobQueueTask runReactive calls executeReactive in single task mode (no children)", async () => {
-    // Create a JobQueueTask with non-array input - this puts it in single task mode (no subtasks)
-    // Set queue: false to run directly without a queue
+  test("Task runReactive calls executeReactive in single task mode (no children)", async () => {
+    // Create a Task with non-array input - this puts it in single task mode (no subtasks)
     const task = new JobQueueReactiveTask({ value: 5 });
 
     // Verify it has no children (single task mode)
@@ -803,7 +802,7 @@ describe("ArrayTask", () => {
     expect(results).toEqual({ result: 10 }); // 5 * 2 = 10
   });
 
-  test("JobQueueTask runReactive works in single task mode without prior run() call", async () => {
+  test("Task runReactive works in single task mode without prior run() call", async () => {
     // This test ensures runReactive works even when run() hasn't been called first
     const task = new JobQueueReactiveTask({ value: 7 });
 
@@ -818,7 +817,7 @@ describe("ArrayTask", () => {
     expect(task.runOutputData).toEqual({ result: 14 });
   });
 
-  test("JobQueueTask runReactive works task graph mode", async () => {
+  test("Task runReactive works task graph mode", async () => {
     const graph = new TaskGraph();
     const task1 = new JobQueueReactiveTask2({ value: 7 }, { id: "task1" });
     const task2 = new JobQueueReactiveTask2({ value: 8 }, { id: "task2" });

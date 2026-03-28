@@ -14,6 +14,7 @@ import {
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
+  HF_TRANSFORMERS_ONNX_CPU,
   type HfTransformersOnnxModelRecord,
   registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers/runtime";
@@ -76,7 +77,7 @@ describe("HFTransformersBinding", () => {
       const queueRegistry = getTaskQueueRegistry();
 
       const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(
-        HF_TRANSFORMERS_ONNX
+        HF_TRANSFORMERS_ONNX_CPU
       );
       await storage.setupDatabase();
 
@@ -84,7 +85,7 @@ describe("HFTransformersBinding", () => {
         AiJob<AiJobInput<TaskInput>, TaskOutput>,
         {
           storage,
-          queueName: HF_TRANSFORMERS_ONNX,
+          queueName: HF_TRANSFORMERS_ONNX_CPU,
           limiter: new ConcurrencyLimiter(1),
           pollIntervalMs: 1,
         }
@@ -92,7 +93,7 @@ describe("HFTransformersBinding", () => {
 
       const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
       });
 
       client.attach(server);
@@ -111,7 +112,6 @@ describe("HFTransformersBinding", () => {
           pipeline: "text2text-generation",
           model_path: "Xenova/LaMini-Flan-T5-783M",
           dtype: "q8",
-          device: "webgpu",
         },
         metadata: {},
       };
@@ -120,10 +120,10 @@ describe("HFTransformersBinding", () => {
       await getGlobalModelRepository().addModel(model);
 
       const registeredQueue = queueRegistry.getQueue<AiJobInput<TaskInput>, TaskOutput>(
-        HF_TRANSFORMERS_ONNX
+        HF_TRANSFORMERS_ONNX_CPU
       );
       expect(registeredQueue).toBeDefined();
-      expect(registeredQueue!.server.queueName).toEqual(HF_TRANSFORMERS_ONNX);
+      expect(registeredQueue!.server.queueName).toEqual(HF_TRANSFORMERS_ONNX_CPU);
 
       const workflow = new Workflow();
       workflow.downloadModel({
@@ -156,7 +156,7 @@ describe("HFTransformersBinding", () => {
         AiJob<AiJobInput<TaskInput>, TaskOutput>,
         {
           storage,
-          queueName: HF_TRANSFORMERS_ONNX,
+          queueName: HF_TRANSFORMERS_ONNX_CPU,
           limiter,
           pollIntervalMs: 1,
         }
@@ -164,7 +164,7 @@ describe("HFTransformersBinding", () => {
 
       const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
       });
 
       client.attach(server);
@@ -184,7 +184,6 @@ describe("HFTransformersBinding", () => {
           pipeline: "text2text-generation",
           model_path: "Xenova/LaMini-Flan-T5-783M",
           dtype: "q8",
-          device: "webgpu",
         },
         metadata: {},
       };
@@ -192,10 +191,10 @@ describe("HFTransformersBinding", () => {
       await getGlobalModelRepository().addModel(model);
 
       const registeredQueue = queueRegistry.getQueue<AiJobInput<TaskInput>, TaskOutput>(
-        HF_TRANSFORMERS_ONNX
+        HF_TRANSFORMERS_ONNX_CPU
       );
       expect(registeredQueue).toBeDefined();
-      expect(registeredQueue?.server.queueName).toEqual(HF_TRANSFORMERS_ONNX);
+      expect(registeredQueue?.server.queueName).toEqual(HF_TRANSFORMERS_ONNX_CPU);
 
       const workflow = new Workflow();
       workflow.downloadModel({

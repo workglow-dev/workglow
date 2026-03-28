@@ -19,6 +19,28 @@ import {
 } from "./AiProviderRegistry";
 
 /**
+ * Job queue concurrency: one limit for the primary ({@link QueuedAiProvider} hardware) queue,
+ * or per-slot limits. Hugging Face Transformers ONNX uses `gpu` and `cpu` for its two queues.
+ */
+export type AiProviderQueueConcurrency = number | Record<string, number>;
+
+/**
+ * Resolves the primary (e.g. WebGPU) queue limit for {@link QueuedAiProvider}.
+ * A numeric `concurrency` sets that queue; a record uses `gpu` (default 1).
+ */
+export function resolveAiProviderGpuQueueConcurrency(
+  concurrency: AiProviderQueueConcurrency | undefined
+): number {
+  if (concurrency === undefined) {
+    return 1;
+  }
+  if (typeof concurrency === "number") {
+    return concurrency;
+  }
+  return concurrency.gpu ?? 1;
+}
+
+/**
  * Options for registering an AI provider on the main thread.
  *
  * - If the provider was constructed **with** task run functions → **inline** registration
@@ -34,8 +56,12 @@ export interface AiProviderRegisterOptions {
   worker?: Worker | (() => Worker);
   /** Job queue configuration */
   queue?: {
-    /** Maximum number of concurrent jobs. Defaults to 1. */
-    concurrency?: number;
+    /**
+     * Concurrent jobs on the provider's primary queued path (e.g. GPU), default 1.
+     * Use a record for multiple queues — e.g. `{ gpu: 1, cpu: 4 }` for Hugging Face
+     * Transformers ONNX (`cpu` defaults to 4 in production and 1 under test when omitted).
+     */
+    concurrency?: AiProviderQueueConcurrency;
     /** Set to false to skip automatic queue creation. Defaults to true. */
     autoCreate?: boolean;
   };

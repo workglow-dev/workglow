@@ -11,8 +11,8 @@ import type { IAiExecutionStrategy } from "./IAiExecutionStrategy";
 
 /**
  * Executes AI jobs directly without a queue. Used by API providers
- * (OpenAI, Anthropic, etc.) and local providers that don't need
- * GPU serialization (e.g., HFT with WASM backend).
+ * (OpenAI, Anthropic, etc.) and local providers that don't require
+ * GPU serialization or concurrency control.
  */
 export class DirectExecutionStrategy implements IAiExecutionStrategy {
   async execute(

@@ -1018,30 +1018,6 @@ try {
 
 ## Advanced Patterns
 
-### Job Queue Tasks
-
-```typescript
-class RemoteProcessingTask extends JobQueueTask<{ data: string }, { result: string }> {
-  static readonly type = "RemoteProcessingTask";
-
-  async createJob() {
-    return new Job({
-      input: this.runInputData,
-      execute: async (input) => {
-        // This runs in a job queue (can be distributed)
-        const processed = await this.callRemoteAPI(input.data);
-        return { result: processed };
-      },
-    });
-  }
-
-  private async callRemoteAPI(data: string): Promise<string> {
-    // Simulate API call
-    return `Processed: ${data}`;
-  }
-}
-```
-
 ### Composite Tasks (Tasks that contain other tasks)
 
 ```typescript

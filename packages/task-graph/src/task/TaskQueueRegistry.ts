@@ -6,6 +6,7 @@
 
 import { JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { IQueueStorage } from "@workglow/storage";
+import { EventEmitter } from "@workglow/util";
 
 /**
  * Combined structure for a registered job queue containing server, client, and storage
@@ -29,7 +30,16 @@ let taskQueueRegistry: TaskQueueRegistry | null = null;
  * @template Input - The type of input data for tasks in the queues
  * @template Output - The type of output data for tasks in the queues
  */
+export type TaskQueueRegistryEvents = {
+  queue_registered: (queueName: string) => void;
+};
+
 export class TaskQueueRegistry {
+  /**
+   * Emits when queues are registered ({@link TaskQueueRegistryEvents}).
+   */
+  public readonly emitter = new EventEmitter<TaskQueueRegistryEvents>();
+
   /**
    * Map of queue names to their corresponding registered queue instances
    */
@@ -47,6 +57,7 @@ export class TaskQueueRegistry {
       throw new Error(`Queue with name ${queueName} already exists`);
     }
     this.queues.set(queueName, queue as RegisteredQueue<unknown, unknown>);
+    this.emitter.emit("queue_registered", queueName);
   }
 
   /**

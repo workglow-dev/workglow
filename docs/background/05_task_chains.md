@@ -24,7 +24,7 @@
 
 A task is a single step in the chain where most tasks output will be input for the next task.
 
-Tasks may be posted to a job queue (see `JobQueueTask`) and run by a job queue runner, or executed inline by the `TaskRunner`/`TaskGraphRunner`.
+Tasks may use an execution strategy that posts work to a job queue (see `QueuedExecutionStrategy`) and waits for results, or executes inline via `DirectExecutionStrategy`. The `TaskRunner`/`TaskGraphRunner` orchestrates task lifecycle.
 
 ## Compound Task
 

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-We have Tasks (preprogrammed to do some action), `JobQueueTask` types (these get posted to job queues), and `GraphAsTask` types that contain a whole graph. These are all internal and must be defined in code.
+We have Tasks (preprogrammed to do some action), AI tasks that delegate to execution strategies (direct or queued), and `GraphAsTask` types that contain a whole graph. These are all internal and must be defined in code.
 
 When an end user wants to build a pipeline, they need to be able to define a list of tasks to run. This is where graphs come in. The directed acyclic graph (DAG) is more flexible than simple chains.
 

@@ -14,11 +14,16 @@ import {
 import {
   CreateWorkflow,
   type IExecuteContext,
-  JobQueueTask,
-  JobQueueTaskConfig,
+  getJobQueueFactory,
+  getTaskQueueRegistry,
+  JobTaskFailedError,
+  Task,
+  TaskConfigSchema,
   TaskConfigurationError,
   TaskInvalidInputError,
   Workflow,
+  type RegisteredQueue,
+  type TaskConfig,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
@@ -32,14 +37,10 @@ const PRIVATE_IP_RANGES = [
   /^fc00:/i, // IPv6 unique local
   /^fe80:/i, // IPv6 link-local
   /^::1$/, // IPv6 loopback
-  /^::$/,  // IPv6 unspecified
+  /^::$/, // IPv6 unspecified
 ];
 
-const PRIVATE_HOSTNAMES = new Set([
-  "localhost",
-  "metadata.google.internal",
-  "metadata.internal",
-]);
+const PRIVATE_HOSTNAMES = new Set(["localhost", "metadata.google.internal", "metadata.internal"]);
 
 function isPrivateUrl(urlStr: string): boolean {
   if (globalThis?.process?.env?.WORKGLOW_ALLOW_PRIVATE_URLS === "true") {
@@ -113,12 +114,6 @@ const inputSchema = {
         "Key to look up in the credential store. The resolved value is sent as a Bearer token in the Authorization header.",
       "x-ui-hidden": true,
     },
-    queue: {
-      oneOf: [{ type: "boolean" }, { type: "string" }],
-      description: "Queue handling: false=run inline, true=use default, string=explicit queue name",
-      default: true,
-      "x-ui-hidden": true,
-    },
   },
   required: ["url"],
   additionalProperties: false,
@@ -160,8 +155,6 @@ const outputSchema = {
 
 export type FetchUrlTaskInput = FromSchema<typeof inputSchema>;
 export type FetchUrlTaskOutput = FromSchema<typeof outputSchema>;
-
-export type FetchUrlTaskConfig = JobQueueTaskConfig;
 
 async function fetchWithProgress(
   url: string,
@@ -232,9 +225,6 @@ export class FetchUrlJob<
   Input extends FetchUrlTaskInput = FetchUrlTaskInput,
   Output = FetchUrlTaskOutput,
 > extends Job<Input, Output> {
-  constructor(config: JobQueueTaskConfig & { input: Input } = { input: {} as Input }) {
-    super(config);
-  }
   static readonly type: string = "FetchUrlJob";
   /**
    * Executes the job using the provided function.
@@ -338,17 +328,38 @@ export class FetchUrlJob<
 /**
  * FetchUrlTask provides a task for fetching data from a URL.
  */
+const fetchUrlTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...TaskConfigSchema["properties"],
+    queue: {
+      oneOf: [{ type: "boolean" }, { type: "string" }],
+      description: "Queue handling: false=run inline, true=use default, string=explicit queue name",
+      "x-ui-hidden": true,
+    },
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type FetchUrlTaskConfig = TaskConfig & {
+  queue?: boolean | string;
+};
+
 export class FetchUrlTask<
   Input extends FetchUrlTaskInput = FetchUrlTaskInput,
   Output extends FetchUrlTaskOutput = FetchUrlTaskOutput,
   Config extends FetchUrlTaskConfig = FetchUrlTaskConfig,
-> extends JobQueueTask<Input, Output, Config> {
+> extends Task<Input, Output, Config> {
   public static type = "FetchUrlTask";
   public static category = "Input";
   public static title = "Fetch";
   public static description =
     "Fetches data from a URL with progress tracking and automatic retry handling";
   public static hasDynamicSchemas: boolean = true;
+
+  public static configSchema(): DataPortSchema {
+    return fetchUrlTaskConfigSchema;
+  }
 
   public static inputSchema() {
     return inputSchema;
@@ -412,31 +423,138 @@ export class FetchUrlTask<
     } as const satisfies DataPortSchema;
   }
 
-  constructor(input: Partial<Input> = {} as Input, config: Config = {} as Config) {
-    config.queue = input?.queue ?? config.queue;
-    if (config.queue === undefined) {
-      config.queue = false; // change default to false to run directly
-    }
-    super(input, config);
-    this.jobClass = FetchUrlJob;
-  }
-
   /**
-   * Uses the already-resolved credential_key (resolved by the input resolver system)
-   * to set the Authorization header before job dispatch.
+   * Executes the fetch task, either directly or via a job queue depending on
+   * the `queue` config/input. Credential resolution is handled by the input
+   * resolver system — credential_key arrives already resolved.
    */
   override async execute(
-    input: Input,
+    input: FetchUrlTaskInput,
     executeContext: IExecuteContext
-  ): Promise<Output | undefined> {
+  ): Promise<Output> {
+    // Apply credential as Authorization header and strip it from the payload
+    // so the secret is not persisted to queue storage.
     const credential = input.credential_key;
+    let jobInput: FetchUrlTaskInput = input;
     if (credential) {
-      input = {
-        ...input,
+      const { credential_key: _omit, ...rest } = input;
+      jobInput = {
+        ...rest,
         headers: { ...input.headers, Authorization: `Bearer ${credential}` },
       };
     }
-    return super.execute(input, executeContext);
+
+    const queuePref = this.config.queue ?? false;
+    let cleanup: () => void = () => {};
+
+    try {
+      if (queuePref === false) {
+        // Direct execution — create FetchUrlJob and run inline
+        const job = new FetchUrlJob<FetchUrlTaskInput, Output>({ input: jobInput });
+        cleanup = job.onJobProgress(
+          (progress: number, message: string, details: Record<string, any> | null) => {
+            executeContext.updateProgress(progress, message, details);
+          }
+        );
+        return await job.execute(jobInput, {
+          signal: executeContext.signal,
+          updateProgress: executeContext.updateProgress.bind(this),
+        });
+      }
+
+      // Queued execution
+      const queueName =
+        typeof queuePref === "string" ? queuePref : await this.getDefaultQueueName(input);
+
+      if (!queueName) {
+        throw new TaskConfigurationError("FetchUrlTask: Unable to determine queue name");
+      }
+
+      const registeredQueue = await this.resolveOrCreateQueue(queueName);
+
+      // Bail early to avoid enqueuing work that has already been cancelled.
+      if (executeContext.signal.aborted) {
+        throw (
+          executeContext.signal.reason ??
+          new DOMException("The operation was aborted", "AbortError")
+        );
+      }
+
+      const handle = await registeredQueue.client.submit(jobInput as Input, {
+        jobRunId: this.runConfig.runnerId,
+        maxRetries: 10,
+      });
+
+      // Wire abort signal to queued job
+      const onAbort = () => {
+        handle.abort().catch((err) => {
+          console.warn(`Failed to abort queued fetch job`, err);
+        });
+      };
+      executeContext.signal.addEventListener("abort", onAbort);
+
+      cleanup = handle.onProgress(
+        (progress: number, message: string | undefined, details: Record<string, any> | null) => {
+          executeContext.updateProgress(progress, message, details);
+        }
+      );
+
+      try {
+        if (executeContext.signal.aborted) {
+          throw (
+            executeContext.signal.reason ??
+            new DOMException("The operation was aborted", "AbortError")
+          );
+        }
+        const output = await handle.waitFor();
+        return output as Output;
+      } finally {
+        executeContext.signal.removeEventListener("abort", onAbort);
+      }
+    } catch (err: any) {
+      throw new JobTaskFailedError(err);
+    } finally {
+      cleanup();
+    }
+  }
+
+  private async resolveOrCreateQueue(queueName: string): Promise<RegisteredQueue<Input, Output>> {
+    const registry = getTaskQueueRegistry();
+    let registeredQueue = registry.getQueue<Input, Output>(queueName);
+
+    if (!registeredQueue) {
+      const factory = getJobQueueFactory();
+      registeredQueue = await factory({
+        queueName,
+        jobClass: FetchUrlJob as any,
+        config: this.config,
+        task: this,
+      });
+
+      try {
+        registry.registerQueue(registeredQueue);
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("already exists")) {
+          const existing = registry.getQueue<Input, Output>(queueName);
+          if (existing) {
+            // Another concurrent call won the race. Stop the server we just
+            // created (safe no-op if not yet started) and use the winner's queue.
+            registeredQueue.server.stop().catch((stopErr) => {
+              console.warn("FetchUrlTask: failed to stop raced-out queue server", stopErr);
+            });
+            registeredQueue = existing;
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!registeredQueue.server.isRunning()) {
+      await registeredQueue.server.start();
+    }
+
+    return registeredQueue;
   }
 
   /**
@@ -471,7 +589,7 @@ export class FetchUrlTask<
     }
   }
 
-  protected override async getDefaultQueueName(input: Input): Promise<string | undefined> {
+  private async getDefaultQueueName(input: FetchUrlTaskInput): Promise<string | undefined> {
     if (!input.url) {
       return `fetch:${this.type}`;
     }

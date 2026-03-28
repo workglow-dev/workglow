@@ -17,6 +17,7 @@ import {
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
+  HF_TRANSFORMERS_ONNX_CPU,
   type HfTransformersOnnxModelRecord,
   registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers/runtime";
@@ -47,20 +48,20 @@ describe("Zero-Shot Classification Tasks", () => {
     it("should classify text with zero-shot when candidateLabels are provided", async () => {
       const queueRegistry = getTaskQueueRegistry();
       const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(
-        HF_TRANSFORMERS_ONNX
+        HF_TRANSFORMERS_ONNX_CPU
       );
       await storage.setupDatabase();
 
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
         limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 
       const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
       });
 
       client.attach(server);
@@ -109,20 +110,20 @@ describe("Zero-Shot Classification Tasks", () => {
     it("should use regular pipeline when no categories provided", async () => {
       const queueRegistry = getTaskQueueRegistry();
       const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(
-        HF_TRANSFORMERS_ONNX
+        HF_TRANSFORMERS_ONNX_CPU
       );
       await storage.setupDatabase();
 
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
         limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 
       const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
       });
 
       client.attach(server);
@@ -166,20 +167,20 @@ describe("Zero-Shot Classification Tasks", () => {
     it("should use zero-shot pipeline when categories are provided", async () => {
       const queueRegistry = getTaskQueueRegistry();
       const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(
-        HF_TRANSFORMERS_ONNX
+        HF_TRANSFORMERS_ONNX_CPU
       );
       await storage.setupDatabase();
 
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
         limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 
       const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
       });
 
       client.attach(server);
@@ -233,20 +234,20 @@ describe("Zero-Shot Classification Tasks", () => {
     it("should detect objects with zero-shot when labels are provided", async () => {
       const queueRegistry = getTaskQueueRegistry();
       const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(
-        HF_TRANSFORMERS_ONNX
+        HF_TRANSFORMERS_ONNX_CPU
       );
       await storage.setupDatabase();
 
       const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
         limiter: new ConcurrencyLimiter(1),
         pollIntervalMs: 1,
       });
 
       const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
         storage,
-        queueName: HF_TRANSFORMERS_ONNX,
+        queueName: HF_TRANSFORMERS_ONNX_CPU,
       });
 
       client.attach(server);

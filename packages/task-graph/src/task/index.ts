@@ -16,7 +16,6 @@ export * from "./iterationSchema";
 export * from "./IteratorTask";
 export * from "./IteratorTaskRunner";
 export * from "./JobQueueFactory";
-export * from "./JobQueueTask";
 export * from "./MapTask";
 export * from "./ReduceTask";
 export * from "./StreamTypes";

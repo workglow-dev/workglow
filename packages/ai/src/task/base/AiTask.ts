@@ -12,6 +12,7 @@
 import { Job } from "@workglow/job-queue";
 import {
   Task,
+  TaskConfigSchema,
   TaskConfigurationError,
   TaskInput,
   type IExecuteContext,
@@ -20,7 +21,7 @@ import {
   type TaskOutput,
   hasStructuredOutput,
 } from "@workglow/task-graph";
-import type { JsonSchema } from "@workglow/util/schema";
+import type { DataPortSchema, JsonSchema } from "@workglow/util/schema";
 import type { ServiceRegistry } from "@workglow/util";
 
 import { AiJob, AiJobInput } from "../../job/AiJob";
@@ -34,6 +35,16 @@ function schemaFormat(schema: JsonSchema): string | undefined {
     ? schema.format
     : undefined;
 }
+
+export type AiTaskConfig = TaskConfig;
+
+const aiTaskConfigSchema = {
+  type: "object",
+  properties: {
+    ...TaskConfigSchema["properties"],
+  },
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
 
 export interface AiSingleTaskInput extends TaskInput {
   model: string | ModelConfig;
@@ -49,9 +60,13 @@ export interface AiSingleTaskInput extends TaskInput {
 export class AiTask<
   Input extends AiSingleTaskInput = AiSingleTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends TaskConfig = TaskConfig,
+  Config extends AiTaskConfig = AiTaskConfig,
 > extends Task<Input, Output, Config> {
   public static type: string = "AiTask";
+
+  public static configSchema(): DataPortSchema {
+    return aiTaskConfigSchema;
+  }
 
   // ========================================================================
   // Execution

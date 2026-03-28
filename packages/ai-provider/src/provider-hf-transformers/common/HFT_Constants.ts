@@ -5,6 +5,10 @@
  */
 
 export const HF_TRANSFORMERS_ONNX = "HF_TRANSFORMERS_ONNX";
+/** Job queue for WebGPU/GPU/Metal HFT models (serialized, concurrency 1). */
+export const HF_TRANSFORMERS_ONNX_GPU = `${HF_TRANSFORMERS_ONNX}_gpu`;
+/** Job queue for WASM/CPU HFT models. */
+export const HF_TRANSFORMERS_ONNX_CPU = `${HF_TRANSFORMERS_ONNX}_cpu`;
 export const HTF_CACHE_NAME = "transformers-cache";
 
 export type QuantizationDataType =

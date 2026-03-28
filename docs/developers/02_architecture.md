@@ -125,21 +125,12 @@ classDiagram
       regenerateGraph()
     }
 
-    class JobQueueTask{
-      string queue
-      string currentJobId
-      string currentQueueName
-      string currentRunnerId
-    }
-    <<abstract>> JobQueueTask
-    Task <|-- JobQueueTask
-    style JobQueueTask type:abstract,stroke-dasharray: 5 5
-
     class AiTask{
       string model
+      IAiExecutionStrategy strategy
     }
     <<abstract>> AiTask
-    JobQueueTask <|-- AiTask
+    Task <|-- AiTask
     style AiTask type:abstract,stroke-dasharray: 5 5
 
 

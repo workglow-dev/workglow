@@ -7,7 +7,6 @@ This module provides a flexible task processing system with support for various 
 - [Task Types](#task-types)
   - [A Simple Task](#a-simple-task)
   - [GraphAsTask](#graphastask)
-  - [Job Queue Tasks](#job-queue-tasks)
 - [Task Lifecycle](#task-lifecycle)
 - [Event Handling](#event-handling)
 - [Input/Output Schemas](#inputoutput-schemas)
@@ -22,7 +21,6 @@ This module provides a flexible task processing system with support for various 
 ### Core Classes
 
 - `Task`: Base class implementing core task functionality
-- `JobQueueTask`: Integrates with job queue system for distributed processing
 
 ## Task Types
 
@@ -72,21 +70,6 @@ class MyTask extends Task {
 ### GraphAsTask
 
 - GraphAsTask tasks are tasks that contain other tasks. They are represented as an internal TaskGraph.
-
-### Job Queue Tasks
-
-JobQueueTask is a task that can be used to run a task in a job queue. This is useful for when there might be rate limits or other constraints on the task that make it better to run in a job queue than in the main thread.
-
-```typescript
-class MyJobTask extends JobQueueTask {
-  async createJob() {
-    return new Job({
-      input: this.runInputData,
-      execute: (input) => ({ result: input.value * 3 }),
-    });
-  }
-}
-```
 
 ## Task Lifecycle
 
