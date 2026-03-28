@@ -68,7 +68,7 @@ export class AiProviderRegistry {
   reactiveRunFnRegistry: Map<string, Map<string, AiProviderReactiveRunFn<any, any>>> = new Map();
   private providers: Map<string, AiProvider<any>> = new Map();
   private strategyResolvers: Map<string, AiStrategyResolver> = new Map();
-  private defaultStrategy: IAiExecutionStrategy = new DirectExecutionStrategy();
+  private defaultStrategy: IAiExecutionStrategy | undefined;
 
   /**
    * Registers an AiProvider instance for lifecycle management and introspection.
@@ -137,6 +137,9 @@ export class AiProviderRegistry {
   getStrategy(model: ModelConfig): IAiExecutionStrategy {
     const resolver = this.strategyResolvers.get(model.provider);
     if (resolver) return resolver(model);
+    if (!this.defaultStrategy) {
+      this.defaultStrategy = new DirectExecutionStrategy();
+    }
     return this.defaultStrategy;
   }
 
