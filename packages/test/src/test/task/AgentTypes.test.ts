@@ -48,9 +48,7 @@ describe("assistantMessage", () => {
   });
 
   test("should omit text block when text is empty", () => {
-    const msg = assistantMessage("", [
-      { id: "tc_1", name: "search", input: {} },
-    ]);
+    const msg = assistantMessage("", [{ id: "tc_1", name: "search", input: {} }]);
     expect(msg.content).toHaveLength(1);
     expect(msg.content[0]).toEqual({
       type: "tool_use",

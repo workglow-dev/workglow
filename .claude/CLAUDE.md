@@ -60,6 +60,7 @@ Types built with `tsc` (composite + incremental). Conditional exports in `packag
 Exception: `ai-provider` builds per-provider sub-paths (`./anthropic`, `./openai`, `./google-gemini`, etc.) instead of browser/node/bun.
 
 Exception: `util` has multiple named exports beyond `"."`:
+
 - `@workglow/util` — core infrastructure (DI, events, logging, telemetry, credentials, crypto, utilities)
 - `@workglow/util/schema` — JSON Schema types/validation + vector/tensor types and math
 - `@workglow/util/graph` — graph data structures (Graph, DirectedGraph, DAG)
@@ -178,6 +179,8 @@ Each provider is a separate sub-export with optional peer dependencies:
 
 **Important: `*_JobRunFns.ts` files execute inside workers.** Workers have an isolated runtime with a separate `globalServiceRegistry`. Do not access main-thread-only state (e.g., credential stores, service registries) from run functions. Instead, resolve such state in the task class on the main thread (e.g., `AiTask.getJobInput()`) and pass the resolved values through the serialized job input.
 
+**Streaming convention:** Provider stream functions (`AiProviderStreamFn`) must **not** accumulate output. They yield incremental `text-delta` / `object-delta` events and a final `finish` event with `{} as Output`. The consumer (`StreamingAiTask` / `TaskRunner`) is responsible for accumulating deltas into the final output. This separation keeps providers stateless and avoids double-buffering. Do **not** change finish events to include accumulated data.
+
 ### `@workglow/util` — shared utilities
 
 `EventEmitter`, `ServiceRegistry` (DI), `DirectedAcyclicGraph`, `DataPortSchema`/`JsonSchema` types, `SchemaUtils`/`SchemaValidation`, `uuid4`, `sleep`, `WorkerManager`/`WorkerServer`, vector math, tensor types.
@@ -206,3 +209,11 @@ class TestTask extends Task<TestInput, TestOutput> {
   async execute(input: TestInput) { return { result: input.value }; }
 }
 ```
+
+### Test runner script
+
+```sh
+bun scripts/test.ts [--all] [kinds...] [sections...] [runners...] [options]
+```
+
+When making code changes, run the tests on that section only, and pass vitest only. Otherwise tests are very slow. For example, if you are making changes to the McpServer, run `bun scripts/test.ts mcp vitest`.

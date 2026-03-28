@@ -22,6 +22,16 @@ export interface ToolDefinition {
   description: string;
   inputSchema: JsonSchema;
   outputSchema?: JsonSchema;
+  /**
+   * Optional discriminator for tool resolution. When specified, skips
+   * duck-typing heuristics:
+   * - `"function"` — uses the `execute` function directly
+   * - `"task"` — looks up the task by `name` in the TaskRegistry
+   *
+   * When omitted, resolution falls back to the existing heuristic
+   * (check `execute`, then registry lookup, then stub).
+   */
+  type?: "function" | "task";
   /** JSON Schema describing the task's configuration options. */
   configSchema?: JsonSchema;
   /** Concrete configuration values matching {@link configSchema}. */

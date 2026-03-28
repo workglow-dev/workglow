@@ -41,7 +41,13 @@ export async function getClient(model: HfInferenceModelConfig | undefined) {
       "Missing Hugging Face API key: set provider_config.credential_key or the HF_TOKEN environment variable."
     );
   }
-  return new sdk.InferenceClient(apiKey);
+  try {
+    return new sdk.InferenceClient(apiKey);
+  } catch (err) {
+    throw new Error(
+      `Failed to create HuggingFace Inference client: ${err instanceof Error ? err.message : "unknown error"}`
+    );
+  }
 }
 
 export function getModelName(model: HfInferenceModelConfig | undefined): string {

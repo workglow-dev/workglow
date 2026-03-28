@@ -41,11 +41,19 @@ export async function getClient(model: AnthropicModelConfig | undefined) {
       "Missing Anthropic API key: set provider_config.credential_key or the ANTHROPIC_API_KEY environment variable."
     );
   }
-  return new Anthropic({
-    apiKey,
-    baseURL: config?.base_url || undefined,
-    dangerouslyAllowBrowser: true,
-  });
+  try {
+    return new Anthropic({
+      apiKey,
+      baseURL: config?.base_url || undefined,
+      dangerouslyAllowBrowser:
+        typeof globalThis.document !== "undefined" ||
+        "WorkerGlobalScope" in globalThis,
+    });
+  } catch (err) {
+    throw new Error(
+      `Failed to create Anthropic client: ${err instanceof Error ? err.message : "unknown error"}`
+    );
+  }
 }
 
 export function getModelName(model: AnthropicModelConfig | undefined): string {

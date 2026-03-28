@@ -41,12 +41,20 @@ export async function getClient(model: OpenAiModelConfig | undefined) {
       "Missing OpenAI API key: set provider_config.credential_key or the OPENAI_API_KEY environment variable."
     );
   }
-  return new OpenAI({
-    apiKey,
-    baseURL: config?.base_url || undefined,
-    organization: config?.organization || undefined,
-    dangerouslyAllowBrowser: true,
-  });
+  try {
+    return new OpenAI({
+      apiKey,
+      baseURL: config?.base_url || undefined,
+      organization: config?.organization || undefined,
+      dangerouslyAllowBrowser:
+        typeof globalThis.document !== "undefined" ||
+        "WorkerGlobalScope" in globalThis,
+    });
+  } catch (err) {
+    throw new Error(
+      `Failed to create OpenAI client: ${err instanceof Error ? err.message : "unknown error"}`
+    );
+  }
 }
 
 export function getModelName(model: OpenAiModelConfig | undefined): string {

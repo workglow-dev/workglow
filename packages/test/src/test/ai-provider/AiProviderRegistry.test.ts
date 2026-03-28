@@ -111,9 +111,7 @@ describe("AiProviderRegistry", () => {
     test("should throw error for unregistered task type", () => {
       expect(() => {
         aiProviderRegistry.getDirectRunFn(TEST_PROVIDER, "nonexistent");
-      }).toThrow(
-        "No run function found for task type nonexistent and model provider test-provider"
-      );
+      }).toThrow('No run function found for task type "nonexistent" and provider "test-provider"');
     });
   });
 

@@ -17,9 +17,7 @@ let initPromise: Promise<void> | undefined;
 
 function assertBunLoaded(): BunSqliteModule {
   if (!_bunSqlite) {
-    throw new Error(
-      "SQLite is not ready. Await Sqlite.init() before using new Sqlite.Database()."
-    );
+    throw new Error("SQLite is not ready. Await Sqlite.init() before using new Sqlite.Database().");
   }
   return _bunSqlite;
 }

@@ -5,7 +5,11 @@
  */
 
 import { InMemoryTabularStorage, TelemetryTabularStorage } from "@workglow/storage";
-import { ConsoleTelemetryProvider, NoopTelemetryProvider, setTelemetryProvider } from "@workglow/util";
+import {
+  ConsoleTelemetryProvider,
+  NoopTelemetryProvider,
+  setTelemetryProvider,
+} from "@workglow/util";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

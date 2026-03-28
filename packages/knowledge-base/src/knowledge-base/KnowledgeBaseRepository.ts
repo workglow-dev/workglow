@@ -47,10 +47,7 @@ export class KnowledgeBaseRepository {
   >;
 
   constructor(
-    storage: ITabularStorage<
-      typeof KnowledgeBaseRecordSchema,
-      typeof KnowledgeBasePrimaryKeyNames
-    >
+    storage: ITabularStorage<typeof KnowledgeBaseRecordSchema, typeof KnowledgeBasePrimaryKeyNames>
   ) {
     this.storage = storage;
   }

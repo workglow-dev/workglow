@@ -43,12 +43,17 @@ export function SelectPromptApp({
           <Text bold color="cyan">
             {message}
           </Text>
-          {isScrollable && <Text dimColor> ({options.length} items, scroll with {"\u2191\u2193"})</Text>}
+          {isScrollable && (
+            <Text dimColor>
+              {" "}
+              ({options.length} items, scroll with {"\u2191\u2193"})
+            </Text>
+          )}
         </Box>
       )}
       <Select options={options} visibleOptionCount={visibleCount} onChange={onSelect} />
       <Box marginTop={1}>
-        <Text dimColor>Enter select  Esc cancel</Text>
+        <Text dimColor>Enter select Esc cancel</Text>
       </Box>
     </Box>
   );

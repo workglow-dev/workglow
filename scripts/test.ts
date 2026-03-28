@@ -44,8 +44,8 @@ const PROVIDER_HFT_FILES = [
   "HFTransformersBinding",
   "DownloadModelAbort",
   "TextEmbeddingTask",
-  "VisionTasks",
   "ZeroShotTasks",
+  "VisionTasks",
   "ToolCallingTask",
 ];
 

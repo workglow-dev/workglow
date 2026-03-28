@@ -118,13 +118,15 @@ function resolveTaskFromRegistry(
   id: string,
   _format: string,
   registry: ServiceRegistry
-): {
-  name: string;
-  description: string;
-  inputSchema: unknown;
-  outputSchema: unknown;
-  configSchema?: unknown;
-} | undefined {
+):
+  | {
+      name: string;
+      description: string;
+      inputSchema: unknown;
+      outputSchema: unknown;
+      configSchema?: unknown;
+    }
+  | undefined {
   const constructors = getTaskConstructors(registry);
   const ctor = constructors.get(id);
   if (!ctor) return undefined;

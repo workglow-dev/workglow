@@ -4,7 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CREDENTIAL_STORE, ChainedCredentialStore, EnvCredentialStore, InMemoryCredentialStore, getGlobalCredentialStore, resolveCredential, setGlobalCredentialStore, setLogger } from "@workglow/util";
+import {
+  CREDENTIAL_STORE,
+  ChainedCredentialStore,
+  EnvCredentialStore,
+  InMemoryCredentialStore,
+  getGlobalCredentialStore,
+  resolveCredential,
+  setGlobalCredentialStore,
+  setLogger,
+} from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 

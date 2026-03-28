@@ -247,7 +247,7 @@ export function registerWorkflowCommand(program: Command): void {
 
   const run = workflow
     .command("run")
-    .argument("<id>", "workflow identifier to run")
+    .argument("[id]", "workflow identifier to run")
     .description("Run a saved workflow")
     .allowUnknownOption()
     .allowExcessArguments(true)
@@ -259,14 +259,40 @@ export function registerWorkflowCommand(program: Command): void {
     .option("--output-json-file <path>", "Write output to file")
     .option("--dry-run", "Validate input without executing")
     .option("--help", "Show help including schema-derived flags")
-    .action(async (id: string, opts: Record<string, string | boolean | undefined>) => {
+    .action(async (id: string | undefined, opts: Record<string, string | boolean | undefined>) => {
       const config = await loadConfig();
       const repo = createWorkflowRepository(config);
       await repo.setupDatabase();
 
-      const graph = await repo.getTaskGraph(id);
+      let targetId = id;
+      if (!targetId) {
+        if (opts.help) {
+          run.outputHelp();
+          console.log("\nInput flags: pass a workflow id to see schema-derived flags.");
+          process.exit(0);
+        }
+        if (!process.stdin.isTTY) {
+          console.error("Error: specify an id or run interactively.");
+          process.exit(1);
+        }
+        const all = await repo.tabularRepository.getAll();
+        if (!all || all.length === 0) {
+          console.log("No workflows found.");
+          return;
+        }
+        const { renderSelectPrompt } = await import("../ui/render");
+        const options = all.map((e) => ({
+          label: String(e.key),
+          value: String(e.key),
+        }));
+        const selected = await renderSelectPrompt(options, "Select workflow to run:");
+        if (!selected) return;
+        targetId = selected;
+      }
+
+      const graph = await repo.getTaskGraph(targetId);
       if (!graph) {
-        console.error(`Workflow "${id}" not found.`);
+        console.error(`Workflow "${targetId}" not found.`);
         process.exit(1);
       }
 

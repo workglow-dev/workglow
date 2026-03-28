@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export { parseDynamicFlags, parseConfigFlags, generateSchemaHelpText, generateConfigHelpText } from "./schema-flags";
+export {
+  parseDynamicFlags,
+  parseConfigFlags,
+  generateSchemaHelpText,
+  generateConfigHelpText,
+} from "./schema-flags";
 export {
   resolveInput,
   resolveConfig,

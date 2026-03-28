@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderRunFn, TextEmbeddingTaskInput, TextEmbeddingTaskOutput } from "@workglow/ai";
+import type {
+  AiProviderRunFn,
+  TextEmbeddingTaskInput,
+  TextEmbeddingTaskOutput,
+} from "@workglow/ai";
 import { getLogger } from "@workglow/util/worker";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
 import { getClient, getModelName } from "./HFI_Client";
