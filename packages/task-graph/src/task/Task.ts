@@ -370,11 +370,12 @@ export class Task<
    *
    * @param callerDefaultInputs Default input values provided by the caller
    * @param config Configuration for the task
+   * @param runConfig Runtime configuration for the task
    */
   constructor(
-    callerDefaultInputs: Partial<Input> = {},
-    config: Partial<Config> = {},
-    runConfig: Partial<IRunConfig> = {}
+    callerDefaultInputs: NoInfer<Partial<Input>> = {},
+    config: NoInfer<Partial<Config>> = {},
+    runConfig: NoInfer<Partial<IRunConfig>> = {}
   ) {
     // Initialize input defaults
     const inputDefaults = this.getDefaultInputsFromStaticInputDefinitions();
@@ -396,9 +397,7 @@ export class Task<
     }
     this.config = this.validateAndApplyConfigDefaults(baseConfig);
     try {
-      this.originalConfig = Object.freeze(
-        structuredClone(this.config) as Record<string, unknown>
-      );
+      this.originalConfig = Object.freeze(structuredClone(this.config) as Record<string, unknown>);
     } catch {
       // Config contains non-cloneable values (e.g. functions).
       // canSerializeConfig() should return false for such tasks.
@@ -947,7 +946,7 @@ export class Task<
     // We filter through the schema to avoid accidentally including non-serializable
     // values (e.g. functions like WhileTask.condition) or internal-only properties
     // that were never part of the serialized output and that consuming applications
-    // don't expect (e.g. `queue` from JobQueueTask).
+    // don't expect (e.g. `queue` from task-specific configs).
     const schema = ctor.configSchema();
     const schemaProperties =
       typeof schema !== "boolean" && schema?.properties

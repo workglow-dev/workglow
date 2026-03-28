@@ -164,7 +164,12 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
       registry.registerQueue(registeredQueue);
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes("already exists")) {
-        // Another strategy instance won the race; use its queue.
+        // Another strategy instance won the race; use its queue. Stop the server
+        // we just created (safe no-op since it was never started) to release any
+        // resources eagerly, and drop our references so they can be GC'd.
+        server.stop().catch((stopErr) => {
+          console.warn("QueuedExecutionStrategy: failed to stop raced-out queue server", stopErr);
+        });
         const raced = registry.getQueue<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
         if (raced) {
           if (!raced.server.isRunning()) {

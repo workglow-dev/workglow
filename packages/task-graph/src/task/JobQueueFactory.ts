@@ -13,9 +13,8 @@ import {
 } from "@workglow/job-queue";
 import { InMemoryQueueStorage, IQueueStorage } from "@workglow/storage";
 import { createServiceToken, globalServiceRegistry } from "@workglow/util";
-import type { JobQueueTask, JobQueueTaskConfig } from "./JobQueueTask";
 import type { RegisteredQueue } from "./TaskQueueRegistry";
-import type { TaskInput, TaskOutput } from "./TaskTypes";
+import type { TaskConfig, TaskInput, TaskOutput } from "./TaskTypes";
 
 export type JobClassConstructor<Input extends TaskInput, Output extends TaskOutput> = new (
   params: JobConstructorParam<Input, Output>
@@ -39,8 +38,8 @@ export interface JobQueueFactoryParams<Input extends TaskInput, Output extends T
   readonly queueName: string;
   readonly jobClass: JobClassConstructor<Input, Output>;
   readonly input?: Input;
-  readonly config?: JobQueueTaskConfig;
-  readonly task?: JobQueueTask<Input, Output>;
+  readonly config?: TaskConfig;
+  readonly task?: unknown;
   readonly options?: JobQueueFactoryOptions<Input, Output>;
 }
 

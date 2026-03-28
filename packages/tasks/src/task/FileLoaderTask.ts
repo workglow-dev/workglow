@@ -7,7 +7,7 @@
 import {
   CreateWorkflow,
   IExecuteContext,
-  JobQueueTaskConfig,
+  TaskConfig,
   Task,
   TaskAbortedError,
   Workflow,
@@ -96,11 +96,7 @@ export type FileLoaderTaskOutput = FromSchema<typeof outputSchema>;
  * Works in all environments (browser, Node.js, Bun) by using fetch API.
  * For server-only filesystem path access, see FileLoaderServerTask.
  */
-export class FileLoaderTask extends Task<
-  FileLoaderTaskInput,
-  FileLoaderTaskOutput,
-  JobQueueTaskConfig
-> {
+export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutput, TaskConfig> {
   public static type = "FileLoaderTask";
   public static category = "Document";
   public static title = "File Loader";
@@ -135,11 +131,15 @@ export class FileLoaderTask extends Task<
     await context.updateProgress(10, `Fetching ${detectedFormat} file from ${url}`);
 
     const fetchTask = context.own(
-      new FetchUrlTask({
-        url,
-        response_type: responseType,
-        queue: false, // Run directly
-      })
+      new FetchUrlTask(
+        {
+          url,
+          response_type: responseType,
+        },
+        {
+          queue: false, // Run directly
+        }
+      )
     );
     const response = await fetchTask.run();
 
@@ -580,13 +580,13 @@ export class FileLoaderTask extends Task<
   }
 }
 
-export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
+export const fileLoader = (input: FileLoaderTaskInput, config?: TaskConfig) => {
   return new FileLoaderTask({}, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    fileLoader: CreateWorkflow<FileLoaderTaskInput, FileLoaderTaskOutput, JobQueueTaskConfig>;
+    fileLoader: CreateWorkflow<FileLoaderTaskInput, FileLoaderTaskOutput, TaskConfig>;
   }
 }
 

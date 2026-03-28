@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TaskInput, type TaskConfig, type TaskOutput } from "@workglow/task-graph";
+import { TaskInput, type TaskOutput } from "@workglow/task-graph";
 import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";
 import type { ModelConfig } from "../../model/ModelSchema";
-import { AiTask } from "./AiTask";
+import { AiTask, type AiTaskConfig } from "./AiTask";
 
 export interface AiVisionTaskSingleInput extends TaskInput {
   model: string | ModelConfig;
@@ -22,7 +22,7 @@ export interface AiVisionTaskSingleInput extends TaskInput {
 export class AiVisionTask<
   Input extends AiVisionTaskSingleInput = AiVisionTaskSingleInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends TaskConfig = TaskConfig,
+  Config extends AiTaskConfig = AiTaskConfig,
 > extends AiTask<Input, Output, Config> {
   public static type: string = "AiVisionTask";
 

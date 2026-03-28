@@ -212,12 +212,11 @@ describe("FetchUrlTask", () => {
   });
 
   test("handles mixed success and failure responses", async () => {
-    let callCount = 0;
-    mockFetch.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/success")) {
         return Promise.resolve(createMockResponse({ data: "success" }));
-      } else if (callCount === 2) {
+      } else if (url.includes("/network-error")) {
         return Promise.reject(new Error("Network error"));
       } else {
         return Promise.resolve(

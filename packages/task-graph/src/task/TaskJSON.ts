@@ -13,7 +13,6 @@ import { getTaskConstructors } from "../task/TaskRegistry";
 import { ConditionalTaskConfig } from "./ConditionalTask";
 import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
 import { IteratorTaskConfig } from "./IteratorTask";
-import { JobQueueTaskConfig } from "./JobQueueTask";
 import { MapTaskConfig } from "./MapTask";
 import { ReduceTaskConfig } from "./ReduceTask";
 import { TaskConfig, TaskInput } from "./TaskTypes";
@@ -34,8 +33,7 @@ export type JsonTaskConfig = Omit<
     IteratorTaskConfig &
     ReduceTaskConfig &
     MapTaskConfig &
-    ConditionalTaskConfig &
-    JobQueueTaskConfig,
+    ConditionalTaskConfig,
   "id"
 >;
 

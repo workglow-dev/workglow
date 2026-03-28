@@ -14,11 +14,10 @@ import {
   TaskConfigurationError,
   type IExecuteContext,
   type StreamEvent,
-  type TaskConfig,
   type TaskOutput,
 } from "@workglow/task-graph";
 
-import { AiSingleTaskInput, AiTask } from "./AiTask";
+import { AiSingleTaskInput, AiTask, type AiTaskConfig } from "./AiTask";
 import { getAiProviderRegistry } from "../../provider/AiProviderRegistry";
 import type { ModelConfig } from "../../model/ModelSchema";
 
@@ -41,7 +40,7 @@ import type { ModelConfig } from "../../model/ModelSchema";
 export class StreamingAiTask<
   Input extends AiSingleTaskInput = AiSingleTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends TaskConfig = TaskConfig,
+  Config extends AiTaskConfig = AiTaskConfig,
 > extends AiTask<Input, Output, Config> {
   public static type: string = "StreamingAiTask";
 

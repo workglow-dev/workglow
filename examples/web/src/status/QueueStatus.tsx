@@ -64,10 +64,15 @@ export function QueueStatus({ queueType }: { queueType: string }) {
 
   return (
     <span>
-      <span>{registeredQueue.server.queueName.split("_").pop()}</span>:{" "}
-      <span title="Pending">{pending}</span> / <span title="Processing">{processing}</span> /{" "}
-      <span title="Completed">{completed}</span> / <span title="Aborting">{aborting}</span> /{" "}
-      <span title="Errors">{errors}</span> / <span title="Disabled">{disabled}</span>
+      <span>
+        {(() => {
+          const name = registeredQueue.server.queueName;
+          const idx = name.lastIndexOf("_");
+          const prevIdx = idx > 0 ? name.lastIndexOf("_", idx - 1) : -1;
+          return prevIdx !== -1 ? name.substring(prevIdx + 1) : name;
+        })()}
+      </span>
+      : <span title="Errors">{errors}</span> / <span title="Disabled">{disabled}</span>
       <button className="float-right" onClick={clear}>
         Clear
       </button>
@@ -76,18 +81,34 @@ export function QueueStatus({ queueType }: { queueType: string }) {
 }
 
 export function QueuesStatus() {
-  const queues = getTaskQueueRegistry().queues;
-  const queueKeys = Array.from(queues.keys());
+  const registry = getTaskQueueRegistry();
+  const [queueKeys, setQueueKeys] = useState<string[]>(() => Array.from(registry.queues.keys()));
+
+  useEffect(() => {
+    const onRegistered = () => {
+      setQueueKeys(Array.from(registry.queues.keys()));
+    };
+    registry.emitter.on("queue_registered", onRegistered);
+    // Sync in case queues were registered between render and effect
+    onRegistered();
+    return () => {
+      registry.emitter.off("queue_registered", onRegistered);
+    };
+  }, [registry]);
 
   return (
     <div>
       <h2>Queue Status</h2>
 
-      {queueKeys.map((queueKey, i) => (
-        <div key={queueKey}>
-          <QueueStatus queueType={queueKey} />
-        </div>
-      ))}
+      {queueKeys.length === 0 ? (
+        <div>No active queues (tasks using direct execution)</div>
+      ) : (
+        queueKeys.map((queueKey) => (
+          <div key={queueKey}>
+            <QueueStatus queueType={queueKey} />
+          </div>
+        ))
+      )}
     </div>
   );
 }

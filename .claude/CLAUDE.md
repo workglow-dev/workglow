@@ -156,7 +156,7 @@ RAG tasks reference knowledge bases by string ID (resolved from registry at runt
 
 ### `@workglow/ai` — AI task framework
 
-Abstract AI task classes (`AiTask`, `StreamingAiTask`, `AiVisionTask`) extending `JobQueueTask` for rate-limiting.
+Abstract AI task classes (`AiTask`, `StreamingAiTask`, `AiVisionTask`) extending `Task` directly. Execution is delegated to an `IAiExecutionStrategy` (direct or queued) resolved per-model from the `AiProviderRegistry`.
 
 Model system: `ModelRepository`, `ModelRegistry`, `AiProviderRegistry`.
 

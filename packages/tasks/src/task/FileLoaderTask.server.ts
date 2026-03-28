@@ -7,7 +7,7 @@
 import {
   CreateWorkflow,
   IExecuteContext,
-  JobQueueTaskConfig,
+  TaskConfig,
   TaskAbortedError,
   Workflow,
 } from "@workglow/task-graph";
@@ -236,13 +236,13 @@ export class FileLoaderTask extends BaseFileLoaderTask {
   }
 }
 
-export const fileLoader = (input: FileLoaderTaskInput, config?: JobQueueTaskConfig) => {
+export const fileLoader = (input: FileLoaderTaskInput, config?: TaskConfig) => {
   return new FileLoaderTask({}, config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    fileLoader: CreateWorkflow<FileLoaderTaskInput, FileLoaderTaskOutput, JobQueueTaskConfig>;
+    fileLoader: CreateWorkflow<FileLoaderTaskInput, FileLoaderTaskOutput, TaskConfig>;
   }
 }
 
