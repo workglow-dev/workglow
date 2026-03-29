@@ -11,19 +11,21 @@ import {
   PermanentJobError,
   RetryableJobError,
 } from "@workglow/job-queue";
+import type {
+  IExecuteContext,
+  RegisteredQueue,
+  TaskConfig,
+  TaskEntitlements,
+} from "@workglow/task-graph";
 import {
   CreateWorkflow,
   Entitlements,
   getJobQueueFactory,
   getTaskQueueRegistry,
-  type IExecuteContext,
   JobTaskFailedError,
-  type RegisteredQueue,
   Task,
-  type TaskConfig,
   TaskConfigSchema,
   TaskConfigurationError,
-  type TaskEntitlements,
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";

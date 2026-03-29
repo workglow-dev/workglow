@@ -5,13 +5,8 @@
  */
 
 import { createServiceToken } from "@workglow/util";
-import {
-  entitlementCovers,
-  grantCoversResources,
-  type EntitlementGrant,
-  type TaskEntitlement,
-  type TaskEntitlements,
-} from "./TaskEntitlements";
+import type { EntitlementGrant, TaskEntitlement, TaskEntitlements } from "./TaskEntitlements";
+import { entitlementCovers, grantCoversResources } from "./TaskEntitlements";
 
 // ========================================================================
 // Enforcer Interface
@@ -86,9 +81,7 @@ export function createScopedEnforcer(grants: readonly EntitlementGrant[]): IEnti
         }
 
         // At least one matching grant must also cover the required resources
-        const resourceCovered = matchingGrants.some((g) =>
-          grantCoversResources(g, entitlement)
-        );
+        const resourceCovered = matchingGrants.some((g) => grantCoversResources(g, entitlement));
         if (!resourceCovered) {
           denied.push(entitlement);
         }
