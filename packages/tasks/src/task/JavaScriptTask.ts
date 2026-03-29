@@ -6,10 +6,12 @@
 
 import {
   CreateWorkflow,
+  Entitlements,
   Task,
   TaskConfig,
   TaskConfigSchema,
   TaskInvalidInputError,
+  type TaskEntitlements,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
@@ -75,6 +77,17 @@ export class JavaScriptTask extends Task<
   public static title = "JavaScript Interpreter";
   public static description = "Executes JavaScript code in a sandboxed interpreter environment";
   public static customizable = true;
+
+  public static entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        {
+          id: Entitlements.CODE_EXECUTION_JS,
+          reason: "Executes user-provided JavaScript code in a sandboxed interpreter",
+        },
+      ],
+    };
+  }
 
   public static configSchema() {
     return configSchema;

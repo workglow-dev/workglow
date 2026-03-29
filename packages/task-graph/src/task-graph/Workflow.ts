@@ -13,10 +13,13 @@ import {
   type EventParameters,
 } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
+import { computeGraphEntitlements } from "./GraphEntitlementUtils";
+import type { GraphEntitlementOptions } from "./GraphEntitlementUtils";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
 import { getPortStreamMode, type StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
+import type { TaskEntitlements } from "../task/TaskEntitlements";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
@@ -330,6 +333,8 @@ export type WorkflowEventListeners = {
   stream_chunk: (taskId: TaskIdType, event: StreamEvent) => void;
   /** Fired when a task in the workflow finishes streaming */
   stream_end: (taskId: TaskIdType, output: Record<string, any>) => void;
+  /** Fired when the aggregated entitlements of the workflow change */
+  entitlementChange: (entitlements: TaskEntitlements) => void;
 };
 
 export type WorkflowEvents = keyof WorkflowEventListeners;
@@ -379,6 +384,7 @@ export class Workflow<
   private _dataFlows: Dataflow[] = [];
   private _error: string = "";
   private _outputCache?: TaskOutputRepository;
+  private _entitlementUnsub?: () => void;
 
   // Abort controller for cancelling task execution
   private _abortController?: AbortController;
@@ -671,6 +677,14 @@ export class Workflow<
     return this._graph.toDependencyJSON(options);
   }
 
+  /**
+   * Returns the aggregated entitlements required by all tasks in this workflow.
+   * @param options Options for controlling aggregation (e.g., conditional branch handling)
+   */
+  public entitlements(options?: GraphEntitlementOptions): TaskEntitlements {
+    return computeGraphEntitlements(this._graph, options);
+  }
+
   // Replace both the instance and static pipe methods with properly typed versions
   // Pipe method overloads
   public pipe<A extends DataPorts, B extends DataPorts>(fn1: Taskish<A, B>): IWorkflow<A, B>;
@@ -897,6 +911,9 @@ export class Workflow<
     this._graph.on("dataflow_added", this._onChanged);
     this._graph.on("dataflow_replaced", this._onChanged);
     this._graph.on("dataflow_removed", this._onChanged);
+    this._entitlementUnsub = this._graph.subscribeToTaskEntitlements(
+      (entitlements) => this.events.emit("entitlementChange", entitlements)
+    );
   }
 
   /**
@@ -909,6 +926,8 @@ export class Workflow<
     this._graph.off("dataflow_added", this._onChanged);
     this._graph.off("dataflow_replaced", this._onChanged);
     this._graph.off("dataflow_removed", this._onChanged);
+    this._entitlementUnsub?.();
+    this._entitlementUnsub = undefined;
   }
 
   /**

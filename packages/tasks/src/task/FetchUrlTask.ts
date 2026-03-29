@@ -13,11 +13,13 @@ import {
 } from "@workglow/job-queue";
 import {
   CreateWorkflow,
+  Entitlements,
   type IExecuteContext,
   JobQueueTask,
   JobQueueTaskConfig,
   TaskConfigurationError,
   TaskInvalidInputError,
+  type TaskEntitlements,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
@@ -349,6 +351,19 @@ export class FetchUrlTask<
   public static description =
     "Fetches data from a URL with progress tracking and automatic retry handling";
   public static hasDynamicSchemas: boolean = true;
+
+  public static entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.NETWORK_HTTP, reason: "Fetches data from URLs via HTTP/HTTPS" },
+        {
+          id: Entitlements.CREDENTIAL,
+          reason: "May use Bearer token authentication",
+          optional: true,
+        },
+      ],
+    };
+  }
 
   public static inputSchema() {
     return inputSchema;

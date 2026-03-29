@@ -6,6 +6,7 @@
 
 import { EventParameters } from "@workglow/util";
 import type { StreamEvent } from "../task/StreamTypes";
+import type { TaskEntitlements } from "../task/TaskEntitlements";
 import { TaskIdType } from "../task/TaskTypes";
 import { DataflowIdType } from "./Dataflow";
 
@@ -26,6 +27,8 @@ export type TaskGraphStatusListeners = {
   task_stream_chunk: (taskId: TaskIdType, event: StreamEvent) => void;
   /** Fired when a task in the graph finishes streaming */
   task_stream_end: (taskId: TaskIdType, output: Record<string, any>) => void;
+  /** Fired when the aggregated entitlements of the graph change */
+  entitlementChange: (entitlements: TaskEntitlements) => void;
 };
 export type TaskGraphStatusEvents = keyof TaskGraphStatusListeners;
 export type TaskGraphStatusListener<Event extends TaskGraphStatusEvents> =

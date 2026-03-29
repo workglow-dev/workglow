@@ -10,10 +10,12 @@
 
 import { Job, JobClass } from "@workglow/job-queue";
 import {
+  Entitlements,
   type IExecuteReactiveContext,
   JobQueueTask,
   JobQueueTaskConfig,
   TaskConfigurationError,
+  type TaskEntitlements,
   TaskInput,
   type TaskOutput,
   hasStructuredOutput,
@@ -50,6 +52,30 @@ export class AiTask<
   Config extends JobQueueTaskConfig = JobQueueTaskConfig,
 > extends JobQueueTask<Input, Output, Config> {
   public static type: string = "AiTask";
+  public static hasDynamicEntitlements: boolean = true;
+
+  public static entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.AI_INFERENCE, reason: "Runs AI model inference" },
+      ],
+    };
+  }
+
+  public override entitlements(): TaskEntitlements {
+    const base: import("@workglow/task-graph").TaskEntitlement[] = [
+      { id: Entitlements.AI_INFERENCE, reason: "Runs AI model inference" },
+    ];
+    const modelId = typeof this.defaults.model === "string" ? this.defaults.model : undefined;
+    if (modelId) {
+      base.push({
+        id: Entitlements.AI_MODEL,
+        reason: `Uses model ${modelId}`,
+        resources: [modelId],
+      });
+    }
+    return { entitlements: base };
+  }
 
   /**
    * Creates a new AiTask instance

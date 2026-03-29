@@ -6,10 +6,12 @@
 
 import {
   CreateWorkflow,
+  Entitlements,
   IExecuteContext,
   Task,
   TaskConfig,
   TaskConfigSchema,
+  type TaskEntitlements,
   Workflow,
 } from "@workglow/task-graph";
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
@@ -170,6 +172,16 @@ export class McpPromptGetTask extends Task<
   static readonly cacheable = false;
   public static customizable = true;
   public static hasDynamicSchemas = true;
+
+  public static entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.MCP_PROMPT_GET, reason: "Gets prompts from MCP servers" },
+        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
+        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
+      ],
+    };
+  }
 
   public static inputSchema() {
     return fallbackInputSchema;

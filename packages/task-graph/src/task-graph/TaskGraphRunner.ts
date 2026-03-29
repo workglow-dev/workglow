@@ -26,9 +26,11 @@ import {
   type StreamEvent,
 } from "../task/StreamTypes";
 import { Task } from "../task/Task";
+import { ENTITLEMENT_ENFORCER, PERMISSIVE_ENFORCER } from "../task/EntitlementEnforcer";
 import {
   TaskAbortedError,
   TaskConfigurationError,
+  TaskEntitlementError,
   TaskError,
   TaskGraphTimeoutError,
 } from "../task/TaskError";
@@ -964,6 +966,20 @@ export class TaskGraphRunner {
       if (taskCount > config.maxTasks) {
         throw new TaskConfigurationError(
           `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
+        );
+      }
+    }
+
+    // Opt-in entitlement enforcement
+    if (config?.enforceEntitlements) {
+      const enforcer = this.registry.has(ENTITLEMENT_ENFORCER)
+        ? this.registry.get(ENTITLEMENT_ENFORCER)
+        : PERMISSIVE_ENFORCER;
+      const { computeGraphEntitlements } = await import("./GraphEntitlementUtils");
+      const denied = enforcer.check(computeGraphEntitlements(this.graph));
+      if (denied.length > 0) {
+        throw new TaskEntitlementError(
+          `Denied entitlements: ${denied.map((e) => e.id).join(", ")}`
         );
       }
     }

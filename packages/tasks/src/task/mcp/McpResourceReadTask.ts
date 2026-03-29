@@ -6,10 +6,12 @@
 
 import {
   CreateWorkflow,
+  Entitlements,
   IExecuteContext,
   Task,
   TaskConfig,
   TaskConfigSchema,
+  type TaskEntitlements,
   Workflow,
 } from "@workglow/task-graph";
 import { getMcpTaskDeps } from "../../util/McpTaskDeps";
@@ -79,6 +81,16 @@ export class McpResourceReadTask extends Task<
   public static description = "Reads a resource from an MCP server";
   static readonly cacheable = false;
   public static customizable = true;
+
+  public static entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.MCP_RESOURCE_READ, reason: "Reads resources from MCP servers" },
+        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
+        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
+      ],
+    };
+  }
 
   public static inputSchema() {
     return inputSchema;

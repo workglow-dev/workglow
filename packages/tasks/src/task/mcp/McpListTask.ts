@@ -4,7 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  Entitlements,
+  IExecuteContext,
+  Task,
+  TaskConfig,
+  type TaskEntitlements,
+  Workflow,
+} from "@workglow/task-graph";
 import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
@@ -183,6 +191,15 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
   public static description = "Lists tools, resources, or prompts available on an MCP server";
   static readonly cacheable = false;
   public static hasDynamicSchemas: boolean = true;
+
+  public static entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.MCP, reason: "Lists tools, resources, or prompts on MCP servers" },
+        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
+      ],
+    };
+  }
 
   public static inputSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();

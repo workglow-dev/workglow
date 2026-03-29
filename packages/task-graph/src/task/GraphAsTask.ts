@@ -6,8 +6,10 @@
 
 import { getLogger } from "@workglow/util";
 import { compileSchema, type DataPortSchema, type SchemaNode } from "@workglow/util/schema";
+import { computeGraphEntitlements } from "../task-graph/GraphEntitlementUtils";
 import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";
+import type { TaskEntitlements } from "./TaskEntitlements";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
 import type { CreateLoopWorkflow } from "../task-graph/Workflow";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
@@ -58,6 +60,9 @@ export class GraphAsTask<
 
   /** This task has dynamic schemas that change based on the subgraph structure */
   public static hasDynamicSchemas: boolean = true;
+
+  /** Entitlements are always dynamic — they depend on child tasks in the subgraph */
+  public static hasDynamicEntitlements: boolean = true;
 
   // ========================================================================
   // Constructor
@@ -167,6 +172,16 @@ export class GraphAsTask<
     }
 
     return computeGraphOutputSchema(this.subGraph);
+  }
+
+  /**
+   * Override entitlements to aggregate from all tasks in the subgraph.
+   */
+  public override entitlements(): TaskEntitlements {
+    if (!this.hasChildren()) {
+      return (this.constructor as typeof Task).entitlements();
+    }
+    return computeGraphEntitlements(this.subGraph);
   }
 
   /**
