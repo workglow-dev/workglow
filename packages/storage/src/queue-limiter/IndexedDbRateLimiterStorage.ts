@@ -119,7 +119,6 @@ export class IndexedDbRateLimiterStorage implements IRateLimiterStorage {
       return [...prefixColumnNames, ...basePath];
     };
 
-    // Set up execution tracking table
     const executionIndexes: ExpectedIndexDefinition[] = [
       {
         name: "queue_executed_at",
@@ -135,7 +134,6 @@ export class IndexedDbRateLimiterStorage implements IRateLimiterStorage {
       this.migrationOptions
     );
 
-    // Set up next available table
     const nextAvailableIndexes: ExpectedIndexDefinition[] = [
       {
         name: "queue_name",

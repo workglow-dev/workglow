@@ -150,7 +150,6 @@ class WorkflowConsoleFormatter extends ConsoleFormatter {
   }
 }
 
-// New formatter for Workflow API methods
 class WorkflowAPIConsoleFormatter extends ConsoleFormatter {
   header(obj: unknown, config?: Config): JsonMLElementDef | null {
     if (obj === Workflow.prototype || obj === Workflow) {

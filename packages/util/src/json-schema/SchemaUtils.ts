@@ -463,7 +463,6 @@ export function areSemanticallyCompatible(
       return "incompatible";
     }
 
-    // Now check array items compatibility
     const sourceItems = sourceSchema.items;
     const targetItems = targetSchema.items;
 

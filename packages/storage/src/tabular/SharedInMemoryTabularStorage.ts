@@ -86,10 +86,8 @@ export class SharedInMemoryTabularStorage<
       clientProvidedKeys
     );
 
-    // Forward events from the in-memory repository
     this.setupEventForwarding();
 
-    // Initialize BroadcastChannel if available
     this.initializeBroadcastChannel();
   }
 

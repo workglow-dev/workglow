@@ -118,7 +118,6 @@ export async function registerMediaPipeTfJsLocalModels(): Promise<void> {
       },
       metadata: {},
     },
-    // New Vision Tasks
     {
       model_id: "media-pipe:Gesture Recognizer",
       title: "Gesture Recognizer",

@@ -100,7 +100,6 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
       })
     );
 
-    // Subscribe to subtask progress changes to update consolidated progress
     if (task.hasChildren()) {
       const tasks = task.subGraph.getTasks();
       tasks.forEach((subTask) => {

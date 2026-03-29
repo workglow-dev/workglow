@@ -22,7 +22,6 @@ export function hash(input: HashInput): string {
     hash = (hash * 0x01000193) >>> 0; // FNV prime (32-bit), keep as uint32
   }
 
-  // Return 8-char zero-padded hex string
   return hash.toString(16).padStart(8, "0");
 }
 

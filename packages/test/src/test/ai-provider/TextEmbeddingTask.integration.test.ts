@@ -79,7 +79,6 @@ describe("TextEmbeddingTask with real models", () => {
 
       await download.run();
 
-      // Now test embeddings
       const embeddingWorkflow = new Workflow();
       embeddingWorkflow.textEmbedding({
         model: "onnx:Xenova/gte-small:q8",

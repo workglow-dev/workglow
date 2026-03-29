@@ -19,7 +19,6 @@ export const JsonObject: React.FC<JsonObjectProps> = ({ data, expandLevel = 1 })
   const [isExpanded, setIsExpanded] = useState(expandLevel > 0);
   const [keys, setKeys] = useState<string[]>([]);
 
-  // Update state when props change
   useEffect(() => {
     setIsExpanded(expandLevel > 0);
     setKeys(Object.keys(data));

@@ -22,9 +22,7 @@ export type Cursor<T> = {
 export function objectOfArraysAsArrayOfObjects<T extends Record<string, any>>(data: {
   [K in keyof T]: T[K][];
 }): Array<T> & { cursor: () => Cursor<T> } {
-  // Get all keys from the object-of-arrays.
   const keys = Object.keys(data) as (keyof T)[];
-  // confirm that all arrays have the same length
   const length = data[keys[0]].length;
   for (const key of keys) {
     if (data[key].length !== length) {

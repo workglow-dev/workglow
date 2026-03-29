@@ -41,12 +41,10 @@ export class Container {
    * @returns The service instance
    */
   get<T>(token: string): T {
-    // Return existing instance if available
     if (this.services.has(token)) {
       return this.services.get(token) as T;
     }
 
-    // Create new instance
     const factory = this.factories.get(token);
     if (!factory) {
       throw new Error(`Service not registered: ${String(token)}`);
@@ -54,7 +52,6 @@ export class Container {
 
     const instance = factory();
 
-    // Store singleton instances
     if (this.singletons.has(token)) {
       this.services.set(token, instance);
     }

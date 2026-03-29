@@ -181,7 +181,6 @@ export const RunGraphFlow: React.FC<{
       // Handle task events
       const tasks = graph.getTasks();
       tasks.forEach((task) => {
-        // Status change events that need edge updates
         statusEvents.forEach((eventName) => {
           const unsub = task.subscribe(eventName, () => {
             updateNode(setNodes, task);
@@ -225,7 +224,6 @@ export const RunGraphFlow: React.FC<{
     }
   }, [graph]);
 
-  // Fit view when nodes change
   useEffect(() => {
     if (nodes.length > 0) {
       setTimeout(() => fitView({ padding: 0.2 }), 100);
