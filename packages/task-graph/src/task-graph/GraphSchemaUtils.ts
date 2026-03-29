@@ -32,19 +32,16 @@ export function calculateNodeDepths(graph: TaskGraph): Map<TaskIdType, number> {
   const depths = new Map<TaskIdType, number>();
   const tasks = graph.getTasks();
 
-  // Initialize all depths to 0
   for (const task of tasks) {
     depths.set(task.id, 0);
   }
 
-  // Use topological sort to calculate depths in order
   const sortedTasks = graph.topologicallySortedNodes();
 
   for (const task of sortedTasks) {
     const currentDepth = depths.get(task.id) || 0;
     const targetTasks = graph.getTargetTasks(task.id);
 
-    // Update depths of all target tasks
     for (const targetTask of targetTasks) {
       const targetDepth = depths.get(targetTask.id) || 0;
       depths.set(targetTask.id, Math.max(targetDepth, currentDepth + 1));
@@ -71,10 +68,7 @@ export function computeGraphInputSchema(
   // Track which task IDs contribute each property name
   const propertyOrigins: Record<string, TaskIdType[]> = {};
 
-  // Get all tasks in the graph
   const tasks = graph.getTasks();
-
-  // Identify starting nodes: tasks with no incoming dataflows
   const startingNodes = tasks.filter((task) => graph.getSourceDataflows(task.id).length === 0);
 
   // Collect all properties from root tasks

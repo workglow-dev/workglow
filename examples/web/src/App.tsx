@@ -164,7 +164,6 @@ export const App = () => {
     [workflow]
   );
 
-  // changes coming from workflow in console
   useEffect(() => {
     const interval = setInterval(() => {
       if (

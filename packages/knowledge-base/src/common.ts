@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// New unified types
 export * from "./chunk/ChunkSchema";
 export * from "./chunk/ChunkVectorStorageSchema";
 export * from "./knowledge-base/KnowledgeBase";
@@ -14,7 +13,6 @@ export * from "./knowledge-base/InMemoryKnowledgeBaseRepository";
 export * from "./knowledge-base/KnowledgeBaseRegistry";
 export * from "./knowledge-base/createKnowledgeBase";
 
-// Core document types (unchanged)
 export * from "./util/DatasetSchema";
 export * from "./document/Document";
 export * from "./document/DocumentNode";

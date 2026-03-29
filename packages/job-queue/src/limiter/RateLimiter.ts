@@ -155,7 +155,6 @@ export class RateLimiter implements ILimiter {
       nextAvailableTime = new Date(nextAvailableStr);
     }
 
-    // Return the later of the two times
     return nextAvailableTime > rateLimitedTime ? nextAvailableTime : rateLimitedTime;
   }
 

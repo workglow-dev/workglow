@@ -115,7 +115,6 @@ export class HybridSubscriptionManager<Item, Key, ChangePayload> {
     this.compareItems = compareItems;
     this.payloadFactory = payloadFactory;
 
-    // Set default options
     this.options = {
       defaultIntervalMs: options?.defaultIntervalMs ?? 1000,
       backupPollingIntervalMs: options?.backupPollingIntervalMs ?? 5000,
@@ -123,11 +122,9 @@ export class HybridSubscriptionManager<Item, Key, ChangePayload> {
       broadcastChannelName: options?.broadcastChannelName ?? channelName,
     };
 
-    // Check if BroadcastChannel is available
     this.hasBroadcastChannel =
       this.options.useBroadcastChannel && typeof BroadcastChannel !== "undefined";
 
-    // Initialize BroadcastChannel if available
     if (this.hasBroadcastChannel) {
       this.initializeBroadcastChannel();
     }
@@ -215,11 +212,9 @@ export class HybridSubscriptionManager<Item, Key, ChangePayload> {
         this.startBackupPolling();
       }
     } else {
-      // New subscriber joining - send them current state
       this.notifySubscriberOfCurrentState(subscription);
     }
 
-    // Return unsubscribe function
     return () => {
       this.subscribers.delete(subscription);
 

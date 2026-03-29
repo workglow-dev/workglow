@@ -18,7 +18,6 @@ type JsonArrayProps = {
 export const JsonArray: React.FC<JsonArrayProps> = ({ data, expandLevel = 1 }) => {
   const [isExpanded, setIsExpanded] = useState(expandLevel > 0);
 
-  // Update state when props change
   useEffect(() => {
     setIsExpanded(expandLevel > 0);
   }, [expandLevel]);

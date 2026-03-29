@@ -135,7 +135,6 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
       intervalMs: interval,
     };
 
-    // Get or create interval group
     let intervalGroup = this.intervals.get(interval);
     if (!intervalGroup) {
       // First subscriber for this interval - create the polling loop
@@ -161,7 +160,6 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
 
     intervalGroup.subscribers.add(subscription);
 
-    // Return unsubscribe function
     return () => {
       const group = this.intervals.get(interval);
       if (group) {

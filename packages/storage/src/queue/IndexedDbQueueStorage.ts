@@ -146,7 +146,6 @@ export class IndexedDbQueueStorage<Input, Output> implements IQueueStorage<Input
       },
     ];
 
-    // Now initialize the database
     this.db = await ensureIndexedDbTable(
       this.tableName,
       "id",

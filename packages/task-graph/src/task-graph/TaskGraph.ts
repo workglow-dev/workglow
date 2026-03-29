@@ -445,7 +445,6 @@ export class TaskGraph implements ITaskGraph {
     const graphUnsub = this.subscribe("task_added", handleTaskAdded);
     unsubscribes.push(graphUnsub);
 
-    // Return unsubscribe function
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };
@@ -487,7 +486,6 @@ export class TaskGraph implements ITaskGraph {
     const graphUnsub = this.subscribe("task_added", handleTaskAdded);
     unsubscribes.push(graphUnsub);
 
-    // Return unsubscribe function
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };
@@ -527,7 +525,6 @@ export class TaskGraph implements ITaskGraph {
     const graphUnsub = this.subscribe("dataflow_added", handleDataflowAdded);
     unsubscribes.push(graphUnsub);
 
-    // Return unsubscribe function
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };

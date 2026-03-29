@@ -18,7 +18,6 @@ describe("Task own functionality", () => {
       // Run the task which will create and own other tasks
       await task.run();
 
-      // Now the subgraph should have tasks
       expect(task.hasChildren()).toBe(true);
 
       // Should have 3 tasks in subgraph:

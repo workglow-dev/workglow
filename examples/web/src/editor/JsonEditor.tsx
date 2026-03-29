@@ -50,12 +50,10 @@ export const JsonEditor: React.FC<PopupProps> = ({
     }
   };
 
-  // Effect hook to validate JSON whenever code changes
   useEffect(() => {
     validateJSON(code);
   }, [code]);
 
-  // Effect hook to validate JSON whenever workflow changes
   useEffect(() => {
     validateJSON(json);
   }, [json]);
