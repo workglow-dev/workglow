@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TaskEntitlements } from "@workglow/task-graph";
 import {
   CreateWorkflow,
+  Entitlements,
   IExecuteContext,
   Task,
   TaskConfig,
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
+import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 
 const contentItemSchema = {
   anyOf: [
@@ -79,6 +81,16 @@ export class McpResourceReadTask extends Task<
   public static override description = "Reads a resource from an MCP server";
   static override readonly cacheable = false;
   public static override customizable = true;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.MCP_RESOURCE_READ, reason: "Reads resources from MCP servers" },
+        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
+        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
+      ],
+    };
+  }
 
   public static override inputSchema() {
     return inputSchema;

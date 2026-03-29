@@ -9,6 +9,7 @@ import { EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
+import type { TaskEntitlements } from "../task/TaskEntitlements";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { ensureTask } from "./Conversions";
@@ -57,6 +58,12 @@ export interface TaskGraphRunConfig {
    * Defaults to no limit. Set this to prevent runaway graph construction.
    */
   maxTasks?: number;
+  /**
+   * When true, check entitlements via the registered IEntitlementEnforcer before
+   * graph execution begins. Throws TaskEntitlementError if any required (non-optional)
+   * entitlements are denied. Default: false.
+   */
+  enforceEntitlements?: boolean;
 }
 
 export interface TaskGraphRunReactiveConfig extends TaskGraphRunConfig {
@@ -557,6 +564,51 @@ export class TaskGraph implements ITaskGraph {
       const unsub = this.subscribe("task_stream_end", callbacks.onStreamEnd);
       unsubscribes.push(unsub);
     }
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }
+
+  /**
+   * Subscribes to entitlement changes on all tasks (existing and future).
+   * When any task's entitlements change, the graph recomputes and emits its own
+   * `entitlementChange` event. Structural changes (task_added, task_removed) also trigger.
+   *
+   * @param callback - Function called with the aggregated entitlements whenever they change
+   * @returns a function to unsubscribe from all entitlement events
+   */
+  public subscribeToTaskEntitlements(
+    callback: (entitlements: TaskEntitlements) => void
+  ): () => void {
+    const unsubscribes: (() => void)[] = [];
+
+    const emitChange = () => {
+      const { computeGraphEntitlements } = require("./GraphEntitlementUtils");
+      callback(computeGraphEntitlements(this));
+    };
+
+    // Subscribe to entitlementChange events on all existing tasks
+    for (const task of this.getTasks()) {
+      const unsub = task.subscribe("entitlementChange", () => emitChange());
+      unsubscribes.push(unsub);
+    }
+
+    // Subscribe to new tasks being added
+    const handleTaskAdded = (taskId: TaskIdType) => {
+      const task = this.getTask(taskId);
+      if (!task || typeof task.subscribe !== "function") return;
+      const unsub = task.subscribe("entitlementChange", () => emitChange());
+      unsubscribes.push(unsub);
+      emitChange();
+    };
+
+    const handleTaskRemoved = () => {
+      emitChange();
+    };
+
+    unsubscribes.push(this.subscribe("task_added", handleTaskAdded));
+    unsubscribes.push(this.subscribe("task_removed", handleTaskRemoved));
 
     return () => {
       unsubscribes.forEach((unsub) => unsub());

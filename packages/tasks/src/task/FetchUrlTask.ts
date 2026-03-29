@@ -13,16 +13,20 @@ import {
 } from "@workglow/job-queue";
 import {
   CreateWorkflow,
+  Entitlements,
   getJobQueueFactory,
   getTaskQueueRegistry,
+  type IExecuteContext,
   JobTaskFailedError,
+  type RegisteredQueue,
   Task,
+  type TaskConfig,
   TaskConfigSchema,
   TaskConfigurationError,
+  type TaskEntitlements,
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";
-import type { IExecuteContext, RegisteredQueue, TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const PRIVATE_IP_RANGES = [
@@ -354,6 +358,20 @@ export class FetchUrlTask<
   public static override description =
     "Fetches data from a URL with progress tracking and automatic retry handling";
   public static override hasDynamicSchemas: boolean = true;
+  public static override hasDynamicEntitlements: boolean = true;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.NETWORK_HTTP, reason: "Fetches data from URLs via HTTP/HTTPS" },
+        {
+          id: Entitlements.CREDENTIAL,
+          reason: "May use Bearer token authentication",
+          optional: true,
+        },
+      ],
+    };
+  }
 
   public static override configSchema(): DataPortSchema {
     return fetchUrlTaskConfigSchema;

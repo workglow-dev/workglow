@@ -4,27 +4,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { JsonSchema } from "@workglow/util/schema";
-import type { DataPortSchema } from "@workglow/util/schema";
-import { EventEmitter, getLogger, ServiceRegistry, uuid4 } from "@workglow/util";
 import type { EventParameters } from "@workglow/util";
+import { EventEmitter, getLogger, ServiceRegistry, uuid4 } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { JsonSchema } from "@workglow/util/schema";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
-import { getPortStreamMode } from "../task/StreamTypes";
 import type { StreamEvent } from "../task/StreamTypes";
+import { getPortStreamMode } from "../task/StreamTypes";
 import { Task } from "../task/Task";
+import type { TaskEntitlements } from "../task/TaskEntitlements";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
-import type { DataPorts, TaskConfig, TaskIdType, TaskInput, TaskOutput } from "../task/TaskTypes";
-import { ensureTask } from "./Conversions";
+import type { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
 import type { PipeFunction, Taskish } from "./Conversions";
+import { ensureTask } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
+import type { GraphEntitlementOptions } from "./GraphEntitlementUtils";
+import { computeGraphEntitlements } from "./GraphEntitlementUtils";
 import type { ITaskGraph } from "./ITaskGraph";
 import type { IWorkflow, WorkflowRunConfig } from "./IWorkflow";
 import { TaskGraph } from "./TaskGraph";
-import { CompoundMergeStrategy, PROPERTY_ARRAY } from "./TaskGraphRunner";
 import type { PropertyArrayGraphResult } from "./TaskGraphRunner";
+import { CompoundMergeStrategy, PROPERTY_ARRAY } from "./TaskGraphRunner";
 
 // ============================================================================
 // Standalone utility functions (moved from Conversions.ts to break circular
@@ -324,6 +327,8 @@ export type WorkflowEventListeners = {
   stream_chunk: (taskId: TaskIdType, event: StreamEvent) => void;
   /** Fired when a task in the workflow finishes streaming */
   stream_end: (taskId: TaskIdType, output: Record<string, any>) => void;
+  /** Fired when the aggregated entitlements of the workflow change */
+  entitlementChange: (entitlements: TaskEntitlements) => void;
 };
 
 export type WorkflowEvents = keyof WorkflowEventListeners;
@@ -381,7 +386,8 @@ export class Workflow<
   private _dataFlows: Dataflow[] = [];
   private _error: string = "";
   private _outputCache?: TaskOutputRepository;
-  /** @internal */ private _registry?: ServiceRegistry;
+  private _registry?: ServiceRegistry;
+  private _entitlementUnsub?: () => void;
 
   // Abort controller for cancelling task execution
   private _abortController?: AbortController;
@@ -674,6 +680,14 @@ export class Workflow<
     return this._graph.toDependencyJSON(options);
   }
 
+  /**
+   * Returns the aggregated entitlements required by all tasks in this workflow.
+   * @param options Options for controlling aggregation (e.g., conditional branch handling)
+   */
+  public entitlements(options?: GraphEntitlementOptions): TaskEntitlements {
+    return computeGraphEntitlements(this._graph, options);
+  }
+
   // Replace both the instance and static pipe methods with properly typed versions
   // Pipe method overloads
   public pipe<A extends DataPorts, B extends DataPorts>(fn1: Taskish<A, B>): IWorkflow<A, B>;
@@ -900,6 +914,9 @@ export class Workflow<
     this._graph.on("dataflow_added", this._onChanged);
     this._graph.on("dataflow_replaced", this._onChanged);
     this._graph.on("dataflow_removed", this._onChanged);
+    this._entitlementUnsub = this._graph.subscribeToTaskEntitlements((entitlements) =>
+      this.events.emit("entitlementChange", entitlements)
+    );
   }
 
   /**
@@ -912,6 +929,8 @@ export class Workflow<
     this._graph.off("dataflow_added", this._onChanged);
     this._graph.off("dataflow_replaced", this._onChanged);
     this._graph.off("dataflow_removed", this._onChanged);
+    this._entitlementUnsub?.();
+    this._entitlementUnsub = undefined;
   }
 
   /**

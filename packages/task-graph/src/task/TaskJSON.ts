@@ -9,6 +9,7 @@ import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
+import type { TaskEntitlements } from "../task/TaskEntitlements";
 import { getTaskConstructors } from "../task/TaskRegistry";
 import { ConditionalTaskConfig } from "./ConditionalTask";
 import { GraphAsTask, GraphAsTaskConfig } from "./GraphAsTask";
@@ -69,6 +70,9 @@ export type JsonTaskItem = {
 
   /** Nested tasks for compound operations */
   subtasks?: JsonTaskItem[];
+
+  /** Entitlements required by this task */
+  entitlements?: TaskEntitlements;
 };
 
 /**
@@ -81,6 +85,7 @@ export type TaskGraphItemJson = {
   config?: JsonTaskConfig;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
+  entitlements?: TaskEntitlements;
 };
 
 export type TaskGraphJson = {

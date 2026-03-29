@@ -10,21 +10,24 @@
  */
 
 import { Job } from "@workglow/job-queue";
+import type {
+  IExecuteContext,
+  IExecuteReactiveContext,
+  TaskConfig,
+  TaskEntitlement,
+  TaskEntitlements,
+  TaskOutput,
+} from "@workglow/task-graph";
 import {
+  Entitlements,
   Task,
   TaskConfigSchema,
   TaskConfigurationError,
   TaskInput,
   hasStructuredOutput,
 } from "@workglow/task-graph";
-import type {
-  IExecuteContext,
-  IExecuteReactiveContext,
-  TaskConfig,
-  TaskOutput,
-} from "@workglow/task-graph";
-import type { DataPortSchema, JsonSchema } from "@workglow/util/schema";
 import type { ServiceRegistry } from "@workglow/util";
+import type { DataPortSchema, JsonSchema } from "@workglow/util/schema";
 
 import { AiJob, AiJobInput } from "../../job/AiJob";
 import { MODEL_REPOSITORY } from "../../model/ModelRegistry";
@@ -63,6 +66,28 @@ export class AiTask<
   Config extends TaskConfig<Input> = TaskConfig<Input>,
 > extends Task<Input, Output, Config> {
   public static override type: string = "AiTask";
+  public static override hasDynamicEntitlements: boolean = true;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [{ id: Entitlements.AI_INFERENCE, reason: "Runs AI model inference" }],
+    };
+  }
+
+  public override entitlements(): TaskEntitlements {
+    const base: TaskEntitlement[] = [
+      { id: Entitlements.AI_INFERENCE, reason: "Runs AI model inference" },
+    ];
+    const modelId = typeof this.defaults.model === "string" ? this.defaults.model : undefined;
+    if (modelId) {
+      base.push({
+        id: Entitlements.AI_MODEL,
+        reason: `Uses model ${modelId}`,
+        resources: [modelId],
+      });
+    }
+    return { entitlements: base };
+  }
 
   public static override configSchema(): DataPortSchema {
     return aiTaskConfigSchema;

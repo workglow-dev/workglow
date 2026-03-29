@@ -4,21 +4,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TaskEntitlements } from "@workglow/task-graph";
 import {
   CreateWorkflow,
+  Entitlements,
   IExecuteContext,
   Task,
   TaskConfig,
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { getMcpTaskDeps } from "../../util/McpTaskDeps";
-import type { McpServerConfig } from "../../util/McpTaskDeps";
 import { DataPortSchema, DataPortSchemaObject, FromSchema } from "@workglow/util/schema";
-import { mcpList } from "./McpListTask";
-import type { McpListTaskInput } from "./McpListTask";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
+import type { McpServerConfig } from "../../util/McpTaskDeps";
+import { getMcpTaskDeps } from "../../util/McpTaskDeps";
+import type { McpListTaskInput } from "./McpListTask";
+import { mcpList } from "./McpListTask";
 
 const annotationsSchema = {
   type: "object",
@@ -172,6 +174,16 @@ export class McpPromptGetTask extends Task<
   static override readonly cacheable = false;
   public static override customizable = true;
   public static override hasDynamicSchemas = true;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.MCP_PROMPT_GET, reason: "Gets prompts from MCP servers" },
+        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
+        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
+      ],
+    };
+  }
 
   public static override inputSchema() {
     return fallbackInputSchema;

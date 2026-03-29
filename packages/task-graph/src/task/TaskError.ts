@@ -124,6 +124,16 @@ export class TaskInvalidInputError extends TaskError {
 }
 
 /**
+ * Thrown when required entitlements are denied by the registered enforcer.
+ */
+export class TaskEntitlementError extends TaskError {
+  static override readonly type: string = "TaskEntitlementError";
+  constructor(message: string = "Required entitlements denied") {
+    super(message);
+  }
+}
+
+/**
  * Thrown when toJSON is called on a task whose config contains non-serializable
  * values (e.g. functions). Tasks should override canSerializeConfig() to declare
  * whether they support serialization.

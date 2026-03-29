@@ -4,7 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import type { TaskEntitlements } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  Entitlements,
+  IExecuteContext,
+  Task,
+  TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const MCP_REGISTRY_BASE = "https://registry.modelcontextprotocol.io/v0.1";
@@ -251,6 +259,14 @@ export class McpSearchTask extends Task<McpSearchTaskInput, McpSearchTaskOutput,
   public static override description =
     "Search the MCP server registry for servers matching a query";
   public static override cacheable = false;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.NETWORK_HTTP, reason: "Searches the MCP server registry via HTTPS" },
+      ],
+    };
+  }
 
   public static override inputSchema(): DataPortSchema {
     return McpSearchInputSchema satisfies DataPortSchema;
