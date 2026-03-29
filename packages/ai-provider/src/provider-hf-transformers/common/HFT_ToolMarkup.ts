@@ -6,6 +6,99 @@
 
 import type { ToolCalls } from "@workglow/ai";
 
+function parseFunctionGemmaArgumentValue(rawValue: string): unknown {
+  const trimmed = rawValue.trim();
+  if (trimmed.length === 0) return "";
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (trimmed === "null") return null;
+
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && /^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+    return numeric;
+  }
+
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // Fall through to raw string.
+    }
+  }
+
+  return trimmed;
+}
+
+function parseFunctionGemmaLooseObject(text: string): Record<string, unknown> | undefined {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    return undefined;
+  }
+
+  const inner = trimmed.slice(1, -1).trim();
+  if (inner.length === 0) {
+    return {};
+  }
+
+  const result: Record<string, unknown> = {};
+  const pairs = inner.matchAll(/([A-Za-z0-9_]+)\s*:\s*('[^']*'|"[^"]*"|[^,}]+)/g);
+
+  for (const [_, rawKey, rawValue] of pairs) {
+    const key = rawKey.trim();
+    const valueText = rawValue.trim().replace(/^'([^']*)'$/, '"$1"');
+    result[key] = parseFunctionGemmaArgumentValue(valueText);
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function parseFunctionGemmaToolCalls(responseText: string): ToolCalls {
+  const matches = responseText.matchAll(
+    /(?:<start_function_call>\s*)?call:([^{\s]+)\{([\s\S]*?)\}(?:\s*<end_function_call>)?/g
+  );
+  const toolCalls: ToolCalls = [];
+
+  for (const [_, rawName, rawArgs] of matches) {
+    const parsedInput: Record<string, unknown> = {};
+    const argMatches = rawArgs.matchAll(
+      /([A-Za-z0-9_]+)\s*:\s*(?:<escape>([\s\S]*?)<escape>|([^,}]+))/g
+    );
+
+    for (const [__, rawParamName, escapedValue, unescapedValue] of argMatches) {
+      const paramName = rawParamName.trim();
+      const valueText = (escapedValue ?? unescapedValue ?? "").trim();
+      parsedInput[paramName] = parseFunctionGemmaArgumentValue(valueText);
+    }
+
+    toolCalls.push({
+      id: `call_${toolCalls.length}`,
+      name: rawName.trim(),
+      input: parsedInput,
+    });
+  }
+
+  if (toolCalls.length > 0) {
+    return toolCalls;
+  }
+
+  const looseObject = parseFunctionGemmaLooseObject(responseText);
+  if (!looseObject) {
+    return [];
+  }
+
+  return [
+    {
+      id: "call_0",
+      name: "",
+      input: looseObject,
+    },
+  ];
+}
+
 /**
  * Parse tool calls from model-generated text.
  *
@@ -24,6 +117,17 @@ export function parseToolCallsFromText(responseText: string): {
   text: string;
   toolCalls: ToolCalls;
 } {
+  const functionGemmaCalls = parseFunctionGemmaToolCalls(responseText);
+  if (functionGemmaCalls.length > 0) {
+    const cleanedText = responseText
+      .replace(
+        /(?:<start_function_call>\s*)?call:[^{\s]+\{[\s\S]*?\}(?:\s*<end_function_call>)?/g,
+        ""
+      )
+      .trim();
+    return { text: cleanedText, toolCalls: functionGemmaCalls };
+  }
+
   const toolCalls: ToolCalls = [];
   let callIndex = 0;
   let cleanedText = responseText;

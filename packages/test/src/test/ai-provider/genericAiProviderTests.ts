@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  AgentTaskOutput,
-  StructuredGenerationTaskOutput,
-  ToolCalls,
-  ToolDefinition,
+import {
+  toolCalling,
+  type AgentTaskOutput,
+  type StructuredGenerationTaskOutput,
+  type ToolCalls,
+  type ToolDefinition,
 } from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
 import type { JsonSchema } from "@workglow/util/schema";
@@ -135,19 +136,13 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
       it(
         "should produce a tool call with toolChoice required",
         async () => {
-          const workflow = new Workflow();
-          workflow.toolCalling({
+          const result = await toolCalling({
             model: setup.toolCallingModel,
             prompt: "What is the weather in San Francisco?",
             tools: [weatherTool],
             toolChoice: "required",
             maxTokens: setup.maxTokens,
           });
-
-          const result = (await workflow.run()) as {
-            text: string;
-            toolCalls: ToolCalls;
-          };
 
           expect(result).toBeDefined();
           expect(result.toolCalls).toBeDefined();
@@ -164,19 +159,13 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
       it(
         "should produce no tool calls with toolChoice none",
         async () => {
-          const workflow = new Workflow();
-          workflow.toolCalling({
+          const result = await toolCalling({
             model: setup.toolCallingModel,
             prompt: "What is the weather in San Francisco?",
             tools: [weatherTool],
             toolChoice: "none",
             maxTokens: setup.maxTokens,
           });
-
-          const result = (await workflow.run()) as {
-            text: string;
-            toolCalls: unknown[];
-          };
 
           expect(result).toBeDefined();
           expect(typeof result.text).toBe("string");

@@ -84,6 +84,42 @@ export function llamaCppSeedPromptSpread(
   return provider_config.seed !== undefined ? { seed: provider_config.seed } : {};
 }
 
+function detectQwenChatWrapperVariation(model: LlamaCppModelConfig): "3" | "3.5" | undefined {
+  const candidates = [
+    model.model_id,
+    model.title,
+    model.description,
+    model.provider_config.model_url,
+    model.provider_config.model_path,
+  ]
+    .filter((value): value is string => typeof value === "string" && value.length > 0)
+    .map((value) => value.toLowerCase());
+
+  if (
+    candidates.some((value) =>
+      /\bqwen(?:[\s._-]?|)3(?:[\s._-]?|)5\b|\bqwen(?:[\s._-]?|)3\.5\b/.test(value)
+    )
+  ) {
+    return "3.5";
+  }
+
+  if (candidates.some((value) => /\bqwen(?:[\s._-]?|)3\b/.test(value))) {
+    return "3";
+  }
+
+  return undefined;
+}
+
+/** Spread into {@link LlamaChatSession} constructor when Qwen wrapper variation can be inferred. */
+export function llamaCppChatSessionConstructorSpread(model: LlamaCppModelConfig) {
+  const variation = detectQwenChatWrapperVariation(model);
+  if (!variation) {
+    return {};
+  }
+  const { QwenChatWrapper } = getLlamaCppSdk();
+  return { chatWrapper: new QwenChatWrapper({ variation }) };
+}
+
 export async function getOrCreateTextContext(model: LlamaCppModelConfig): Promise<LlamaContext> {
   const modelPath = getActualModelPath(model);
   const cached = llamaCppTextContexts.get(modelPath);

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import "./scripts/configure-hft-test-cache";
+
 /**
  * Polyfill Float16Array for Node < 24 environments.
  * Float16Array is used in vector/tensor type definitions and must exist

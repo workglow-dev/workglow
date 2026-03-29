@@ -14,6 +14,7 @@ import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import {
   getOrCreateTextContext,
+  llamaCppChatSessionConstructorSpread,
   llamaCppSeedPromptSpread,
   loadSdk,
   streamFromSession,
@@ -35,6 +36,7 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
   const sequence = context.getSequence();
   const session = new LlamaChatSession({
     contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
     systemPrompt: input.prompt,
   });
   try {
@@ -45,6 +47,7 @@ export const LlamaCpp_TextRewriter: AiProviderRunFn<
     update_progress(100, "Text rewriting complete");
     return { text };
   } finally {
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 };
@@ -62,6 +65,7 @@ export const LlamaCpp_TextRewriter_Stream: AiProviderStreamFn<
   const sequence = context.getSequence();
   const session = new LlamaChatSession({
     contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
     systemPrompt: input.prompt,
   });
   try {
@@ -73,6 +77,7 @@ export const LlamaCpp_TextRewriter_Stream: AiProviderStreamFn<
       });
     }, signal);
   } finally {
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 };

@@ -21,6 +21,19 @@ import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 /** Default timeout for provider API calls (2 minutes). */
 const DEFAULT_AI_TIMEOUT_MS = 120_000;
 
+/** node-llama-cpp on CPU often needs several minutes (downloads, load, multi-turn tool follow-up). */
+const LOCAL_LLAMACPP_DEFAULT_TIMEOUT_MS = 600_000;
+
+function resolveAiJobTimeoutMs(aiProvider: string, explicitMs: number | undefined): number {
+  if (explicitMs !== undefined) {
+    return explicitMs;
+  }
+  if (aiProvider === "LOCAL_LLAMACPP") {
+    return LOCAL_LLAMACPP_DEFAULT_TIMEOUT_MS;
+  }
+  return DEFAULT_AI_TIMEOUT_MS;
+}
+
 /**
  * Input data for the AiJob
  */
@@ -174,7 +187,7 @@ export class AiJob<
         }
 
         // Apply timeout via AbortSignal.timeout combined with the caller's signal
-        const timeoutMs = input.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS;
+        const timeoutMs = resolveAiJobTimeoutMs(input.aiProvider, input.timeoutMs);
         const timeoutSignal = AbortSignal.timeout(timeoutMs);
         const combinedSignal = AbortSignal.any([context.signal, timeoutSignal]);
 
@@ -230,7 +243,7 @@ export class AiJob<
     let lastFinishData: Output | undefined;
 
     // Apply timeout via AbortSignal.timeout combined with the caller's signal
-    const timeoutMs = input.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS;
+    const timeoutMs = resolveAiJobTimeoutMs(input.aiProvider, input.timeoutMs);
     const timeoutSignal = AbortSignal.timeout(timeoutMs);
     const combinedSignal = AbortSignal.any([context.signal, timeoutSignal]);
 
