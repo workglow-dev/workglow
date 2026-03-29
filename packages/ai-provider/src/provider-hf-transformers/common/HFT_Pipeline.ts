@@ -42,20 +42,123 @@ export async function loadTransformersSDK() {
 /** Per-model AbortControllers used by abortableFetch; keyed by model_path. */
 const modelAbortControllers = new Map<string, AbortController>();
 
+function combineAbortSignals(
+  existingSignal: AbortSignal | null | undefined,
+  modelSignal: AbortSignal | undefined
+): AbortSignal | undefined {
+  if (!existingSignal) {
+    return modelSignal;
+  }
+  if (!modelSignal) {
+    return existingSignal;
+  }
+  if (existingSignal.aborted || modelSignal.aborted) {
+    return AbortSignal.abort(existingSignal.reason ?? modelSignal.reason);
+  }
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([existingSignal, modelSignal]);
+  }
+
+  const controller = new AbortController();
+  const abort = (event: Event) => {
+    const signal = event.target as AbortSignal;
+    controller.abort(signal.reason);
+  };
+  existingSignal.addEventListener("abort", abort, { once: true });
+  modelSignal.addEventListener("abort", abort, { once: true });
+  return controller.signal;
+}
+
+function createAbortError(signal: AbortSignal): Error {
+  const reason = signal.reason;
+  if (reason instanceof Error) {
+    return reason;
+  }
+  return new Error(String(reason ?? "Fetch aborted"));
+}
+
+function wrapAbortableResponse(response: Response, signal: AbortSignal | undefined): Response {
+  if (!signal || !response.body) {
+    return response;
+  }
+
+  const contentLengthHeader = response.headers.get("content-length");
+  const expectedSize =
+    contentLengthHeader && /^\d+$/.test(contentLengthHeader)
+      ? Number.parseInt(contentLengthHeader, 10)
+      : undefined;
+  const sourceBody = response.body;
+
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const reader = sourceBody.getReader();
+      const abort = () => controller.error(createAbortError(signal));
+      signal.addEventListener("abort", abort, { once: true });
+      let loaded = 0;
+
+      try {
+        while (true) {
+          if (signal.aborted) {
+            throw createAbortError(signal);
+          }
+
+          const { done, value } = await reader.read();
+          if (done) {
+            if (signal.aborted) {
+              throw createAbortError(signal);
+            }
+            if (expectedSize !== undefined && loaded < expectedSize) {
+              throw new Error(
+                `Fetch ended before reading the full response body (${loaded}/${expectedSize} bytes)`
+              );
+            }
+            controller.close();
+            return;
+          }
+
+          loaded += value.length;
+          controller.enqueue(value);
+        }
+      } catch (error) {
+        controller.error(error);
+      } finally {
+        signal.removeEventListener("abort", abort);
+        reader.releaseLock();
+      }
+    },
+    async cancel(reason) {
+      try {
+        await sourceBody.cancel(reason);
+      } catch {
+        // Ignore downstream cancellation errors.
+      }
+    },
+  });
+
+  return new Response(body, {
+    headers: new Headers(response.headers),
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
 function abortableFetch(url: string, options: RequestInit): Promise<Response> {
-  let signal: AbortSignal | undefined;
+  let modelSignal: AbortSignal | undefined;
   try {
     const pathname = new URL(url).pathname;
     for (const [modelPath, controller] of modelAbortControllers) {
       if (pathname.includes(`/${modelPath}/`)) {
-        signal = controller.signal;
+        modelSignal = controller.signal;
         break;
       }
     }
   } catch {
     /* not a parseable URL, proceed without abort */
   }
-  return fetch(url, { ...options, ...(signal ? { signal } : {}) });
+  const combinedSignal = combineAbortSignals(options.signal, modelSignal);
+  return fetch(url, { ...options, ...(combinedSignal ? { signal: combinedSignal } : {}) }).then(
+    (response) => wrapAbortableResponse(response, combinedSignal)
+  );
 }
 
 const pipelines = new Map<string, any>();

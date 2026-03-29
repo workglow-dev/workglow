@@ -14,6 +14,7 @@ import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import {
   getOrCreateTextContext,
+  llamaCppChatSessionConstructorSpread,
   llamaCppSeedPromptSpread,
   loadSdk,
   streamFromSession,
@@ -35,6 +36,7 @@ export const LlamaCpp_TextSummary: AiProviderRunFn<
   const sequence = context.getSequence();
   const session = new LlamaChatSession({
     contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
     systemPrompt: "Summarize the following text concisely, preserving the key points.",
   });
   try {
@@ -45,6 +47,7 @@ export const LlamaCpp_TextSummary: AiProviderRunFn<
     update_progress(100, "Summarization complete");
     return { text };
   } finally {
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 };
@@ -62,6 +65,7 @@ export const LlamaCpp_TextSummary_Stream: AiProviderStreamFn<
   const sequence = context.getSequence();
   const session = new LlamaChatSession({
     contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
     systemPrompt: "Summarize the following text concisely, preserving the key points.",
   });
   try {
@@ -73,6 +77,7 @@ export const LlamaCpp_TextSummary_Stream: AiProviderStreamFn<
       });
     }, signal);
   } finally {
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 };

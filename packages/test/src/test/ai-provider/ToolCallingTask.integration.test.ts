@@ -240,7 +240,7 @@ describe("ToolCallingTask with HFT models", () => {
     await setTaskQueueRegistry(null);
   });
 
-  const MODEL_ID = "onnx:onnx-community/Qwen2.5-0.5B-Instruct:q4";
+  const MODEL_ID = "onnx:onnx-community/functiongemma-270m-it-ONNX:q4f16";
 
   const weatherTools = [
     {
@@ -262,14 +262,14 @@ describe("ToolCallingTask with HFT models", () => {
   it("should download the model", async () => {
     const model: HfTransformersOnnxModelRecord = {
       model_id: MODEL_ID,
-      title: "Qwen2.5-0.5B-Instruct",
-      description: "Small instruction-tuned model with native tool calling support",
+      title: "FunctionGemma 270M IT ONNX",
+      description: "Small ONNX tool-calling model quantized to q4f16",
       tasks: ["TextGenerationTask", "ToolCallingTask"],
       provider: HF_TRANSFORMERS_ONNX,
       provider_config: {
         pipeline: "text-generation",
-        model_path: "onnx-community/Qwen2.5-0.5B-Instruct",
-        dtype: "q4",
+        model_path: "onnx-community/functiongemma-270m-it-ONNX",
+        dtype: "q4f16",
       },
       metadata: {},
     };

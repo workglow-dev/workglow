@@ -14,6 +14,7 @@ import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import {
   getOrCreateTextContext,
+  llamaCppChatSessionConstructorSpread,
   llamaCppSeedPromptSpread,
   loadSdk,
   streamFromSession,
@@ -33,7 +34,10 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
 
   update_progress(10, "Generating text");
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
+  });
   try {
     const text = await session.prompt(input.prompt, {
       signal,
@@ -45,6 +49,7 @@ export const LlamaCpp_TextGeneration: AiProviderRunFn<
     update_progress(100, "Text generation complete");
     return { text };
   } finally {
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 };
@@ -60,7 +65,10 @@ export const LlamaCpp_TextGeneration_Stream: AiProviderStreamFn<
 
   const context = await getOrCreateTextContext(model);
   const sequence = context.getSequence();
-  const session = new LlamaChatSession({ contextSequence: sequence });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
+  });
   try {
     yield* streamFromSession<TextGenerationTaskOutput>((onTextChunk) => {
       return session.prompt(input.prompt, {
@@ -73,6 +81,7 @@ export const LlamaCpp_TextGeneration_Stream: AiProviderStreamFn<
       });
     }, signal);
   } finally {
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 };

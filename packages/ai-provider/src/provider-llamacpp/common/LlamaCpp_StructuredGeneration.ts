@@ -17,6 +17,7 @@ import {
   getLlamaCppSdk,
   getLlamaInstance,
   getOrCreateTextContext,
+  llamaCppChatSessionConstructorSpread,
   llamaCppSeedPromptSpread,
   loadSdk,
 } from "./LlamaCpp_Runtime";
@@ -38,7 +39,10 @@ export const LlamaCpp_StructuredGeneration: AiProviderRunFn<
   const grammar = await llama.createGrammarForJsonSchema(input.outputSchema as any);
   const sequence = context.getSequence();
   const { LlamaChatSession } = getLlamaCppSdk();
-  const session = new LlamaChatSession({ contextSequence: sequence });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
+  });
 
   try {
     const text = await session.prompt(input.prompt as string, {
@@ -59,6 +63,7 @@ export const LlamaCpp_StructuredGeneration: AiProviderRunFn<
     update_progress(100, "Structured generation complete");
     return { object };
   } finally {
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 };
@@ -82,7 +87,10 @@ export const LlamaCpp_StructuredGeneration_Stream: AiProviderStreamFn<
 
   const sequence = context.getSequence();
   const { LlamaChatSession } = getLlamaCppSdk();
-  const session = new LlamaChatSession({ contextSequence: sequence });
+  const session = new LlamaChatSession({
+    contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
+  });
 
   const queue: string[] = [];
   let isComplete = false;
@@ -142,6 +150,7 @@ export const LlamaCpp_StructuredGeneration_Stream: AiProviderStreamFn<
     }
   } finally {
     await promptPromise.catch(() => {});
+    session.dispose({ disposeSequence: false });
     sequence.dispose();
   }
 
