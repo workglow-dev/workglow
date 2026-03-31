@@ -120,6 +120,62 @@ export function entitlementCovers(granted: EntitlementId, required: EntitlementI
 }
 
 /**
+ * A grant declaration — what a consumer is willing to allow.
+ * Unlike TaskEntitlement (which declares what a task *needs*), this declares what is *permitted*.
+ */
+export interface EntitlementGrant {
+  /** Entitlement ID to grant. Hierarchy applies: granting "network" covers "network:http". */
+  readonly id: EntitlementId;
+  /**
+   * Specific resources this grant covers.
+   * - undefined → broad grant, covers all resources for this entitlement
+   * - string[] → scoped grant, only covers requirements whose resources are a subset
+   *
+   * Supports glob-style trailing wildcards:
+   * - "/tmp/*" covers "/tmp/data.json" and "/tmp/subdir/file.txt"
+   * - "claude-*" covers "claude-3-opus", "claude-3-sonnet"
+   * - "*.example.com" covers "api.example.com"
+   */
+  readonly resources?: readonly string[];
+}
+
+/**
+ * Check if a single grant resource pattern matches a single required resource.
+ * Supports trailing `*` glob: "prefix*" matches anything starting with "prefix".
+ * Without `*`, requires exact match.
+ */
+export function resourcePatternMatches(grantPattern: string, requiredResource: string): boolean {
+  if (grantPattern === requiredResource) return true;
+  const starIdx = grantPattern.indexOf("*");
+  if (starIdx === -1) return false;
+  // "prefix*" matches anything starting with "prefix"
+  const prefix = grantPattern.slice(0, starIdx);
+  return requiredResource.startsWith(prefix);
+}
+
+/**
+ * Check if a grant covers the resource requirements of an entitlement.
+ *
+ * Matching rules:
+ * - Grant has no resources (broad) → covers any resource requirement
+ * - Requirement has no resources (broad need) → only a broad grant covers it
+ * - Both have resources → every required resource must match at least one grant pattern
+ */
+export function grantCoversResources(
+  grant: EntitlementGrant,
+  required: TaskEntitlement
+): boolean {
+  // Broad grant covers everything
+  if (grant.resources === undefined) return true;
+  // Scoped grant cannot cover a broad requirement
+  if (required.resources === undefined) return false;
+  // Every required resource must be covered by at least one grant pattern
+  return required.resources.every((req) =>
+    grant.resources!.some((pat) => resourcePatternMatches(pat, req))
+  );
+}
+
+/**
  * Merge two TaskEntitlements into a union (deduplicating by ID).
  * If the same ID appears in both, optional is false if either is false (most restrictive wins).
  * Resources are merged (union of all resource arrays for the same ID).
