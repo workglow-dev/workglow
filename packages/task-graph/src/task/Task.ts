@@ -567,8 +567,11 @@ export class Task<
     for (const [inputId, prop] of Object.entries(properties)) {
       if (input[inputId] !== undefined) {
         this.runInputData[inputId] = input[inputId];
-      } else if (this.runInputData[inputId] === undefined && (prop as any).default !== undefined) {
-        this.runInputData[inputId] = (prop as any).default;
+      } else if (
+        this.runInputData[inputId] === undefined &&
+        (prop as { default?: unknown }).default !== undefined
+      ) {
+        this.runInputData[inputId] = prop.default;
       }
     }
 
@@ -795,7 +798,7 @@ export class Task<
     const result = schemaNode.validate(config);
     if (!result.valid) {
       const errorMessages = result.errors.map((e) => {
-        const path = (e as any).data?.pointer || "";
+        const path = e.data?.pointer || "";
         return `${e.message}${path ? ` (${path})` : ""}`;
       });
       throw new TaskConfigurationError(

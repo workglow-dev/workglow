@@ -54,7 +54,7 @@ export const HFT_ImageClassification: AiProviderRunFn<
 
   const classifier: ImageClassificationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const result: any = await classifier(input.image as string, {
-    top_k: (input as any).maxCategories,
+    top_k: input.maxCategories,
   });
 
   const results = Array.isArray(result) ? result : [result];

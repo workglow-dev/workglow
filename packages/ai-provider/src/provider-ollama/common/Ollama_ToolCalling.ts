@@ -125,7 +125,7 @@ export function createOllamaToolCallingStream(
           yield { type: "text-delta", port: "text", textDelta: delta };
         }
 
-        const chunkToolCalls = (chunk.message as any).tool_calls;
+        const chunkToolCalls = chunk.message.tool_calls;
         if (Array.isArray(chunkToolCalls) && chunkToolCalls.length > 0) {
           for (const tc of chunkToolCalls) {
             let parsedInput: Record<string, unknown> = {};

@@ -1486,7 +1486,7 @@ export class RefineTask extends Task<
     value: number;
     quality?: number;
   }): Promise<{ quality: number; value: number }> {
-    const currentQuality = (input as any).quality ?? 0;
+    const currentQuality = input.quality ?? 0;
     const newQuality = Math.min(1.0, currentQuality + 0.2);
     return {
       quality: newQuality,

@@ -46,12 +46,12 @@ export function taskTypesToTools(
       );
     }
     const configSchema =
-      "configSchema" in ctor && typeof (ctor as any).configSchema === "function"
-        ? (ctor as any).configSchema()
+      "configSchema" in ctor && typeof ctor.configSchema === "function"
+        ? ctor.configSchema()
         : undefined;
     return {
       name: ctor.type,
-      description: (ctor as any).description ?? "",
+      description: ctor.description ?? "",
       inputSchema: ctor.inputSchema(),
       outputSchema: ctor.outputSchema(),
       ...(configSchema ? { configSchema } : {}),

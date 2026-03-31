@@ -603,7 +603,7 @@ describe("StreamTypes", () => {
     });
 
     it("should return empty map for boolean schema", () => {
-      expect(getStructuredOutputSchemas(true as any).size).toBe(0);
+      expect(getStructuredOutputSchemas(true).size).toBe(0);
     });
   });
 

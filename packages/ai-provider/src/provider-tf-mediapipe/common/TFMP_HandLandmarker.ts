@@ -23,16 +23,16 @@ export const TFMP_HandLandmarker: AiProviderRunFn<
   const handLandmarker = await getModelTask(
     model!,
     {
-      numHands: (input as any).numHands,
-      minHandDetectionConfidence: (input as any).minHandDetectionConfidence,
-      minHandPresenceConfidence: (input as any).minHandPresenceConfidence,
-      minTrackingConfidence: (input as any).minTrackingConfidence,
+      numHands: input.numHands,
+      minHandDetectionConfidence: input.minHandDetectionConfidence,
+      minHandPresenceConfidence: input.minHandPresenceConfidence,
+      minTrackingConfidence: input.minTrackingConfidence,
     },
     onProgress,
     signal,
     HandLandmarker
   );
-  const result = handLandmarker.detect(input.image as any);
+  const result = handLandmarker.detect(input.image);
 
   if (!result.landmarks) {
     throw new PermanentJobError("Failed to detect hand landmarks: Empty result");

@@ -65,7 +65,7 @@ export const HFT_StructuredGeneration: AiProviderRunFn<
 
   const messages: Message[] = [{ role: "user", content: prompt }];
 
-  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+  const formattedPrompt = generateText.tokenizer.apply_chat_template(messages, {
     tokenize: false,
     add_generation_prompt: true,
   }) as string;
@@ -108,7 +108,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
 
   const messages: Message[] = [{ role: "user", content: prompt }];
 
-  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+  const formattedPrompt = generateText.tokenizer.apply_chat_template(messages, {
     tokenize: false,
     add_generation_prompt: true,
   }) as string;
@@ -121,7 +121,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
   const originalPush = queue.push;
   queue.push = (event: StreamEvent<StructuredGenerationTaskOutput>) => {
     if (event.type === "text-delta" && "textDelta" in event) {
-      fullText += (event as any).textDelta;
+      fullText += event.textDelta;
       // Try to parse partial JSON and emit object-delta
       const match = fullText.match(/\{[\s\S]*/);
       if (match) {

@@ -23,12 +23,12 @@ export const TFMP_FaceLandmarker: AiProviderRunFn<
   const faceLandmarker = await getModelTask(
     model!,
     {
-      numFaces: (input as any).numFaces,
-      minFaceDetectionConfidence: (input as any).minFaceDetectionConfidence,
-      minFacePresenceConfidence: (input as any).minFacePresenceConfidence,
-      minTrackingConfidence: (input as any).minTrackingConfidence,
-      outputFaceBlendshapes: (input as any).outputFaceBlendshapes,
-      outputFacialTransformationMatrixes: (input as any).outputFacialTransformationMatrixes,
+      numFaces: input.numFaces,
+      minFaceDetectionConfidence: input.minFaceDetectionConfidence,
+      minFacePresenceConfidence: input.minFacePresenceConfidence,
+      minTrackingConfidence: input.minTrackingConfidence,
+      outputFaceBlendshapes: input.outputFaceBlendshapes,
+      outputFacialTransformationMatrixes: input.outputFacialTransformationMatrixes,
     },
     onProgress,
     signal,

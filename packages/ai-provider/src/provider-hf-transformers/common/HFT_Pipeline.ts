@@ -384,8 +384,8 @@ const doGetPipeline = async (
   const progressCallback = (status: ProgressInfo) => {
     if (abortSignal?.aborted) return;
 
-    if ((status as any).status === "progress_total") {
-      const totalStatus = status as any;
+    if (status.status === "progress_total") {
+      const totalStatus = status;
       const scaledProgress = (totalStatus.progress * progressScaleMax) / 100;
 
       // Find the currently active file (one still downloading)

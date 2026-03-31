@@ -15,7 +15,7 @@ import type {
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger, parsePartialJson } from "@workglow/util/worker";
+import { parsePartialJson } from "@workglow/util/worker";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 import { getClient, getMaxTokens, getModelName } from "./Anthropic_Client";
 
@@ -201,8 +201,8 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
 
   for await (const event of stream) {
     if (event.type === "content_block_start") {
-      const block = (event as any).content_block;
-      const index = (event as any).index as number;
+      const block = event.content_block;
+      const index = event.index as number;
       if (block.type === "tool_use") {
         blockMeta.set(index, {
           type: "tool_use",
@@ -214,7 +214,7 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
         blockMeta.set(index, { type: "text", json: "" });
       }
     } else if (event.type === "content_block_delta") {
-      const index = (event as any).index as number;
+      const index = event.index as number;
       const delta = event.delta as any;
       if (delta.type === "text_delta") {
         accumulatedText += delta.text;
@@ -239,7 +239,7 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
         }
       }
     } else if (event.type === "content_block_stop") {
-      const index = (event as any).index as number;
+      const index = event.index as number;
       const meta = blockMeta.get(index);
       if (meta?.type === "tool_use") {
         let finalInput: Record<string, unknown>;

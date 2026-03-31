@@ -28,6 +28,7 @@ import {
   Dataflow,
   IExecuteContext,
   IRunConfig,
+  StreamFinish,
   Task,
   TaskGraph,
   TaskGraphRunner,
@@ -262,7 +263,7 @@ describe("Source-task streaming accumulation", () => {
       // Finish event should be enriched with accumulated text
       const finishEvent = emitted.find((e) => e.type === "finish");
       expect(finishEvent).toBeDefined();
-      expect((finishEvent as any).data.text).toBe("hello world");
+      expect(finishEvent!.data.text).toBe("hello world");
 
       // Final output is accumulated
       expect(result.text).toBe("hello world");
@@ -281,7 +282,7 @@ describe("Source-task streaming accumulation", () => {
       // Finish event should be the raw empty payload (no accumulation)
       const finishEvent = emitted.find((e) => e.type === "finish");
       expect(finishEvent).toBeDefined();
-      expect((finishEvent as any).data).toEqual({});
+      expect(finishEvent!.data).toEqual({});
 
       // finalOutput is also empty (raw finish from provider)
       expect(result.text).toBeUndefined();
@@ -297,7 +298,7 @@ describe("Source-task streaming accumulation", () => {
 
       const finishEvent = emitted.find((e) => e.type === "finish");
       expect(finishEvent).toBeDefined();
-      expect((finishEvent as any).data.text).toBe("Bonjour monde");
+      expect(finishEvent!.data.text).toBe("Bonjour monde");
 
       expect(result.text).toBe("Bonjour monde");
     });
@@ -351,11 +352,11 @@ describe("Source-task streaming accumulation", () => {
       const finishEvent = emitted.find((e) => e.type === "finish");
       expect(finishEvent).toBeDefined();
       // Both accumulated text AND the original lang field should be present
-      expect((finishEvent as any).data.text).toBe("Hola mundo");
-      expect((finishEvent as any).data.lang).toBe("es");
+      expect(finishEvent!.data.text).toBe("Hola mundo");
+      expect(finishEvent!.data.lang).toBe("es");
 
-      expect((result as any).text).toBe("Hola mundo");
-      expect((result as any).lang).toBe("es");
+      expect(result.text).toBe("Hola mundo");
+      expect(result.lang).toBe("es");
     });
   });
 
@@ -378,12 +379,13 @@ describe("Source-task streaming accumulation", () => {
 
       // Source task should have been told to accumulate (enriched finish)
       expect(emittedFinish.length).toBe(1);
-      expect((emittedFinish[0] as any).data.text).toBe("hello world");
+      const emittedFinishEvent = emittedFinish[0] as StreamFinish<{ text: string }>;
+      expect(emittedFinishEvent.data.text).toBe("hello world");
 
       // Downstream sink should receive the accumulated value
       const sinkResult = results.find((r) => r.id === "sink");
       expect(sinkResult).toBeDefined();
-      expect((sinkResult!.data as any).text).toBe("sink:hello world");
+      expect(sinkResult!.data.text).toBe("sink:hello world");
     });
 
     it("should NOT accumulate when all downstream edges connect to streaming tasks", async () => {
@@ -407,7 +409,7 @@ describe("Source-task streaming accumulation", () => {
       const finishEvent = emittedBySource.find((e) => e.type === "finish");
       expect(finishEvent).toBeDefined();
       // Raw finish from provider is empty {}
-      expect((finishEvent as any).data).toEqual({});
+      expect(finishEvent!.data).toEqual({});
     });
 
     it("should accumulate when even one downstream is non-streaming (fan-out)", async () => {
@@ -429,11 +431,12 @@ describe("Source-task streaming accumulation", () => {
       const results = await runner.runGraph({ prompt: "test" });
 
       // Source must accumulate because sink is non-streaming
-      expect((emittedFinish[0] as any).data.text).toBe("hello world");
+      const emittedFinishEvent = emittedFinish[0] as StreamFinish<{ text: string }>;
+      expect(emittedFinishEvent.data.text).toBe("hello world");
 
       // Sink receives the accumulated value
       const sinkResult = results.find((r) => r.id === "sink");
-      expect((sinkResult!.data as any).text).toBe("sink:hello world");
+      expect(sinkResult!.data.text).toBe("sink:hello world");
     });
   });
 
@@ -455,7 +458,7 @@ describe("Source-task streaming accumulation", () => {
       // Sink should have received "Bonjour monde" (accumulated from text-deltas)
       const sinkResult = results.find((r) => r.id === "sink");
       expect(sinkResult).toBeDefined();
-      expect((sinkResult!.data as any).text).toBe("sink:Bonjour monde");
+      expect(sinkResult!.data.text).toBe("sink:Bonjour monde");
     });
   });
 
@@ -479,8 +482,8 @@ describe("Source-task streaming accumulation", () => {
 
       expect(resultA).toBeDefined();
       expect(resultB).toBeDefined();
-      expect((resultA!.data as any).text).toBe("sink:hello world");
-      expect((resultB!.data as any).text).toBe("sink:hello world");
+      expect(resultA!.data.text).toBe("sink:hello world");
+      expect(resultB!.data.text).toBe("sink:hello world");
     });
   });
 
@@ -512,12 +515,13 @@ describe("Source-task streaming accumulation", () => {
 
       // Source should have accumulated because cache is on
       expect(emittedFinish.length).toBe(1);
-      expect((emittedFinish[0] as any).data.text).toBe("cached value");
+      const emittedFinishEvent = emittedFinish[0] as StreamFinish<{ text: string }>;
+      expect(emittedFinishEvent.data.text).toBe("cached value");
 
       // Cached output should contain the accumulated text
       const cached = await cache.getOutput("AccumTest_CacheableAppendTask", { prompt: "test" });
       expect(cached).toBeDefined();
-      expect((cached as any).text).toBe("cached value");
+      expect(cached!.text).toBe("cached value");
     });
 
     it("should cache accumulated result and serve it on second run", async () => {
@@ -535,7 +539,8 @@ describe("Source-task streaming accumulation", () => {
       // Cache hit emits a single finish event with the cached data
       expect(events.length).toBe(1);
       expect(events[0].type).toBe("finish");
-      expect((events[0] as any).data.text).toBe("cached value");
+      const emittedFinishEvent = events[0] as StreamFinish<{ text: string }>;
+      expect(emittedFinishEvent.data.text).toBe("cached value");
       expect(result2.text).toBe("cached value");
     });
   });

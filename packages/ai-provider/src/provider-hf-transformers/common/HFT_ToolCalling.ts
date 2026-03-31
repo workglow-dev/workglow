@@ -296,7 +296,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
         prompt: (() => {
           const messages = toTextFlatMessages(input);
           const tools = resolveHFTToolsAndMessages(input, messages);
-          return (generateText.tokenizer as any).apply_chat_template(messages, {
+          return generateText.tokenizer.apply_chat_template(messages, {
             tools,
             tokenize: false,
             add_generation_prompt: true,
@@ -344,7 +344,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
         prompt: (() => {
           const messages = toTextFlatMessages(input);
           const tools = resolveHFTToolsAndMessages(input, messages);
-          return (generateText.tokenizer as any).apply_chat_template(messages, {
+          return generateText.tokenizer.apply_chat_template(messages, {
             tools,
             tokenize: false,
             add_generation_prompt: true,

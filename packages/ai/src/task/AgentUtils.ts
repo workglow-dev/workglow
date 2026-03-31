@@ -122,11 +122,7 @@ export function buildToolSources(
           },
         } satisfies FunctionToolSource);
       } else {
-        const safeConfig = resolveToolConfig(
-          tool.name,
-          tool.config,
-          (ctor as any).configSchema?.()
-        );
+        const safeConfig = resolveToolConfig(tool.name, tool.config, ctor.configSchema?.());
         const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
         sources.push({
           type: "registry",
@@ -141,11 +137,7 @@ export function buildToolSources(
       if (ctor) {
         // Registry-backed tool — config is passed through for task instantiation.
         // Only pass config if the task actually declares a configSchema.
-        const safeConfig = resolveToolConfig(
-          tool.name,
-          tool.config,
-          (ctor as any).configSchema?.()
-        );
+        const safeConfig = resolveToolConfig(tool.name, tool.config, ctor.configSchema?.());
         const { execute: _e, configSchema: _cs, config: _c, type: _t, ...definition } = tool;
         sources.push({
           type: "registry",

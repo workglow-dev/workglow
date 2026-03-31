@@ -23,16 +23,16 @@ export const TFMP_GestureRecognizer: AiProviderRunFn<
   const gestureRecognizer = await getModelTask(
     model!,
     {
-      numHands: (input as any).numHands,
-      minHandDetectionConfidence: (input as any).minHandDetectionConfidence,
-      minHandPresenceConfidence: (input as any).minHandPresenceConfidence,
-      minTrackingConfidence: (input as any).minTrackingConfidence,
+      numHands: input.numHands,
+      minHandDetectionConfidence: input.minHandDetectionConfidence,
+      minHandPresenceConfidence: input.minHandPresenceConfidence,
+      minTrackingConfidence: input.minTrackingConfidence,
     },
     onProgress,
     signal,
     GestureRecognizer
   );
-  const result = gestureRecognizer.recognize(input.image as any);
+  const result = gestureRecognizer.recognize(input.image);
 
   if (!result.gestures || !result.landmarks) {
     throw new PermanentJobError("Failed to recognize gestures: Empty result");
