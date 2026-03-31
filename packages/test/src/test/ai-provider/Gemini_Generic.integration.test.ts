@@ -40,6 +40,7 @@ runGenericAiProviderTests({
         "TextRewriterTask",
         "TextSummaryTask",
         "StructuredGenerationTask",
+        "ToolCallingTask",
       ],
       provider: GOOGLE_GEMINI as typeof GOOGLE_GEMINI,
       provider_config: { model_name: "gemini-2.5-flash" },
@@ -52,6 +53,7 @@ runGenericAiProviderTests({
     await setTaskQueueRegistry(null);
   },
   textGenerationModel: MODEL_ID,
+  toolCallingModel: MODEL_ID,
   structuredGenerationModel: MODEL_ID,
   maxTokens: 200,
   timeout: 30000,

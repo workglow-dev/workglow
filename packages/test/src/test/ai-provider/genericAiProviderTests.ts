@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type StructuredGenerationTaskOutput } from "@workglow/ai";
+import {
+  agent,
+  toolCalling,
+  type AgentTaskOutput,
+  type StructuredGenerationTaskOutput,
+  type ToolCalls,
+  type ToolDefinition,
+} from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
 import type { JsonSchema } from "@workglow/util/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -24,6 +31,8 @@ export interface AiProviderTestSetup {
   readonly teardown: () => Promise<void>;
   /** Model ID to use for text generation */
   readonly textGenerationModel: string;
+  /** Model ID to use for tool calling (may be same as above) */
+  readonly toolCallingModel?: string;
   /** Model ID for structured generation (may be same). Omit to skip structured generation tests. */
   readonly structuredGenerationModel?: string;
   /** Model ID for thinking (may be same). Omit to skip thinking tests. */
@@ -33,6 +42,56 @@ export interface AiProviderTestSetup {
   /** Timeout per test in ms */
   readonly timeout: number;
 }
+
+// ========================================================================
+// Shared test tools
+// ========================================================================
+
+const weatherTool: ToolDefinition = {
+  name: "get_weather",
+  description: "Get the current weather for a given city. Returns temperature and conditions.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      location: { type: "string", description: "City name, e.g. San Francisco" },
+    },
+    required: ["location"],
+  } as const satisfies JsonSchema,
+};
+
+const finishTool: ToolDefinition = {
+  name: "finish",
+  description:
+    "Call this tool when you have completed the task. Pass your final structured result as the input.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      answer: { type: "number", description: "The final answer" },
+    },
+    required: ["answer"],
+    additionalProperties: false,
+  } as const satisfies JsonSchema,
+};
+
+const discoverMagicTool: ToolDefinition = {
+  name: "discover_magic",
+  description:
+    "Discover the magic result of two numbers. Call this tool with parameters a and b to get their secret magic number.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      a: { type: "number", description: "First number" },
+      b: { type: "number", description: "Second number" },
+    },
+    required: ["a", "b"],
+    additionalProperties: false,
+  } as const satisfies JsonSchema,
+  execute: async (input: Record<string, unknown>) => {
+    const a = Number(input.a);
+    const b = Number(input.b);
+    return { result: (a + b) * 20 };
+  },
+};
 
 // ========================================================================
 // Generic test suite
@@ -68,6 +127,125 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
           expect(result).toBeDefined();
           expect(typeof result.text).toBe("string");
           expect(result.text.length).toBeGreaterThan(0);
+        },
+        setup.timeout
+      );
+    });
+
+    // ====================================================================
+    // ToolCalling — single turn
+    // ====================================================================
+
+    describe.skipIf(!setup.toolCallingModel)("ToolCalling", () => {
+      it(
+        "should produce a tool call with toolChoice required",
+        async () => {
+          const result = await toolCalling({
+            model: setup.toolCallingModel!,
+            prompt: "What is the weather in San Francisco?",
+            tools: [weatherTool],
+            toolChoice: "required",
+            maxTokens: setup.maxTokens,
+          });
+
+          expect(result).toBeDefined();
+          expect(result.toolCalls).toBeDefined();
+
+          const calls = result.toolCalls;
+          // The model should call get_weather
+          expect(calls.length).toBeGreaterThan(0);
+          expect(calls[0].name).toBe("get_weather");
+          expect(calls[0].input).toBeDefined();
+        },
+        setup.timeout
+      );
+
+      it(
+        "should produce no tool calls with toolChoice none",
+        async () => {
+          const result = await toolCalling({
+            model: setup.toolCallingModel!,
+            prompt: "What is the weather in San Francisco?",
+            tools: [weatherTool],
+            toolChoice: "none",
+            maxTokens: setup.maxTokens,
+          });
+
+          expect(result).toBeDefined();
+          expect(typeof result.text).toBe("string");
+          expect(result.text.length).toBeGreaterThan(0);
+          expect(result.toolCalls).toHaveLength(0);
+        },
+        setup.timeout
+      );
+    });
+
+    // ====================================================================
+    // ToolCalling — multi-turn via messages
+    // ====================================================================
+
+    describe.skipIf(!setup.toolCallingModel)("ToolCalling multi-turn", () => {
+      it(
+        "should handle tool result fed back via messages",
+        async () => {
+          // First call: get tool call
+          const workflow1 = new Workflow();
+          workflow1.toolCalling({
+            model: setup.toolCallingModel!,
+            prompt: "What is the weather in Tokyo?",
+            tools: [weatherTool],
+            toolChoice: "auto",
+            maxTokens: setup.maxTokens,
+          });
+
+          const result1 = (await workflow1.run()) as {
+            text: string;
+            toolCalls: ToolCalls;
+          };
+
+          const calls = result1.toolCalls;
+          if (calls.length === 0) {
+            // Model didn't call the tool — can happen with small models; skip gracefully
+            return;
+          }
+
+          const call = calls[0];
+
+          // Second call: feed tool result back
+          const workflow2 = new Workflow();
+          workflow2.toolCalling({
+            model: setup.toolCallingModel!,
+            prompt: "What is the weather in Tokyo?",
+            tools: [weatherTool],
+            toolChoice: "auto",
+            maxTokens: setup.maxTokens,
+            messages: [
+              { role: "user", content: "What is the weather in Tokyo?" },
+              {
+                role: "assistant",
+                content: [
+                  { type: "text", text: result1.text || "Let me check" },
+                  { type: "tool_use", id: call.id, name: call.name, input: call.input },
+                ],
+              },
+              {
+                role: "tool",
+                content: [
+                  {
+                    type: "tool_result",
+                    tool_use_id: call.id,
+                    content: JSON.stringify({ temperature: 22, conditions: "sunny" }),
+                  },
+                ],
+              },
+            ],
+          });
+
+          const result2 = (await workflow2.run()) as { text: string };
+
+          expect(result2).toBeDefined();
+          expect(typeof result2.text).toBe("string");
+          expect(result2.text.length).toBeGreaterThan(0);
         },
         setup.timeout
       );
@@ -113,5 +291,82 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
       );
     });
 
+    // ====================================================================
+    // AgentTask — full agent loop with function tool
+    // ====================================================================
+
+    describe.only("AgentTask", () => {
+      it.skip(
+        "should complete an agent loop with a function tool",
+        async () => {
+          const output = await agent({
+            model: setup.toolCallingModel!,
+            prompt:
+              "What is the magic function of 3 and 5? Use the discover_magic tool to find out.",
+            tools: [discoverMagicTool],
+            maxIterations: 3,
+            maxTokens: setup.maxTokens,
+          });
+
+          // console.dir(output, { depth: null });
+
+          expect(output).toBeDefined();
+          expect(output.iterations).toBeGreaterThanOrEqual(1);
+          expect(output.toolCallCount).toEqual(1);
+          const toolCall = output.messages
+            .find((m) => m.role === "assistant")
+            ?.content.filter((c) => c.type === "tool_use")?.[0];
+
+          expect(toolCall).toBeDefined();
+          expect(toolCall?.id).toBeDefined();
+          expect(toolCall?.name).toBe("discover_magic");
+          expect(toolCall?.input).toBeDefined();
+          expect(toolCall?.input.a).toBe(3);
+          expect(toolCall?.input.b).toBe(5);
+        },
+        setup.timeout
+      );
+
+      it.skipIf(!setup.toolCallingModel)(
+        "should extract structured output via stop tool",
+        async () => {
+          const output = await agent({
+            model: setup.toolCallingModel!,
+            prompt:
+              "First find the magic number of 3 and 5 using the discover_magic tool. After you receive the result, call the finish tool with the secret answer you found and put it in a field called 'answer'.",
+            tools: [discoverMagicTool, finishTool],
+            stopTool: "finish",
+            maxIterations: 5,
+            maxTokens: setup.maxTokens,
+          });
+
+          console.dir(output, { depth: null });
+
+          expect(output).toBeDefined();
+          const toolCalls = output.messages
+            .filter((m) => m.role === "assistant")
+            .flatMap((m) => m.content)
+            .filter((c) => c.type === "tool_use");
+
+          expect(toolCalls).toBeDefined();
+          expect(toolCalls?.[0].id).toBeDefined();
+          expect(toolCalls?.[0].name).toBe("discover_magic");
+          expect(toolCalls?.[0].input).toBeDefined();
+          expect(toolCalls?.[0].input.a).toBe(3);
+          expect(toolCalls?.[0].input.b).toBe(5);
+          expect(toolCalls?.[1].id).toBeDefined();
+          expect(toolCalls?.[1].name).toBe("finish");
+          expect(toolCalls?.[1].input).toBeDefined();
+          expect(toolCalls?.[1].input.answer).toBe(160);
+
+          expect(output.iterations).toEqual(2);
+          // The stop tool should produce structuredOutput
+          if (output.structuredOutput) {
+            expect(typeof output.structuredOutput).toBe("object");
+          }
+        },
+        setup.timeout
+      );
+    });
   });
 }

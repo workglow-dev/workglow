@@ -21,6 +21,8 @@ import { Gemini_TextEmbedding } from "./Gemini_TextEmbedding";
 import { Gemini_TextGeneration, Gemini_TextGeneration_Stream } from "./Gemini_TextGeneration";
 import { Gemini_TextRewriter, Gemini_TextRewriter_Stream } from "./Gemini_TextRewriter";
 import { Gemini_TextSummary, Gemini_TextSummary_Stream } from "./Gemini_TextSummary";
+import { Gemini_ToolCalling, Gemini_ToolCalling_Stream } from "./Gemini_ToolCalling";
+
 export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>> = {
   CountTokensTask: Gemini_CountTokens,
   ModelInfoTask: Gemini_ModelInfo,
@@ -29,6 +31,7 @@ export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelC
   TextRewriterTask: Gemini_TextRewriter,
   TextSummaryTask: Gemini_TextSummary,
   StructuredGenerationTask: Gemini_StructuredGeneration,
+  ToolCallingTask: Gemini_ToolCalling,
   ModelSearchTask: Gemini_ModelSearch,
 };
 
@@ -40,6 +43,7 @@ export const GEMINI_STREAM_TASKS: Record<
   TextRewriterTask: Gemini_TextRewriter_Stream,
   TextSummaryTask: Gemini_TextSummary_Stream,
   StructuredGenerationTask: Gemini_StructuredGeneration_Stream,
+  ToolCallingTask: Gemini_ToolCalling_Stream,
 };
 
 export const GEMINI_REACTIVE_TASKS: Record<

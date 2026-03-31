@@ -26,6 +26,7 @@ export class OllamaQueuedProvider extends AiProvider<OllamaModelConfig> {
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
+    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 
