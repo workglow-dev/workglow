@@ -92,6 +92,7 @@ export class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider<HfTr
     "ImageEmbeddingTask",
     "ImageClassificationTask",
     "ObjectDetectionTask",
+    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

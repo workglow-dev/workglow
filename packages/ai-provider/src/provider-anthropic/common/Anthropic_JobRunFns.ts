@@ -22,6 +22,8 @@ import {
 } from "./Anthropic_TextGeneration";
 import { Anthropic_TextRewriter, Anthropic_TextRewriter_Stream } from "./Anthropic_TextRewriter";
 import { Anthropic_TextSummary, Anthropic_TextSummary_Stream } from "./Anthropic_TextSummary";
+import { Anthropic_ToolCalling, Anthropic_ToolCalling_Stream } from "./Anthropic_ToolCalling";
+
 export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>> = {
   CountTokensTask: Anthropic_CountTokens,
   ModelInfoTask: Anthropic_ModelInfo,
@@ -29,6 +31,7 @@ export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, Anthropic
   TextRewriterTask: Anthropic_TextRewriter,
   TextSummaryTask: Anthropic_TextSummary,
   StructuredGenerationTask: Anthropic_StructuredGeneration,
+  ToolCallingTask: Anthropic_ToolCalling,
   ModelSearchTask: Anthropic_ModelSearch,
 };
 
@@ -40,6 +43,7 @@ export const ANTHROPIC_STREAM_TASKS: Record<
   TextRewriterTask: Anthropic_TextRewriter_Stream,
   TextSummaryTask: Anthropic_TextSummary_Stream,
   StructuredGenerationTask: Anthropic_StructuredGeneration_Stream,
+  ToolCallingTask: Anthropic_ToolCalling_Stream,
 };
 
 export const ANTHROPIC_REACTIVE_TASKS: Record<

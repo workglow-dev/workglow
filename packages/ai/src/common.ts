@@ -10,6 +10,8 @@ export * from "./execution/QueuedExecutionStrategy";
 
 export * from "./job/AiJob";
 
+export * from "./task/ToolCallingUtils";
+
 export * from "./model/InMemoryModelRepository";
 export * from "./model/ModelRegistry";
 export * from "./model/ModelRepository";

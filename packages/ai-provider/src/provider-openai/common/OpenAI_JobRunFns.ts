@@ -20,6 +20,8 @@ import { OpenAI_TextEmbedding } from "./OpenAI_TextEmbedding";
 import { OpenAI_TextGeneration, OpenAI_TextGeneration_Stream } from "./OpenAI_TextGeneration";
 import { OpenAI_TextRewriter, OpenAI_TextRewriter_Stream } from "./OpenAI_TextRewriter";
 import { OpenAI_TextSummary, OpenAI_TextSummary_Stream } from "./OpenAI_TextSummary";
+import { OpenAI_ToolCalling, OpenAI_ToolCalling_Stream } from "./OpenAI_ToolCalling";
+
 export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>> = {
   TextGenerationTask: OpenAI_TextGeneration,
   ModelInfoTask: OpenAI_ModelInfo,
@@ -28,6 +30,7 @@ export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelC
   TextSummaryTask: OpenAI_TextSummary,
   CountTokensTask: OpenAI_CountTokens,
   StructuredGenerationTask: OpenAI_StructuredGeneration,
+  ToolCallingTask: OpenAI_ToolCalling,
   ModelSearchTask: OpenAI_ModelSearch,
 };
 
@@ -39,6 +42,7 @@ export const OPENAI_STREAM_TASKS: Record<
   TextRewriterTask: OpenAI_TextRewriter_Stream,
   TextSummaryTask: OpenAI_TextSummary_Stream,
   StructuredGenerationTask: OpenAI_StructuredGeneration_Stream,
+  ToolCallingTask: OpenAI_ToolCalling_Stream,
 };
 
 export const OPENAI_REACTIVE_TASKS: Record<

@@ -29,6 +29,7 @@ export class LlamaCppQueuedProvider extends QueuedAiProvider<LlamaCppModelConfig
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
+    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 
