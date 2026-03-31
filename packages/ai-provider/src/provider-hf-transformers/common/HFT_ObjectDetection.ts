@@ -36,7 +36,7 @@ export const HFT_ObjectDetection: AiProviderRunFn<
       signal
     );
     const result: any = await zeroShotDetector(input.image as string, Array.from(input.labels!), {
-      threshold: (input as any).threshold,
+      threshold: input.threshold,
     });
 
     const detections = Array.isArray(result) ? result : [result];
@@ -52,7 +52,7 @@ export const HFT_ObjectDetection: AiProviderRunFn<
 
   const detector: ObjectDetectionPipeline = await getPipeline(model!, onProgress, {}, signal);
   const result: any = await detector(input.image as string, {
-    threshold: (input as any).threshold,
+    threshold: input.threshold,
   });
 
   const detections = Array.isArray(result) ? result : [result];

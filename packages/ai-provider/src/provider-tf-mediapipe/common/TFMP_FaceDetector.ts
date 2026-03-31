@@ -19,8 +19,8 @@ export const TFMP_FaceDetector: AiProviderRunFn<
   const faceDetector = await getModelTask(
     model!,
     {
-      minDetectionConfidence: (input as any).minDetectionConfidence,
-      minSuppressionThreshold: (input as any).minSuppressionThreshold,
+      minDetectionConfidence: input.minDetectionConfidence,
+      minSuppressionThreshold: input.minSuppressionThreshold,
     },
     onProgress,
     signal,

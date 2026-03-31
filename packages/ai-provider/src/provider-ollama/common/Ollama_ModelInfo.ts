@@ -24,7 +24,7 @@ export function createOllamaModelInfo(
     try {
       const showResponse = await client.show({ model: modelName });
       is_cached = true;
-      const size = (showResponse as any).size as number | undefined;
+      const size = showResponse.size;
       if (size != null) {
         file_sizes = { model: size };
       }
@@ -34,7 +34,7 @@ export function createOllamaModelInfo(
 
     try {
       const psResponse = await client.ps();
-      is_loaded = psResponse.models.some((m: any) => m.name === modelName);
+      is_loaded = psResponse.models.some((m: { name: string }) => m.name === modelName);
     } catch {
       // ps() not available or failed
     }

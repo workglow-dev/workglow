@@ -23,17 +23,17 @@ export const TFMP_PoseLandmarker: AiProviderRunFn<
   const poseLandmarker = await getModelTask(
     model!,
     {
-      numPoses: (input as any).numPoses,
-      minPoseDetectionConfidence: (input as any).minPoseDetectionConfidence,
-      minPosePresenceConfidence: (input as any).minPosePresenceConfidence,
-      minTrackingConfidence: (input as any).minTrackingConfidence,
-      outputSegmentationMasks: (input as any).outputSegmentationMasks,
+      numPoses: input.numPoses,
+      minPoseDetectionConfidence: input.minPoseDetectionConfidence,
+      minPosePresenceConfidence: input.minPosePresenceConfidence,
+      minTrackingConfidence: input.minTrackingConfidence,
+      outputSegmentationMasks: input.outputSegmentationMasks,
     },
     onProgress,
     signal,
     PoseLandmarker
   );
-  const result = poseLandmarker.detect(input.image as any);
+  const result = poseLandmarker.detect(input.image);
 
   if (!result.landmarks) {
     throw new PermanentJobError("Failed to detect pose landmarks: Empty result");

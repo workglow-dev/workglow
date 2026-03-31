@@ -243,7 +243,8 @@ export class DocumentEnricherTask extends Task<
     };
 
     if (enrichedChildren) {
-      (enrichedNode as any).children = enrichedChildren;
+      // @ts-expect-error - children are otherwise readonly
+      enrichedNode.children = enrichedChildren;
     }
 
     return enrichedNode;

@@ -218,7 +218,7 @@ export async function disposeLlamaCppResources(): Promise<void> {
   await disposeAll(llamaCppModels as Map<string, { dispose(): Promise<void> }>);
 
   if (llamaInstance) {
-    await (llamaInstance as any).dispose?.().catch(() => {});
+    await llamaInstance.dispose?.().catch(() => {});
     llamaInstance = undefined;
   }
 

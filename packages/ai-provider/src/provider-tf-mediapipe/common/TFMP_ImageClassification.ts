@@ -23,22 +23,24 @@ export const TFMP_ImageClassification: AiProviderRunFn<
   const imageClassifier = await getModelTask(
     model!,
     {
-      maxResults: (input as any).maxCategories,
+      maxResults: input.maxCategories,
     },
     onProgress,
     signal,
     ImageClassifier
   );
-  const result = imageClassifier.classify(input.image as any);
+  const result = imageClassifier.classify(input.image);
 
   if (!result.classifications?.[0]?.categories) {
     throw new PermanentJobError("Failed to classify image: Empty result");
   }
 
-  const categories = result.classifications[0].categories.map((category: any) => ({
-    label: category.categoryName,
-    score: category.score,
-  }));
+  const categories = result.classifications[0].categories.map(
+    (category: { categoryName: string; score: number }) => ({
+      label: category.categoryName,
+      score: category.score,
+    })
+  );
 
   return {
     categories,

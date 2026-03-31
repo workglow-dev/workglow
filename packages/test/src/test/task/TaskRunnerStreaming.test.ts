@@ -488,9 +488,9 @@ describe("TaskRunner Streaming", () => {
 
       const result = await task.run({ prompt: "test" });
 
-      expect((result as any).code).toBe('fn main() { println!("hi") }');
+      expect(result.code).toBe('fn main() { println!("hi") }');
       expect(task.runOutputData).toHaveProperty("code");
-      expect((task.runOutputData as any).code).toBe('fn main() { println!("hi") }');
+      expect(task.runOutputData.code).toBe('fn main() { println!("hi") }');
     });
 
     it("should emit stream events for non-text port", async () => {

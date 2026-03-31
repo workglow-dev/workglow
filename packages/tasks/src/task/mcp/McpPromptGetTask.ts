@@ -13,7 +13,7 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { getMcpTaskDeps, type McpServerConfig } from "../../util/McpTaskDeps";
-import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { DataPortSchema, DataPortSchemaObject, FromSchema } from "@workglow/util/schema";
 import { mcpList, type McpListTaskInput } from "./McpListTask";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
@@ -225,7 +225,7 @@ export class McpPromptGetTask extends Task<
       if (prompt) {
         const args = prompt.arguments ?? [];
         const required = args.filter((a) => a.required).map((a) => a.name);
-        const properties: Record<string, { type: string; description?: string }> = {};
+        const properties: DataPortSchemaObject["properties"] = {};
         for (const arg of args) {
           properties[arg.name] = {
             type: "string",
@@ -233,7 +233,7 @@ export class McpPromptGetTask extends Task<
           };
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this.config as any).inputSchema = {
+        this.config.inputSchema = {
           type: "object",
           properties,
           ...(required.length > 0 ? { required } : {}),

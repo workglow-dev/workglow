@@ -30,8 +30,8 @@ export const LlamaCpp_Download: AiProviderRunFn<
   const downloader = await createModelDownloader({ modelUri, dirPath });
 
   const progressInterval = setInterval(() => {
-    const total = (downloader as any).totalSize as number | undefined;
-    const downloaded = (downloader as any).downloadedSize as number | undefined;
+    const total = downloader.totalSize;
+    const downloaded = downloader.downloadedSize;
     if (total && total > 0 && downloaded !== undefined) {
       const pct = Math.min(99, Math.round((downloaded / total) * 100));
       update_progress(pct, "Downloading model", { file: modelUri, progress: pct });

@@ -115,7 +115,7 @@ export class AiTask<
     }
 
     // Attach structured output schema if the task declares it.
-    const inputOutputSchema = (input as any).outputSchema;
+    const inputOutputSchema = input.outputSchema as DataPortSchema;
     if (
       inputOutputSchema &&
       typeof inputOutputSchema === "object" &&

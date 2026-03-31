@@ -1107,7 +1107,7 @@ export class Workflow<
       if (task.type === "InputTask") {
         // If the schema is marked as fully manual (x-ui-manual at schema level),
         // skip edge-based regeneration — the user explicitly defined this schema.
-        const existingConfig = (task as any).config;
+        const existingConfig = (task as ITask).config;
         const existingSchema = existingConfig?.inputSchema ?? existingConfig?.outputSchema;
         if (
           existingSchema &&
@@ -1146,8 +1146,9 @@ export class Workflow<
           additionalProperties: false,
         } as DataPortSchema;
 
-        (task as any).config = {
-          ...(task as any).config,
+        // @ts-expect-error - config is readonly
+        task.config = {
+          ...task.config,
           inputSchema: schema,
           outputSchema: schema,
         };
@@ -1184,8 +1185,9 @@ export class Workflow<
           additionalProperties: false,
         } as DataPortSchema;
 
-        (task as any).config = {
-          ...(task as any).config,
+        // @ts-expect-error - config is readonly
+        task.config = {
+          ...task.config,
           inputSchema: schema,
           outputSchema: schema,
         };
@@ -1483,7 +1485,7 @@ export class Workflow<
         // (x-ui-manual), only connect ports that exist in its schema.
         // Otherwise, treat it as a universal provider.
         if (earlierTask.type === "InputTask") {
-          const inputConfig = (earlierTask as any).config;
+          const inputConfig = earlierTask.config;
           const inputSchema = inputConfig?.inputSchema ?? inputConfig?.outputSchema;
           const isManualSchema =
             inputSchema &&

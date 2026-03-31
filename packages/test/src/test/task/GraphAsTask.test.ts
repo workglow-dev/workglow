@@ -327,7 +327,7 @@ describe("GraphAsTask Dynamic Schema", () => {
         return;
       }
       expect(outputSchema.properties!["outputB"]).toBeDefined();
-      expect((outputSchema.properties!["outputB"] as any).type).not.toBe("array");
+      expect(outputSchema.properties!["outputB"].type).not.toBe("array");
     });
 
     it("should generate correct schema for PROPERTY_ARRAY strategy with multiple ending nodes", () => {
@@ -353,9 +353,9 @@ describe("GraphAsTask Dynamic Schema", () => {
       }
 
       // Multiple ending nodes: all properties should be arrays (due to collectPropertyValues behavior)
-      expect((outputSchema.properties!["outputB"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC1"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC2"] as any).type).toBe("array");
+      expect(outputSchema.properties!["outputB"].type).toBe("array");
+      expect(outputSchema.properties!["outputC1"].type).toBe("array");
+      expect(outputSchema.properties!["outputC2"].type).toBe("array");
     });
   });
 
@@ -425,8 +425,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       expect(outputSchema.properties!["outputC2"]).toBeDefined();
 
       // The output should NOT be arrays since there's only one node at the last level
-      expect((outputSchema.properties!["outputC1"] as any).type).not.toBe("array");
-      expect((outputSchema.properties!["outputC2"] as any).type).not.toBe("array");
+      expect(outputSchema.properties!["outputC1"].type).not.toBe("array");
+      expect(outputSchema.properties!["outputC2"].type).not.toBe("array");
     });
 
     it("should include multiple outputs when they are all at the same maximum depth", () => {
@@ -460,15 +460,15 @@ describe("GraphAsTask Dynamic Schema", () => {
       expect(outputSchema.properties!["outputC2"]).toBeDefined();
 
       // The outputs should be arrays since there are multiple nodes at the last level
-      expect((outputSchema.properties!["outputB"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC1"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC2"] as any).type).toBe("array");
+      expect(outputSchema.properties!["outputB"].type).toBe("array");
+      expect(outputSchema.properties!["outputC1"].type).toBe("array");
+      expect(outputSchema.properties!["outputC2"].type).toBe("array");
     });
   });
 
   describe("Dynamic Schemas", () => {
     it("should have hasDynamicSchemas set to true", () => {
-      expect((GraphAsTask as any).hasDynamicSchemas).toBe(true);
+      expect(GraphAsTask.hasDynamicSchemas).toBe(true);
     });
 
     it("should emit schemaChange event when emitSchemaChange is called", () => {
@@ -495,8 +495,8 @@ describe("GraphAsTask Dynamic Schema", () => {
         }
       );
 
-      // Call the protected method via type assertion
-      (graphAsTask as any).emitSchemaChange();
+      // @ts-expect-error - emitSchemaChange is protected
+      graphAsTask.emitSchemaChange();
 
       expect(schemaChangeEmitted).toBe(true);
       expect(receivedInputSchema).toBeDefined();
@@ -526,7 +526,8 @@ describe("GraphAsTask Dynamic Schema", () => {
         properties: { customOut: { type: "string" } },
       };
 
-      (graphAsTask as any).emitSchemaChange(customInputSchema, customOutputSchema);
+      // @ts-expect-error - emitSchemaChange is protected
+      graphAsTask.emitSchemaChange(customInputSchema, customOutputSchema);
 
       expect(receivedInputSchema).toEqual(customInputSchema);
       expect(receivedOutputSchema).toEqual(customOutputSchema);

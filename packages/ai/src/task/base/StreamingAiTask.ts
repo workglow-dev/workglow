@@ -79,9 +79,9 @@ export class StreamingAiTask<
 
     for await (const event of strategy.executeStream(jobInput, context, this.runConfig.runnerId)) {
       if (event.type === "text-delta") {
-        yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
+        yield { ...event, port: event.port ?? defaultPort } as StreamEvent<Output>;
       } else if (event.type === "object-delta") {
-        yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
+        yield { ...event, port: event.port ?? defaultPort } as StreamEvent<Output>;
       } else {
         yield event as StreamEvent<Output>;
       }

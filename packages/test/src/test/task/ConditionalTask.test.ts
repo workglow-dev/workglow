@@ -1774,17 +1774,14 @@ describe("ConditionalTask", () => {
         let receivedInputSchema: DataPortSchema | undefined;
         let receivedOutputSchema: DataPortSchema | undefined;
 
-        (task as any).on(
-          "schemaChange",
-          (inputSchema?: DataPortSchema, outputSchema?: DataPortSchema) => {
-            schemaChangeEmitted = true;
-            receivedInputSchema = inputSchema;
-            receivedOutputSchema = outputSchema;
-          }
-        );
+        task.on("schemaChange", (inputSchema?: DataPortSchema, outputSchema?: DataPortSchema) => {
+          schemaChangeEmitted = true;
+          receivedInputSchema = inputSchema;
+          receivedOutputSchema = outputSchema;
+        });
 
-        // Call the protected method via type assertion
-        (task as any).emitSchemaChange();
+        // @ts-expect-error - emitSchemaChange is protected
+        task.emitSchemaChange();
 
         expect(schemaChangeEmitted).toBe(true);
         expect(receivedInputSchema).toBeDefined();
@@ -1807,13 +1804,10 @@ describe("ConditionalTask", () => {
         let receivedInputSchema: DataPortSchema | undefined;
         let receivedOutputSchema: DataPortSchema | undefined;
 
-        (task as any).on(
-          "schemaChange",
-          (inputSchema?: DataPortSchema, outputSchema?: DataPortSchema) => {
-            receivedInputSchema = inputSchema;
-            receivedOutputSchema = outputSchema;
-          }
-        );
+        task.on("schemaChange", (inputSchema?: DataPortSchema, outputSchema?: DataPortSchema) => {
+          receivedInputSchema = inputSchema;
+          receivedOutputSchema = outputSchema;
+        });
 
         const customInputSchema: DataPortSchema = {
           type: "object",
@@ -1824,7 +1818,8 @@ describe("ConditionalTask", () => {
           properties: { customOut: { type: "string" } },
         };
 
-        (task as any).emitSchemaChange(customInputSchema, customOutputSchema);
+        // @ts-expect-error - emitSchemaChange is protected
+        task.emitSchemaChange(customInputSchema, customOutputSchema);
 
         expect(receivedInputSchema).toEqual(customInputSchema);
         expect(receivedOutputSchema).toEqual(customOutputSchema);

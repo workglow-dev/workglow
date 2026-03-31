@@ -23,13 +23,13 @@ export const TFMP_ObjectDetection: AiProviderRunFn<
   const objectDetector = await getModelTask(
     model!,
     {
-      scoreThreshold: (input as any).threshold,
+      scoreThreshold: input.threshold,
     },
     onProgress,
     signal,
     ObjectDetector
   );
-  const result = objectDetector.detect(input.image as any);
+  const result = objectDetector.detect(input.image);
 
   if (!result.detections) {
     throw new PermanentJobError("Failed to detect objects: Empty result");
