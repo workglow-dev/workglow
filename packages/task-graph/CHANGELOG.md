@@ -1,5 +1,37 @@
 # @workglow/task-graph
 
+## 0.1.0
+
+### Features
+
+#### queue-status
+
+- remove JobQueueTask from the task class heirarchy
+
+#### task-graph
+
+- add graph-level timeout, task allowlist, and resource cleanup features (#339)
+
+#### storage
+
+- update McpServerRecordSchema to include auth_type and refactor createMcpStorage function
+
+### Bug Fixes
+
+#### ai,ai-provider
+
+- improve security, robustness, and DX across AI packages (#340)
+
+### Refactors
+
+#### tasks
+
+- consolidate MCP client utilities and add registry resolution for them to configs
+
+### Chores
+
+- remove unnecessary comments that restate code or reference commits
+
 ## 0.0.126
 
 ### Features

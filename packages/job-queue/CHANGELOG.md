@@ -1,5 +1,11 @@
 # @workglow/job-queue
 
+## 0.1.0
+
+### Chores
+
+- remove unnecessary comments that restate code or reference commits
+
 ## 0.0.126
 
 ### Features

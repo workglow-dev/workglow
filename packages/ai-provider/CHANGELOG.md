@@ -1,5 +1,50 @@
 # @workglow/ai-provider
 
+## 0.1.0
+
+### Features
+
+#### ai-provider
+
+- add RNG seed configuration to HfTransformersOnnxModelSchema
+- enhance timeout handling and function calling local model support
+- add RNG seed configuration for reproducible generation
+
+#### queue-status
+
+- remove JobQueueTask from the task class heirarchy
+
+#### storage
+
+- update McpServerRecordSchema to include auth_type and refactor createMcpStorage function
+
+#### provider
+
+- enhance model caching options with device support
+
+### Bug Fixes
+
+#### ai,ai-provider
+
+- improve security, robustness, and DX across AI packages (#340)
+
+#### provider
+
+- update dtype handling in pipeline configuration
+
+### Refactors
+
+- remove array input support from most AI provider implementations (#333)
+
+#### ai
+
+- remove ToolCallingTask and related utilities
+- decouple AI execution from job queue with strategy pattern
+
+### Chores
+
+- remove implementation plan configuration schema and update README with build status badge
+
 ## 0.0.126
 
 ### Features

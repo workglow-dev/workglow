@@ -1,5 +1,77 @@
 # @workglow/test
 
+## 0.1.0
+
+### Features
+
+#### ai-provider
+
+- enhance AI provider tests with new thinking model and tool updates
+- enhance timeout handling and function calling local model support
+- add RNG seed configuration for reproducible generation
+
+#### queue-status
+
+- remove JobQueueTask from the task class heirarchy
+
+#### task-graph
+
+- add graph-level timeout, task allowlist, and resource cleanup features (#339)
+
+#### tests
+
+- add dtype configuration for various models in ONNX and HuggingFace tests
+- add vitest coverage for job queue, utilities, and tasks (#334)
+- add new integration test steps for github actions
+
+### Bug Fixes
+
+#### ai,ai-provider
+
+- improve security, robustness, and DX across AI packages (#340)
+
+#### storage,knowledge-base
+
+- security hardening, bug fixes, and robustness improvements (#341)
+
+#### tasks
+
+- security hardening, bug fixes, and robustness improvements (#337)
+
+### Refactors
+
+- remove array input support from most AI provider implementations (#333)
+
+#### ai
+
+- remove ToolCallingTask and related utilities
+- decouple AI execution from job queue with strategy pattern
+
+#### tasks
+
+- consolidate MCP client utilities and add registry resolution for them to configs
+
+### Tests
+
+#### storage
+
+- enhance PollingSubscriptionManager with initialization state management
+
+### Chores
+
+- remove unnecessary comments that restate code or reference commits
+- remove implementation plan configuration schema and update README with build status badge
+- update package dependencies (transformers to version 4.0.0-next.9)
+
+#### dependencies
+
+- update package versions for improved compatibility and features
+
+### Updated Dependencies
+
+- `@electric-sql/pglite`: catalog:
+- `vitest`: ^4.1.2
+
 ## 0.0.126
 
 ### Features
