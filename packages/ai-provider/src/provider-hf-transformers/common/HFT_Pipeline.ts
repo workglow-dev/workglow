@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { PretrainedModelOptions, ProgressInfo } from "@huggingface/transformers";
+import { type PretrainedModelOptions, type ProgressInfo } from "@huggingface/transformers";
 import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 
@@ -13,7 +13,7 @@ let _cacheDir: string | undefined;
 
 /**
  * Set the filesystem cache directory for downloaded transformers.js models.
- * Must be called before any model is loaded. Works in both Node and browser.
+ * Must be called before any model is loaded.
  */
 export function setHftCacheDir(dir: string): void {
   _cacheDir = dir;
@@ -516,5 +516,7 @@ const doGetPipeline = async (
     throw error;
   } finally {
     modelAbortControllers.delete(modelPath);
+    const { random } = await loadTransformersSDK();
+    random.seed(model.provider_config.seed ?? undefined);
   }
 };

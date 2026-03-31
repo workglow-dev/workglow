@@ -83,6 +83,12 @@ export const HfTransformersOnnxModelSchema = {
           type: "string",
           description: "The language style of the model.",
         },
+        seed: {
+          type: "integer",
+          description:
+            "RNG seed passed to transformers.js sampling. Omit for time-based seeding; set for reproducible generation.",
+          minimum: 0,
+        },
         mrl: {
           type: "boolean",
           description: "Whether the model uses matryoshka.",
