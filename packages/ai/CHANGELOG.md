@@ -1,5 +1,37 @@
 # @workglow/ai
 
+## 0.0.127
+
+### Features
+
+#### ai-provider
+
+- enhance AI provider tests with new thinking model and tool updates
+- enhance timeout handling and function calling local model support
+
+#### queue-status
+
+- remove JobQueueTask from the task class heirarchy
+
+#### docs
+
+- update model configurations to use structured object format
+
+### Bug Fixes
+
+#### ai,ai-provider
+
+- improve security, robustness, and DX across AI packages (#340)
+
+### Refactors
+
+- remove array input support from most AI provider implementations (#333)
+
+#### ai
+
+- remove ToolCallingTask and related utilities
+- decouple AI execution from job queue with strategy pattern
+
 ## 0.0.126
 
 ### Features

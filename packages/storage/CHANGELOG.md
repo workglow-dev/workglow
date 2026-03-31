@@ -1,5 +1,27 @@
 # @workglow/storage
 
+## 0.0.127
+
+### Bug Fixes
+
+#### ai,ai-provider
+
+- improve security, robustness, and DX across AI packages (#340)
+
+#### storage,knowledge-base
+
+- security hardening, bug fixes, and robustness improvements (#341)
+
+### Tests
+
+#### storage
+
+- enhance PollingSubscriptionManager with initialization state management
+
+### Chores
+
+- remove unnecessary comments that restate code or reference commits
+
 ## 0.0.126
 
 ### Features

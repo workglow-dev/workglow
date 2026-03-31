@@ -1,5 +1,17 @@
 # @workglow/util
 
+## 0.0.127
+
+### Bug Fixes
+
+#### util
+
+- critical bug fixes and robustness improvements (#336)
+
+### Chores
+
+- remove unnecessary comments that restate code or reference commits
+
 ## 0.0.126
 
 ### Features

@@ -1,5 +1,31 @@
 # @workglow/tasks
 
+## 0.0.127
+
+### Features
+
+#### queue-status
+
+- remove JobQueueTask from the task class heirarchy
+
+### Bug Fixes
+
+#### tasks
+
+- security hardening, bug fixes, and robustness improvements (#337)
+
+### Refactors
+
+- update McpServerRecordSchema and improve credential handling
+
+#### tasks
+
+- consolidate MCP client utilities and add registry resolution for them to configs
+
+### Chores
+
+- update TypeScript and package dependencies
+
 ## 0.0.126
 
 ### Features

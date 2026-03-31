@@ -1,5 +1,31 @@
 # @workglow/cli
 
+## 0.0.127
+
+### Features
+
+- wire up OAuth2/credential support for MCP tasks in CLI (#328)
+
+#### storage
+
+- update McpServerRecordSchema to include auth_type and refactor createMcpStorage function
+
+### Bug Fixes
+
+#### ai,ai-provider
+
+- improve security, robustness, and DX across AI packages (#340)
+
+### Refactors
+
+- update McpServerRecordSchema and improve credential handling
+
+### Chores
+
+#### dependencies
+
+- update package versions for improved compatibility
+
 ## 0.0.126
 
 ## 0.0.125

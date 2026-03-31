@@ -1,5 +1,34 @@
 # @workglow/web
 
+## 0.0.127
+
+### Features
+
+#### queue-status
+
+- remove JobQueueTask from the task class heirarchy
+
+#### docs
+
+- update model configurations to use structured object format
+
+### Chores
+
+- remove unnecessary comments that restate code or reference commits
+- update package dependencies (transformers to version 4.0.0-next.9)
+
+#### dependencies
+
+- remove react-hotkeys-hook from package configurations
+- update package versions for improved compatibility and features
+
+### Updated Dependencies
+
+- `@uiw/codemirror-theme-vscode`: ^4.25.9
+- `@uiw/react-codemirror`: ^4.25.9
+- `@xyflow/react`: ^12.10.2
+- `vite`: ^8.0.3
+
 ## 0.0.126
 
 ### Features
