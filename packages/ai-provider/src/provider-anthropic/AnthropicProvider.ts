@@ -40,7 +40,6 @@ export class AnthropicProvider extends AiProvider<AnthropicModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "StructuredGenerationTask",
-    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

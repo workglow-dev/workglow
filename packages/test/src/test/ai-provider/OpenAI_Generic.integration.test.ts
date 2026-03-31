@@ -40,7 +40,6 @@ runGenericAiProviderTests({
         "TextRewriterTask",
         "TextSummaryTask",
         "StructuredGenerationTask",
-        "ToolCallingTask",
       ],
       provider: OPENAI as typeof OPENAI,
       provider_config: { model_name: "gpt-4o-mini" },
@@ -53,7 +52,6 @@ runGenericAiProviderTests({
     await setTaskQueueRegistry(null);
   },
   textGenerationModel: MODEL_ID,
-  toolCallingModel: MODEL_ID,
   structuredGenerationModel: MODEL_ID,
   maxTokens: 100,
   timeout: 30000,

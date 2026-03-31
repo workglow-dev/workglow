@@ -33,7 +33,6 @@ import { LlamaCpp_TextEmbedding } from "./LlamaCpp_TextEmbedding";
 import { LlamaCpp_TextGeneration, LlamaCpp_TextGeneration_Stream } from "./LlamaCpp_TextGeneration";
 import { LlamaCpp_TextRewriter, LlamaCpp_TextRewriter_Stream } from "./LlamaCpp_TextRewriter";
 import { LlamaCpp_TextSummary, LlamaCpp_TextSummary_Stream } from "./LlamaCpp_TextSummary";
-import { LlamaCpp_ToolCalling, LlamaCpp_ToolCalling_Stream } from "./LlamaCpp_ToolCalling";
 import { LlamaCpp_Unload } from "./LlamaCpp_Unload";
 
 export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppModelConfig>> = {
@@ -45,7 +44,6 @@ export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppMo
   TextEmbeddingTask: LlamaCpp_TextEmbedding,
   TextRewriterTask: LlamaCpp_TextRewriter,
   TextSummaryTask: LlamaCpp_TextSummary,
-  ToolCallingTask: LlamaCpp_ToolCalling,
   StructuredGenerationTask: LlamaCpp_StructuredGeneration,
   ModelSearchTask: LlamaCpp_ModelSearch,
 };
@@ -57,7 +55,6 @@ export const LLAMACPP_STREAM_TASKS: Record<
   TextGenerationTask: LlamaCpp_TextGeneration_Stream,
   TextRewriterTask: LlamaCpp_TextRewriter_Stream,
   TextSummaryTask: LlamaCpp_TextSummary_Stream,
-  ToolCallingTask: LlamaCpp_ToolCalling_Stream,
   StructuredGenerationTask: LlamaCpp_StructuredGeneration_Stream,
 };
 

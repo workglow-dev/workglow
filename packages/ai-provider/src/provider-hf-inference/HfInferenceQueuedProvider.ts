@@ -26,7 +26,6 @@ export class HfInferenceQueuedProvider extends AiProvider<HfInferenceModelConfig
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
-    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

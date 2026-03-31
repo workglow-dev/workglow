@@ -49,7 +49,6 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
     "ImageEmbeddingTask",
     "ImageClassificationTask",
     "ObjectDetectionTask",
-    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

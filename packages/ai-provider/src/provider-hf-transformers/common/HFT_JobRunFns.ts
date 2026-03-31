@@ -31,7 +31,6 @@ import { HFT_TextQuestionAnswer, HFT_TextQuestionAnswer_Stream } from "./HFT_Tex
 import { HFT_TextRewriter, HFT_TextRewriter_Stream } from "./HFT_TextRewriter";
 import { HFT_TextSummary, HFT_TextSummary_Stream } from "./HFT_TextSummary";
 import { HFT_TextTranslation, HFT_TextTranslation_Stream } from "./HFT_TextTranslation";
-import { HFT_ToolCalling, HFT_ToolCalling_Stream } from "./HFT_ToolCalling";
 import { HFT_Unload } from "./HFT_Unload";
 
 /**
@@ -60,7 +59,6 @@ export const HFT_TASKS = {
   ImageEmbeddingTask: HFT_ImageEmbedding,
   ImageClassificationTask: HFT_ImageClassification,
   ObjectDetectionTask: HFT_ObjectDetection,
-  ToolCallingTask: HFT_ToolCalling,
   StructuredGenerationTask: HFT_StructuredGeneration,
   ModelSearchTask: HFT_ModelSearch,
 } as const;
@@ -77,7 +75,6 @@ export const HFT_STREAM_TASKS: Record<
   TextSummaryTask: HFT_TextSummary_Stream,
   TextQuestionAnswerTask: HFT_TextQuestionAnswer_Stream,
   TextTranslationTask: HFT_TextTranslation_Stream,
-  ToolCallingTask: HFT_ToolCalling_Stream,
   StructuredGenerationTask: HFT_StructuredGeneration_Stream,
 };
 

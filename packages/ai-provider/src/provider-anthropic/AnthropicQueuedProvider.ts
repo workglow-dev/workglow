@@ -27,7 +27,6 @@ export class AnthropicQueuedProvider extends AiProvider<AnthropicModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "StructuredGenerationTask",
-    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

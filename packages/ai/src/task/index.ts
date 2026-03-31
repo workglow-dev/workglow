@@ -5,7 +5,6 @@
  */
 
 import { TaskRegistry } from "@workglow/task-graph";
-import { AgentTask } from "./AgentTask";
 import { BackgroundRemovalTask } from "./BackgroundRemovalTask";
 import { ChunkRetrievalTask } from "./ChunkRetrievalTask";
 import { ChunkToVectorTask } from "./ChunkToVectorTask";
@@ -45,7 +44,6 @@ import { TextQuestionAnswerTask } from "./TextQuestionAnswerTask";
 import { TextRewriterTask } from "./TextRewriterTask";
 import { TextSummaryTask } from "./TextSummaryTask";
 import { TextTranslationTask } from "./TextTranslationTask";
-import { ToolCallingTask } from "./ToolCallingTask";
 import { TopicSegmenterTask } from "./TopicSegmenterTask";
 import { UnloadModelTask } from "./UnloadModelTask";
 import { VectorQuantizeTask } from "./VectorQuantizeTask";
@@ -56,7 +54,6 @@ import { VectorSimilarityTask } from "./VectorSimilarityTask";
 // and prevents tree-shaking issues.
 export const registerAiTasks = () => {
   const tasks = [
-    AgentTask,
     BackgroundRemovalTask,
     ChunkToVectorTask,
     CountTokensTask,
@@ -96,7 +93,6 @@ export const registerAiTasks = () => {
     TextRewriterTask,
     TextSummaryTask,
     TextTranslationTask,
-    ToolCallingTask,
     TopicSegmenterTask,
     UnloadModelTask,
     VectorQuantizeTask,
@@ -106,11 +102,6 @@ export const registerAiTasks = () => {
   return tasks;
 };
 
-export * from "./AgentTask";
-export * from "./AgentTypes";
-export * from "./AgentUtils";
-export * from "./MessageConversion";
-export * from "./ToolCallingUtils";
 export * from "./BackgroundRemovalTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";
@@ -153,7 +144,6 @@ export * from "./TextQuestionAnswerTask";
 export * from "./TextRewriterTask";
 export * from "./TextSummaryTask";
 export * from "./TextTranslationTask";
-export * from "./ToolCallingTask";
 export * from "./TopicSegmenterTask";
 export * from "./UnloadModelTask";
 export * from "./VectorQuantizeTask";

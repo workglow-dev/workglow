@@ -47,7 +47,7 @@ const toolModel: HfTransformersOnnxModelRecord = {
   model_id: TOOL_MODEL_ID,
   title: "FunctionGemma 270M IT ONNX",
   description: "Tool-calling-focused ONNX model quantized to q4f16",
-  tasks: ["ToolCallingTask", "StructuredGenerationTask"],
+  tasks: ["StructuredGenerationTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
@@ -62,7 +62,7 @@ const thinkingModel: HfTransformersOnnxModelRecord = {
   model_id: THINKING_MODEL_ID,
   title: "LFM2.5-1.2B-Thinking-WebGPU",
   description: "Liquid 1.2B Thinking WebGPU",
-  tasks: ["TextGenerationTask", "ToolCallingTask", "StructuredGenerationTask", "AgentTask"],
+  tasks: ["TextGenerationTask", "StructuredGenerationTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",

@@ -18,7 +18,4 @@
 export * from "./provider/AiProvider";
 export * from "./provider/AiProviderRegistry";
 
-export * from "./task/ToolCallingUtils";
-export * from "./task/MessageConversion";
-
 export * from "./model/ModelSchema";

@@ -28,7 +28,6 @@ export class GoogleGeminiQueuedProvider extends AiProvider<GeminiModelConfig> {
     "TextRewriterTask",
     "TextSummaryTask",
     "StructuredGenerationTask",
-    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

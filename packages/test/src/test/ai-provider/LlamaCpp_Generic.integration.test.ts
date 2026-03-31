@@ -52,7 +52,6 @@ const toolModel: LlamaCppModelRecord = {
     "TextGenerationTask",
     "TextRewriterTask",
     "TextSummaryTask",
-    "ToolCallingTask",
     "StructuredGenerationTask",
   ],
   provider: LOCAL_LLAMACPP,
@@ -97,7 +96,6 @@ runGenericAiProviderTests({
     await setTaskQueueRegistry(null);
   },
   textGenerationModel: LLM_MODEL_ID,
-  toolCallingModel: TOOL_MODEL_ID,
   structuredGenerationModel: TOOL_MODEL_ID,
   maxTokens: 200,
   timeout: 10 * 60 * 1000, // 10 min: download (~85 MB) + inference

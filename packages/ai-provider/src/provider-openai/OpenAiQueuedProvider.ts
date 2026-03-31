@@ -28,7 +28,6 @@ export class OpenAiQueuedProvider extends AiProvider<OpenAiModelConfig> {
     "CountTokensTask",
     "ModelInfoTask",
     "StructuredGenerationTask",
-    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 
