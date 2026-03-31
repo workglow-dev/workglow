@@ -175,6 +175,8 @@ export interface AgentHooks {
   /**
    * Called at the start of each iteration, before calling the LLM.
    * Can stop the loop or inspect state (e.g. for context trimming).
+   * `stats.totalToolCalls` is the number of `tool_use` blocks already present
+   * in assistant messages (same basis as AgentTask output `toolCallCount`).
    */
   readonly onIteration?: (
     iteration: number,

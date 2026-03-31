@@ -16,7 +16,12 @@ import { getLogger } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { assistantMessage, toolMessage, toolSourceDefinitions, userMessage } from "./AgentTypes";
 import type { AgentHooks, ChatMessage, ToolSource, UserContentBlock } from "./AgentTypes";
-import { buildToolSources, executeToolCalls, hasToolCalls } from "./AgentUtils";
+import {
+  buildToolSources,
+  countAssistantToolUses,
+  executeToolCalls,
+  hasToolCalls,
+} from "./AgentUtils";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { ToolCallingTask, ToolDefinitionSchema } from "./ToolCallingTask";
 import type { ToolCallingTaskInput } from "./ToolCallingTask";
@@ -205,7 +210,8 @@ export const AgentOutputSchema = {
     toolCallCount: {
       type: "number",
       title: "Tool Call Count",
-      description: "Total number of tool calls executed",
+      description:
+        "Total number of tool calls the assistant requested (tool_use blocks in assistant messages)",
     },
     structuredOutput: {
       type: "object",
@@ -282,7 +288,6 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
     const toolDefs = this.resolveToolDefs(toolSources, input.stopTool);
 
     const messages: ChatMessage[] = [userMessage(input.prompt)];
-    let totalToolCalls = 0;
     let finalText = "";
     let structuredOutput: Record<string, unknown> | undefined;
 
@@ -291,7 +296,9 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
 
       // onIteration hook
       if (hooks?.onIteration) {
-        const action = await hooks.onIteration(iteration, messages, { totalToolCalls });
+        const action = await hooks.onIteration(iteration, messages, {
+          totalToolCalls: countAssistantToolUses(messages),
+        });
         if (action.action === "stop") break;
       }
 
@@ -300,7 +307,10 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
         `Agent iteration ${iteration + 1}`
       );
 
-      const contextMessages = this.trimMessages(messages, input.maxContextMessages ?? MAX_CONTEXT_MESSAGES);
+      const contextMessages = this.trimMessages(
+        messages,
+        input.maxContextMessages ?? MAX_CONTEXT_MESSAGES
+      );
 
       // Call the LLM and stream its output
       const llmTask = context.own(new ToolCallingTask({}, {}));
@@ -358,7 +368,6 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
         hooks,
         maxConcurrency
       );
-      totalToolCalls += results.length;
       messages.push(toolMessage(results));
     }
 
@@ -366,7 +375,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
       text: finalText,
       messages,
       iterations: messages.filter((m) => m.role === "assistant").length,
-      toolCallCount: totalToolCalls,
+      toolCallCount: countAssistantToolUses(messages),
       ...(structuredOutput !== undefined ? { structuredOutput } : {}),
     };
 

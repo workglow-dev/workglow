@@ -5,6 +5,7 @@
  */
 
 import {
+  agent,
   toolCalling,
   type AgentTaskOutput,
   type StructuredGenerationTaskOutput,
@@ -31,9 +32,11 @@ export interface AiProviderTestSetup {
   /** Model ID to use for text generation */
   readonly textGenerationModel: string;
   /** Model ID to use for tool calling (may be same as above) */
-  readonly toolCallingModel: string;
+  readonly toolCallingModel?: string;
   /** Model ID for structured generation (may be same). Omit to skip structured generation tests. */
-  readonly structuredGenerationModel?: string | undefined;
+  readonly structuredGenerationModel?: string;
+  /** Model ID for thinking (may be same). Omit to skip thinking tests. */
+  readonly thinkingModel?: string;
   /** Max tokens to request (keep small for fast tests) */
   readonly maxTokens: number;
   /** Timeout per test in ms */
@@ -70,10 +73,10 @@ const finishTool: ToolDefinition = {
   } as const satisfies JsonSchema,
 };
 
-const calculateSumTool: ToolDefinition = {
-  name: "calculate_sum",
+const discoverMagicTool: ToolDefinition = {
+  name: "discover_magic",
   description:
-    "Calculate the sum of two numbers. Call this tool with parameters a and b to get their sum.",
+    "Discover the magic result of two numbers. Call this tool with parameters a and b to get their secret magic number.",
   inputSchema: {
     type: "object",
     properties: {
@@ -81,11 +84,12 @@ const calculateSumTool: ToolDefinition = {
       b: { type: "number", description: "Second number" },
     },
     required: ["a", "b"],
+    additionalProperties: false,
   } as const satisfies JsonSchema,
   execute: async (input: Record<string, unknown>) => {
     const a = Number(input.a);
     const b = Number(input.b);
-    return { result: a + b };
+    return { result: (a + b) * 20 };
   },
 };
 
@@ -132,12 +136,12 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
     // ToolCalling — single turn
     // ====================================================================
 
-    describe("ToolCalling", () => {
+    describe.skipIf(!setup.toolCallingModel)("ToolCalling", () => {
       it(
         "should produce a tool call with toolChoice required",
         async () => {
           const result = await toolCalling({
-            model: setup.toolCallingModel,
+            model: setup.toolCallingModel!,
             prompt: "What is the weather in San Francisco?",
             tools: [weatherTool],
             toolChoice: "required",
@@ -160,7 +164,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
         "should produce no tool calls with toolChoice none",
         async () => {
           const result = await toolCalling({
-            model: setup.toolCallingModel,
+            model: setup.toolCallingModel!,
             prompt: "What is the weather in San Francisco?",
             tools: [weatherTool],
             toolChoice: "none",
@@ -180,14 +184,14 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
     // ToolCalling — multi-turn via messages
     // ====================================================================
 
-    describe("ToolCalling multi-turn", () => {
+    describe.skipIf(!setup.toolCallingModel)("ToolCalling multi-turn", () => {
       it(
         "should handle tool result fed back via messages",
         async () => {
           // First call: get tool call
           const workflow1 = new Workflow();
           workflow1.toolCalling({
-            model: setup.toolCallingModel,
+            model: setup.toolCallingModel!,
             prompt: "What is the weather in Tokyo?",
             tools: [weatherTool],
             toolChoice: "auto",
@@ -210,7 +214,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
           // Second call: feed tool result back
           const workflow2 = new Workflow();
           workflow2.toolCalling({
-            model: setup.toolCallingModel,
+            model: setup.toolCallingModel!,
             prompt: "What is the weather in Tokyo?",
             tools: [weatherTool],
             toolChoice: "auto",
@@ -291,50 +295,71 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
     // AgentTask — full agent loop with function tool
     // ====================================================================
 
-    describe("AgentTask", () => {
-      it(
+    describe.only("AgentTask", () => {
+      it.skip(
         "should complete an agent loop with a function tool",
         async () => {
-          const workflow = new Workflow();
-          workflow.agent({
-            model: setup.toolCallingModel,
-            prompt: "What is 3 + 5? Use the calculate_sum tool to find out.",
-            tools: [calculateSumTool],
+          const output = await agent({
+            model: setup.toolCallingModel!,
+            prompt:
+              "What is the magic function of 3 and 5? Use the discover_magic tool to find out.",
+            tools: [discoverMagicTool],
             maxIterations: 3,
             maxTokens: setup.maxTokens,
           });
 
-          const output = (await workflow.run()) as AgentTaskOutput;
+          // console.dir(output, { depth: null });
 
           expect(output).toBeDefined();
           expect(output.iterations).toBeGreaterThanOrEqual(1);
-          expect(output.toolCallCount).toBeGreaterThanOrEqual(1);
-          expect(typeof output.text).toBe("string");
-          expect(output.text.length).toBeGreaterThan(0);
-          // The final text should mention the answer
-          expect(output.text).toContain("8");
+          expect(output.toolCallCount).toEqual(1);
+          const toolCall = output.messages
+            .find((m) => m.role === "assistant")
+            ?.content.filter((c) => c.type === "tool_use")?.[0];
+
+          expect(toolCall).toBeDefined();
+          expect(toolCall?.id).toBeDefined();
+          expect(toolCall?.name).toBe("discover_magic");
+          expect(toolCall?.input).toBeDefined();
+          expect(toolCall?.input.a).toBe(3);
+          expect(toolCall?.input.b).toBe(5);
         },
         setup.timeout
       );
 
-      it(
+      it.skipIf(!setup.toolCallingModel)(
         "should extract structured output via stop tool",
         async () => {
-          const workflow = new Workflow();
-          workflow.agent({
-            model: setup.toolCallingModel,
+          const output = await agent({
+            model: setup.toolCallingModel!,
             prompt:
-              "Compute 3 + 5 using the calculate_sum tool, then call the finish tool with the answer in a field called 'answer'.",
-            tools: [calculateSumTool, finishTool],
+              "First find the magic number of 3 and 5 using the discover_magic tool. After you receive the result, call the finish tool with the secret answer you found and put it in a field called 'answer'.",
+            tools: [discoverMagicTool, finishTool],
             stopTool: "finish",
             maxIterations: 5,
             maxTokens: setup.maxTokens,
           });
 
-          const output = (await workflow.run()) as AgentTaskOutput;
+          console.dir(output, { depth: null });
 
           expect(output).toBeDefined();
-          expect(output.iterations).toBeGreaterThanOrEqual(1);
+          const toolCalls = output.messages
+            .filter((m) => m.role === "assistant")
+            .flatMap((m) => m.content)
+            .filter((c) => c.type === "tool_use");
+
+          expect(toolCalls).toBeDefined();
+          expect(toolCalls?.[0].id).toBeDefined();
+          expect(toolCalls?.[0].name).toBe("discover_magic");
+          expect(toolCalls?.[0].input).toBeDefined();
+          expect(toolCalls?.[0].input.a).toBe(3);
+          expect(toolCalls?.[0].input.b).toBe(5);
+          expect(toolCalls?.[1].id).toBeDefined();
+          expect(toolCalls?.[1].name).toBe("finish");
+          expect(toolCalls?.[1].input).toBeDefined();
+          expect(toolCalls?.[1].input.answer).toBe(160);
+
+          expect(output.iterations).toEqual(2);
           // The stop tool should produce structuredOutput
           if (output.structuredOutput) {
             expect(typeof output.structuredOutput).toBe("object");

@@ -11,6 +11,7 @@ import type { ServiceRegistry } from "@workglow/util";
 import { findToolSource } from "./AgentTypes";
 import type {
   AgentHooks,
+  ChatMessage,
   FunctionToolSource,
   RegistryToolSource,
   ToolResult,
@@ -321,4 +322,19 @@ export async function executeToolCalls(
  */
 export function hasToolCalls(toolCalls: unknown[] | undefined): boolean {
   return toolCalls !== undefined && toolCalls.length > 0;
+}
+
+/**
+ * Counts `tool_use` blocks across all assistant messages (each block is one
+ * tool invocation the model requested). Used for AgentTask `toolCallCount` output.
+ */
+export function countAssistantToolUses(messages: ReadonlyArray<ChatMessage>): number {
+  let n = 0;
+  for (const m of messages) {
+    if (m.role !== "assistant") continue;
+    for (const block of m.content) {
+      if (block.type === "tool_use") n += 1;
+    }
+  }
+  return n;
 }

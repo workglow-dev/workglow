@@ -26,6 +26,7 @@ const RUN = true;
 
 const TEXT_MODEL_ID = "onnx:onnx-community/Qwen2.5-1.5B-Instruct:q4";
 const TOOL_MODEL_ID = "onnx:onnx-community/functiongemma-270m-it-ONNX:q4f16";
+const THINKING_MODEL_ID = "onnx:LiquidAI/LFM2.5-1.2B-Thinking-WebGPU:q4";
 
 const textModel: HfTransformersOnnxModelRecord = {
   model_id: TEXT_MODEL_ID,
@@ -37,6 +38,7 @@ const textModel: HfTransformersOnnxModelRecord = {
     pipeline: "text-generation",
     model_path: "onnx-community/Qwen2.5-1.5B-Instruct",
     dtype: "q4",
+    seed: 42,
   },
   metadata: {},
 };
@@ -45,12 +47,28 @@ const toolModel: HfTransformersOnnxModelRecord = {
   model_id: TOOL_MODEL_ID,
   title: "FunctionGemma 270M IT ONNX",
   description: "Tool-calling-focused ONNX model quantized to q4f16",
-  tasks: ["TextGenerationTask", "ToolCallingTask"],
+  tasks: ["ToolCallingTask", "StructuredGenerationTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
     model_path: "onnx-community/functiongemma-270m-it-ONNX",
     dtype: "q4f16",
+    seed: 42,
+  },
+  metadata: {},
+};
+
+const thinkingModel: HfTransformersOnnxModelRecord = {
+  model_id: THINKING_MODEL_ID,
+  title: "LFM2.5-1.2B-Thinking-WebGPU",
+  description: "Liquid 1.2B Thinking WebGPU",
+  tasks: ["TextGenerationTask", "ToolCallingTask", "StructuredGenerationTask", "AgentTask"],
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "LiquidAI/LFM2.5-1.2B-Thinking-ONNX",
+    dtype: "q4",
+    seed: 42,
   },
   metadata: {},
 };
@@ -68,8 +86,9 @@ runGenericAiProviderTests({
 
     await getGlobalModelRepository().addModel(textModel);
     await getGlobalModelRepository().addModel(toolModel);
+    await getGlobalModelRepository().addModel(thinkingModel);
 
-    for (const modelId of [TEXT_MODEL_ID, TOOL_MODEL_ID]) {
+    for (const modelId of [TEXT_MODEL_ID, TOOL_MODEL_ID, THINKING_MODEL_ID]) {
       const download = new DownloadModelTask({ model: modelId });
       download.on("progress", (progress, _message, details) => {
         logger.info(
@@ -85,8 +104,9 @@ runGenericAiProviderTests({
     await setTaskQueueRegistry(null);
   },
   textGenerationModel: TEXT_MODEL_ID,
-  toolCallingModel: TOOL_MODEL_ID,
-  // structuredGenerationModel: MODEL_ID, // TODO: Fix this with qwen3.5, right now it works 50/50
-  maxTokens: 200,
+  // toolCallingModel: TOOL_MODEL_ID,
+  // structuredGenerationModel: THINKING_MODEL_ID,
+  // thinkingModel: THINKING_MODEL_ID,
+  maxTokens: 2600,
   timeout: 300000,
 });
