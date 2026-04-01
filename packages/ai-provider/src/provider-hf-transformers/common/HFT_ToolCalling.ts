@@ -179,8 +179,7 @@ function extractMessageText(content: unknown): string {
   }
   return content
     .filter(
-      (block) =>
-        block && typeof block === "object" && (block as { type?: unknown }).type === "text"
+      (block) => block && typeof block === "object" && (block as { type?: unknown }).type === "text"
     )
     .map((block) => String((block as { text?: unknown }).text ?? ""))
     .join("");
@@ -390,7 +389,8 @@ export const HFT_ToolCalling: AiProviderRunFn<
   })) as Tensor;
   const promptLen = inputs.input_ids.dims[1];
   const seqLen = output.dims[1];
-  const newTokens = output.slice(0, [promptLen, seqLen]);
+
+  const newTokens = output.slice(0, [promptLen, seqLen], null);
   const decoded = hfTokenizer.decode(newTokens, {
     skip_special_tokens: false,
   });
@@ -398,6 +398,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
   const { text, toolCalls } = adaptParserResult(
     parseToolCalls(parseableText, { parser: modelFamily })
   );
+
   return {
     text,
     toolCalls: filterValidToolCalls(normalizeParsedToolCalls(input, toolCalls), input.tools),

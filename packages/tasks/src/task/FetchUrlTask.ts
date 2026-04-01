@@ -474,10 +474,7 @@ export class FetchUrlTask<
 
       // Bail early to avoid enqueuing work that has already been cancelled.
       if (executeContext.signal.aborted) {
-        throw (
-          executeContext.signal.reason ??
-          new DOMException("The operation was aborted", "AbortError")
-        );
+        throw executeContext.signal.reason ?? new AbortSignalJobError("The operation was aborted");
       }
 
       const handle = await registeredQueue.client.submit(jobInput as Input, {
@@ -502,8 +499,7 @@ export class FetchUrlTask<
       try {
         if (executeContext.signal.aborted) {
           throw (
-            executeContext.signal.reason ??
-            new DOMException("The operation was aborted", "AbortError")
+            executeContext.signal.reason ?? new AbortSignalJobError("The operation was aborted")
           );
         }
         const output = await handle.waitFor();

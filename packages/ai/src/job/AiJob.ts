@@ -11,6 +11,7 @@ import {
   JobStatus,
   PermanentJobError,
   RetryableJobError,
+  withJobErrorDiagnostics,
 } from "@workglow/job-queue";
 import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util/worker";
@@ -73,11 +74,15 @@ function classifyProviderError(err: unknown, taskType: string, provider: string)
           })();
 
   // Check for abort/cancellation
-  if (err instanceof DOMException && err.name === "AbortError") {
-    return new AbortSignalJobError(`Provider call aborted for ${taskType} (${provider})`);
+  if (err instanceof Error && err.name === "AbortError") {
+    return new AbortSignalJobError(
+      withJobErrorDiagnostics(`Provider call aborted for ${taskType} (${provider})`, err)
+    );
   }
-  if (err instanceof DOMException && err.name === "TimeoutError") {
-    return new AbortSignalJobError(`Provider call timed out for ${taskType} (${provider})`);
+  if (err instanceof Error && err.name === "TimeoutError") {
+    return new AbortSignalJobError(
+      withJobErrorDiagnostics(`Provider call timed out for ${taskType} (${provider})`, err)
+    );
   }
   // Catch abort patterns re-thrown as plain Errors (e.g. "Pipeline download aborted" from HFT)
   if (
@@ -87,7 +92,10 @@ function classifyProviderError(err: unknown, taskType: string, provider: string)
     message.includes("The operation was aborted")
   ) {
     return new AbortSignalJobError(
-      `Provider call aborted for ${taskType} (${provider}): ${message}`
+      withJobErrorDiagnostics(
+        `Provider call aborted for ${taskType} (${provider}): ${message}`,
+        err
+      )
     );
   }
 
@@ -96,7 +104,7 @@ function classifyProviderError(err: unknown, taskType: string, provider: string)
   // The "HFT_NULL_PROCESSOR:" prefix is produced by HFT_Pipeline.ts
   // (HFT_NULL_PROCESSOR_PREFIX constant) when an image processor fails to initialize.
   if (message.startsWith("HFT_NULL_PROCESSOR:")) {
-    return new RetryableJobError(message);
+    return new RetryableJobError(withJobErrorDiagnostics(message, err));
   }
 
   // Rate limiting (429) — retryable with backoff
@@ -104,25 +112,35 @@ function classifyProviderError(err: unknown, taskType: string, provider: string)
     const retryAfterMatch = message.match(/retry.after[:\s]*(\d+)/i);
     const retryMs = retryAfterMatch ? parseInt(retryAfterMatch[1], 10) * 1000 : 30_000;
     return new RetryableJobError(
-      `Rate limited by ${provider} for ${taskType}: ${message}`,
+      withJobErrorDiagnostics(`Rate limited by ${provider} for ${taskType}: ${message}`, err),
       new Date(Date.now() + retryMs)
     );
   }
 
   // Auth errors (401, 403) — permanent
   if (status === 401 || status === 403) {
-    return new PermanentJobError(`Authentication failed for ${provider} (${taskType}): ${message}`);
+    return new PermanentJobError(
+      withJobErrorDiagnostics(
+        `Authentication failed for ${provider} (${taskType}): ${message}`,
+        err
+      )
+    );
   }
 
   // Not found / invalid request (400, 404) — permanent
   if (status === 400 || status === 404) {
-    return new PermanentJobError(`Invalid request to ${provider} for ${taskType}: ${message}`);
+    return new PermanentJobError(
+      withJobErrorDiagnostics(`Invalid request to ${provider} for ${taskType}: ${message}`, err)
+    );
   }
 
   // Server errors (500, 502, 503, 529) — retryable
   if (status && status >= 500) {
     return new RetryableJobError(
-      `Server error from ${provider} for ${taskType} (HTTP ${status}): ${message}`
+      withJobErrorDiagnostics(
+        `Server error from ${provider} for ${taskType} (HTTP ${status}): ${message}`,
+        err
+      )
     );
   }
 
@@ -135,16 +153,22 @@ function classifyProviderError(err: unknown, taskType: string, provider: string)
     message.includes("network") ||
     (err instanceof TypeError && message.includes("fetch"))
   ) {
-    return new RetryableJobError(`Network error calling ${provider} for ${taskType}: ${message}`);
+    return new RetryableJobError(
+      withJobErrorDiagnostics(`Network error calling ${provider} for ${taskType}: ${message}`, err)
+    );
   }
 
   // Timeout errors — retryable
   if (message.includes("timed out") || message.includes("timeout")) {
-    return new RetryableJobError(`Timeout calling ${provider} for ${taskType}: ${message}`);
+    return new RetryableJobError(
+      withJobErrorDiagnostics(`Timeout calling ${provider} for ${taskType}: ${message}`, err)
+    );
   }
 
   // Default: treat unknown errors as permanent to avoid infinite retries
-  return new PermanentJobError(`Provider ${provider} failed for ${taskType}: ${message}`);
+  return new PermanentJobError(
+    withJobErrorDiagnostics(`Provider ${provider} failed for ${taskType}: ${message}`, err)
+  );
 }
 
 /**

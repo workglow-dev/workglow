@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
+import {
+  AbortSignalJobError,
+  ConcurrencyLimiter,
+  JobQueueClient,
+  JobQueueServer,
+} from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import {
   getTaskQueueRegistry,
@@ -50,7 +55,7 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
   ): Promise<TaskOutput> {
     // Bail early to avoid submitting a job that's already been cancelled.
     if (context.signal.aborted) {
-      throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      throw context.signal.reason ?? new AbortSignalJobError("The operation was aborted");
     }
 
     const registeredQueue = await this.ensureQueue();
@@ -80,7 +85,7 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
       // Re-check after registering the listener to close the race window
       // between submit and listener registration.
       if (context.signal.aborted) {
-        throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+        throw context.signal.reason ?? new AbortSignalJobError("The operation was aborted");
       }
       const output = await handle.waitFor();
       return output as TaskOutput;
