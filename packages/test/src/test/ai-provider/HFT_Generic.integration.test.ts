@@ -5,7 +5,6 @@
  */
 
 import {
-  DownloadModelTask,
   getGlobalModelRepository,
   InMemoryModelRepository,
   setGlobalModelRepository,
@@ -32,7 +31,7 @@ const textModel: HfTransformersOnnxModelRecord = {
   model_id: TEXT_MODEL_ID,
   title: "Qwen2.5-1.5B-Instruct",
   description: "Instruction-tuned model with native tool calling support",
-  tasks: ["TextGenerationTask", "StructuredGenerationTask"],
+  tasks: ["TextGenerationTask", "StructuredGenerationTask", "AgentTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
@@ -46,13 +45,13 @@ const textModel: HfTransformersOnnxModelRecord = {
 const toolModel: HfTransformersOnnxModelRecord = {
   model_id: TOOL_MODEL_ID,
   title: "FunctionGemma 270M IT ONNX",
-  description: "Tool-calling-focused ONNX model quantized to q4f16",
+  description: "Tool-calling-focused ONNX model quantized to fp16",
   tasks: ["ToolCallingTask", "StructuredGenerationTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
     model_path: "onnx-community/functiongemma-270m-it-ONNX",
-    dtype: "q4f16",
+    dtype: "fp16",
     seed: 42,
   },
   metadata: {},
@@ -87,25 +86,15 @@ runGenericAiProviderTests({
     await getGlobalModelRepository().addModel(textModel);
     await getGlobalModelRepository().addModel(toolModel);
     await getGlobalModelRepository().addModel(thinkingModel);
-
-    for (const modelId of [TEXT_MODEL_ID, TOOL_MODEL_ID, THINKING_MODEL_ID]) {
-      const download = new DownloadModelTask({ model: modelId });
-      download.on("progress", (progress, _message, details) => {
-        logger.info(
-          `Download ${modelId}: ${progress}% | ${details?.file || "?"} @ ${(details?.progress || 0).toFixed(1)}%`
-        );
-      });
-      await download.run();
-    }
   },
   teardown: async () => {
     await getTaskQueueRegistry().stopQueues();
     await getTaskQueueRegistry().clearQueues();
     await setTaskQueueRegistry(null);
   },
-  textGenerationModel: TEXT_MODEL_ID,
-  // toolCallingModel: TOOL_MODEL_ID,
-  // structuredGenerationModel: THINKING_MODEL_ID,
+  textGenerationModel: THINKING_MODEL_ID,
+  toolCallingModel: THINKING_MODEL_ID,
+  structuredGenerationModel: THINKING_MODEL_ID,
   // thinkingModel: THINKING_MODEL_ID,
   maxTokens: 2600,
   timeout: 300000,

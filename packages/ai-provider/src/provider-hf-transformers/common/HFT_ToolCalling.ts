@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TextGenerationOutput, TextGenerationPipeline } from "@huggingface/transformers";
+import type { Tensor, TextGenerationPipeline } from "@huggingface/transformers";
 import {
   buildToolDescription,
   filterValidToolCalls,
@@ -15,6 +15,7 @@ import type {
   AiProviderStreamFn,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
+  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -25,8 +26,17 @@ import {
   createStreamingTextStreamer,
   createTextStreamer,
 } from "./HFT_Streaming";
-import { extractGeneratedText } from "./HFT_TextOutput";
-import { createToolCallMarkupFilter, parseToolCallsFromText } from "./HFT_ToolMarkup";
+import { createToolCallMarkupFilter } from "./HFT_ToolMarkup";
+import {
+  getAvailableParsers,
+  getGenerationPrefix,
+  parseToolCalls,
+  stripModelArtifacts,
+} from "./HFT_ToolParser";
+
+// ============================================================================
+// Model detection
+// ============================================================================
 
 function getModelTextCandidates(model: HfTransformersOnnxModelConfig): string[] {
   return [model.model_id, model.title, model.description, model.provider_config.model_path]
@@ -34,23 +44,43 @@ function getModelTextCandidates(model: HfTransformersOnnxModelConfig): string[] 
     .map((value) => value.toLowerCase());
 }
 
-function detectFunctionGemmaModel(model: HfTransformersOnnxModelConfig): boolean {
-  return getModelTextCandidates(model).some((value) => value.includes("functiongemma"));
+/**
+ * Detect the parser model family from the HFT model config by checking all
+ * text candidates against the known parser families.
+ */
+function detectModelFamilyFromConfig(model: HfTransformersOnnxModelConfig): string | null {
+  const candidates = getModelTextCandidates(model);
+  const families = getAvailableParsers();
+  for (const candidate of candidates) {
+    for (const family of families) {
+      if (candidate.includes(family)) {
+        return family;
+      }
+    }
+  }
+  return null;
 }
 
-function extractMessageText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!Array.isArray(content)) {
-    return String(content ?? "");
-  }
-  return content
-    .filter(
-      (block) => block && typeof block === "object" && (block as { type?: unknown }).type === "text"
-    )
-    .map((block) => String((block as { text?: unknown }).text ?? ""))
-    .join("");
+// ============================================================================
+// Tool call result adaptation
+// ============================================================================
+
+/**
+ * Convert a parser result (using `arguments` field) to the workglow `ToolCalls`
+ * type (using `input` field).
+ */
+function adaptParserResult(result: ReturnType<typeof parseToolCalls>): {
+  text: string;
+  toolCalls: ToolCalls;
+} {
+  return {
+    text: stripModelArtifacts(result.content),
+    toolCalls: result.tool_calls.map((call, index) => ({
+      id: call.id ?? `call_${index}`,
+      name: call.name,
+      input: call.arguments as Record<string, unknown>,
+    })),
+  };
 }
 
 function forcedToolSelection(input: ToolCallingTaskInput): string | undefined {
@@ -69,31 +99,100 @@ function forcedToolSelection(input: ToolCallingTaskInput): string | undefined {
   return undefined;
 }
 
-function selectHFTTools(input: ToolCallingTaskInput): ReturnType<typeof mapHFTTools> | undefined {
+function normalizeParsedToolCalls(
+  input: ToolCallingTaskInput,
+  toolCalls: ToolCallingTaskOutput["toolCalls"]
+) {
+  const forcedToolName = forcedToolSelection(input);
+  return toolCalls.map((toolCall) =>
+    toolCall.name
+      ? toolCall
+      : {
+          ...toolCall,
+          name: forcedToolName ?? toolCall.name,
+        }
+  );
+}
+
+// ============================================================================
+// HFT tool mapping
+// ============================================================================
+
+function mapHFTTools(tools: ReadonlyArray<ToolDefinition>) {
+  return tools.map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: buildToolDescription(t),
+      parameters: t.inputSchema as any,
+    },
+  }));
+}
+
+/**
+ * Resolve the tools list and optionally mutate the messages array based on the toolChoice option.
+ */
+function resolveHFTToolsAndMessages(
+  input: ToolCallingTaskInput,
+  messages: Array<{ role: string; content: string }>
+): ReturnType<typeof mapHFTTools> | undefined {
   if (input.toolChoice === "none") {
     return undefined;
   }
 
-  if (
-    typeof input.toolChoice === "string" &&
-    input.toolChoice !== "auto" &&
-    input.toolChoice !== "required"
-  ) {
-    const selectedTools = input.tools.filter(
+  if (input.toolChoice === "required") {
+    const requiredInstruction =
+      "You must call at least one tool from the provided tool list when answering.";
+    if (messages.length > 0 && messages[0].role === "system") {
+      messages[0] = { ...messages[0], content: `${messages[0].content}\n\n${requiredInstruction}` };
+    } else {
+      messages.unshift({ role: "system", content: requiredInstruction });
+    }
+    return mapHFTTools(input.tools);
+  }
+
+  if (typeof input.toolChoice === "string" && input.toolChoice !== "auto") {
+    const selectedTools = input.tools?.filter(
       (tool: ToolDefinition) => tool.name === input.toolChoice
     );
-    const toolsToMap = selectedTools.length > 0 ? selectedTools : input.tools;
+    const toolsToMap = selectedTools && selectedTools.length > 0 ? selectedTools : input.tools;
     return mapHFTTools(toolsToMap);
   }
 
   return mapHFTTools(input.tools);
 }
 
+// ============================================================================
+// HFT message building
+// ============================================================================
+
+/**
+ * Extract text from a content block that may be a string, array of content
+ * blocks, or other structure.
+ */
+function extractMessageText(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return String(content ?? "");
+  }
+  return content
+    .filter(
+      (block) =>
+        block && typeof block === "object" && (block as { type?: unknown }).type === "text"
+    )
+    .map((block) => String((block as { text?: unknown }).text ?? ""))
+    .join("");
+}
+
+/**
+ * Try to parse a string as JSON; return the raw string if it's not valid JSON.
+ * Used for tool result content which may be a JSON-encoded value.
+ */
 function parsePossibleToolResponse(content: string): unknown {
   const trimmed = content.trim();
-  if (!trimmed) {
-    return "";
-  }
+  if (!trimmed) return "";
   if (
     (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
     (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
@@ -108,18 +207,32 @@ function parsePossibleToolResponse(content: string): unknown {
   return content;
 }
 
-function buildFunctionGemmaMessages(input: ToolCallingTaskInput): Array<Record<string, unknown>> {
+/**
+ * Build structured messages for HFT's `apply_chat_template`.
+ *
+ * Unlike `toTextFlatMessages` (which flattens everything to `{role, content}`
+ * strings), this preserves tool_calls on assistant messages and the tool name
+ * on tool-result messages — both required by HFT chat templates that support
+ * tool calling.
+ */
+function buildHFTMessages(input: ToolCallingTaskInput): Array<Record<string, unknown>> {
   const messages: Array<Record<string, unknown>> = [];
-  const systemLines = [
-    input.systemPrompt,
-    input.toolChoice === "required"
-      ? "You must call at least one tool from the provided tool list when answering."
-      : undefined,
-    "If tool results are already available and no further function call is needed, answer the user normally.",
-  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
 
-  if (systemLines.length > 0) {
-    messages.push({ role: "system", content: systemLines.join("\n\n") });
+  if (input.systemPrompt) {
+    messages.push({ role: "system", content: input.systemPrompt });
+  }
+
+  if (input.toolChoice === "required") {
+    const instruction =
+      "You must call at least one tool from the provided tool list when answering.";
+    if (messages.length > 0 && messages[0].role === "system") {
+      messages[0] = {
+        ...messages[0],
+        content: `${messages[0].content as string}\n\n${instruction}`,
+      };
+    } else {
+      messages.unshift({ role: "system", content: instruction });
+    }
   }
 
   const sourceMessages =
@@ -152,23 +265,14 @@ function buildFunctionGemmaMessages(input: ToolCallingTaskInput): Array<Record<s
         )
         .map((block) => {
           toolNamesById.set(block.id, block.name);
-          return {
-            function: {
-              name: block.name,
-              arguments: block.input,
-            },
-          };
+          return { function: { name: block.name, arguments: block.input } };
         });
 
       if (text || toolCalls.length > 0) {
-        const assistantMessage: Record<string, unknown> = { role: "assistant" };
-        if (text) {
-          assistantMessage.content = text;
-        }
-        if (toolCalls.length > 0) {
-          assistantMessage.tool_calls = toolCalls;
-        }
-        messages.push(assistantMessage);
+        const assistantMsg: Record<string, unknown> = { role: "assistant" };
+        if (text) assistantMsg.content = text;
+        if (toolCalls.length > 0) assistantMsg.tool_calls = toolCalls;
+        messages.push(assistantMsg);
       }
       continue;
     }
@@ -176,9 +280,7 @@ function buildFunctionGemmaMessages(input: ToolCallingTaskInput): Array<Record<s
     if (message.role === "tool" && Array.isArray(message.content)) {
       for (const block of message.content) {
         const toolName = toolNamesById.get(block.tool_use_id);
-        if (!toolName) {
-          continue;
-        }
+        if (!toolName) continue;
         messages.push({
           role: "tool",
           name: toolName,
@@ -191,96 +293,78 @@ function buildFunctionGemmaMessages(input: ToolCallingTaskInput): Array<Record<s
   return messages;
 }
 
-function buildFunctionGemmaPrompt(
-  tokenizer: {
-    apply_chat_template: (messages: unknown, options: Record<string, unknown>) => string;
-  },
-  input: ToolCallingTaskInput
-): { prompt: string; responsePrefix: string | undefined } {
-  const tools = selectHFTTools(input);
-  const messages = buildFunctionGemmaMessages(input);
-  const prompt = tokenizer.apply_chat_template(messages, {
-    tools,
-    tokenize: false,
-    add_generation_prompt: true,
-  }) as string;
-  const hasToolResponses = input.messages?.some((message) => message.role === "tool") ?? false;
-  const forcedToolName = forcedToolSelection(input);
-  const responsePrefix =
-    input.toolChoice === "none" || hasToolResponses
-      ? undefined
-      : forcedToolName
-        ? `<start_function_call>call:${forcedToolName}{`
-        : "<start_function_call>call:";
-  return {
-    prompt: responsePrefix ? `${prompt}${responsePrefix}` : prompt,
-    responsePrefix,
-  };
-}
-
-function normalizeParsedToolCalls(
-  input: ToolCallingTaskInput,
-  toolCalls: ToolCallingTaskOutput["toolCalls"]
-) {
-  const forcedToolName = forcedToolSelection(input);
-  return toolCalls.map((toolCall) =>
-    toolCall.name
-      ? toolCall
-      : {
-          ...toolCall,
-          name: forcedToolName ?? toolCall.name,
-        }
-  );
-}
-
-function mapHFTTools(tools: ReadonlyArray<ToolDefinition>) {
-  return tools.map((t) => ({
-    type: "function" as const,
-    function: {
-      name: t.name,
-      description: buildToolDescription(t),
-      parameters: t.inputSchema as any,
-    },
-  }));
-}
-
 /**
- * Resolve the tools list and optionally mutate the messages array based on the toolChoice option.
- * - "none": no tools
- * - "required": all tools + adds a system instruction so the model must call a tool
- * - specific name: filter to that tool (falls back to all tools if not found)
- * - "auto" / undefined: all tools
+ * Select the appropriate tool list based on toolChoice, without mutating messages.
  */
-function resolveHFTToolsAndMessages(
-  input: ToolCallingTaskInput,
-  messages: Array<{ role: string; content: string }>
-): ReturnType<typeof mapHFTTools> | undefined {
-  if (input.toolChoice === "none") {
-    return undefined;
-  }
+function selectHFTTools(input: ToolCallingTaskInput): ReturnType<typeof mapHFTTools> | undefined {
+  if (input.toolChoice === "none") return undefined;
 
-  if (input.toolChoice === "required") {
-    const requiredInstruction =
-      "You must call at least one tool from the provided tool list when answering.";
-    if (messages.length > 0 && messages[0].role === "system") {
-      messages[0] = { ...messages[0], content: `${messages[0].content}\n\n${requiredInstruction}` };
-    } else {
-      messages.unshift({ role: "system", content: requiredInstruction });
-    }
-    return mapHFTTools(input.tools);
-  }
-
-  if (typeof input.toolChoice === "string" && input.toolChoice !== "auto") {
-    // Specific tool name: filter to that tool if it exists
-    const selectedTools = input.tools?.filter(
-      (tool: ToolDefinition) => tool.name === input.toolChoice
-    );
-    const toolsToMap = selectedTools && selectedTools.length > 0 ? selectedTools : input.tools;
-    return mapHFTTools(toolsToMap);
+  if (
+    typeof input.toolChoice === "string" &&
+    input.toolChoice !== "auto" &&
+    input.toolChoice !== "required"
+  ) {
+    const selected = input.tools.filter((t: ToolDefinition) => t.name === input.toolChoice);
+    return mapHFTTools(selected.length > 0 ? selected : input.tools);
   }
 
   return mapHFTTools(input.tools);
 }
+
+// ============================================================================
+// Prompt building
+// ============================================================================
+
+/**
+ * Check whether the input has multi-turn tool messages that need structured
+ * message format (tool_calls on assistant, name on tool messages).
+ */
+function hasToolMessages(input: ToolCallingTaskInput): boolean {
+  return input.messages?.some((m) => m.role === "tool") ?? false;
+}
+
+function buildPromptAndPrefix(
+  tokenizer: TextGenerationPipeline["tokenizer"],
+  input: ToolCallingTaskInput,
+  modelFamily: string | null
+): { prompt: string; responsePrefix: string | undefined } {
+  let basePrompt: string;
+
+  if (hasToolMessages(input)) {
+    // Multi-turn with tool results: use structured messages so the tokenizer
+    // can format tool_calls and tool responses correctly.
+    const messages = buildHFTMessages(input);
+    const tools = selectHFTTools(input);
+    basePrompt = tokenizer.apply_chat_template(messages as any, {
+      tools,
+      tokenize: false,
+      add_generation_prompt: true,
+    }) as string;
+  } else {
+    // Single-turn or no tool results: flat messages work fine.
+    const messages = toTextFlatMessages(input);
+    const tools = resolveHFTToolsAndMessages(input, messages);
+    basePrompt = tokenizer.apply_chat_template(messages, {
+      tools,
+      tokenize: false,
+      add_generation_prompt: true,
+    }) as string;
+  }
+
+  const responsePrefix =
+    input.toolChoice === "none" || hasToolMessages(input)
+      ? undefined
+      : getGenerationPrefix(modelFamily, forcedToolSelection(input));
+
+  return {
+    prompt: responsePrefix ? `${basePrompt}${responsePrefix}` : basePrompt,
+    responsePrefix,
+  };
+}
+
+// ============================================================================
+// Provider run functions
+// ============================================================================
 
 export const HFT_ToolCalling: AiProviderRunFn<
   ToolCallingTaskInput,
@@ -289,40 +373,31 @@ export const HFT_ToolCalling: AiProviderRunFn<
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
-  const { prompt, responsePrefix } = detectFunctionGemmaModel(model!)
-    ? buildFunctionGemmaPrompt(generateText.tokenizer as any, input)
-    : {
-        responsePrefix: undefined,
-        prompt: (() => {
-          const messages = toTextFlatMessages(input);
-          const tools = resolveHFTToolsAndMessages(input, messages);
-          return generateText.tokenizer.apply_chat_template(messages, {
-            tools,
-            tokenize: false,
-            add_generation_prompt: true,
-          }) as string;
-        })(),
-      };
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
+  const hfTokenizer = generateText.tokenizer;
+  const hfModel = generateText.model;
 
-  let results = await generateText(prompt, {
+  const streamer = createTextStreamer(hfTokenizer, onProgress, TextStreamer, signal);
+  const modelFamily = detectModelFamilyFromConfig(model!);
+  const { prompt, responsePrefix } = buildPromptAndPrefix(hfTokenizer, input, modelFamily);
+
+  const inputs = hfTokenizer(prompt, { return_tensors: "pt" }) as { input_ids: Tensor };
+
+  const output = (await hfModel.generate({
+    ...inputs,
     max_new_tokens: input.maxTokens ?? 1024,
-    temperature: input.temperature ?? undefined,
-    return_full_text: false,
     streamer,
+  })) as Tensor;
+  const promptLen = inputs.input_ids.dims[1];
+  const seqLen = output.dims[1];
+  const newTokens = output.slice(0, [promptLen, seqLen]);
+  const decoded = hfTokenizer.decode(newTokens, {
+    skip_special_tokens: false,
   });
-
-  if (!Array.isArray(results)) {
-    results = [results];
-  }
-
-  const responseText = extractGeneratedText(
-    (results[0] as TextGenerationOutput[number])?.generated_text
-  ).trim();
-  const parseableResponseText = responsePrefix ? `${responsePrefix}${responseText}` : responseText;
-
-  const { text, toolCalls } = parseToolCallsFromText(parseableResponseText);
+  const parseableText = responsePrefix ? `${responsePrefix}${decoded}` : decoded;
+  const { text, toolCalls } = adaptParserResult(
+    parseToolCalls(parseableText, { parser: modelFamily })
+  );
   return {
     text,
     toolCalls: filterValidToolCalls(normalizeParsedToolCalls(input, toolCalls), input.tools),
@@ -337,20 +412,12 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
   const { TextStreamer } = await loadTransformersSDK();
-  const { prompt, responsePrefix } = detectFunctionGemmaModel(model!)
-    ? buildFunctionGemmaPrompt(generateText.tokenizer as any, input)
-    : {
-        responsePrefix: undefined,
-        prompt: (() => {
-          const messages = toTextFlatMessages(input);
-          const tools = resolveHFTToolsAndMessages(input, messages);
-          return generateText.tokenizer.apply_chat_template(messages, {
-            tools,
-            tokenize: false,
-            add_generation_prompt: true,
-          }) as string;
-        })(),
-      };
+  const modelFamily = detectModelFamilyFromConfig(model!);
+  const { prompt, responsePrefix } = buildPromptAndPrefix(
+    generateText.tokenizer,
+    input,
+    modelFamily
+  );
 
   // Two queues: the inner queue receives raw tokens from the TextStreamer,
   // the outer queue receives filtered text-delta events (markup stripped).
@@ -378,7 +445,6 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
     } else {
       outerQueue.push(event);
     }
-    // Still call originalPush so the inner queue's done/error mechanics work
     originalPush(event);
   };
 
@@ -409,11 +475,13 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   yield* outerQueue.iterable;
   await pipelinePromise;
 
-  // Parse the accumulated (unfiltered) text for tool calls. The filter already
-  // stripped tag-based markup from text-delta events; this pass also handles
-  // bare-JSON tool calls and produces the canonical cleanedText for the finish event.
+  // Parse the accumulated text for tool calls using the model-family-aware parser.
+  // For models that use a generation prefix, prepend it so the parser sees the
+  // full markup pattern.
   const parseableFullText = responsePrefix ? `${responsePrefix}${fullText}` : fullText;
-  const { text: cleanedText, toolCalls } = parseToolCallsFromText(parseableFullText);
+  const { text: cleanedText, toolCalls } = adaptParserResult(
+    parseToolCalls(parseableFullText, { parser: modelFamily })
+  );
   const validToolCalls = filterValidToolCalls(
     normalizeParsedToolCalls(input, toolCalls),
     input.tools
