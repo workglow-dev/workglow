@@ -20,7 +20,10 @@
     "test": "bun test"
   },
   "exports": {
-    "./src/*": "./src/*",
+    "./test": {
+      "types": "./src/common/ToolCallParsers.ts",
+      "import": "./src/common/ToolCallParsers.ts"
+    },
     "./anthropic": {
       "types": "./dist/provider-anthropic/index.d.ts",
       "import": "./dist/provider-anthropic/index.js"

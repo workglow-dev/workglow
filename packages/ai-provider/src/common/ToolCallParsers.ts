@@ -4,23 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ToolCalls } from "@workglow/ai";
+
 // ============================================================================
 // Types
 // ============================================================================
 
-interface ToolCall {
+export interface ToolCall {
   readonly name: string;
   readonly arguments: Record<string, unknown>;
   readonly id: string | null;
 }
 
-interface ToolCallParserResult {
+export interface ToolCallParserResult {
   readonly tool_calls: ReadonlyArray<ToolCall>;
   readonly content: string;
   readonly parser: string;
 }
 
-interface ParseToolCallsOptions {
+export interface ParseToolCallsOptions {
   readonly tokenizer?: TokenizerLike | null;
   readonly model?: string | null;
   readonly parser?: string | null;
@@ -30,7 +32,7 @@ interface ParseToolCallsOptions {
  * Minimal tokenizer shape used for model-family detection.
  * Compatible with `PreTrainedTokenizer` from `@huggingface/transformers`.
  */
-interface TokenizerLike {
+export interface TokenizerLike {
   readonly config?: {
     readonly name_or_path?: string;
     readonly _name_or_path?: string;
@@ -39,7 +41,7 @@ interface TokenizerLike {
   readonly name_or_path?: string;
 }
 
-type ParserFn = (text: string) => ToolCallParserResult | null;
+export type ParserFn = (text: string) => ToolCallParserResult | null;
 
 // ============================================================================
 // Text cleanup
@@ -61,7 +63,7 @@ export function stripModelArtifacts(text: string): string {
 // Shared helpers
 // ============================================================================
 
-function makeToolCall(
+export function makeToolCall(
   name: string,
   args: Record<string, unknown>,
   id: string | null = null
@@ -69,7 +71,7 @@ function makeToolCall(
   return { name, arguments: args, id };
 }
 
-function tryParseJson(text: string): unknown | undefined {
+export function tryParseJson(text: string): unknown | undefined {
   try {
     return JSON.parse(text);
   } catch {
@@ -77,7 +79,7 @@ function tryParseJson(text: string): unknown | undefined {
   }
 }
 
-function parseJsonToolCallArray(
+export function parseJsonToolCallArray(
   jsonStr: string,
   nameKey: string = "name",
   argsKeys: ReadonlyArray<string> = ["arguments", "parameters"]
@@ -106,7 +108,7 @@ function parseJsonToolCallArray(
  * Parse key=value argument syntax used by Gorilla, NexusRaven, and Gemma.
  * Handles quoted strings (`"val"`, `'val'`) and bare values.
  */
-function parseKeyValueArgs(argsStr: string): Record<string, unknown> {
+export function parseKeyValueArgs(argsStr: string): Record<string, unknown> {
   const args: Record<string, unknown> = {};
   if (!argsStr) return args;
 
@@ -120,11 +122,72 @@ function parseKeyValueArgs(argsStr: string): Record<string, unknown> {
   return args;
 }
 
-function coerceArgValue(value: string): unknown {
+export function coerceArgValue(value: string): unknown {
   if (value === "true") return true;
   if (value === "false") return false;
   if (value !== "" && !isNaN(Number(value))) return Number(value);
   return value;
+}
+
+/**
+ * Richer value coercion for FunctionGemma-style arguments.
+ * Superset of {@link coerceArgValue}: also handles JSON-quoted strings,
+ * objects, and arrays.
+ */
+export function parseFunctionGemmaArgumentValue(rawValue: string): unknown {
+  const trimmed = rawValue.trim();
+  if (trimmed.length === 0) return "";
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (trimmed === "null") return null;
+
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && /^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+    return numeric;
+  }
+
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // Fall through to raw string.
+    }
+  }
+
+  return trimmed;
+}
+
+/**
+ * Parse a loose `{key: value, ...}` object that may not be valid JSON.
+ * Used as a FunctionGemma fallback when models emit partial syntax.
+ */
+export function parseFunctionGemmaLooseObject(
+  text: string
+): Record<string, unknown> | undefined {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    return undefined;
+  }
+
+  const inner = trimmed.slice(1, -1).trim();
+  if (inner.length === 0) {
+    return {};
+  }
+
+  const result: Record<string, unknown> = {};
+  const pairs = inner.matchAll(/([A-Za-z0-9_]+)\s*:\s*('[^']*'|"[^"]*"|[^,}]+)/g);
+
+  for (const [_, rawKey, rawValue] of pairs) {
+    const key = rawKey.trim();
+    const valueText = rawValue.trim().replace(/^'([^']*)'$/, '"$1"');
+    result[key] = parseFunctionGemmaArgumentValue(valueText);
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 // ============================================================================
@@ -139,7 +202,7 @@ function coerceArgValue(value: string): unknown {
  * - `<function=func>{"arg": "val"}</function>` (3.2 lightweight 1B/3B)
  * - `{"name": "func", "parameters": {...}}` (bare JSON)
  */
-const parseLlama: ParserFn = (text) => {
+export const parseLlama: ParserFn = (text) => {
   const calls: ToolCall[] = [];
   let content = text;
 
@@ -208,7 +271,7 @@ const parseLlama: ParserFn = (text) => {
  *
  * Format: `[TOOL_CALLS] [{"name": "func", "arguments": {...}, "id": "9charID"}]`
  */
-const parseMistral: ParserFn = (text) => {
+export const parseMistral: ParserFn = (text) => {
   const marker = "[TOOL_CALLS]";
   const idx = text.indexOf(marker);
   if (idx === -1) return null;
@@ -225,7 +288,7 @@ const parseMistral: ParserFn = (text) => {
  *
  * Format: `<tool_call>\n{"name": "func", "arguments": {...}}\n</tool_call>`
  */
-const parseHermes: ParserFn = (text) => {
+export const parseHermes: ParserFn = (text) => {
   const regex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
@@ -256,7 +319,7 @@ const parseHermes: ParserFn = (text) => {
  * - `Action: ```json\n[{"tool_name": "func", "parameters": {...}}]\n````
  * - `Action: [{"tool_name": ..., "parameters": ...}]`
  */
-const parseCohere: ParserFn = (text) => {
+export const parseCohere: ParserFn = (text) => {
   const blockMatch = text.match(/Action:\s*```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   const inlineMatch = text.match(/Action:\s*(\[[\s\S]*?\])\s*$/m);
 
@@ -285,7 +348,7 @@ const parseCohere: ParserFn = (text) => {
  * V2 format: `<｜tool▁call▁begin｜>function_name\n```json\n{...}\n```<｜tool▁call▁end｜>`
  * V3.1 format: `<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>name<｜tool▁sep｜>{args}<｜tool▁call▁end｜><｜tool▁calls▁end｜>`
  */
-const parseDeepSeek: ParserFn = (text) => {
+export const parseDeepSeek: ParserFn = (text) => {
   const calls: ToolCall[] = [];
 
   // Helper to match both fullwidth ｜ and ASCII | bar variants, and ▁ or space
@@ -340,7 +403,7 @@ const parseDeepSeek: ParserFn = (text) => {
  *
  * Format: `<|tool_calls|>[{"name": "func", "arguments": {...}}]<|/tool_calls|>`
  */
-const parsePhi: ParserFn = (text) => {
+export const parsePhi: ParserFn = (text) => {
   const match = text.match(/<\|tool_calls\|>\s*([\s\S]*?)\s*<\|\/tool_calls\|>/);
   if (!match) return null;
 
@@ -356,7 +419,7 @@ const parsePhi: ParserFn = (text) => {
  *
  * Format: `functools[{"name": "func", "arguments": {...}}]`
  */
-const parsePhiFunctools: ParserFn = (text) => {
+export const parsePhiFunctools: ParserFn = (text) => {
   const match = text.match(/functools\s*(\[[\s\S]*?\])/);
   if (!match) return null;
 
@@ -372,7 +435,7 @@ const parsePhiFunctools: ParserFn = (text) => {
  *
  * Format: `<|action_start|><|plugin|>\n{"name": "func", "parameters": {...}}<|action_end|>`
  */
-const parseInternLM: ParserFn = (text) => {
+export const parseInternLM: ParserFn = (text) => {
   const regex = /<\|action_start\|>\s*<\|plugin\|>\s*([\s\S]*?)\s*<\|action_end\|>/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
@@ -404,7 +467,7 @@ const parseInternLM: ParserFn = (text) => {
  * Format: function name followed by newline and JSON arguments.
  * `func_name\n{"arg": "val"}`
  */
-const parseChatGLM: ParserFn = (text) => {
+export const parseChatGLM: ParserFn = (text) => {
   const match = text.match(/^(\w+)\n(\{[\s\S]*\})\s*$/m);
   if (!match) return null;
 
@@ -424,7 +487,7 @@ const parseChatGLM: ParserFn = (text) => {
  * Format: `>>>func_name\n{"arg": "val"}`
  * Uses `all` as a special function name for regular text.
  */
-const parseFunctionary: ParserFn = (text) => {
+export const parseFunctionary: ParserFn = (text) => {
   const regex = />>>\s*(\w+)\s*\n([\s\S]*?)(?=>>>|$)/g;
   const calls: ToolCall[] = [];
   let content = "";
@@ -452,7 +515,7 @@ const parseFunctionary: ParserFn = (text) => {
  *
  * Format: `<<function>>func_name(arg1="val1", arg2=val2)`
  */
-const parseGorilla: ParserFn = (text) => {
+export const parseGorilla: ParserFn = (text) => {
   const regex = /<<function>>\s*(\w+)\(([^)]*)\)/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
@@ -472,7 +535,7 @@ const parseGorilla: ParserFn = (text) => {
  *
  * Format: `Call: func_name(arg1="val1", arg2=val2)\nThought: reasoning...`
  */
-const parseNexusRaven: ParserFn = (text) => {
+export const parseNexusRaven: ParserFn = (text) => {
   const regex = /Call:\s*(\w+)\(([^)]*)\)/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
@@ -494,7 +557,7 @@ const parseNexusRaven: ParserFn = (text) => {
  * Format: Raw JSON array of tool calls: `[{"name": "func", "arguments": {...}}]`
  * May be wrapped in ```json code blocks.
  */
-const parseXLAM: ParserFn = (text) => {
+export const parseXLAM: ParserFn = (text) => {
   const codeBlockMatch = text.match(/```(?:json)?\s*\n?(\[[\s\S]*?\])\n?\s*```/);
   const jsonStr = codeBlockMatch?.[1] ?? text.trim();
 
@@ -512,7 +575,7 @@ const parseXLAM: ParserFn = (text) => {
  *
  * Format: `{"tool_calls": [{"function": {"name": "...", "arguments": "..."}}]}`
  */
-const parseFireFunction: ParserFn = (text) => {
+export const parseFireFunction: ParserFn = (text) => {
   const openaiMatch = text.match(/\{"tool_calls"\s*:\s*(\[[\s\S]*?\])\s*\}/);
   if (!openaiMatch) return null;
 
@@ -545,7 +608,7 @@ const parseFireFunction: ParserFn = (text) => {
  *
  * Format: `<|tool_call|>{"name": "func", "arguments": {...}}<|/tool_call|>` or `<|end_of_text|>`
  */
-const parseGranite: ParserFn = (text) => {
+export const parseGranite: ParserFn = (text) => {
   const regex = /<\|tool_call\|>\s*([\s\S]*?)\s*(?:<\|\/tool_call\|>|<\|end_of_text\|>|$)/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
@@ -576,7 +639,7 @@ const parseGranite: ParserFn = (text) => {
  * - ```tool_code\nfunc(arg=val)\n```
  * - `{"name": "func", "parameters": {...}}`
  */
-const parseGemma: ParserFn = (text) => {
+export const parseGemma: ParserFn = (text) => {
   const codeMatch = text.match(/```tool_code\s*\n([\s\S]*?)\n\s*```/);
   if (!codeMatch) return null;
 
@@ -611,14 +674,15 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
 
   // Try plain key:value format (no escape tags): key:value separated by commas
   // Also handles cases where the model generates only a single <escape> tag
-  const plainRegex = /([A-Za-z0-9_]+)\s*:\s*(?:'([^']*)'|"([^"]*)"|((?:(?![,}]\s*[A-Za-z0-9_]+\s*:)[^,}])+))/g;
+  const plainRegex =
+    /([A-Za-z0-9_]+)\s*:\s*(?:'([^']*)'|"([^"]*)"|((?:(?![,}]\s*[A-Za-z0-9_]+\s*:)[^,}])+))/g;
   let plainMatch: RegExpExecArray | null;
   while ((plainMatch = plainRegex.exec(argsStr)) !== null) {
     const key = plainMatch[1].trim();
     const value = (plainMatch[2] ?? plainMatch[3] ?? plainMatch[4] ?? "")
       .replace(/<escape>/g, "")
       .trim();
-    args[key] = coerceArgValue(value);
+    args[key] = parseFunctionGemmaArgumentValue(value);
   }
   if (Object.keys(args).length > 0) return args;
 
@@ -635,7 +699,7 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
  * Format: `<start_function_call>call:func_name{key:<escape>value<escape>}<end_function_call>`
  * Also handles variants without `<end_function_call>` (e.g., `<end_of_turn>`).
  */
-const parseFunctionGemma: ParserFn = (text) => {
+export const parseFunctionGemma: ParserFn = (text) => {
   // Match with explicit end tag
   const regex =
     /(?:<start_function_call>\s*)?call:([^{\s]+)\{([\s\S]*?)\}(?:\s*<end_function_call>)?/g;
@@ -664,7 +728,7 @@ const parseFunctionGemma: ParserFn = (text) => {
  * Parallel calls: `<|tool_call_start|>[func1(a="b"), func2(c="d")]<|tool_call_end|>`
  * Uses Pythonic function call syntax inside special tokens.
  */
-const parseLiquid: ParserFn = (text) => {
+export const parseLiquid: ParserFn = (text) => {
   const match = text.match(/<\|tool_call_start\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/);
   if (!match) return null;
 
@@ -694,7 +758,7 @@ const parseLiquid: ParserFn = (text) => {
  * Format: `<tool_calls>[{"name": "func", "arguments": {...}}]</tool_calls>`
  * Also supports OpenAI-compatible format via FireFunction fallback.
  */
-const parseJamba: ParserFn = (text) => {
+export const parseJamba: ParserFn = (text) => {
   const tagMatch = text.match(/<tool_calls>\s*([\s\S]*?)\s*<\/tool_calls>/);
   if (tagMatch) {
     const parsed = tryParseJson(tagMatch[1].trim());
@@ -725,6 +789,60 @@ const parseJamba: ParserFn = (text) => {
   return parseFireFunction(text);
 };
 
+/**
+ * Qwen 3.5 XML format
+ *
+ * Format:
+ * ```
+ * <tool_call>
+ * <function=function_name>
+ * <parameter=param_name>value</parameter>
+ * ...
+ * </function>
+ * </tool_call>
+ * ```
+ *
+ * The special `params` parameter may contain a JSON object to be spread
+ * into the arguments.
+ */
+export const parseQwen35Xml: ParserFn = (text) => {
+  const toolCallMatches = text.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g);
+  const calls: ToolCall[] = [];
+  for (const [_, toolCallBody] of toolCallMatches) {
+    const functionMatch = toolCallBody.match(/<function=([^>\n]+)>\s*([\s\S]*?)\s*<\/function>/);
+    if (!functionMatch) {
+      continue;
+    }
+    const [, rawName, functionBody] = functionMatch;
+    const parsedInput: Record<string, unknown> = {};
+    const parameterMatches = functionBody.matchAll(
+      /<parameter=([^>\n]+)>\s*([\s\S]*?)\s*<\/parameter>/g
+    );
+    for (const [__, rawParamName, rawValue] of parameterMatches) {
+      const paramName = rawParamName.trim();
+      const valueText = rawValue.trim();
+      if (paramName === "params") {
+        try {
+          const parsedValue = JSON.parse(valueText);
+          if (parsedValue && typeof parsedValue === "object" && !Array.isArray(parsedValue)) {
+            Object.assign(parsedInput, parsedValue);
+            continue;
+          }
+        } catch {
+          // Fall back to keeping the raw string.
+        }
+      }
+      parsedInput[paramName] = valueText;
+    }
+    calls.push(makeToolCall(rawName.trim(), parsedInput));
+  }
+
+  if (calls.length === 0) return null;
+
+  const content = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
+  return { tool_calls: calls, content, parser: "qwen35xml" };
+};
+
 // ============================================================================
 // Model family detection
 // ============================================================================
@@ -735,7 +853,8 @@ const MODEL_PARSERS: Record<string, ReadonlyArray<ParserFn>> = {
   mixtral: [parseMistral, parseHermes],
   qwen: [parseHermes, parseLlama],
   qwen2: [parseHermes, parseLlama],
-  qwen3: [parseHermes, parseLlama],
+  qwen3: [parseHermes, parseQwen35Xml, parseLlama],
+  qwen35: [parseQwen35Xml, parseHermes, parseLlama],
   cohere: [parseCohere, parseHermes],
   command: [parseCohere, parseHermes],
   deepseek: [parseDeepSeek, parseHermes],
@@ -771,6 +890,7 @@ const DEFAULT_PARSER_CHAIN: ReadonlyArray<ParserFn> = [
   parseInternLM,
   parseGranite,
   parseFunctionGemma,
+  parseQwen35Xml,
   parseHermes,
   parseCohere,
   parseFunctionary,
@@ -913,4 +1033,156 @@ export function getGenerationPrefix(
     default:
       return undefined;
   }
+}
+
+// ============================================================================
+// High-level parsing returning workglow ToolCalls type
+// ============================================================================
+
+/**
+ * Parse tool calls from model-generated text, returning the workglow `ToolCalls`
+ * type directly (with `input` field instead of `arguments`).
+ *
+ * Tries, in order:
+ * 1. FunctionGemma `call:func{...}` syntax
+ * 2. `<tool_call>JSON</tool_call>` tags (Qwen/Hermes)
+ * 3. Bare JSON objects with `name` + `arguments`/`parameters` keys
+ * 4. `{"function": {"name": ..., "arguments": ...}}` format
+ *
+ * Returns both the cleaned text (with tool-call markup removed) and the parsed
+ * ToolCall array.
+ */
+export function parseToolCallsFromText(responseText: string): {
+  text: string;
+  toolCalls: ToolCalls;
+} {
+  // Try FunctionGemma first
+  const functionGemmaResult = parseFunctionGemma(responseText);
+  if (functionGemmaResult && functionGemmaResult.tool_calls.length > 0) {
+    return {
+      text: functionGemmaResult.content,
+      toolCalls: functionGemmaResult.tool_calls.map((call, index) => ({
+        id: call.id ?? `call_${index}`,
+        name: call.name,
+        input: call.arguments,
+      })),
+    };
+  }
+
+  // FunctionGemma loose-object fallback (no tool name context available)
+  const looseObject = parseFunctionGemmaLooseObject(responseText);
+  if (looseObject) {
+    return {
+      text: "",
+      toolCalls: [{ id: "call_0", name: "", input: looseObject }],
+    };
+  }
+
+  // Try Hermes/Qwen tag-based format
+  const hermesResult = parseHermes(responseText);
+  if (hermesResult && hermesResult.tool_calls.length > 0) {
+    return {
+      text: hermesResult.content,
+      toolCalls: hermesResult.tool_calls.map((call, index) => ({
+        id: call.id ?? `call_${index}`,
+        name: call.name,
+        input: call.arguments,
+      })),
+    };
+  }
+
+  // Fallback: brace-balanced scanner for bare JSON objects
+  const toolCalls: ToolCalls = [];
+  let callIndex = 0;
+
+  const jsonCandidates: Array<{ text: string; start: number; end: number }> = [];
+  (function collectBalancedJsonBlocks(source: string) {
+    const length = source.length;
+    let i = 0;
+    while (i < length) {
+      if (source[i] !== "{") {
+        i++;
+        continue;
+      }
+      let depth = 1;
+      let j = i + 1;
+      let inString = false;
+      let escape = false;
+      while (j < length && depth > 0) {
+        const ch = source[j];
+        if (inString) {
+          if (escape) {
+            escape = false;
+          } else if (ch === "\\") {
+            escape = true;
+          } else if (ch === '"') {
+            inString = false;
+          }
+        } else {
+          if (ch === '"') {
+            inString = true;
+          } else if (ch === "{") {
+            depth++;
+          } else if (ch === "}") {
+            depth--;
+          }
+        }
+        j++;
+      }
+      if (depth === 0) {
+        jsonCandidates.push({ text: source.slice(i, j), start: i, end: j });
+        i = j;
+      } else {
+        break;
+      }
+    }
+  })(responseText);
+
+  const matchedRanges: Array<{ start: number; end: number }> = [];
+  for (const candidate of jsonCandidates) {
+    try {
+      const parsed = JSON.parse(candidate.text);
+      if (parsed.name && (parsed.arguments !== undefined || parsed.parameters !== undefined)) {
+        const id = `call_${callIndex++}`;
+        toolCalls.push({
+          id,
+          name: parsed.name as string,
+          input: (parsed.arguments ?? parsed.parameters ?? {}) as Record<string, unknown>,
+        });
+        matchedRanges.push({ start: candidate.start, end: candidate.end });
+      } else if (parsed.function?.name) {
+        let functionArgs: unknown = parsed.function.arguments ?? {};
+        if (typeof functionArgs === "string") {
+          try {
+            functionArgs = JSON.parse(functionArgs);
+          } catch {
+            functionArgs = {};
+          }
+        }
+        const id = `call_${callIndex++}`;
+        toolCalls.push({
+          id,
+          name: parsed.function.name as string,
+          input: (functionArgs ?? {}) as Record<string, unknown>,
+        });
+        matchedRanges.push({ start: candidate.start, end: candidate.end });
+      }
+    } catch {
+      // Not valid JSON, skip
+    }
+  }
+
+  let cleanedText = responseText;
+  if (toolCalls.length > 0) {
+    let result = "";
+    let lastIndex = 0;
+    for (const range of matchedRanges) {
+      result += responseText.slice(lastIndex, range.start);
+      lastIndex = range.end;
+    }
+    result += responseText.slice(lastIndex);
+    cleanedText = result.trim();
+  }
+
+  return { text: cleanedText, toolCalls };
 }

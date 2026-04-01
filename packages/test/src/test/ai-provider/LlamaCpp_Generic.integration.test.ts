@@ -60,8 +60,7 @@ const toolModel: LlamaCppModelRecord = {
     model_path: "./models/hf_unslothfunctiongemma-270m-it-GGUF.Q8_0.gguf",
     model_url: "hf:unsloth/functiongemma-270m-it-GGUF:Q8_0",
     models_dir: "./models",
-    context_size: 2048,
-    flash_attention: false,
+    flash_attention: true,
     seed: 42,
   },
   metadata: {},
@@ -99,7 +98,7 @@ runGenericAiProviderTests({
   textGenerationModel: LLM_MODEL_ID,
   toolCallingModel: TOOL_MODEL_ID,
   structuredGenerationModel: TOOL_MODEL_ID,
-  // thinkingModel: TOOL_MODEL_ID,
+  // agentModel: TOOL_MODEL_ID,
   maxTokens: 200,
   timeout: 10 * 60 * 1000, // 10 min: download (~292 MB) + inference
 });

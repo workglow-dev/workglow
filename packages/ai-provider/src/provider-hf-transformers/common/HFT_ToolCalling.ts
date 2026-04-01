@@ -32,7 +32,7 @@ import {
   getGenerationPrefix,
   parseToolCalls,
   stripModelArtifacts,
-} from "./HFT_ToolParser";
+} from "../../common/ToolCallParsers";
 
 // ============================================================================
 // Model detection
