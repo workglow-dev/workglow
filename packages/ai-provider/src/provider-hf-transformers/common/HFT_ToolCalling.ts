@@ -398,7 +398,6 @@ export const HFT_ToolCalling: AiProviderRunFn<
   const { text, toolCalls } = adaptParserResult(
     parseToolCalls(parseableText, { parser: modelFamily })
   );
-
   return {
     text,
     toolCalls: filterValidToolCalls(normalizeParsedToolCalls(input, toolCalls), input.tools),
