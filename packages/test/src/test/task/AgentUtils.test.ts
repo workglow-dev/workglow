@@ -23,10 +23,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 // ========================================================================
 
 class TestEchoTask extends Task<{ text: string }, { result: string }> {
-  static readonly type = "TestEchoTask";
-  static readonly category = "Test";
-  static readonly description = "Echoes input text";
-  static inputSchema(): DataPortSchema {
+  static override readonly type = "TestEchoTask";
+  static override readonly category = "Test";
+  static override readonly description = "Echoes input text";
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string" } },
@@ -34,7 +34,7 @@ class TestEchoTask extends Task<{ text: string }, { result: string }> {
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { result: { type: "string" } },
@@ -42,7 +42,7 @@ class TestEchoTask extends Task<{ text: string }, { result: string }> {
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  async execute(input: { text: string }) {
+  override async execute(input: { text: string }) {
     return { result: input.text };
   }
 }

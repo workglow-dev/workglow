@@ -229,18 +229,18 @@ export const AgentOutputSchema = {
 // ========================================================================
 
 export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskConfig> {
-  public static type = "AgentTask";
-  public static category = "AI Agent";
-  public static title = "Agent";
-  public static description =
+  public static override type = "AgentTask";
+  public static override category = "AI Agent";
+  public static override title = "Agent";
+  public static override description =
     "Multi-turn agentic loop that calls an LLM with tools, executes tool calls, and iterates until done";
-  public static cacheable = false;
+  public static override cacheable = false;
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return AgentInputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return AgentOutputSchema;
   }
 
@@ -248,7 +248,10 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
   // Non-streaming execution — consumes the loop generator silently
   // ====================================================================
 
-  async execute(input: AgentTaskInput, context: IExecuteContext): Promise<AgentTaskOutput> {
+  public override async execute(
+    input: AgentTaskInput,
+    context: IExecuteContext
+  ): Promise<AgentTaskOutput> {
     let result: AgentTaskOutput | undefined;
     for await (const event of this.agentLoop(input, context)) {
       if (event.type === "finish") {
@@ -265,7 +268,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
   // Streaming execution — yields text deltas and the finish event
   // ====================================================================
 
-  async *executeStream(
+  public async *executeStream(
     input: AgentTaskInput,
     context: IExecuteContext
   ): AsyncIterable<StreamEvent<AgentTaskOutput>> {
