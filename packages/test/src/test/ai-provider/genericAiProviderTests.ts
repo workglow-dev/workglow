@@ -289,6 +289,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
+          console.dir(result, { depth: null });
+
           expect(result).toBeDefined();
           expect(result.toolCalls).toBeDefined();
 
