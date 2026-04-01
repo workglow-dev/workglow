@@ -55,6 +55,7 @@ runGenericAiProviderTests({
   textGenerationModel: MODEL_ID,
   toolCallingModel: MODEL_ID,
   structuredGenerationModel: MODEL_ID,
+  thinkingModel: MODEL_ID,
   maxTokens: 100,
   timeout: 30000,
 });

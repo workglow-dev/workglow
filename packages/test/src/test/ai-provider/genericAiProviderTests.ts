@@ -6,6 +6,8 @@
 
 import {
   agent,
+  structuredGeneration,
+  textGeneration,
   toolCalling,
   type AgentTaskOutput,
   type StructuredGenerationTaskOutput,
@@ -30,7 +32,7 @@ export interface AiProviderTestSetup {
   /** Cleanup. Called in afterAll. */
   readonly teardown: () => Promise<void>;
   /** Model ID to use for text generation */
-  readonly textGenerationModel: string;
+  readonly textGenerationModel?: string;
   /** Model ID to use for tool calling (may be same as above) */
   readonly toolCallingModel?: string;
   /** Model ID for structured generation (may be same). Omit to skip structured generation tests. */
@@ -111,18 +113,15 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
     // TextGeneration — basic smoke test
     // ====================================================================
 
-    describe("TextGeneration", () => {
+    describe.skipIf(!setup.textGenerationModel)("TextGeneration", () => {
       it(
         "should generate non-empty text from a prompt",
         async () => {
-          const workflow = new Workflow();
-          workflow.textGeneration({
-            model: setup.textGenerationModel,
+          const result = await textGeneration({
+            model: setup.textGenerationModel!,
             prompt: "Say hello in one sentence.",
             maxTokens: setup.maxTokens,
           });
-
-          const result = (await workflow.run()) as { text: string };
 
           expect(result).toBeDefined();
           expect(typeof result.text).toBe("string");
@@ -147,6 +146,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             toolChoice: "required",
             maxTokens: setup.maxTokens,
           });
+
+          console.dir(result, { depth: null });
 
           expect(result).toBeDefined();
           expect(result.toolCalls).toBeDefined();
@@ -269,8 +270,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             additionalProperties: false,
           } as const satisfies JsonSchema;
 
-          const workflow = new Workflow();
-          workflow.structuredGeneration({
+          const result = await structuredGeneration({
             model: setup.structuredGenerationModel!,
             prompt:
               "Generate a JSON object with a person's name and age. Use name 'Alice' and age 30.",
@@ -278,7 +278,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
-          const result = (await workflow.run()) as StructuredGenerationTaskOutput;
+          console.dir(result, { depth: null });
 
           expect(result).toBeDefined();
           expect(result.object).toBeDefined();
@@ -295,8 +295,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
     // AgentTask — full agent loop with function tool
     // ====================================================================
 
-    describe.only("AgentTask", () => {
-      it.skip(
+    describe("AgentTask", () => {
+      it.skipIf(!setup.toolCallingModel)(
         "should complete an agent loop with a function tool",
         async () => {
           const output = await agent({
@@ -308,7 +308,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
-          // console.dir(output, { depth: null });
+          console.dir(output, { depth: null });
 
           expect(output).toBeDefined();
           expect(output.iterations).toBeGreaterThanOrEqual(1);
@@ -327,13 +327,13 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
         setup.timeout
       );
 
-      it.skipIf(!setup.toolCallingModel)(
+      it.skipIf(!setup.thinkingModel)(
         "should extract structured output via stop tool",
         async () => {
           const output = await agent({
-            model: setup.toolCallingModel!,
+            model: setup.thinkingModel!,
             prompt:
-              "First find the magic number of 3 and 5 using the discover_magic tool. After you receive the result, call the finish tool with the secret answer you found and put it in a field called 'answer'.",
+              "First find the magic number of 3 and 5 using the discover_magic tool. Wait for the tool call result in another turn, and then call the finish tool with the secret answer you found and put it in a field called 'answer'.",
             tools: [discoverMagicTool, finishTool],
             stopTool: "finish",
             maxIterations: 5,

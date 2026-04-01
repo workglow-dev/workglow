@@ -21,18 +21,15 @@ import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 /** Default timeout for provider API calls (2 minutes). */
 const DEFAULT_AI_TIMEOUT_MS = 120_000;
 
-/** local models often needs several minutes (downloads, load, multi-turn tool follow-up). */
-const LOCAL_MODEL_DEFAULT_TIMEOUT_MS = 600_000;
+/** Local inference (CPU/WASM) often needs several minutes (downloads, load, multi-turn tool follow-up). */
+const LOCAL_INFERENCE_DEFAULT_TIMEOUT_MS = 300_000;
 
 function resolveAiJobTimeoutMs(aiProvider: string, explicitMs: number | undefined): number {
   if (explicitMs !== undefined) {
     return explicitMs;
   }
-  if (aiProvider === "LOCAL_LLAMACPP") {
-    return LOCAL_MODEL_DEFAULT_TIMEOUT_MS;
-  }
-  if (aiProvider === "HF_TRANSFORMERS_ONNX" || aiProvider.startsWith("HF_TRANSFORMERS_ONNX")) {
-    return LOCAL_MODEL_DEFAULT_TIMEOUT_MS;
+  if (aiProvider === "LOCAL_LLAMACPP" || aiProvider === "HF_TRANSFORMERS_ONNX") {
+    return LOCAL_INFERENCE_DEFAULT_TIMEOUT_MS;
   }
   return DEFAULT_AI_TIMEOUT_MS;
 }
