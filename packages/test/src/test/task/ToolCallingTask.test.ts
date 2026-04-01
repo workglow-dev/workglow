@@ -119,10 +119,10 @@ describe("ToolCallingTask shared utilities", () => {
 // ========================================================================
 
 class TestAddTask extends Task<{ a: number; b: number }, { result: number }> {
-  static readonly type = "TestAddTask";
-  static readonly category = "Test";
-  static readonly description = "Adds two numbers together";
-  static inputSchema(): DataPortSchema {
+  static override readonly type = "TestAddTask";
+  static override readonly category = "Test";
+  static override readonly description = "Adds two numbers together";
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -133,7 +133,7 @@ class TestAddTask extends Task<{ a: number; b: number }, { result: number }> {
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -143,16 +143,16 @@ class TestAddTask extends Task<{ a: number; b: number }, { result: number }> {
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  async execute(input: { a: number; b: number }) {
+  override async execute(input: { a: number; b: number }) {
     return { result: input.a + input.b };
   }
 }
 
 class TestConcatTask extends Task<{ text: string; suffix: string }, { result: string }> {
-  static readonly type = "TestConcatTask";
-  static readonly category = "Test";
-  static readonly description = "Concatenates text with a suffix";
-  static inputSchema(): DataPortSchema {
+  static override readonly type = "TestConcatTask";
+  static override readonly category = "Test";
+  static override readonly description = "Concatenates text with a suffix";
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -163,7 +163,7 @@ class TestConcatTask extends Task<{ text: string; suffix: string }, { result: st
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -173,7 +173,7 @@ class TestConcatTask extends Task<{ text: string; suffix: string }, { result: st
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  async execute(input: { text: string; suffix: string }) {
+  override async execute(input: { text: string; suffix: string }) {
     return { result: input.text + input.suffix };
   }
 }

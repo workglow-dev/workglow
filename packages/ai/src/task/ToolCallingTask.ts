@@ -272,15 +272,15 @@ export class ToolCallingTask extends StreamingAiTask<
   ToolCallingTaskOutput,
   TaskConfig
 > {
-  public static type = "ToolCallingTask";
-  public static category = "AI Text Model";
-  public static title = "Tool Calling";
-  public static description =
+  public static override type = "ToolCallingTask";
+  public static override category = "AI Text Model";
+  public static override title = "Tool Calling";
+  public static override description =
     "Sends a prompt with tool definitions to a language model and returns text along with any tool calls the model requests";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return ToolCallingInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ToolCallingOutputSchema as DataPortSchema;
   }
 }
