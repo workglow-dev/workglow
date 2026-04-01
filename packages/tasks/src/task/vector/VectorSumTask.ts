@@ -52,20 +52,20 @@ export class VectorSumTask<
   Output extends VectorSumTaskOutput = VectorSumTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "VectorSumTask";
-  static readonly category = "Vector";
-  public static title = "Sum";
-  public static description = "Returns the component-wise sum of an array of vectors";
+  static override readonly type = "VectorSumTask";
+  static override readonly category = "Vector";
+  public static override title = "Sum";
+  public static override description = "Returns the component-wise sum of an array of vectors";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     const { vectors } = input as { vectors: TypedArray[] };
     if (vectors.length === 0) {
       throw new Error("At least one vector is required");

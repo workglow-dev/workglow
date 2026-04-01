@@ -237,7 +237,7 @@ export class SharedInMemoryTabularStorage<
   /**
    * Sets up the database for the repository (syncs from other tabs)
    */
-  async setupDatabase(): Promise<void> {
+  public override async setupDatabase(): Promise<void> {
     if (this.isInitialized) return;
     this.isInitialized = true;
     await this.syncFromOtherTabs();
@@ -249,7 +249,7 @@ export class SharedInMemoryTabularStorage<
    * @returns The stored entity
    * @emits 'put' event with the stored entity when successful
    */
-  async put(value: InsertType): Promise<Entity> {
+  public async put(value: InsertType): Promise<Entity> {
     const result = await this.inMemoryRepo.put(value);
     this.broadcast({ type: "PUT", entity: value });
     return result;
@@ -261,7 +261,7 @@ export class SharedInMemoryTabularStorage<
    * @returns Array of stored entities
    * @emits 'put' event for each value stored
    */
-  async putBulk(values: InsertType[]): Promise<Entity[]> {
+  public async putBulk(values: InsertType[]): Promise<Entity[]> {
     const result = await this.inMemoryRepo.putBulk(values);
     this.broadcast({ type: "PUT_BULK", entities: values });
     return result;
@@ -361,7 +361,7 @@ export class SharedInMemoryTabularStorage<
    * @param options - Optional subscription options (not used for in-memory)
    * @returns Unsubscribe function
    */
-  subscribeToChanges(
+  public override subscribeToChanges(
     callback: (change: any) => void,
     options?: TabularSubscribeOptions
   ): () => void {
@@ -371,7 +371,7 @@ export class SharedInMemoryTabularStorage<
   /**
    * Cleanup method to close the BroadcastChannel
    */
-  destroy(): void {
+  public override destroy(): void {
     if (this.channel) {
       this.channel.close();
       this.channel = null;

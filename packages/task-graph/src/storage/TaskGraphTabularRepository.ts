@@ -42,7 +42,7 @@ export class TaskGraphTabularRepository extends TaskGraphRepository {
   /**
    * The type of the repository
    */
-  public type = "TaskGraphTabularRepository";
+  public override type = "TaskGraphTabularRepository";
 
   /**
    * The tabular repository for the task graphs

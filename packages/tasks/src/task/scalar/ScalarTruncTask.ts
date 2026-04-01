@@ -41,20 +41,20 @@ export class ScalarTruncTask<
   Output extends ScalarTruncTaskOutput = ScalarTruncTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarTruncTask";
-  static readonly category = "Math";
-  public static title = "Truncate";
-  public static description = "Returns the integer part of a number by removing fractional digits";
+  static override readonly type = "ScalarTruncTask";
+  static override readonly category = "Math";
+  public static override title = "Truncate";
+  public static override description = "Returns the integer part of a number by removing fractional digits";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: Math.trunc(input.value) } as Output;
   }
 }

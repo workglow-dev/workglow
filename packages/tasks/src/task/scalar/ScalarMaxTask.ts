@@ -42,20 +42,20 @@ export class ScalarMaxTask<
   Output extends ScalarMaxTaskOutput = ScalarMaxTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarMaxTask";
-  static readonly category = "Math";
-  public static title = "Max";
-  public static description = "Returns the largest of the given numbers";
+  static override readonly type = "ScalarMaxTask";
+  static override readonly category = "Math";
+  public static override title = "Max";
+  public static override description = "Returns the largest of the given numbers";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: Math.max(...input.values) } as Output;
   }
 }

@@ -30,10 +30,10 @@ type TextOutput = { text: string };
  * A streaming source task (append mode) that yields 5 text-delta chunks.
  */
 class StreamSourceTask extends Task<TextInput, TextOutput> {
-  public static type = "StreamSourceTask";
-  public static cacheable = false;
+  public static override type = "StreamSourceTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -43,7 +43,7 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -66,7 +66,7 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: { text: "one two three" } };
   }
 
-  async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
     return { text: "one two three" };
   }
 }
@@ -76,10 +76,10 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
  * Declared as streamable so the scheduler lets it start when deps are STREAMING.
  */
 class StreamConsumerTask extends Task<TextInput, TextOutput> {
-  public static type = "StreamConsumerTask";
-  public static cacheable = false;
+  public static override type = "StreamConsumerTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -89,7 +89,7 @@ class StreamConsumerTask extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -99,7 +99,7 @@ class StreamConsumerTask extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(input: any, context: IExecuteContext): Promise<TextOutput | undefined> {
     return { text: `processed: ${input.text || ""}` };
   }
 
@@ -120,10 +120,10 @@ class StreamConsumerTask extends Task<TextInput, TextOutput> {
  * A non-streaming consumer task that needs full input.
  */
 class NonStreamConsumerTask extends Task<TextInput, TextOutput> {
-  public static type = "NonStreamConsumerTask";
-  public static cacheable = false;
+  public static override type = "NonStreamConsumerTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -133,7 +133,7 @@ class NonStreamConsumerTask extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -143,7 +143,7 @@ class NonStreamConsumerTask extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(input: any, context: IExecuteContext): Promise<TextOutput | undefined> {
     return { text: `final: ${input.text || ""}` };
   }
 }
@@ -154,10 +154,10 @@ class NonStreamConsumerTask extends Task<TextInput, TextOutput> {
  * accumulation the non-streaming downstream would receive undefined.
  */
 class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
-  public static type = "AppendEmptyFinishSource";
-  public static cacheable = false;
+  public static override type = "AppendEmptyFinishSource";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -167,7 +167,7 @@ class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -187,7 +187,7 @@ class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: {} as TextOutput };
   }
 
-  async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
     return { text: "edge accumulated" };
   }
 }
@@ -196,10 +196,10 @@ class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
  * A replace-mode streaming source task.
  */
 class ReplaceSourceTask extends Task<TextInput, TextOutput> {
-  public static type = "ReplaceSourceTask";
-  public static cacheable = false;
+  public static override type = "ReplaceSourceTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -209,7 +209,7 @@ class ReplaceSourceTask extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -229,7 +229,7 @@ class ReplaceSourceTask extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: { text: "Hello world!" } };
   }
 
-  async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
     return { text: "Hello world!" };
   }
 }

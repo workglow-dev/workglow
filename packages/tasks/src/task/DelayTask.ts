@@ -53,27 +53,27 @@ export class DelayTask<
   Input extends DelayTaskInput = DelayTaskInput,
   Output extends DelayTaskOutput = DelayTaskOutput,
 > extends Task<Input, Output, DelayTaskConfig> {
-  static readonly type = "DelayTask";
-  static readonly category = "Utility";
-  public static title = "Delay";
-  public static description = "Delays execution for a specified duration with progress tracking";
-  static readonly cacheable = false;
-  public static passthroughInputsToOutputs = true;
-  public static customizable = true;
+  static override readonly type = "DelayTask";
+  static override readonly category = "Utility";
+  public static override title = "Delay";
+  public static override description = "Delays execution for a specified duration with progress tracking";
+  static override readonly cacheable = false;
+  public static override passthroughInputsToOutputs = true;
+  public static override customizable = true;
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return delayTaskConfigSchema;
   }
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, executeContext: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, executeContext: IExecuteContext): Promise<Output> {
     const delay = this.config.delay ?? 1;
     if (delay > 100) {
       const iterations = Math.min(100, Math.floor(delay / 16)); // 1/60fps is about 16ms

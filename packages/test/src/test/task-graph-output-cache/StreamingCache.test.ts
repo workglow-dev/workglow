@@ -25,10 +25,10 @@ type CacheTestOutput = { text: string };
 let appendStreamCallCount = 0;
 
 class CacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
-  public static type = "CacheAppendStreamTask";
-  public static cacheable = true;
+  public static override type = "CacheAppendStreamTask";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -39,7 +39,7 @@ class CacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -67,10 +67,10 @@ class CacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
 let replaceStreamCallCount = 0;
 
 class CacheReplaceStreamTask extends Task<CacheTestInput, CacheTestOutput> {
-  public static type = "CacheReplaceStreamTask";
-  public static cacheable = true;
+  public static override type = "CacheReplaceStreamTask";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -81,7 +81,7 @@ class CacheReplaceStreamTask extends Task<CacheTestInput, CacheTestOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -107,10 +107,10 @@ class CacheReplaceStreamTask extends Task<CacheTestInput, CacheTestOutput> {
  * Append-mode task with caching explicitly disabled.
  */
 class NoCacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
-  public static type = "NoCacheAppendStreamTask";
-  public static cacheable = false;
+  public static override type = "NoCacheAppendStreamTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -121,7 +121,7 @@ class NoCacheAppendStreamTask extends Task<CacheTestInput, CacheTestOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {

@@ -69,14 +69,14 @@ export class TextTranslationTask extends StreamingAiTask<
   TextTranslationTaskInput,
   TextTranslationTaskOutput
 > {
-  public static type = "TextTranslationTask";
-  public static category = "AI Text Model";
-  public static title = "Text Translation";
-  public static description = "Translates text from one language to another using language models";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "TextTranslationTask";
+  public static override category = "AI Text Model";
+  public static override title = "Text Translation";
+  public static override description = "Translates text from one language to another using language models";
+  public static override inputSchema(): DataPortSchema {
     return TextTranslationInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextTranslationOutputSchema as DataPortSchema;
   }
 }

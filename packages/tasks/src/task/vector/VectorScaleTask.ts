@@ -50,20 +50,20 @@ export class VectorScaleTask<
   Output extends VectorScaleTaskOutput = VectorScaleTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "VectorScaleTask";
-  static readonly category = "Vector";
-  public static title = "Scale";
-  public static description = "Multiplies each element of a vector by a scalar";
+  static override readonly type = "VectorScaleTask";
+  static override readonly category = "Vector";
+  public static override title = "Scale";
+  public static override description = "Multiplies each element of a vector by a scalar";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     const { vector, scalar } = input;
     const values = Array.from(vector, (v) => Number(v) * scalar);
     return { result: createTypedArrayFrom([vector], values) } as Output;

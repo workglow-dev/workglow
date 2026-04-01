@@ -48,15 +48,15 @@ export class BackgroundRemovalTask extends AiVisionTask<
   BackgroundRemovalTaskInput,
   BackgroundRemovalTaskOutput
 > {
-  public static type = "BackgroundRemovalTask";
-  public static category = "AI Vision Model";
-  public static title = "Background Removal";
-  public static description =
+  public static override type = "BackgroundRemovalTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Background Removal";
+  public static override description =
     "Removes backgrounds from images, producing images with transparent backgrounds";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return BackgroundRemovalInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return BackgroundRemovalOutputSchema as DataPortSchema;
   }
 }

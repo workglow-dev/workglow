@@ -57,7 +57,7 @@ export class DirectedAcyclicGraph<
    * @param targetNodeIdentity The identity string of the node the edge should run to.
    * @param edge The edge to add to the graph. If not provided it defaults to `true`.
    */
-  addEdge(sourceNodeIdentity: NodeId, targetNodeIdentity: NodeId, edge?: Edge): EdgeId {
+  override addEdge(sourceNodeIdentity: NodeId, targetNodeIdentity: NodeId, edge?: Edge): EdgeId {
     if (edge === undefined) {
       edge = true as Edge;
     }
@@ -80,7 +80,7 @@ export class DirectedAcyclicGraph<
    *
    * @param node The node to insert
    */
-  insert(node: Node): NodeId {
+  override insert(node: Node): NodeId {
     if (this._topologicallySortedNodes !== undefined) {
       this._topologicallySortedNodes = [node, ...this._topologicallySortedNodes];
     }
@@ -160,7 +160,7 @@ export class DirectedAcyclicGraph<
    *
    * @param startNodeIdentity The string identity of the node from which the subgraph search should start.
    */
-  getSubGraphStartingFrom(
+  override getSubGraphStartingFrom(
     startNodeIdentity: NodeId
   ): DirectedAcyclicGraph<Node, Edge, NodeId, EdgeId> {
     return DirectedAcyclicGraph.fromDirectedGraph(super.getSubGraphStartingFrom(startNodeIdentity));
@@ -174,7 +174,11 @@ export class DirectedAcyclicGraph<
    * @param targetNodeIdentity The identity of the target node
    * @param edgeIdentity The identity of the edge to be deleted. If not provided, all edges between the two nodes will be deleted.
    */
-  removeEdge(sourceNodeIdentity: NodeId, targetNodeIdentity: NodeId, edgeIdentity?: EdgeId): void {
+  override removeEdge(
+    sourceNodeIdentity: NodeId,
+    targetNodeIdentity: NodeId,
+    edgeIdentity?: EdgeId
+  ): void {
     super.removeEdge(sourceNodeIdentity, targetNodeIdentity, edgeIdentity);
 
     // Invalidate the topologically sorted nodes cache
@@ -187,7 +191,7 @@ export class DirectedAcyclicGraph<
    *
    * @param nodeIdentity The identity of the node to be deleted.
    */
-  remove(nodeIdentity: NodeId): void {
+  override remove(nodeIdentity: NodeId): void {
     super.remove(nodeIdentity);
 
     // Invalidate the topologically sorted nodes cache

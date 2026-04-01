@@ -51,21 +51,21 @@ export class VectorMultiplyTask<
   Output extends VectorMultiplyTaskOutput = VectorMultiplyTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "VectorMultiplyTask";
-  static readonly category = "Vector";
-  public static title = "Multiply";
-  public static description =
+  static override readonly type = "VectorMultiplyTask";
+  static override readonly category = "Vector";
+  public static override title = "Multiply";
+  public static override description =
     "Returns the component-wise product (Hadamard product) of all vectors";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     const { vectors } = input as { vectors: TypedArray[] };
     if (vectors.length === 0) {
       throw new Error("At least one vector is required");

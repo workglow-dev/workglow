@@ -99,7 +99,7 @@ describe("IteratorTask", () => {
     describe("subgraph management", () => {
       test("should set and get subgraph", () => {
         class TestIteratorWithArray extends IteratorTask<ArrayInput> {
-          public static inputSchema(): DataPortSchema {
+          public static override inputSchema(): DataPortSchema {
             return {
               type: "object",
               properties: {
@@ -132,7 +132,7 @@ describe("IteratorTask", () => {
     describe("basic transformation", () => {
       test("should return empty result for empty array", async () => {
         class TestMapTask extends MapTask<ArrayInput> {
-          public static inputSchema(): DataPortSchema {
+          public static override inputSchema(): DataPortSchema {
             return {
               type: "object",
               properties: {
@@ -686,29 +686,29 @@ describe("IteratorTask", () => {
       }
 
       class TaskA extends Task<TaskInput, CompatibleOutput> {
-        public static type = "IteratorTask_TaskA";
-        public static inputSchema(): DataPortSchema {
+        public static override type = "IteratorTask_TaskA";
+        public static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: { input: { type: "number" } },
             additionalProperties: true,
           } as const satisfies DataPortSchema;
         }
-        public static outputSchema(): DataPortSchema {
+        public static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: { result: { type: "number" } },
             additionalProperties: false,
           } as const satisfies DataPortSchema;
         }
-        async execute(): Promise<CompatibleOutput> {
+        override async execute(): Promise<CompatibleOutput> {
           return { result: 42 };
         }
       }
 
       class TaskB extends Task<CompatibleInput, TaskOutput> {
-        public static type = "IteratorTask_TaskB";
-        public static inputSchema(): DataPortSchema {
+        public static override type = "IteratorTask_TaskB";
+        public static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: { result: { type: "number" } },
@@ -716,14 +716,14 @@ describe("IteratorTask", () => {
             additionalProperties: true,
           } as const satisfies DataPortSchema;
         }
-        public static outputSchema(): DataPortSchema {
+        public static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: { final: { type: "number" } },
             additionalProperties: false,
           } as const satisfies DataPortSchema;
         }
-        async execute(input: CompatibleInput): Promise<TaskOutput> {
+        override async execute(input: CompatibleInput): Promise<TaskOutput> {
           return { final: input.result * 2 };
         }
       }
@@ -770,9 +770,9 @@ describe("IteratorTask", () => {
 
     test("map preserveOrder=true should return outputs aligned to input index", async () => {
       class DelayedEchoTask extends Task<{ item: number }, { item: number }> {
-        public static type = "DelayedEchoTask";
+        public static override type = "DelayedEchoTask";
 
-        public static inputSchema(): DataPortSchema {
+        public static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -783,7 +783,7 @@ describe("IteratorTask", () => {
           } as const satisfies DataPortSchema;
         }
 
-        public static outputSchema(): DataPortSchema {
+        public static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -794,7 +794,7 @@ describe("IteratorTask", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: { item: number }): Promise<{ item: number }> {
+        override async execute(input: { item: number }): Promise<{ item: number }> {
           await new Promise((resolve) => setTimeout(resolve, (4 - input.item) * 5));
           return { item: input.item };
         }
@@ -828,9 +828,9 @@ describe("IteratorTask", () => {
         { accumulator: { sum: number }; left: number; right: number },
         { sum: number }
       > {
-        public static type = "ZipReduceTask";
+        public static override type = "ZipReduceTask";
 
-        public static inputSchema(): DataPortSchema {
+        public static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -848,7 +848,7 @@ describe("IteratorTask", () => {
           } as const satisfies DataPortSchema;
         }
 
-        public static outputSchema(): DataPortSchema {
+        public static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -859,7 +859,7 @@ describe("IteratorTask", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: { accumulator: { sum: number }; left: number; right: number }) {
+        override async execute(input: { accumulator: { sum: number }; left: number; right: number }) {
           return {
             sum: input.accumulator.sum + input.left + input.right,
           };
@@ -908,8 +908,8 @@ describe("IteratorTask", () => {
       // Map inner task outputs "currentItem" so MapTask collects { currentItem: [2,4,6] }.
       // That feeds into ReduceTask whose inner AddToSumTask expects "currentItem".
       class DoubleToCurrentItemTask extends Task<{ item: number }, { currentItem: number }> {
-        static type = "DoubleToCurrentItemTask";
-        static inputSchema(): DataPortSchema {
+        static override type = "DoubleToCurrentItemTask";
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: { item: { type: "number" } },
@@ -917,7 +917,7 @@ describe("IteratorTask", () => {
             additionalProperties: true,
           } as const satisfies DataPortSchema;
         }
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: { currentItem: { type: "number" } },
@@ -925,7 +925,7 @@ describe("IteratorTask", () => {
             additionalProperties: false,
           } as const satisfies DataPortSchema;
         }
-        async execute(input: { item: number }): Promise<{ currentItem: number }> {
+        override async execute(input: { item: number }): Promise<{ currentItem: number }> {
           return { currentItem: input.item * 2 };
         }
       }
@@ -958,9 +958,9 @@ describe("IteratorTask", () => {
 
     test("iteration analysis should respect annotation/schema/runtime precedence", () => {
       class PrecedenceIterator extends IteratorTask<TaskInput, TaskOutput> {
-        public static type = "PrecedenceIterator";
+        public static override type = "PrecedenceIterator";
 
-        public static inputSchema(): DataPortSchema {
+        public static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {

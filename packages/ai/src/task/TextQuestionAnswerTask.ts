@@ -61,14 +61,14 @@ export class TextQuestionAnswerTask extends StreamingAiTask<
   TextQuestionAnswerTaskOutput,
   TaskConfig
 > {
-  public static type = "TextQuestionAnswerTask";
-  public static category = "AI Text Model";
-  public static title = "Text Question Answer";
-  public static description = "Answers questions based on provided context using language models";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "TextQuestionAnswerTask";
+  public static override category = "AI Text Model";
+  public static override title = "Text Question Answer";
+  public static override description = "Answers questions based on provided context using language models";
+  public static override inputSchema(): DataPortSchema {
     return TextQuestionAnswerInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextQuestionAnswerOutputSchema as DataPortSchema;
   }
 }

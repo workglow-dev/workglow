@@ -41,20 +41,20 @@ export class ScalarFloorTask<
   Output extends ScalarFloorTaskOutput = ScalarFloorTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarFloorTask";
-  static readonly category = "Math";
-  public static title = "Floor";
-  public static description = "Returns the largest integer less than or equal to a number";
+  static override readonly type = "ScalarFloorTask";
+  static override readonly category = "Math";
+  public static override title = "Floor";
+  public static override description = "Returns the largest integer less than or equal to a number";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: Math.floor(input.value) } as Output;
   }
 }

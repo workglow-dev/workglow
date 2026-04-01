@@ -99,12 +99,12 @@ export class VectorSimilarityTask extends GraphAsTask<
   VectorSimilarityTaskOutput,
   TaskConfig
 > {
-  static readonly type = "VectorSimilarityTask";
-  static readonly category = "Vector";
-  static readonly title = "Vector Similarity";
-  public static description =
+  static override readonly type = "VectorSimilarityTask";
+  static override readonly category = "Vector";
+  static override readonly title = "Vector Similarity";
+  public static override description =
     "Compares vectors using similarity functions and returns top-K ranked results";
-  static readonly cacheable = true;
+  static override readonly cacheable = true;
 
   public static override inputSchema(): DataPortSchema {
     return SimilarityInputSchema as DataPortSchema;
@@ -113,7 +113,7 @@ export class VectorSimilarityTask extends GraphAsTask<
     return SimilarityOutputSchema as DataPortSchema;
   }
 
-  async executeReactive({ query, vectors, method, topK }: VectorSimilarityTaskInput) {
+  override async executeReactive({ query, vectors, method, topK }: VectorSimilarityTaskInput) {
     let similarities = [];
     const fnName = method as keyof typeof similarityFunctions;
     const fn = similarityFunctions[fnName];

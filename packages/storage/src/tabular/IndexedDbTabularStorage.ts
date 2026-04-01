@@ -114,7 +114,7 @@ export class IndexedDbTabularStorage<
    * Sets up the IndexedDB database table with the required schema and indexes.
    * Must be called before using any other methods.
    */
-  public async setupDatabase(): Promise<void> {
+  public override async setupDatabase(): Promise<void> {
     if (this.db) return;
     if (this.setupPromise) {
       await this.setupPromise;
@@ -183,7 +183,10 @@ export class IndexedDbTabularStorage<
    * @param strategy - The generation strategy to use
    * @returns The generated key value
    */
-  protected generateKeyValue(columnName: string, strategy: KeyGenerationStrategy): string | number {
+  protected override generateKeyValue(
+    columnName: string,
+    strategy: KeyGenerationStrategy
+  ): string | number {
     if (strategy === "uuid") {
       return uuid4();
     }
@@ -289,7 +292,7 @@ export class IndexedDbTabularStorage<
     return await Promise.all(records.map((record) => this.put(record)));
   }
 
-  protected getPrimaryKeyAsOrderedArray(key: PrimaryKey) {
+  protected override getPrimaryKeyAsOrderedArray(key: PrimaryKey) {
     return super
       .getPrimaryKeyAsOrderedArray(key)
       .map((value) => (typeof value === "bigint" ? value.toString() : value));
@@ -719,7 +722,7 @@ export class IndexedDbTabularStorage<
    * @param options - Optional subscription options including polling interval
    * @returns Unsubscribe function
    */
-  subscribeToChanges(
+  public override subscribeToChanges(
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
@@ -733,7 +736,7 @@ export class IndexedDbTabularStorage<
   /**
    * Destroys this repository and frees up resources.
    */
-  destroy(): void {
+  public override destroy(): void {
     if (this.hybridManager) {
       this.hybridManager.destroy();
       this.hybridManager = null;

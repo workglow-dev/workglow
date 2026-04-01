@@ -46,20 +46,20 @@ export class ScalarSubtractTask<
   Output extends ScalarSubtractTaskOutput = ScalarSubtractTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarSubtractTask";
-  static readonly category = "Math";
-  public static title = "Subtract";
-  public static description = "Returns the difference of two numbers (a - b)";
+  static override readonly type = "ScalarSubtractTask";
+  static override readonly category = "Math";
+  public static override title = "Subtract";
+  public static override description = "Returns the difference of two numbers (a - b)";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: input.a - input.b } as Output;
   }
 }

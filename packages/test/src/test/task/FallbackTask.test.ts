@@ -26,9 +26,9 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 // ============================================================================
 
 class SucceedingTask extends Task<{ value: number }, { result: number }> {
-  public static type = "FallbackTest_SucceedingTask";
+  public static override type = "FallbackTest_SucceedingTask";
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number", default: 0 } },
@@ -36,7 +36,7 @@ class SucceedingTask extends Task<{ value: number }, { result: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { result: { type: "number" } },
@@ -44,15 +44,15 @@ class SucceedingTask extends Task<{ value: number }, { result: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }): Promise<{ result: number }> {
+  override async execute(input: { value: number }): Promise<{ result: number }> {
     return { result: (input.value ?? 0) * 10 };
   }
 }
 
 class FailingAlternativeTask extends Task<{ value: number }, { result: number }> {
-  public static type = "FallbackTest_FailingAlternativeTask";
+  public static override type = "FallbackTest_FailingAlternativeTask";
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number", default: 0 } },
@@ -60,7 +60,7 @@ class FailingAlternativeTask extends Task<{ value: number }, { result: number }>
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { result: { type: "number" } },
@@ -68,15 +68,15 @@ class FailingAlternativeTask extends Task<{ value: number }, { result: number }>
     } as const satisfies DataPortSchema;
   }
 
-  async execute(): Promise<{ result: number }> {
+  override async execute(): Promise<{ result: number }> {
     throw new TaskFailedError("Alternative failed");
   }
 }
 
 class ConditionalFailTask extends Task<{ value: number }, { result: number }> {
-  public static type = "FallbackTest_ConditionalFailTask";
+  public static override type = "FallbackTest_ConditionalFailTask";
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number", default: 0 } },
@@ -84,7 +84,7 @@ class ConditionalFailTask extends Task<{ value: number }, { result: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { result: { type: "number" } },
@@ -92,7 +92,7 @@ class ConditionalFailTask extends Task<{ value: number }, { result: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }): Promise<{ result: number }> {
+  override async execute(input: { value: number }): Promise<{ result: number }> {
     if (input.value < 5) {
       throw new TaskFailedError(`Value ${input.value} is too low`);
     }
@@ -101,10 +101,10 @@ class ConditionalFailTask extends Task<{ value: number }, { result: number }> {
 }
 
 class SlowSucceedingTask extends Task<{ value: number }, { result: number }> {
-  public static type = "FallbackTest_SlowSucceedingTask";
-  public static readonly cacheable = false;
+  public static override type = "FallbackTest_SlowSucceedingTask";
+  public static override readonly cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number", default: 0 } },
@@ -112,7 +112,7 @@ class SlowSucceedingTask extends Task<{ value: number }, { result: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { result: { type: "number" } },
@@ -120,7 +120,7 @@ class SlowSucceedingTask extends Task<{ value: number }, { result: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }, context: IExecuteContext): Promise<{ result: number }> {
+  override async execute(input: { value: number }, context: IExecuteContext): Promise<{ result: number }> {
     for (let elapsed = 0; elapsed < 300; elapsed += 10) {
       if (context.signal?.aborted) {
         throw new TaskAbortedError();

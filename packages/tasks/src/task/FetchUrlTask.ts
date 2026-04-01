@@ -229,7 +229,7 @@ export class FetchUrlJob<
   /**
    * Executes the job using the provided function.
    */
-  async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
+  override async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
     if (isPrivateUrl(input.url!)) {
       throw new PermanentJobError(
         `Requests to private/internal networks are not allowed: ${input.url}. ` +
@@ -350,22 +350,22 @@ export class FetchUrlTask<
   Output extends FetchUrlTaskOutput = FetchUrlTaskOutput,
   Config extends FetchUrlTaskConfig = FetchUrlTaskConfig,
 > extends Task<Input, Output, Config> {
-  public static type = "FetchUrlTask";
-  public static category = "Input";
-  public static title = "Fetch";
-  public static description =
+  public static override type = "FetchUrlTask";
+  public static override category = "Input";
+  public static override title = "Fetch";
+  public static override description =
     "Fetches data from a URL with progress tracking and automatic retry handling";
-  public static hasDynamicSchemas: boolean = true;
+  public static override hasDynamicSchemas: boolean = true;
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return fetchUrlTaskConfigSchema;
   }
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 

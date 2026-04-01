@@ -61,28 +61,28 @@ export class DebugLogTask<
   Input extends DebugLogTaskInput = DebugLogTaskInput,
   Output extends DebugLogTaskOutput = DebugLogTaskOutput,
 > extends Task<Input, Output, DebugLogTaskConfig> {
-  public static type = "DebugLogTask";
-  public static category = "Utility";
-  public static title = "Debug Log";
-  public static description =
+  public static override type = "DebugLogTask";
+  public static override category = "Utility";
+  public static override title = "Debug Log";
+  public static override description =
     "Logs messages to the console with configurable log levels for debugging task graphs";
-  static readonly cacheable = false;
-  public static passthroughInputsToOutputs = true;
-  public static customizable = true;
+  static override readonly cacheable = false;
+  public static override passthroughInputsToOutputs = true;
+  public static override customizable = true;
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return debugLogTaskConfigSchema;
   }
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(input: Input, output: Output) {
+  override async executeReactive(input: Input, output: Output) {
     const log_level: LogLevel = this.config.log_level ?? DEFAULT_LOG_LEVEL;
     const inputRecord = input as Record<string, unknown>;
     if (log_level === "dir") {

@@ -67,14 +67,14 @@ export type TextFillMaskTaskOutput = FromSchema<typeof TextFillMaskOutputSchema>
  * Fills masked tokens in text using language models
  */
 export class TextFillMaskTask extends AiTask<TextFillMaskTaskInput, TextFillMaskTaskOutput> {
-  public static type = "TextFillMaskTask";
-  public static category = "AI Text Model";
-  public static title = "Fill Mask";
-  public static description = "Fills masked tokens in text";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "TextFillMaskTask";
+  public static override category = "AI Text Model";
+  public static override title = "Fill Mask";
+  public static override description = "Fills masked tokens in text";
+  public static override inputSchema(): DataPortSchema {
     return TextFillMaskInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextFillMaskOutputSchema as DataPortSchema;
   }
 }

@@ -47,15 +47,15 @@ export type TextSummaryTaskOutput = FromSchema<typeof TextSummaryOutputSchema>;
  */
 
 export class TextSummaryTask extends StreamingAiTask<TextSummaryTaskInput, TextSummaryTaskOutput> {
-  public static type = "TextSummaryTask";
-  public static category = "AI Text Model";
-  public static title = "Text Summary";
-  public static description =
+  public static override type = "TextSummaryTask";
+  public static override category = "AI Text Model";
+  public static override title = "Text Summary";
+  public static override description =
     "Summarizes text into a shorter form while preserving key information";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return TextSummaryInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextSummaryOutputSchema as DataPortSchema;
   }
 }

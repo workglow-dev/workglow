@@ -105,21 +105,21 @@ export class ChunkVectorSearchTask extends Task<
   VectorStoreSearchTaskOutput,
   TaskConfig
 > {
-  public static type = "ChunkVectorSearchTask";
-  public static category = "Vector Store";
-  public static title = "Vector Store Search";
-  public static description = "Search for similar vectors in a knowledge base";
-  public static cacheable = true;
+  public static override type = "ChunkVectorSearchTask";
+  public static override category = "Vector Store";
+  public static override title = "Vector Store Search";
+  public static override description = "Search for similar vectors in a knowledge base";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: VectorStoreSearchTaskInput,
     _context: IExecuteContext
   ): Promise<VectorStoreSearchTaskOutput> {

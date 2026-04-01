@@ -140,21 +140,21 @@ export class ContextBuilderTask extends Task<
   ContextBuilderTaskOutput,
   TaskConfig
 > {
-  public static type = "ContextBuilderTask";
-  public static category = "RAG";
-  public static title = "Context Builder";
-  public static description = "Format retrieved chunks into context for LLM prompts";
-  public static cacheable = true;
+  public static override type = "ContextBuilderTask";
+  public static override category = "RAG";
+  public static override title = "Context Builder";
+  public static override description = "Format retrieved chunks into context for LLM prompts";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: ContextBuilderTaskInput,
     _output: ContextBuilderTaskOutput,
     context: IExecuteReactiveContext

@@ -54,14 +54,14 @@ export class TextRewriterTask extends StreamingAiTask<
   TextRewriterTaskInput,
   TextRewriterTaskOutput
 > {
-  public static type = "TextRewriterTask";
-  public static category = "AI Text Model";
-  public static title = "Text Rewriter";
-  public static description = "Rewrites text according to a given prompt using language models";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "TextRewriterTask";
+  public static override category = "AI Text Model";
+  public static override title = "Text Rewriter";
+  public static override description = "Rewrites text according to a given prompt using language models";
+  public static override inputSchema(): DataPortSchema {
     return TextRewriterInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextRewriterOutputSchema as DataPortSchema;
   }
 }

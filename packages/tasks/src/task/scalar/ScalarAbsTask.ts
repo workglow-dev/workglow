@@ -41,20 +41,20 @@ export class ScalarAbsTask<
   Output extends ScalarAbsTaskOutput = ScalarAbsTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarAbsTask";
-  static readonly category = "Math";
-  public static title = "Abs";
-  public static description = "Returns the absolute value of a number";
+  static override readonly type = "ScalarAbsTask";
+  static override readonly category = "Math";
+  public static override title = "Abs";
+  public static override description = "Returns the absolute value of a number";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: Math.abs(input.value) } as Output;
   }
 }

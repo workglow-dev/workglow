@@ -147,15 +147,15 @@ export class FaceDetectorTask extends AiVisionTask<
   FaceDetectorTaskOutput,
   TaskConfig
 > {
-  public static type = "FaceDetectorTask";
-  public static category = "AI Vision Model";
-  public static title = "Face Detector";
-  public static description =
+  public static override type = "FaceDetectorTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Face Detector";
+  public static override description =
     "Detects faces in images. Locates faces and identifies facial keypoints like eyes, nose, and mouth.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return FaceDetectorInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return FaceDetectorOutputSchema as DataPortSchema;
   }
 }

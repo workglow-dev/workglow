@@ -25,10 +25,10 @@ type TextInput = { prompt: string };
 type TextOutput = { text: string };
 
 class WFStreamSource extends Task<TextInput, TextOutput> {
-  public static type = "WFStreamSource";
-  public static cacheable = false;
+  public static override type = "WFStreamSource";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { prompt: { type: "string", default: "test" } },
@@ -36,7 +36,7 @@ class WFStreamSource extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", "x-stream": "append" } },
@@ -54,16 +54,16 @@ class WFStreamSource extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: { text: "alpha beta" } };
   }
 
-  async execute(_input: TextInput): Promise<TextOutput | undefined> {
+  override async execute(_input: TextInput): Promise<TextOutput | undefined> {
     return { text: "alpha beta" };
   }
 }
 
 class WFNonStreamSink extends Task<{ text: string }, TextOutput> {
-  public static type = "WFNonStreamSink";
-  public static cacheable = false;
+  public static override type = "WFNonStreamSink";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", default: "" } },
@@ -71,7 +71,7 @@ class WFNonStreamSink extends Task<{ text: string }, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string" } },
@@ -79,7 +79,7 @@ class WFNonStreamSink extends Task<{ text: string }, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any): Promise<TextOutput | undefined> {
+  override async execute(input: any): Promise<TextOutput | undefined> {
     return { text: `result: ${input.text || ""}` };
   }
 }
@@ -181,10 +181,10 @@ describe("Workflow Streaming Events", () => {
     const workflow = new Workflow();
 
     class FailingStreamTask extends Task<TextInput, TextOutput> {
-      public static type = "FailingStreamTask";
-      public static cacheable = false;
+      public static override type = "FailingStreamTask";
+      public static override cacheable = false;
 
-      public static inputSchema(): DataPortSchema {
+      public static override inputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: { prompt: { type: "string", default: "test" } },
@@ -192,7 +192,7 @@ describe("Workflow Streaming Events", () => {
         } as const satisfies DataPortSchema;
       }
 
-      public static outputSchema(): DataPortSchema {
+      public static override outputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: { text: { type: "string", "x-stream": "append" } },
@@ -208,7 +208,7 @@ describe("Workflow Streaming Events", () => {
         yield { type: "error", error: new Error("stream failed") };
       }
 
-      async execute(_input: TextInput): Promise<TextOutput | undefined> {
+      override async execute(_input: TextInput): Promise<TextOutput | undefined> {
         throw new Error("stream failed");
       }
     }

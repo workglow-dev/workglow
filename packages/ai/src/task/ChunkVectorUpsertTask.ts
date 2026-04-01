@@ -82,21 +82,21 @@ export class ChunkVectorUpsertTask extends Task<
   VectorStoreUpsertTaskOutput,
   TaskConfig
 > {
-  public static type = "ChunkVectorUpsertTask";
-  public static category = "Vector Store";
-  public static title = "Add to Vector Store";
-  public static description = "Store vector embeddings with metadata in a knowledge base";
-  public static cacheable = false; // Has side effects
+  public static override type = "ChunkVectorUpsertTask";
+  public static override category = "Vector Store";
+  public static override title = "Add to Vector Store";
+  public static override description = "Store vector embeddings with metadata in a knowledge base";
+  public static override cacheable = false; // Has side effects
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: VectorStoreUpsertTaskInput,
     context: IExecuteContext
   ): Promise<VectorStoreUpsertTaskOutput> {

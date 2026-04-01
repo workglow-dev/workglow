@@ -61,14 +61,14 @@ export type TextEmbeddingTaskOutput = FromSchema<
  * @extends AiTask
  */
 export class TextEmbeddingTask extends AiTask<TextEmbeddingTaskInput, TextEmbeddingTaskOutput> {
-  public static type = "TextEmbeddingTask";
-  public static category = "AI Text Model";
-  public static title = "Text Embedding";
-  public static description = "Generates vector embeddings for text to capture semantic meaning";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "TextEmbeddingTask";
+  public static override category = "AI Text Model";
+  public static override title = "Text Embedding";
+  public static override description = "Generates vector embeddings for text to capture semantic meaning";
+  public static override inputSchema(): DataPortSchema {
     return TextEmbeddingInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextEmbeddingOutputSchema as DataPortSchema;
   }
 }

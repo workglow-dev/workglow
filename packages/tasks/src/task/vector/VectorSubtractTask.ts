@@ -51,21 +51,21 @@ export class VectorSubtractTask<
   Output extends VectorSubtractTaskOutput = VectorSubtractTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "VectorSubtractTask";
-  static readonly category = "Vector";
-  public static title = "Subtract";
-  public static description =
+  static override readonly type = "VectorSubtractTask";
+  static override readonly category = "Vector";
+  public static override title = "Subtract";
+  public static override description =
     "Returns component-wise difference: vectors[0] - vectors[1] - vectors[2] - ...";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     const { vectors } = input as { vectors: TypedArray[] };
     if (vectors.length < 2) {
       throw new Error("At least two vectors are required");

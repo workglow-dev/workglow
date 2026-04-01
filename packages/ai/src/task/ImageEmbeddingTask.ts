@@ -57,14 +57,14 @@ export class ImageEmbeddingTask extends AiVisionTask<
   ImageEmbeddingTaskOutput,
   TaskConfig
 > {
-  public static type = "ImageEmbeddingTask";
-  public static category = "AI Vision Model";
-  public static title = "Image Embedding";
-  public static description = "Generates embeddings from images using vision models";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "ImageEmbeddingTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Image Embedding";
+  public static override description = "Generates embeddings from images using vision models";
+  public static override inputSchema(): DataPortSchema {
     return ImageEmbeddingInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ImageEmbeddingOutputSchema as DataPortSchema;
   }
 }

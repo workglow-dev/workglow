@@ -199,9 +199,9 @@ describe("TaskGraph with format annotations", () => {
         { model: string | string[] },
         { result: string }
       > {
-        static readonly type = "EmbeddingTask"; // This would be used to find compatible models
+        static override readonly type = "EmbeddingTask"; // This would be used to find compatible models
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -216,7 +216,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -230,7 +230,7 @@ describe("TaskGraph with format annotations", () => {
         }
 
         // Runtime narrowing using ModelRepository from the registry
-        async narrowInput(
+        public override async narrowInput(
           input: { model: string | string[] },
           registry: ServiceRegistry
         ): Promise<{ model: string | string[] }> {
@@ -246,7 +246,7 @@ describe("TaskGraph with format annotations", () => {
           };
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { result: "processed" };
         }
       }
@@ -269,9 +269,9 @@ describe("TaskGraph with format annotations", () => {
 
     it("should handle narrowing with single model string", async () => {
       class NarrowableModelTask extends Task<{ model: string | string[] }, { result: string }> {
-        static readonly type = "EmbeddingTask";
+        static override readonly type = "EmbeddingTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -286,7 +286,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -296,7 +296,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async narrowInput(
+        public override async narrowInput(
           input: { model: string | string[] },
           registry: ServiceRegistry
         ): Promise<{ model: string | string[] }> {
@@ -309,7 +309,7 @@ describe("TaskGraph with format annotations", () => {
           return { model: narrowed.length === 1 ? narrowed[0] : narrowed };
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { result: "processed" };
         }
       }
@@ -335,9 +335,9 @@ describe("TaskGraph with format annotations", () => {
       // 3. If no models remain after filtering, task fails validation
 
       class GenericModelProvider extends Task<{ config: string }, { model: string }> {
-        static readonly type = "GenericModelProvider";
+        static override readonly type = "GenericModelProvider";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -347,7 +347,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -377,7 +377,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           // Could return any model name
           return { model: "some-model-name" };
         }
@@ -415,9 +415,9 @@ describe("TaskGraph with format annotations", () => {
       const textGenProvider = new TextGenerationModelProviderTask({}, { id: "textgen" });
 
       class TextGenConsumer extends Task<{ model: string }, { result: string }> {
-        static readonly type = "TextGenerationConsumer";
+        static override readonly type = "TextGenerationConsumer";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -431,7 +431,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -441,7 +441,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { result: "generated" };
         }
       }
@@ -465,9 +465,9 @@ describe("TaskGraph with format annotations", () => {
       // Source: model -> Target: prompt (different semantic names)
       // We need a consumer task that accepts prompt input
       class PromptConsumerTask extends Task<{ prompt: string }, { result: string }> {
-        static readonly type = "PromptConsumerTask";
+        static override readonly type = "PromptConsumerTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -481,7 +481,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -494,7 +494,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { result: "processed" };
         }
       }
@@ -523,9 +523,9 @@ describe("TaskGraph with format annotations", () => {
       // Note: TextGenerationModelProviderTask has model as output, not input
       // We need to create a consumer task for TextGenerationTask
       class TextGenerationConsumerTask extends Task<{ model: string }, { result: string }> {
-        static readonly type = "TextGenerationConsumerTask";
+        static override readonly type = "TextGenerationConsumerTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -539,7 +539,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -552,7 +552,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { result: "generated text" };
         }
       }
@@ -570,9 +570,9 @@ describe("TaskGraph with format annotations", () => {
     it("should be incompatible when types don't match", () => {
       // Different base types should be incompatible regardless of semantic annotations
       class NumberProviderTask extends Task<{ input: string }, { value: number }> {
-        static readonly type = "NumberProviderTask";
+        static override readonly type = "NumberProviderTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -582,7 +582,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -595,7 +595,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { value: 42 };
         }
       }
@@ -661,9 +661,9 @@ describe("TaskGraph with format annotations", () => {
   describe("typed arrays with format annotations", () => {
     it("should handle typed array semantic annotations", () => {
       class Float64ArrayProviderTask extends Task<{ input: string }, { data: number[] }> {
-        static readonly type = "Float64ArrayProviderTask";
+        static override readonly type = "Float64ArrayProviderTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -673,7 +673,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -688,15 +688,15 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { data: [1.0, 2.0, 3.0] };
         }
       }
 
       class Float64ArrayConsumerTask extends Task<{ data: number[] }, { result: string }> {
-        static readonly type = "Float64ArrayConsumerTask";
+        static override readonly type = "Float64ArrayConsumerTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -711,7 +711,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -721,7 +721,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { result: "processed" };
         }
       }
@@ -741,9 +741,9 @@ describe("TaskGraph with format annotations", () => {
 
     it("should handle different typed arrays as incompatible with different typed arrays", () => {
       class Float64ArrayProviderTask extends Task<{ input: string }, { data: number[] }> {
-        static readonly type = "Float64ArrayProviderTask";
+        static override readonly type = "Float64ArrayProviderTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -753,7 +753,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -768,15 +768,15 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { data: [1.0, 2.0, 3.0] };
         }
       }
 
       class Float32ArrayConsumerTask extends Task<{ data: number[] }, { result: string }> {
-        static readonly type = "Float32ArrayConsumerTask";
+        static override readonly type = "Float32ArrayConsumerTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -791,7 +791,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -801,7 +801,7 @@ describe("TaskGraph with format annotations", () => {
           } as const satisfies DataPortSchema;
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return { result: "processed" };
         }
       }
@@ -856,17 +856,17 @@ describe("TaskGraph with format annotations", () => {
 
     it("should handle missing schemas gracefully", () => {
       class NoSchemaTask extends Task {
-        static readonly type = "NoSchemaTask";
+        static override readonly type = "NoSchemaTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return true; // Accepts anything
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return true; // Returns anything
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return {};
         }
       }
@@ -887,17 +887,17 @@ describe("TaskGraph with format annotations", () => {
 
     it("should handle false schema as incompatible", () => {
       class FalseSchemaTask extends Task {
-        static readonly type = "FalseSchemaTask";
+        static override readonly type = "FalseSchemaTask";
 
-        static inputSchema(): DataPortSchema {
+        static override inputSchema(): DataPortSchema {
           return true;
         }
 
-        static outputSchema(): DataPortSchema {
+        static override outputSchema(): DataPortSchema {
           return false; // Rejects everything
         }
 
-        async execute(input: TaskInput): Promise<any> {
+        override async execute(input: TaskInput): Promise<any> {
           return {};
         }
       }

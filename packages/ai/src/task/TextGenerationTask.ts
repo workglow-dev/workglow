@@ -89,15 +89,15 @@ export class TextGenerationTask extends StreamingAiTask<
   TextGenerationTaskOutput,
   TaskConfig
 > {
-  public static type = "TextGenerationTask";
-  public static category = "AI Text Model";
-  public static title = "Text Generation";
-  public static description =
+  public static override type = "TextGenerationTask";
+  public static override category = "AI Text Model";
+  public static override title = "Text Generation";
+  public static override description =
     "Generates text from a prompt using language models with configurable parameters";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return TextGenerationInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextGenerationOutputSchema as DataPortSchema;
   }
 }

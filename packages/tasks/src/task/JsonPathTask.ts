@@ -79,20 +79,20 @@ export class JsonPathTask<
   Output extends JsonPathTaskOutput = JsonPathTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "JsonPathTask";
-  static readonly category = "Utility";
-  public static title = "JSON Path";
-  public static description = "Extracts a value from an object using a dot-notation path";
+  static override readonly type = "JsonPathTask";
+  static override readonly category = "Utility";
+  public static override title = "JSON Path";
+  public static override description = "Extracts a value from an object using a dot-notation path";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

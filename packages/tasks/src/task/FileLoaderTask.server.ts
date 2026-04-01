@@ -29,7 +29,7 @@ export type { FileLoaderTaskInput, FileLoaderTaskOutput };
  * For cross-platform document loading (including browser), use FileLoaderTask with URLs.
  */
 export class FileLoaderTask extends BaseFileLoaderTask {
-  async execute(
+  override async execute(
     input: FileLoaderTaskInput,
     context: IExecuteContext
   ): Promise<FileLoaderTaskOutput> {

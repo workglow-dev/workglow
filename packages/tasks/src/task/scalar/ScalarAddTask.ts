@@ -47,20 +47,20 @@ export class ScalarAddTask<
   Output extends ScalarAddTaskOutput = ScalarAddTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarAddTask";
-  static readonly category = "Math";
-  public static title = "Add";
-  public static description = "Returns the sum of two numbers";
+  static override readonly type = "ScalarAddTask";
+  static override readonly category = "Math";
+  public static override title = "Add";
+  public static override description = "Returns the sum of two numbers";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: sumPrecise([input.a, input.b]) } as Output;
   }
 }

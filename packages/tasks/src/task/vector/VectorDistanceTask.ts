@@ -52,20 +52,20 @@ export class VectorDistanceTask<
   Output extends VectorDistanceTaskOutput = VectorDistanceTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "VectorDistanceTask";
-  static readonly category = "Vector";
-  public static title = "Distance";
-  public static description = "Returns the Euclidean distance between the first two vectors";
+  static override readonly type = "VectorDistanceTask";
+  static override readonly category = "Vector";
+  public static override title = "Distance";
+  public static override description = "Returns the Euclidean distance between the first two vectors";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     const { vectors } = input as { vectors: TypedArray[] };
     if (vectors.length < 2) {
       throw new Error("Exactly two vectors are required for distance");

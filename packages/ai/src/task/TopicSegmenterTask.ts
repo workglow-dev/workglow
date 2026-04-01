@@ -97,22 +97,22 @@ export class TopicSegmenterTask extends Task<
   TopicSegmenterTaskOutput,
   TaskConfig
 > {
-  public static type = "TopicSegmenterTask";
-  public static category = "Document";
-  public static title = "Topic Segmenter";
-  public static description = "Segment text into topic-based sections using hybrid approach";
-  public static cacheable = true;
+  public static override type = "TopicSegmenterTask";
+  public static override category = "Document";
+  public static override title = "Topic Segmenter";
+  public static override description = "Segment text into topic-based sections using hybrid approach";
+  public static override cacheable = true;
   private static readonly EMBEDDING_DIMENSIONS = 256;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: TopicSegmenterTaskInput,
     context: IExecuteContext
   ): Promise<TopicSegmenterTaskOutput> {

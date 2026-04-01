@@ -210,7 +210,7 @@ export abstract class BaseSqlTabularStorage<
    * @param key - The primary key object to convert
    * @returns Array of key values ordered according to the schema
    */
-  protected getPrimaryKeyAsOrderedArray(key: PrimaryKey): ValueOptionType[] {
+  protected override getPrimaryKeyAsOrderedArray(key: PrimaryKey): ValueOptionType[] {
     const orderedParams: ValueOptionType[] = [];
     const keyObj = key as Record<string, Entity[keyof Entity]>;
     for (const k of Object.keys(this.primaryKeySchema.properties)) {

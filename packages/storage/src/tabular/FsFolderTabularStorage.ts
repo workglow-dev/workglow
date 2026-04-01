@@ -100,7 +100,10 @@ export class FsFolderTabularStorage<
    * @param strategy - The generation strategy to use
    * @returns The generated key value
    */
-  protected generateKeyValue(columnName: string, strategy: KeyGenerationStrategy): string | number {
+  protected override generateKeyValue(
+    columnName: string,
+    strategy: KeyGenerationStrategy
+  ): string | number {
     if (strategy === "autoincrement") {
       return ++this.autoIncrementCounter;
     } else {
@@ -306,7 +309,9 @@ export class FsFolderTabularStorage<
       if (result.status === "fulfilled") {
         allEntities.push(result.value);
       } else {
-        getLogger().warn(`Skipping corrupted file in getBulk: ${result.reason?.message ?? result.reason}`);
+        getLogger().warn(
+          `Skipping corrupted file in getBulk: ${result.reason?.message ?? result.reason}`
+        );
       }
     }
 
@@ -405,7 +410,7 @@ export class FsFolderTabularStorage<
    * @param options - Optional subscription options including polling interval
    * @returns Unsubscribe function
    */
-  subscribeToChanges(
+  override subscribeToChanges(
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
@@ -419,7 +424,7 @@ export class FsFolderTabularStorage<
   /**
    * Destroys the repository and frees up resources.
    */
-  destroy(): void {
+  override destroy(): void {
     if (this.pollingManager) {
       this.pollingManager.destroy();
       this.pollingManager = null;

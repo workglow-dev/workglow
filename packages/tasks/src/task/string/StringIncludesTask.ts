@@ -52,20 +52,20 @@ export class StringIncludesTask<
   Output extends StringIncludesTaskOutput = StringIncludesTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringIncludesTask";
-  static readonly category = "String";
-  public static title = "Includes";
-  public static description = "Checks if a string contains a substring";
+  static override readonly type = "StringIncludesTask";
+  static override readonly category = "String";
+  public static override title = "Includes";
+  public static override description = "Checks if a string contains a substring";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

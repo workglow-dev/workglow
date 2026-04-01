@@ -20,7 +20,12 @@ import {
   mcpClientFactory,
 } from "@workglow/tasks";
 import type { McpServerRecord } from "@workglow/tasks";
-import { resolveSchemaInputs, Task, type IExecuteContext, type TaskConfig } from "@workglow/task-graph";
+import {
+  resolveSchemaInputs,
+  Task,
+  type IExecuteContext,
+  type TaskConfig,
+} from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { globalServiceRegistry, ServiceRegistry, Container } from "@workglow/util";
 
@@ -287,29 +292,25 @@ describe("getMcpServerConfig", () => {
   });
 
   test("throws when server object has no transport", () => {
-    expect(() =>
-      getMcpServerConfig({ server: { server_url: "http://example.com" } })
-    ).toThrow("MCP server config must include a transport");
+    expect(() => getMcpServerConfig({ server: { server_url: "http://example.com" } })).toThrow(
+      "MCP server config must include a transport"
+    );
   });
 
   test("throws when stdio transport is missing command", () => {
-    expect(() =>
-      getMcpServerConfig({ server: { transport: "stdio" } })
-    ).toThrow("MCP server config for stdio transport must include a 'command'");
+    expect(() => getMcpServerConfig({ server: { transport: "stdio" } })).toThrow(
+      "MCP server config for stdio transport must include a 'command'"
+    );
   });
 
   test("throws when sse transport is missing server_url", () => {
-    expect(() =>
-      getMcpServerConfig({ server: { transport: "sse" } })
-    ).toThrow(
+    expect(() => getMcpServerConfig({ server: { transport: "sse" } })).toThrow(
       "MCP server config for sse/streamable-http transport must include a 'server_url'"
     );
   });
 
   test("throws when streamable-http transport is missing server_url", () => {
-    expect(() =>
-      getMcpServerConfig({ server: { transport: "streamable-http" } })
-    ).toThrow(
+    expect(() => getMcpServerConfig({ server: { transport: "streamable-http" } })).toThrow(
       "MCP server config for sse/streamable-http transport must include a 'server_url'"
     );
   });
@@ -334,10 +335,10 @@ class ConfigResolverTestTask extends Task<
   { result: string; configServer: unknown },
   TaskConfig & { server?: unknown }
 > {
-  static readonly type = "ConfigResolverTestTask";
-  static readonly category = "Test";
+  static override readonly type = "ConfigResolverTestTask";
+  static override readonly category = "Test";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "string" } },
@@ -345,7 +346,7 @@ class ConfigResolverTestTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -356,7 +357,7 @@ class ConfigResolverTestTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static configSchema(): DataPortSchema {
+  static override configSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -365,7 +366,7 @@ class ConfigResolverTestTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: { value: string },
     _context: IExecuteContext
   ): Promise<{ result: string; configServer: unknown }> {
@@ -471,10 +472,7 @@ describe("MCP tasks with server registry", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpToolCallTask(
-      {},
-      { server: "server-a", tool_name: "greet" }
-    );
+    const task = new McpToolCallTask({}, { server: "server-a", tool_name: "greet" });
     const result = await task.run({ name: "world" });
 
     expect(result.content).toEqual([{ type: "text", text: "hello" }]);

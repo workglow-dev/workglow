@@ -20,7 +20,7 @@ import { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 export class TestJob extends Job<TaskInput, TaskOutput> {
-  async execute(input: TaskInput, context: IJobExecuteContext): Promise<TaskOutput> {
+  override async execute(input: TaskInput, context: IJobExecuteContext): Promise<TaskOutput> {
     return { result: (input as any).a + (input as any).b };
   }
 }
@@ -45,13 +45,13 @@ export class TestJobTask extends Task<
   { result: number },
   TestJobTaskConfig
 > {
-  static readonly type: string = "TestJobTask";
+  static override readonly type: string = "TestJobTask";
 
-  static configSchema(): DataPortSchema {
+  static override configSchema(): DataPortSchema {
     return testJobTaskConfigSchema;
   }
 
-  static readonly inputSchema = (): DataPortSchema =>
+  static override readonly inputSchema = (): DataPortSchema =>
     ({
       type: "object",
       properties: {
@@ -61,7 +61,7 @@ export class TestJobTask extends Task<
       additionalProperties: false,
       required: ["a", "b"],
     }) as const satisfies DataPortSchema;
-  static readonly outputSchema = (): DataPortSchema =>
+  static override readonly outputSchema = (): DataPortSchema =>
     ({
       type: "object",
       properties: {
@@ -71,7 +71,7 @@ export class TestJobTask extends Task<
       required: ["result"],
     }) as const satisfies DataPortSchema;
 
-  async execute(
+  override async execute(
     input: { a: number; b: number },
     executeContext: IExecuteContext
   ): Promise<{ result: number } | undefined> {

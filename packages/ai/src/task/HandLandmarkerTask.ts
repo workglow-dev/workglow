@@ -161,15 +161,15 @@ export class HandLandmarkerTask extends AiVisionTask<
   HandLandmarkerTaskOutput,
   TaskConfig
 > {
-  public static type = "HandLandmarkerTask";
-  public static category = "AI Vision Model";
-  public static title = "Hand Landmarker";
-  public static description =
+  public static override type = "HandLandmarkerTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Hand Landmarker";
+  public static override description =
     "Detects hand landmarks in images. Identifies 21 hand landmarks and classifies left vs. right hands.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return HandLandmarkerInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return HandLandmarkerOutputSchema as DataPortSchema;
   }
 }

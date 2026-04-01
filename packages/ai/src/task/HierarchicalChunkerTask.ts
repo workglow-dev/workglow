@@ -114,21 +114,21 @@ export class HierarchicalChunkerTask extends Task<
   HierarchicalChunkerTaskOutput,
   TaskConfig
 > {
-  public static type = "HierarchicalChunkerTask";
-  public static category = "Document";
-  public static title = "Hierarchical Chunker";
-  public static description = "Chunk documents hierarchically respecting token budgets";
-  public static cacheable = true;
+  public static override type = "HierarchicalChunkerTask";
+  public static override category = "Document";
+  public static override title = "Hierarchical Chunker";
+  public static override description = "Chunk documents hierarchically respecting token budgets";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: HierarchicalChunkerTaskInput,
     context: IExecuteContext
   ): Promise<HierarchicalChunkerTaskOutput> {

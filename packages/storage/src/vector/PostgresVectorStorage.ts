@@ -88,11 +88,11 @@ export class PostgresVectorStorage<
     this.metadataPropertyName = getMetadataProperty(schema) as keyof Entity | undefined;
   }
 
-  getVectorDimensions(): number {
+  public override getVectorDimensions(): number {
     return this.vectorDimensions;
   }
 
-  async similaritySearch(
+  public async similaritySearch(
     query: TypedArray,
     options: VectorSearchOptions<Metadata> = {}
   ): Promise<Array<Entity & { score: number }>> {
@@ -308,7 +308,9 @@ export class PostgresVectorStorage<
       }
 
       const vectorScore = cosineSimilarity(query, vector);
-      const metadataText = Object.values(metadata ?? {}).join(" ").toLowerCase();
+      const metadataText = Object.values(metadata ?? {})
+        .join(" ")
+        .toLowerCase();
       let textScore = 0;
       if (queryWords.length > 0) {
         let matches = 0;

@@ -47,20 +47,20 @@ export class StringUpperCaseTask<
   Output extends StringUpperCaseTaskOutput = StringUpperCaseTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringUpperCaseTask";
-  static readonly category = "String";
-  public static title = "Upper Case";
-  public static description = "Converts a string to upper case";
+  static override readonly type = "StringUpperCaseTask";
+  static override readonly category = "String";
+  public static override title = "Upper Case";
+  public static override description = "Converts a string to upper case";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

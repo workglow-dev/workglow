@@ -7,9 +7,9 @@
 import { BaseError } from "@workglow/util";
 
 export class JobError extends BaseError {
-  public static type: string = "JobError";
+  public static override type: string = "JobError";
   public retryable = false;
-  constructor(public message: string) {
+  constructor(override readonly message: string) {
     super(message);
   }
 }
@@ -20,7 +20,7 @@ export class JobError extends BaseError {
  * Examples: job.id is undefined, job.id is not found in the storage, etc.
  */
 export class JobNotFoundError extends JobError {
-  public static type: string = "JobNotFoundError";
+  public static override type: string = "JobNotFoundError";
   constructor(message: string = "Job not found") {
     super(message);
   }
@@ -32,7 +32,7 @@ export class JobNotFoundError extends JobError {
  * Examples: network timeouts, temporary unavailability of an external service, or rate-limiting
  */
 export class RetryableJobError extends JobError {
-  public static type: string = "RetryableJobError";
+  public static override type: string = "RetryableJobError";
   constructor(
     message: string,
     public retryDate?: Date
@@ -49,7 +49,7 @@ export class RetryableJobError extends JobError {
  * an external service, permission errors, running out of money for an API, etc.
  */
 export class PermanentJobError extends JobError {
-  public static type: string = "PermanentJobError";
+  public static override type: string = "PermanentJobError";
   constructor(message: string) {
     super(message);
   }
@@ -63,7 +63,7 @@ export class PermanentJobError extends JobError {
  * Example: job.abort()
  */
 export class AbortSignalJobError extends PermanentJobError {
-  public static type: string = "AbortSignalJobError";
+  public static override type: string = "AbortSignalJobError";
   constructor(message: string) {
     super(message);
   }
@@ -75,5 +75,5 @@ export class AbortSignalJobError extends PermanentJobError {
  * Examples: job.disable()
  */
 export class JobDisabledError extends PermanentJobError {
-  public static type: string = "JobDisabledError";
+  public static override type: string = "JobDisabledError";
 }

@@ -92,15 +92,15 @@ export class ImageSegmentationTask extends AiVisionTask<
   ImageSegmentationTaskOutput,
   TaskConfig
 > {
-  public static type = "ImageSegmentationTask";
-  public static category = "AI Vision Model";
-  public static title = "Image Segmentation";
-  public static description =
+  public static override type = "ImageSegmentationTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Image Segmentation";
+  public static override description =
     "Segments images into regions with labels using computer vision models";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return ImageSegmentationInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ImageSegmentationOutputSchema as DataPortSchema;
   }
 }

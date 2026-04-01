@@ -60,21 +60,21 @@ export class TemplateTask<
   Output extends TemplateTaskOutput = TemplateTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "TemplateTask";
-  static readonly category = "Utility";
-  public static title = "Template";
-  public static description =
+  static override readonly type = "TemplateTask";
+  static override readonly category = "Utility";
+  public static override title = "Template";
+  public static override description =
     "Renders a template string with {{key}} placeholders and optional defaults";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

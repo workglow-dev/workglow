@@ -72,7 +72,7 @@ export interface TOutput {
 }
 
 export class TestJob extends Job<TInput, TOutput> {
-  public async execute(input: TInput, context: IJobExecuteContext): Promise<TOutput> {
+  public override async execute(input: TInput, context: IJobExecuteContext): Promise<TOutput> {
     if (input.taskType === "failing") {
       throw new JobError("Job failed as expected");
     }

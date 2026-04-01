@@ -93,21 +93,21 @@ export class QueryExpanderTask extends Task<
   QueryExpanderTaskOutput,
   TaskConfig
 > {
-  public static type = "QueryExpanderTask";
-  public static category = "RAG";
-  public static title = "Query Expander";
-  public static description = "Expand queries to improve retrieval coverage";
-  public static cacheable = true;
+  public static override type = "QueryExpanderTask";
+  public static override category = "RAG";
+  public static override title = "Query Expander";
+  public static override description = "Expand queries to improve retrieval coverage";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: QueryExpanderTaskInput,
     context: IExecuteContext
   ): Promise<QueryExpanderTaskOutput> {

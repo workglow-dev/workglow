@@ -19,7 +19,12 @@ import {
   WhileTask,
 } from "@workglow/task-graph";
 import { LambdaTask } from "@workglow/tasks";
-import type { TaskConfig, TaskDeserializationOptions, TaskGraphItemJson, TaskGraphJson } from "@workglow/task-graph";
+import type {
+  TaskConfig,
+  TaskDeserializationOptions,
+  TaskGraphItemJson,
+  TaskGraphJson,
+} from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
@@ -562,24 +567,24 @@ describe("TaskJSON", () => {
 
   describe("canSerializeConfig and _originalConfig", () => {
     class NonSerializableTask extends Task<{ value: string }, { result: string }> {
-      static readonly type = "NonSerializableTask";
-      static readonly category = "Test";
-      static inputSchema(): DataPortSchema {
+      static override readonly type = "NonSerializableTask";
+      static override readonly category = "Test";
+      static override inputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: { value: { type: "string" } },
         } as const satisfies DataPortSchema;
       }
-      static outputSchema(): DataPortSchema {
+      static override outputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: { result: { type: "string" } },
         } as const satisfies DataPortSchema;
       }
-      canSerializeConfig(): boolean {
+      public override canSerializeConfig(): boolean {
         return false;
       }
-      async execute(input: { value: string }) {
+      override async execute(input: { value: string }) {
         return { result: input.value };
       }
     }
@@ -589,21 +594,21 @@ describe("TaskJSON", () => {
       { result: string },
       TaskConfig & { inputSchema?: unknown; discovered?: boolean }
     > {
-      static readonly type = "MutableConfigTask";
-      static readonly category = "Test";
-      static inputSchema(): DataPortSchema {
+      static override readonly type = "MutableConfigTask";
+      static override readonly category = "Test";
+      static override inputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: { value: { type: "string" } },
         } as const satisfies DataPortSchema;
       }
-      static outputSchema(): DataPortSchema {
+      static override outputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: { result: { type: "string" } },
         } as const satisfies DataPortSchema;
       }
-      static configSchema(): DataPortSchema {
+      static override configSchema(): DataPortSchema {
         return {
           type: "object",
           properties: {
@@ -612,7 +617,7 @@ describe("TaskJSON", () => {
           },
         } as const satisfies DataPortSchema;
       }
-      async execute(input: { value: string }) {
+      override async execute(input: { value: string }) {
         // Simulate runtime config mutation (like MCP discoverSchemas)
         (this.config as Record<string, unknown>).discovered = true;
         (this.config as Record<string, unknown>).inputSchema = {
@@ -651,19 +656,13 @@ describe("TaskJSON", () => {
 
   describe("canSerializeConfig overrides", () => {
     test("LambdaTask.canSerializeConfig always returns false", () => {
-      const task = new LambdaTask(
-        {},
-        { execute: async (input: any) => input }
-      );
+      const task = new LambdaTask({}, { execute: async (input: any) => input });
       expect(task.canSerializeConfig()).toBe(false);
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
 
     test("WhileTask with function condition is not serializable", () => {
-      const task = new WhileTask(
-        {},
-        { condition: (_output: any, _i: number) => true }
-      );
+      const task = new WhileTask({}, { condition: (_output: any, _i: number) => true });
       expect(task.canSerializeConfig()).toBe(false);
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
@@ -685,9 +684,7 @@ describe("TaskJSON", () => {
       const task = new ConditionalTask(
         {},
         {
-          branches: [
-            { id: "a", condition: (_input: any) => true, outputPort: "out_a" },
-          ],
+          branches: [{ id: "a", condition: (_input: any) => true, outputPort: "out_a" }],
         }
       );
       expect(task.canSerializeConfig()).toBe(false);

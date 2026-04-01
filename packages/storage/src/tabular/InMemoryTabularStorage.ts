@@ -74,7 +74,7 @@ export class InMemoryTabularStorage<
   /**
    * Sets up the database for the repository (no-op for in-memory)
    */
-  async setupDatabase(): Promise<void> {
+  override async setupDatabase(): Promise<void> {
     // No setup needed for in-memory storage
   }
 
@@ -84,7 +84,10 @@ export class InMemoryTabularStorage<
    * @param strategy - The generation strategy to use
    * @returns The generated key value
    */
-  protected generateKeyValue(columnName: string, strategy: KeyGenerationStrategy): string | number {
+  protected override generateKeyValue(
+    columnName: string,
+    strategy: KeyGenerationStrategy
+  ): string | number {
     if (strategy === "autoincrement") {
       return ++this.autoIncrementCounter;
     } else {
@@ -396,7 +399,7 @@ export class InMemoryTabularStorage<
    * @param options - Optional subscription options (not used for in-memory)
    * @returns Unsubscribe function
    */
-  subscribeToChanges(
+  public override subscribeToChanges(
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
@@ -426,7 +429,7 @@ export class InMemoryTabularStorage<
   /**
    * Destroys the repository and frees up resources.
    */
-  destroy(): void {
+  public override destroy(): void {
     this.values.clear();
   }
 }

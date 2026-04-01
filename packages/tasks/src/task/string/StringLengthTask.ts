@@ -47,20 +47,20 @@ export class StringLengthTask<
   Output extends StringLengthTaskOutput = StringLengthTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringLengthTask";
-  static readonly category = "String";
-  public static title = "Length";
-  public static description = "Returns the length of a string";
+  static override readonly type = "StringLengthTask";
+  static override readonly category = "String";
+  public static override title = "Length";
+  public static override description = "Returns the length of a string";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

@@ -68,15 +68,15 @@ export class ImageClassificationTask extends AiVisionTask<
   ImageClassificationTaskOutput,
   TaskConfig
 > {
-  public static type = "ImageClassificationTask";
-  public static category = "AI Vision Model";
-  public static title = "Image Classification";
-  public static description =
+  public static override type = "ImageClassificationTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Image Classification";
+  public static override description =
     "Classifies images into categories using vision models. Supports zero-shot classification when categories are provided.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return ImageClassificationInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ImageClassificationOutputSchema as DataPortSchema;
   }
 }

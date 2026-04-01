@@ -127,7 +127,7 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
   };
   const name = `‖${args.map((arg) => "𝑓").join("‖")}‖`;
   class ParallelTask extends GraphAsTask<I, O> {
-    public static type = name;
+    public static override type = name;
   }
   const mergeTask = new ParallelTask(input, config);
   mergeTask.subGraph!.addTasks(tasks);
@@ -340,8 +340,8 @@ export type WorkflowEventParameters<Event extends WorkflowEvents> = EventParamet
 >;
 
 class WorkflowTask<I extends DataPorts, O extends DataPorts> extends GraphAsTask<I, O> {
-  public static readonly type = "Workflow";
-  public static readonly compoundMerge = PROPERTY_ARRAY as CompoundMergeStrategy;
+  public static override readonly type = "Workflow";
+  public static override readonly compoundMerge = PROPERTY_ARRAY as CompoundMergeStrategy;
 }
 
 /**

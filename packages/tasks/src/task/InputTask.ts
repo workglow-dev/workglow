@@ -20,14 +20,14 @@ export type InputTaskOutput = Record<string, unknown>;
 export type InputTaskConfig = TaskConfig;
 
 export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskConfig> {
-  static type = "InputTask";
-  static category = "Flow Control";
-  static title = "Input";
-  static description = "Starts the workflow";
-  static hasDynamicSchemas = true;
-  static cacheable = false;
+  static override type = "InputTask";
+  static override category = "Flow Control";
+  static override title = "Input";
+  static override description = "Starts the workflow";
+  static override hasDynamicSchemas = true;
+  static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -35,7 +35,7 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
     } as const as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -43,15 +43,15 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
     } as const as DataPortSchema;
   }
 
-  public inputSchema(): DataPortSchema {
+  public override inputSchema(): DataPortSchema {
     return this.config?.inputSchema ?? (this.constructor as typeof InputTask).inputSchema();
   }
 
-  public outputSchema(): DataPortSchema {
+  public override outputSchema(): DataPortSchema {
     return this.config?.outputSchema ?? (this.constructor as typeof InputTask).outputSchema();
   }
 
-  public async executeReactive(input: InputTaskInput) {
+  public override async executeReactive(input: InputTaskInput) {
     return input as InputTaskOutput;
   }
 

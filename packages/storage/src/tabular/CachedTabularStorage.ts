@@ -345,7 +345,7 @@ export class CachedTabularStorage<
    * @param options - Optional subscription options (e.g., polling interval)
    * @returns Unsubscribe function
    */
-  subscribeToChanges(
+  override subscribeToChanges(
     callback: (change: any) => void,
     options?: TabularSubscribeOptions
   ): () => void {
@@ -370,7 +370,7 @@ export class CachedTabularStorage<
   /**
    * Destroys the durable and cache repositories.
    */
-  destroy(): void {
+  override destroy(): void {
     this.durable.destroy();
     this.cache.destroy();
   }

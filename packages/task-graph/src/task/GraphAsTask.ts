@@ -50,14 +50,14 @@ export class GraphAsTask<
   // Static properties - should be overridden by subclasses
   // ========================================================================
 
-  public static type: TaskTypeName = "GraphAsTask";
-  public static title: string = "Group";
-  public static description: string = "A group of tasks that are executed together";
-  public static category: string = "Flow Control";
+  public static override type: TaskTypeName = "GraphAsTask";
+  public static override title: string = "Group";
+  public static override description: string = "A group of tasks that are executed together";
+  public static override category: string = "Flow Control";
   public static compoundMerge: CompoundMergeStrategy = PROPERTY_ARRAY;
 
   /** This task has dynamic schemas that change based on the subgraph structure */
-  public static hasDynamicSchemas: boolean = true;
+  public static override hasDynamicSchemas: boolean = true;
 
   // ========================================================================
   // Constructor
@@ -92,7 +92,7 @@ export class GraphAsTask<
   // Static to Instance conversion methods
   // ========================================================================
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return graphAsTaskConfigSchema;
   }
 
@@ -100,7 +100,7 @@ export class GraphAsTask<
     return this.config?.compoundMerge || (this.constructor as typeof GraphAsTask).compoundMerge;
   }
 
-  public get cacheable(): boolean {
+  public override get cacheable(): boolean {
     return (
       this.runConfig?.cacheable ??
       this.config?.cacheable ??
@@ -120,7 +120,7 @@ export class GraphAsTask<
    * included in the graph's input schema without pulling in every optional
    * downstream property.
    */
-  public inputSchema(): DataPortSchema {
+  public override inputSchema(): DataPortSchema {
     // If there's no subgraph or it has no children, fall back to the static schema
     if (!this.hasChildren()) {
       return (this.constructor as typeof Task).inputSchema();
@@ -172,7 +172,7 @@ export class GraphAsTask<
   /**
    * Resets input data to defaults
    */
-  public resetInputData(): void {
+  public override resetInputData(): void {
     super.resetInputData();
     if (this.hasChildren()) {
       this.subGraph!.getTasks().forEach((node) => {
@@ -283,7 +283,7 @@ export class GraphAsTask<
    * regeneration logic, but all they need to do is call this method to
    * emit the "regenerate" event.
    */
-  public regenerateGraph(): void {
+  public override regenerateGraph(): void {
     this._inputSchemaNode = undefined;
     this.events.emit("regenerate");
   }

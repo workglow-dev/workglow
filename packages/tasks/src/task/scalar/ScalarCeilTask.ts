@@ -41,20 +41,20 @@ export class ScalarCeilTask<
   Output extends ScalarCeilTaskOutput = ScalarCeilTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarCeilTask";
-  static readonly category = "Math";
-  public static title = "Ceil";
-  public static description = "Returns the smallest integer greater than or equal to a number";
+  static override readonly type = "ScalarCeilTask";
+  static override readonly category = "Math";
+  public static override title = "Ceil";
+  public static override description = "Returns the smallest integer greater than or equal to a number";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: Math.ceil(input.value) } as Output;
   }
 }

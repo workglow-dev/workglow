@@ -75,22 +75,22 @@ export class LambdaTask<
   Output extends TaskOutput = LambdaTaskOutput,
   Config extends LambdaTaskConfig<Input, Output> = LambdaTaskConfig<Input, Output>,
 > extends Task<Input, Output, Config> {
-  public static type = "LambdaTask";
-  public static title = "Lambda Task";
-  public static description = "A task that wraps a provided function and its input";
-  public static category = "Hidden";
-  public static cacheable = true;
-  public static configSchema(): DataPortSchema {
+  public static override type = "LambdaTask";
+  public static override title = "Lambda Task";
+  public static override description = "A task that wraps a provided function and its input";
+  public static override category = "Hidden";
+  public static override cacheable = true;
+  public static override configSchema(): DataPortSchema {
     return lambdaTaskConfigSchema;
   }
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 
-  public canSerializeConfig(): boolean {
+  public override canSerializeConfig(): boolean {
     return false;
   }
 
@@ -103,7 +103,7 @@ export class LambdaTask<
     super(input, config as Config);
   }
 
-  async execute(input: Input, context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, context: IExecuteContext): Promise<Output> {
     if (typeof this.config.execute === "function") {
       return await this.config.execute(input, context);
     }
@@ -114,7 +114,7 @@ export class LambdaTask<
    * Executes the provided function with the given input
    * Throws an error if no function is provided or if the provided value is not callable
    */
-  async executeReactive(input: Input, output: Output, context: IExecuteReactiveContext) {
+  override async executeReactive(input: Input, output: Output, context: IExecuteReactiveContext) {
     if (typeof this.config.executeReactive === "function") {
       return (await this.config.executeReactive(input, output, context)) ?? output;
     }
