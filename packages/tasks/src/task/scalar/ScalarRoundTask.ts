@@ -41,20 +41,20 @@ export class ScalarRoundTask<
   Output extends ScalarRoundTaskOutput = ScalarRoundTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarRoundTask";
-  static readonly category = "Math";
-  public static title = "Round";
-  public static description = "Returns the value of a number rounded to the nearest integer";
+  static override readonly type = "ScalarRoundTask";
+  static override readonly category = "Math";
+  public static override title = "Round";
+  public static override description = "Returns the value of a number rounded to the nearest integer";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: Math.round(input.value) } as Output;
   }
 }

@@ -159,23 +159,23 @@ export class McpToolCallTask extends Task<
   McpToolCallTaskOutput,
   McpToolCallTaskConfig
 > {
-  public static type = "McpToolCallTask";
-  public static category = "MCP";
-  public static title = "MCP Call Tool";
-  public static description = "Calls a tool on an MCP server and returns the result";
-  public static cacheable = false;
-  public static customizable = true;
-  public static hasDynamicSchemas = true;
+  public static override type = "McpToolCallTask";
+  public static override category = "MCP";
+  public static override title = "MCP Call Tool";
+  public static override description = "Calls a tool on an MCP server and returns the result";
+  public static override cacheable = false;
+  public static override customizable = true;
+  public static override hasDynamicSchemas = true;
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return fallbackInputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return fallbackOutputSchema;
   }
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();
     return {
       type: "object",
@@ -234,7 +234,7 @@ export class McpToolCallTask extends Task<
     }
   }
 
-  async execute(
+  override async execute(
     input: McpToolCallTaskInput,
     context: IExecuteContext
   ): Promise<McpToolCallTaskOutput> {

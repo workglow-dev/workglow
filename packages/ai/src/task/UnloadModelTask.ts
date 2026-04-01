@@ -43,17 +43,17 @@ export class UnloadModelTask extends AiTask<
   UnloadModelTaskRunOutput,
   TaskConfig
 > {
-  public static type = "UnloadModelTask";
-  public static category = "AI Model";
-  public static title = "Unload Model";
-  public static description = "Unloads and clears cached AI models from memory and storage";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "UnloadModelTask";
+  public static override category = "AI Model";
+  public static override title = "Unload Model";
+  public static override description = "Unloads and clears cached AI models from memory and storage";
+  public static override inputSchema(): DataPortSchema {
     return UnloadModelInputSchema satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return UnloadModelOutputSchema satisfies DataPortSchema;
   }
-  public static cacheable = false;
+  public static override cacheable = false;
 }
 
 /**

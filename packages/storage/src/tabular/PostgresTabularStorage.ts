@@ -84,7 +84,7 @@ export class PostgresTabularStorage<
    * Creates the table if it doesn't exist with primary key and value columns.
    * Must be called before using any other methods.
    */
-  public async setupDatabase(): Promise<void> {
+  public override async setupDatabase(): Promise<void> {
     const sql = `
       CREATE TABLE IF NOT EXISTS "${this.table}" (
         ${this.constructPrimaryKeyColumns('"')} ${this.constructValueColumns('"')},
@@ -278,7 +278,7 @@ export class PostgresTabularStorage<
    * Handles auto-generated keys using SERIAL for integers and UUID DEFAULT for strings
    * @returns SQL string containing primary key column definitions
    */
-  protected constructPrimaryKeyColumns($delimiter: string = ""): string {
+  protected override constructPrimaryKeyColumns($delimiter: string = ""): string {
     const cols = Object.entries<JsonSchema>(this.primaryKeySchema.properties)
       .map(([key, typeDef]) => {
         // Check if this is an auto-generated key
@@ -314,7 +314,7 @@ export class PostgresTabularStorage<
    * Generates the SQL column definitions for value fields with constraints
    * @returns SQL string containing value column definitions
    */
-  protected constructValueColumns($delimiter: string = ""): string {
+  protected override constructValueColumns($delimiter: string = ""): string {
     const requiredSet = new Set(this.valueSchema.required ?? []);
     const cols = Object.entries<JsonSchema>(this.valueSchema.properties)
       .map(([key, typeDef]) => {
@@ -941,7 +941,7 @@ export class PostgresTabularStorage<
    *
    * @throws Error always - subscribeToChanges is not supported for PostgreSQL storage
    */
-  subscribeToChanges(
+  public override subscribeToChanges(
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
@@ -951,7 +951,7 @@ export class PostgresTabularStorage<
   /**
    * Destroys the repository and frees up resources.
    */
-  destroy(): void {
+  public override destroy(): void {
     super.destroy();
   }
 }

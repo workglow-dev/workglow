@@ -42,7 +42,7 @@ export class StreamingAiTask<
   Output extends TaskOutput = TaskOutput,
   Config extends AiTaskConfig = AiTaskConfig,
 > extends AiTask<Input, Output, Config> {
-  public static type: string = "StreamingAiTask";
+  public static override type: string = "StreamingAiTask";
 
   /**
    * Streaming execution: resolves the provider strategy and yields StreamEvents from it.

@@ -98,7 +98,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
    * @param skipUpdatingCyclicality This boolean indicates if the cache of the cyclicality of the graph should be updated.
    * If `false` is passed the cycle cache will be invalidated because we can not assure that a cycle has not been created.
    */
-  addEdge(
+  override addEdge(
     sourceNodeIdentity: NodeId,
     targetNodeIdentity: NodeId,
     edge?: Edge,
@@ -221,7 +221,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
   /**
    * Returns all edges in the graph as an array of tuples.
    */
-  getEdges(): Array<[sourceNodeIdentity: NodeId, targetNodeIdentity: NodeId, edge: Edge]> {
+  override getEdges(): Array<[sourceNodeIdentity: NodeId, targetNodeIdentity: NodeId, edge: Edge]> {
     return super.getEdges();
   }
 
@@ -233,7 +233,11 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
    * @param targetNodeIdentity The identity of the target node
    * @param edgeIdentity The identity of the edge to be deleted. If not provided, all edges between the two nodes will be deleted.
    */
-  removeEdge(sourceNodeIdentity: NodeId, targetNodeIdentity: NodeId, edgeIdentity?: EdgeId): void {
+  override removeEdge(
+    sourceNodeIdentity: NodeId,
+    targetNodeIdentity: NodeId,
+    edgeIdentity?: EdgeId
+  ): void {
     super.removeEdge(sourceNodeIdentity, targetNodeIdentity, edgeIdentity);
 
     // Invalidate the cycle cache as the graph structure has changed
@@ -246,7 +250,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
    *
    * @param nodeIdentity The identity of the node to be deleted.
    */
-  remove(nodeIdentity: NodeId): void {
+  override remove(nodeIdentity: NodeId): void {
     super.remove(nodeIdentity);
 
     // Invalidate the cycle cache as the graph structure has changed
@@ -257,7 +261,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
    * Add edges
    * @param edges An array of tuples, each tuple containing the identity of the source node, the identity of the target node, and the edge to add.
    */
-  addEdges(
+  override addEdges(
     edges: Array<[sourceNodeIdentity: NodeId, targetNodeIdentity: NodeId, edge?: Edge | undefined]>
   ): EdgeId[] {
     return super.addEdges(edges);

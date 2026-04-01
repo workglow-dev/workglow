@@ -47,7 +47,7 @@ export class GraphAsTaskRunner<
     });
   }
 
-  protected async handleDisable(): Promise<void> {
+  protected override async handleDisable(): Promise<void> {
     if (this.task.hasChildren()) {
       await this.task.subGraph!.disable();
     }
@@ -61,7 +61,7 @@ export class GraphAsTaskRunner<
   /**
    * Execute the task
    */
-  protected async executeTask(input: Input): Promise<Output | undefined> {
+  protected override async executeTask(input: Input): Promise<Output | undefined> {
     if (this.task.hasChildren()) {
       const runExecuteOutputData = await this.executeTaskChildren(input);
       this.task.runOutputData = this.task.subGraph.mergeExecuteOutputsToRunOutput(
@@ -78,7 +78,7 @@ export class GraphAsTaskRunner<
   /**
    * Execute the task reactively
    */
-  public async executeTaskReactive(input: Input, output: Output): Promise<Output> {
+  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
     if (this.task.hasChildren()) {
       const reactiveResults = await this.executeTaskChildrenReactive();
       this.task.runOutputData = this.task.subGraph.mergeExecuteOutputsToRunOutput(

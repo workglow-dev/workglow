@@ -46,20 +46,20 @@ export class ScalarMultiplyTask<
   Output extends ScalarMultiplyTaskOutput = ScalarMultiplyTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "ScalarMultiplyTask";
-  static readonly category = "Math";
-  public static title = "Multiply";
-  public static description = "Returns the product of two numbers";
+  static override readonly type = "ScalarMultiplyTask";
+  static override readonly category = "Math";
+  public static override title = "Multiply";
+  public static override description = "Returns the product of two numbers";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: input.a * input.b } as Output;
   }
 }

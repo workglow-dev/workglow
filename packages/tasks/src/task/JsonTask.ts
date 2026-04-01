@@ -54,17 +54,17 @@ export class JsonTask<
   Output extends JsonTaskOutput = JsonTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends GraphAsTask<Input, Output, Config> {
-  public static type = "JsonTask";
-  public static category = "Hidden";
-  public static title = "JSON Task";
-  public static description =
+  public static override type = "JsonTask";
+  public static override category = "Hidden";
+  public static override title = "JSON Task";
+  public static override description =
     "A task that creates and manages task graphs from JSON configurations";
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 
@@ -72,7 +72,7 @@ export class JsonTask<
    * Regenerates the entire task graph based on the current JSON input
    * Creates task nodes and establishes data flow connections between them
    */
-  public regenerateGraph() {
+  public override regenerateGraph() {
     if (!this.runInputData.json) return;
     const data = JSON.parse(this.runInputData.json) as
       | TaskGraphJson

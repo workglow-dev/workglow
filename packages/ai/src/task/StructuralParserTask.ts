@@ -78,21 +78,21 @@ export class StructuralParserTask extends Task<
   StructuralParserTaskOutput,
   TaskConfig
 > {
-  public static type = "StructuralParserTask";
-  public static category = "Document";
-  public static title = "Structural Parser";
-  public static description = "Parse documents into hierarchical tree structure";
-  public static cacheable = true;
+  public static override type = "StructuralParserTask";
+  public static override category = "Document";
+  public static override title = "Structural Parser";
+  public static override description = "Parse documents into hierarchical tree structure";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: StructuralParserTaskInput,
     context: IExecuteContext
   ): Promise<StructuralParserTaskOutput> {

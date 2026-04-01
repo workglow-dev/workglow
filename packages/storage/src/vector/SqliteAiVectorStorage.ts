@@ -150,7 +150,7 @@ export class SqliteAiVectorStorage<
    * Load the sqlite-vector extension and initialize vector indexing on the vector column.
    * Extension loading is best-effort: if unavailable, operations fall back to in-memory search.
    */
-  async setupDatabase(): Promise<void> {
+  public override async setupDatabase(): Promise<void> {
     // Always create the table first via the parent class
     await super.setupDatabase();
 
@@ -236,7 +236,7 @@ export class SqliteAiVectorStorage<
   /**
    * Override jsToSqlValue to encode vectors as BLOBs via sqlite-vector functions
    */
-  protected jsToSqlValue(
+  protected override jsToSqlValue(
     column: string,
     value: Entity[keyof Entity]
   ): ReturnType<SqliteTabularStorage<Schema, PrimaryKeyNames, Entity>["jsToSqlValue"]> {
@@ -251,7 +251,7 @@ export class SqliteAiVectorStorage<
   /**
    * Override sqlToJsValue to decode vector BLOBs back to TypedArrays
    */
-  protected sqlToJsValue(column: string, value: any): Entity[keyof Entity] {
+  protected override sqlToJsValue(column: string, value: any): Entity[keyof Entity] {
     if (column === String(this.vectorPropertyName) && value != null) {
       return this.decodeVector(value) as Entity[keyof Entity];
     }
@@ -261,7 +261,7 @@ export class SqliteAiVectorStorage<
   /**
    * Override mapTypeToSQL to use BLOB for vector columns instead of TEXT
    */
-  protected mapTypeToSQL(typeDef: any): string {
+  protected override mapTypeToSQL(typeDef: any): string {
     if (typeof typeDef !== "boolean" && typeDef.type === "array") {
       const format = typeDef.format as string | undefined;
       if (format === "TypedArray" || format?.startsWith("TypedArray:")) {
@@ -277,7 +277,7 @@ export class SqliteAiVectorStorage<
    * with vector_as_fXX() to encode as a native vector BLOB.
    * Falls back to base class put() if the extension is not available.
    */
-  async put(entity: any): Promise<Entity> {
+  public override async put(entity: any): Promise<Entity> {
     if (!this.extensionLoaded) {
       return super.put(entity);
     }

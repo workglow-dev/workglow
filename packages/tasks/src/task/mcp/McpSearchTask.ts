@@ -245,20 +245,24 @@ export async function searchMcpRegistry(
  * Search the MCP server registry for servers matching a query.
  */
 export class McpSearchTask extends Task<McpSearchTaskInput, McpSearchTaskOutput, TaskConfig> {
-  public static type = "McpSearchTask";
-  public static category = "MCP";
-  public static title = "MCP Search";
-  public static description = "Search the MCP server registry for servers matching a query";
-  public static cacheable = false;
+  public static override type = "McpSearchTask";
+  public static override category = "MCP";
+  public static override title = "MCP Search";
+  public static override description =
+    "Search the MCP server registry for servers matching a query";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return McpSearchInputSchema satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return McpSearchOutputSchema satisfies DataPortSchema;
   }
 
-  async execute(input: McpSearchTaskInput, context: IExecuteContext): Promise<McpSearchTaskOutput> {
+  override async execute(
+    input: McpSearchTaskInput,
+    context: IExecuteContext
+  ): Promise<McpSearchTaskOutput> {
     const results = await searchMcpRegistry(input.query, context.signal);
     return { results };
   }

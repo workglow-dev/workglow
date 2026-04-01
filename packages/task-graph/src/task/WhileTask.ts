@@ -142,15 +142,15 @@ export class WhileTask<
   Output extends TaskOutput = TaskOutput,
   Config extends WhileTaskConfig<Output> = WhileTaskConfig<Output>,
 > extends GraphAsTask<Input, Output, Config> {
-  public static type: TaskTypeName = "WhileTask";
-  public static category: string = "Flow Control";
-  public static title: string = "While Loop";
-  public static description: string = "Loops until a condition function returns false";
+  public static override type: TaskTypeName = "WhileTask";
+  public static override category: string = "Flow Control";
+  public static override title: string = "While Loop";
+  public static override description: string = "Loops until a condition function returns false";
 
   /** This task has dynamic schemas based on the inner workflow */
-  public static hasDynamicSchemas: boolean = true;
+  public static override hasDynamicSchemas: boolean = true;
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return whileTaskConfigSchema;
   }
 
@@ -170,7 +170,7 @@ export class WhileTask<
    */
   protected _currentIteration: number = 0;
 
-  public canSerializeConfig(): boolean {
+  public override canSerializeConfig(): boolean {
     return typeof this.config.condition !== "function";
   }
 
@@ -349,7 +349,10 @@ export class WhileTask<
     return iterInput as Input;
   }
 
-  public async execute(input: Input, context: IExecuteContext): Promise<Output | undefined> {
+  public override async execute(
+    input: Input,
+    context: IExecuteContext
+  ): Promise<Output | undefined> {
     if (!this.hasChildren()) {
       throw new TaskConfigurationError(`${this.type}: No subgraph set for while loop`);
     }
@@ -457,7 +460,10 @@ export class WhileTask<
    * This provides streaming output for the final result while still
    * supporting iteration chaining.
    */
-  async *executeStream(input: Input, context: IExecuteContext): AsyncIterable<StreamEvent<Output>> {
+  public override async *executeStream(
+    input: Input,
+    context: IExecuteContext
+  ): AsyncIterable<StreamEvent<Output>> {
     if (!this.hasChildren()) {
       throw new TaskConfigurationError(`${this.type}: No subgraph set for while loop`);
     }
@@ -615,7 +621,7 @@ export class WhileTask<
   /**
    * Static input schema for WhileTask.
    */
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -626,7 +632,7 @@ export class WhileTask<
   /**
    * Static output schema for WhileTask.
    */
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {

@@ -139,21 +139,21 @@ export class ChunkVectorHybridSearchTask extends Task<
   HybridSearchTaskOutput,
   TaskConfig
 > {
-  public static type = "ChunkVectorHybridSearchTask";
-  public static category = "RAG";
-  public static title = "Hybrid Search";
-  public static description = "Combined vector + full-text search for improved retrieval";
-  public static cacheable = true;
+  public static override type = "ChunkVectorHybridSearchTask";
+  public static override category = "RAG";
+  public static override title = "Hybrid Search";
+  public static override description = "Combined vector + full-text search for improved retrieval";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: HybridSearchTaskInput,
     context: IExecuteContext
   ): Promise<HybridSearchTaskOutput> {

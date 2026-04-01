@@ -57,20 +57,20 @@ export class StringReplaceTask<
   Output extends StringReplaceTaskOutput = StringReplaceTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringReplaceTask";
-  static readonly category = "String";
-  public static title = "Replace";
-  public static description = "Replaces all occurrences of a substring";
+  static override readonly type = "StringReplaceTask";
+  static override readonly category = "String";
+  public static override title = "Replace";
+  public static override description = "Replaces all occurrences of a substring";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

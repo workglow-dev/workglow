@@ -73,22 +73,22 @@ export class McpResourceReadTask extends Task<
   McpResourceReadTaskOutput,
   McpResourceReadTaskConfig
 > {
-  public static type = "McpResourceReadTask";
-  public static category = "MCP";
-  public static title = "MCP Read Resource";
-  public static description = "Reads a resource from an MCP server";
-  static readonly cacheable = false;
-  public static customizable = true;
+  public static override type = "McpResourceReadTask";
+  public static override category = "MCP";
+  public static override title = "MCP Read Resource";
+  public static override description = "Reads a resource from an MCP server";
+  static override readonly cacheable = false;
+  public static override customizable = true;
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();
     return {
       type: "object",
@@ -107,7 +107,7 @@ export class McpResourceReadTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     _input: McpResourceReadTaskInput,
     context: IExecuteContext
   ): Promise<McpResourceReadTaskOutput> {

@@ -178,15 +178,15 @@ export class PoseLandmarkerTask extends AiVisionTask<
   PoseLandmarkerTaskOutput,
   TaskConfig
 > {
-  public static type = "PoseLandmarkerTask";
-  public static category = "AI Vision Model";
-  public static title = "Pose Landmarker";
-  public static description =
+  public static override type = "PoseLandmarkerTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Pose Landmarker";
+  public static override description =
     "Detects pose landmarks in images. Identifies 33 body landmarks for pose estimation and optional segmentation.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return PoseLandmarkerInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return PoseLandmarkerOutputSchema as DataPortSchema;
   }
 }

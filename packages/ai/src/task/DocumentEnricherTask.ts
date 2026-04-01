@@ -100,21 +100,21 @@ export class DocumentEnricherTask extends Task<
   DocumentEnricherTaskOutput,
   TaskConfig
 > {
-  public static type = "DocumentEnricherTask";
-  public static category = "Document";
-  public static title = "Document Enricher";
-  public static description = "Enrich document nodes with summaries and entities";
-  public static cacheable = true;
+  public static override type = "DocumentEnricherTask";
+  public static override category = "Document";
+  public static override title = "Document Enricher";
+  public static override description = "Enrich document nodes with summaries and entities";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: DocumentEnricherTaskInput,
     context: IExecuteContext
   ): Promise<DocumentEnricherTaskOutput> {

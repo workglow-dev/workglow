@@ -84,14 +84,14 @@ export class TextNamedEntityRecognitionTask extends AiTask<
   TextNamedEntityRecognitionTaskInput,
   TextNamedEntityRecognitionTaskOutput
 > {
-  public static type = "TextNamedEntityRecognitionTask";
-  public static category = "AI Text Model";
-  public static title = "Named Entity Recognition";
-  public static description = "Extracts named entities from text";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "TextNamedEntityRecognitionTask";
+  public static override category = "AI Text Model";
+  public static override title = "Named Entity Recognition";
+  public static override description = "Extracts named entities from text";
+  public static override inputSchema(): DataPortSchema {
     return TextNamedEntityRecognitionInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextNamedEntityRecognitionOutputSchema as DataPortSchema;
   }
 }

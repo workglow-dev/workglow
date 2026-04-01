@@ -129,15 +129,15 @@ export class FallbackTask<
   // Static properties
   // ========================================================================
 
-  public static type: TaskTypeName = "FallbackTask";
-  public static category: string = "Flow Control";
-  public static title: string = "Fallback";
-  public static description: string = "Try alternatives until one succeeds";
+  public static override type: TaskTypeName = "FallbackTask";
+  public static override category: string = "Flow Control";
+  public static override title: string = "Fallback";
+  public static override description: string = "Try alternatives until one succeeds";
 
   /** FallbackTask has dynamic schemas based on the subgraph structure. */
-  public static hasDynamicSchemas: boolean = true;
+  public static override hasDynamicSchemas: boolean = true;
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return fallbackTaskConfigSchema;
   }
 

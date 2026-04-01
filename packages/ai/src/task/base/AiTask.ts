@@ -62,9 +62,9 @@ export class AiTask<
   Output extends TaskOutput = TaskOutput,
   Config extends AiTaskConfig = AiTaskConfig,
 > extends Task<Input, Output, Config> {
-  public static type: string = "AiTask";
+  public static override type: string = "AiTask";
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return aiTaskConfigSchema;
   }
 
@@ -72,7 +72,10 @@ export class AiTask<
   // Execution
   // ========================================================================
 
-  async execute(input: Input, executeContext: IExecuteContext): Promise<Output | undefined> {
+  override async execute(
+    input: Input,
+    executeContext: IExecuteContext
+  ): Promise<Output | undefined> {
     const model = input.model as ModelConfig;
     if (!model || typeof model !== "object") {
       throw new TaskConfigurationError(
@@ -184,7 +187,7 @@ export class AiTask<
   /**
    * Validates that model inputs are valid ModelConfig objects.
    */
-  async validateInput(input: Input): Promise<boolean> {
+  public override async validateInput(input: Input): Promise<boolean> {
     const inputSchema = this.inputSchema();
     if (typeof inputSchema === "boolean") {
       if (inputSchema === false) {
@@ -233,7 +236,7 @@ export class AiTask<
     return super.validateInput(input);
   }
 
-  async narrowInput(input: Input, registry: ServiceRegistry): Promise<Input> {
+  public override async narrowInput(input: Input, registry: ServiceRegistry): Promise<Input> {
     const inputSchema = this.inputSchema();
     if (typeof inputSchema === "boolean") {
       if (inputSchema === false) {

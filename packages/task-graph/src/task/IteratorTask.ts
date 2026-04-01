@@ -270,15 +270,15 @@ export abstract class IteratorTask<
   Output extends TaskOutput = TaskOutput,
   Config extends IteratorTaskConfig = IteratorTaskConfig,
 > extends GraphAsTask<Input, Output, Config> {
-  public static type: TaskTypeName = "IteratorTask";
-  public static category: string = "Flow Control";
-  public static title: string = "Iterator";
-  public static description: string = "Base class for loop-type tasks";
+  public static override type: TaskTypeName = "IteratorTask";
+  public static override category: string = "Flow Control";
+  public static override title: string = "Iterator";
+  public static override description: string = "Base class for loop-type tasks";
 
   /** This task has dynamic schemas based on the inner workflow */
-  public static hasDynamicSchemas: boolean = true;
+  public static override hasDynamicSchemas: boolean = true;
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return iteratorTaskConfigSchema;
   }
 
@@ -319,7 +319,7 @@ export abstract class IteratorTask<
    * value for ReduceTask). The inherited GraphAsTask.executeStream is
    * overridden to just emit a finish event (no streaming).
    */
-  async *executeStream(
+  override async *executeStream(
     input: Input,
     _context: IExecuteContext
   ): AsyncIterable<StreamEvent<Output>> {
@@ -789,14 +789,14 @@ export abstract class IteratorTask<
     return (this.constructor as typeof IteratorTask).getIterationContextSchema();
   }
 
-  public inputSchema(): DataPortSchema {
+  public override inputSchema(): DataPortSchema {
     if (this.hasChildren()) {
       return this.getIterationInputSchema();
     }
     return (this.constructor as typeof IteratorTask).inputSchema();
   }
 
-  public outputSchema(): DataPortSchema {
+  public override outputSchema(): DataPortSchema {
     if (!this.hasChildren()) {
       return (this.constructor as typeof IteratorTask).outputSchema();
     }

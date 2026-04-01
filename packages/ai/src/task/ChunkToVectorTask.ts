@@ -97,21 +97,21 @@ export class ChunkToVectorTask extends Task<
   ChunkToVectorTaskOutput,
   TaskConfig
 > {
-  public static type = "ChunkToVectorTask";
-  public static category = "Document";
-  public static title = "Chunk to Vector";
-  public static description = "Transform chunks and embeddings to vector store format";
-  public static cacheable = true;
+  public static override type = "ChunkToVectorTask";
+  public static override category = "Document";
+  public static override title = "Chunk to Vector";
+  public static override description = "Transform chunks and embeddings to vector store format";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: ChunkToVectorTaskInput,
     context: IExecuteContext
   ): Promise<ChunkToVectorTaskOutput> {

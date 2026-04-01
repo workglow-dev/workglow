@@ -100,21 +100,21 @@ export class HierarchyJoinTask extends Task<
   HierarchyJoinTaskOutput,
   TaskConfig
 > {
-  public static type = "HierarchyJoinTask";
-  public static category = "RAG";
-  public static title = "Hierarchy Join";
-  public static description = "Enrich search results with document hierarchy context";
-  public static cacheable = false; // Has external dependency
+  public static override type = "HierarchyJoinTask";
+  public static override category = "RAG";
+  public static override title = "Hierarchy Join";
+  public static override description = "Enrich search results with document hierarchy context";
+  public static override cacheable = false; // Has external dependency
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: HierarchyJoinTaskInput,
     context: IExecuteContext
   ): Promise<HierarchyJoinTaskOutput> {

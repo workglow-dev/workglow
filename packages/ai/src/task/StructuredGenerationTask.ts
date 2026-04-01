@@ -71,15 +71,15 @@ export class StructuredGenerationTask extends StreamingAiTask<
   StructuredGenerationTaskOutput,
   TaskConfig
 > {
-  public static type = "StructuredGenerationTask";
-  public static category = "AI Text Model";
-  public static title = "Structured Generation";
-  public static description =
+  public static override type = "StructuredGenerationTask";
+  public static override category = "AI Text Model";
+  public static override title = "Structured Generation";
+  public static override description =
     "Generates structured JSON output conforming to a provided schema using language models";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return StructuredGenerationInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return StructuredGenerationOutputSchema as DataPortSchema;
   }
 }

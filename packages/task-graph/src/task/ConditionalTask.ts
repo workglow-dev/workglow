@@ -203,23 +203,23 @@ export class ConditionalTask<
   Config extends ConditionalTaskConfig = ConditionalTaskConfig,
 > extends Task<Input, Output, Config> {
   /** Task type identifier for serialization and registry lookup */
-  static type: TaskTypeName = "ConditionalTask";
+  static override type: TaskTypeName = "ConditionalTask";
 
   /** Category for UI organization and filtering */
-  static category = "Flow Control";
+  static override category = "Flow Control";
 
   /** Human-readable title for display in UIs */
-  static title = "Condition";
-  static description = "Route data based on conditions";
+  static override title = "Condition";
+  static override description = "Route data based on conditions";
 
   /** This task has dynamic schemas that change based on branch configuration */
-  static hasDynamicSchemas: boolean = true;
+  static override hasDynamicSchemas: boolean = true;
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return conditionalTaskConfigSchema;
   }
 
-  public canSerializeConfig(): boolean {
+  public override canSerializeConfig(): boolean {
     if (!this.config.branches) return true;
     return !this.config.branches.some((b) => typeof b.condition === "function");
   }
@@ -315,7 +315,10 @@ export class ConditionalTask<
     };
   }
 
-  public async execute(input: Input, context: IExecuteContext): Promise<Output | undefined> {
+  public override async execute(
+    input: Input,
+    context: IExecuteContext
+  ): Promise<Output | undefined> {
     if (context.signal?.aborted) {
       return undefined;
     }
@@ -501,7 +504,7 @@ export class ConditionalTask<
    *
    * @returns JSON Schema for the task's output
    */
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     // Base schema - actual properties are determined by branch configuration
     return {
       type: "object",
@@ -522,7 +525,7 @@ export class ConditionalTask<
    *
    * @returns JSON Schema for the task's output including branch ports
    */
-  outputSchema(): DataPortSchema {
+  override outputSchema(): DataPortSchema {
     const branches = this.config?.branches ?? [];
     const properties: Record<string, any> = {
       _activeBranches: {
@@ -555,7 +558,7 @@ export class ConditionalTask<
    *
    * @returns Schema that accepts any input
    */
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -568,7 +571,7 @@ export class ConditionalTask<
    *
    * @returns Schema that accepts any input
    */
-  inputSchema(): DataPortSchema {
+  override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},

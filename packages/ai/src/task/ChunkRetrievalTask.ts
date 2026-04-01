@@ -154,21 +154,21 @@ export class ChunkRetrievalTask extends Task<
   ChunkRetrievalTaskOutput,
   TaskConfig
 > {
-  public static type = "ChunkRetrievalTask";
-  public static category = "RAG";
-  public static title = "Chunk Retrieval";
-  public static description = "End-to-end retrieval: embed query and search for similar chunks";
-  public static cacheable = true;
+  public static override type = "ChunkRetrievalTask";
+  public static override category = "RAG";
+  public static override title = "Chunk Retrieval";
+  public static override description = "End-to-end retrieval: embed query and search for similar chunks";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: ChunkRetrievalTaskInput,
     context: IExecuteContext
   ): Promise<ChunkRetrievalTaskOutput> {

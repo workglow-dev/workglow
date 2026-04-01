@@ -45,20 +45,20 @@ export class VectorNormalizeTask<
   Output extends VectorNormalizeTaskOutput = VectorNormalizeTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "VectorNormalizeTask";
-  static readonly category = "Vector";
-  public static title = "Normalize";
-  public static description = "Returns the L2-normalized (unit length) vector";
+  static override readonly type = "VectorNormalizeTask";
+  static override readonly category = "Vector";
+  public static override title = "Normalize";
+  public static override description = "Returns the L2-normalized (unit length) vector";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     return { result: normalize(input.vector) } as Output;
   }
 }

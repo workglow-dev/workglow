@@ -189,15 +189,15 @@ export class GestureRecognizerTask extends AiVisionTask<
   GestureRecognizerTaskOutput,
   TaskConfig
 > {
-  public static type = "GestureRecognizerTask";
-  public static category = "AI Vision Model";
-  public static title = "Gesture Recognizer";
-  public static description =
+  public static override type = "GestureRecognizerTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Gesture Recognizer";
+  public static override description =
     "Recognizes hand gestures in images. Detects hand landmarks, identifies gestures (thumbs up, victory, etc.), and classifies handedness.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return GestureRecognizerInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return GestureRecognizerOutputSchema as DataPortSchema;
   }
 }

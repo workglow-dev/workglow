@@ -102,21 +102,21 @@ export class VectorQuantizeTask extends Task<
   VectorQuantizeTaskOutput,
   TaskConfig
 > {
-  public static type = "VectorQuantizeTask";
-  public static category = "Vector";
-  public static title = "Quantize";
-  public static description = "Quantize vectors to reduce storage and improve performance";
-  public static cacheable = true;
+  public static override type = "VectorQuantizeTask";
+  public static override category = "Vector";
+  public static override title = "Quantize";
+  public static override description = "Quantize vectors to reduce storage and improve performance";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async executeReactive(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
+  override async executeReactive(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
     const { vector, targetType, normalize = true } = input;
     const isArray = Array.isArray(vector);
     const vectors = isArray ? vector : [vector];

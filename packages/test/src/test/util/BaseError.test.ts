@@ -36,7 +36,7 @@ describe("BaseError", () => {
 
   it("should use subclass static type for name", () => {
     class CustomError extends BaseError {
-      public static type = "CustomError";
+      public static override type = "CustomError";
     }
     const err = new CustomError("custom");
     expect(err.name).toBe("CustomError");

@@ -70,21 +70,21 @@ export class JavaScriptTask extends Task<
   JavaScriptTaskOutput,
   JavaScriptTaskConfig
 > {
-  public static type = "JavaScriptTask";
-  public static category = "Utility";
-  public static title = "JavaScript Interpreter";
-  public static description = "Executes JavaScript code in a sandboxed interpreter environment";
-  public static customizable = true;
+  public static override type = "JavaScriptTask";
+  public static override category = "Utility";
+  public static override title = "JavaScript Interpreter";
+  public static override description = "Executes JavaScript code in a sandboxed interpreter environment";
+  public static override customizable = true;
 
-  public static configSchema() {
+  public static override configSchema() {
     return configSchema;
   }
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 
@@ -95,7 +95,7 @@ export class JavaScriptTask extends Task<
     super(input, config);
   }
 
-  public inputSchema() {
+  public override inputSchema() {
     if (this.config?.javascript_code) {
       if (this.config.inputSchema) {
         return this.config.inputSchema;
@@ -109,7 +109,7 @@ export class JavaScriptTask extends Task<
     return inputSchema;
   }
 
-  async executeReactive(input: JavaScriptTaskInput, output: JavaScriptTaskOutput) {
+  override async executeReactive(input: JavaScriptTaskInput, output: JavaScriptTaskOutput) {
     const code = input.javascript_code || this.config.javascript_code;
     if (code) {
       try {

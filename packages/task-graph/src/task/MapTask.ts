@@ -46,24 +46,25 @@ export class MapTask<
   Output extends TaskOutput = TaskOutput,
   Config extends MapTaskConfig = MapTaskConfig,
 > extends IteratorTask<Input, Output, Config> {
-  public static type: TaskTypeName = "MapTask";
-  public static category: string = "Flow Control";
-  public static title: string = "Map";
-  public static description: string = "Transforms array inputs by running a workflow per item";
+  public static override type: TaskTypeName = "MapTask";
+  public static override category: string = "Flow Control";
+  public static override title: string = "Map";
+  public static override description: string =
+    "Transforms array inputs by running a workflow per item";
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return mapTaskConfigSchema;
   }
 
   /**
    * MapTask always uses PROPERTY_ARRAY merge strategy to collect results.
    */
-  public static readonly compoundMerge = PROPERTY_ARRAY;
+  public static override readonly compoundMerge = PROPERTY_ARRAY;
 
   /**
    * Static input schema for MapTask.
    */
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -74,7 +75,7 @@ export class MapTask<
   /**
    * Static output schema for MapTask.
    */
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},

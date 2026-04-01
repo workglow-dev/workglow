@@ -57,20 +57,20 @@ export class StringTemplateTask<
   Output extends StringTemplateTaskOutput = StringTemplateTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringTemplateTask";
-  static readonly category = "String";
-  public static title = "Template";
-  public static description = "Replaces {{key}} placeholders in a template string with values";
+  static override readonly type = "StringTemplateTask";
+  static override readonly category = "String";
+  public static override title = "Template";
+  public static override description = "Replaces {{key}} placeholders in a template string with values";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

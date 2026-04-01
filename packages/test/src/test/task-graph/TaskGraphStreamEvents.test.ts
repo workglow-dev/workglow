@@ -26,10 +26,10 @@ type TextInput = { prompt: string };
 type TextOutput = { text: string };
 
 class StreamSourceTask extends Task<TextInput, TextOutput> {
-  public static type = "StreamSourceTask_Events";
-  public static cacheable = false;
+  public static override type = "StreamSourceTask_Events";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { prompt: { type: "string", default: "test" } },
@@ -37,7 +37,7 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", "x-stream": "append" } },
@@ -55,16 +55,16 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: { text: "hello world" } };
   }
 
-  async execute(_input: TextInput): Promise<TextOutput | undefined> {
+  override async execute(_input: TextInput): Promise<TextOutput | undefined> {
     return { text: "hello world" };
   }
 }
 
 class NonStreamTask extends Task<{ text: string }, TextOutput> {
-  public static type = "NonStreamTask_Events";
-  public static cacheable = false;
+  public static override type = "NonStreamTask_Events";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", default: "" } },
@@ -72,7 +72,7 @@ class NonStreamTask extends Task<{ text: string }, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string" } },
@@ -80,7 +80,7 @@ class NonStreamTask extends Task<{ text: string }, TextOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any): Promise<TextOutput | undefined> {
+  override async execute(input: any): Promise<TextOutput | undefined> {
     return { text: `done: ${input.text || ""}` };
   }
 }

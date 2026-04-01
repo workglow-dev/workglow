@@ -43,7 +43,7 @@ class MultiplyRunTask extends ArrayTask<
   ConvertAllToOptionalArray<MultiplyOutput>,
   TaskConfig
 > {
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -65,7 +65,7 @@ class MultiplyRunTask extends ArrayTask<
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -77,7 +77,10 @@ class MultiplyRunTask extends ArrayTask<
     } as const satisfies DataPortSchema;
   }
 
-  public async execute(input: MultiplyInput, context: IExecuteContext): Promise<MultiplyOutput> {
+  public override async execute(
+    input: MultiplyInput,
+    context: IExecuteContext
+  ): Promise<MultiplyOutput> {
     // Simple multiplication - at this point, we know the inputs are not arrays
     return {
       result: input.a * input.b,
@@ -92,7 +95,7 @@ class MultiplyRunReactiveTask extends ArrayTask<
   ConvertAllToOptionalArray<MultiplyInput>,
   ConvertAllToOptionalArray<MultiplyOutput>
 > {
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -114,7 +117,7 @@ class MultiplyRunReactiveTask extends ArrayTask<
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -126,7 +129,7 @@ class MultiplyRunReactiveTask extends ArrayTask<
     } as const satisfies DataPortSchema;
   }
 
-  public async executeReactive(
+  public override async executeReactive(
     input: MultiplyInput,
     output: MultiplyOutput
   ): Promise<MultiplyOutput> {
@@ -147,7 +150,7 @@ class SquareRunTask extends ArrayTask<
   ConvertAllToOptionalArray<SquareInput>,
   ConvertAllToOptionalArray<SquareOutput>
 > {
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -162,7 +165,7 @@ class SquareRunTask extends ArrayTask<
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -174,7 +177,10 @@ class SquareRunTask extends ArrayTask<
     } as const satisfies DataPortSchema;
   }
 
-  public async execute(input: SquareInput, context: IExecuteContext): Promise<SquareOutput> {
+  public override async execute(
+    input: SquareInput,
+    context: IExecuteContext
+  ): Promise<SquareOutput> {
     return {
       result: input.a * input.a,
     };
@@ -185,7 +191,7 @@ class SquareRunReactiveTask extends ArrayTask<
   ConvertAllToOptionalArray<SquareInput>,
   ConvertAllToOptionalArray<SquareOutput>
 > {
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -200,7 +206,7 @@ class SquareRunReactiveTask extends ArrayTask<
       additionalProperties: false,
     } as const satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -212,7 +218,10 @@ class SquareRunReactiveTask extends ArrayTask<
     } as const satisfies DataPortSchema;
   }
 
-  public async executeReactive(input: SquareInput, output: SquareOutput): Promise<SquareOutput> {
+  public override async executeReactive(
+    input: SquareInput,
+    output: SquareOutput
+  ): Promise<SquareOutput> {
     return {
       result: input.a * input.a,
     };
@@ -231,9 +240,9 @@ class JobQueueReactiveTask extends Task<
   ConvertAllToOptionalArray<JobQueueTestInput>,
   ConvertAllToOptionalArray<JobQueueTestOutput>
 > {
-  public static type = "JobQueueReactiveTask";
+  public static override type = "JobQueueReactiveTask";
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -249,7 +258,7 @@ class JobQueueReactiveTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -261,7 +270,7 @@ class JobQueueReactiveTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  public async executeReactive(
+  public override async executeReactive(
     input: JobQueueTestInput,
     output: JobQueueTestOutput
   ): Promise<JobQueueTestOutput> {
@@ -273,9 +282,9 @@ class JobQueueReactiveTask extends Task<
 }
 
 class JobQueueReactiveTask2 extends Task<JobQueueTestInput, JobQueueTestOutput> {
-  public static type = "JobQueueReactiveTask2";
+  public static override type = "JobQueueReactiveTask2";
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -288,7 +297,7 @@ class JobQueueReactiveTask2 extends Task<JobQueueTestInput, JobQueueTestOutput> 
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -301,7 +310,7 @@ class JobQueueReactiveTask2 extends Task<JobQueueTestInput, JobQueueTestOutput> 
     } as const satisfies DataPortSchema;
   }
 
-  public async executeReactive(
+  public override async executeReactive(
     input: JobQueueTestInput,
     output: JobQueueTestOutput
   ): Promise<JobQueueTestOutput> {
@@ -331,7 +340,7 @@ class QueryAppendTask extends ArrayTask<
   ConvertAllToOptionalArray<QueryTestOutput>,
   TaskConfig
 > {
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -351,7 +360,7 @@ class QueryAppendTask extends ArrayTask<
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -366,14 +375,14 @@ class QueryAppendTask extends ArrayTask<
     } as const satisfies DataPortSchema;
   }
 
-  public async execute(input: QueryTestInput): Promise<QueryTestOutput> {
+  public override async execute(input: QueryTestInput): Promise<QueryTestOutput> {
     return {
       result: `${input.query}-output`,
       val: input.val,
     };
   }
 
-  public async executeReactive(
+  public override async executeReactive(
     input: QueryTestInput,
     output: QueryTestOutput
   ): Promise<QueryTestOutput> {
@@ -386,7 +395,7 @@ class QueryAppendTask extends ArrayTask<
   /**
    * Override merge to keep non-replicated properties (val) as single values
    */
-  public executeMerge(input: QueryTestInput, output: QueryTestOutput): QueryTestOutput {
+  public override executeMerge(input: QueryTestInput, output: QueryTestOutput): QueryTestOutput {
     output.val = input.val;
     return output;
   }

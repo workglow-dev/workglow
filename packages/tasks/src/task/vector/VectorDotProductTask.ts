@@ -52,20 +52,20 @@ export class VectorDotProductTask<
   Output extends VectorDotProductTaskOutput = VectorDotProductTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "VectorDotProductTask";
-  static readonly category = "Vector";
-  public static title = "Dot Product";
-  public static description = "Returns the dot (inner) product of the first two vectors";
+  static override readonly type = "VectorDotProductTask";
+  static override readonly category = "Vector";
+  public static override title = "Dot Product";
+  public static override description = "Returns the dot (inner) product of the first two vectors";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     const { vectors } = input as { vectors: TypedArray[] };
     if (vectors.length < 2) {
       throw new Error("Exactly two vectors are required for dot product");

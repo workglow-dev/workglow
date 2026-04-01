@@ -183,15 +183,15 @@ export class FaceLandmarkerTask extends AiVisionTask<
   FaceLandmarkerTaskOutput,
   TaskConfig
 > {
-  public static type = "FaceLandmarkerTask";
-  public static category = "AI Vision Model";
-  public static title = "Face Landmarker";
-  public static description =
+  public static override type = "FaceLandmarkerTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Face Landmarker";
+  public static override description =
     "Detects facial landmarks and expressions in images. Identifies 478 facial landmarks, blendshapes for expressions, and transformation matrices for AR effects.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return FaceLandmarkerInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return FaceLandmarkerOutputSchema as DataPortSchema;
   }
 }

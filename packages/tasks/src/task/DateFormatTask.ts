@@ -65,20 +65,20 @@ export class DateFormatTask<
   Output extends DateFormatTaskOutput = DateFormatTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "DateFormatTask";
-  static readonly category = "Utility";
-  public static title = "Date Format";
-  public static description = "Parses and formats a date string";
+  static override readonly type = "DateFormatTask";
+  static override readonly category = "Utility";
+  public static override title = "Date Format";
+  public static override description = "Parses and formats a date string";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

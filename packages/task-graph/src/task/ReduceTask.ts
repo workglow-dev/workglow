@@ -41,13 +41,13 @@ export class ReduceTask<
   Output extends TaskOutput = TaskOutput,
   Config extends ReduceTaskConfig<Output> = ReduceTaskConfig<Output>,
 > extends IteratorTask<Input, Output, Config> {
-  public static type: TaskTypeName = "ReduceTask";
-  public static category: string = "Flow Control";
-  public static title: string = "Reduce";
-  public static description: string =
+  public static override type: TaskTypeName = "ReduceTask";
+  public static override category: string = "Flow Control";
+  public static override title: string = "Reduce";
+  public static override description: string =
     "Processes iterated inputs sequentially with an accumulator (fold)";
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     return reduceTaskConfigSchema;
   }
 
@@ -101,7 +101,7 @@ export class ReduceTask<
   /**
    * Static input schema for ReduceTask.
    */
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -112,7 +112,7 @@ export class ReduceTask<
   /**
    * Static output schema for ReduceTask.
    */
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},

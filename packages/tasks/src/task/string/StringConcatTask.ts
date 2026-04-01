@@ -40,20 +40,20 @@ export class StringConcatTask<
   Output extends StringConcatTaskOutput = StringConcatTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringConcatTask";
-  static readonly category = "String";
-  public static title = "Concat";
-  public static description = "Concatenates all input strings";
+  static override readonly type = "StringConcatTask";
+  static override readonly category = "String";
+  public static override title = "Concat";
+  public static override description = "Concatenates all input strings";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

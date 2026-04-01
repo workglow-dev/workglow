@@ -108,14 +108,14 @@ export class TextLanguageDetectionTask extends AiTask<
   TextLanguageDetectionTaskInput,
   TextLanguageDetectionTaskOutput
 > {
-  public static type = "TextLanguageDetectionTask";
-  public static category = "AI Text Model";
-  public static title = "Language Detection";
-  public static description = "Detects the language of text using language models";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "TextLanguageDetectionTask";
+  public static override category = "AI Text Model";
+  public static override title = "Language Detection";
+  public static override description = "Detects the language of text using language models";
+  public static override inputSchema(): DataPortSchema {
     return TextLanguageDetectionInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextLanguageDetectionOutputSchema as DataPortSchema;
   }
 }

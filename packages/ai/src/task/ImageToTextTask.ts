@@ -59,15 +59,15 @@ export class ImageToTextTask extends AiVisionTask<
   ImageToTextTaskOutput,
   TaskConfig
 > {
-  public static type = "ImageToTextTask";
-  public static category = "AI Vision Model";
-  public static title = "Image to Text";
-  public static description =
+  public static override type = "ImageToTextTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Image to Text";
+  public static override description =
     "Generates text descriptions from images using vision-language models";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return ImageToTextInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ImageToTextOutputSchema as DataPortSchema;
   }
 }

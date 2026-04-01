@@ -97,17 +97,17 @@ export type ModelSearchTaskOutput = { results: ModelSearchResultItem[] };
  * Search for models using a provider-specific run function from the AiProviderRegistry.
  */
 export class ModelSearchTask extends Task<ModelSearchTaskInput, ModelSearchTaskOutput, TaskConfig> {
-  public static type = "ModelSearchTask";
-  public static category = "AI Model";
-  public static title = "Model Search";
-  public static description = "Search for models using provider-specific search functions";
-  public static cacheable = false;
-  public static hasDynamicSchemas = true;
+  public static override type = "ModelSearchTask";
+  public static override category = "AI Model";
+  public static override title = "Model Search";
+  public static override description = "Search for models using provider-specific search functions";
+  public static override cacheable = false;
+  public static override hasDynamicSchemas = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return ModelSearchInputSchema satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ModelSearchOutputSchema satisfies DataPortSchema;
   }
 
@@ -115,7 +115,7 @@ export class ModelSearchTask extends Task<ModelSearchTaskInput, ModelSearchTaskO
     return buildModelSearchInputSchemaDynamic();
   }
 
-  async execute(
+  override async execute(
     input: ModelSearchTaskInput,
     context: IExecuteContext
   ): Promise<ModelSearchTaskOutput> {

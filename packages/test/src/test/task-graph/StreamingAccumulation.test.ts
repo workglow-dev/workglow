@@ -53,10 +53,10 @@ type SimpleOutput = { text: string };
  * Mirrors real provider behavior (e.g. OpenAI, HFT TextRewriter).
  */
 class AppendTask extends Task<SimpleInput, SimpleOutput> {
-  public static type = "AccumTest_AppendTask";
-  public static cacheable = false;
+  public static override type = "AccumTest_AppendTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { prompt: { type: "string", default: "test" } },
@@ -64,7 +64,7 @@ class AppendTask extends Task<SimpleInput, SimpleOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", "x-stream": "append" } },
@@ -83,7 +83,7 @@ class AppendTask extends Task<SimpleInput, SimpleOutput> {
     yield { type: "finish", data: {} as SimpleOutput };
   }
 
-  async execute(_input: SimpleInput): Promise<SimpleOutput | undefined> {
+  override async execute(_input: SimpleInput): Promise<SimpleOutput | undefined> {
     return { text: "hello world" };
   }
 }
@@ -93,10 +93,10 @@ class AppendTask extends Task<SimpleInput, SimpleOutput> {
  * Real translators stream tokens even though the schema declares replace mode.
  */
 class ReplaceWithTextDeltasTask extends Task<SimpleInput, SimpleOutput> {
-  public static type = "AccumTest_ReplaceWithTextDeltasTask";
-  public static cacheable = false;
+  public static override type = "AccumTest_ReplaceWithTextDeltasTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { prompt: { type: "string", default: "test" } },
@@ -104,7 +104,7 @@ class ReplaceWithTextDeltasTask extends Task<SimpleInput, SimpleOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", "x-stream": "replace" } },
@@ -123,7 +123,7 @@ class ReplaceWithTextDeltasTask extends Task<SimpleInput, SimpleOutput> {
     yield { type: "finish", data: {} as SimpleOutput };
   }
 
-  async execute(_input: SimpleInput): Promise<SimpleOutput | undefined> {
+  override async execute(_input: SimpleInput): Promise<SimpleOutput | undefined> {
     return { text: "Bonjour monde" };
   }
 }
@@ -133,10 +133,10 @@ class ReplaceWithTextDeltasTask extends Task<SimpleInput, SimpleOutput> {
  * The source task should NOT accumulate when all edges go to streaming tasks.
  */
 class StreamPassThroughTask extends Task<SimpleInput, SimpleOutput> {
-  public static type = "AccumTest_StreamPassThroughTask";
-  public static cacheable = false;
+  public static override type = "AccumTest_StreamPassThroughTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", default: "", "x-stream": "append" } },
@@ -144,7 +144,7 @@ class StreamPassThroughTask extends Task<SimpleInput, SimpleOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", "x-stream": "append" } },
@@ -160,7 +160,7 @@ class StreamPassThroughTask extends Task<SimpleInput, SimpleOutput> {
     yield { type: "finish", data: { text: `pass:${input.text ?? ""}` } };
   }
 
-  async execute(input: any): Promise<SimpleOutput | undefined> {
+  override async execute(input: any): Promise<SimpleOutput | undefined> {
     return { text: `pass:${input.text ?? ""}` };
   }
 }
@@ -169,10 +169,10 @@ class StreamPassThroughTask extends Task<SimpleInput, SimpleOutput> {
  * Non-streaming consumer that needs a materialised text value.
  */
 class SinkTask extends Task<SimpleInput, SimpleOutput> {
-  public static type = "AccumTest_SinkTask";
-  public static cacheable = false;
+  public static override type = "AccumTest_SinkTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", default: "" } },
@@ -180,7 +180,7 @@ class SinkTask extends Task<SimpleInput, SimpleOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string" } },
@@ -188,7 +188,7 @@ class SinkTask extends Task<SimpleInput, SimpleOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any): Promise<SimpleOutput | undefined> {
+  override async execute(input: any): Promise<SimpleOutput | undefined> {
     return { text: `sink:${input.text ?? ""}` };
   }
 }
@@ -197,10 +197,10 @@ class SinkTask extends Task<SimpleInput, SimpleOutput> {
  * Cacheable append-mode task for cache + accumulation tests.
  */
 class CacheableAppendTask extends Task<SimpleInput, SimpleOutput> {
-  public static type = "AccumTest_CacheableAppendTask";
-  public static cacheable = true;
+  public static override type = "AccumTest_CacheableAppendTask";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { prompt: { type: "string" } },
@@ -209,7 +209,7 @@ class CacheableAppendTask extends Task<SimpleInput, SimpleOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { text: { type: "string", "x-stream": "append" } },
@@ -227,7 +227,7 @@ class CacheableAppendTask extends Task<SimpleInput, SimpleOutput> {
     yield { type: "finish", data: {} as SimpleOutput };
   }
 
-  async execute(_input: SimpleInput): Promise<SimpleOutput | undefined> {
+  override async execute(_input: SimpleInput): Promise<SimpleOutput | undefined> {
     return { text: "cached value" };
   }
 }
@@ -306,10 +306,10 @@ describe("Source-task streaming accumulation", () => {
     it("should enrich finish by merging accumulated text into existing finish payload fields", async () => {
       // Task that produces both a text-delta field and other fields in finish
       class MixedFinishTask extends Task<SimpleInput, { text: string; lang: string }> {
-        public static type = "AccumTest_MixedFinishTask";
-        public static cacheable = false;
+        public static override type = "AccumTest_MixedFinishTask";
+        public static override cacheable = false;
 
-        public static inputSchema(): DataPortSchema {
+        public static override inputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: { prompt: { type: "string", default: "test" } },
@@ -317,7 +317,7 @@ describe("Source-task streaming accumulation", () => {
           } as const satisfies DataPortSchema;
         }
 
-        public static outputSchema(): DataPortSchema {
+        public static override outputSchema(): DataPortSchema {
           return {
             type: "object",
             properties: {
@@ -338,7 +338,7 @@ describe("Source-task streaming accumulation", () => {
           yield { type: "finish", data: { lang: "es" } as any };
         }
 
-        async execute(_input: SimpleInput): Promise<{ text: string; lang: string } | undefined> {
+        override async execute(_input: SimpleInput): Promise<{ text: string; lang: string } | undefined> {
           return { text: "Hola mundo", lang: "es" };
         }
       }

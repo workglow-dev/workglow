@@ -49,9 +49,9 @@ export type TestIOTaskOutput = {
  * Used as a foundation for testing task execution and data flow
  */
 export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
-  static readonly type = "TestIOTask";
+  static override readonly type = "TestIOTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -64,7 +64,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -88,7 +88,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
    * if execute ran then there will be output data
    * if not then we send the input data
    */
-  async executeReactive(
+  override async executeReactive(
     input: TestIOTaskInput,
     output: TestIOTaskOutput
   ): Promise<TestIOTaskOutput> {
@@ -102,7 +102,10 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
   /**
    * Implementation of full run mode - returns complete results
    */
-  async execute(_input: TestIOTaskInput, _context: IExecuteContext): Promise<TestIOTaskOutput> {
+  override async execute(
+    _input: TestIOTaskInput,
+    _context: IExecuteContext
+  ): Promise<TestIOTaskOutput> {
     return { all: true, key: "full", reactiveOnly: false };
   }
 }
@@ -128,10 +131,10 @@ type SimpleProcessingOutput = {
  * progress reporting and error simulation capabilities
  */
 export class SimpleProcessingTask extends Task<SimpleProcessingInput, SimpleProcessingOutput> {
-  static readonly type = "SimpleProcessingTask";
+  static override readonly type = "SimpleProcessingTask";
 
   // Define input schema
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -146,7 +149,7 @@ export class SimpleProcessingTask extends Task<SimpleProcessingInput, SimpleProc
   }
 
   // Define output schema
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -167,7 +170,7 @@ export class SimpleProcessingTask extends Task<SimpleProcessingInput, SimpleProc
    * Full implementation for processing input values
    * Demonstrates progress reporting
    */
-  async execute(
+  override async execute(
     input: SimpleProcessingInput,
     { updateProgress }: IExecuteContext
   ): Promise<SimpleProcessingOutput> {
@@ -180,7 +183,7 @@ export class SimpleProcessingTask extends Task<SimpleProcessingInput, SimpleProc
   /**
    * Reactive implementation for real-time feedback
    */
-  async executeReactive(input: SimpleProcessingInput, output: SimpleProcessingOutput) {
+  override async executeReactive(input: SimpleProcessingInput, output: SimpleProcessingOutput) {
     // For testing purposes, just return a different result
     return { processed: output.processed ?? false, result: `Reactive: ${input.value}` };
   }
@@ -195,12 +198,12 @@ export const ABORT_MESSAGE = "Task aborted intentionally" as const;
  * and recovery mechanisms in the task system
  */
 export class FailingTask extends Task {
-  static readonly type = "FailingTask";
+  static override readonly type = "FailingTask";
   declare runInputData: { in: number };
   declare runOutputData: { out: number };
 
   // Define input schema
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -215,7 +218,7 @@ export class FailingTask extends Task {
   }
 
   // Define output schema
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -231,7 +234,10 @@ export class FailingTask extends Task {
   /**
    * Always throws an error to simulate task failure
    */
-  async execute(input: TaskInput, executeContext: IExecuteContext): Promise<{ out: number }> {
+  override async execute(
+    input: TaskInput,
+    executeContext: IExecuteContext
+  ): Promise<{ out: number }> {
     // Add a small delay to ensure abortion has time to take effect
     await sleep(5);
     if (executeContext.signal?.aborted) {
@@ -246,7 +252,7 @@ export class FailingTask extends Task {
  * progress reporting, and error conditions
  */
 export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
-  static readonly type = "EventTestTask";
+  static override readonly type = "EventTestTask";
 
   // Control flags for testing different behaviors
   shouldThrowError = false;
@@ -254,7 +260,7 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
   progressValue = 0.5;
   delayMs = 0;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -267,7 +273,7 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -288,7 +294,10 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
   /**
    * Executes the task with configurable behavior for testing
    */
-  async execute(input: TestIOTaskInput, { updateProgress, signal }: IExecuteContext): Promise<any> {
+  override async execute(
+    input: TestIOTaskInput,
+    { updateProgress, signal }: IExecuteContext
+  ): Promise<any> {
     if (signal.aborted) {
       throw new TaskAbortedError("Task aborted");
     }
@@ -335,9 +344,9 @@ export type TestSquareTaskOutput = {
  * Task that squares its input number
  */
 export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutput> {
-  static readonly type = "TestSquareTask";
+  static override readonly type = "TestSquareTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -350,7 +359,7 @@ export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutp
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -366,7 +375,7 @@ export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutp
   /**
    * Reactive implementation that squares the input number
    */
-  async executeReactive(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+  override async executeReactive(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     return {
       output: input.input * input.input,
     };
@@ -378,9 +387,9 @@ export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutp
  * Only implements execute() for testing differences between reactive and non-reactive tasks
  */
 export class TestSquareNonReactiveTask extends Task<TestSquareTaskInput, TestSquareTaskOutput> {
-  static readonly type = "TestSquareNonReactiveTask";
+  static override readonly type = "TestSquareNonReactiveTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -393,7 +402,7 @@ export class TestSquareNonReactiveTask extends Task<TestSquareTaskInput, TestSqu
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -409,7 +418,7 @@ export class TestSquareNonReactiveTask extends Task<TestSquareTaskInput, TestSqu
   /**
    * Non-reactive implementation that squares the input number
    */
-  async execute(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+  override async execute(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     return { output: input.input * input.input };
   }
 }
@@ -432,9 +441,9 @@ export type TestDoubleTaskOutput = {
  * Task that doubles its input number
  */
 export class TestDoubleTask extends Task<TestDoubleTaskInput, TestDoubleTaskOutput> {
-  static readonly type = "TestDoubleTask";
+  static override readonly type = "TestDoubleTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -447,7 +456,7 @@ export class TestDoubleTask extends Task<TestDoubleTaskInput, TestDoubleTaskOutp
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -463,7 +472,7 @@ export class TestDoubleTask extends Task<TestDoubleTaskInput, TestDoubleTaskOutp
   /**
    * Reactive implementation that doubles the input number
    */
-  async executeReactive(input: TestDoubleTaskInput): Promise<TestDoubleTaskOutput> {
+  override async executeReactive(input: TestDoubleTaskInput): Promise<TestDoubleTaskOutput> {
     return {
       output: input.input * 2,
     };
@@ -475,9 +484,9 @@ export class TestDoubleTask extends Task<TestDoubleTaskInput, TestDoubleTaskOutp
  * Used for testing error handling in the task system
  */
 export class TestSquareErrorTask extends Task<TestSquareTaskInput, TestSquareTaskOutput> {
-  static readonly type = "TestSquareErrorTask";
+  static override readonly type = "TestSquareErrorTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -490,7 +499,7 @@ export class TestSquareErrorTask extends Task<TestSquareTaskInput, TestSquareTas
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -506,7 +515,7 @@ export class TestSquareErrorTask extends Task<TestSquareTaskInput, TestSquareTas
   /**
    * Always throws an error to test error handling
    */
-  async executeReactive(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+  override async executeReactive(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     throw new TaskError("Test error");
   }
 }
@@ -515,9 +524,9 @@ export class TestSquareErrorTask extends Task<TestSquareTaskInput, TestSquareTas
  * Simple single task
  */
 export class TestSimpleTask extends Task<{ input: string }, { output: string }> {
-  static type = "TestSimpleTask";
+  static override type = "TestSimpleTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -530,7 +539,7 @@ export class TestSimpleTask extends Task<{ input: string }, { output: string }> 
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -543,7 +552,7 @@ export class TestSimpleTask extends Task<{ input: string }, { output: string }> 
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { input: string }): Promise<{ output: string }> {
+  override async execute(input: { input: string }): Promise<{ output: string }> {
     return { output: `processed-${input.input}` };
   }
 }
@@ -552,11 +561,11 @@ export class TestSimpleTask extends Task<{ input: string }, { output: string }> 
  * Task that uses a custom output property name
  */
 export class TestOutputTask extends Task<{ input: string }, { customOutput: string }> {
-  static type = "TestOutputTask";
+  static override type = "TestOutputTask";
   declare runInputData: { input: string };
   declare runOutputData: { customOutput: string };
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -569,7 +578,7 @@ export class TestOutputTask extends Task<{ input: string }, { customOutput: stri
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -585,7 +594,7 @@ export class TestOutputTask extends Task<{ input: string }, { customOutput: stri
   /**
    * Returns the input in a custom output property
    */
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { customOutput: (input as { input: string }).input };
   }
 }
@@ -594,11 +603,11 @@ export class TestOutputTask extends Task<{ input: string }, { customOutput: stri
  * Task that uses a custom input property name
  */
 export class TestInputTask extends Task<{ customInput: string }, { output: string }> {
-  static type = "TestInputTask";
+  static override type = "TestInputTask";
   declare runInputData: { customInput: string };
   declare runOutputData: { output: string };
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -611,7 +620,7 @@ export class TestInputTask extends Task<{ customInput: string }, { output: strin
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -627,7 +636,7 @@ export class TestInputTask extends Task<{ customInput: string }, { output: strin
   /**
    * Returns the custom input in the output property
    */
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { output: (input as { customInput: string }).customInput };
   }
 }
@@ -636,12 +645,12 @@ export class TestInputTask extends Task<{ customInput: string }, { output: strin
  * Task that runs for a long time to test task abortion
  */
 export class LongRunningTask extends Task {
-  static type = "LongRunningTask";
+  static override type = "LongRunningTask";
 
   /**
    * Runs indefinitely until aborted
    */
-  async execute(input: TaskInput, executeContext: IExecuteContext): Promise<any> {
+  override async execute(input: TaskInput, executeContext: IExecuteContext): Promise<any> {
     while (true) {
       if (executeContext.signal?.aborted) {
         throw new TaskAbortedError(ABORT_MESSAGE);
@@ -655,9 +664,9 @@ export class LongRunningTask extends Task {
  * Task that copies string input
  */
 export class StringTask extends Task<{ input: string }, { output: string }, TaskConfig> {
-  static type = "StringTask";
+  static override type = "StringTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -670,7 +679,7 @@ export class StringTask extends Task<{ input: string }, { output: string }, Task
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -685,7 +694,7 @@ export class StringTask extends Task<{ input: string }, { output: string }, Task
   /**
    * Returns the input string as output
    */
-  async executeReactive(
+  override async executeReactive(
     input: { input: string },
     _output: { output: string }
   ): Promise<{ output: string }> {
@@ -697,9 +706,9 @@ export class StringTask extends Task<{ input: string }, { output: string }, Task
  * Task that copies string input
  */
 export class NumberToStringTask extends Task<{ input: number }, { output: string }, TaskConfig> {
-  static type = "NumberToStringTask";
+  static override type = "NumberToStringTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -711,7 +720,7 @@ export class NumberToStringTask extends Task<{ input: number }, { output: string
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -727,7 +736,10 @@ export class NumberToStringTask extends Task<{ input: number }, { output: string
   /**
    * Returns the input string as output
    */
-  async execute(input: { input: number }, _context: IExecuteContext): Promise<{ output: string }> {
+  override async execute(
+    input: { input: number },
+    _context: IExecuteContext
+  ): Promise<{ output: string }> {
     return { output: String(input.input) };
   }
 }
@@ -736,9 +748,9 @@ export class NumberToStringTask extends Task<{ input: number }, { output: string
  * Task that processes number input
  */
 export class NumberTask extends Task<{ input: number }, { output: number }, TaskConfig> {
-  static type = "NumberTask";
+  static override type = "NumberTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -751,7 +763,7 @@ export class NumberTask extends Task<{ input: number }, { output: number }, Task
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -767,7 +779,10 @@ export class NumberTask extends Task<{ input: number }, { output: number }, Task
   /**
    * Returns the input number as output
    */
-  async execute(input: { input: number }, _context: IExecuteContext): Promise<{ output: number }> {
+  override async execute(
+    input: { input: number },
+    _context: IExecuteContext
+  ): Promise<{ output: number }> {
     return { output: input.input };
   }
 }
@@ -791,9 +806,9 @@ type TestAddTaskOutput = {
  * Task that adds two numbers
  */
 export class TestAddTask extends Task<TestAddTaskInput, TestAddTaskOutput> {
-  static readonly type = "TestAddTask";
+  static override readonly type = "TestAddTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -810,7 +825,7 @@ export class TestAddTask extends Task<TestAddTaskInput, TestAddTaskOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -826,7 +841,7 @@ export class TestAddTask extends Task<TestAddTaskInput, TestAddTaskOutput> {
   /**
    * Adds the two input numbers
    */
-  async executeReactive(input: TestAddTaskInput) {
+  override async executeReactive(input: TestAddTaskInput) {
     return {
       output: input.a + input.b,
     };
@@ -838,9 +853,9 @@ export class TestAddTask extends Task<TestAddTaskInput, TestAddTaskOutput> {
  * Used for testing type-only matching with different port names
  */
 export class VectorOutputTask extends Task<{ text: string }, { vector: Float32Array }> {
-  static type = "VectorOutputTask";
+  static override type = "VectorOutputTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -853,7 +868,7 @@ export class VectorOutputTask extends Task<{ text: string }, { vector: Float32Ar
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -868,7 +883,7 @@ export class VectorOutputTask extends Task<{ text: string }, { vector: Float32Ar
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { text: string }): Promise<{ vector: Float32Array }> {
+  override async execute(input: { text: string }): Promise<{ vector: Float32Array }> {
     return { vector: new Float32Array([0.1, 0.2, 0.3]) };
   }
 }
@@ -878,9 +893,9 @@ export class VectorOutputTask extends Task<{ text: string }, { vector: Float32Ar
  * Used for testing type-only matching with different port names
  */
 export class VectorsInputTask extends Task<{ vectors: Float32Array }, { count: number }> {
-  static type = "VectorsInputTask";
+  static override type = "VectorsInputTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -895,7 +910,7 @@ export class VectorsInputTask extends Task<{ vectors: Float32Array }, { count: n
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -908,7 +923,7 @@ export class VectorsInputTask extends Task<{ vectors: Float32Array }, { count: n
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { vectors: Float32Array }): Promise<{ count: number }> {
+  override async execute(input: { vectors: Float32Array }): Promise<{ count: number }> {
     return { count: input.vectors.length };
   }
 }
@@ -917,9 +932,9 @@ export class VectorsInputTask extends Task<{ vectors: Float32Array }, { count: n
  * Task that outputs a TypedArray wrapped in oneOf (like TypeSingleOrArray)
  */
 export class VectorOneOfOutputTask extends Task<{ text: string }, { embedding: Float32Array }> {
-  static type = "VectorOneOfOutputTask";
+  static override type = "VectorOneOfOutputTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -932,7 +947,7 @@ export class VectorOneOfOutputTask extends Task<{ text: string }, { embedding: F
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -960,7 +975,7 @@ export class VectorOneOfOutputTask extends Task<{ text: string }, { embedding: F
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { text: string }): Promise<{ embedding: Float32Array }> {
+  override async execute(input: { text: string }): Promise<{ embedding: Float32Array }> {
     return { embedding: new Float32Array([0.4, 0.5, 0.6]) };
   }
 }
@@ -969,9 +984,9 @@ export class VectorOneOfOutputTask extends Task<{ text: string }, { embedding: F
  * Task that accepts a TypedArray wrapped in anyOf
  */
 export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: number }> {
-  static type = "VectorAnyOfInputTask";
+  static override type = "VectorAnyOfInputTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -999,7 +1014,7 @@ export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: nu
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1012,7 +1027,7 @@ export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: nu
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { data: Float32Array }): Promise<{ sum: number }> {
+  override async execute(input: { data: Float32Array }): Promise<{ sum: number }> {
     return { sum: Array.from(input.data).reduce((a, b) => a + b, 0) };
   }
 }
@@ -1020,9 +1035,9 @@ export class VectorAnyOfInputTask extends Task<{ data: Float32Array }, { sum: nu
  * Task that outputs only text - for testing multi-source matching
  */
 export class TextOutputTask extends Task<{ input: string }, { text: string }> {
-  static type = "TextOutputTask";
+  static override type = "TextOutputTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1035,7 +1050,7 @@ export class TextOutputTask extends Task<{ input: string }, { text: string }> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1048,7 +1063,7 @@ export class TextOutputTask extends Task<{ input: string }, { text: string }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { input: string }): Promise<{ text: string }> {
+  override async execute(input: { input: string }): Promise<{ text: string }> {
     return { text: input.input };
   }
 }
@@ -1057,9 +1072,9 @@ export class TextOutputTask extends Task<{ input: string }, { text: string }> {
  * Task that outputs only a vector - for testing multi-source matching
  */
 export class VectorOutputOnlyTask extends Task<{ size: number }, { vector: Float32Array }> {
-  static type = "VectorOutputOnlyTask";
+  static override type = "VectorOutputOnlyTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1073,7 +1088,7 @@ export class VectorOutputOnlyTask extends Task<{ size: number }, { vector: Float
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1088,7 +1103,7 @@ export class VectorOutputOnlyTask extends Task<{ size: number }, { vector: Float
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { size: number }): Promise<{ vector: Float32Array }> {
+  override async execute(input: { size: number }): Promise<{ vector: Float32Array }> {
     return { vector: new Float32Array(input.size || 3).fill(1.0) };
   }
 }
@@ -1100,9 +1115,9 @@ export class TextVectorInputTask extends Task<
   { text: string; vector: Float32Array },
   { result: string }
 > {
-  static type = "TextVectorInputTask";
+  static override type = "TextVectorInputTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1123,7 +1138,7 @@ export class TextVectorInputTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1136,7 +1151,10 @@ export class TextVectorInputTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { text: string; vector: Float32Array }): Promise<{ result: string }> {
+  override async execute(input: {
+    text: string;
+    vector: Float32Array;
+  }): Promise<{ result: string }> {
     return { result: `${input.text} with vector of length ${input.vector.length}` };
   }
 }
@@ -1148,9 +1166,9 @@ export class PassthroughVectorTask extends Task<
   { vector: Float32Array },
   { vector: Float32Array }
 > {
-  static type = "PassthroughVectorTask";
+  static override type = "PassthroughVectorTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1165,7 +1183,7 @@ export class PassthroughVectorTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1180,7 +1198,7 @@ export class PassthroughVectorTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { vector: Float32Array }): Promise<{ vector: Float32Array }> {
+  override async execute(input: { vector: Float32Array }): Promise<{ vector: Float32Array }> {
     return { vector: input.vector };
   }
 }
@@ -1193,10 +1211,10 @@ export class PassthroughVectorTask extends Task<
  * Simple task that processes a value input (from ConditionalTask tests)
  */
 export class ProcessValueTask extends Task<{ value: number }, { result: string }> {
-  static type = "ProcessValueTask";
-  static category = "Test";
+  static override type = "ProcessValueTask";
+  static override category = "Test";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1205,7 +1223,7 @@ export class ProcessValueTask extends Task<{ value: number }, { result: string }
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1214,7 +1232,7 @@ export class ProcessValueTask extends Task<{ value: number }, { result: string }
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }): Promise<{ result: string }> {
+  override async execute(input: { value: number }): Promise<{ result: string }> {
     return { result: `processed-${input.value}` };
   }
 }
@@ -1223,12 +1241,12 @@ export class ProcessValueTask extends Task<{ value: number }, { result: string }
  * Task that tracks if it was executed (from ConditionalTask tests)
  */
 export class TrackingTask extends Task<{ input: any }, { executed: boolean; input: any }> {
-  static type = "TrackingTask";
-  static category = "Test";
+  static override type = "TrackingTask";
+  static override category = "Test";
 
   executed = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1238,7 +1256,7 @@ export class TrackingTask extends Task<{ input: any }, { executed: boolean; inpu
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1248,7 +1266,7 @@ export class TrackingTask extends Task<{ input: any }, { executed: boolean; inpu
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { input: any }): Promise<{ executed: boolean; input: any }> {
+  override async execute(input: { input: any }): Promise<{ executed: boolean; input: any }> {
     this.executed = true;
     return { executed: true, input: input.input };
   }
@@ -1258,10 +1276,10 @@ export class TrackingTask extends Task<{ input: any }, { executed: boolean; inpu
  * Task that doubles a number, output as "doubled" (from ConditionalTask tests)
  */
 export class DoubleToDoubledTask extends Task<{ value: number }, { doubled: number }> {
-  static type = "DoubleToDoubledTask";
-  static category = "Test";
+  static override type = "DoubleToDoubledTask";
+  static override category = "Test";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1270,7 +1288,7 @@ export class DoubleToDoubledTask extends Task<{ value: number }, { doubled: numb
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1279,7 +1297,7 @@ export class DoubleToDoubledTask extends Task<{ value: number }, { doubled: numb
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }): Promise<{ doubled: number }> {
+  override async execute(input: { value: number }): Promise<{ doubled: number }> {
     return { doubled: input.value * 2 };
   }
 }
@@ -1288,10 +1306,10 @@ export class DoubleToDoubledTask extends Task<{ value: number }, { doubled: numb
  * Task that halves a number (from ConditionalTask tests)
  */
 export class HalveTask extends Task<{ value: number }, { halved: number }> {
-  static type = "HalveTask";
-  static category = "Test";
+  static override type = "HalveTask";
+  static override category = "Test";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1300,7 +1318,7 @@ export class HalveTask extends Task<{ value: number }, { halved: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1309,7 +1327,7 @@ export class HalveTask extends Task<{ value: number }, { halved: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }): Promise<{ halved: number }> {
+  override async execute(input: { value: number }): Promise<{ halved: number }> {
     return { halved: input.value / 2 };
   }
 }
@@ -1318,9 +1336,9 @@ export class HalveTask extends Task<{ value: number }, { halved: number }> {
  * Task that doubles a number, output as "result" (from IteratorTask tests)
  */
 export class DoubleToResultTask extends Task<{ value: number }, { result: number }> {
-  static type = "DoubleToResultTask";
+  static override type = "DoubleToResultTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1331,7 +1349,7 @@ export class DoubleToResultTask extends Task<{ value: number }, { result: number
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1342,7 +1360,7 @@ export class DoubleToResultTask extends Task<{ value: number }, { result: number
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }): Promise<{ result: number }> {
+  override async execute(input: { value: number }): Promise<{ result: number }> {
     return { result: input.value * 2 };
   }
 }
@@ -1351,9 +1369,9 @@ export class DoubleToResultTask extends Task<{ value: number }, { result: number
  * Task that squares a number (from IteratorTask tests)
  */
 export class SquareTask extends Task<{ value: number }, { squared: number }> {
-  static type = "SquareTask";
+  static override type = "SquareTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1364,7 +1382,7 @@ export class SquareTask extends Task<{ value: number }, { squared: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1375,7 +1393,7 @@ export class SquareTask extends Task<{ value: number }, { squared: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number }): Promise<{ squared: number }> {
+  override async execute(input: { value: number }): Promise<{ squared: number }> {
     return { squared: input.value * input.value };
   }
 }
@@ -1384,9 +1402,9 @@ export class SquareTask extends Task<{ value: number }, { squared: number }> {
  * Processes a single item by doubling it (from IteratorTask workflow tests)
  */
 export class ProcessItemTask extends Task<{ item: number }, { processed: number }> {
-  static type = "ProcessItemTask";
+  static override type = "ProcessItemTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1397,7 +1415,7 @@ export class ProcessItemTask extends Task<{ item: number }, { processed: number 
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1408,7 +1426,7 @@ export class ProcessItemTask extends Task<{ item: number }, { processed: number 
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { item: number }): Promise<{ processed: number }> {
+  override async execute(input: { item: number }): Promise<{ processed: number }> {
     return { processed: input.item * 2 };
   }
 }
@@ -1417,9 +1435,9 @@ export class ProcessItemTask extends Task<{ item: number }, { processed: number 
  * Creates a mock embedding from text (from IteratorTask workflow tests)
  */
 export class TextEmbeddingTask extends Task<{ text: string }, { vector: readonly number[] }> {
-  static type = "TextEmbeddingTask";
+  static override type = "TextEmbeddingTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1430,7 +1448,7 @@ export class TextEmbeddingTask extends Task<{ text: string }, { vector: readonly
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1444,7 +1462,7 @@ export class TextEmbeddingTask extends Task<{ text: string }, { vector: readonly
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { text: string }): Promise<{ vector: readonly number[] }> {
+  override async execute(input: { text: string }): Promise<{ vector: readonly number[] }> {
     const vector = input.text.split("").map((c) => c.charCodeAt(0) / 255);
     return { vector };
   }
@@ -1457,9 +1475,9 @@ export class RefineTask extends Task<
   { value: number; quality?: number },
   { quality: number; value: number }
 > {
-  static type = "RefineTask";
+  static override type = "RefineTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1470,7 +1488,7 @@ export class RefineTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1482,7 +1500,7 @@ export class RefineTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: {
+  override async execute(input: {
     value: number;
     quality?: number;
   }): Promise<{ quality: number; value: number }> {
@@ -1502,9 +1520,9 @@ export class AddToSumTask extends Task<
   { accumulator: { sum: number }; currentItem: number; index: number },
   { sum: number }
 > {
-  static type = "AddToSumTask";
+  static override type = "AddToSumTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1521,7 +1539,7 @@ export class AddToSumTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1532,7 +1550,7 @@ export class AddToSumTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: {
+  override async execute(input: {
     accumulator: { sum: number };
     currentItem: number;
   }): Promise<{ sum: number }> {
@@ -1547,9 +1565,9 @@ export class BulkProcessTask extends Task<
   { items: readonly number[] },
   { results: readonly number[] }
 > {
-  static type = "BulkProcessTask";
+  static override type = "BulkProcessTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1563,7 +1581,7 @@ export class BulkProcessTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1577,7 +1595,7 @@ export class BulkProcessTask extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { items: readonly number[] }): Promise<{
+  override async execute(input: { items: readonly number[] }): Promise<{
     results: readonly number[];
   }> {
     return { results: input.items.map((x) => x * 10) };
@@ -1591,9 +1609,9 @@ export class TestIteratorTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
 > extends IteratorTask<Input, Output> {
-  static type = "TestIteratorTask";
+  static override type = "TestIteratorTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1606,7 +1624,7 @@ export class TestIteratorTask<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -1622,12 +1640,12 @@ export class TestTaskWithDefaults extends Task<
   { value: number; multiplier?: number },
   { result: number }
 > {
-  static readonly type = "TestTaskWithDefaults";
-  static readonly category = "Test";
+  static override readonly type = "TestTaskWithDefaults";
+  static override readonly category = "Test";
   declare runInputData: { value: number; multiplier?: number };
   declare runOutputData: { result: number };
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1638,7 +1656,7 @@ export class TestTaskWithDefaults extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1648,7 +1666,10 @@ export class TestTaskWithDefaults extends Task<
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { value: number; multiplier?: number }): Promise<{ result: number }> {
+  override async execute(input: {
+    value: number;
+    multiplier?: number;
+  }): Promise<{ result: number }> {
     const multiplier = input.multiplier ?? 1;
     return { result: input.value * multiplier };
   }
@@ -1658,12 +1679,12 @@ export class TestTaskWithDefaults extends Task<
  * Test GraphAsTask for TaskJSON tests
  */
 export class TestGraphAsTask extends GraphAsTask<{ input: string }, { output: string }> {
-  static readonly type = "TestGraphAsTask";
-  static readonly category = "Test";
+  static override readonly type = "TestGraphAsTask";
+  static override readonly category = "Test";
   declare runInputData: { input: string };
   declare runOutputData: { output: string };
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1673,7 +1694,7 @@ export class TestGraphAsTask extends GraphAsTask<{ input: string }, { output: st
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1688,14 +1709,14 @@ export class TestGraphAsTask extends GraphAsTask<{ input: string }, { output: st
  * Test task for smartClone - exposes private smartClone for testing
  */
 export class TestSmartCloneTask extends Task<{ data: any }, { result: any }> {
-  static readonly type = "TestSmartCloneTask";
-  static readonly category = "Test";
-  static readonly title = "Test Smart Clone Task";
-  static readonly description = "A task for testing smartClone";
+  static override readonly type = "TestSmartCloneTask";
+  static override readonly category = "Test";
+  static override readonly title = "Test Smart Clone Task";
+  static override readonly description = "A task for testing smartClone";
   declare runInputData: { data: any };
   declare runOutputData: { result: any };
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1705,7 +1726,7 @@ export class TestSmartCloneTask extends Task<{ data: any }, { result: any }> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1715,7 +1736,7 @@ export class TestSmartCloneTask extends Task<{ data: any }, { result: any }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { data: any }): Promise<{ result: any }> {
+  override async execute(input: { data: any }): Promise<{ result: any }> {
     return { result: input.data };
   }
 
@@ -1729,12 +1750,12 @@ export class TestSmartCloneTask extends Task<{ data: any }, { result: any }> {
  * InputTask-like task that passes through its input (from GraphAsTask tests)
  */
 export class GraphAsTask_InputTask extends Task<Record<string, unknown>, Record<string, unknown>> {
-  static type = "GraphAsTask_InputTask";
-  static category = "Test";
-  static hasDynamicSchemas = true;
-  static cacheable = false;
+  static override type = "GraphAsTask_InputTask";
+  static override category = "Test";
+  static override hasDynamicSchemas = true;
+  static override cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -1742,7 +1763,7 @@ export class GraphAsTask_InputTask extends Task<Record<string, unknown>, Record<
     } as const as DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -1750,11 +1771,11 @@ export class GraphAsTask_InputTask extends Task<Record<string, unknown>, Record<
     } as const as DataPortSchema;
   }
 
-  async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  override async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     return input;
   }
 
-  async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  override async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     return input;
   }
 }
@@ -1763,11 +1784,11 @@ export class GraphAsTask_InputTask extends Task<Record<string, unknown>, Record<
  * ComputeTask that adds two numbers (from GraphAsTask tests)
  */
 export class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { result: number }> {
-  static type = "GraphAsTask_ComputeTask";
-  static category = "Test";
-  static cacheable = false;
+  static override type = "GraphAsTask_ComputeTask";
+  static override category = "Test";
+  static override cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1779,7 +1800,7 @@ export class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { re
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1789,11 +1810,11 @@ export class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { re
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { a: number; b: number }): Promise<{ result: number }> {
+  override async execute(input: { a: number; b: number }): Promise<{ result: number }> {
     return { result: input.a + input.b };
   }
 
-  async executeReactive(input: { a: number; b: number }): Promise<{ result: number }> {
+  override async executeReactive(input: { a: number; b: number }): Promise<{ result: number }> {
     return { result: input.a + input.b };
   }
 }
@@ -1802,11 +1823,11 @@ export class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { re
  * Custom GraphAsTask with explicit schemas for testing reactive execution (from GraphAsTask tests)
  */
 export class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { result: number }> {
-  static type = "TestGraphAsTask_AB";
-  static category = "Test";
-  static hasDynamicSchemas = true;
+  static override type = "TestGraphAsTask_AB";
+  static override category = "Test";
+  static override hasDynamicSchemas = true;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1817,7 +1838,7 @@ export class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { 
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1827,11 +1848,11 @@ export class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { 
     } as const satisfies DataPortSchema;
   }
 
-  public inputSchema(): DataPortSchema {
+  public override inputSchema(): DataPortSchema {
     return (this.constructor as typeof TestGraphAsTask_AB).inputSchema();
   }
 
-  public outputSchema(): DataPortSchema {
+  public override outputSchema(): DataPortSchema {
     return (this.constructor as typeof TestGraphAsTask_AB).outputSchema();
   }
 }
@@ -1840,11 +1861,11 @@ export class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { 
  * GraphAsTask with value passthrough for testing (from GraphAsTask tests)
  */
 export class TestGraphAsTask_Value extends GraphAsTask<{ value: string }, { value: string }> {
-  static type = "TestGraphAsTask_Value";
-  static category = "Test";
-  static hasDynamicSchemas = true;
+  static override type = "TestGraphAsTask_Value";
+  static override category = "Test";
+  static override hasDynamicSchemas = true;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1854,7 +1875,7 @@ export class TestGraphAsTask_Value extends GraphAsTask<{ value: string }, { valu
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1864,11 +1885,11 @@ export class TestGraphAsTask_Value extends GraphAsTask<{ value: string }, { valu
     } as const satisfies DataPortSchema;
   }
 
-  public inputSchema(): DataPortSchema {
+  public override inputSchema(): DataPortSchema {
     return (this.constructor as typeof TestGraphAsTask_Value).inputSchema();
   }
 
-  public outputSchema(): DataPortSchema {
+  public override outputSchema(): DataPortSchema {
     return (this.constructor as typeof TestGraphAsTask_Value).outputSchema();
   }
 }
@@ -1877,10 +1898,10 @@ export class TestGraphAsTask_Value extends GraphAsTask<{ value: string }, { valu
  * Test tasks with specific input/output schemas for GraphAsTask tests.
  */
 export class GraphAsTask_TaskA extends Task {
-  static type = "GraphAsTask_TaskA";
-  static category = "Test";
+  static override type = "GraphAsTask_TaskA";
+  static override category = "Test";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1897,7 +1918,7 @@ export class GraphAsTask_TaskA extends Task {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1910,7 +1931,7 @@ export class GraphAsTask_TaskA extends Task {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any): Promise<any> {
+  override async execute(input: any): Promise<any> {
     return {
       outputA: `${input.inputA1}-${input.inputA2}`,
     };
@@ -1918,10 +1939,10 @@ export class GraphAsTask_TaskA extends Task {
 }
 
 export class GraphAsTask_TaskB extends Task {
-  static type = "GraphAsTask_TaskB";
-  static category = "Test";
+  static override type = "GraphAsTask_TaskB";
+  static override category = "Test";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1934,7 +1955,7 @@ export class GraphAsTask_TaskB extends Task {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1946,7 +1967,7 @@ export class GraphAsTask_TaskB extends Task {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any): Promise<any> {
+  override async execute(input: any): Promise<any> {
     return {
       outputB: `processed-${input.inputB}`,
     };
@@ -1954,10 +1975,10 @@ export class GraphAsTask_TaskB extends Task {
 }
 
 export class GraphAsTask_TaskC extends Task {
-  static type = "GraphAsTask_TaskC";
-  static category = "Test";
+  static override type = "GraphAsTask_TaskC";
+  static override category = "Test";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1976,7 +1997,7 @@ export class GraphAsTask_TaskC extends Task {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -1993,7 +2014,7 @@ export class GraphAsTask_TaskC extends Task {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: any): Promise<any> {
+  override async execute(input: any): Promise<any> {
     return {
       outputC1: `${input.inputC1}+${input.inputC2}`,
       outputC2: input.inputC1.length + input.inputC2.length,
@@ -2005,11 +2026,11 @@ export class GraphAsTask_TaskC extends Task {
  * OutputTask that passes through its input (from GraphAsTask tests)
  */
 export class GraphAsTask_OutputTask extends Task<Record<string, unknown>, Record<string, unknown>> {
-  static type = "GraphAsTask_OutputTask";
-  static category = "Test";
-  static cacheable = false;
+  static override type = "GraphAsTask_OutputTask";
+  static override category = "Test";
+  static override cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -2017,7 +2038,7 @@ export class GraphAsTask_OutputTask extends Task<Record<string, unknown>, Record
     } as const as DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -2025,11 +2046,11 @@ export class GraphAsTask_OutputTask extends Task<Record<string, unknown>, Record
     } as const as DataPortSchema;
   }
 
-  async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  override async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     return input;
   }
 
-  async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  override async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     return input;
   }
 }
@@ -2039,9 +2060,9 @@ export class GraphAsTask_OutputTask extends Task<Record<string, unknown>, Record
  * Used for testing model/prompt format compatibility
  */
 export class ModelProviderTask extends Task<{ config: string }, { model: string }> {
-  static readonly type = "ModelProviderTask";
+  static override readonly type = "ModelProviderTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2054,7 +2075,7 @@ export class ModelProviderTask extends Task<{ config: string }, { model: string 
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2068,15 +2089,15 @@ export class ModelProviderTask extends Task<{ config: string }, { model: string 
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { model: "generic-model" };
   }
 }
 
 export class EmbeddingModelProviderTask extends Task<{ config: string }, { model: string }> {
-  static readonly type = "EmbeddingModelProviderTask";
+  static override readonly type = "EmbeddingModelProviderTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2089,7 +2110,7 @@ export class EmbeddingModelProviderTask extends Task<{ config: string }, { model
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2103,15 +2124,15 @@ export class EmbeddingModelProviderTask extends Task<{ config: string }, { model
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { model: "embedding-model" };
   }
 }
 
 export class GenericModelConsumerTask extends Task<{ model: string }, { result: string }> {
-  static readonly type = "GenericModelConsumerTask";
+  static override readonly type = "GenericModelConsumerTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2125,7 +2146,7 @@ export class GenericModelConsumerTask extends Task<{ model: string }, { result: 
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2138,15 +2159,15 @@ export class GenericModelConsumerTask extends Task<{ model: string }, { result: 
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { result: `processed with ${(input as any).model}` };
   }
 }
 
 export class EmbeddingConsumerTask extends Task<{ model: string }, { embeddings: number[] }> {
-  static readonly type = "EmbeddingConsumerTask";
+  static override readonly type = "EmbeddingConsumerTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2172,7 +2193,7 @@ export class EmbeddingConsumerTask extends Task<{ model: string }, { embeddings:
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2186,15 +2207,15 @@ export class EmbeddingConsumerTask extends Task<{ model: string }, { embeddings:
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { embeddings: [1, 2, 3] };
   }
 }
 
 export class PromptProviderTask extends Task<{ text: string }, { prompt: string }> {
-  static readonly type = "PromptProviderTask";
+  static override readonly type = "PromptProviderTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2207,7 +2228,7 @@ export class PromptProviderTask extends Task<{ text: string }, { prompt: string 
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2221,15 +2242,15 @@ export class PromptProviderTask extends Task<{ text: string }, { prompt: string 
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { prompt: "generated prompt" };
   }
 }
 
 export class TextGenerationModelProviderTask extends Task<{ config: string }, { model: string }> {
-  static readonly type = "TextGenerationModelProviderTask";
+  static override readonly type = "TextGenerationModelProviderTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2242,7 +2263,7 @@ export class TextGenerationModelProviderTask extends Task<{ config: string }, { 
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2256,15 +2277,15 @@ export class TextGenerationModelProviderTask extends Task<{ config: string }, { 
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { model: "text-generation-model" };
   }
 }
 
 export class PlainStringProviderTask extends Task<{ input: string }, { output: string }> {
-  static readonly type = "PlainStringProviderTask";
+  static override readonly type = "PlainStringProviderTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2277,7 +2298,7 @@ export class PlainStringProviderTask extends Task<{ input: string }, { output: s
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2290,15 +2311,15 @@ export class PlainStringProviderTask extends Task<{ input: string }, { output: s
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { output: "plain string" };
   }
 }
 
 export class PlainStringConsumerTask extends Task<{ input: string }, { result: string }> {
-  static readonly type = "PlainStringConsumerTask";
+  static override readonly type = "PlainStringConsumerTask";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2311,7 +2332,7 @@ export class PlainStringConsumerTask extends Task<{ input: string }, { result: s
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -2324,7 +2345,7 @@ export class PlainStringConsumerTask extends Task<{ input: string }, { result: s
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: TaskInput): Promise<any> {
+  override async execute(input: TaskInput): Promise<any> {
     return { result: "processed" };
   }
 }
@@ -2338,24 +2359,24 @@ export type PipelineNumberIO = { value: number };
  * Doubles the value (value -> value for pipeline chaining)
  */
 export class PipelineDoubleTask extends Task<PipelineNumberIO, PipelineNumberIO> {
-  static type = "PipelineDoubleTask";
-  static category = "Math";
+  static override type = "PipelineDoubleTask";
+  static override category = "Math";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number" } },
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number" } },
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
+  override async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
     return { value: input.value * 2 };
   }
 }
@@ -2364,24 +2385,24 @@ export class PipelineDoubleTask extends Task<PipelineNumberIO, PipelineNumberIO>
  * Adds 5 to the value (value -> value for pipeline chaining)
  */
 export class AddFiveTask extends Task<PipelineNumberIO, PipelineNumberIO> {
-  static type = "AddFiveTask";
-  static category = "Math";
+  static override type = "AddFiveTask";
+  static override category = "Math";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number" } },
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number" } },
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
+  override async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
     return { value: input.value + 5 };
   }
 }
@@ -2390,24 +2411,24 @@ export class AddFiveTask extends Task<PipelineNumberIO, PipelineNumberIO> {
  * Squares the value (value -> value for pipeline chaining)
  */
 export class PipelineSquareTask extends Task<PipelineNumberIO, PipelineNumberIO> {
-  static type = "PipelineSquareTask";
-  static category = "Math";
+  static override type = "PipelineSquareTask";
+  static override category = "Math";
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number" } },
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: { value: { type: "number" } },
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
+  override async execute(input: PipelineNumberIO): Promise<PipelineNumberIO> {
     return { value: input.value * input.value };
   }
 }
@@ -2416,10 +2437,10 @@ export class PipelineSquareTask extends Task<PipelineNumberIO, PipelineNumberIO>
  * A test task that creates other tasks during execution (from OwnTask tests)
  */
 export class TaskCreatorTask extends Task {
-  static type = "TaskCreatorTask";
-  static category = "Test";
+  static override type = "TaskCreatorTask";
+  static override category = "Test";
 
-  async execute(input: TaskInput, context: any): Promise<TaskOutput> {
+  override async execute(input: TaskInput, context: any): Promise<TaskOutput> {
     const simpleTask = new Task();
     context.own(simpleTask);
 

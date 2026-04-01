@@ -94,22 +94,22 @@ interface ChunkMetadata {
  * Supports fixed-size, sentence-based, paragraph-based, and semantic chunking.
  */
 export class TextChunkerTask extends Task<TextChunkerTaskInput, TextChunkerTaskOutput, TaskConfig> {
-  public static type = "TextChunkerTask";
-  public static category = "Document";
-  public static title = "Text Chunker";
-  public static description =
+  public static override type = "TextChunkerTask";
+  public static override category = "Document";
+  public static override title = "Text Chunker";
+  public static override description =
     "Splits text into chunks using various strategies (fixed, sentence, paragraph)";
-  public static cacheable = true;
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: TextChunkerTaskInput,
     context: IExecuteContext
   ): Promise<TextChunkerTaskOutput> {

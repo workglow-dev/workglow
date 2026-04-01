@@ -97,21 +97,21 @@ export type FileLoaderTaskOutput = FromSchema<typeof outputSchema>;
  * For server-only filesystem path access, see FileLoaderServerTask.
  */
 export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutput, TaskConfig> {
-  public static type = "FileLoaderTask";
-  public static category = "Document";
-  public static title = "File Loader";
-  public static description = "Load documents from URLs (http://, https://)";
-  public static cacheable = true;
+  public static override type = "FileLoaderTask";
+  public static override category = "Document";
+  public static override title = "File Loader";
+  public static override description = "Load documents from URLs (http://, https://)";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     input: FileLoaderTaskInput,
     context: IExecuteContext
   ): Promise<FileLoaderTaskOutput> {

@@ -89,15 +89,15 @@ export class ObjectDetectionTask extends AiVisionTask<
   ObjectDetectionTaskOutput,
   TaskConfig
 > {
-  public static type = "ObjectDetectionTask";
-  public static category = "AI Vision Model";
-  public static title = "Object Detection";
-  public static description =
+  public static override type = "ObjectDetectionTask";
+  public static override category = "AI Vision Model";
+  public static override title = "Object Detection";
+  public static override description =
     "Detects objects in images using vision models. Supports zero-shot detection when labels are provided.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return ObjectDetectionInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ObjectDetectionOutputSchema as DataPortSchema;
   }
 }

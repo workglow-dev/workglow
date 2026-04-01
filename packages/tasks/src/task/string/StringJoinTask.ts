@@ -54,20 +54,20 @@ export class StringJoinTask<
   Output extends StringJoinTaskOutput = StringJoinTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringJoinTask";
-  static readonly category = "String";
-  public static title = "Join";
-  public static description = "Joins an array of strings with a separator";
+  static override readonly type = "StringJoinTask";
+  static override readonly category = "String";
+  public static override title = "Join";
+  public static override description = "Joins an array of strings with a separator";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

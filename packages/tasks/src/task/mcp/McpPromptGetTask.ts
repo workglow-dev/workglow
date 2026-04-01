@@ -163,23 +163,23 @@ export class McpPromptGetTask extends Task<
   McpPromptGetTaskOutput,
   McpPromptGetTaskConfig
 > {
-  public static type = "McpPromptGetTask";
-  public static category = "MCP";
-  public static title = "MCP Get Prompt";
-  public static description = "Gets a prompt from an MCP server";
-  static readonly cacheable = false;
-  public static customizable = true;
-  public static hasDynamicSchemas = true;
+  public static override type = "McpPromptGetTask";
+  public static override category = "MCP";
+  public static override title = "MCP Get Prompt";
+  public static override description = "Gets a prompt from an MCP server";
+  static override readonly cacheable = false;
+  public static override customizable = true;
+  public static override hasDynamicSchemas = true;
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return fallbackInputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return fallbackOutputSchema;
   }
 
-  public static configSchema(): DataPortSchema {
+  public static override configSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();
     return {
       type: "object",
@@ -247,7 +247,7 @@ export class McpPromptGetTask extends Task<
     }
   }
 
-  async execute(
+  override async execute(
     input: McpPromptGetTaskInput,
     context: IExecuteContext
   ): Promise<McpPromptGetTaskOutput> {

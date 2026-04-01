@@ -48,21 +48,21 @@ export class MergeTask<
   Output extends MergeTaskOutput = MergeTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  public static type = "MergeTask";
-  public static category = "Utility";
-  public static title = "Merge";
-  public static description = "Merges multiple inputs into a single array output";
-  static readonly cacheable = true;
+  public static override type = "MergeTask";
+  public static override category = "Utility";
+  public static override title = "Merge";
+  public static override description = "Merges multiple inputs into a single array output";
+  static override readonly cacheable = true;
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 
-  async execute(input: Input, _context: IExecuteContext): Promise<Output> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     // Get all input keys and sort them for deterministic order
     const keys = Object.keys(input).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 

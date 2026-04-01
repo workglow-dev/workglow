@@ -84,15 +84,15 @@ export class TextClassificationTask extends AiTask<
   TextClassificationTaskInput,
   TextClassificationTaskOutput
 > {
-  public static type = "TextClassificationTask";
-  public static category = "AI Text Model";
-  public static title = "Text Classifier";
-  public static description =
+  public static override type = "TextClassificationTask";
+  public static override category = "AI Text Model";
+  public static override title = "Text Classifier";
+  public static override description =
     "Classifies text into categories using language models. Supports zero-shot classification when candidate labels are provided.";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return TextClassificationInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return TextClassificationOutputSchema as DataPortSchema;
   }
 }

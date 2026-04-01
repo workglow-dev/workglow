@@ -158,7 +158,7 @@ export class AiJob<
   /**
    * Executes the job using the provided function.
    */
-  async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
+  override async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
     if (context.signal.aborted || this.status === JobStatus.ABORTING) {
       throw new AbortSignalJobError("Abort signal aborted before execution of job");
     }

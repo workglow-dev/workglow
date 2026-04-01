@@ -24,7 +24,7 @@ export class AiVisionTask<
   Output extends TaskOutput = TaskOutput,
   Config extends AiTaskConfig = AiTaskConfig,
 > extends AiTask<Input, Output, Config> {
-  public static type: string = "AiVisionTask";
+  public static override type: string = "AiVisionTask";
 
   /**
    * Get the input to submit for execution.

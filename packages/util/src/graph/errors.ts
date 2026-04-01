@@ -12,7 +12,7 @@ import { BaseError } from "../utilities/BaseError";
  * @category Errors
  */
 export class NodeAlreadyExistsError<T> extends BaseError {
-  public static type: string = "NodeAlreadyExistsError";
+  public static override type: string = "NodeAlreadyExistsError";
   public newNode: T;
   public oldNode: T;
   public identity: unknown;
@@ -40,7 +40,7 @@ export class NodeAlreadyExistsError<T> extends BaseError {
  * @category Errors
  */
 export class NodeDoesntExistError extends BaseError {
-  public static type: string = "NodeDoesntExistError";
+  public static override type: string = "NodeDoesntExistError";
   public identity: unknown;
 
   constructor(identity: unknown) {
@@ -61,7 +61,7 @@ export class NodeDoesntExistError extends BaseError {
  * @category Errors
  */
 export class CycleError extends BaseError {
-  public static type: string = "CycleError";
+  public static override type: string = "CycleError";
   constructor(message: string) {
     super(message);
     this.name = "CycleError";

@@ -47,27 +47,27 @@ export class SplitTask<
   Output extends SplitTaskOutput = SplitTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  public static type = "SplitTask";
-  public static category = "Utility";
-  public static title = "Split";
-  public static description =
+  public static override type = "SplitTask";
+  public static override category = "Utility";
+  public static override title = "Split";
+  public static override description =
     "Splits an array into individual outputs, creating one output per element";
-  static hasDynamicSchemas = true;
-  static readonly cacheable = false;
+  static override hasDynamicSchemas = true;
+  static override readonly cacheable = false;
 
-  public static inputSchema() {
+  public static override inputSchema() {
     return inputSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchema;
   }
 
-  public outputSchema(): DataPortSchema {
+  public override outputSchema(): DataPortSchema {
     return outputSchema;
   }
 
-  async executeReactive(input: Input): Promise<Output> {
+  override async executeReactive(input: Input): Promise<Output> {
     const inputValue = input.input;
     const output = {} as Output;
 

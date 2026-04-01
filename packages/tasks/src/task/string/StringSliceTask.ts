@@ -57,20 +57,20 @@ export class StringSliceTask<
   Output extends StringSliceTaskOutput = StringSliceTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringSliceTask";
-  static readonly category = "String";
-  public static title = "Slice";
-  public static description = "Extracts a substring by start and optional end index";
+  static override readonly type = "StringSliceTask";
+  static override readonly category = "String";
+  public static override title = "Slice";
+  public static override description = "Extracts a substring by start and optional end index";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

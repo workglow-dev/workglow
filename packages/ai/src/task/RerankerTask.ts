@@ -122,22 +122,22 @@ interface RankedItem {
  * For now, this implements simple heuristic-based reranking.
  */
 export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, TaskConfig> {
-  public static type = "RerankerTask";
-  public static category = "RAG";
-  public static title = "Reranker";
-  public static description = "Rerank retrieved chunks to improve relevance";
-  public static cacheable = true;
+  public static override type = "RerankerTask";
+  public static override category = "RAG";
+  public static override title = "Reranker";
+  public static override description = "Rerank retrieved chunks to improve relevance";
+  public static override cacheable = true;
   private resolvedCrossEncoderModel?: string | null;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
   }
 
-  async execute(input: RerankerTaskInput, context: IExecuteContext): Promise<RerankerTaskOutput> {
+  override async execute(input: RerankerTaskInput, context: IExecuteContext): Promise<RerankerTaskOutput> {
     const { query, chunks, scores = [], metadata = [], topK, method = "simple", model } = input;
 
     let rankedItems: RankedItem[];

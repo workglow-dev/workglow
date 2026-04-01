@@ -65,20 +65,20 @@ export type ModelInfoTaskOutput = FromSchema<typeof ModelInfoOutputSchema>;
  * Retrieve runtime metadata about a model: locality, browser support, cache status, and file sizes.
  */
 export class ModelInfoTask extends AiTask<ModelInfoTaskInput, ModelInfoTaskOutput, AiTaskConfig> {
-  public static type = "ModelInfoTask";
-  public static category = "AI Model";
-  public static cacheable = false;
-  public static title = "Model Info";
-  public static description =
+  public static override type = "ModelInfoTask";
+  public static override category = "AI Model";
+  public static override cacheable = false;
+  public static override title = "Model Info";
+  public static override description =
     "Returns runtime information about a model including locality, cache status, and file sizes";
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return ModelInfoInputSchema satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return ModelInfoOutputSchema satisfies DataPortSchema;
   }
 
-  async execute(input: ModelInfoTaskInput, context: IExecuteContext): Promise<ModelInfoTaskOutput> {
+  override async execute(input: ModelInfoTaskInput, context: IExecuteContext): Promise<ModelInfoTaskOutput> {
     const model = input.model as ModelConfig;
     const registry = getAiProviderRegistry();
     const noop = () => {};

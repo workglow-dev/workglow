@@ -177,14 +177,15 @@ export type McpListTaskOutput = FromSchema<typeof outputSchemaAll>;
 export type McpListTaskInput = Record<string, unknown>;
 
 export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskConfig> {
-  public static type = "McpListTask";
-  public static category = "MCP";
-  public static title = "MCP List";
-  public static description = "Lists tools, resources, or prompts available on an MCP server";
-  static readonly cacheable = false;
-  public static hasDynamicSchemas: boolean = true;
+  public static override type = "McpListTask";
+  public static override category = "MCP";
+  public static override title = "MCP List";
+  public static override description =
+    "Lists tools, resources, or prompts available on an MCP server";
+  static override readonly cacheable = false;
+  public static override hasDynamicSchemas: boolean = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();
     return {
       type: "object",
@@ -202,7 +203,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema() {
+  public static override outputSchema() {
     return outputSchemaAll;
   }
 
@@ -240,7 +241,10 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     }
   }
 
-  async execute(input: McpListTaskInput, context: IExecuteContext): Promise<McpListTaskOutput> {
+  override async execute(
+    input: McpListTaskInput,
+    context: IExecuteContext
+  ): Promise<McpListTaskOutput> {
     const serverConfig = getMcpServerConfig(input as Record<string, unknown>);
 
     const { mcpClientFactory } = getMcpTaskDeps();

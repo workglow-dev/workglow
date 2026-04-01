@@ -47,20 +47,20 @@ export class StringLowerCaseTask<
   Output extends StringLowerCaseTaskOutput = StringLowerCaseTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringLowerCaseTask";
-  static readonly category = "String";
-  public static title = "Lower Case";
-  public static description = "Converts a string to lower case";
+  static override readonly type = "StringLowerCaseTask";
+  static override readonly category = "String";
+  public static override title = "Lower Case";
+  public static override description = "Converts a string to lower case";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

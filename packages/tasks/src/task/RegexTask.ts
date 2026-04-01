@@ -79,20 +79,20 @@ export class RegexTask<
   Output extends RegexTaskOutput = RegexTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "RegexTask";
-  static readonly category = "String";
-  public static title = "Regex";
-  public static description = "Matches a string against a regular expression pattern";
+  static override readonly type = "RegexTask";
+  static override readonly category = "String";
+  public static override title = "Regex";
+  public static override description = "Matches a string against a regular expression pattern";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

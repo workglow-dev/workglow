@@ -30,10 +30,10 @@ type StreamTestOutput = { text: string };
  * Yields 3 text-delta events, then a finish with empty data.
  */
 class TestStreamingAppendTask extends Task<StreamTestInput, StreamTestOutput> {
-  public static type = "TestStreamingAppendTask";
-  public static cacheable = true;
+  public static override type = "TestStreamingAppendTask";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -44,7 +44,7 @@ class TestStreamingAppendTask extends Task<StreamTestInput, StreamTestOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -71,10 +71,10 @@ class TestStreamingAppendTask extends Task<StreamTestInput, StreamTestOutput> {
  * Yields 3 snapshot events, then a finish with the final snapshot.
  */
 class TestStreamingReplaceTask extends Task<StreamTestInput, StreamTestOutput> {
-  public static type = "TestStreamingReplaceTask";
-  public static cacheable = true;
+  public static override type = "TestStreamingReplaceTask";
+  public static override cacheable = true;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -85,7 +85,7 @@ class TestStreamingReplaceTask extends Task<StreamTestInput, StreamTestOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -111,10 +111,10 @@ class TestStreamingReplaceTask extends Task<StreamTestInput, StreamTestOutput> {
  * A test task that errors mid-stream after 2 chunks.
  */
 class TestStreamingErrorTask extends Task<StreamTestInput, StreamTestOutput> {
-  public static type = "TestStreamingErrorTask";
-  public static cacheable = false;
+  public static override type = "TestStreamingErrorTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -125,7 +125,7 @@ class TestStreamingErrorTask extends Task<StreamTestInput, StreamTestOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -150,10 +150,10 @@ class TestStreamingErrorTask extends Task<StreamTestInput, StreamTestOutput> {
  * A test task that can be aborted mid-stream.
  */
 class TestStreamingAbortableTask extends Task<StreamTestInput, StreamTestOutput> {
-  public static type = "TestStreamingAbortableTask";
-  public static cacheable = false;
+  public static override type = "TestStreamingAbortableTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -164,7 +164,7 @@ class TestStreamingAbortableTask extends Task<StreamTestInput, StreamTestOutput>
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -197,10 +197,10 @@ type CodeTestInput = { prompt: string };
 type CodeTestOutput = { code: string };
 
 class TestStreamingCodeAppendTask extends Task<CodeTestInput, CodeTestOutput> {
-  public static type = "TestStreamingCodeAppendTask";
-  public static cacheable = false;
+  public static override type = "TestStreamingCodeAppendTask";
+  public static override cacheable = false;
 
-  public static inputSchema(): DataPortSchema {
+  public static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -211,7 +211,7 @@ class TestStreamingCodeAppendTask extends Task<CodeTestInput, CodeTestOutput> {
     } as const satisfies DataPortSchema;
   }
 
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {

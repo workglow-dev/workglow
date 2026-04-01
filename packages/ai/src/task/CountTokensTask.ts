@@ -49,16 +49,16 @@ export type CountTokensTaskOutput = FromSchema<typeof CountTokensOutputSchema>;
  * @extends AiTask
  */
 export class CountTokensTask extends AiTask<CountTokensTaskInput, CountTokensTaskOutput> {
-  public static type = "CountTokensTask";
-  public static category = "AI Text Model";
-  public static title = "Count Tokens";
-  public static description =
+  public static override type = "CountTokensTask";
+  public static override category = "AI Text Model";
+  public static override title = "Count Tokens";
+  public static override description =
     "Counts the number of tokens in a text string using the model's tokenizer";
-  public static cacheable = true;
-  public static inputSchema(): DataPortSchema {
+  public static override cacheable = true;
+  public static override inputSchema(): DataPortSchema {
     return CountTokensInputSchema as DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return CountTokensOutputSchema as DataPortSchema;
   }
 }

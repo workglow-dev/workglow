@@ -85,7 +85,7 @@ export class SupabaseTabularStorage<
    * Creates the table if it doesn't exist with primary key and value columns.
    * Must be called before using any other methods.
    */
-  public async setupDatabase(): Promise<void> {
+  public override async setupDatabase(): Promise<void> {
     const sql = `
       CREATE TABLE IF NOT EXISTS "${this.table}" (
         ${this.constructPrimaryKeyColumns('"')} ${this.constructValueColumns('"')},
@@ -148,7 +148,7 @@ export class SupabaseTabularStorage<
    * @param typeDef - The TypeScript/JavaScript type to map
    * @returns The corresponding PostgreSQL data type
    */
-  protected mapTypeToSQL(typeDef: JsonSchema): string {
+  protected override mapTypeToSQL(typeDef: JsonSchema): string {
     // Extract the actual non-null type using base helper
     const actualType = this.getNonNullType(typeDef);
     if (typeof actualType === "boolean") {
@@ -265,7 +265,7 @@ export class SupabaseTabularStorage<
    * Handles auto-generated keys using SERIAL for integers and UUID DEFAULT for strings
    * @returns SQL string containing primary key column definitions
    */
-  protected constructPrimaryKeyColumns($delimiter: string = ""): string {
+  protected override constructPrimaryKeyColumns($delimiter: string = ""): string {
     const cols = Object.entries<JsonSchema>(this.primaryKeySchema.properties)
       .map(([key, typeDef]) => {
         // Check if this is an auto-generated key
@@ -301,7 +301,7 @@ export class SupabaseTabularStorage<
    * Generates the SQL column definitions for value fields with constraints
    * @returns SQL string containing value column definitions
    */
-  protected constructValueColumns($delimiter: string = ""): string {
+  protected override constructValueColumns($delimiter: string = ""): string {
     const delimiter = $delimiter || '"';
     const requiredSet = new Set(this.valueSchema.required ?? []);
     const cols = Object.entries<JsonSchema>(this.valueSchema.properties)
@@ -329,7 +329,7 @@ export class SupabaseTabularStorage<
   /**
    * Convert Supabase values to JS values. Ensures numeric strings become numbers where schema says number.
    */
-  protected sqlToJsValue(column: string, value: ValueOptionType): Entity[keyof Entity] {
+  protected override sqlToJsValue(column: string, value: ValueOptionType): Entity[keyof Entity] {
     const typeDef = this.schema.properties[column as keyof typeof this.schema.properties] as
       | JsonSchema
       | undefined;
@@ -786,7 +786,7 @@ export class SupabaseTabularStorage<
    * @param options - Optional subscription options (not used for Supabase realtime)
    * @returns Unsubscribe function
    */
-  subscribeToChanges(
+  public override subscribeToChanges(
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
@@ -830,7 +830,7 @@ export class SupabaseTabularStorage<
   /**
    * Destroys the repository and frees up resources.
    */
-  destroy(): void {
+  public override destroy(): void {
     if (this.realtimeChannel) {
       this.client.removeChannel(this.realtimeChannel);
       this.realtimeChannel = null;

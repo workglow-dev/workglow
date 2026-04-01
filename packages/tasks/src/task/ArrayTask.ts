@@ -82,24 +82,24 @@ export abstract class ArrayTask<
   /**
    * The type identifier for this task class
    */
-  public static type = "ArrayTask";
+  public static override type = "ArrayTask";
 
   /**
    * Make this task have results that look like an array
    */
-  public static readonly compoundMerge = PROPERTY_ARRAY;
+  public static override readonly compoundMerge = PROPERTY_ARRAY;
 
   /**
    * Gets input schema for this task from the static inputSchema property, which is user defined (reverts GraphAsTask's override)
    */
-  public inputSchema(): DataPortSchema {
+  public override inputSchema(): DataPortSchema {
     return (this.constructor as typeof ArrayTask).inputSchema();
   }
 
   /**
    * Gets output schema for this task from the static outputSchema property, which is user defined (reverts GraphAsTask's override)
    */
-  public outputSchema(): DataPortSchema {
+  public override outputSchema(): DataPortSchema {
     return (this.constructor as typeof ArrayTask).outputSchema();
   }
 
@@ -117,7 +117,7 @@ export abstract class ArrayTask<
   /**
    * Regenerates the task subgraph based on input arrays
    */
-  public regenerateGraph(): void {
+  public override regenerateGraph(): void {
     // Check if any inputs are arrays
     const arrayInputs = new Map<string, Array<Input[keyof Input]>>();
     let hasArrayInputs = false;
@@ -219,12 +219,12 @@ export abstract class ArrayTask<
     return combos;
   }
 
-  toJSON(): TaskGraphItemJson {
+  override toJSON(): TaskGraphItemJson {
     const { subgraph, ...result } = super.toJSON();
     return result;
   }
 
-  toDependencyJSON(): JsonTaskItem {
+  override toDependencyJSON(): JsonTaskItem {
     const { subtasks, ...result } = super.toDependencyJSON();
     return result;
   }
@@ -263,7 +263,7 @@ class ArrayTaskRunner<
    * Override to pass empty input to subgraph.
    * Child tasks will use their defaults instead of parent input.
    */
-  protected async executeTaskChildren(_input: Input): Promise<GraphResultArray<Output>> {
+  protected override async executeTaskChildren(_input: Input): Promise<GraphResultArray<Output>> {
     return super.executeTaskChildren({} as Input);
   }
 
@@ -271,19 +271,19 @@ class ArrayTaskRunner<
    * Override to pass empty input to subgraph for reactive execution.
    * Child tasks will use their defaults instead of parent input.
    */
-  protected async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
+  protected override async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
     // Don't pass parent input - child tasks have their input set via defaults during creation
     return this.task.subGraph!.runReactive<Output>({});
   }
 
-  public async executeTaskReactive(input: Input, output: Output): Promise<Output> {
+  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
     await super.executeTaskReactive(input, output);
     if (this.task.hasChildren()) {
       this.task.runOutputData = this.task.executeMerge(input, this.task.runOutputData as Output);
     }
     return this.task.runOutputData as Output;
   }
-  public async executeTask(input: Input): Promise<Output> {
+  public override async executeTask(input: Input): Promise<Output> {
     await super.executeTask(input);
     if (this.task.hasChildren()) {
       this.task.runOutputData = this.task.executeMerge(input, this.task.runOutputData as Output);

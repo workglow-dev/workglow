@@ -47,20 +47,20 @@ export class StringTrimTask<
   Output extends StringTrimTaskOutput = StringTrimTaskOutput,
   Config extends TaskConfig = TaskConfig,
 > extends Task<Input, Output, Config> {
-  static readonly type = "StringTrimTask";
-  static readonly category = "String";
-  public static title = "Trim";
-  public static description = "Removes leading and trailing whitespace from a string";
+  static override readonly type = "StringTrimTask";
+  static override readonly category = "String";
+  public static override title = "Trim";
+  public static override description = "Removes leading and trailing whitespace from a string";
 
-  static inputSchema() {
+  static override inputSchema() {
     return inputSchema;
   }
 
-  static outputSchema() {
+  static override outputSchema() {
     return outputSchema;
   }
 
-  async executeReactive(
+  override async executeReactive(
     input: Input,
     _output: Output,
     _context: IExecuteReactiveContext

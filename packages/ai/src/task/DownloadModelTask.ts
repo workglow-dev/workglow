@@ -43,17 +43,17 @@ export class DownloadModelTask extends AiTask<
   DownloadModelTaskRunOutput,
   TaskConfig
 > {
-  public static type = "DownloadModelTask";
-  public static category = "AI Model";
-  public static title = "Download Model";
-  public static description = "Downloads and caches AI models locally with progress tracking";
-  public static inputSchema(): DataPortSchema {
+  public static override type = "DownloadModelTask";
+  public static override category = "AI Model";
+  public static override title = "Download Model";
+  public static override description = "Downloads and caches AI models locally with progress tracking";
+  public static override inputSchema(): DataPortSchema {
     return DownloadModelInputSchema satisfies DataPortSchema;
   }
-  public static outputSchema(): DataPortSchema {
+  public static override outputSchema(): DataPortSchema {
     return DownloadModelOutputSchema satisfies DataPortSchema;
   }
-  public static cacheable = false;
+  public static override cacheable = false;
 
   public files: { file: string; progress: number }[] = [];
 

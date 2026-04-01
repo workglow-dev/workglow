@@ -32,10 +32,10 @@ import { getTestingLogger } from "../../binding/TestingLogger";
  * Sleep duration is set via the sleepMs property.
  */
 class SlowTask extends Task<{ input: number }, { output: number }> {
-  static readonly type = "SlowTask";
-  static readonly cacheable = false;
+  static override readonly type = "SlowTask";
+  static override readonly cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -45,7 +45,7 @@ class SlowTask extends Task<{ input: number }, { output: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -57,7 +57,7 @@ class SlowTask extends Task<{ input: number }, { output: number }> {
 
   public sleepMs = 200;
 
-  async execute(input: { input: number }, context: IExecuteContext): Promise<{ output: number }> {
+  override async execute(input: { input: number }, context: IExecuteContext): Promise<{ output: number }> {
     const step = 10;
     for (let elapsed = 0; elapsed < this.sleepMs; elapsed += step) {
       if (context.signal.aborted) {
@@ -73,10 +73,10 @@ class SlowTask extends Task<{ input: number }, { output: number }> {
  * A task that always fails with a configurable message.
  */
 class AlwaysFailTask extends Task<{ input: number }, { output: number }> {
-  static readonly type = "AlwaysFailTask";
-  static readonly cacheable = false;
+  static override readonly type = "AlwaysFailTask";
+  static override readonly cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -86,7 +86,7 @@ class AlwaysFailTask extends Task<{ input: number }, { output: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -96,7 +96,7 @@ class AlwaysFailTask extends Task<{ input: number }, { output: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(): Promise<{ output: number }> {
+  override async execute(): Promise<{ output: number }> {
     throw new TaskFailedError("Intentional failure");
   }
 }
@@ -106,10 +106,10 @@ class AlwaysFailTask extends Task<{ input: number }, { output: number }> {
  * Uses additionalProperties: true so it can receive any error shape.
  */
 class ErrorRecoveryTask extends Task<Record<string, unknown>, { output: number }> {
-  static readonly type = "ErrorRecoveryTask";
-  static readonly cacheable = false;
+  static override readonly type = "ErrorRecoveryTask";
+  static override readonly cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -117,7 +117,7 @@ class ErrorRecoveryTask extends Task<Record<string, unknown>, { output: number }
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -127,7 +127,7 @@ class ErrorRecoveryTask extends Task<Record<string, unknown>, { output: number }
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: Record<string, unknown>): Promise<{ output: number }> {
+  override async execute(input: Record<string, unknown>): Promise<{ output: number }> {
     return { output: -1 };
   }
 }
@@ -136,10 +136,10 @@ class ErrorRecoveryTask extends Task<Record<string, unknown>, { output: number }
  * A recovery task that itself fails — for testing nested error scenarios.
  */
 class FailingRecoveryTask extends Task<Record<string, unknown>, { output: number }> {
-  static readonly type = "FailingRecoveryTask";
-  static readonly cacheable = false;
+  static override readonly type = "FailingRecoveryTask";
+  static override readonly cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -147,7 +147,7 @@ class FailingRecoveryTask extends Task<Record<string, unknown>, { output: number
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -157,7 +157,7 @@ class FailingRecoveryTask extends Task<Record<string, unknown>, { output: number
     } as const satisfies DataPortSchema;
   }
 
-  async execute(): Promise<{ output: number }> {
+  override async execute(): Promise<{ output: number }> {
     throw new TaskFailedError("Recovery also failed");
   }
 }
@@ -166,10 +166,10 @@ class FailingRecoveryTask extends Task<Record<string, unknown>, { output: number
  * A simple task that doubles its input.
  */
 class DoubleTask extends Task<{ input: number }, { output: number }> {
-  static readonly type = "DoubleTask";
-  static readonly cacheable = false;
+  static override readonly type = "DoubleTask";
+  static override readonly cacheable = false;
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -179,7 +179,7 @@ class DoubleTask extends Task<{ input: number }, { output: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -189,7 +189,7 @@ class DoubleTask extends Task<{ input: number }, { output: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { input: number }): Promise<{ output: number }> {
+  override async execute(input: { input: number }): Promise<{ output: number }> {
     return { output: (input.input ?? 0) * 2 };
   }
 }
@@ -198,11 +198,11 @@ class DoubleTask extends Task<{ input: number }, { output: number }> {
  * A recovery task that captures its input for inspection.
  */
 class InspectingRecoveryTask extends Task<Record<string, unknown>, { output: number }> {
-  static readonly type = "InspectingRecoveryTask";
-  static readonly cacheable = false;
+  static override readonly type = "InspectingRecoveryTask";
+  static override readonly cacheable = false;
   public lastInput: Record<string, unknown> = {};
 
-  static inputSchema(): DataPortSchema {
+  static override inputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {},
@@ -210,7 +210,7 @@ class InspectingRecoveryTask extends Task<Record<string, unknown>, { output: num
     } as const satisfies DataPortSchema;
   }
 
-  static outputSchema(): DataPortSchema {
+  static override outputSchema(): DataPortSchema {
     return {
       type: "object",
       properties: {
@@ -220,7 +220,7 @@ class InspectingRecoveryTask extends Task<Record<string, unknown>, { output: num
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: Record<string, unknown>): Promise<{ output: number }> {
+  override async execute(input: Record<string, unknown>): Promise<{ output: number }> {
     this.lastInput = { ...input };
     return { output: 42 };
   }

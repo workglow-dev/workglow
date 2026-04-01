@@ -206,7 +206,7 @@ export class HuggingFaceTabularStorage<
   /**
    * Sets up the database by validating the dataset exists and schema matches
    */
-  async setupDatabase(): Promise<void> {
+  override async setupDatabase(): Promise<void> {
     // Fetch first rows to validate dataset exists
     const data = await this.fetchApi<HfFirstRowsResponse>("/first-rows", {});
 
@@ -493,7 +493,7 @@ export class HuggingFaceTabularStorage<
   /**
    * Subscriptions are not supported - HF datasets are static
    */
-  subscribeToChanges(
+  override subscribeToChanges(
     _callback: (change: TabularChangePayload<Entity>) => void,
     _options?: TabularSubscribeOptions
   ): () => void {
@@ -503,7 +503,7 @@ export class HuggingFaceTabularStorage<
   /**
    * No resources to clean up
    */
-  destroy(): void {
+  override destroy(): void {
     // No-op - no resources to clean up
   }
 

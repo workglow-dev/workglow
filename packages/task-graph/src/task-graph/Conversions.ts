@@ -60,19 +60,19 @@ function getWrapperClasses() {
     }
 
     class OwnGraphTask extends ListeningGraphAsTask {
-      public static readonly type = "Own[Graph]";
+      public static override readonly type = "Own[Graph]";
     }
 
     class OwnWorkflowTask extends ListeningGraphAsTask {
-      public static readonly type = "Own[Workflow]";
+      public static override readonly type = "Own[Workflow]";
     }
 
     class GraphTask extends GraphAsTask {
-      public static readonly type = "Graph";
+      public static override readonly type = "Graph";
     }
 
     class ConvWorkflowTask extends GraphAsTask {
-      public static readonly type = "Workflow";
+      public static override readonly type = "Workflow";
     }
 
     _OwnGraphTask = OwnGraphTask as unknown as GraphAsTaskConstructor;
@@ -91,8 +91,8 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
   config?: any
 ): ITask<I, O> {
   class QuickTask extends Task<I, O> {
-    public static type = fn.name ? `𝑓 ${fn.name}` : "𝑓";
-    public static inputSchema = () => {
+    public static override type = fn.name ? `𝑓 ${fn.name}` : "𝑓";
+    public static override inputSchema = () => {
       return {
         type: "object",
         properties: {
@@ -101,7 +101,7 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
         additionalProperties: false,
       } as const satisfies DataPortSchema;
     };
-    public static outputSchema = () => {
+    public static override outputSchema = () => {
       return {
         type: "object",
         properties: {
@@ -110,8 +110,8 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
         additionalProperties: false,
       } as const satisfies DataPortSchema;
     };
-    public static cacheable = false;
-    public async execute(input: I, context: IExecuteContext) {
+    public static override cacheable = false;
+    public override async execute(input: I, context: IExecuteContext) {
       return fn(input, context);
     }
   }

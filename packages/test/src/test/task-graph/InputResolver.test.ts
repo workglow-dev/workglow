@@ -396,9 +396,9 @@ describe("InputResolver", () => {
       { dataset: AnyTabularStorage | string; query: string },
       { results: any[] }
     > {
-      public static type = "DatasetConsumerTask";
+      public static override type = "DatasetConsumerTask";
 
-      public static inputSchema(): DataPortSchema {
+      public static override inputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: {
@@ -413,7 +413,7 @@ describe("InputResolver", () => {
         };
       }
 
-      public static outputSchema(): DataPortSchema {
+      public static override outputSchema(): DataPortSchema {
         return {
           type: "object",
           properties: {
@@ -424,7 +424,7 @@ describe("InputResolver", () => {
         };
       }
 
-      async execute(
+      override async execute(
         input: { dataset: AnyTabularStorage; query: string },
         _context: IExecuteContext
       ): Promise<{ results: any[] }> {
