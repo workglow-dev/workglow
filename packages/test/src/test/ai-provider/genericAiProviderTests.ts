@@ -314,6 +314,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
+          getLogger().debug("ToolCalling result", result);
+
           expect(result).toBeDefined();
           expect(typeof result.text).toBe("string");
           expect(result.text.length).toBeGreaterThan(0);
@@ -345,6 +347,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             text: string;
             toolCalls: ToolCalls;
           };
+
+          getLogger().debug("ToolCalling result", result1);
 
           const calls = result1.toolCalls;
           if (calls.length === 0) {

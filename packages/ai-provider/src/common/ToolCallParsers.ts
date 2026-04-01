@@ -261,7 +261,9 @@ export const parseLlama: ParserFn = (text) => {
   let content = text;
 
   // Try <|python_tag|> format first
-  const pythonTagMatch = text.match(/<\|python_tag\|>((?:[^<]|<(?!\|eot_id\|>|\|eom_id\|>))*)(?:<\|eot_id\|>|<\|eom_id\|>|$)/);
+  const pythonTagMatch = text.match(
+    /<\|python_tag\|>((?:[^<]|<(?!\|eot_id\|>|\|eom_id\|>))*)(?:<\|eot_id\|>|<\|eom_id\|>|$)/
+  );
   if (pythonTagMatch) {
     content = text.slice(0, text.indexOf("<|python_tag|>")).trim();
     const jsonSection = pythonTagMatch[1].trim();
@@ -511,7 +513,8 @@ export const parsePhiFunctools: ParserFn = (text) => {
  * Format: `<|action_start|><|plugin|>\n{"name": "func", "parameters": {...}}<|action_end|>`
  */
 export const parseInternLM: ParserFn = (text) => {
-  const regex = /<\|action_start\|>\s*<\|plugin\|>((?:[^<]|<(?!\|action_end\|>))*)<\|action_end\|>/g;
+  const regex =
+    /<\|action_start\|>\s*<\|plugin\|>((?:[^<]|<(?!\|action_end\|>))*)<\|action_end\|>/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -622,7 +625,8 @@ export const parseNexusRaven: ParserFn = (text) => {
   if (calls.length === 0) return null;
 
   const thoughtMatch = text.match(/Thought:\s*((?:(?!Call:)[\s\S])*)/);
-  const content = thoughtMatch?.[1]?.trim() ?? text.replace(/Call:\s{0,20}\w+\([^)]*\)/g, "").trim();
+  const content =
+    thoughtMatch?.[1]?.trim() ?? text.replace(/Call:\s{0,20}\w+\([^)]*\)/g, "").trim();
   return { tool_calls: calls, content, parser: "nexusraven" };
 };
 
@@ -706,7 +710,8 @@ export const parseFireFunction: ParserFn = (text) => {
  * Format: `<|tool_call|>{"name": "func", "arguments": {...}}<|/tool_call|>` or `<|end_of_text|>`
  */
 export const parseGranite: ParserFn = (text) => {
-  const regex = /<\|tool_call\|>((?:[^<]|<(?!\|\/tool_call\|>|\|end_of_text\|>))*?)(?:<\|\/tool_call\|>|<\|end_of_text\|>|$)/g;
+  const regex =
+    /<\|tool_call\|>((?:[^<]|<(?!\|\/tool_call\|>|\|end_of_text\|>))*?)(?:<\|\/tool_call\|>|<\|end_of_text\|>|$)/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -726,7 +731,10 @@ export const parseGranite: ParserFn = (text) => {
   if (calls.length === 0) return null;
 
   const content = text
-    .replace(/<\|tool_call\|>(?:[^<]|<(?!\|\/tool_call\|>|\|end_of_text\|>))*(?:<\|\/tool_call\|>|$)/g, "")
+    .replace(
+      /<\|tool_call\|>(?:[^<]|<(?!\|\/tool_call\|>|\|end_of_text\|>))*(?:<\|\/tool_call\|>|$)/g,
+      ""
+    )
     .trim();
   return { tool_calls: calls, content, parser: "granite" };
 };
@@ -903,14 +911,19 @@ function extractPythonicCalls(text: string): ToolCall[] {
  */
 export const parseLiquid: ParserFn = (text) => {
   // Try special token format first
-  const specialMatch = text.match(/<\|tool_call_start\|>((?:[^<]|<(?!\|tool_call_end\|>))*)<\|tool_call_end\|>/);
+  const specialMatch = text.match(
+    /<\|tool_call_start\|>((?:[^<]|<(?!\|tool_call_end\|>))*)<\|tool_call_end\|>/
+  );
   if (specialMatch) {
     const inner = specialMatch[1].trim();
     const unwrapped = inner.startsWith("[") && inner.endsWith("]") ? inner.slice(1, -1) : inner;
     const calls = extractPythonicCalls(unwrapped);
     if (calls.length > 0) {
       const content = stripModelArtifacts(
-        text.replace(/<\|tool_call_start\|>(?:[^<]|<(?!\|tool_call_end\|>))*<\|tool_call_end\|>/g, "")
+        text.replace(
+          /<\|tool_call_start\|>(?:[^<]|<(?!\|tool_call_end\|>))*<\|tool_call_end\|>/g,
+          ""
+        )
       );
       return { tool_calls: calls, content, parser: "liquid" };
     }
