@@ -16,6 +16,14 @@ import type {
 import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import {
+  buildRawCompletionPrompt,
+  extractToolCallsFromText,
+  hasToolCallMarkers,
+  llamaCppForcedToolResponsePrefix,
+  supportsNativeFunctions,
+  toolChoiceForcesToolCall,
+} from "./LlamaCpp_ToolParser";
+import {
   getLlamaCppSdk,
   getOrCreateTextContext,
   llamaCppChatSessionConstructorSpread,
@@ -48,210 +56,6 @@ function buildLlamaCppPrompt(input: ToolCallingTaskInput): string {
   return parts.join("\n\n");
 }
 
-function getModelTextCandidates(model: LlamaCppModelConfig): string[] {
-  return [
-    model.model_id,
-    model.title,
-    model.description,
-    model.provider_config.model_url,
-    model.provider_config.model_path,
-  ]
-    .filter((value): value is string => typeof value === "string" && value.length > 0)
-    .map((value) => value.toLowerCase());
-}
-
-function detectFunctionGemmaModel(model: LlamaCppModelConfig): boolean {
-  return getModelTextCandidates(model).some((value) => value.includes("functiongemma"));
-}
-
-function functionGemmaDeclarationSchema(schema: Record<string, unknown> | undefined): string {
-  if (!schema) {
-    return "{type: OBJECT}";
-  }
-
-  const type = typeof schema.type === "string" ? schema.type.toUpperCase() : "OBJECT";
-  const description =
-    typeof schema.description === "string" ? `description: ${schema.description} ,` : "";
-
-  if (type === "OBJECT") {
-    const properties =
-      schema.properties && typeof schema.properties === "object"
-        ? Object.entries(schema.properties as Record<string, unknown>)
-            .map(([key, value]) => {
-              const property = (value ?? {}) as Record<string, unknown>;
-              const propertyType =
-                typeof property.type === "string" ? property.type.toUpperCase() : "STRING";
-              const propertyDescription =
-                typeof property.description === "string"
-                  ? `description: ${property.description} ,`
-                  : "";
-              return `${key}:{${propertyDescription}type: ${propertyType}}`;
-            })
-            .join(",")
-        : "";
-    const required = Array.isArray(schema.required) ? schema.required.join(",") : "";
-    return `{${description}parameters:{properties:{${properties}},required:[${required}],type: OBJECT}}`;
-  }
-
-  return `{${description}type: ${type}}`;
-}
-
-function buildFunctionGemmaDeclarations(tools: ReadonlyArray<ToolDefinition>): string {
-  return tools
-    .map((tool) => {
-      const description = tool.description?.trim() ?? "";
-      return (
-        `declaration:${tool.name}\n` +
-        `{description: ${description} ,parameters:` +
-        `${functionGemmaDeclarationSchema(tool.inputSchema as Record<string, unknown>).slice(1, -1)}}`
-      );
-    })
-    .join("\n");
-}
-
-function buildFunctionGemmaDeveloperPrompt(
-  baseSystemPrompt: string | undefined,
-  required: boolean
-): string {
-  const lines = [
-    baseSystemPrompt,
-    "You are a model that can do function calling with the following functions",
-    required ? "You must call at least one function from the provided list." : undefined,
-    "If you call a function, output only the function call and nothing else.",
-    "If tool results are already available and no further function call is needed, answer the user normally.",
-  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
-
-  return lines.join("\n");
-}
-
-function extractMessageText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!Array.isArray(content)) {
-    return String(content ?? "");
-  }
-  return content
-    .filter(
-      (block) => block && typeof block === "object" && (block as { type?: unknown }).type === "text"
-    )
-    .map((block) => String((block as { text?: unknown }).text ?? ""))
-    .join("");
-}
-
-function serializeFunctionGemmaValue(value: unknown): string {
-  if (typeof value === "string") {
-    return JSON.stringify(value);
-  }
-  if (
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    value === null ||
-    Array.isArray(value) ||
-    typeof value === "object"
-  ) {
-    return JSON.stringify(value);
-  }
-  return JSON.stringify(String(value));
-}
-
-function serializeFunctionGemmaToolCall(name: string, input: Record<string, unknown>): string {
-  const args = Object.entries(input)
-    .map(([key, value]) => `${key}:${serializeFunctionGemmaValue(value)}`)
-    .join(",");
-  return `call:${name}{${args}}`;
-}
-
-function buildFunctionGemmaConversationPrompt(input: ToolCallingTaskInput): string {
-  if (!input.messages || input.messages.length === 0) {
-    return String(input.prompt);
-  }
-
-  const turns: string[] = [];
-  const toolNamesById = new Map<string, string>();
-
-  for (const message of input.messages) {
-    if (message.role === "user") {
-      turns.push("user", extractMessageText(message.content));
-      continue;
-    }
-
-    if (message.role === "assistant" && Array.isArray(message.content)) {
-      const toolUses = message.content.filter(
-        (
-          block
-        ): block is {
-          type: "tool_use";
-          id: string;
-          name: string;
-          input: Record<string, unknown>;
-        } => block.type === "tool_use"
-      );
-      const serializedCalls = toolUses.map((block) => {
-        toolNamesById.set(block.id, block.name);
-        return serializeFunctionGemmaToolCall(block.name, block.input);
-      });
-      const text = message.content
-        .filter((block): block is { type: "text"; text: string } => block.type === "text")
-        .map((block) => block.text)
-        .join("")
-        .trim();
-      const serializedCallText = serializedCalls.join("\n").trim();
-
-      if (
-        text &&
-        text !== serializedCallText &&
-        !serializedCalls.some((call) => text.includes(call))
-      ) {
-        turns.push("model", text);
-      }
-      if (serializedCalls.length > 0) {
-        turns.push("model", serializedCalls.join("\n"));
-      }
-      continue;
-    }
-
-    if (message.role === "tool" && Array.isArray(message.content)) {
-      for (const block of message.content) {
-        const toolName = toolNamesById.get(block.tool_use_id) ?? "tool";
-        const resultText = extractMessageText(block.content);
-        turns.push(
-          "user",
-          `The function ${toolName} already returned this result: ${resultText}\n` +
-            `Do not call ${toolName} again just to repeat the same lookup.\n` +
-            `If this result answers the user's request, reply with the final answer.\n` +
-            `Only call another function if a different function is still needed to complete the request.`
-        );
-      }
-    }
-  }
-
-  return turns.join("\n");
-}
-
-function buildFunctionGemmaRawPrompt(
-  input: ToolCallingTaskInput,
-  systemPrompt: string | undefined
-): string {
-  const userPrompt = buildFunctionGemmaConversationPrompt(input);
-
-  return [
-    "developer",
-    buildFunctionGemmaDeveloperPrompt(systemPrompt, input.toolChoice === "required"),
-    buildFunctionGemmaDeclarations(input.tools),
-    "user",
-    userPrompt,
-    "model",
-  ].join("\n");
-}
-
-function canUseRawFunctionGemmaPrompt(
-  input: ToolCallingTaskInput,
-  model: LlamaCppModelConfig
-): boolean {
-  return detectFunctionGemmaModel(model) && input.toolChoice !== "none";
-}
-
 function buildSystemPrompt(input: ToolCallingTaskInput): string | undefined {
   const base = input.systemPrompt;
   if (input.toolChoice === "required") {
@@ -260,261 +64,6 @@ function buildSystemPrompt(input: ToolCallingTaskInput): string | undefined {
     return base ? `${base}\n\n${instruction}` : instruction;
   }
   return base || undefined;
-}
-
-function toolChoiceForcesToolCall(toolChoice: ToolCallingTaskInput["toolChoice"]): boolean {
-  return (
-    toolChoice === "required" ||
-    (toolChoice !== undefined && toolChoice !== "auto" && toolChoice !== "none")
-  );
-}
-
-function detectQwenToolCallingVariation(model: LlamaCppModelConfig): "3" | "3.5" | undefined {
-  const candidates = getModelTextCandidates(model);
-
-  if (
-    candidates.some((value) =>
-      /\bqwen(?:[\s._-]?|)3(?:[\s._-]?|)5\b|\bqwen(?:[\s._-]?|)3\.5\b/.test(value)
-    )
-  ) {
-    return "3.5";
-  }
-
-  if (candidates.some((value) => /\bqwen(?:[\s._-]?|)3\b/.test(value))) {
-    return "3";
-  }
-
-  return undefined;
-}
-
-function forcedToolChoiceName(toolChoice: ToolCallingTaskInput["toolChoice"]): string | undefined {
-  if (
-    typeof toolChoice !== "string" ||
-    toolChoice === "auto" ||
-    toolChoice === "none" ||
-    toolChoice === "required"
-  ) {
-    return undefined;
-  }
-  return toolChoice;
-}
-
-function forcedToolSelection(input: ToolCallingTaskInput): string | undefined {
-  const explicitToolName = forcedToolChoiceName(input.toolChoice);
-  if (explicitToolName !== undefined) {
-    return explicitToolName;
-  }
-  if (input.toolChoice === "required" && input.tools.length === 1) {
-    return input.tools[0]?.name;
-  }
-  return undefined;
-}
-
-function llamaCppForcedToolResponsePrefix(
-  input: ToolCallingTaskInput,
-  model: LlamaCppModelConfig
-): string | undefined {
-  if (!toolChoiceForcesToolCall(input.toolChoice)) {
-    return undefined;
-  }
-
-  const variation = detectQwenToolCallingVariation(model);
-  if (!variation) {
-    return undefined;
-  }
-
-  const toolName = forcedToolSelection(input);
-  if (variation === "3.5") {
-    return toolName
-      ? `<tool_call>\n<function=${toolName}>\n<parameter=`
-      : "<tool_call>\n<function=";
-  }
-
-  return toolName
-    ? `<tool_call>\n{"name": ${JSON.stringify(toolName)}, "arguments": `
-    : '<tool_call>\n{"name": "';
-}
-
-function resolveParsedToolName(name: string, input: ToolCallingTaskInput): string {
-  if (input.tools.some((tool) => tool.name === name)) {
-    return name;
-  }
-  return forcedToolSelection(input) ?? name;
-}
-
-function parseJsonToolCalls(text: string, input: ToolCallingTaskInput): ToolCalls {
-  const matches = text.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g);
-  const calls: ToolCalls = [];
-  for (const [_, body] of matches) {
-    const trimmed = body.trim();
-    if (!trimmed.startsWith("{")) {
-      continue;
-    }
-    try {
-      const parsed = JSON.parse(trimmed) as { name?: unknown; arguments?: unknown };
-      if (typeof parsed.name !== "string") {
-        continue;
-      }
-      const inputObject =
-        parsed.arguments && typeof parsed.arguments === "object" && !Array.isArray(parsed.arguments)
-          ? (parsed.arguments as Record<string, unknown>)
-          : {};
-      calls.push({
-        id: `call_${calls.length}`,
-        name: resolveParsedToolName(parsed.name, input),
-        input: inputObject,
-      });
-    } catch {
-      // Ignore malformed tool call text and fall back to other parsers.
-    }
-  }
-  return calls;
-}
-
-function parseXmlToolCalls(text: string, input: ToolCallingTaskInput): ToolCalls {
-  const toolCallMatches = text.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g);
-  const calls: ToolCalls = [];
-  for (const [_, toolCallBody] of toolCallMatches) {
-    const functionMatch = toolCallBody.match(/<function=([^>\n]+)>\s*([\s\S]*?)\s*<\/function>/);
-    if (!functionMatch) {
-      continue;
-    }
-    const [, rawName, functionBody] = functionMatch;
-    const parsedInput: Record<string, unknown> = {};
-    const parameterMatches = functionBody.matchAll(
-      /<parameter=([^>\n]+)>\s*([\s\S]*?)\s*<\/parameter>/g
-    );
-    for (const [__, rawParamName, rawValue] of parameterMatches) {
-      const paramName = rawParamName.trim();
-      const valueText = rawValue.trim();
-      if (paramName === "params") {
-        try {
-          const parsedValue = JSON.parse(valueText);
-          if (parsedValue && typeof parsedValue === "object" && !Array.isArray(parsedValue)) {
-            Object.assign(parsedInput, parsedValue);
-            continue;
-          }
-        } catch {
-          // Fall back to keeping the raw string.
-        }
-      }
-      parsedInput[paramName] = valueText;
-    }
-    calls.push({
-      id: `call_${calls.length}`,
-      name: resolveParsedToolName(rawName.trim(), input),
-      input: parsedInput,
-    });
-  }
-  return calls;
-}
-
-function parseFunctionGemmaArgumentValue(rawValue: string): unknown {
-  const trimmed = rawValue.trim();
-  if (trimmed.length === 0) return "";
-  if (trimmed === "true") return true;
-  if (trimmed === "false") return false;
-  if (trimmed === "null") return null;
-
-  const numeric = Number(trimmed);
-  if (!Number.isNaN(numeric) && /^-?\d+(?:\.\d+)?$/.test(trimmed)) {
-    return numeric;
-  }
-
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  ) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      // Fall through to raw string.
-    }
-  }
-
-  return trimmed;
-}
-
-function parseFunctionGemmaLooseObject(text: string): Record<string, unknown> | undefined {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-    return undefined;
-  }
-
-  const inner = trimmed.slice(1, -1).trim();
-  if (inner.length === 0) {
-    return {};
-  }
-
-  const result: Record<string, unknown> = {};
-  const pairs = inner.matchAll(/([A-Za-z0-9_]+)\s*:\s*('[^']*'|"[^"]*"|[^,}]+)/g);
-
-  for (const [_, rawKey, rawValue] of pairs) {
-    const key = rawKey.trim();
-    const valueText = rawValue.trim().replace(/^'([^']*)'$/, '"$1"');
-    result[key] = parseFunctionGemmaArgumentValue(valueText);
-  }
-
-  return Object.keys(result).length > 0 ? result : undefined;
-}
-
-function parseFunctionGemmaToolCalls(text: string, input: ToolCallingTaskInput): ToolCalls {
-  const matches = text.matchAll(
-    /(?:<start_function_call>\s*)?call:([^{\s]+)\{([\s\S]*?)\}(?:\s*<end_function_call>)?/g
-  );
-  const calls: ToolCalls = [];
-
-  for (const [_, rawName, rawArgs] of matches) {
-    const parsedInput: Record<string, unknown> = {};
-    const argMatches = rawArgs.matchAll(
-      /([A-Za-z0-9_]+)\s*:\s*(?:<escape>([\s\S]*?)<escape>|([^,}]+))/g
-    );
-
-    for (const [__, rawParamName, escapedValue, unescapedValue] of argMatches) {
-      const paramName = rawParamName.trim();
-      const valueText = (escapedValue ?? unescapedValue ?? "").trim();
-      parsedInput[paramName] = parseFunctionGemmaArgumentValue(valueText);
-    }
-
-    calls.push({
-      id: `call_${calls.length}`,
-      name: resolveParsedToolName(rawName.trim(), input),
-      input: parsedInput,
-    });
-  }
-
-  if (calls.length === 0) {
-    const forcedToolName = forcedToolSelection(input);
-    const looseObject = forcedToolName ? parseFunctionGemmaLooseObject(text) : undefined;
-    if (forcedToolName && looseObject) {
-      calls.push({
-        id: "call_0",
-        name: forcedToolName,
-        input: looseObject,
-      });
-    }
-  }
-
-  return calls;
-}
-
-function extractToolCallsFromText(
-  text: string,
-  input: ToolCallingTaskInput,
-  model: LlamaCppModelConfig
-): ToolCalls {
-  if (detectFunctionGemmaModel(model)) {
-    const functionGemmaCalls = parseFunctionGemmaToolCalls(text, input);
-    if (functionGemmaCalls.length > 0) {
-      return functionGemmaCalls;
-    }
-  }
-  const jsonCalls = parseJsonToolCalls(text, input);
-  if (jsonCalls.length > 0) {
-    return jsonCalls;
-  }
-  return parseXmlToolCalls(text, input);
 }
 
 /**
@@ -578,28 +127,25 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   update_progress(0, "Loading model");
   const context = await getOrCreateTextContext(model);
 
-  const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
-  const useNativeFunctions = input.toolChoice !== "none" && !detectFunctionGemmaModel(model);
-  const functions = useNativeFunctions
-    ? buildLlamaCppFunctions(input.tools, capturedCalls)
-    : undefined;
-
   update_progress(10, "Running tool calling");
   const sequence = context.getSequence();
   const { LlamaChatSession, LlamaCompletion } = getLlamaCppSdk();
   const promptText = buildLlamaCppPrompt(input);
   const systemPrompt = buildSystemPrompt(input);
 
-  if (canUseRawFunctionGemmaPrompt(input, model)) {
+  const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
+  const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+  const functions = supportsNativeFunctions(input, model)
+    ? buildLlamaCppFunctions(input.tools, capturedCalls)
+    : undefined;
+
+  if (rawPrompt !== undefined) {
     const completion = new LlamaCompletion({ contextSequence: sequence });
     try {
-      const text = await completion.generateCompletion(
-        buildFunctionGemmaRawPrompt(input, systemPrompt),
-        {
-          signal,
-          ...llamaCppToolCallingPromptOptions(input, model),
-        }
-      );
+      const text = await completion.generateCompletion(rawPrompt, {
+        signal,
+        ...llamaCppToolCallingPromptOptions(input, model),
+      });
 
       const toolCalls = filterValidToolCalls(
         extractToolCallsFromText(text, input, model),
@@ -636,7 +182,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     });
     if (
       toolCalls.length === 0 &&
-      (text.includes("<tool_call>") || text.includes("<start_function_call>"))
+      hasToolCallMarkers(text)
     ) {
       toolCalls.push(...extractToolCallsFromText(text, input, model));
     }
@@ -660,16 +206,18 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   const context = await getOrCreateTextContext(model);
 
-  const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
-  const functions =
-    input.toolChoice === "none" ? undefined : buildLlamaCppFunctions(input.tools, capturedCalls);
-
   const sequence = context.getSequence();
   const { LlamaChatSession, LlamaCompletion } = getLlamaCppSdk();
   const promptText = buildLlamaCppPrompt(input);
   const systemPrompt = buildSystemPrompt(input);
 
-  if (canUseRawFunctionGemmaPrompt(input, model)) {
+  const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
+  const capturedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+  const functions = supportsNativeFunctions(input, model)
+    ? buildLlamaCppFunctions(input.tools, capturedCalls)
+    : undefined;
+
+  if (rawPrompt !== undefined) {
     const completion = new LlamaCompletion({ contextSequence: sequence });
     const queue: string[] = [];
     let isComplete = false;
@@ -683,7 +231,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
     };
 
     const completionPromise = completion
-      .generateCompletion(buildFunctionGemmaRawPrompt(input, systemPrompt), {
+      .generateCompletion(rawPrompt, {
         signal,
         ...llamaCppToolCallingPromptOptions(input, model),
         onTextChunk: (chunk: string) => {

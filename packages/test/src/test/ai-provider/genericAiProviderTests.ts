@@ -15,6 +15,7 @@ import {
   type ToolDefinition,
 } from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
+import { getLogger } from "@workglow/util";
 import type { JsonSchema } from "@workglow/util/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -37,8 +38,8 @@ export interface AiProviderTestSetup {
   readonly toolCallingModel?: string;
   /** Model ID for structured generation (may be same). Omit to skip structured generation tests. */
   readonly structuredGenerationModel?: string;
-  /** Model ID for thinking (may be same). Omit to skip thinking tests. */
-  readonly thinkingModel?: string;
+  /** Model ID for agent (may be same). Omit to skip agent tests. */
+  readonly agentModel?: string;
   /** Max tokens to request (keep small for fast tests) */
   readonly maxTokens: number;
   /** Timeout per test in ms */
@@ -147,7 +148,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
-          console.dir(result, { depth: null });
+          getLogger().debug("ToolCalling result", result);
 
           expect(result).toBeDefined();
           expect(result.toolCalls).toBeDefined();
@@ -171,6 +172,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             toolChoice: "none",
             maxTokens: setup.maxTokens,
           });
+
+          getLogger().debug("ToolCalling result", result);
 
           expect(result).toBeDefined();
           expect(typeof result.text).toBe("string");
@@ -203,6 +206,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             text: string;
             toolCalls: ToolCalls;
           };
+
+          getLogger().debug("ToolCalling result", result1);
 
           const calls = result1.toolCalls;
           if (calls.length === 0) {
@@ -278,7 +283,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
-          console.dir(result, { depth: null });
+          getLogger().debug("StructuredGeneration result", result);
 
           expect(result).toBeDefined();
           expect(result.object).toBeDefined();
@@ -308,7 +313,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
-          console.dir(output, { depth: null });
+          getLogger().debug("AgentTask result", output);
 
           expect(output).toBeDefined();
           expect(output.iterations).toBeGreaterThanOrEqual(1);
@@ -327,11 +332,11 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
         setup.timeout
       );
 
-      it.skipIf(!setup.thinkingModel)(
+      it.skipIf(!setup.agentModel)(
         "should extract structured output via stop tool",
         async () => {
           const output = await agent({
-            model: setup.thinkingModel!,
+            model: setup.agentModel!,
             prompt:
               "First find the magic number of 3 and 5 using the discover_magic tool. Wait for the tool call result in another turn, and then call the finish tool with the secret answer you found and put it in a field called 'answer'.",
             tools: [discoverMagicTool, finishTool],
@@ -340,7 +345,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             maxTokens: setup.maxTokens,
           });
 
-          console.dir(output, { depth: null });
+          getLogger().debug("AgentTask result", output);
 
           expect(output).toBeDefined();
           const toolCalls = output.messages

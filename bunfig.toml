@@ -5,3 +5,5 @@ linker = "isolated"
 retry = 0
 root = "./packages/test/src/test"
 preload = ["./scripts/configure-hft-test-cache.ts"]
+[console]
+depth = 5
