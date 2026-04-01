@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DataPorts, getTaskConstructors } from "@workglow/task-graph";
-import type { IExecuteContext } from "@workglow/task-graph";
+import {
+  DataPorts,
+  getTaskConstructors,
+  TaskAbortedError,
+  type IExecuteContext,
+} from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import type { ServiceRegistry } from "@workglow/util";
 import { findToolSource } from "./AgentTypes";
@@ -293,7 +297,7 @@ export async function executeToolCalls(
   const workers = Array.from({ length: concurrency }, async () => {
     while (true) {
       if (context.signal.aborted) {
-        throw context.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+        throw context.signal.reason ?? new TaskAbortedError("The operation was aborted");
       }
 
       const position = cursor;

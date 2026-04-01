@@ -15,6 +15,7 @@ import {
   PermanentJobError,
   RetryableJobError,
 } from "./JobError";
+import { applyPersistedDiagnosticsToStack } from "./JobErrorDiagnostics";
 import {
   JobProgressListener,
   JobQueueEventListener,
@@ -520,17 +521,27 @@ export class JobQueueClient<Input, Output> {
 
   protected buildErrorFromCode(message: string, errorCode?: string): JobError {
     if (errorCode === "PermanentJobError") {
-      return new PermanentJobError(message);
+      const err = new PermanentJobError(message);
+      applyPersistedDiagnosticsToStack(err, message);
+      return err;
     }
     if (errorCode === "RetryableJobError") {
-      return new RetryableJobError(message);
+      const err = new RetryableJobError(message);
+      applyPersistedDiagnosticsToStack(err, message);
+      return err;
     }
     if (errorCode === "AbortSignalJobError") {
-      return new AbortSignalJobError(message);
+      const err = new AbortSignalJobError(message);
+      applyPersistedDiagnosticsToStack(err, message);
+      return err;
     }
     if (errorCode === "JobDisabledError") {
-      return new JobDisabledError(message);
+      const err = new JobDisabledError(message);
+      applyPersistedDiagnosticsToStack(err, message);
+      return err;
     }
-    return new JobError(message);
+    const err = new JobError(message);
+    applyPersistedDiagnosticsToStack(err, message);
+    return err;
   }
 }

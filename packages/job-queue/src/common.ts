@@ -6,6 +6,7 @@
 
 export * from "./job/Job";
 export * from "./job/JobError";
+export * from "./job/JobErrorDiagnostics";
 export * from "./job/JobQueueClient";
 export * from "./job/JobQueueEventListeners";
 export * from "./job/JobQueueServer";
