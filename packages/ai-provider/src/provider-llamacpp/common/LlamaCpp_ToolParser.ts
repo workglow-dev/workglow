@@ -9,6 +9,8 @@ import {
   parseFunctionGemma,
   parseFunctionGemmaLooseObject,
   parseHermes,
+  parseLlama,
+  parseLiquid,
   parseQwen35Xml,
   type ToolCallParserResult,
 } from "../../common/ToolCallParsers";
@@ -248,16 +250,24 @@ function buildFunctionGemmaRawPrompt(
   input: ToolCallingTaskInput,
   systemPrompt: string | undefined
 ): string {
+  const hasMessages = input.messages && input.messages.length > 0;
   const userPrompt = buildFunctionGemmaConversationPrompt(input);
 
-  return [
+  const parts = [
     "developer",
     buildFunctionGemmaDeveloperPrompt(systemPrompt, input.toolChoice === "required"),
     buildFunctionGemmaDeclarations(input.tools),
-    "user",
-    userPrompt,
-    "model",
-  ].join("\n");
+  ];
+
+  if (hasMessages) {
+    // buildFunctionGemmaConversationPrompt already includes role markers
+    parts.push(userPrompt);
+  } else {
+    parts.push("user", userPrompt);
+  }
+
+  parts.push("model");
+  return parts.join("\n");
 }
 
 /**
@@ -291,11 +301,33 @@ export function supportsNativeFunctions(
  * Whether the text likely contains tool call markup worth parsing.
  */
 export function hasToolCallMarkers(text: string): boolean {
-  return text.includes("<tool_call>") || text.includes("<start_function_call>");
+  return (
+    text.includes("<tool_call>") ||
+    text.includes("<start_function_call>") ||
+    text.includes("<|tool_call_start|>") ||
+    /\[\w+\(/.test(text)
+  );
+}
+
+/**
+ * Truncate raw completion output at turn boundary markers.
+ * FunctionGemma and similar raw-prompt models may generate past their turn,
+ * echoing conversation structure (`\nuser\n...`, `\ndeveloper\n...`).
+ */
+export function truncateAtTurnBoundary(text: string): string {
+  const markers = ["\nuser\n", "\ndeveloper\n"];
+  let truncateAt = text.length;
+  for (const marker of markers) {
+    const idx = text.indexOf(marker);
+    if (idx !== -1 && idx < truncateAt) {
+      truncateAt = idx;
+    }
+  }
+  return text.slice(0, truncateAt).trim();
 }
 
 // ============================================================================
-// Qwen detection & forced tool response prefix
+// Qwen detection
 // ============================================================================
 
 export function detectQwenToolCallingVariation(
@@ -316,31 +348,6 @@ export function detectQwenToolCallingVariation(
   }
 
   return undefined;
-}
-
-export function llamaCppForcedToolResponsePrefix(
-  input: ToolCallingTaskInput,
-  model: LlamaCppModelConfig
-): string | undefined {
-  if (!toolChoiceForcesToolCall(input.toolChoice)) {
-    return undefined;
-  }
-
-  const variation = detectQwenToolCallingVariation(model);
-  if (!variation) {
-    return undefined;
-  }
-
-  const toolName = forcedToolSelection(input);
-  if (variation === "3.5") {
-    return toolName
-      ? `<tool_call>\n<function=${toolName}>\n<parameter=`
-      : "<tool_call>\n<function=";
-  }
-
-  return toolName
-    ? `<tool_call>\n{"name": ${JSON.stringify(toolName)}, "arguments": `
-    : '<tool_call>\n{"name": "';
 }
 
 // ============================================================================
@@ -375,6 +382,12 @@ export function extractToolCallsFromText(
     }
   }
 
+  // Try Liquid/LFM format: <|tool_call_start|>[func(args)]<|tool_call_end|> or [func(args)]
+  const liquidResult = parseLiquid(text);
+  if (liquidResult && liquidResult.tool_calls.length > 0) {
+    return adaptParserResult(liquidResult, input);
+  }
+
   // Try Hermes/JSON format: <tool_call>{"name":...}</tool_call>
   const hermesResult = parseHermes(text);
   if (hermesResult && hermesResult.tool_calls.length > 0) {
@@ -385,6 +398,12 @@ export function extractToolCallsFromText(
   const qwen35Result = parseQwen35Xml(text);
   if (qwen35Result && qwen35Result.tool_calls.length > 0) {
     return adaptParserResult(qwen35Result, input);
+  }
+
+  // Try Llama/bare JSON format: {"name": "func", "parameters"|"arguments": {...}}
+  const llamaResult = parseLlama(text);
+  if (llamaResult && llamaResult.tool_calls.length > 0) {
+    return adaptParserResult(llamaResult, input);
   }
 
   return [];
