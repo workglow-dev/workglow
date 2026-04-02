@@ -94,13 +94,13 @@ export class LambdaTask<
     return false;
   }
 
-  constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
+  constructor(config: Partial<Config> = {}) {
     if (!config.execute && !config.executeReactive) {
       throw new TaskConfigurationError(
         "LambdaTask must have either execute or executeReactive function in config"
       );
     }
-    super(input, config as Config);
+    super(config);
   }
 
   override async execute(input: Input, context: IExecuteContext): Promise<Output> {

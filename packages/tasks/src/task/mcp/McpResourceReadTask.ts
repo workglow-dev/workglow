@@ -129,7 +129,7 @@ export class McpResourceReadTask extends Task<
 export const mcpResourceRead = async (
   config: McpResourceReadTaskConfig
 ): Promise<McpResourceReadTaskOutput> => {
-  return new McpResourceReadTask({}, config).run({});
+  return new McpResourceReadTask(config).run({});
 };
 
 declare module "@workglow/task-graph" {

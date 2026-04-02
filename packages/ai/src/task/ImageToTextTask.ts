@@ -79,7 +79,7 @@ export class ImageToTextTask extends AiVisionTask<
  * @returns Promise resolving to the generated text description
  */
 export const imageToText = (input: ImageToTextTaskInput, config?: TaskConfig) => {
-  return new ImageToTextTask({} as ImageToTextTaskInput, config).run(input);
+  return new ImageToTextTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

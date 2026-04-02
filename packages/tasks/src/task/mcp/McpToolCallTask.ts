@@ -309,7 +309,7 @@ export const mcpToolCall = async (
   input: McpToolCallTaskInput,
   config: McpToolCallTaskConfig
 ): Promise<McpToolCallTaskOutput> => {
-  return new McpToolCallTask({}, config).run(input);
+  return new McpToolCallTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

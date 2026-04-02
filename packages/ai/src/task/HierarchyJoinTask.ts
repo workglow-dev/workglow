@@ -214,7 +214,7 @@ export class HierarchyJoinTask extends Task<
 }
 
 export const hierarchyJoin = (input: HierarchyJoinTaskInput, config?: TaskConfig) => {
-  return new HierarchyJoinTask({} as HierarchyJoinTaskInput, config).run(input);
+  return new HierarchyJoinTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -172,7 +172,7 @@ export class ContextBuilderTask extends Task<
 
     let countFn: (text: string) => Promise<number> = async (text: string) => estimateTokens(text);
     if (input.model) {
-      const countTask = context.own(new CountTokensTask({ model: input.model }));
+      const countTask = context.own(new CountTokensTask({ defaults: { model: input.model } }));
       countFn = async (text: string): Promise<number> => {
         try {
           const result = await countTask.run({ text });
@@ -377,7 +377,7 @@ export class ContextBuilderTask extends Task<
 }
 
 export const contextBuilder = (input: ContextBuilderTaskInput, config?: TaskConfig) => {
-  return new ContextBuilderTask({} as ContextBuilderTaskInput, config).run(input);
+  return new ContextBuilderTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

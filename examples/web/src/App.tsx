@@ -219,7 +219,7 @@ export const App = () => {
 
   const setNewJson = useCallback(
     (json: string) => {
-      const task = new JsonTask({ json });
+      const task = new JsonTask({ defaults: { json } });
       if (task.hasChildren()) {
         workflow.graph = task.subGraph;
       } else {

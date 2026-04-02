@@ -167,7 +167,7 @@ export class FaceDetectorTask extends AiVisionTask<
  * @returns Promise resolving to the detected faces with bounding boxes and keypoints
  */
 export const faceDetector = (input: FaceDetectorTaskInput, config?: TaskConfig) => {
-  return new FaceDetectorTask({} as FaceDetectorTaskInput, config).run(input);
+  return new FaceDetectorTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

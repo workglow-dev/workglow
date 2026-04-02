@@ -272,7 +272,7 @@ export class McpSearchTask extends Task<McpSearchTaskInput, McpSearchTaskOutput,
  * Search the MCP server registry.
  */
 export const mcpSearch = (input: McpSearchTaskInput, config?: TaskConfig) => {
-  return new McpSearchTask({} as McpSearchTaskInput, config).run(input);
+  return new McpSearchTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

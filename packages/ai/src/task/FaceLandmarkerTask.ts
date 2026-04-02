@@ -203,7 +203,7 @@ export class FaceLandmarkerTask extends AiVisionTask<
  * @returns Promise resolving to the detected facial landmarks, blendshapes, and transformation matrices
  */
 export const faceLandmarker = (input: FaceLandmarkerTaskInput, config?: TaskConfig) => {
-  return new FaceLandmarkerTask({} as FaceLandmarkerTaskInput, config).run(input);
+  return new FaceLandmarkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

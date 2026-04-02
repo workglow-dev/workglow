@@ -133,7 +133,7 @@ export class ModelSearchTask extends Task<ModelSearchTaskInput, ModelSearchTaskO
  * Search for models using a provider-specific search function.
  */
 export const modelSearch = (input: ModelSearchTaskInput, config?: TaskConfig) => {
-  return new ModelSearchTask({} as ModelSearchTaskInput, config).run(input);
+  return new ModelSearchTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

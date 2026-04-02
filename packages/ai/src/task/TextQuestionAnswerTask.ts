@@ -80,7 +80,7 @@ export class TextQuestionAnswerTask extends StreamingAiTask<
  * @returns Promise resolving to the generated answer(s)
  */
 export const textQuestionAnswer = (input: TextQuestionAnswerTaskInput, config?: TaskConfig) => {
-  return new TextQuestionAnswerTask({} as TextQuestionAnswerTaskInput, config).run(input);
+  return new TextQuestionAnswerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

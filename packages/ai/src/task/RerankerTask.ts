@@ -203,7 +203,7 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Ta
       chunks.map(async (chunk, index) => {
         const pairText = `${query} [SEP] ${chunk}`;
         const task = context.own(
-          new TextClassificationTask({ text: pairText, model: model, maxCategories: 2 })
+          new TextClassificationTask({ defaults: { text: pairText, model: model, maxCategories: 2 } })
         );
         const result = await task.run();
         const crossScore = this.extractCrossEncoderScore(
@@ -329,7 +329,7 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Ta
 }
 
 export const reranker = (input: RerankerTaskInput, config?: TaskConfig) => {
-  return new RerankerTask({} as RerankerTaskInput, config).run(input);
+  return new RerankerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

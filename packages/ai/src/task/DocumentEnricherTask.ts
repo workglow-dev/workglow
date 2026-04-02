@@ -138,7 +138,7 @@ export class DocumentEnricherTask extends Task<
       extractEntities && nerModel
         ? async (text: string) => {
             const result = await context
-              .own(new TextNamedEntityRecognitionTask({ text, model: nerModel }))
+              .own(new TextNamedEntityRecognitionTask({ defaults: { text, model: nerModel } }))
               .run();
             return (result.entities as Array<{ entity: string; word: string; score: number }>).map(
               (e) => ({
@@ -395,7 +395,7 @@ export class DocumentEnricherTask extends Task<
 }
 
 export const documentEnricher = (input: DocumentEnricherTaskInput, config?: TaskConfig) => {
-  return new DocumentEnricherTask({} as DocumentEnricherTaskInput, config).run(input);
+  return new DocumentEnricherTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

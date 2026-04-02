@@ -144,7 +144,7 @@ export class ChunkVectorSearchTask extends Task<
 }
 
 export const vectorStoreSearch = (input: VectorStoreSearchTaskInput, config?: TaskConfig) => {
-  return new ChunkVectorSearchTask({} as VectorStoreSearchTaskInput, config).run(input);
+  return new ChunkVectorSearchTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

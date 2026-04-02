@@ -104,7 +104,7 @@ export class TextClassificationTask extends AiTask<
  * @returns Promise resolving to the classification categories with scores
  */
 export const textClassification = (input: TextClassificationTaskInput, config?: TaskConfig) => {
-  return new TextClassificationTask({} as TextClassificationTaskInput, config).run(input);
+  return new TextClassificationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

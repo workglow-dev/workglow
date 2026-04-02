@@ -86,7 +86,7 @@ export class SplitTask<
 }
 
 export const split = (input: SplitTaskInput, config: TaskConfig = {}) => {
-  const task = new SplitTask({}, config);
+  const task = new SplitTask(config);
   return task.run(input);
 };
 

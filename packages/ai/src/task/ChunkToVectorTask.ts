@@ -160,7 +160,7 @@ export class ChunkToVectorTask extends Task<
 }
 
 export const chunkToVector = (input: ChunkToVectorTaskInput, config?: TaskConfig) => {
-  return new ChunkToVectorTask({} as ChunkToVectorTaskInput, config).run(input);
+  return new ChunkToVectorTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -157,7 +157,7 @@ export class HierarchicalChunkerTask extends Task<
 
     let countFn: (text: string) => Promise<number> = async (text: string) => estimateTokens(text);
     if (input.model) {
-      const countTask = context.own(new CountTokensTask({ model: input.model }));
+      const countTask = context.own(new CountTokensTask({ defaults: { model: input.model } }));
       countFn = async (text: string): Promise<number> => {
         try {
           const result = await countTask.run({ text });
@@ -336,7 +336,7 @@ export class HierarchicalChunkerTask extends Task<
 }
 
 export const hierarchicalChunker = (input: HierarchicalChunkerTaskInput, config?: TaskConfig) => {
-  return new HierarchicalChunkerTask({} as HierarchicalChunkerTaskInput, config).run(input);
+  return new HierarchicalChunkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

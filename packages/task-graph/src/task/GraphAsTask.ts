@@ -63,9 +63,9 @@ export class GraphAsTask<
   // Constructor
   // ========================================================================
 
-  constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
+  constructor(config: Partial<Config> = {}) {
     const { subGraph, ...rest } = config;
-    super(input, rest as Config);
+    super(rest as Partial<Config>);
     if (subGraph) {
       this.subGraph = subGraph;
     }

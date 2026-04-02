@@ -196,7 +196,7 @@ export class ChunkRetrievalTask extends Task<
           "Model is required when query is a string. Please provide a model with format 'model:TextEmbeddingTask'."
         );
       }
-      const embeddingTask = context.own(new TextEmbeddingTask({ text: query, model }));
+      const embeddingTask = context.own(new TextEmbeddingTask({ defaults: { text: query, model } }));
       const embeddingResult = await embeddingTask.run();
       queryVectors = Array.isArray(embeddingResult.vector)
         ? embeddingResult.vector
@@ -245,7 +245,7 @@ export class ChunkRetrievalTask extends Task<
 }
 
 export const chunkRetrieval = (input: ChunkRetrievalTaskInput, config?: TaskConfig) => {
-  return new ChunkRetrievalTask({} as ChunkRetrievalTaskInput, config).run(input);
+  return new ChunkRetrievalTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

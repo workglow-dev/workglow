@@ -88,7 +88,7 @@ export class TextTranslationTask extends StreamingAiTask<
  * @returns Promise resolving to the translated text output(s)
  */
 export const textTranslation = (input: TextTranslationTaskInput, config?: TaskConfig) => {
-  return new TextTranslationTask({} as TextTranslationTaskInput, config).run(input);
+  return new TextTranslationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

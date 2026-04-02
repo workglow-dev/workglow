@@ -289,7 +289,7 @@ export class ToolCallingTask extends StreamingAiTask<
  * Convenience function to run a tool calling task.
  */
 export const toolCalling = (input: ToolCallingTaskInput, config?: TaskConfig) => {
-  return new ToolCallingTask({} as ToolCallingTaskInput, config).run(input);
+  return new ToolCallingTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

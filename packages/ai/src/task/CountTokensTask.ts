@@ -69,7 +69,7 @@ export class CountTokensTask extends AiTask<CountTokensTaskInput, CountTokensTas
  * @returns Promise resolving to the token count
  */
 export const countTokens = async (input: CountTokensTaskInput, config?: TaskConfig) => {
-  return new CountTokensTask({} as CountTokensTaskInput, config).run(input);
+  return new CountTokensTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

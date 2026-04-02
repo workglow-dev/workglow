@@ -24,9 +24,9 @@ describe("TaskGraph", () => {
 
     graph = new TaskGraph();
     tasks = [
-      new TestIOTask({}, { id: "task1" }),
-      new TestIOTask({}, { id: "task2" }),
-      new TestIOTask({}, { id: "task3" }),
+      new TestIOTask({ id: "task1" }),
+      new TestIOTask({ id: "task2" }),
+      new TestIOTask({ id: "task3" }),
     ];
   });
 
@@ -94,7 +94,7 @@ describe("TaskGraph", () => {
       });
 
       // Add a task after subscribing
-      const newTask = new TestIOTask({}, { id: "newTask" });
+      const newTask = new TestIOTask({ id: "newTask" });
       graph.addTask(newTask);
 
       // Run the newly added task

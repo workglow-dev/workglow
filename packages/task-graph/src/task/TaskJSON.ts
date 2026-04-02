@@ -139,8 +139,9 @@ const createSingleTaskFromJSON = (
   const taskConfig: TaskConfig = {
     ...item.config,
     id: item.id,
+    defaults: item.defaults ?? {},
   };
-  const task = new taskClass(item.defaults ?? {}, taskConfig, registry ? { registry } : {});
+  const task = new taskClass(taskConfig, registry ? { registry } : {});
   return task;
 };
 

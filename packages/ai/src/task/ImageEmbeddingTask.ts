@@ -76,7 +76,7 @@ export class ImageEmbeddingTask extends AiVisionTask<
  * @returns Promise resolving to the image embedding vector
  */
 export const imageEmbedding = (input: ImageEmbeddingTaskInput, config?: TaskConfig) => {
-  return new ImageEmbeddingTask({} as ImageEmbeddingTaskInput, config).run(input);
+  return new ImageEmbeddingTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -181,7 +181,7 @@ export class HandLandmarkerTask extends AiVisionTask<
  * @returns Promise resolving to the detected hand landmarks and handedness
  */
 export const handLandmarker = (input: HandLandmarkerTaskInput, config?: TaskConfig) => {
-  return new HandLandmarkerTask({} as HandLandmarkerTaskInput, config).run(input);
+  return new HandLandmarkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

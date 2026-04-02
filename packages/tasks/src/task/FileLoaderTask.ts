@@ -131,15 +131,13 @@ export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutp
     await context.updateProgress(10, `Fetching ${detectedFormat} file from ${url}`);
 
     const fetchTask = context.own(
-      new FetchUrlTask(
-        {
+      new FetchUrlTask({
+        queue: false, // Run directly
+        defaults: {
           url,
           response_type: responseType,
         },
-        {
-          queue: false, // Run directly
-        }
-      )
+      })
     );
     const response = await fetchTask.run();
 
@@ -581,7 +579,7 @@ export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutp
 }
 
 export const fileLoader = (input: FileLoaderTaskInput, config?: TaskConfig) => {
-  return new FileLoaderTask({}, config).run(input);
+  return new FileLoaderTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
