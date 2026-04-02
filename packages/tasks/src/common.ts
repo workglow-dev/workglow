@@ -13,6 +13,7 @@ export * from "./task/DelayTask";
 export * from "./task/FetchUrlTask";
 export * from "./task/HumanApprovalTask";
 export * from "./task/HumanInputTask";
+export * from "./task/McpElicitationConnector";
 export * from "./task/InputTask";
 export * from "./task/JavaScriptTask";
 export * from "./task/JsonTask";
