@@ -264,8 +264,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   // ---- FunctionGemma raw completion path (unchanged) ----
   const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
 
-  getLogger().debug("rawPrompt", { rawPrompt });
-  getLogger().debug("systemPrompt", { systemPrompt });
+  getLogger().debug("LlamaCpp_ToolCalling", { rawPrompt, systemPrompt });
 
   if (rawPrompt !== undefined) {
     const completion = new LlamaCompletion({ contextSequence: sequence });
@@ -276,12 +275,12 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
       });
 
       const text = truncateAtTurnBoundary(rawText);
-      getLogger().debug("text", { text });
+      getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { rawText, text });
       const toolCalls = filterValidToolCalls(
         extractToolCallsFromText(text, input, model),
         input.tools
       );
-      getLogger().debug("toolCalls", { toolCalls });
+      getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { toolCalls });
       update_progress(100, "Tool calling complete");
       return { text, toolCalls };
     } finally {
@@ -303,8 +302,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     ? buildChatModelFunctions(input.tools)
     : undefined;
 
-  getLogger().debug("chatHistory", { chatHistory });
-  getLogger().debug("functions", functions);
+  getLogger().debug("LlamaCpp_ToolCalling LlamaChat", { chatHistory, functions });
 
   try {
     const res = await llamaChat.generateResponse(chatHistory, {
