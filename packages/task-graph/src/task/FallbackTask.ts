@@ -6,7 +6,7 @@
 
 import type { DataPortSchema } from "@workglow/util/schema";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
-import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
+import { GraphAsTask, type GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
 import { FallbackTaskRunner } from "./FallbackTaskRunner";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
@@ -39,7 +39,7 @@ export const fallbackTaskConfigSchema = {
  * Configuration type for FallbackTask.
  * Extends GraphAsTaskConfig with fallback-specific options.
  */
-export type FallbackTaskConfig = GraphAsTaskConfig & {
+export type FallbackTaskConfig<Input extends TaskInput = TaskInput> = GraphAsTaskConfig<Input> & {
   /**
    * The fallback execution mode.
    * - `"task"`: Try each task in the subgraph as an alternative.
@@ -123,7 +123,7 @@ export type FallbackTaskConfig = GraphAsTaskConfig & {
 export class FallbackTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends FallbackTaskConfig = FallbackTaskConfig,
+  Config extends FallbackTaskConfig<Input> = FallbackTaskConfig<Input>,
 > extends GraphAsTask<Input, Output, Config> {
   // ========================================================================
   // Static properties
@@ -259,7 +259,7 @@ declare module "../task-graph/Workflow" {
      * is an independent alternative tried sequentially until one succeeds.
      * Use `.endFallback()` to close the block and return to the parent workflow.
      */
-    fallback: CreateLoopWorkflow<TaskInput, TaskOutput, FallbackTaskConfig>;
+    fallback: CreateLoopWorkflow<TaskInput, TaskOutput, FallbackTaskConfig<TaskInput>>;
 
     /**
      * Ends the task-mode fallback block and returns to the parent workflow.

@@ -10,6 +10,7 @@ import {
   CreateWorkflow,
   Dataflow,
   GraphAsTask,
+  GraphAsTaskConfig,
   JsonTaskItem,
   TaskConfig,
   TaskConfigurationError,
@@ -52,7 +53,7 @@ export type JsonTaskOutput = FromSchema<typeof outputSchema>;
 export class JsonTask<
   Input extends JsonTaskInput = JsonTaskInput,
   Output extends JsonTaskOutput = JsonTaskOutput,
-  Config extends TaskConfig = TaskConfig,
+  Config extends GraphAsTaskConfig<Input> = GraphAsTaskConfig<Input>,
 > extends GraphAsTask<Input, Output, Config> {
   public static override type = "JsonTask";
   public static override category = "Hidden";

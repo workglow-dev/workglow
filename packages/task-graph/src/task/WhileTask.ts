@@ -60,7 +60,10 @@ export const whileTaskConfigSchema = {
 /**
  * Configuration for WhileTask.
  */
-export type WhileTaskConfig<Output extends TaskOutput = TaskOutput> = GraphAsTaskConfig & {
+export type WhileTaskConfig<
+  Input extends TaskInput = TaskInput,
+  Output extends TaskOutput = TaskOutput,
+> = GraphAsTaskConfig<Input> & {
   /**
    * Condition function that determines whether to continue looping.
    * Called after each iteration with the current output and iteration count.
@@ -140,7 +143,7 @@ export type WhileTaskConfig<Output extends TaskOutput = TaskOutput> = GraphAsTas
 export class WhileTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends WhileTaskConfig<Output> = WhileTaskConfig<Output>,
+  Config extends WhileTaskConfig<Input, Output> = WhileTaskConfig<Input, Output>,
 > extends GraphAsTask<Input, Output, Config> {
   public static override type: TaskTypeName = "WhileTask";
   public static override category: string = "Flow Control";
@@ -172,10 +175,6 @@ export class WhileTask<
 
   public override canSerializeConfig(): boolean {
     return typeof this.config.condition !== "function";
-  }
-
-  constructor(config: Partial<Config> = {}) {
-    super(config as Partial<Config>);
   }
 
   // ========================================================================
@@ -717,7 +716,7 @@ declare module "../task-graph/Workflow" {
      *   .endWhile()
      * ```
      */
-    while: CreateLoopWorkflow<TaskInput, TaskOutput, WhileTaskConfig<any>>;
+    while: CreateLoopWorkflow<TaskInput, TaskOutput, WhileTaskConfig<TaskInput, TaskOutput>>;
 
     /**
      * Ends the while loop and returns to the parent workflow.
@@ -730,5 +729,4 @@ declare module "../task-graph/Workflow" {
 }
 
 Workflow.prototype.while = CreateLoopWorkflow(WhileTask);
-
 Workflow.prototype.endWhile = CreateEndLoopWorkflow("endWhile");

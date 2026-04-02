@@ -19,7 +19,7 @@ import { getPortStreamMode, type StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
-import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
+import type { DataPorts, TaskConfig, TaskIdType, TaskInput, TaskOutput } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction, type Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import type { ITaskGraph } from "./ITaskGraph";
@@ -138,7 +138,7 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
 }
 
 // Type definitions for the workflow
-export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends TaskConfig> = (
+export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends TaskConfig<I>> = (
   input?: Partial<I>,
   config?: Partial<C>
 ) => Workflow<I, O>;
@@ -146,7 +146,7 @@ export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends T
 export function CreateWorkflow<
   I extends DataPorts,
   O extends DataPorts,
-  C extends TaskConfig = TaskConfig,
+  C extends TaskConfig<I> = TaskConfig<I>,
 >(taskClass: ITaskConstructor<I, O, C>): CreateWorkflow<I, O, C> {
   return Workflow.createWorkflow<I, O, C>(taskClass);
 }
@@ -159,7 +159,7 @@ export function CreateWorkflow<
 export type CreateLoopWorkflow<
   I extends DataPorts,
   O extends DataPorts,
-  C extends TaskConfig = TaskConfig,
+  C extends TaskConfig<I> = TaskConfig<I>,
 > = (this: Workflow<I, O>, config?: Partial<C>) => Workflow<I, O>;
 
 /**
@@ -172,7 +172,7 @@ export type CreateLoopWorkflow<
 export function CreateLoopWorkflow<
   I extends DataPorts,
   O extends DataPorts,
-  C extends TaskConfig = TaskConfig,
+  C extends TaskConfig<I> = TaskConfig<I>,
 >(taskClass: ITaskConstructor<I, O, C>): CreateLoopWorkflow<I, O, C> {
   return function (this: Workflow<I, O>, config: Partial<C> = {}): Workflow<I, O> {
     return this.addLoopTask(taskClass, config);
@@ -268,8 +268,8 @@ export type CreateAdaptiveWorkflow<
   OS extends DataPorts,
   IV extends DataPorts,
   OV extends DataPorts,
-  CS extends TaskConfig = TaskConfig,
-  CV extends TaskConfig = TaskConfig,
+  CS extends TaskConfig<IS> = TaskConfig<IS>,
+  CV extends TaskConfig<IV> = TaskConfig<IV>,
 > = (
   this: Workflow,
   input?: Partial<IS> & Partial<IV>,
@@ -291,8 +291,8 @@ export function CreateAdaptiveWorkflow<
   OS extends DataPorts,
   IV extends DataPorts,
   OV extends DataPorts,
-  CS extends TaskConfig = TaskConfig,
-  CV extends TaskConfig = TaskConfig,
+  CS extends TaskConfig<IS> = TaskConfig<IS>,
+  CV extends TaskConfig<IV> = TaskConfig<IV>,
 >(
   scalarClass: ITaskConstructor<IS, OS, CS>,
   vectorClass: ITaskConstructor<IV, OV, CV>
@@ -416,7 +416,7 @@ export class Workflow<
   public static createWorkflow<
     I extends DataPorts,
     O extends DataPorts,
-    C extends TaskConfig = TaskConfig,
+    C extends TaskConfig<I> = TaskConfig<I>,
   >(taskClass: ITaskConstructor<I, O, C>): CreateWorkflow<I, O, C> {
     const helper = function (
       this: Workflow<any, any>,
@@ -427,10 +427,11 @@ export class Workflow<
 
       const parent = getLastTask(this);
 
-      const task = this.addTaskToGraph<I, O, C>(
-        taskClass,
-        { id: uuid4(), ...config, defaults: input } as unknown as C
-      );
+      const task = this.addTaskToGraph<I, O, C>(taskClass, {
+        id: uuid4(),
+        ...config,
+        defaults: input,
+      } as unknown as C);
 
       // Process any pending data flows
       if (this._dataFlows.length > 0) {
@@ -966,7 +967,7 @@ export class Workflow<
   public addTaskToGraph<
     I extends DataPorts,
     O extends DataPorts,
-    C extends TaskConfig = TaskConfig,
+    C extends TaskConfig<I> = TaskConfig<I>,
   >(taskClass: ITaskConstructor<I, O, C>, config: C): ITask<I, O, C> {
     const task = new taskClass(config);
     const id = this.graph.addTask(task);
@@ -983,7 +984,7 @@ export class Workflow<
    * @param config - Optional configuration (id will be auto-generated if not provided)
    * @returns The workflow for chaining
    */
-  public addTask<I extends DataPorts, O extends DataPorts, C extends TaskConfig = TaskConfig>(
+  public addTask<I extends DataPorts, O extends DataPorts, C extends TaskConfig<I> = TaskConfig<I>>(
     taskClass: ITaskConstructor<I, O, C>,
     input?: Partial<I>,
     config?: Partial<C>
@@ -1004,10 +1005,11 @@ export class Workflow<
    * @param config - Optional configuration for the iterator task
    * @returns A new loop builder Workflow for adding tasks inside the loop
    */
-  public addLoopTask<I extends DataPorts, O extends DataPorts, C extends TaskConfig = TaskConfig>(
-    taskClass: ITaskConstructor<I, O, C>,
-    config: Partial<C> = {}
-  ): Workflow<I, O> {
+  public addLoopTask<
+    I extends DataPorts,
+    O extends DataPorts,
+    C extends TaskConfig<I> = TaskConfig<I>,
+  >(taskClass: ITaskConstructor<I, O, C>, config: Partial<C> = {}): Workflow<I, O> {
     this._error = "";
 
     const parent = getLastTask(this);

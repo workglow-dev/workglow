@@ -20,7 +20,7 @@ import type { TaskInput, TaskOutput } from "./TaskTypes";
 export class IteratorTaskRunner<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends IteratorTaskConfig = IteratorTaskConfig,
+  Config extends IteratorTaskConfig<Input> = IteratorTaskConfig<Input>,
 > extends GraphAsTaskRunner<Input, Output, Config> {
   declare task: IteratorTask<Input, Output, Config>;
 

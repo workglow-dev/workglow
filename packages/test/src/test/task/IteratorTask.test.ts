@@ -52,16 +52,16 @@ describe("IteratorTask", () => {
 
       test("should respect custom configuration", () => {
         const task = new TestIteratorTask<ArrayInput>({
-            concurrencyLimit: 3,
-          });
+          concurrencyLimit: 3,
+        });
 
         expect(task.concurrencyLimit).toBe(3);
       });
 
       test("should support batchSize configuration", () => {
         const task = new TestIteratorTask<ArrayInput>({
-            batchSize: 10,
-          });
+          batchSize: 10,
+        });
 
         expect(task.batchSize).toBe(10);
       });
@@ -72,9 +72,9 @@ describe("IteratorTask", () => {
         // - Items within each batch run fully in parallel
         // - Batches run with concurrencyLimit parallelism
         const task = new TestIteratorTask<ArrayInput>({
-            concurrencyLimit: 2,
-            batchSize: 5,
-          });
+          concurrencyLimit: 2,
+          batchSize: 5,
+        });
 
         expect(task.concurrencyLimit).toBe(2);
         expect(task.batchSize).toBe(5);
@@ -226,10 +226,10 @@ describe("IteratorTask", () => {
       test("should respect custom configuration", () => {
         const condition = (output: any, iteration: number) => iteration < 5;
         const task = new WhileTask({
-            condition,
-            maxIterations: 50,
-            chainIterations: false,
-          });
+          condition,
+          maxIterations: 50,
+          chainIterations: false,
+        });
 
         expect(task.condition).toBe(condition);
         expect(task.maxIterations).toBe(50);
@@ -847,7 +847,11 @@ describe("IteratorTask", () => {
           } as const satisfies DataPortSchema;
         }
 
-        override async execute(input: { accumulator: { sum: number }; left: number; right: number }) {
+        override async execute(input: {
+          accumulator: { sum: number };
+          left: number;
+          right: number;
+        }) {
           return {
             sum: input.accumulator.sum + input.left + input.right,
           };
