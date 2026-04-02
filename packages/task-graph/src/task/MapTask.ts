@@ -22,7 +22,7 @@ export const mapTaskConfigSchema = {
 /**
  * Configuration for MapTask.
  */
-export type MapTaskConfig = IteratorTaskConfig & {
+export type MapTaskConfig<Input extends TaskInput = TaskInput> = IteratorTaskConfig<Input> & {
   /**
    * Whether to preserve the order of results matching the input order.
    * When false, results may be in completion order.
@@ -44,7 +44,7 @@ export type MapTaskConfig = IteratorTaskConfig & {
 export class MapTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends MapTaskConfig = MapTaskConfig,
+  Config extends MapTaskConfig<Input> = MapTaskConfig<Input>,
 > extends IteratorTask<Input, Output, Config> {
   public static override type: TaskTypeName = "MapTask";
   public static override category: string = "Flow Control";
@@ -163,7 +163,7 @@ declare module "../task-graph/Workflow" {
      * Starts a map loop that transforms each element in array input ports.
      * Use .endMap() to close the loop and return to the parent workflow.
      */
-    map: CreateLoopWorkflow<TaskInput, TaskOutput, MapTaskConfig>;
+    map: CreateLoopWorkflow<TaskInput, TaskOutput, MapTaskConfig<TaskInput>>;
 
     /**
      * Ends the map loop and returns to the parent workflow.

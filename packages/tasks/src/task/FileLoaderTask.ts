@@ -130,16 +130,11 @@ export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutp
     }
     await context.updateProgress(10, `Fetching ${detectedFormat} file from ${url}`);
 
-    const fetchTask = context.own(
-      new FetchUrlTask({
-        queue: false, // Run directly
-        defaults: {
-          url,
-          response_type: responseType,
-        },
-      })
-    );
-    const response = await fetchTask.run();
+    const fetchTask = context.own(new FetchUrlTask({ queue: false }));
+    const response = await fetchTask.run({
+      url,
+      response_type: responseType,
+    });
 
     if (context.signal.aborted) {
       throw new TaskAbortedError("Task aborted");

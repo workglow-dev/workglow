@@ -19,7 +19,7 @@ import { TaskStatus, type TaskInput, type TaskOutput } from "./TaskTypes";
 export class FallbackTaskRunner<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends FallbackTaskConfig = FallbackTaskConfig,
+  Config extends FallbackTaskConfig<Input> = FallbackTaskConfig<Input>,
 > extends GraphAsTaskRunner<Input, Output, Config> {
   declare task: FallbackTask<Input, Output, Config>;
 

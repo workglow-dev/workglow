@@ -32,7 +32,7 @@ export const graphAsTaskConfigSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type GraphAsTaskConfig = TaskConfig & {
+export type GraphAsTaskConfig<Input extends TaskInput = TaskInput> = TaskConfig<Input> & {
   /** subGraph is extracted in the constructor before validation — not in the JSON schema */
   subGraph?: TaskGraph;
   compoundMerge?: CompoundMergeStrategy;
@@ -44,7 +44,7 @@ export type GraphAsTaskConfig = TaskConfig & {
 export class GraphAsTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends GraphAsTaskConfig = GraphAsTaskConfig,
+  Config extends GraphAsTaskConfig<Input> = GraphAsTaskConfig<Input>,
 > extends Task<Input, Output, Config> {
   // ========================================================================
   // Static properties - should be overridden by subclasses
@@ -331,7 +331,7 @@ declare module "../task-graph/Workflow" {
      * Starts a group that wraps inner tasks in a GraphAsTask subgraph.
      * Use .endGroup() to close the group and return to the parent workflow.
      */
-    group: CreateLoopWorkflow<TaskInput, TaskOutput, GraphAsTaskConfig>;
+    group: CreateLoopWorkflow<TaskInput, TaskOutput, GraphAsTaskConfig<TaskInput>>;
 
     /**
      * Ends the group and returns to the parent workflow.

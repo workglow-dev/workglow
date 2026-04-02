@@ -26,7 +26,10 @@ export const reduceTaskConfigSchema = {
 /**
  * Configuration for ReduceTask.
  */
-export type ReduceTaskConfig<Accumulator = unknown> = IteratorTaskConfig & {
+export type ReduceTaskConfig<
+  Input extends TaskInput = TaskInput,
+  Accumulator = unknown,
+> = IteratorTaskConfig<Input> & {
   /**
    * The initial value for the accumulator.
    */
@@ -39,7 +42,7 @@ export type ReduceTaskConfig<Accumulator = unknown> = IteratorTaskConfig & {
 export class ReduceTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends ReduceTaskConfig<Output> = ReduceTaskConfig<Output>,
+  Config extends ReduceTaskConfig<Input, Output> = ReduceTaskConfig<Input, Output>,
 > extends IteratorTask<Input, Output, Config> {
   public static override type: TaskTypeName = "ReduceTask";
   public static override category: string = "Flow Control";
@@ -167,7 +170,7 @@ declare module "../task-graph/Workflow" {
      * Starts a reduce loop that processes iterated inputs with an accumulator.
      * Use .endReduce() to close the loop and return to the parent workflow.
      */
-    reduce: CreateLoopWorkflow<TaskInput, TaskOutput, ReduceTaskConfig<any>>;
+    reduce: CreateLoopWorkflow<TaskInput, TaskOutput, ReduceTaskConfig<TaskInput, any>>;
 
     /**
      * Ends the reduce loop and returns to the parent workflow.
