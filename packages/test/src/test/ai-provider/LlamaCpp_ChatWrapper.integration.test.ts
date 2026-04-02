@@ -108,13 +108,13 @@ describe("LlamaCpp Chat Wrapper Inspection", () => {
 
     for (const model of toolModels) {
       await getGlobalModelRepository().addModel(model);
-      const download = new DownloadModelTask({ model: model.model_id });
+      const download = new DownloadModelTask();
       download.on("progress", (progress, _message, details) => {
         logger.info(
           `Download ${model.model_id}: ${progress}% | ${details?.file || "?"} @ ${(details?.progress || 0).toFixed(1)}%`
         );
       });
-      await download.run();
+      await download.run({ model: model.model_id });
     }
   }, timeout);
 
@@ -158,7 +158,9 @@ describe("LlamaCpp Chat Wrapper Inspection", () => {
         console.log(`\n${"=".repeat(70)}`);
         console.log(`Model:            ${model.title} (${model.model_id})`);
         console.log(`Wrapper name:     ${wrapper.wrapperName}`);
-        console.log(`Overridden:       ${Object.keys(constructorSpread).length > 0 ? `yes (${Object.keys(constructorSpread).join(", ")})` : "no (auto-resolved)"}`);
+        console.log(
+          `Overridden:       ${Object.keys(constructorSpread).length > 0 ? `yes (${Object.keys(constructorSpread).join(", ")})` : "no (auto-resolved)"}`
+        );
         console.log(`Has Jinja in GGUF: ${chatTemplate ? "yes" : "no"}`);
         if (chatTemplate) {
           const preview = chatTemplate.slice(0, 120).replace(/\n/g, "\\n");
@@ -166,7 +168,9 @@ describe("LlamaCpp Chat Wrapper Inspection", () => {
         }
         if (jinjaInfo) {
           console.log(`Jinja func calls: ${jinjaInfo.usingJinjaFunctionCallTemplate}`);
-          console.log(`Role names:       user=${jinjaInfo.userRoleName} model=${jinjaInfo.modelRoleName} system=${jinjaInfo.systemRoleName}`);
+          console.log(
+            `Role names:       user=${jinjaInfo.userRoleName} model=${jinjaInfo.modelRoleName} system=${jinjaInfo.systemRoleName}`
+          );
         }
         console.log(`Function settings: ${JSON.stringify(wrapper.settings.functions ?? null)}`);
         console.log(`${"=".repeat(70)}\n`);
