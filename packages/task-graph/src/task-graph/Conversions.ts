@@ -45,8 +45,8 @@ let _ConvWorkflowTask: GraphAsTaskConstructor;
 function getWrapperClasses() {
   if (!_OwnGraphTask) {
     class ListeningGraphAsTask extends GraphAsTask<any, any> {
-      constructor(input: any, config: any) {
-        super(input, config);
+      constructor(config: any) {
+        super(config);
         this.subGraph.on("start", () => {
           this.emit("start");
         });
