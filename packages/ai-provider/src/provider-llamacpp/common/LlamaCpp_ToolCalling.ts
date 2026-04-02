@@ -333,144 +333,43 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
 };
 
 // ============================================================================
-// Streaming run function
+// Shared streaming helper
 // ============================================================================
 
-export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
-  ToolCallingTaskInput,
-  ToolCallingTaskOutput,
-  LlamaCppModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
-  if (!model) throw new Error("Model config is required for ToolCallingTask.");
-
-  await loadSdk();
-
-  const context = await getOrCreateTextContext(model);
-
-  const sequence = context.getSequence();
-  const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
-  const systemPrompt = buildSystemPrompt(input);
-
-  // ---- FunctionGemma raw completion path (unchanged) ----
-  const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
-
-  if (rawPrompt !== undefined) {
-    const completion = new LlamaCompletion({ contextSequence: sequence });
-    const queue: string[] = [];
-    let isComplete = false;
-    let completionError: unknown;
-    let resolveWait: (() => void) | null = null;
-    let accumulatedText = "";
-
-    const notifyWaiter = () => {
-      resolveWait?.();
-      resolveWait = null;
-    };
-
-    const completionPromise = completion
-      .generateCompletion(rawPrompt, {
-        signal,
-        ...llamaCppRawCompletionOptions(input, model),
-        onTextChunk: (chunk: string) => {
-          queue.push(chunk);
-          notifyWaiter();
-        },
-      })
-      .then(() => {
-        isComplete = true;
-        notifyWaiter();
-      })
-      .catch((err: unknown) => {
-        completionError = err;
-        isComplete = true;
-        notifyWaiter();
-      });
-
-    try {
-      while (true) {
-        while (queue.length > 0) {
-          const chunk = queue.shift()!;
-          accumulatedText += chunk;
-          yield { type: "text-delta", port: "text", textDelta: chunk };
-        }
-        if (isComplete) break;
-        await new Promise<void>((r) => {
-          resolveWait = r;
-        });
-      }
-      while (queue.length > 0) {
-        const chunk = queue.shift()!;
-        accumulatedText += chunk;
-        yield { type: "text-delta", port: "text", textDelta: chunk };
-      }
-    } finally {
-      await completionPromise.catch(() => {});
-      completion.dispose({ disposeSequence: false });
-      sequence.dispose();
-    }
-
-    if (completionError) {
-      if (!signal.aborted) throw completionError;
-      return;
-    }
-
-    const truncatedText = truncateAtTurnBoundary(accumulatedText);
-    const validToolCalls = filterValidToolCalls(
-      extractToolCallsFromText(truncatedText, input, model),
-      input.tools
-    );
-
-    if (validToolCalls.length > 0) {
-      yield { type: "object-delta", port: "toolCalls", objectDelta: [...validToolCalls] };
-    }
-
-    yield {
-      type: "finish",
-      data: { text: truncatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
-    };
-    return;
-  }
-
-  // ---- Native function calling path via LlamaChat ----
-  const llamaChat = new LlamaChat({
-    contextSequence: sequence,
-    ...llamaCppChatSessionConstructorSpread(model),
-  });
-
-  const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
-  const chatHistory = convertMessagesToChatHistory(input.messages, promptText, systemPrompt);
-  const functions = supportsNativeFunctions(input, model)
-    ? buildChatModelFunctions(input.tools)
-    : undefined;
-
+/**
+ * Drives an async generation call that pushes text chunks via `onTextChunk`,
+ * yielding `text-delta` events as they arrive. Returns accumulated text and
+ * the generation result (if any) once complete.
+ *
+ * Both the raw-completion and LlamaChat streaming paths delegate here via
+ * `yield*` to avoid duplicating the queue / notification / drain loop.
+ */
+async function* streamTextChunks<T>(
+  startGeneration: (onTextChunk: (chunk: string) => void) => Promise<T>,
+  signal: AbortSignal,
+  cleanup: () => void
+): AsyncGenerator<
+  StreamEvent<ToolCallingTaskOutput>,
+  { text: string; result: T | undefined }
+> {
   const queue: string[] = [];
   let isComplete = false;
   let completionError: unknown;
   let resolveWait: (() => void) | null = null;
   let accumulatedText = "";
-  let chatResponse: Awaited<ReturnType<InstanceType<typeof LlamaChat>["generateResponse"]>> | undefined;
+  let result: T | undefined;
 
   const notifyWaiter = () => {
     resolveWait?.();
     resolveWait = null;
   };
 
-  const responsePromise = llamaChat
-    .generateResponse(chatHistory, {
-      signal,
-      ...llamaCppChatGenerateOptions(input, model),
-      ...(functions && {
-        functions,
-        ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
-      }),
-      onTextChunk: (chunk: string) => {
-        queue.push(chunk);
-        notifyWaiter();
-      },
-    })
+  const generationPromise = startGeneration((chunk: string) => {
+    queue.push(chunk);
+    notifyWaiter();
+  })
     .then((res) => {
-      chatResponse = res;
+      result = res;
       isComplete = true;
       notifyWaiter();
     })
@@ -498,15 +397,103 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
       yield { type: "text-delta", port: "text", textDelta: chunk };
     }
   } finally {
-    await responsePromise.catch(() => {});
-    llamaChat.dispose({ disposeSequence: false });
-    sequence.dispose();
+    await generationPromise.catch(() => {});
+    cleanup();
   }
 
   if (completionError) {
     if (!signal.aborted) throw completionError;
+  }
+
+  return { text: accumulatedText, result };
+}
+
+// ============================================================================
+// Streaming run function
+// ============================================================================
+
+export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
+  ToolCallingTaskInput,
+  ToolCallingTaskOutput,
+  LlamaCppModelConfig
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+  if (!model) throw new Error("Model config is required for ToolCallingTask.");
+
+  await loadSdk();
+
+  const context = await getOrCreateTextContext(model);
+
+  const sequence = context.getSequence();
+  const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
+  const systemPrompt = buildSystemPrompt(input);
+
+  // ---- FunctionGemma raw completion path ----
+  const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
+
+  if (rawPrompt !== undefined) {
+    const completion = new LlamaCompletion({ contextSequence: sequence });
+
+    const { text: rawText } = yield* streamTextChunks(
+      (onTextChunk) =>
+        completion.generateCompletion(rawPrompt, {
+          signal,
+          ...llamaCppRawCompletionOptions(input, model),
+          onTextChunk,
+        }),
+      signal,
+      () => {
+        completion.dispose({ disposeSequence: false });
+        sequence.dispose();
+      }
+    );
+
+    const text = truncateAtTurnBoundary(rawText);
+    const validToolCalls = filterValidToolCalls(
+      extractToolCallsFromText(text, input, model),
+      input.tools
+    );
+
+    if (validToolCalls.length > 0) {
+      yield { type: "object-delta", port: "toolCalls", objectDelta: [...validToolCalls] };
+    }
+
+    yield {
+      type: "finish",
+      data: { text, toolCalls: validToolCalls } as ToolCallingTaskOutput,
+    };
     return;
   }
+
+  // ---- Native function calling path via LlamaChat ----
+  const llamaChat = new LlamaChat({
+    contextSequence: sequence,
+    ...llamaCppChatSessionConstructorSpread(model),
+  });
+
+  const promptText =
+    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
+  const chatHistory = convertMessagesToChatHistory(input.messages, promptText, systemPrompt);
+  const functions = supportsNativeFunctions(input, model)
+    ? buildChatModelFunctions(input.tools)
+    : undefined;
+
+  const { text: accumulatedText, result: chatResponse } = yield* streamTextChunks(
+    (onTextChunk) =>
+      llamaChat.generateResponse(chatHistory, {
+        signal,
+        ...llamaCppChatGenerateOptions(input, model),
+        ...(functions && {
+          functions,
+          ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
+        }),
+        onTextChunk,
+      }),
+    signal,
+    () => {
+      llamaChat.dispose({ disposeSequence: false });
+      sequence.dispose();
+    }
+  );
 
   const toolCalls = extractNativeFunctionCalls(chatResponse?.functionCalls);
 
