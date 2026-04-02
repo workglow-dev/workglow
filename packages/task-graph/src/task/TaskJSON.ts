@@ -34,7 +34,7 @@ export type JsonTaskConfig = Omit<
     ReduceTaskConfig &
     MapTaskConfig &
     ConditionalTaskConfig,
-  "id"
+  "id" | "defaults"
 >;
 
 export type JsonTaskItem = {

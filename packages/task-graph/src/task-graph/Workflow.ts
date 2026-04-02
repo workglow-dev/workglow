@@ -431,7 +431,7 @@ export class Workflow<
         id: uuid4(),
         ...config,
         defaults: input,
-      } as unknown as C);
+      } as C);
 
       // Process any pending data flows
       if (this._dataFlows.length > 0) {
