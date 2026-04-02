@@ -77,7 +77,7 @@ describe("TaskJSON", () => {
   });
   describe("Task.toJSON()", () => {
     test("should serialize a simple task to JSON", () => {
-      const task = new DoubleToResultTask({ value: 42 }, { id: "task1", title: "My Task" });
+      const task = new DoubleToResultTask({ id: "task1", title: "My Task", defaults: { value: 42 } });
       const json = task.toJSON();
 
       expect(json.id).toBe("task1");
@@ -88,27 +88,25 @@ describe("TaskJSON", () => {
     });
 
     test("should serialize task with defaults", () => {
-      const task = new TestTaskWithDefaults({ value: 10, multiplier: 5 }, { id: "task2" });
+      const task = new TestTaskWithDefaults({ id: "task2", defaults: { value: 10, multiplier: 5 } });
       const json = task.toJSON();
 
       expect(json.defaults).toEqual({ value: 10, multiplier: 5 });
     });
 
     test("should omit config when there is nothing to serialize beyond id", () => {
-      const task = new TestTaskWithDefaults({ value: 10, multiplier: 5 }, { id: "task-no-config" });
+      const task = new TestTaskWithDefaults({ id: "task-no-config", defaults: { value: 10, multiplier: 5 } });
       const json = task.toJSON();
 
       expect(json.config).toBeUndefined();
     });
 
     test("should serialize task with extras", () => {
-      const task = new DoubleToResultTask(
-        { value: 100 },
-        {
+      const task = new DoubleToResultTask({
           id: "task3",
           extras: { metadata: { key: "value" } },
-        }
-      );
+          defaults: { value: 100 },
+        });
       const json = task.toJSON();
 
       expect(json.config?.extras).toEqual({ metadata: { key: "value" } });
@@ -118,8 +116,8 @@ describe("TaskJSON", () => {
   describe("TaskGraph.toJSON()", () => {
     test("should serialize a task graph to JSON", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
-      const task2 = new DoubleToResultTask({ value: 20 }, { id: "task2" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
+      const task2 = new DoubleToResultTask({ id: "task2", defaults: { value: 20 } });
       graph.addTask(task1);
       graph.addTask(task2);
       graph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -140,9 +138,9 @@ describe("TaskJSON", () => {
 
     test("should serialize graph with multiple dataflows", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
-      const task2 = new DoubleToResultTask({ value: 20 }, { id: "task2" });
-      const task3 = new DoubleToResultTask({ value: 30 }, { id: "task3" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
+      const task2 = new DoubleToResultTask({ id: "task2", defaults: { value: 20 } });
+      const task3 = new DoubleToResultTask({ id: "task3", defaults: { value: 30 } });
       graph.addTask(task1);
       graph.addTask(task2);
       graph.addTask(task3);
@@ -330,8 +328,8 @@ describe("TaskJSON", () => {
   describe("Round-trip serialization", () => {
     test("should round-trip a simple task graph", () => {
       const originalGraph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1", title: "Task 1" });
-      const task2 = new DoubleToResultTask({ value: 20 }, { id: "task2", title: "Task 2" });
+      const task1 = new DoubleToResultTask({ id: "task1", title: "Task 1", defaults: { value: 10 } });
+      const task2 = new DoubleToResultTask({ id: "task2", title: "Task 2", defaults: { value: 20 } });
       originalGraph.addTask(task1);
       originalGraph.addTask(task2);
       originalGraph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -358,14 +356,12 @@ describe("TaskJSON", () => {
 
     test("should round-trip a task graph with defaults and extras", () => {
       const originalGraph = new TaskGraph();
-      const task1 = new TestTaskWithDefaults(
-        { value: 10, multiplier: 3 },
-        {
+      const task1 = new TestTaskWithDefaults({
           id: "task1",
           title: "Task with Defaults",
           extras: { metadata: { key: "value" } },
-        }
-      );
+          defaults: { value: 10, multiplier: 3 },
+        });
       originalGraph.addTask(task1);
 
       const json = originalGraph.toJSON();
@@ -378,7 +374,7 @@ describe("TaskJSON", () => {
 
     test("should round-trip a graph with nested subgraph", () => {
       const originalGraph = new TaskGraph();
-      const parentTask = new TestGraphAsTask({ input: "test" }, { id: "parent" });
+      const parentTask = new TestGraphAsTask({ id: "parent", defaults: { input: "test" } });
       const childGraph = new TaskGraph();
       const child1 = new DoubleToResultTask({ value: 5 }, { id: "child1" });
       const child2 = new DoubleToResultTask({ value: 10 }, { id: "child2" });
