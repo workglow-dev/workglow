@@ -251,7 +251,7 @@ describe("Source-task streaming accumulation", () => {
   setLogger(logger);
   describe("TaskRunner: shouldAccumulate flag", () => {
     it("should emit enriched finish event when shouldAccumulate=true (default)", async () => {
-      const task = new AppendTask({ prompt: "test" });
+      const task = new AppendTask({ defaults: { prompt: "test" } });
       const emitted: StreamEvent[] = [];
       task.on("stream_chunk", (e) => emitted.push(e));
 
@@ -272,7 +272,7 @@ describe("Source-task streaming accumulation", () => {
     it("should NOT accumulate and emit raw finish when shouldAccumulate=false", async () => {
       // shouldAccumulate is passed via IRunConfig to TaskRunner.run(), not Task.run()
       // (Task.run() only accepts overrides; the graph runner uses runner.run() directly).
-      const task = new AppendTask({ prompt: "test" });
+      const task = new AppendTask({ defaults: { prompt: "test" } });
       const emitted: StreamEvent[] = [];
       task.on("stream_chunk", (e) => emitted.push(e));
 
@@ -290,7 +290,7 @@ describe("Source-task streaming accumulation", () => {
 
     it("should accumulate text-deltas for replace-mode task and enrich finish", async () => {
       // Replace-mode task with text-delta events (like HFT TextTranslation)
-      const task = new ReplaceWithTextDeltasTask({ prompt: "test" });
+      const task = new ReplaceWithTextDeltasTask({ defaults: { prompt: "test" } });
       const emitted: StreamEvent[] = [];
       task.on("stream_chunk", (e) => emitted.push(e));
 
@@ -343,7 +343,7 @@ describe("Source-task streaming accumulation", () => {
         }
       }
 
-      const task = new MixedFinishTask({ prompt: "test" });
+      const task = new MixedFinishTask({ defaults: { prompt: "test" } });
       const emitted: StreamEvent[] = [];
       task.on("stream_chunk", (e) => emitted.push(e));
 
@@ -364,8 +364,8 @@ describe("Source-task streaming accumulation", () => {
     it("should accumulate when source connects to a non-streaming downstream", async () => {
       const { graph, runner } = makeGraph();
 
-      const source = new AppendTask({ prompt: "test" }, { id: "source" });
-      const sink = new SinkTask({} as any, { id: "sink" });
+      const source = new AppendTask({ id: "source", defaults: { prompt: "test" } });
+      const sink = new SinkTask({ id: "sink" });
 
       graph.addTasks([source, sink]);
       graph.addDataflow(new Dataflow("source", "text", "sink", "text"));
@@ -391,9 +391,9 @@ describe("Source-task streaming accumulation", () => {
     it("should NOT accumulate when all downstream edges connect to streaming tasks", async () => {
       const { graph, runner } = makeGraph();
 
-      const source = new AppendTask({ prompt: "test" }, { id: "source" });
-      const passThroughA = new StreamPassThroughTask({} as any, { id: "pass-a" });
-      const passThroughB = new StreamPassThroughTask({} as any, { id: "pass-b" });
+      const source = new AppendTask({ id: "source", defaults: { prompt: "test" } });
+      const passThroughA = new StreamPassThroughTask({ id: "pass-a" });
+      const passThroughB = new StreamPassThroughTask({ id: "pass-b" });
 
       graph.addTasks([source, passThroughA, passThroughB]);
       // Both downstream tasks accept streaming input (x-stream: "append")
@@ -415,9 +415,9 @@ describe("Source-task streaming accumulation", () => {
     it("should accumulate when even one downstream is non-streaming (fan-out)", async () => {
       const { graph, runner } = makeGraph();
 
-      const source = new AppendTask({ prompt: "test" }, { id: "source" });
-      const passThrough = new StreamPassThroughTask({} as any, { id: "stream-down" });
-      const sink = new SinkTask({} as any, { id: "sink" });
+      const source = new AppendTask({ id: "source", defaults: { prompt: "test" } });
+      const passThrough = new StreamPassThroughTask({ id: "stream-down" });
+      const sink = new SinkTask({ id: "sink" });
 
       graph.addTasks([source, passThrough, sink]);
       graph.addDataflow(new Dataflow("source", "text", "stream-down", "text"));
@@ -444,8 +444,8 @@ describe("Source-task streaming accumulation", () => {
     it("should materialise correct text for replace-mode task with text-delta events", async () => {
       const { graph, runner } = makeGraph();
 
-      const source = new ReplaceWithTextDeltasTask({ prompt: "hello" }, { id: "source" });
-      const sink = new SinkTask({} as any, { id: "sink" });
+      const source = new ReplaceWithTextDeltasTask({ id: "source", defaults: { prompt: "hello" } });
+      const sink = new SinkTask({ id: "sink" });
 
       graph.addTasks([source, sink]);
       graph.addDataflow(new Dataflow("source", "text", "sink", "text"));
@@ -466,9 +466,9 @@ describe("Source-task streaming accumulation", () => {
     it("should provide identical accumulated data to all non-streaming downstream tasks", async () => {
       const { graph, runner } = makeGraph();
 
-      const source = new AppendTask({ prompt: "test" }, { id: "source" });
-      const sinkA = new SinkTask({} as any, { id: "sink-a" });
-      const sinkB = new SinkTask({} as any, { id: "sink-b" });
+      const source = new AppendTask({ id: "source", defaults: { prompt: "test" } });
+      const sinkA = new SinkTask({ id: "sink-a" });
+      const sinkB = new SinkTask({ id: "sink-b" });
 
       graph.addTasks([source, sinkA, sinkB]);
       graph.addDataflow(new Dataflow("source", "text", "sink-a", "text"));
@@ -500,8 +500,8 @@ describe("Source-task streaming accumulation", () => {
       // But cache is on so source must accumulate to have data to save.
       const { graph, runner } = makeGraph();
 
-      const source = new CacheableAppendTask({ prompt: "test" }, { id: "source" });
-      const passThrough = new StreamPassThroughTask({} as any, { id: "pass" });
+      const source = new CacheableAppendTask({ id: "source", defaults: { prompt: "test" } });
+      const passThrough = new StreamPassThroughTask({ id: "pass" });
 
       graph.addTasks([source, passThrough]);
       graph.addDataflow(new Dataflow("source", "text", "pass", "text"));
@@ -525,12 +525,12 @@ describe("Source-task streaming accumulation", () => {
     });
 
     it("should cache accumulated result and serve it on second run", async () => {
-      const task1 = new CacheableAppendTask({ prompt: "hello" }, {}, { outputCache: cache });
+      const task1 = new CacheableAppendTask({ defaults: { prompt: "hello" } }, { outputCache: cache });
       const result1 = await task1.run({ prompt: "hello" });
       expect(result1.text).toBe("cached value");
 
       // Second run: should hit cache
-      const task2 = new CacheableAppendTask({ prompt: "hello" }, {}, { outputCache: cache });
+      const task2 = new CacheableAppendTask({ defaults: { prompt: "hello" } }, { outputCache: cache });
       const events: StreamEvent[] = [];
       task2.on("stream_chunk", (e) => events.push(e));
 

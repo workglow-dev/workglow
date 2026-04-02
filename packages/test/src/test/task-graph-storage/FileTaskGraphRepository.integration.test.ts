@@ -34,9 +34,9 @@ describe("FsFolderTaskGraphRepository", () => {
     const id: string = "g1";
     const graph = new TaskGraph();
     const tasks = [
-      new TestIOTask({}, { id: "task1" }),
-      new TestIOTask({}, { id: "task2" }),
-      new TestIOTask({}, { id: "task3" }),
+      new TestIOTask({ id: "task1" }),
+      new TestIOTask({ id: "task2" }),
+      new TestIOTask({ id: "task3" }),
     ];
     const edges: Dataflow[] = [
       new Dataflow("task1", "output1", "task2", "input1"),

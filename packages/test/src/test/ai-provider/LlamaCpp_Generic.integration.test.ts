@@ -145,7 +145,7 @@ runGenericAiProviderTests({
     await getGlobalModelRepository().addModel(llama3d21bToolModel);
 
     for (const modelId of [llmModelId, toolModelId]) {
-      const download = new DownloadModelTask({ model: modelId });
+      const download = new DownloadModelTask({ defaults: { model: modelId } });
       download.on("progress", (progress, _message, details) => {
         logger.info(
           `Download ${modelId}: ${progress}% | ${details?.file || "?"} @ ${(details?.progress || 0).toFixed(1)}%`

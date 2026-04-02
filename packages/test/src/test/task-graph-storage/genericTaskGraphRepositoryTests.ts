@@ -40,7 +40,7 @@ export function runGenericTaskGraphRepositoryTests(
   it("should fail if the task is not registered", async () => {
     const id: string = "g0";
     const graph = new TaskGraph();
-    const tasks = [new TestIOTask({}, { id: "task1" })];
+    const tasks = [new TestIOTask({ id: "task1" })];
     graph.addTasks(tasks);
     await repository.saveTaskGraph(id, graph);
     await expect(repository.getTaskGraph(id)).rejects.toThrow();
@@ -51,9 +51,9 @@ export function runGenericTaskGraphRepositoryTests(
     const id: string = "g1";
     const graph = new TaskGraph();
     const tasks = [
-      new TestIOTask({}, { id: "task1" }),
-      new TestIOTask({}, { id: "task2" }),
-      new TestIOTask({}, { id: "task3" }),
+      new TestIOTask({ id: "task1" }),
+      new TestIOTask({ id: "task2" }),
+      new TestIOTask({ id: "task3" }),
     ];
     const edges: Dataflow[] = [
       new Dataflow("task1", "output1", "task2", "input1"),

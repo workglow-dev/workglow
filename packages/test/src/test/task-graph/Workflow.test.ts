@@ -257,7 +257,7 @@ describe("Workflow", () => {
   describe("parallel", () => {
     it("should create a compound task with parallel workflows", async () => {
       workflow.parallel(
-        [new TestSimpleTask({ input: "test1" }), new TestSimpleTask({ input: "test2" })],
+        [new TestSimpleTask({ defaults: { input: "test1" } }), new TestSimpleTask({ defaults: { input: "test2" } })],
         PROPERTY_ARRAY
       );
 
