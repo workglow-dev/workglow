@@ -65,7 +65,7 @@ describe("TextEmbeddingTask with real models", () => {
 
       // First download the model
       const download = new DownloadModelTask({
-        model: "onnx:Xenova/gte-small:q8",
+        defaults: { model: "onnx:Xenova/gte-small:q8" },
       });
       let lastProgress = -1;
       download.on("progress", (progress, message, details) => {

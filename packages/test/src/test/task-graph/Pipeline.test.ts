@@ -29,7 +29,7 @@ describe("Pipeline", () => {
   setLogger(logger);
   it("should run the pipe()", async () => {
     // Create our tasks
-    const doubleTask = new DoubleTask({ value: 3 });
+    const doubleTask = new DoubleTask({ defaults: { value: 3 } });
     const addFiveTask = new AddFiveTask();
     const squareTask = new SquareTask();
     // Create the workflow using pipe()
@@ -48,7 +48,7 @@ describe("Pipeline", () => {
 
   it("should run the workflow.pipe()", async () => {
     // Create our tasks
-    const doubleTask = new DoubleTask({ value: 3 });
+    const doubleTask = new DoubleTask({ defaults: { value: 3 } });
     const addFiveTask = new AddFiveTask();
     const squareTask = new SquareTask();
     // Create the workflow using pipe()

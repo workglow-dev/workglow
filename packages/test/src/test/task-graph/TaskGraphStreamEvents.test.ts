@@ -95,8 +95,8 @@ describe("TaskGraph Stream Events", () => {
   describe("task_stream_start / task_stream_chunk / task_stream_end on TaskGraph", () => {
     it("should emit task_stream_start when a streaming task begins", async () => {
       const graph = new TaskGraph();
-      const source = new StreamSourceTask({ prompt: "hi" }, { id: "src" });
-      const sink = new NonStreamTask({} as any, { id: "sink" });
+      const source = new StreamSourceTask({ id: "src", defaults: { prompt: "hi" } });
+      const sink = new NonStreamTask({ id: "sink" });
 
       graph.addTasks([source, sink]);
       graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -116,8 +116,8 @@ describe("TaskGraph Stream Events", () => {
 
     it("should emit task_stream_chunk for each chunk", async () => {
       const graph = new TaskGraph();
-      const source = new StreamSourceTask({ prompt: "hi" }, { id: "src" });
-      const sink = new NonStreamTask({} as any, { id: "sink" });
+      const source = new StreamSourceTask({ id: "src", defaults: { prompt: "hi" } });
+      const sink = new NonStreamTask({ id: "sink" });
 
       graph.addTasks([source, sink]);
       graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -142,8 +142,8 @@ describe("TaskGraph Stream Events", () => {
 
     it("should emit task_stream_end when streaming finishes", async () => {
       const graph = new TaskGraph();
-      const source = new StreamSourceTask({ prompt: "hi" }, { id: "src" });
-      const sink = new NonStreamTask({} as any, { id: "sink" });
+      const source = new StreamSourceTask({ id: "src", defaults: { prompt: "hi" } });
+      const sink = new NonStreamTask({ id: "sink" });
 
       graph.addTasks([source, sink]);
       graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -164,8 +164,8 @@ describe("TaskGraph Stream Events", () => {
 
     it("should not emit streaming events for non-streaming tasks", async () => {
       const graph = new TaskGraph();
-      const source = new StreamSourceTask({ prompt: "hi" }, { id: "src" });
-      const sink = new NonStreamTask({} as any, { id: "sink" });
+      const source = new StreamSourceTask({ id: "src", defaults: { prompt: "hi" } });
+      const sink = new NonStreamTask({ id: "sink" });
 
       graph.addTasks([source, sink]);
       graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -185,8 +185,8 @@ describe("TaskGraph Stream Events", () => {
   describe("subscribeToTaskStreaming()", () => {
     it("should deliver events through the subscription API", async () => {
       const graph = new TaskGraph();
-      const source = new StreamSourceTask({ prompt: "hi" }, { id: "src" });
-      const sink = new NonStreamTask({} as any, { id: "sink" });
+      const source = new StreamSourceTask({ id: "src", defaults: { prompt: "hi" } });
+      const sink = new NonStreamTask({ id: "sink" });
 
       graph.addTasks([source, sink]);
       graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -214,7 +214,7 @@ describe("TaskGraph Stream Events", () => {
 
     it("should stop receiving events after unsubscribe", async () => {
       const graph = new TaskGraph();
-      const source = new StreamSourceTask({ prompt: "hi" }, { id: "src" });
+      const source = new StreamSourceTask({ id: "src", defaults: { prompt: "hi" } });
 
       graph.addTasks([source]);
 
@@ -235,7 +235,7 @@ describe("TaskGraph Stream Events", () => {
 
     it("should allow partial callbacks (only onStreamChunk)", async () => {
       const graph = new TaskGraph();
-      const source = new StreamSourceTask({ prompt: "hi" }, { id: "src" });
+      const source = new StreamSourceTask({ id: "src", defaults: { prompt: "hi" } });
 
       graph.addTasks([source]);
 

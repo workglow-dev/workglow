@@ -236,7 +236,7 @@ describe("TimeoutAndErrorRouting", () => {
 
   describe("Task-Level Timeout", () => {
     it("should abort a slow task when timeout expires", async () => {
-      const task = new SlowTask({}, { timeout: 50 });
+      const task = new SlowTask({ timeout: 50 });
       task.sleepMs = 500;
 
       await expect(task.run()).rejects.toThrow(TaskTimeoutError);
@@ -246,7 +246,7 @@ describe("TimeoutAndErrorRouting", () => {
     });
 
     it("should complete normally when task finishes before timeout", async () => {
-      const task = new SlowTask({ input: 5 }, { timeout: 2000 });
+      const task = new SlowTask({ timeout: 2000, defaults: { input: 5 } });
       task.sleepMs = 20;
 
       const output = await task.run();
@@ -255,7 +255,7 @@ describe("TimeoutAndErrorRouting", () => {
     });
 
     it("should not interfere when no timeout is set", async () => {
-      const task = new SlowTask({ input: 3 });
+      const task = new SlowTask({ defaults: { input: 3 } });
       task.sleepMs = 20;
 
       const output = await task.run();
@@ -264,7 +264,7 @@ describe("TimeoutAndErrorRouting", () => {
     });
 
     it("should surface TaskTimeoutError (subclass of TaskAbortedError)", async () => {
-      const task = new SlowTask({}, { timeout: 30 });
+      const task = new SlowTask({ timeout: 30 });
       task.sleepMs = 500;
 
       try {
@@ -277,7 +277,7 @@ describe("TimeoutAndErrorRouting", () => {
     });
 
     it("should emit abort event with TaskTimeoutError", async () => {
-      const task = new SlowTask({}, { timeout: 30 });
+      const task = new SlowTask({ timeout: 30 });
       task.sleepMs = 500;
       let receivedError: unknown = null;
 
@@ -292,7 +292,7 @@ describe("TimeoutAndErrorRouting", () => {
 
     it("should work with timeout in a graph runner context", async () => {
       const graph = new TaskGraph();
-      const slow = new SlowTask({ input: 5 }, { id: "slow", timeout: 50 });
+      const slow = new SlowTask({ id: "slow", timeout: 50, defaults: { input: 5 } });
       slow.sleepMs = 500;
 
       graph.addTask(slow);
@@ -304,7 +304,7 @@ describe("TimeoutAndErrorRouting", () => {
     });
 
     it("should not arm a timer for timeout of zero", async () => {
-      const task = new SlowTask({ input: 4 }, { timeout: 0 });
+      const task = new SlowTask({ timeout: 0, defaults: { input: 4 } });
       task.sleepMs = 20;
 
       const output = await task.run();
@@ -313,7 +313,7 @@ describe("TimeoutAndErrorRouting", () => {
     });
 
     it("should persist timeout in task config for serialization", () => {
-      const task = new SlowTask({}, { timeout: 5000 });
+      const task = new SlowTask({ timeout: 5000 });
       expect((task.config as Record<string, unknown>).timeout).toBe(5000);
     });
   });
@@ -330,8 +330,8 @@ describe("TimeoutAndErrorRouting", () => {
     describe("Graph-level error routing", () => {
       it("should route errors through error-port dataflows instead of failing the graph", async () => {
         const graph = new TaskGraph();
-        const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+        const failTask = new AlwaysFailTask({ id: "fail", defaults: { input: 5 } });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
 
         graph.addTasks([failTask, recoveryTask]);
         graph.addDataflow(
@@ -349,9 +349,9 @@ describe("TimeoutAndErrorRouting", () => {
 
       it("should set error-port edges to COMPLETED and normal edges to DISABLED", async () => {
         const graph = new TaskGraph();
-        const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
-        const normalDownstream = new DoubleTask({ input: 0 }, { id: "normal" });
+        const failTask = new AlwaysFailTask({ id: "fail", defaults: { input: 5 } });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
+        const normalDownstream = new DoubleTask({ id: "normal", defaults: { input: 0 } });
 
         graph.addTasks([failTask, recoveryTask, normalDownstream]);
         graph.addDataflow(
@@ -379,7 +379,7 @@ describe("TimeoutAndErrorRouting", () => {
 
       it("should still fail the graph when no error-port edges exist (backward compat)", async () => {
         const graph = new TaskGraph();
-        const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
+        const failTask = new AlwaysFailTask({ id: "fail", defaults: { input: 5 } });
 
         graph.addTask(failTask);
         const runner = new TaskGraphRunner(graph);
@@ -389,8 +389,8 @@ describe("TimeoutAndErrorRouting", () => {
 
       it("should pass error data to the recovery task", async () => {
         const graph = new TaskGraph();
-        const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
-        const inspectTask = new InspectingRecoveryTask({}, { id: "inspect" });
+        const failTask = new AlwaysFailTask({ id: "fail", defaults: { input: 5 } });
+        const inspectTask = new InspectingRecoveryTask({ id: "inspect" });
 
         graph.addTasks([failTask, inspectTask]);
         graph.addDataflow(new Dataflow("fail", DATAFLOW_ERROR_PORT, "inspect", DATAFLOW_ALL_PORTS));
@@ -407,9 +407,9 @@ describe("TimeoutAndErrorRouting", () => {
       it("should allow chaining after error recovery", async () => {
         // fail --[error]--> recovery --[output]--> downstream
         const graph = new TaskGraph();
-        const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
-        const downstream = new DoubleTask({}, { id: "downstream" });
+        const failTask = new AlwaysFailTask({ id: "fail", defaults: { input: 5 } });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
+        const downstream = new DoubleTask({ id: "downstream" });
 
         graph.addTasks([failTask, recoveryTask, downstream]);
         graph.addDataflow(
@@ -428,8 +428,8 @@ describe("TimeoutAndErrorRouting", () => {
 
       it("should fail the graph when the recovery task itself fails", async () => {
         const graph = new TaskGraph();
-        const failTask = new AlwaysFailTask({ input: 5 }, { id: "fail" });
-        const failingRecovery = new FailingRecoveryTask({}, { id: "bad-recovery" });
+        const failTask = new AlwaysFailTask({ id: "fail", defaults: { input: 5 } });
+        const failingRecovery = new FailingRecoveryTask({ id: "bad-recovery" });
 
         graph.addTasks([failTask, failingRecovery]);
         graph.addDataflow(
@@ -444,9 +444,9 @@ describe("TimeoutAndErrorRouting", () => {
         // root1 (fails, error-routed) --> recovery
         // root2 (succeeds)            --> leaf
         const graph = new TaskGraph();
-        const failTask = new AlwaysFailTask({}, { id: "fail" });
-        const successTask = new DoubleTask({ input: 7 }, { id: "success" });
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+        const failTask = new AlwaysFailTask({ id: "fail" });
+        const successTask = new DoubleTask({ id: "success", defaults: { input: 7 } });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
 
         graph.addTasks([failTask, successTask, recoveryTask]);
         graph.addDataflow(
@@ -468,10 +468,10 @@ describe("TimeoutAndErrorRouting", () => {
 
       it("should propagate through a deep chain: A fails → B recovers → C doubles → D doubles", async () => {
         const graph = new TaskGraph();
-        const a = new AlwaysFailTask({}, { id: "a" });
-        const b = new ErrorRecoveryTask({}, { id: "b" }); // produces { output: -1 }
-        const c = new DoubleTask({}, { id: "c" }); // doubles to -2
-        const d = new DoubleTask({}, { id: "d" }); // doubles to -4
+        const a = new AlwaysFailTask({ id: "a" });
+        const b = new ErrorRecoveryTask({ id: "b" }); // produces { output: -1 }
+        const c = new DoubleTask({ id: "c" }); // doubles to -2
+        const d = new DoubleTask({ id: "d" }); // doubles to -4
 
         graph.addTasks([a, b, c, d]);
         graph.addDataflow(new Dataflow("a", DATAFLOW_ERROR_PORT, "b", DATAFLOW_ALL_PORTS));
@@ -494,9 +494,9 @@ describe("TimeoutAndErrorRouting", () => {
     describe("Timeout + error routing combined", () => {
       it("should route a timeout error through error-port edges", async () => {
         const graph = new TaskGraph();
-        const slow = new SlowTask({}, { id: "slow", timeout: 30 });
+        const slow = new SlowTask({ id: "slow", timeout: 30 });
         slow.sleepMs = 500;
-        const inspectTask = new InspectingRecoveryTask({}, { id: "inspect" });
+        const inspectTask = new InspectingRecoveryTask({ id: "inspect" });
 
         graph.addTasks([slow, inspectTask]);
         graph.addDataflow(new Dataflow("slow", DATAFLOW_ERROR_PORT, "inspect", DATAFLOW_ALL_PORTS));
@@ -515,7 +515,7 @@ describe("TimeoutAndErrorRouting", () => {
 
       it("should fail the graph when a timed-out task has no error-port edges", async () => {
         const graph = new TaskGraph();
-        const slow = new SlowTask({}, { id: "slow", timeout: 30 });
+        const slow = new SlowTask({ id: "slow", timeout: 30 });
         slow.sleepMs = 500;
 
         graph.addTask(slow);
@@ -533,8 +533,8 @@ describe("TimeoutAndErrorRouting", () => {
     describe("Workflow.onError()", () => {
       it("should add error-port dataflow from previous task to handler", () => {
         const workflow = new Workflow();
-        const failTask = new AlwaysFailTask({}, { id: "fail" });
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+        const failTask = new AlwaysFailTask({ id: "fail" });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
 
         workflow.graph.addTask(failTask);
         workflow.onError(recoveryTask);
@@ -550,15 +550,15 @@ describe("TimeoutAndErrorRouting", () => {
 
       it("should throw if called without a preceding task", () => {
         const workflow = new Workflow();
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
 
         expect(() => workflow.onError(recoveryTask)).toThrow("onError() requires a preceding task");
       });
 
       it("should be chainable and return the workflow", () => {
         const workflow = new Workflow();
-        const failTask = new AlwaysFailTask({}, { id: "fail" });
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
+        const failTask = new AlwaysFailTask({ id: "fail" });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
 
         workflow.graph.addTask(failTask);
         const result = workflow.onError(recoveryTask);
@@ -571,9 +571,9 @@ describe("TimeoutAndErrorRouting", () => {
         // Expected: fail throws → recovery produces { output: -1 } → double produces { output: -2 }
         const workflow = new Workflow();
 
-        const failTask = new AlwaysFailTask({}, { id: "fail" });
-        const recoveryTask = new ErrorRecoveryTask({}, { id: "recovery" });
-        const doubleTask = new DoubleTask({}, { id: "double" });
+        const failTask = new AlwaysFailTask({ id: "fail" });
+        const recoveryTask = new ErrorRecoveryTask({ id: "recovery" });
+        const doubleTask = new DoubleTask({ id: "double" });
 
         // Build the graph manually since pipe() auto-wires normal ports
         workflow.graph.addTask(failTask);

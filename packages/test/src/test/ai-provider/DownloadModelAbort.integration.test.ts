@@ -68,7 +68,7 @@ describe("DownloadModelTask abort behavior", () => {
     await getGlobalModelRepository().addModel(model);
 
     const download = new DownloadModelTask({
-      model: modelId,
+      defaults: { model: modelId },
     });
 
     let progressCount = 0;
