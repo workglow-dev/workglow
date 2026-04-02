@@ -18,24 +18,28 @@ import type { DataPortSchema } from "@workglow/util/schema";
 import { createServiceToken, uuid4 } from "@workglow/util";
 
 // ========================================================================
-// Human connector types
+// Human connector types — aligned with MCP elicitation semantics
 // ========================================================================
+
+/** User action in response to an elicitation, matching MCP's ElicitResult.action */
+export type HumanResponseAction = "accept" | "decline" | "cancel";
 
 /**
  * A request sent to a human via an IHumanConnector.
- * Describes WHO to ask, WHAT to show (via JSON schema), and HOW the interaction works.
+ * Schema follows MCP elicitation conventions (mode, message, requestedSchema).
  */
 export interface IHumanRequest {
   /** Unique identifier for this request (used to correlate follow-ups) */
   readonly requestId: string;
   /** Target human identifier — "default" for the main user, or a specific user/role ID */
   readonly targetHumanId: string;
-  /** JSON schema describing the form/UI to render for the human */
-  readonly schema: DataPortSchema;
-  /** Display title for the request */
-  readonly title: string | undefined;
+  /**
+   * JSON schema describing the form to render for the human.
+   * For MCP elicitation this is a flat object schema (no nesting).
+   */
+  readonly requestedSchema: DataPortSchema;
   /** Explanatory message shown to the human */
-  readonly message: string | undefined;
+  readonly message: string;
   /** Interaction mode: single request-response or multi-turn conversation */
   readonly mode: "single" | "multi-turn";
   /** Arbitrary context data passed through to the connector (e.g. for routing, display hints) */
@@ -44,12 +48,20 @@ export interface IHumanRequest {
 
 /**
  * A response from a human, collected by the IHumanConnector.
+ * Modelled after MCP's ElicitResult: { action, content }.
  */
 export interface IHumanResponse {
   /** Correlates to the IHumanRequest.requestId */
   readonly requestId: string;
-  /** The human's response data, conforming to the request schema */
-  readonly data: Record<string, unknown>;
+  /**
+   * The human's action:
+   * - "accept": user submitted data (content is present)
+   * - "decline": user explicitly refused
+   * - "cancel": user dismissed without choosing
+   */
+  readonly action: HumanResponseAction;
+  /** The human's response data (present when action is "accept") */
+  readonly content: Record<string, unknown> | undefined;
   /** Whether the conversation is complete. Always true for "single" mode. */
   readonly done: boolean;
 }
@@ -57,8 +69,9 @@ export interface IHumanResponse {
 /**
  * Interface for reaching a human and collecting input.
  *
- * The library defines this contract; UI layers (React, CLI, Slack, etc.) provide
- * concrete implementations and register them via ServiceRegistry.
+ * The library defines this contract; UI layers provide concrete implementations.
+ * The primary implementation is McpElicitationConnector which delegates to
+ * MCP Server.elicitInput() for standards-based elicitation.
  */
 export interface IHumanConnector {
   /**
@@ -96,18 +109,13 @@ const humanInputTaskConfigSchema = {
       description: "Identifier of the human to ask (e.g. 'default', 'admin', 'user:alice')",
       default: "default",
     },
-    schema: {
+    requestedSchema: {
       type: "object",
       properties: {},
       additionalProperties: true,
-      title: "Response Schema",
-      description: "JSON schema describing the UI to present to the human",
+      title: "Requested Schema",
+      description: "JSON schema describing the form to present to the human",
       "x-ui-hidden": true,
-    },
-    title: {
-      type: "string",
-      title: "Title",
-      description: "Display title for the human interaction",
     },
     message: {
       type: "string",
@@ -134,10 +142,8 @@ const humanInputTaskConfigSchema = {
 export type HumanInputTaskConfig = TaskConfig & {
   /** Target human identifier — defaults to "default" */
   targetHumanId?: string;
-  /** JSON schema describing the UI/form to render */
-  schema?: DataPortSchema;
-  /** Display title */
-  title?: string;
+  /** JSON schema describing the form to render */
+  requestedSchema?: DataPortSchema;
   /** Explanatory message */
   message?: string;
   /** Interaction mode — defaults to "single" */
@@ -167,7 +173,14 @@ const defaultInputSchema = {
 
 const defaultOutputSchema = {
   type: "object",
-  properties: {},
+  properties: {
+    action: {
+      type: "string",
+      title: "Action",
+      description: "The human's action: accept, decline, or cancel",
+      enum: ["accept", "decline", "cancel"],
+    },
+  },
   additionalProperties: true,
 } as const satisfies DataPortSchema;
 
@@ -176,7 +189,12 @@ export type HumanInputTaskInput = {
   context?: Record<string, unknown>;
 };
 
-export type HumanInputTaskOutput = Record<string, unknown>;
+export type HumanInputTaskOutput = {
+  /** The human's action */
+  action: HumanResponseAction;
+  /** The human's response data (present when action is "accept") */
+  [key: string]: unknown;
+};
 
 // ========================================================================
 // HumanInputTask
@@ -185,8 +203,9 @@ export type HumanInputTaskOutput = Record<string, unknown>;
 /**
  * A task that pauses graph execution to request input from a human.
  *
- * Sends a JSON schema describing the desired UI to an IHumanConnector,
- * waits for the human's response, and returns it as task output.
+ * Uses the MCP elicitation model: sends a JSON schema describing the desired
+ * form to an IHumanConnector, waits for the human's response, and returns it
+ * as task output with an `action` field ("accept", "decline", "cancel").
  *
  * Supports two modes:
  * - "single": One request, one response (default)
@@ -201,7 +220,7 @@ export class HumanInputTask extends Task<
   static override readonly category = "Flow Control";
   public static override title = "Human Input";
   public static override description =
-    "Pauses execution to collect input from a human via a UI described by JSON schema";
+    "Pauses execution to collect input from a human via MCP elicitation";
   static override readonly cacheable = false;
   public static override hasDynamicSchemas = true;
 
@@ -218,27 +237,43 @@ export class HumanInputTask extends Task<
   }
 
   public override outputSchema(): DataPortSchema {
-    return this.config?.schema ?? (this.constructor as typeof HumanInputTask).outputSchema();
+    if (this.config?.requestedSchema) {
+      const configSchema = this.config.requestedSchema as Record<string, unknown>;
+      const existingProps = (configSchema.properties ?? {}) as Record<string, unknown>;
+      const actionProp = {
+        type: "string",
+        title: "Action",
+        description: "The human's action: accept, decline, or cancel",
+        enum: ["accept", "decline", "cancel"],
+      };
+      return {
+        type: "object",
+        properties: { action: actionProp, ...existingProps },
+        additionalProperties: true,
+      } as DataPortSchema;
+    }
+    return (this.constructor as typeof HumanInputTask).outputSchema();
   }
 
   override async execute(
     input: HumanInputTaskInput,
     context: IExecuteContext
   ): Promise<HumanInputTaskOutput> {
-    const connector = this.resolveConnector(context);
+    const connector = resolveHumanConnector(context);
     const mode = this.config.mode ?? "single";
     const requestId = uuid4();
+
+    const message = input.prompt
+      ? this.config.message
+        ? `${this.config.message}\n\n${input.prompt}`
+        : input.prompt
+      : this.config.message ?? "";
 
     const request: IHumanRequest = {
       requestId,
       targetHumanId: this.config.targetHumanId ?? "default",
-      schema: this.config.schema ?? defaultOutputSchema,
-      title: this.config.title,
-      message: input.prompt
-        ? this.config.message
-          ? `${this.config.message}\n\n${input.prompt}`
-          : input.prompt
-        : this.config.message,
+      requestedSchema: this.config.requestedSchema ?? defaultOutputSchema,
+      message,
       mode,
       metadata: input.context
         ? { ...this.config.metadata, ...input.context }
@@ -267,11 +302,7 @@ export class HumanInputTask extends Task<
       }
     }
 
-    return response.data;
-  }
-
-  private resolveConnector(context: IExecuteContext): IHumanConnector {
-    return resolveHumanConnector(context);
+    return { action: response.action, ...response.content };
   }
 }
 
