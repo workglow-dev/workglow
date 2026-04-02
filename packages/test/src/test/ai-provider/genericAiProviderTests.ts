@@ -27,7 +27,7 @@ export interface AiProviderTestSetup {
   /** Human-readable name for describe blocks */
   readonly name: string;
   /** Whether to skip (e.g., missing env var) */
-  readonly skip: boolean;
+  readonly skip?: boolean;
   /** Register the provider + add model records. Called in beforeAll. */
   readonly setup: () => Promise<void>;
   /** Cleanup. Called in afterAll. */
@@ -76,23 +76,39 @@ const finishTool: ToolDefinition = {
   } as const satisfies JsonSchema,
 };
 
-const discoverMagicTool: ToolDefinition = {
-  name: "discover_magic",
+/** Fixture tallies: numeric strings are district IDs, not operands—votes are looked up independently. */
+const DISTRICT_POPULAR_VOTES: Readonly<Record<number, number>> = {
+  3: 70,
+  5: 90,
+};
+
+const getDistrictPopularVotesTool: ToolDefinition = {
+  name: "get_district_popular_votes",
   description:
-    "Discover the magic result of two numbers. Call this tool with parameters a and b to get their secret magic number.",
+    "Returns the combined popular vote count for two electoral districts. Pass each district's numeric identifier; these IDs are labels only—do not add or otherwise combine the ID digits to guess the result.",
   inputSchema: {
     type: "object",
     properties: {
-      a: { type: "number", description: "First number" },
-      b: { type: "number", description: "Second number" },
+      district_a: {
+        type: "number",
+        description:
+          "Numeric identifier of the first electoral district (e.g. 3 means district three, not the quantity three).",
+      },
+      district_b: {
+        type: "number",
+        description:
+          "Numeric identifier of the second electoral district (e.g. 5 means district five, not the quantity five).",
+      },
     },
-    required: ["a", "b"],
+    required: ["district_a", "district_b"],
     additionalProperties: false,
   } as const satisfies JsonSchema,
   execute: async (input: Record<string, unknown>) => {
-    const a = Number(input.a);
-    const b = Number(input.b);
-    return { result: (a + b) * 20 };
+    const districtA = Number(input.district_a);
+    const districtB = Number(input.district_b);
+    const votesA = DISTRICT_POPULAR_VOTES[districtA] ?? 0;
+    const votesB = DISTRICT_POPULAR_VOTES[districtB] ?? 0;
+    return { result: votesA + votesB };
   },
 };
 
@@ -302,13 +318,13 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
     describe("AgentTask", () => {
       it.skipIf(!setup.toolCallingModel)(
-        "should complete an agent loop with a function tool",
+        "should complete an single toolcall agent loop with a function tool",
         async () => {
           const output = await agent({
             model: setup.toolCallingModel!,
             prompt:
-              "What is the magic function of 3 and 5? Use the discover_magic tool to find out.",
-            tools: [discoverMagicTool],
+              "What is the combined popular vote count for electoral districts 3 and 5? Use the get_district_popular_votes tool to look it up.",
+            tools: [getDistrictPopularVotesTool],
             maxIterations: 3,
             maxTokens: setup.maxTokens,
           });
@@ -324,10 +340,10 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
           expect(toolCall).toBeDefined();
           expect(toolCall?.id).toBeDefined();
-          expect(toolCall?.name).toBe("discover_magic");
+          expect(toolCall?.name).toBe("get_district_popular_votes");
           expect(toolCall?.input).toBeDefined();
-          expect(toolCall?.input.a).toBe(3);
-          expect(toolCall?.input.b).toBe(5);
+          expect(toolCall?.input.district_a).toBe(3);
+          expect(toolCall?.input.district_b).toBe(5);
         },
         setup.timeout
       );
@@ -338,8 +354,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
           const output = await agent({
             model: setup.agentModel!,
             prompt:
-              "First find the magic number of 3 and 5 using the discover_magic tool. Wait for the tool call result in another turn, and then call the finish tool with the secret answer you found and put it in a field called 'answer'.",
-            tools: [discoverMagicTool, finishTool],
+              "First look up the combined popular votes for electoral districts 3 and 5 using the get_district_popular_votes tool. Wait for the tool call result in another turn, then call the finish tool with that combined vote total in a field called 'answer'.",
+            tools: [getDistrictPopularVotesTool, finishTool],
             stopTool: "finish",
             maxIterations: 5,
             maxTokens: setup.maxTokens,
@@ -355,10 +371,10 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
           expect(toolCalls).toBeDefined();
           expect(toolCalls?.[0].id).toBeDefined();
-          expect(toolCalls?.[0].name).toBe("discover_magic");
+          expect(toolCalls?.[0].name).toBe("get_district_popular_votes");
           expect(toolCalls?.[0].input).toBeDefined();
-          expect(toolCalls?.[0].input.a).toBe(3);
-          expect(toolCalls?.[0].input.b).toBe(5);
+          expect(toolCalls?.[0].input.district_a).toBe(3);
+          expect(toolCalls?.[0].input.district_b).toBe(5);
           expect(toolCalls?.[1].id).toBeDefined();
           expect(toolCalls?.[1].name).toBe("finish");
           expect(toolCalls?.[1].input).toBeDefined();

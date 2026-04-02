@@ -244,7 +244,7 @@ export const parseLlama: ParserFn = (text) => {
 
   // Check for {"name":...} pattern at end of output (no python_tag)
   if (calls.length === 0) {
-    const jsonPattern = /\{"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{[\s\S]*?\}\s*\}/g;
+    const jsonPattern = /\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"(?:parameters|arguments)"\s*:\s*\{[\s\S]*?\}\s*\}/g;
     let match: RegExpExecArray | null;
     while ((match = jsonPattern.exec(text)) !== null) {
       const parsed = tryParseJson(match[0]) as Record<string, unknown> | undefined;
@@ -252,7 +252,7 @@ export const parseLlama: ParserFn = (text) => {
         calls.push(
           makeToolCall(
             parsed.name as string,
-            (parsed.parameters ?? {}) as Record<string, unknown>,
+            (parsed.parameters ?? parsed.arguments ?? {}) as Record<string, unknown>,
             (parsed.id as string | null) ?? null
           )
         );
@@ -700,9 +700,12 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
  * Also handles variants without `<end_function_call>` (e.g., `<end_of_turn>`).
  */
 export const parseFunctionGemma: ParserFn = (text) => {
-  // Match with explicit end tag
+  // Match with explicit end tag. Allow:
+  // - Optional <start_function_call> wrapper
+  // - `call:name{args}` or just `:name{args}` (model may omit `call` prefix)
+  // - Optional whitespace/newlines between name and `{`
   const regex =
-    /(?:<start_function_call>\s*)?call:([^{\s]+)\{([\s\S]*?)\}(?:\s*<end_function_call>)?/g;
+    /(?:<start_function_call>\s*)?call:([^{\s]+)\s*\{([\s\S]*?)\}(?:\s*<end_function_call>)?/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -710,11 +713,20 @@ export const parseFunctionGemma: ParserFn = (text) => {
     calls.push(makeToolCall(match[1].trim(), parseFunctionGemmaArgs(match[2])));
   }
 
+  // Fallback: handle missing `call` prefix (`:name{args}` at start of text)
+  if (calls.length === 0) {
+    const fallbackRegex = /^:([A-Za-z_]\w*)\s*\{([\s\S]*?)\}$/;
+    const fallbackMatch = text.trim().match(fallbackRegex);
+    if (fallbackMatch) {
+      calls.push(makeToolCall(fallbackMatch[1].trim(), parseFunctionGemmaArgs(fallbackMatch[2])));
+    }
+  }
+
   if (calls.length === 0) return null;
 
   const content = text
     .replace(
-      /(?:<start_function_call>\s*)?call:[^{\s]+\{[\s\S]*?\}(?:\s*<end_function_call>)?/g,
+      /(?:<start_function_call>\s*)?(?:call)?:([A-Za-z_]\w*)\s*\{[\s\S]*?\}(?:\s*<end_function_call>)?/g,
       ""
     )
     .trim();
@@ -722,34 +734,125 @@ export const parseFunctionGemma: ParserFn = (text) => {
 };
 
 /**
- * LiquidAI LFM / LFM2 / LFM2.5
- *
- * Format: `<|tool_call_start|>[func_name(key="value", key2=123)]<|tool_call_end|>`
- * Parallel calls: `<|tool_call_start|>[func1(a="b"), func2(c="d")]<|tool_call_end|>`
- * Uses Pythonic function call syntax inside special tokens.
+ * Parse Liquid/LFM-style Pythonic function call arguments.
+ * Handles both `key=val, key2=val2` and `params=JSON` patterns.
+ * When a single `params` argument contains a JSON object, spreads it.
  */
-export const parseLiquid: ParserFn = (text) => {
-  const match = text.match(/<\|tool_call_start\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/);
-  if (!match) return null;
+function parseLiquidArgs(argsStr: string): Record<string, unknown> {
+  const trimmed = argsStr.trim();
 
-  const inner = match[1].trim();
-  // Strip outer brackets if present: [func(...), func(...)]
-  const unwrapped = inner.startsWith("[") && inner.endsWith("]") ? inner.slice(1, -1) : inner;
-
-  const calls: ToolCall[] = [];
-  // Match individual function calls: func_name(args)
-  const funcRegex = /(\w+)\(([^)]*)\)/g;
-  let funcMatch: RegExpExecArray | null;
-  while ((funcMatch = funcRegex.exec(unwrapped)) !== null) {
-    calls.push(makeToolCall(funcMatch[1], parseKeyValueArgs(funcMatch[2].trim())));
+  // Try params=JSON pattern: params={"key": "val", ...} or params={'key': 'val', ...}
+  const paramsMatch = trimmed.match(/^params\s*=\s*(\{[\s\S]*\})$/);
+  if (paramsMatch) {
+    const jsonStr = paramsMatch[1].replace(/'/g, '"');
+    const parsed = tryParseJson(jsonStr) as Record<string, unknown> | undefined;
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
   }
 
-  if (calls.length === 0) return null;
+  // Try bare JSON object: { key: "val", ... } (JS-style, keys may be unquoted)
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    // Add quotes around unquoted keys for JSON.parse
+    const jsonified = trimmed.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
+    const parsed = tryParseJson(jsonified) as Record<string, unknown> | undefined;
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  }
 
-  const content = stripModelArtifacts(
-    text.replace(/<\|tool_call_start\|>[\s\S]*?<\|tool_call_end\|>/g, "")
-  );
-  return { tool_calls: calls, content, parser: "liquid" };
+  // Fall back to key=value parsing
+  return parseKeyValueArgs(argsStr);
+}
+
+/**
+ * Extract Pythonic function calls from text: `func_name(args)` or `[func(args)]`.
+ * Handles balanced parentheses so JSON in args doesn't break matching.
+ */
+function extractPythonicCalls(text: string): ToolCall[] {
+  const calls: ToolCall[] = [];
+  const startRegex = /(\w+)\(/g;
+  let startMatch: RegExpExecArray | null;
+  while ((startMatch = startRegex.exec(text)) !== null) {
+    const funcName = startMatch[1];
+    const argsStart = startMatch.index + startMatch[0].length;
+    // Balance parentheses to find the closing )
+    let depth = 1;
+    let i = argsStart;
+    while (i < text.length && depth > 0) {
+      if (text[i] === "(") depth++;
+      else if (text[i] === ")") depth--;
+      i++;
+    }
+    if (depth === 0) {
+      const argsStr = text.slice(argsStart, i - 1);
+      calls.push(makeToolCall(funcName, parseLiquidArgs(argsStr)));
+    }
+  }
+  return calls;
+}
+
+/**
+ * LiquidAI LFM / LFM2 / LFM2.5
+ *
+ * Formats:
+ * - `<|tool_call_start|>[func_name(key="value", key2=123)]<|tool_call_end|>`
+ * - `[func_name(params={"key": "val"})]` (bracket-only, no special tokens)
+ * Parallel calls: `<|tool_call_start|>[func1(a="b"), func2(c="d")]<|tool_call_end|>`
+ * Uses Pythonic function call syntax.
+ */
+export const parseLiquid: ParserFn = (text) => {
+  // Try special token format first
+  const specialMatch = text.match(/<\|tool_call_start\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/);
+  if (specialMatch) {
+    const inner = specialMatch[1].trim();
+    const unwrapped = inner.startsWith("[") && inner.endsWith("]") ? inner.slice(1, -1) : inner;
+    const calls = extractPythonicCalls(unwrapped);
+    if (calls.length > 0) {
+      const content = stripModelArtifacts(
+        text.replace(/<\|tool_call_start\|>[\s\S]*?<\|tool_call_end\|>/g, "")
+      );
+      return { tool_calls: calls, content, parser: "liquid" };
+    }
+  }
+
+  // Try bracket-only format: [func(args)] without special tokens
+  const bracketRegex = /\[(\w+\([^)]*(?:\([^)]*\))*[^)]*\))\]/g;
+  const bracketCalls: ToolCall[] = [];
+  let bracketMatch: RegExpExecArray | null;
+  while ((bracketMatch = bracketRegex.exec(text)) !== null) {
+    const inner = bracketMatch[1];
+    const calls = extractPythonicCalls(inner);
+    bracketCalls.push(...calls);
+  }
+
+  if (bracketCalls.length > 0) {
+    const content = stripModelArtifacts(
+      text.replace(/\[\w+\([^)]*(?:\([^)]*\))*[^)]*\)\]/g, "")
+    );
+    return { tool_calls: bracketCalls, content, parser: "liquid" };
+  }
+
+  // Try ||Call: format (LFM2 text-based variant): ||Call: func_name(args)
+  const callPrefixRegex = /\|?\|?Call:\s*/g;
+  let callPrefixMatch: RegExpExecArray | null;
+  const callCalls: ToolCall[] = [];
+  while ((callPrefixMatch = callPrefixRegex.exec(text)) !== null) {
+    const afterPrefix = text.slice(callPrefixMatch.index + callPrefixMatch[0].length);
+    const calls = extractPythonicCalls(afterPrefix);
+    if (calls.length > 0) {
+      callCalls.push(calls[0]);
+    }
+  }
+
+  if (callCalls.length > 0) {
+    const content = stripModelArtifacts(
+      text.replace(/\|?\|?Call:\s*\w+\([^]*?\)/g, "")
+    );
+    return { tool_calls: callCalls, content, parser: "liquid" };
+  }
+
+  return null;
 };
 
 /**
