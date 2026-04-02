@@ -10,8 +10,7 @@ import {
   FromSchema,
   normalizeNumberArray,
   TensorType,
-  turboQuantize,
-  turboDequantize,
+  turboQuantizeToTypedArray,
   TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
@@ -62,17 +61,8 @@ const inputSchema = {
       enum: Object.values(QuantizationMethod),
       title: "Method",
       description:
-        "Quantization method: 'linear' for simple min-max scaling, 'turbo' for TurboQuant (rotation + optimal scalar quantization with near-optimal distortion)",
+        "Quantization method: 'linear' for simple min-max scaling, 'turbo' for TurboQuant (randomized rotation + optimal scalar quantization, better distortion than linear at the same bit width). Turbo requires an integer targetType (int8, uint8, int16, uint16).",
       default: QuantizationMethod.LINEAR,
-    },
-    turboBits: {
-      type: "integer",
-      title: "TurboQuant Bits",
-      description:
-        "Bits per dimension for TurboQuant method (1-8). Lower = more compression. 4 bits gives ~8x compression with near-lossless quality.",
-      default: 4,
-      minimum: 1,
-      maximum: 8,
     },
     turboSeed: {
       type: "integer",
@@ -155,7 +145,6 @@ export class VectorQuantizeTask extends Task<
       targetType,
       normalize = true,
       method = QuantizationMethod.LINEAR,
-      turboBits = 4,
       turboSeed = 42,
     } = input;
     const isArray = Array.isArray(vector);
@@ -165,19 +154,10 @@ export class VectorQuantizeTask extends Task<
     let quantized: TypedArray[];
 
     if (method === QuantizationMethod.TURBO) {
-      quantized = vectors.map((v) => {
-        const result = turboQuantize(v, { bits: turboBits, seed: turboSeed });
-        return turboDequantize(result);
-      });
-      // TurboQuant quantize+dequantize always produces Float32; report the
-      // actual returned type so the caller is never misled.
-      return {
-        vector: isArray ? quantized : quantized[0],
-        originalType,
-        targetType: TensorType.FLOAT32,
-      };
+      quantized = vectors.map((v) => turboQuantizeToTypedArray(v, targetType, turboSeed));
+    } else {
+      quantized = vectors.map((v) => this.vectorQuantize(v, targetType, normalize));
     }
-    quantized = vectors.map((v) => this.vectorQuantize(v, targetType, normalize));
 
     return {
       vector: isArray ? quantized : quantized[0],
