@@ -165,9 +165,7 @@ export function parseFunctionGemmaArgumentValue(rawValue: string): unknown {
  * Parse a loose `{key: value, ...}` object that may not be valid JSON.
  * Used as a FunctionGemma fallback when models emit partial syntax.
  */
-export function parseFunctionGemmaLooseObject(
-  text: string
-): Record<string, unknown> | undefined {
+export function parseFunctionGemmaLooseObject(text: string): Record<string, unknown> | undefined {
   const trimmed = text.trim();
   if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
     return undefined;
@@ -244,7 +242,8 @@ export const parseLlama: ParserFn = (text) => {
 
   // Check for {"name":...} pattern at end of output (no python_tag)
   if (calls.length === 0) {
-    const jsonPattern = /\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"(?:parameters|arguments)"\s*:\s*\{[\s\S]*?\}\s*\}/g;
+    const jsonPattern =
+      /\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"(?:parameters|arguments)"\s*:\s*\{[\s\S]*?\}\s*\}/g;
     let match: RegExpExecArray | null;
     while ((match = jsonPattern.exec(text)) !== null) {
       const parsed = tryParseJson(match[0]) as Record<string, unknown> | undefined;
@@ -829,9 +828,7 @@ export const parseLiquid: ParserFn = (text) => {
   }
 
   if (bracketCalls.length > 0) {
-    const content = stripModelArtifacts(
-      text.replace(/\[\w+\([^)]*(?:\([^)]*\))*[^)]*\)\]/g, "")
-    );
+    const content = stripModelArtifacts(text.replace(/\[\w+\([^)]*(?:\([^)]*\))*[^)]*\)\]/g, ""));
     return { tool_calls: bracketCalls, content, parser: "liquid" };
   }
 
@@ -848,9 +845,7 @@ export const parseLiquid: ParserFn = (text) => {
   }
 
   if (callCalls.length > 0) {
-    const content = stripModelArtifacts(
-      text.replace(/\|?\|?Call:\s*\w+\([^]*?\)/g, "")
-    );
+    const content = stripModelArtifacts(text.replace(/\|?\|?Call:\s*\w+\([^]*?\)/g, ""));
     return { tool_calls: callCalls, content, parser: "liquid" };
   }
 

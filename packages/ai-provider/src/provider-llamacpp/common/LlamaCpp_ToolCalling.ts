@@ -348,10 +348,7 @@ async function* streamTextChunks<T>(
   startGeneration: (onTextChunk: (chunk: string) => void) => Promise<T>,
   signal: AbortSignal,
   cleanup: () => void
-): AsyncGenerator<
-  StreamEvent<ToolCallingTaskOutput>,
-  { text: string; result: T | undefined }
-> {
+): AsyncGenerator<StreamEvent<ToolCallingTaskOutput>, { text: string; result: T | undefined }> {
   const queue: string[] = [];
   let isComplete = false;
   let completionError: unknown;
