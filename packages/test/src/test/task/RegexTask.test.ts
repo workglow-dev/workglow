@@ -16,7 +16,7 @@ describe("RegexTask", () => {
   let task: RegexTask;
 
   beforeEach(() => {
-    task = new RegexTask({}, { id: "regex-test" });
+    task = new RegexTask({ id: "regex-test" });
   });
 
   it("should have correct static properties", () => {

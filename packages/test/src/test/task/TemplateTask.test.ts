@@ -16,7 +16,7 @@ describe("TemplateTask", () => {
   let task: TemplateTask;
 
   beforeEach(() => {
-    task = new TemplateTask({}, { id: "template-test" });
+    task = new TemplateTask({ id: "template-test" });
   });
 
   it("should have correct static properties", () => {

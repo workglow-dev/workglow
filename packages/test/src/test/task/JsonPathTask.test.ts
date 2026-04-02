@@ -16,7 +16,7 @@ describe("JsonPathTask", () => {
   let task: JsonPathTask;
 
   beforeEach(() => {
-    task = new JsonPathTask({}, { id: "jsonpath-test" });
+    task = new JsonPathTask({ id: "jsonpath-test" });
   });
 
   it("should have correct static properties", () => {

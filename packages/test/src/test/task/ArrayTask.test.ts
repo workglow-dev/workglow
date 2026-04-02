@@ -438,15 +438,13 @@ describe("ArrayTask", () => {
   });
 
   test("MultiplyRunTask in task mode reactive run", async () => {
-    const task = new MultiplyRunTask(
-      {
-        a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        b: 10,
-      },
-      {
+    const task = new MultiplyRunTask({
         id: "test",
-      }
-    );
+        defaults: {
+          a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          b: 10,
+        },
+      });
     {
       // const results = await task.runReactive();
       // expect(results).toEqual({} as any);
@@ -828,8 +826,8 @@ describe("ArrayTask", () => {
 
   test("Task runReactive works task graph mode", async () => {
     const graph = new TaskGraph();
-    const task1 = new JobQueueReactiveTask2({ value: 7 }, { id: "task1" });
-    const task2 = new JobQueueReactiveTask2({ value: 8 }, { id: "task2" });
+    const task1 = new JobQueueReactiveTask2({ id: "task1", defaults: { value: 7 } });
+    const task2 = new JobQueueReactiveTask2({ id: "task2", defaults: { value: 8 } });
     graph.addTask(task1);
     graph.addTask(task2);
     graph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
