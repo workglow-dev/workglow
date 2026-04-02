@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, GraphAsTask, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, GraphAsTask, Workflow, type TaskConfig } from "@workglow/task-graph";
 import {
   cosineSimilarity,
   DataPortSchema,
@@ -93,11 +93,12 @@ export type VectorSimilarityTaskOutput = FromSchema<
   typeof SimilarityOutputSchema,
   TypedArraySchemaOptions
 >;
+export type VectorSimilarityTaskConfig = TaskConfig<VectorSimilarityTaskInput>;
 
 export class VectorSimilarityTask extends GraphAsTask<
   VectorSimilarityTaskInput,
   VectorSimilarityTaskOutput,
-  TaskConfig
+  VectorSimilarityTaskConfig
 > {
   static override readonly type = "VectorSimilarityTask";
   static override readonly category = "Vector";
@@ -135,13 +136,20 @@ export class VectorSimilarityTask extends GraphAsTask<
   }
 }
 
-export const similarity = (input: VectorSimilarityTaskInput, config?: TaskConfig) => {
+export const similarity = (
+  input: VectorSimilarityTaskInput,
+  config?: VectorSimilarityTaskConfig
+) => {
   return new VectorSimilarityTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    similarity: CreateWorkflow<VectorSimilarityTaskInput, VectorSimilarityTaskOutput, TaskConfig>;
+    similarity: CreateWorkflow<
+      VectorSimilarityTaskInput,
+      VectorSimilarityTaskOutput,
+      VectorSimilarityTaskConfig
+    >;
   }
 }
 

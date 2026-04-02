@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -83,11 +83,12 @@ export const TextGenerationOutputSchema = {
 
 export type TextGenerationTaskInput = FromSchema<typeof TextGenerationInputSchema>;
 export type TextGenerationTaskOutput = FromSchema<typeof TextGenerationOutputSchema>;
+export type TextGenerationTaskConfig = TaskConfig<TextGenerationTaskInput>;
 
 export class TextGenerationTask extends StreamingAiTask<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
-  TaskConfig
+  TextGenerationTaskConfig
 > {
   public static override type = "TextGenerationTask";
   public static override category = "AI Text Model";
@@ -105,13 +106,20 @@ export class TextGenerationTask extends StreamingAiTask<
 /**
  * Task for generating text using a language model
  */
-export const textGeneration = (input: TextGenerationTaskInput, config?: TaskConfig) => {
+export const textGeneration = (
+  input: TextGenerationTaskInput,
+  config?: TextGenerationTaskConfig
+) => {
   return new TextGenerationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    textGeneration: CreateWorkflow<TextGenerationTaskInput, TextGenerationTaskOutput, TaskConfig>;
+    textGeneration: CreateWorkflow<
+      TextGenerationTaskInput,
+      TextGenerationTaskOutput,
+      TextGenerationTaskConfig
+    >;
   }
 }
 

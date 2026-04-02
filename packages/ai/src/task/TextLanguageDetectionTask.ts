@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -100,13 +100,15 @@ export const TextLanguageDetectionOutputSchema = {
 
 export type TextLanguageDetectionTaskInput = FromSchema<typeof TextLanguageDetectionInputSchema>;
 export type TextLanguageDetectionTaskOutput = FromSchema<typeof TextLanguageDetectionOutputSchema>;
+export type TextLanguageDetectionTaskConfig = TaskConfig<TextLanguageDetectionTaskInput>;
 
 /**
  * Detects the language of text using language models
  */
 export class TextLanguageDetectionTask extends AiTask<
   TextLanguageDetectionTaskInput,
-  TextLanguageDetectionTaskOutput
+  TextLanguageDetectionTaskOutput,
+  TextLanguageDetectionTaskConfig
 > {
   public static override type = "TextLanguageDetectionTask";
   public static override category = "AI Text Model";
@@ -128,7 +130,7 @@ export class TextLanguageDetectionTask extends AiTask<
  */
 export const textLanguageDetection = (
   input: TextLanguageDetectionTaskInput,
-  config?: TaskConfig
+  config?: TextLanguageDetectionTaskConfig
 ) => {
   return new TextLanguageDetectionTask(config).run(input);
 };
@@ -138,7 +140,7 @@ declare module "@workglow/task-graph" {
     textLanguageDetection: CreateWorkflow<
       TextLanguageDetectionTaskInput,
       TextLanguageDetectionTaskOutput,
-      TaskConfig
+      TextLanguageDetectionTaskConfig
     >;
   }
 }

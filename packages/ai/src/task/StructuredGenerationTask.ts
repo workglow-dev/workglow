@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -65,11 +65,12 @@ export const StructuredGenerationOutputSchema = {
 
 export type StructuredGenerationTaskInput = FromSchema<typeof StructuredGenerationInputSchema>;
 export type StructuredGenerationTaskOutput = FromSchema<typeof StructuredGenerationOutputSchema>;
+export type StructuredGenerationTaskConfig = TaskConfig<StructuredGenerationTaskInput>;
 
 export class StructuredGenerationTask extends StreamingAiTask<
   StructuredGenerationTaskInput,
   StructuredGenerationTaskOutput,
-  TaskConfig
+  StructuredGenerationTaskConfig
 > {
   public static override type = "StructuredGenerationTask";
   public static override category = "AI Text Model";
@@ -87,7 +88,10 @@ export class StructuredGenerationTask extends StreamingAiTask<
 /**
  * Task for generating structured JSON output using a language model
  */
-export const structuredGeneration = (input: StructuredGenerationTaskInput, config?: TaskConfig) => {
+export const structuredGeneration = (
+  input: StructuredGenerationTaskInput,
+  config?: StructuredGenerationTaskConfig
+) => {
   return new StructuredGenerationTask(config).run(input);
 };
 
@@ -96,7 +100,7 @@ declare module "@workglow/task-graph" {
     structuredGeneration: CreateWorkflow<
       StructuredGenerationTaskInput,
       StructuredGenerationTaskOutput,
-      TaskConfig
+      StructuredGenerationTaskConfig
     >;
   }
 }

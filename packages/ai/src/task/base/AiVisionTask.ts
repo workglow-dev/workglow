@@ -4,25 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TaskInput, type TaskOutput } from "@workglow/task-graph";
+import { type TaskConfig, type TaskOutput } from "@workglow/task-graph";
 import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";
 import type { ModelConfig } from "../../model/ModelSchema";
-import { AiTask, type AiTaskConfig } from "./AiTask";
-
-export interface AiVisionTaskSingleInput extends TaskInput {
-  model: string | ModelConfig;
-}
+import { AiTask, AiTaskInput } from "./AiTask";
 
 /**
  * A base class for AI vision tasks.
  * Handles image format conversion based on the target provider's capabilities.
  */
 export class AiVisionTask<
-  Input extends AiVisionTaskSingleInput = AiVisionTaskSingleInput,
+  Input extends AiTaskInput = AiTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends AiTaskConfig = AiTaskConfig,
+  Config extends TaskConfig<Input> = TaskConfig<Input>,
 > extends AiTask<Input, Output, Config> {
   public static override type: string = "AiVisionTask";
 

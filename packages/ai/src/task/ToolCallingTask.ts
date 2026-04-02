@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, getTaskConstructors, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  getTaskConstructors,
+  type TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ServiceRegistry } from "@workglow/util";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -262,6 +267,7 @@ export type ToolCallingTaskInput = Omit<FromSchema<typeof ToolCallingInputSchema
 };
 
 export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
+export type ToolCallingTaskConfig = TaskConfig<ToolCallingTaskInput>;
 
 // ========================================================================
 // Task class
@@ -270,7 +276,7 @@ export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
 export class ToolCallingTask extends StreamingAiTask<
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
-  TaskConfig
+  ToolCallingTaskConfig
 > {
   public static override type = "ToolCallingTask";
   public static override category = "AI Text Model";
@@ -288,13 +294,13 @@ export class ToolCallingTask extends StreamingAiTask<
 /**
  * Convenience function to run a tool calling task.
  */
-export const toolCalling = (input: ToolCallingTaskInput, config?: TaskConfig) => {
+export const toolCalling = (input: ToolCallingTaskInput, config?: ToolCallingTaskConfig) => {
   return new ToolCallingTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    toolCalling: CreateWorkflow<ToolCallingTaskInput, ToolCallingTaskOutput, TaskConfig>;
+    toolCalling: CreateWorkflow<ToolCallingTaskInput, ToolCallingTaskOutput, ToolCallingTaskConfig>;
   }
 }
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeLanguage, TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -61,18 +61,21 @@ export const TextTranslationOutputSchema = {
 
 export type TextTranslationTaskInput = FromSchema<typeof TextTranslationInputSchema>;
 export type TextTranslationTaskOutput = FromSchema<typeof TextTranslationOutputSchema>;
+export type TextTranslationTaskConfig = TaskConfig<TextTranslationTaskInput>;
 
 /**
  * This translates text from one language to another
  */
 export class TextTranslationTask extends StreamingAiTask<
   TextTranslationTaskInput,
-  TextTranslationTaskOutput
+  TextTranslationTaskOutput,
+  TextTranslationTaskConfig
 > {
   public static override type = "TextTranslationTask";
   public static override category = "AI Text Model";
   public static override title = "Text Translation";
-  public static override description = "Translates text from one language to another using language models";
+  public static override description =
+    "Translates text from one language to another using language models";
   public static override inputSchema(): DataPortSchema {
     return TextTranslationInputSchema as DataPortSchema;
   }
@@ -87,7 +90,10 @@ export class TextTranslationTask extends StreamingAiTask<
  * @param input The input parameters for text translation (text, model, source_lang, and target_lang)
  * @returns Promise resolving to the translated text output(s)
  */
-export const textTranslation = (input: TextTranslationTaskInput, config?: TaskConfig) => {
+export const textTranslation = (
+  input: TextTranslationTaskInput,
+  config?: TextTranslationTaskConfig
+) => {
   return new TextTranslationTask(config).run(input);
 };
 
@@ -96,7 +102,7 @@ declare module "@workglow/task-graph" {
     textTranslation: CreateWorkflow<
       TextTranslationTaskInput,
       TextTranslationTaskOutput,
-      TaskConfig
+      TextTranslationTaskConfig
     >;
   }
 }

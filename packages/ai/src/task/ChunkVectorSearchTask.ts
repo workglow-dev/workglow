@@ -5,7 +5,13 @@
  */
 
 import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -95,6 +101,7 @@ const outputSchema = {
 
 export type VectorStoreSearchTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
 export type VectorStoreSearchTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
+export type ChunkVectorSearchTaskConfig = TaskConfig<VectorStoreSearchTaskInput>;
 
 /**
  * Task for searching similar vectors in a knowledge base.
@@ -103,7 +110,7 @@ export type VectorStoreSearchTaskOutput = FromSchema<typeof outputSchema, TypedA
 export class ChunkVectorSearchTask extends Task<
   VectorStoreSearchTaskInput,
   VectorStoreSearchTaskOutput,
-  TaskConfig
+  ChunkVectorSearchTaskConfig
 > {
   public static override type = "ChunkVectorSearchTask";
   public static override category = "Vector Store";
@@ -143,7 +150,10 @@ export class ChunkVectorSearchTask extends Task<
   }
 }
 
-export const vectorStoreSearch = (input: VectorStoreSearchTaskInput, config?: TaskConfig) => {
+export const vectorStoreSearch = (
+  input: VectorStoreSearchTaskInput,
+  config?: ChunkVectorSearchTaskConfig
+) => {
   return new ChunkVectorSearchTask(config).run(input);
 };
 
@@ -152,7 +162,7 @@ declare module "@workglow/task-graph" {
     vectorStoreSearch: CreateWorkflow<
       VectorStoreSearchTaskInput,
       VectorStoreSearchTaskOutput,
-      TaskConfig
+      ChunkVectorSearchTaskConfig
     >;
   }
 }

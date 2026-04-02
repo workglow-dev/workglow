@@ -13,7 +13,13 @@ import {
   type DocumentNode,
   type TokenBudget,
 } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
 import { CountTokensTask } from "./CountTokensTask";
@@ -102,6 +108,7 @@ const outputSchema = {
 
 export type HierarchicalChunkerTaskInput = FromSchema<typeof inputSchema>;
 export type HierarchicalChunkerTaskOutput = FromSchema<typeof outputSchema>;
+export type HierarchicalChunkerTaskConfig = TaskConfig<HierarchicalChunkerTaskInput>;
 
 /**
  * Task for hierarchical chunking that respects token budgets and document structure.
@@ -112,7 +119,7 @@ export type HierarchicalChunkerTaskOutput = FromSchema<typeof outputSchema>;
 export class HierarchicalChunkerTask extends Task<
   HierarchicalChunkerTaskInput,
   HierarchicalChunkerTaskOutput,
-  TaskConfig
+  HierarchicalChunkerTaskConfig
 > {
   public static override type = "HierarchicalChunkerTask";
   public static override category = "Document";
@@ -335,7 +342,10 @@ export class HierarchicalChunkerTask extends Task<
   }
 }
 
-export const hierarchicalChunker = (input: HierarchicalChunkerTaskInput, config?: TaskConfig) => {
+export const hierarchicalChunker = (
+  input: HierarchicalChunkerTaskInput,
+  config?: HierarchicalChunkerTaskConfig
+) => {
   return new HierarchicalChunkerTask(config).run(input);
 };
 
@@ -344,7 +354,7 @@ declare module "@workglow/task-graph" {
     hierarchicalChunker: CreateWorkflow<
       HierarchicalChunkerTaskInput,
       HierarchicalChunkerTaskOutput,
-      TaskConfig
+      HierarchicalChunkerTaskConfig
     >;
   }
 }
