@@ -160,8 +160,7 @@ export abstract class ArrayTask<
       // Create a new instance of this same class
       const { id, title, ...rest } = this.config;
       const task = new (this.constructor as any)(
-        { ...this.defaults, ...this.runInputData, ...combination },
-        { ...rest, id: `${id}_${uuid4()}` },
+        { ...rest, id: `${id}_${uuid4()}`, defaults: { ...this.defaults, ...this.runInputData, ...combination } },
         this.runConfig
       );
       return task;
