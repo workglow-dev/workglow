@@ -429,7 +429,7 @@ export class Workflow<
 
       const task = this.addTaskToGraph<I, O, C>(
         taskClass,
-        { id: uuid4(), ...config, defaults: input } as C
+        { id: uuid4(), ...config, defaults: input } as unknown as C
       );
 
       // Process any pending data flows
