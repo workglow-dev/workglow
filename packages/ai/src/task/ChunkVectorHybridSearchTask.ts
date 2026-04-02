@@ -210,7 +210,7 @@ export const hybridSearch = async (
   input: HybridSearchTaskInput,
   config?: TaskConfig
 ): Promise<HybridSearchTaskOutput> => {
-  return new ChunkVectorHybridSearchTask({} as HybridSearchTaskInput, config).run(input);
+  return new ChunkVectorHybridSearchTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

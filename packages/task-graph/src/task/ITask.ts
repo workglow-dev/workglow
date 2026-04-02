@@ -265,11 +265,7 @@ type ITaskConstructorType<
   Input extends TaskInput,
   Output extends TaskOutput,
   Config extends TaskConfig,
-> = new (
-  input: Input,
-  config: Config,
-  runConfig?: Partial<IRunConfig>
-) => ITask<Input, Output, Config>;
+> = new (config: Config, runConfig?: Partial<IRunConfig>) => ITask<Input, Output, Config>;
 
 /**
  * Interface for task constructor with static properties

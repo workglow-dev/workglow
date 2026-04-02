@@ -112,7 +112,7 @@ export class ImageSegmentationTask extends AiVisionTask<
  * @returns Promise resolving to the segmentation masks with labels and scores
  */
 export const imageSegmentation = (input: ImageSegmentationTaskInput, config?: TaskConfig) => {
-  return new ImageSegmentationTask({} as ImageSegmentationTaskInput, config).run(input);
+  return new ImageSegmentationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

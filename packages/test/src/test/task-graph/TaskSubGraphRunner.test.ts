@@ -43,8 +43,8 @@ describe("TaskSubGraphRunner", () => {
     let nodes: ITask[];
     beforeEach(() => {
       nodes = [
-        new TestSquareTask({ input: 5 }, { id: "task1" }),
-        new TestDoubleTask({ input: 5 }, { id: "task2" }),
+        new TestSquareTask({ id: "task1", defaults: { input: 5 } }),
+        new TestDoubleTask({ id: "task2", defaults: { input: 5 } }),
       ];
       graph.addTasks(nodes);
     });
@@ -63,7 +63,7 @@ describe("TaskSubGraphRunner", () => {
 
   describe("error handling", () => {
     it("should handle task failure", async () => {
-      const failingTask = new FailingTask({}, { id: "failingTaskId" });
+      const failingTask = new FailingTask({ id: "failingTaskId" });
       graph.addTask(failingTask);
 
       let error: TaskFailedError | undefined;
@@ -81,7 +81,7 @@ describe("TaskSubGraphRunner", () => {
     });
 
     it("should handle task abortion", async () => {
-      const longRunningTask = new LongRunningTask({}, { id: "longRunningTaskId" });
+      const longRunningTask = new LongRunningTask({ id: "longRunningTaskId" });
       graph.addTask(longRunningTask);
 
       let error: TaskError | undefined;
@@ -99,8 +99,8 @@ describe("TaskSubGraphRunner", () => {
     });
 
     it("should handle task failure in a chain", async () => {
-      const squareTask = new TestSquareTask({ input: 5 }, { id: "square" });
-      const failingTask = new FailingTask({}, { id: "failing" });
+      const squareTask = new TestSquareTask({ id: "square", defaults: { input: 5 } });
+      const failingTask = new FailingTask({ id: "failing" });
       graph.addTasks([squareTask, failingTask]);
       graph.addDataflow(new Dataflow("square", "output", "failing", "in"));
 
@@ -118,8 +118,8 @@ describe("TaskSubGraphRunner", () => {
     });
 
     it("should handle multiple task failures", async () => {
-      const failingTask1 = new FailingTask({}, { id: "failing1" });
-      const failingTask2 = new FailingTask({}, { id: "failing2" });
+      const failingTask1 = new FailingTask({ id: "failing1" });
+      const failingTask2 = new FailingTask({ id: "failing2" });
       graph.addTasks([failingTask1, failingTask2]);
       graph.addDataflow(new Dataflow("failing1", "out", "failing2", "in"));
 
@@ -155,7 +155,7 @@ describe("TaskSubGraphRunner", () => {
     });
 
     it("should handle task aborting after a delay", async () => {
-      const abortingTask = new FailingTask({}, { id: "abortingTaskId" });
+      const abortingTask = new FailingTask({ id: "abortingTaskId" });
       graph.addTask(abortingTask);
 
       let error: TaskError | undefined;
@@ -172,8 +172,8 @@ describe("TaskSubGraphRunner", () => {
     });
 
     it("should handle task aborting in a chain, immediate abort", async () => {
-      const squareTask = new TestSquareTask({ input: 5 }, { id: "square" });
-      const failingTask = new FailingTask({}, { id: "failing" });
+      const squareTask = new TestSquareTask({ id: "square", defaults: { input: 5 } });
+      const failingTask = new FailingTask({ id: "failing" });
       graph.addTasks([squareTask, failingTask]);
       graph.addDataflow(new Dataflow("square", "output", "failing", "in"));
 
@@ -191,8 +191,8 @@ describe("TaskSubGraphRunner", () => {
     });
 
     it("should handle task aborting in a chain, delayed abort", async () => {
-      const squareTask = new TestSquareTask({ input: 5 }, { id: "square" });
-      const failingTask = new FailingTask({}, { id: "failing" });
+      const squareTask = new TestSquareTask({ id: "square", defaults: { input: 5 } });
+      const failingTask = new FailingTask({ id: "failing" });
       graph.addTasks([squareTask, failingTask]);
       graph.addDataflow(new Dataflow("square", "output", "failing", "in"));
 
@@ -211,8 +211,8 @@ describe("TaskSubGraphRunner", () => {
     });
 
     it("should handle multiple task abortings", async () => {
-      const abortingTask1 = new FailingTask({}, { id: "aborting1" });
-      const abortingTask2 = new FailingTask({}, { id: "aborting2" });
+      const abortingTask1 = new FailingTask({ id: "aborting1" });
+      const abortingTask2 = new FailingTask({ id: "aborting2" });
       graph.addTasks([abortingTask1, abortingTask2]);
       graph.addDataflow(new Dataflow("aborting1", "output", "aborting2", "input"));
 

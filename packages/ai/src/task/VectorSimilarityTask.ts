@@ -136,7 +136,7 @@ export class VectorSimilarityTask extends GraphAsTask<
 }
 
 export const similarity = (input: VectorSimilarityTaskInput, config?: TaskConfig) => {
-  return new VectorSimilarityTask({} as VectorSimilarityTaskInput, config).run(input);
+  return new VectorSimilarityTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

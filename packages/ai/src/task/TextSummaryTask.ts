@@ -67,7 +67,7 @@ export class TextSummaryTask extends StreamingAiTask<TextSummaryTaskInput, TextS
  * @returns Promise resolving to the summarized text output(s)
  */
 export const textSummary = async (input: TextSummaryTaskInput, config?: TaskConfig) => {
-  return new TextSummaryTask({} as TextSummaryTaskInput, config).run(input);
+  return new TextSummaryTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

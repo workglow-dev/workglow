@@ -277,7 +277,7 @@ export const mcpList = async (
   input: McpListTaskInput,
   config: TaskConfig = {}
 ): Promise<McpListTaskOutput> => {
-  return new McpListTask({}, config).run(input);
+  return new McpListTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

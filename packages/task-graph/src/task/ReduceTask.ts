@@ -51,14 +51,14 @@ export class ReduceTask<
     return reduceTaskConfigSchema;
   }
 
-  constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
+  constructor(config: Partial<Config> = {}) {
     // Reduce is always sequential
     const reduceConfig = {
       ...config,
       concurrencyLimit: 1,
       batchSize: 1,
     };
-    super(input, reduceConfig as Config);
+    super(reduceConfig as Partial<Config>);
   }
 
   /**

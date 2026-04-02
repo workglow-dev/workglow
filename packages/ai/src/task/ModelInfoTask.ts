@@ -97,7 +97,7 @@ export class ModelInfoTask extends AiTask<ModelInfoTaskInput, ModelInfoTaskOutpu
  * @returns Promise resolving to model info including locality and cache status
  */
 export const modelInfo = (input: ModelInfoTaskInput, config?: AiTaskConfig) => {
-  return new ModelInfoTask({} as ModelInfoTaskInput, config).run(input);
+  return new ModelInfoTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

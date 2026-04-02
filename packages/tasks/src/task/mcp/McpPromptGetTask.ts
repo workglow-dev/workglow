@@ -276,7 +276,7 @@ export const mcpPromptGet = async (
   input: McpPromptGetTaskInput,
   config: McpPromptGetTaskConfig
 ): Promise<McpPromptGetTaskOutput> => {
-  return new McpPromptGetTask({}, config).run(input);
+  return new McpPromptGetTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

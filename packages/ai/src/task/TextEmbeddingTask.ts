@@ -79,7 +79,7 @@ export class TextEmbeddingTask extends AiTask<TextEmbeddingTaskInput, TextEmbedd
  * @returns  Promise resolving to the generated embeddings
  */
 export const textEmbedding = async (input: TextEmbeddingTaskInput, config?: TaskConfig) => {
-  return new TextEmbeddingTask({} as TextEmbeddingTaskInput, config).run(input);
+  return new TextEmbeddingTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -41,9 +41,9 @@ describe("TaskGraphRunner", () => {
   beforeEach(() => {
     graph = new TaskGraph();
     nodes = [
-      new TestIOTask({}, { id: "task0" }),
-      new TestSquareTask({ input: 5 }, { id: "task1" }),
-      new TestDoubleTask({ input: 5 }, { id: "task2" }),
+      new TestIOTask({ id: "task0" }),
+      new TestSquareTask({ id: "task1", defaults: { input: 5 } }),
+      new TestDoubleTask({ id: "task2", defaults: { input: 5 } }),
     ];
     graph.addTasks(nodes);
     runner = new TaskGraphRunner(graph);
@@ -70,7 +70,7 @@ describe("TaskGraphRunner", () => {
     });
 
     it("should run the graph in the correct order with dependencies", async () => {
-      const task3 = new TestAddTask({}, { id: "task3" });
+      const task3 = new TestAddTask({ id: "task3" });
       graph.addTask(task3);
       graph.addDataflow(new Dataflow("task1", "output", "task3", "a"));
       graph.addDataflow(new Dataflow("task2", "output", "task3", "b"));
@@ -91,11 +91,11 @@ describe("TaskGraphRunner", () => {
     beforeEach(() => {
       graph = new TaskGraph();
 
-      sourceTask = new TestSquareTask({ input: 5 }, { id: "source" });
-      targetTask = new TestDoubleTask({ input: 5 }, { id: "target" });
+      sourceTask = new TestSquareTask({ id: "source", defaults: { input: 5 } });
+      targetTask = new TestDoubleTask({ id: "target", defaults: { input: 5 } });
 
       // Create a task that will throw an error
-      errorTask = new FailingTask({}, { id: "error-source" });
+      errorTask = new FailingTask({ id: "error-source" });
       errorTask.executeReactive = async () => {
         throw new Error("Test error");
       };
@@ -153,7 +153,7 @@ describe("TaskGraphRunner", () => {
     it("should propagate task abort status to dataflow edges", async () => {
       // Create a graph with a long-running task
       graph = new TaskGraph();
-      const longRunningTask = new LongRunningTask({}, { id: "long-running" });
+      const longRunningTask = new LongRunningTask({ id: "long-running" });
 
       // Override the executeReactive method to be long-running and check for abort signal
       longRunningTask.executeReactive = async () => {
@@ -175,7 +175,7 @@ describe("TaskGraphRunner", () => {
       };
 
       graph.addTask(longRunningTask);
-      const abortTargetTask = new TestIOTask({}, { id: "abort-target" });
+      const abortTargetTask = new TestIOTask({ id: "abort-target" });
       graph.addTask(abortTargetTask);
       graph.addDataflow(new Dataflow("long-running", "output", "abort-target", "input"));
 
@@ -220,7 +220,7 @@ describe("TaskGraphRunner", () => {
 
     it("should abort the graph run and throw TaskGraphTimeoutError when timeout expires", async () => {
       const timeoutGraph = new TaskGraph();
-      const longTask = new LongRunningTask({}, { id: "long" });
+      const longTask = new LongRunningTask({ id: "long" });
       timeoutGraph.addTask(longTask);
       const timeoutRunner = new TaskGraphRunner(timeoutGraph);
 
@@ -231,7 +231,7 @@ describe("TaskGraphRunner", () => {
 
     it("TaskGraphTimeoutError message should describe graph timeout, not task timeout", async () => {
       const timeoutGraph = new TaskGraph();
-      const longTask = new LongRunningTask({}, { id: "long" });
+      const longTask = new LongRunningTask({ id: "long" });
       timeoutGraph.addTask(longTask);
       const timeoutRunner = new TaskGraphRunner(timeoutGraph);
 

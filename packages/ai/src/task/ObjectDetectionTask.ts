@@ -109,7 +109,7 @@ export class ObjectDetectionTask extends AiVisionTask<
  * @returns Promise resolving to the detected objects with labels, scores, and bounding boxes
  */
 export const objectDetection = (input: ObjectDetectionTaskInput, config?: TaskConfig) => {
-  return new ObjectDetectionTask({} as ObjectDetectionTaskInput, config).run(input);
+  return new ObjectDetectionTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

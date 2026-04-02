@@ -156,7 +156,7 @@ export class ChunkVectorUpsertTask extends Task<
 }
 
 export const chunkVectorUpsert = (input: VectorStoreUpsertTaskInput, config?: TaskConfig) => {
-  return new ChunkVectorUpsertTask({} as VectorStoreUpsertTaskInput, config).run(input);
+  return new ChunkVectorUpsertTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

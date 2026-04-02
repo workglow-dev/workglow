@@ -134,7 +134,7 @@ export class StructuralParserTask extends Task<
 }
 
 export const structuralParser = (input: StructuralParserTaskInput, config?: TaskConfig) => {
-  return new StructuralParserTask({} as StructuralParserTaskInput, config).run(input);
+  return new StructuralParserTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

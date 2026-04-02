@@ -119,7 +119,7 @@ export class JsonTask<
  * Convenience function to create and run a JsonTask
  */
 export const json = (input: JsonTaskInput, config: TaskConfig = {}) => {
-  return new JsonTask({}, config).run(input);
+  return new JsonTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

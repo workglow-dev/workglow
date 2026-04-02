@@ -118,7 +118,7 @@ describe("MCP servers integration", () => {
           server: { transport: transportForUrl(url), server_url: url },
           tool_name: first.name,
         } as McpToolCallTaskConfig;
-        const toolCallTask = new McpToolCallTask({}, toolCallConfig);
+        const toolCallTask = new McpToolCallTask(toolCallConfig);
         const toolInput = buildMinimalInput(first.inputSchema ?? {});
         const toolResult = await toolCallTask.run(toolInput);
 
@@ -158,7 +158,7 @@ describe("MCP servers integration", () => {
             server: { transport: transportForUrl(url), server_url: url },
             resource_uri: first.uri,
           } as McpResourceReadTaskConfig;
-          const resourceReadTask = new McpResourceReadTask({}, resourceReadConfig);
+          const resourceReadTask = new McpResourceReadTask(resourceReadConfig);
           const readResult = asListOutput<McpResourceReadTaskOutput>(
             await resourceReadTask.run({})
           ) as McpResourceReadTaskOutput;
@@ -209,7 +209,7 @@ describe("MCP servers integration", () => {
             server: { transport: transportForUrl(url), server_url: url },
             prompt_name: first.name,
           } as McpPromptGetTaskConfig;
-          const promptGetTask = new McpPromptGetTask({}, promptGetConfig);
+          const promptGetTask = new McpPromptGetTask(promptGetConfig);
           const promptArgs = buildMinimalPromptArgs(first.arguments);
           try {
             const promptResult = asListOutput<McpPromptGetTaskOutput>(

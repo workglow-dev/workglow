@@ -73,7 +73,7 @@ export class TextRewriterTask extends StreamingAiTask<
  * @returns Promise resolving to the rewritten text output(s)
  */
 export const textRewriter = (input: TextRewriterTaskInput, config?: TaskConfig) => {
-  return new TextRewriterTask({} as TextRewriterTaskInput, config).run(input);
+  return new TextRewriterTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -607,7 +607,7 @@ export const fetchUrl = async (
   input: FetchUrlTaskInput,
   config: FetchUrlTaskConfig = {}
 ): Promise<FetchUrlTaskOutput> => {
-  const result = await new FetchUrlTask({}, config).run(input);
+  const result = await new FetchUrlTask(config).run(input);
   return result as FetchUrlTaskOutput;
 };
 

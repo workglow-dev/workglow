@@ -57,8 +57,8 @@ export class DownloadModelTask extends AiTask<
 
   public files: { file: string; progress: number }[] = [];
 
-  constructor(input: Partial<DownloadModelTaskRunInput>, config: TaskConfig = {}) {
-    super(input as DownloadModelTaskRunInput, config);
+  constructor(config: Partial<TaskConfig> = {}) {
+    super(config);
     this.on("progress", this.processProgress.bind(this));
     this.on("start", () => {
       this.files = [];
@@ -116,7 +116,7 @@ export class DownloadModelTask extends AiTask<
  * @returns Promise resolving to the downloaded model(s)
  */
 export const downloadModel = (input: DownloadModelTaskRunInput, config?: TaskConfig) => {
-  return new DownloadModelTask({} as DownloadModelTaskRunInput, config).run(input);
+  return new DownloadModelTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -233,7 +233,7 @@ export class VectorQuantizeTask extends Task<
 }
 
 export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: TaskConfig) => {
-  return new VectorQuantizeTask({} as VectorQuantizeTaskInput, config).run(input);
+  return new VectorQuantizeTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

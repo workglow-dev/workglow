@@ -88,11 +88,8 @@ export class JavaScriptTask extends Task<
     return outputSchema;
   }
 
-  constructor(
-    input: Partial<JavaScriptTaskInput> = {},
-    config: Partial<JavaScriptTaskConfig> = {}
-  ) {
-    super(input, config);
+  constructor(config: Partial<JavaScriptTaskConfig> = {}) {
+    super(config);
   }
 
   public override inputSchema() {
@@ -133,7 +130,7 @@ export class JavaScriptTask extends Task<
 }
 
 export const javaScript = (input: JavaScriptTaskInput, config: TaskConfig = {}) => {
-  return new JavaScriptTask({}, config).run(input);
+  return new JavaScriptTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

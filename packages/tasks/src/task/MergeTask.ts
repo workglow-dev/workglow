@@ -76,7 +76,7 @@ export class MergeTask<
 }
 
 export const merge = (input: MergeTaskInput, config: TaskConfig = {}) => {
-  const task = new MergeTask({}, config);
+  const task = new MergeTask(config);
   return task.run(input);
 };
 

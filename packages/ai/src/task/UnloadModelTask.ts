@@ -63,7 +63,7 @@ export class UnloadModelTask extends AiTask<
  * @returns Promise resolving to the unloaded model(s)
  */
 export const unloadModel = (input: UnloadModelTaskRunInput, config?: TaskConfig) => {
-  return new UnloadModelTask({} as UnloadModelTaskRunInput, config).run(input);
+  return new UnloadModelTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

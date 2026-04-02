@@ -296,8 +296,8 @@ export abstract class IteratorTask<
   /** Cached computed iteration input schema. */
   protected _iterationInputSchema: DataPortSchema | undefined;
 
-  constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
-    super(input, config as Config);
+  constructor(config: Partial<Config> = {}) {
+    super(config as Partial<Config>);
   }
 
   // ========================================================================

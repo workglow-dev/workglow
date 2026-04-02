@@ -88,7 +88,7 @@ export class ImageClassificationTask extends AiVisionTask<
  * @returns Promise resolving to the classification categories with scores
  */
 export const imageClassification = (input: ImageClassificationTaskInput, config?: TaskConfig) => {
-  return new ImageClassificationTask({} as ImageClassificationTaskInput, config).run(input);
+  return new ImageClassificationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

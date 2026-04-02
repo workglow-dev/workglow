@@ -414,7 +414,7 @@ export class TopicSegmenterTask extends Task<
 }
 
 export const topicSegmenter = (input: TopicSegmenterTaskInput, config?: TaskConfig) => {
-  return new TopicSegmenterTask({} as TopicSegmenterTaskInput, config).run(input);
+  return new TopicSegmenterTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

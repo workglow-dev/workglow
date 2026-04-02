@@ -293,7 +293,7 @@ export class QueryExpanderTask extends Task<
 }
 
 export const queryExpander = (input: QueryExpanderTaskInput, config?: TaskConfig) => {
-  return new QueryExpanderTask({} as QueryExpanderTaskInput, config).run(input);
+  return new QueryExpanderTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

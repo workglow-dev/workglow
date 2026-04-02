@@ -209,7 +209,7 @@ export class GestureRecognizerTask extends AiVisionTask<
  * @returns Promise resolving to the detected gestures with landmarks and handedness
  */
 export const gestureRecognizer = (input: GestureRecognizerTaskInput, config?: TaskConfig) => {
-  return new GestureRecognizerTask({} as GestureRecognizerTaskInput, config).run(input);
+  return new GestureRecognizerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

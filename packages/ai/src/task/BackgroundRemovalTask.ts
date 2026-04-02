@@ -68,7 +68,7 @@ export class BackgroundRemovalTask extends AiVisionTask<
  * @returns Promise resolving to the image with transparent background
  */
 export const backgroundRemoval = (input: BackgroundRemovalTaskInput, config?: TaskConfig) => {
-  return new BackgroundRemovalTask({} as BackgroundRemovalTaskInput, config).run(input);
+  return new BackgroundRemovalTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -248,8 +248,8 @@ describe("TaskGraph Streaming", () => {
     it("should mark streamable tasks as ready when dependencies are STREAMING", async () => {
       graph = new TaskGraph();
 
-      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
-      const consumer = new StreamConsumerTask({} as any, { id: "consumer" });
+      const source = new StreamSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new StreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       graph.addDataflow(new Dataflow("source", "text", "consumer", "text"));
@@ -276,8 +276,8 @@ describe("TaskGraph Streaming", () => {
     it("should NOT start non-streaming tasks when deps are only STREAMING", async () => {
       graph = new TaskGraph();
 
-      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
-      const nonStreamConsumer = new NonStreamConsumerTask({} as any, { id: "non-stream" });
+      const source = new StreamSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const nonStreamConsumer = new NonStreamConsumerTask({ id: "non-stream" });
 
       graph.addTasks([source, nonStreamConsumer]);
       graph.addDataflow(new Dataflow("source", "text", "non-stream", "text"));
@@ -315,8 +315,8 @@ describe("TaskGraph Streaming", () => {
     it("should execute StreamSourceTask -> StreamConsumerTask pipeline", async () => {
       graph = new TaskGraph();
 
-      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
-      const consumer = new StreamConsumerTask({} as any, { id: "consumer" });
+      const source = new StreamSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new StreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       graph.addDataflow(new Dataflow("source", "text", "consumer", "text"));
@@ -338,9 +338,9 @@ describe("TaskGraph Streaming", () => {
     it("should handle fan-out to both streaming and non-streaming consumers", async () => {
       graph = new TaskGraph();
 
-      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
-      const streamConsumer = new StreamConsumerTask({} as any, { id: "stream-consumer" });
-      const nonStreamConsumer = new NonStreamConsumerTask({} as any, { id: "non-stream-consumer" });
+      const source = new StreamSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const streamConsumer = new StreamConsumerTask({ id: "stream-consumer" });
+      const nonStreamConsumer = new NonStreamConsumerTask({ id: "non-stream-consumer" });
 
       graph.addTasks([source, streamConsumer, nonStreamConsumer]);
       graph.addDataflow(new Dataflow("source", "text", "stream-consumer", "text"));
@@ -363,8 +363,8 @@ describe("TaskGraph Streaming", () => {
     it("should handle replace source -> non-streaming consumer", async () => {
       graph = new TaskGraph();
 
-      const source = new ReplaceSourceTask({ prompt: "test" }, { id: "source" });
-      const consumer = new NonStreamConsumerTask({} as any, { id: "consumer" });
+      const source = new ReplaceSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new NonStreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       graph.addDataflow(new Dataflow("source", "text", "consumer", "text"));
@@ -390,8 +390,8 @@ describe("TaskGraph Streaming", () => {
     it("should set stream on outgoing dataflow edges for streaming tasks", async () => {
       graph = new TaskGraph();
 
-      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
-      const consumer = new StreamConsumerTask({} as any, { id: "consumer" });
+      const source = new StreamSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new StreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       const dataflow = new Dataflow("source", "text", "consumer", "text");
@@ -446,8 +446,8 @@ describe("TaskGraph Streaming", () => {
       // shouldAccumulate=true, so the source task emits an enriched finish
       // event with the accumulated text.  The dataflow reads the finish event
       // and materialises the value without re-accumulating text-deltas itself.
-      const source = new AppendEmptyFinishSource({ prompt: "test" }, { id: "source" });
-      const consumer = new NonStreamConsumerTask({} as any, { id: "consumer" });
+      const source = new AppendEmptyFinishSource({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new NonStreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       graph.addDataflow(new Dataflow("source", "text", "consumer", "text"));
@@ -466,9 +466,9 @@ describe("TaskGraph Streaming", () => {
     it("should accumulate once and share via tee for fan-out (one streaming, one non-streaming)", async () => {
       graph = new TaskGraph();
 
-      const source = new AppendEmptyFinishSource({ prompt: "test" }, { id: "source" });
-      const streamConsumer = new StreamConsumerTask({} as any, { id: "stream-c" });
-      const nonStreamConsumer = new NonStreamConsumerTask({} as any, { id: "non-stream-c" });
+      const source = new AppendEmptyFinishSource({ id: "source", defaults: { prompt: "test" } });
+      const streamConsumer = new StreamConsumerTask({ id: "stream-c" });
+      const nonStreamConsumer = new NonStreamConsumerTask({ id: "non-stream-c" });
 
       graph.addTasks([source, streamConsumer, nonStreamConsumer]);
       graph.addDataflow(new Dataflow("source", "text", "stream-c", "text"));
@@ -490,8 +490,8 @@ describe("TaskGraph Streaming", () => {
     it("should materialise replace-mode snapshots for non-streaming downstream", async () => {
       graph = new TaskGraph();
 
-      const source = new ReplaceSourceTask({ prompt: "test" }, { id: "source" });
-      const consumer = new NonStreamConsumerTask({} as any, { id: "consumer" });
+      const source = new ReplaceSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new NonStreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       graph.addDataflow(new Dataflow("source", "text", "consumer", "text"));
@@ -642,8 +642,8 @@ describe("TaskGraph Streaming", () => {
       graph = new TaskGraph();
 
       // Use a slow streaming source
-      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
-      const consumer = new NonStreamConsumerTask({} as any, { id: "consumer" });
+      const source = new StreamSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new NonStreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       graph.addDataflow(new Dataflow("source", "text", "consumer", "text"));
@@ -669,8 +669,8 @@ describe("TaskGraph Streaming", () => {
     it("should use x-stream annotation to determine streaming in graph execution", async () => {
       graph = new TaskGraph();
 
-      const source = new StreamSourceTask({ prompt: "test" }, { id: "source" });
-      const consumer = new NonStreamConsumerTask({} as any, { id: "consumer" });
+      const source = new StreamSourceTask({ id: "source", defaults: { prompt: "test" } });
+      const consumer = new NonStreamConsumerTask({ id: "consumer" });
 
       graph.addTasks([source, consumer]);
       graph.addDataflow(new Dataflow("source", "text", "consumer", "text"));

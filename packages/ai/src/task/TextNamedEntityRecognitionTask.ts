@@ -106,7 +106,7 @@ export const textNamedEntityRecognition = (
   input: TextNamedEntityRecognitionTaskInput,
   config?: TaskConfig
 ) => {
-  return new TextNamedEntityRecognitionTask({} as TextNamedEntityRecognitionTaskInput, config).run(
+  return new TextNamedEntityRecognitionTask(config).run(
     input
   );
 };

@@ -106,7 +106,7 @@ export class TextGenerationTask extends StreamingAiTask<
  * Task for generating text using a language model
  */
 export const textGeneration = (input: TextGenerationTaskInput, config?: TaskConfig) => {
-  return new TextGenerationTask({} as TextGenerationTaskInput, config).run(input);
+  return new TextGenerationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

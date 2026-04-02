@@ -333,7 +333,7 @@ export class TextChunkerTask extends Task<TextChunkerTaskInput, TextChunkerTaskO
 }
 
 export const textChunker = (input: TextChunkerTaskInput, config?: TaskConfig) => {
-  return new TextChunkerTask({} as TextChunkerTaskInput, config).run(input);
+  return new TextChunkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

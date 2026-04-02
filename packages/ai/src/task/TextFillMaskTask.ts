@@ -86,7 +86,7 @@ export class TextFillMaskTask extends AiTask<TextFillMaskTaskInput, TextFillMask
  * @returns Promise resolving to the predicted tokens with scores and complete sequences
  */
 export const textFillMask = (input: TextFillMaskTaskInput, config?: TaskConfig) => {
-  return new TextFillMaskTask({} as TextFillMaskTaskInput, config).run(input);
+  return new TextFillMaskTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

@@ -121,7 +121,6 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
 ): IWorkflow<I, O> {
   let previousTask = getLastTask(workflow);
   const tasks = args.map((arg) => ensureTask(arg));
-  const input = {};
   const config = {
     compoundMerge: mergeFn,
   };
@@ -129,7 +128,7 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
   class ParallelTask extends GraphAsTask<I, O> {
     public static override type = name;
   }
-  const mergeTask = new ParallelTask(input, config);
+  const mergeTask = new ParallelTask(config);
   mergeTask.subGraph!.addTasks(tasks);
   workflow.graph.addTask(mergeTask);
   if (previousTask) {
@@ -437,11 +436,11 @@ export class Workflow<
 
       const parent = getLastTask(this);
 
-      const task = this.addTaskToGraph<I, O, C>(
-        taskClass,
-        input as I,
-        { id: uuid4(), ...config } as C
-      );
+      const task = this.addTaskToGraph<I, O, C>(taskClass, {
+        id: uuid4(),
+        ...config,
+        defaults: input,
+      } as C);
 
       // Process any pending data flows
       if (this._dataFlows.length > 0) {
@@ -978,12 +977,8 @@ export class Workflow<
     I extends DataPorts,
     O extends DataPorts,
     C extends TaskConfig = TaskConfig,
-  >(taskClass: ITaskConstructor<I, O, C>, input: I, config: C): ITask<I, O, C> {
-    const task = new taskClass(
-      input,
-      config,
-      this._registry ? { registry: this._registry } : undefined
-    );
+  >(taskClass: ITaskConstructor<I, O, C>, config: C): ITask<I, O, C> {
+    const task = new taskClass(config, this._registry ? { registry: this._registry } : undefined);
     const id = this.graph.addTask(task);
     this.events.emit("changed", id);
     return task;
@@ -1027,7 +1022,7 @@ export class Workflow<
 
     const parent = getLastTask(this);
 
-    const task = this.addTaskToGraph<I, O, C>(taskClass, {} as I, { id: uuid4(), ...config } as C);
+    const task = this.addTaskToGraph<I, O, C>(taskClass, { id: uuid4(), ...config } as C);
 
     // Process any pending data flows (same as createWorkflow)
     if (this._dataFlows.length > 0) {

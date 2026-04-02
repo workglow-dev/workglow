@@ -198,7 +198,7 @@ export class PoseLandmarkerTask extends AiVisionTask<
  * @returns Promise resolving to the detected pose landmarks and optional segmentation masks
  */
 export const poseLandmarker = (input: PoseLandmarkerTaskInput, config?: TaskConfig) => {
-  return new PoseLandmarkerTask({} as PoseLandmarkerTaskInput, config).run(input);
+  return new PoseLandmarkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

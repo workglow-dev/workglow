@@ -88,7 +88,7 @@ export class StructuredGenerationTask extends StreamingAiTask<
  * Task for generating structured JSON output using a language model
  */
 export const structuredGeneration = (input: StructuredGenerationTaskInput, config?: TaskConfig) => {
-  return new StructuredGenerationTask({} as StructuredGenerationTaskInput, config).run(input);
+  return new StructuredGenerationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

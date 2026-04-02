@@ -96,7 +96,7 @@ export class DebugLogTask<
 }
 
 export const debugLog = (input: DebugLogTaskInput, config: DebugLogTaskConfig = {}) => {
-  const task = new DebugLogTask({}, config);
+  const task = new DebugLogTask(config);
   return task.run(input);
 };
 

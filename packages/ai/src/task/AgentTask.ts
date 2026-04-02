@@ -316,7 +316,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
       );
 
       // Call the LLM and stream its output
-      const llmTask = context.own(new ToolCallingTask({}, {}));
+      const llmTask = context.own(new ToolCallingTask());
       let iterationText = "";
       let toolCalls: ToolCalls = [];
 
@@ -456,7 +456,7 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
 // ========================================================================
 
 export const agent = (input: AgentTaskInput, config?: AgentTaskConfig) => {
-  return new AgentTask({} as AgentTaskInput, config).run(input);
+  return new AgentTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
