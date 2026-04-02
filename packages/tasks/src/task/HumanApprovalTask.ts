@@ -15,7 +15,11 @@ import {
 } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
-import { resolveHumanConnector, type IHumanRequest } from "./HumanInputTask";
+import {
+  resolveHumanConnector,
+  type HumanResponseAction,
+  type IHumanRequest,
+} from "./HumanInputTask";
 
 // ========================================================================
 // Schemas
@@ -30,11 +34,6 @@ const humanApprovalConfigSchema = {
       title: "Target Human",
       description: "Identifier of the human to ask for approval",
       default: "default",
-    },
-    title: {
-      type: "string",
-      title: "Title",
-      description: "Title for the approval request",
     },
     message: {
       type: "string",
@@ -54,8 +53,6 @@ const humanApprovalConfigSchema = {
 export type HumanApprovalTaskConfig = TaskConfig & {
   /** Target human identifier — defaults to "default" */
   targetHumanId?: string;
-  /** Display title */
-  title?: string;
   /** Explanatory message */
   message?: string;
   /** Arbitrary metadata passed to the connector */
@@ -81,9 +78,32 @@ const inputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
+const approvalRequestedSchema = {
+  type: "object",
+  properties: {
+    approved: {
+      type: "boolean",
+      title: "Approved",
+      description: "Whether the request is approved",
+    },
+    reason: {
+      type: "string",
+      title: "Reason",
+      description: "Optional explanation for the decision",
+    },
+  },
+  required: ["approved"],
+} as const satisfies DataPortSchema;
+
 const approvalOutputSchema = {
   type: "object",
   properties: {
+    action: {
+      type: "string",
+      title: "Action",
+      description: "The human's action: accept, decline, or cancel",
+      enum: ["accept", "decline", "cancel"],
+    },
     approved: {
       type: "boolean",
       title: "Approved",
@@ -95,13 +115,14 @@ const approvalOutputSchema = {
       description: "Optional explanation for the decision",
     },
   },
-  required: ["approved"],
+  required: ["action", "approved"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 export type HumanApprovalTaskInput = FromSchema<typeof inputSchema>;
 
 export type HumanApprovalTaskOutput = {
+  readonly action: HumanResponseAction;
   readonly approved: boolean;
   readonly reason?: string;
 };
@@ -113,8 +134,11 @@ export type HumanApprovalTaskOutput = {
 /**
  * Convenience task for the common approve/deny pattern.
  *
- * Presents the human with an approval dialog and returns `{ approved, reason }`.
- * Always uses "single" mode — one question, one answer.
+ * Presents the human with an approval dialog via MCP elicitation and returns
+ * `{ action, approved, reason }`. Uses "single" mode — one question, one answer.
+ *
+ * If the human declines or cancels at the MCP level, `approved` is false and
+ * `action` reflects the specific choice.
  */
 export class HumanApprovalTask extends Task<
   HumanApprovalTaskInput,
@@ -125,7 +149,7 @@ export class HumanApprovalTask extends Task<
   static override readonly category = "Flow Control";
   public static override title = "Human Approval";
   public static override description =
-    "Pauses execution to request approval from a human (approve/deny)";
+    "Pauses execution to request approval from a human (approve/deny) via MCP elicitation";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {
@@ -147,16 +171,17 @@ export class HumanApprovalTask extends Task<
     const connector = resolveHumanConnector(context);
     const requestId = uuid4();
 
+    const message = input.prompt
+      ? this.config.message
+        ? `${this.config.message}\n\n${input.prompt}`
+        : input.prompt
+      : this.config.message ?? "";
+
     const request: IHumanRequest = {
       requestId,
       targetHumanId: this.config.targetHumanId ?? "default",
-      schema: approvalOutputSchema,
-      title: this.config.title,
-      message: input.prompt
-        ? this.config.message
-          ? `${this.config.message}\n\n${input.prompt}`
-          : input.prompt
-        : this.config.message,
+      requestedSchema: approvalRequestedSchema,
+      message,
       mode: "single",
       metadata: input.context
         ? { ...this.config.metadata, ...input.context }
@@ -168,7 +193,26 @@ export class HumanApprovalTask extends Task<
     }
 
     const response = await connector.request(request, context.signal);
-    return response.data as HumanApprovalTaskOutput;
+
+    // Map MCP actions to approval semantics:
+    // - "accept" with approved field from content
+    // - "decline" or "cancel" → approved = false
+    if (response.action === "accept" && response.content) {
+      return {
+        action: response.action,
+        approved: Boolean(response.content.approved),
+        reason: response.content.reason as string | undefined,
+      };
+    }
+
+    return {
+      action: response.action,
+      approved: false,
+      reason:
+        response.action === "decline"
+          ? "Declined by user"
+          : "Cancelled by user",
+    };
   }
 }
 
