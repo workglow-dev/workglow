@@ -4,11 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, type IExecuteContext, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  type IExecuteContext,
+  Workflow,
+  type TaskConfig,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
-import { AiTask, type AiTaskConfig } from "./base/AiTask";
+import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
 
 const modelSchema = TypeModel("model");
@@ -60,11 +65,16 @@ const ModelInfoOutputSchema = {
 
 export type ModelInfoTaskInput = FromSchema<typeof ModelInfoInputSchema>;
 export type ModelInfoTaskOutput = FromSchema<typeof ModelInfoOutputSchema>;
+export type ModelInfoTaskConfig = TaskConfig<ModelInfoTaskInput>;
 
 /**
  * Retrieve runtime metadata about a model: locality, browser support, cache status, and file sizes.
  */
-export class ModelInfoTask extends AiTask<ModelInfoTaskInput, ModelInfoTaskOutput, AiTaskConfig> {
+export class ModelInfoTask extends AiTask<
+  ModelInfoTaskInput,
+  ModelInfoTaskOutput,
+  ModelInfoTaskConfig
+> {
   public static override type = "ModelInfoTask";
   public static override category = "AI Model";
   public static override cacheable = false;
@@ -78,7 +88,10 @@ export class ModelInfoTask extends AiTask<ModelInfoTaskInput, ModelInfoTaskOutpu
     return ModelInfoOutputSchema satisfies DataPortSchema;
   }
 
-  override async execute(input: ModelInfoTaskInput, context: IExecuteContext): Promise<ModelInfoTaskOutput> {
+  override async execute(
+    input: ModelInfoTaskInput,
+    context: IExecuteContext
+  ): Promise<ModelInfoTaskOutput> {
     const model = input.model as ModelConfig;
     const registry = getAiProviderRegistry();
     const noop = () => {};
@@ -96,13 +109,13 @@ export class ModelInfoTask extends AiTask<ModelInfoTaskInput, ModelInfoTaskOutpu
  * @param input - Input containing the model to query
  * @returns Promise resolving to model info including locality and cache status
  */
-export const modelInfo = (input: ModelInfoTaskInput, config?: AiTaskConfig) => {
+export const modelInfo = (input: ModelInfoTaskInput, config?: ModelInfoTaskConfig) => {
   return new ModelInfoTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    modelInfo: CreateWorkflow<ModelInfoTaskInput, ModelInfoTaskOutput, AiTaskConfig>;
+    modelInfo: CreateWorkflow<ModelInfoTaskInput, ModelInfoTaskOutput, ModelInfoTaskConfig>;
   }
 }
 

@@ -10,7 +10,13 @@ import {
   type ChunkRecord,
   type KnowledgeBase,
 } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
@@ -90,6 +96,7 @@ const outputSchema = {
 
 export type HierarchyJoinTaskInput = FromSchema<typeof inputSchema>;
 export type HierarchyJoinTaskOutput = FromSchema<typeof outputSchema>;
+export type HierarchyJoinTaskConfig = TaskConfig<HierarchyJoinTaskInput>;
 
 /**
  * Task for enriching search results with hierarchy information
@@ -98,7 +105,7 @@ export type HierarchyJoinTaskOutput = FromSchema<typeof outputSchema>;
 export class HierarchyJoinTask extends Task<
   HierarchyJoinTaskInput,
   HierarchyJoinTaskOutput,
-  TaskConfig
+  HierarchyJoinTaskConfig
 > {
   public static override type = "HierarchyJoinTask";
   public static override category = "RAG";
@@ -213,13 +220,17 @@ export class HierarchyJoinTask extends Task<
   }
 }
 
-export const hierarchyJoin = (input: HierarchyJoinTaskInput, config?: TaskConfig) => {
+export const hierarchyJoin = (input: HierarchyJoinTaskInput, config?: HierarchyJoinTaskConfig) => {
   return new HierarchyJoinTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    hierarchyJoin: CreateWorkflow<HierarchyJoinTaskInput, HierarchyJoinTaskOutput, TaskConfig>;
+    hierarchyJoin: CreateWorkflow<
+      HierarchyJoinTaskInput,
+      HierarchyJoinTaskOutput,
+      HierarchyJoinTaskConfig
+    >;
   }
 }
 

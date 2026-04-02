@@ -5,7 +5,13 @@
  */
 
 import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  Task,
+  Workflow,
+  type TaskConfig,
+} from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -144,6 +150,7 @@ const outputSchema = {
 
 export type ChunkRetrievalTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
 export type ChunkRetrievalTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
+export type ChunkRetrievalTaskConfig = TaskConfig<ChunkRetrievalTaskInput>;
 
 /**
  * End-to-end retrieval task that combines embedding generation (if needed) and vector search.
@@ -152,12 +159,13 @@ export type ChunkRetrievalTaskOutput = FromSchema<typeof outputSchema, TypedArra
 export class ChunkRetrievalTask extends Task<
   ChunkRetrievalTaskInput,
   ChunkRetrievalTaskOutput,
-  TaskConfig
+  ChunkRetrievalTaskConfig
 > {
   public static override type = "ChunkRetrievalTask";
   public static override category = "RAG";
   public static override title = "Chunk Retrieval";
-  public static override description = "End-to-end retrieval: embed query and search for similar chunks";
+  public static override description =
+    "End-to-end retrieval: embed query and search for similar chunks";
   public static override cacheable = true;
 
   public static override inputSchema(): DataPortSchema {
@@ -196,8 +204,8 @@ export class ChunkRetrievalTask extends Task<
           "Model is required when query is a string. Please provide a model with format 'model:TextEmbeddingTask'."
         );
       }
-      const embeddingTask = context.own(new TextEmbeddingTask({ defaults: { text: query, model } }));
-      const embeddingResult = await embeddingTask.run();
+      const embeddingTask = context.own(new TextEmbeddingTask());
+      const embeddingResult = await embeddingTask.run({ text: query, model });
       queryVectors = Array.isArray(embeddingResult.vector)
         ? embeddingResult.vector
         : [embeddingResult.vector];
@@ -244,13 +252,20 @@ export class ChunkRetrievalTask extends Task<
   }
 }
 
-export const chunkRetrieval = (input: ChunkRetrievalTaskInput, config?: TaskConfig) => {
+export const chunkRetrieval = (
+  input: ChunkRetrievalTaskInput,
+  config?: ChunkRetrievalTaskConfig
+) => {
   return new ChunkRetrievalTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    chunkRetrieval: CreateWorkflow<ChunkRetrievalTaskInput, ChunkRetrievalTaskOutput, TaskConfig>;
+    chunkRetrieval: CreateWorkflow<
+      ChunkRetrievalTaskInput,
+      ChunkRetrievalTaskOutput,
+      ChunkRetrievalTaskConfig
+    >;
   }
 }
 

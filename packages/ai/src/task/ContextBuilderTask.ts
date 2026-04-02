@@ -8,9 +8,9 @@ import { estimateTokens } from "@workglow/knowledge-base";
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  TaskConfig,
   Task,
   Workflow,
+  type TaskConfig,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { CountTokensTask } from "./CountTokensTask";
@@ -126,6 +126,7 @@ const outputSchema = {
 
 export type ContextBuilderTaskInput = FromSchema<typeof inputSchema>;
 export type ContextBuilderTaskOutput = FromSchema<typeof outputSchema>;
+export type ContextBuilderTaskConfig = TaskConfig<ContextBuilderTaskInput>;
 
 /**
  * Task for formatting retrieved chunks into context for LLM prompts.
@@ -138,7 +139,7 @@ export type ContextBuilderTaskOutput = FromSchema<typeof outputSchema>;
 export class ContextBuilderTask extends Task<
   ContextBuilderTaskInput,
   ContextBuilderTaskOutput,
-  TaskConfig
+  ContextBuilderTaskConfig
 > {
   public static override type = "ContextBuilderTask";
   public static override category = "RAG";
@@ -376,13 +377,20 @@ export class ContextBuilderTask extends Task<
   }
 }
 
-export const contextBuilder = (input: ContextBuilderTaskInput, config?: TaskConfig) => {
+export const contextBuilder = (
+  input: ContextBuilderTaskInput,
+  config?: ContextBuilderTaskConfig
+) => {
   return new ContextBuilderTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    contextBuilder: CreateWorkflow<ContextBuilderTaskInput, ContextBuilderTaskOutput, TaskConfig>;
+    contextBuilder: CreateWorkflow<
+      ContextBuilderTaskInput,
+      ContextBuilderTaskOutput,
+      ContextBuilderTaskConfig
+    >;
   }
 }
 

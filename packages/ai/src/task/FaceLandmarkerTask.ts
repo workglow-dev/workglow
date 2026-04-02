@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -172,6 +172,7 @@ export const FaceLandmarkerOutputSchema = {
 
 export type FaceLandmarkerTaskInput = FromSchema<typeof FaceLandmarkerInputSchema>;
 export type FaceLandmarkerTaskOutput = FromSchema<typeof FaceLandmarkerOutputSchema>;
+export type FaceLandmarkerTaskConfig = TaskConfig<FaceLandmarkerTaskInput>;
 
 /**
  * Detects facial landmarks and expressions in images using MediaPipe Face Landmarker.
@@ -181,7 +182,7 @@ export type FaceLandmarkerTaskOutput = FromSchema<typeof FaceLandmarkerOutputSch
 export class FaceLandmarkerTask extends AiVisionTask<
   FaceLandmarkerTaskInput,
   FaceLandmarkerTaskOutput,
-  TaskConfig
+  FaceLandmarkerTaskConfig
 > {
   public static override type = "FaceLandmarkerTask";
   public static override category = "AI Vision Model";
@@ -202,13 +203,20 @@ export class FaceLandmarkerTask extends AiVisionTask<
  * @param input The input parameters for face landmark detection (image, model, and optional configuration)
  * @returns Promise resolving to the detected facial landmarks, blendshapes, and transformation matrices
  */
-export const faceLandmarker = (input: FaceLandmarkerTaskInput, config?: TaskConfig) => {
+export const faceLandmarker = (
+  input: FaceLandmarkerTaskInput,
+  config?: FaceLandmarkerTaskConfig
+) => {
   return new FaceLandmarkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    faceLandmarker: CreateWorkflow<FaceLandmarkerTaskInput, FaceLandmarkerTaskOutput, TaskConfig>;
+    faceLandmarker: CreateWorkflow<
+      FaceLandmarkerTaskInput,
+      FaceLandmarkerTaskOutput,
+      FaceLandmarkerTaskConfig
+    >;
   }
 }
 

@@ -28,17 +28,6 @@ import type { ToolCallingTaskInput } from "./ToolCallingTask";
 import type { ToolCalls, ToolDefinition } from "./ToolCallingUtils";
 
 // ========================================================================
-// Config
-// ========================================================================
-
-export interface AgentTaskConfig extends TaskConfig {
-  /** Lifecycle hooks for intercepting the agent loop. */
-  readonly hooks?: AgentHooks;
-  /** Max concurrent tool executions per iteration (default: 5). */
-  readonly maxConcurrency?: number;
-}
-
-// ========================================================================
 // Input / Output types
 // ========================================================================
 
@@ -91,6 +80,17 @@ export interface AgentTaskOutput {
   readonly toolCallCount: number;
   /** Present when the agent terminated via a stop tool. */
   readonly structuredOutput?: Record<string, unknown>;
+}
+
+// ========================================================================
+// Config
+// ========================================================================
+
+export interface AgentTaskConfig extends TaskConfig<AgentTaskInput> {
+  /** Lifecycle hooks for intercepting the agent loop. */
+  readonly hooks?: AgentHooks;
+  /** Max concurrent tool executions per iteration (default: 5). */
+  readonly maxConcurrency?: number;
 }
 
 // ========================================================================

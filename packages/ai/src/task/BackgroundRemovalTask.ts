@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -40,13 +40,15 @@ export const BackgroundRemovalOutputSchema = {
 
 export type BackgroundRemovalTaskInput = FromSchema<typeof BackgroundRemovalInputSchema>;
 export type BackgroundRemovalTaskOutput = FromSchema<typeof BackgroundRemovalOutputSchema>;
+export type BackgroundRemovalTaskConfig = TaskConfig<BackgroundRemovalTaskInput>;
 
 /**
  * Removes backgrounds from images using computer vision models
  */
 export class BackgroundRemovalTask extends AiVisionTask<
   BackgroundRemovalTaskInput,
-  BackgroundRemovalTaskOutput
+  BackgroundRemovalTaskOutput,
+  BackgroundRemovalTaskConfig
 > {
   public static override type = "BackgroundRemovalTask";
   public static override category = "AI Vision Model";
@@ -67,7 +69,10 @@ export class BackgroundRemovalTask extends AiVisionTask<
  * @param input The input parameters for background removal (image and model)
  * @returns Promise resolving to the image with transparent background
  */
-export const backgroundRemoval = (input: BackgroundRemovalTaskInput, config?: TaskConfig) => {
+export const backgroundRemoval = (
+  input: BackgroundRemovalTaskInput,
+  config?: BackgroundRemovalTaskConfig
+) => {
   return new BackgroundRemovalTask(config).run(input);
 };
 
@@ -76,7 +81,7 @@ declare module "@workglow/task-graph" {
     backgroundRemoval: CreateWorkflow<
       BackgroundRemovalTaskInput,
       BackgroundRemovalTaskOutput,
-      TaskConfig
+      BackgroundRemovalTaskConfig
     >;
   }
 }

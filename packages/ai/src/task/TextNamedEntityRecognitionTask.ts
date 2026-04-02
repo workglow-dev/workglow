@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -76,13 +76,15 @@ export type TextNamedEntityRecognitionTaskInput = FromSchema<
 export type TextNamedEntityRecognitionTaskOutput = FromSchema<
   typeof TextNamedEntityRecognitionOutputSchema
 >;
+export type TextNamedEntityRecognitionTaskConfig = TaskConfig<TextNamedEntityRecognitionTaskInput>;
 
 /**
  * Extracts named entities from text using language models
  */
 export class TextNamedEntityRecognitionTask extends AiTask<
   TextNamedEntityRecognitionTaskInput,
-  TextNamedEntityRecognitionTaskOutput
+  TextNamedEntityRecognitionTaskOutput,
+  TextNamedEntityRecognitionTaskConfig
 > {
   public static override type = "TextNamedEntityRecognitionTask";
   public static override category = "AI Text Model";
@@ -104,11 +106,9 @@ export class TextNamedEntityRecognitionTask extends AiTask<
  */
 export const textNamedEntityRecognition = (
   input: TextNamedEntityRecognitionTaskInput,
-  config?: TaskConfig
+  config?: TextNamedEntityRecognitionTaskConfig
 ) => {
-  return new TextNamedEntityRecognitionTask(config).run(
-    input
-  );
+  return new TextNamedEntityRecognitionTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -116,7 +116,7 @@ declare module "@workglow/task-graph" {
     textNamedEntityRecognition: CreateWorkflow<
       TextNamedEntityRecognitionTaskInput,
       TextNamedEntityRecognitionTaskOutput,
-      TaskConfig
+      TextNamedEntityRecognitionTaskConfig
     >;
   }
 }

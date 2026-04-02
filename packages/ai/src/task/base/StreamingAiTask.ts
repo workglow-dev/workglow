@@ -11,13 +11,14 @@
 
 import {
   getStreamingPorts,
+  type TaskConfig,
   TaskConfigurationError,
   type IExecuteContext,
   type StreamEvent,
   type TaskOutput,
 } from "@workglow/task-graph";
 
-import { AiSingleTaskInput, AiTask, type AiTaskConfig } from "./AiTask";
+import { type AiTaskInput, AiTask } from "./AiTask";
 import { getAiProviderRegistry } from "../../provider/AiProviderRegistry";
 import type { ModelConfig } from "../../model/ModelSchema";
 
@@ -38,9 +39,9 @@ import type { ModelConfig } from "../../model/ModelSchema";
  * output schema before they reach the TaskRunner.
  */
 export class StreamingAiTask<
-  Input extends AiSingleTaskInput = AiSingleTaskInput,
+  Input extends AiTaskInput = AiTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends AiTaskConfig = AiTaskConfig,
+  Config extends TaskConfig<Input> = TaskConfig<Input>,
 > extends AiTask<Input, Output, Config> {
   public static override type: string = "StreamingAiTask";
 

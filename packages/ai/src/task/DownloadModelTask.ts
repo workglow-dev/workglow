@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -31,6 +31,7 @@ const DownloadModelOutputSchema = {
 
 export type DownloadModelTaskRunInput = FromSchema<typeof DownloadModelInputSchema>;
 export type DownloadModelTaskRunOutput = FromSchema<typeof DownloadModelOutputSchema>;
+export type DownloadModelTaskConfig = TaskConfig<DownloadModelTaskRunInput>;
 
 /**
  * Download a model from a remote source and cache it locally.
@@ -41,12 +42,13 @@ export type DownloadModelTaskRunOutput = FromSchema<typeof DownloadModelOutputSc
 export class DownloadModelTask extends AiTask<
   DownloadModelTaskRunInput,
   DownloadModelTaskRunOutput,
-  TaskConfig
+  DownloadModelTaskConfig
 > {
   public static override type = "DownloadModelTask";
   public static override category = "AI Model";
   public static override title = "Download Model";
-  public static override description = "Downloads and caches AI models locally with progress tracking";
+  public static override description =
+    "Downloads and caches AI models locally with progress tracking";
   public static override inputSchema(): DataPortSchema {
     return DownloadModelInputSchema satisfies DataPortSchema;
   }
@@ -57,7 +59,7 @@ export class DownloadModelTask extends AiTask<
 
   public files: { file: string; progress: number }[] = [];
 
-  constructor(config: Partial<TaskConfig> = {}) {
+  constructor(config: Partial<DownloadModelTaskConfig> = {}) {
     super(config);
     this.on("progress", this.processProgress.bind(this));
     this.on("start", () => {
@@ -115,7 +117,10 @@ export class DownloadModelTask extends AiTask<
  * @param input - Input containing model(s) to download
  * @returns Promise resolving to the downloaded model(s)
  */
-export const downloadModel = (input: DownloadModelTaskRunInput, config?: TaskConfig) => {
+export const downloadModel = (
+  input: DownloadModelTaskRunInput,
+  config?: DownloadModelTaskConfig
+) => {
   return new DownloadModelTask(config).run(input);
 };
 
@@ -124,7 +129,7 @@ declare module "@workglow/task-graph" {
     downloadModel: CreateWorkflow<
       DownloadModelTaskRunInput,
       DownloadModelTaskRunOutput,
-      TaskConfig
+      DownloadModelTaskConfig
     >;
   }
 }
