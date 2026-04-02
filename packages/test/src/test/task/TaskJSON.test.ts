@@ -376,8 +376,8 @@ describe("TaskJSON", () => {
       const originalGraph = new TaskGraph();
       const parentTask = new TestGraphAsTask({ id: "parent", defaults: { input: "test" } });
       const childGraph = new TaskGraph();
-      const child1 = new DoubleToResultTask({ value: 5 }, { id: "child1" });
-      const child2 = new DoubleToResultTask({ value: 10 }, { id: "child2" });
+      const child1 = new DoubleToResultTask({ id: "child1", defaults: { value: 5 } });
+      const child2 = new DoubleToResultTask({ id: "child2", defaults: { value: 10 } });
       childGraph.addTask(child1);
       childGraph.addTask(child2);
       parentTask.subGraph = childGraph;
@@ -625,12 +625,12 @@ describe("TaskJSON", () => {
     }
 
     test("toJSON throws TaskSerializationError when canSerializeConfig returns false", () => {
-      const task = new NonSerializableTask({}, { id: "ns1" });
+      const task = new NonSerializableTask({ id: "ns1" });
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
 
     test("toJSON uses _originalConfig, not mutated this.config", async () => {
-      const task = new MutableConfigTask({}, { id: "mc1" });
+      const task = new MutableConfigTask({ id: "mc1" });
       await task.run({ value: "hello" });
 
       // Config was mutated at runtime
@@ -645,52 +645,44 @@ describe("TaskJSON", () => {
     });
 
     test("canSerializeConfig returns true by default", () => {
-      const task = new DoubleToResultTask({ value: 1 }, { id: "d1" });
+      const task = new DoubleToResultTask({ id: "d1", defaults: { value: 1 } });
       expect(task.canSerializeConfig()).toBe(true);
     });
   });
 
   describe("canSerializeConfig overrides", () => {
     test("LambdaTask.canSerializeConfig always returns false", () => {
-      const task = new LambdaTask({}, { execute: async (input: any) => input });
+      const task = new LambdaTask({ execute: async (input: any) => input });
       expect(task.canSerializeConfig()).toBe(false);
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
 
     test("WhileTask with function condition is not serializable", () => {
-      const task = new WhileTask({}, { condition: (_output: any, _i: number) => true });
+      const task = new WhileTask({ condition: (_output: any, _i: number) => true });
       expect(task.canSerializeConfig()).toBe(false);
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
 
     test("WhileTask with declarative condition is serializable", () => {
-      const task = new WhileTask(
-        {},
-        {
+      const task = new WhileTask({
           conditionField: "done",
           conditionOperator: "equals",
           conditionValue: "false",
-        }
-      );
+        });
       expect(task.canSerializeConfig()).toBe(true);
       expect(() => task.toJSON()).not.toThrow();
     });
 
     test("ConditionalTask with function branches is not serializable", () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [{ id: "a", condition: (_input: any) => true, outputPort: "out_a" }],
-        }
-      );
+        });
       expect(task.canSerializeConfig()).toBe(false);
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
 
     test("ConditionalTask with conditionConfig is serializable", () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           conditionConfig: {
             branches: [
               {
@@ -702,8 +694,7 @@ describe("TaskJSON", () => {
             ],
             exclusive: true,
           },
-        }
-      );
+        });
       expect(task.canSerializeConfig()).toBe(true);
       expect(() => task.toJSON()).not.toThrow();
     });

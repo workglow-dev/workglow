@@ -39,8 +39,8 @@ describe("Boundary Nodes", () => {
   describe("TaskGraph.toJSON({ withBoundaryNodes: true })", () => {
     it("should add InputTask and OutputTask boundary nodes for a simple linear graph", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
-      const task2 = new DoubleToResultTask({ value: 0 }, { id: "task2" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
+      const task2 = new DoubleToResultTask({ id: "task2", defaults: { value: 0 } });
       graph.addTask(task1);
       graph.addTask(task2);
       graph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -59,7 +59,7 @@ describe("Boundary Nodes", () => {
 
     it("should not add boundary nodes without the option", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const json = graph.toJSON();
@@ -69,7 +69,7 @@ describe("Boundary Nodes", () => {
 
     it("should not add boundary nodes when option is false", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const json = graph.toJSON({ withBoundaryNodes: false });
@@ -78,7 +78,7 @@ describe("Boundary Nodes", () => {
 
     it("should create per-property dataflows from InputTask to root tasks", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const json = graph.toJSON({ withBoundaryNodes: true });
@@ -92,7 +92,7 @@ describe("Boundary Nodes", () => {
 
     it("should create per-property dataflows from leaf tasks to OutputTask", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const json = graph.toJSON({ withBoundaryNodes: true });
@@ -106,7 +106,7 @@ describe("Boundary Nodes", () => {
 
     it("should set InputTask config schemas to match graph input schema", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const json = graph.toJSON({ withBoundaryNodes: true });
@@ -127,7 +127,7 @@ describe("Boundary Nodes", () => {
 
     it("should set OutputTask config schemas to match graph output schema", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const json = graph.toJSON({ withBoundaryNodes: true });
@@ -143,7 +143,7 @@ describe("Boundary Nodes", () => {
 
     it("should strip origin annotations from boundary node schemas", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const json = graph.toJSON({ withBoundaryNodes: true });
@@ -159,9 +159,9 @@ describe("Boundary Nodes", () => {
     });
 
     it("should handle multiple starting nodes", () => {
-      const taskA = new GraphAsTask_TaskA({}, { id: "taskA" });
-      const taskB = new GraphAsTask_TaskB({}, { id: "taskB" });
-      const taskC = new GraphAsTask_TaskC({}, { id: "taskC" });
+      const taskA = new GraphAsTask_TaskA({ id: "taskA" });
+      const taskB = new GraphAsTask_TaskB({ id: "taskB" });
+      const taskC = new GraphAsTask_TaskC({ id: "taskC" });
 
       const graph = new TaskGraph();
       graph.addTask(taskA);
@@ -187,8 +187,8 @@ describe("Boundary Nodes", () => {
 
     it("should preserve original dataflows", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
-      const task2 = new DoubleToResultTask({ value: 0 }, { id: "task2" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
+      const task2 = new DoubleToResultTask({ id: "task2", defaults: { value: 0 } });
       graph.addTask(task1);
       graph.addTask(task2);
       graph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -210,8 +210,8 @@ describe("Boundary Nodes", () => {
   describe("TaskGraph.toDependencyJSON({ withBoundaryNodes: true })", () => {
     it("should add InputTask and OutputTask boundary nodes", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
-      const task2 = new DoubleToResultTask({ value: 0 }, { id: "task2" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
+      const task2 = new DoubleToResultTask({ id: "task2", defaults: { value: 0 } });
       graph.addTask(task1);
       graph.addTask(task2);
       graph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -226,7 +226,7 @@ describe("Boundary Nodes", () => {
 
     it("should add dependencies from InputTask to root tasks", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const items = graph.toDependencyJSON({ withBoundaryNodes: true });
@@ -240,7 +240,7 @@ describe("Boundary Nodes", () => {
 
     it("should add dependencies on OutputTask from leaf tasks", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const items = graph.toDependencyJSON({ withBoundaryNodes: true });
@@ -253,7 +253,7 @@ describe("Boundary Nodes", () => {
 
     it("should not add boundary nodes without the option", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const items = graph.toDependencyJSON();
@@ -264,10 +264,10 @@ describe("Boundary Nodes", () => {
   describe("Recursive boundary nodes with GraphAsTask", () => {
     it("should add boundary nodes at subgraph level", () => {
       const graph = new TaskGraph();
-      const parentTask = new TestGraphAsTask({}, { id: "parent" });
+      const parentTask = new TestGraphAsTask({ id: "parent" });
       const childGraph = new TaskGraph();
-      const child1 = new DoubleToResultTask({ value: 5 }, { id: "child1" });
-      const child2 = new DoubleToResultTask({ value: 0 }, { id: "child2" });
+      const child1 = new DoubleToResultTask({ id: "child1", defaults: { value: 5 } });
+      const child2 = new DoubleToResultTask({ id: "child2", defaults: { value: 0 } });
       childGraph.addTask(child1);
       childGraph.addTask(child2);
       childGraph.addDataflow(new Dataflow("child1", "result", "child2", "value"));
@@ -293,9 +293,9 @@ describe("Boundary Nodes", () => {
 
     it("should add boundary nodes at subgraph level in dependency JSON", () => {
       const graph = new TaskGraph();
-      const parentTask = new TestGraphAsTask({}, { id: "parent" });
+      const parentTask = new TestGraphAsTask({ id: "parent" });
       const childGraph = new TaskGraph();
-      const child1 = new DoubleToResultTask({ value: 5 }, { id: "child1" });
+      const child1 = new DoubleToResultTask({ id: "child1", defaults: { value: 5 } });
       childGraph.addTask(child1);
       parentTask.subGraph = childGraph;
       graph.addTask(parentTask);
@@ -319,7 +319,7 @@ describe("Boundary Nodes", () => {
   describe("computeGraphInputSchema with trackOrigins", () => {
     it("should track single origin for root task properties", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const schema = computeGraphInputSchema(graph, { trackOrigins: true });
@@ -332,8 +332,8 @@ describe("Boundary Nodes", () => {
     it("should track multiple origins for shared property names", () => {
       const graph = new TaskGraph();
       // TaskA has inputA1, inputA2. TaskB has inputB. Both are roots.
-      const taskA = new GraphAsTask_TaskA({}, { id: "taskA" });
-      const taskB = new GraphAsTask_TaskB({}, { id: "taskB" });
+      const taskA = new GraphAsTask_TaskA({ id: "taskA" });
+      const taskB = new GraphAsTask_TaskB({ id: "taskB" });
       graph.addTask(taskA);
       graph.addTask(taskB);
 
@@ -351,7 +351,7 @@ describe("Boundary Nodes", () => {
   describe("computeGraphOutputSchema with trackOrigins", () => {
     it("should track single origin for leaf task output properties", () => {
       const graph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ value: 10 }, { id: "task1" });
+      const task1 = new DoubleToResultTask({ id: "task1", defaults: { value: 10 } });
       graph.addTask(task1);
 
       const schema = computeGraphOutputSchema(graph, { trackOrigins: true });

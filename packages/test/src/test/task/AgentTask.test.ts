@@ -24,7 +24,7 @@ import { describe, expect, test } from "vitest";
 // Access trimMessages via prototype to test it directly.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const trimMessages = (AgentTask.prototype as any).trimMessages.bind(
-  new AgentTask({} as any, {})
+  new AgentTask()
 ) as (msgs: ReadonlyArray<ChatMessage>, max: number | undefined) => ReadonlyArray<ChatMessage>;
 
 describe("AgentTask.trimMessages", () => {

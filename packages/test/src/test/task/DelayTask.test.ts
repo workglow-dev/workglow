@@ -16,7 +16,7 @@ describe("DelayTask", () => {
   let task: DelayTask;
 
   beforeEach(() => {
-    task = new DelayTask({}, { id: "delayed", delay: 10 });
+    task = new DelayTask({ id: "delayed", delay: 10 });
   });
 
   it("should complete successfully with short delay", async () => {
@@ -28,8 +28,7 @@ describe("DelayTask", () => {
 
   it("should pass through input to output", async () => {
     const taskWithInput = new DelayTask(
-      { something: "test-value" },
-      { id: "delayed-with-input", delay: 10 }
+      { id: "delayed-with-input", delay: 10, defaults: { something: "test-value" } }
     );
 
     const result = await taskWithInput.run();

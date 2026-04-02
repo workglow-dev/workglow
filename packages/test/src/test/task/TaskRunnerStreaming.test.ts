@@ -286,7 +286,7 @@ describe("TaskRunner Streaming", () => {
     });
 
     it("should accumulate text even when cache is off", async () => {
-      const task = new TestStreamingAppendTask({ prompt: "test" }, { cacheable: false });
+      const task = new TestStreamingAppendTask({ cacheable: false, defaults: { prompt: "test" } });
 
       const result = await task.run({ prompt: "test" });
 
@@ -300,7 +300,7 @@ describe("TaskRunner Streaming", () => {
       const cache = new InMemoryTaskOutputRepository();
       await cache.setupDatabase();
 
-      const task = new TestStreamingAppendTask({ prompt: "test" }, {}, { outputCache: cache });
+      const task = new TestStreamingAppendTask({ defaults: { prompt: "test" } }, { outputCache: cache });
 
       const result = await task.run({ prompt: "test" });
 
@@ -318,11 +318,11 @@ describe("TaskRunner Streaming", () => {
       const cache = new InMemoryTaskOutputRepository();
       await cache.setupDatabase();
 
-      const task1 = new TestStreamingAppendTask({ prompt: "test" }, {}, { outputCache: cache });
+      const task1 = new TestStreamingAppendTask({ defaults: { prompt: "test" } }, { outputCache: cache });
       await task1.run({ prompt: "test" });
 
       // Second run should hit cache
-      const task2 = new TestStreamingAppendTask({ prompt: "test" }, {}, { outputCache: cache });
+      const task2 = new TestStreamingAppendTask({ defaults: { prompt: "test" } }, { outputCache: cache });
 
       const events: string[] = [];
       const chunks: StreamEvent[] = [];
@@ -417,7 +417,7 @@ describe("TaskRunner Streaming", () => {
       const cache = new InMemoryTaskOutputRepository();
       await cache.setupDatabase();
 
-      const task = new TestStreamingReplaceTask({ prompt: "test" }, {}, { outputCache: cache });
+      const task = new TestStreamingReplaceTask({ defaults: { prompt: "test" } }, { outputCache: cache });
 
       await task.run({ prompt: "test" });
 
@@ -524,8 +524,7 @@ describe("TaskRunner Streaming", () => {
       await cache.setupDatabase();
 
       const task = new TestStreamingAppendTask(
-        { prompt: "config-test" },
-        {},
+        { defaults: { prompt: "config-test" } },
         { outputCache: cache }
       );
 

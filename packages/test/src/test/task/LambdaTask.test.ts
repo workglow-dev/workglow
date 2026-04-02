@@ -41,14 +41,11 @@ describe("LambdaTask", () => {
   });
 
   test("in task mode", async () => {
-    const task = new LambdaTask(
-      {},
-      {
-        executeReactive: async () => {
-          return { output: "Hello, world!" };
-        },
-      }
-    );
+    const task = new LambdaTask({
+      executeReactive: async () => {
+        return { output: "Hello, world!" };
+      },
+    });
     const results = await task.run();
     expect(results).toEqual({ output: "Hello, world!" });
   });
@@ -56,15 +53,12 @@ describe("LambdaTask", () => {
   test("in task graph mode", async () => {
     const graph = new TaskGraph();
     graph.addTask(
-      new LambdaTask(
-        {},
-        {
-          id: "lambdaReactiveTest",
-          executeReactive: async () => {
-            return { output: "Hello, world!" };
-          },
-        }
-      )
+      new LambdaTask({
+        id: "lambdaReactiveTest",
+        executeReactive: async () => {
+          return { output: "Hello, world!" };
+        },
+      })
     );
     const results = await graph.run();
     expect(results[0].data).toEqual({ output: "Hello, world!" });
@@ -122,15 +116,12 @@ describe("LambdaTask", () => {
 
   test("with updateProgress", async () => {
     const graph = new TaskGraph();
-    const task = new LambdaTask(
-      {},
-      {
-        execute: async (input, { updateProgress }) => {
-          updateProgress(0.5, "Halfway there");
-          return { output: "Hello, world!" };
-        },
-      }
-    );
+    const task = new LambdaTask({
+      execute: async (input, { updateProgress }) => {
+        updateProgress(0.5, "Halfway there");
+        return { output: "Hello, world!" };
+      },
+    });
     graph.addTask(task);
     let progressCounter = 0;
     task.on("progress", (progress: number) => {

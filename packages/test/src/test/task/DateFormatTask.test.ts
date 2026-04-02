@@ -16,7 +16,7 @@ describe("DateFormatTask", () => {
   let task: DateFormatTask;
 
   beforeEach(() => {
-    task = new DateFormatTask({}, { id: "dateformat-test" });
+    task = new DateFormatTask({ id: "dateformat-test" });
   });
 
   it("should have correct static properties", () => {

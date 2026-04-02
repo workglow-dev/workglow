@@ -94,14 +94,10 @@ describe("MergeTask", () => {
   });
 
   test("in task mode", async () => {
-    const task = new MergeTask(
-      {
-        a: "first",
-        b: "second",
-        c: "third",
-      },
-      { id: "merge-task" }
-    );
+    const task = new MergeTask({
+      id: "merge-task",
+      defaults: { a: "first", b: "second", c: "third" },
+    });
     const result = await task.run();
     expect(result.output).toEqual(["first", "second", "third"]);
     expect(task.status).toBe(TaskStatus.COMPLETED);
@@ -110,14 +106,10 @@ describe("MergeTask", () => {
   test("in task graph mode", async () => {
     const graph = new TaskGraph();
     graph.addTask(
-      new MergeTask(
-        {
-          x: 10,
-          y: 20,
-          z: 30,
-        },
-        { id: "merge-in-graph" }
-      )
+      new MergeTask({
+        id: "merge-in-graph",
+        defaults: { x: 10, y: 20, z: 30 },
+      })
     );
     const results = await graph.run();
     expect(results[0].data.output).toEqual([10, 20, 30]);
@@ -151,13 +143,11 @@ describe("MergeTask", () => {
   });
 
   test("task metadata is preserved", async () => {
-    const task = new MergeTask(
-      { a: 1, b: 2 },
-      {
-        id: "test-metadata",
-        title: "Test Merge Task",
-      }
-    );
+    const task = new MergeTask({
+      id: "test-metadata",
+      title: "Test Merge Task",
+      defaults: { a: 1, b: 2 },
+    });
     await task.run();
     expect(task.id).toBe("test-metadata");
     expect(task.config.title).toBe("Test Merge Task");

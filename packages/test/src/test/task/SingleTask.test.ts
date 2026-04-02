@@ -18,14 +18,14 @@ describe("SingleTask", () => {
   describe("TestIOTask", () => {
     it("should create with input data and run the task", async () => {
       const input = { key: "value" };
-      const task = new TestIOTask(input);
+      const task = new TestIOTask({ defaults: input });
       const output = await task.run();
       expect(output).toEqual({ key: "full", reactiveOnly: false, all: true });
       expect(task.runInputData).toEqual(input);
     });
 
     it("should set input data and run the task", async () => {
-      const task = new TestIOTask({ key: "value" });
+      const task = new TestIOTask({ defaults: { key: "value" } });
       const output = await task.run();
       expect(output).toEqual({ key: "full", reactiveOnly: false, all: true });
       expect(task.runInputData).toEqual({ key: "value" });
@@ -37,7 +37,7 @@ describe("SingleTask", () => {
       expect(output).toEqual({ key: "default", reactiveOnly: true, all: false });
     });
     it("should run the task reactively see defaults", async () => {
-      const task = new TestIOTask({ key: "givendefault" }); // pass as defaults
+      const task = new TestIOTask({ defaults: { key: "givendefault" } }); // pass as defaults
       const output = await task.runReactive();
       expect(output).toEqual({ key: "givendefault", reactiveOnly: true, all: false });
     });
@@ -347,10 +347,10 @@ describe("SingleTask", () => {
         const config = {
           id: "test-id",
           title: "Test Task",
+          defaults: { testKey: "testValue" },
         };
-        const input = { testKey: "testValue" };
 
-        const task = new Task(input, config);
+        const task = new Task(config);
 
         expect(task.id).toBe("test-id");
         expect(task.config.title).toBe("Test Task");

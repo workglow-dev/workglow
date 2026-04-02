@@ -107,7 +107,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       // TaskC has an incoming connection from TaskA, making it a non-starting node
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
-      const graphAsTask = new GraphAsTask({}, { subGraph: graph });
+      const graphAsTask = new GraphAsTask({ subGraph: graph });
 
       // TaskA and TaskB are starting nodes (no incoming connections)
       // TaskC is NOT a starting node (has incoming connection from TaskA)
@@ -216,7 +216,7 @@ describe("GraphAsTask Dynamic Schema", () => {
   describe("Full Graph Integration", () => {
     it("should work with a complete graph execution", async () => {
       // Create a simple pipeline: TaskA -> TaskB
-      const taskA = new GraphAsTask_TaskA({ inputA1: "test", inputA2: 10 });
+      const taskA = new GraphAsTask_TaskA({ defaults: { inputA1: "test", inputA2: 10 } });
       const taskB = new GraphAsTask_TaskB();
 
       const graph = new TaskGraph();
@@ -254,9 +254,9 @@ describe("GraphAsTask Dynamic Schema", () => {
       //     \    /
       //      (outputs from both)
 
-      const taskA = new GraphAsTask_TaskA({ inputA1: "start", inputA2: 1 });
+      const taskA = new GraphAsTask_TaskA({ defaults: { inputA1: "start", inputA2: 1 } });
       const taskB = new GraphAsTask_TaskB();
-      const taskC = new GraphAsTask_TaskC({ inputC2: "extra" }); // Set default since inputC2 won't be in schema
+      const taskC = new GraphAsTask_TaskC({ defaults: { inputC2: "extra" } }); // Set default since inputC2 won't be in schema
 
       const graph = new TaskGraph();
       graph.addTask(taskA);
@@ -317,7 +317,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskB);
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
 
-      const graphAsTask = new GraphAsTask({}, { compoundMerge: "PROPERTY_ARRAY" });
+      const graphAsTask = new GraphAsTask({ compoundMerge: "PROPERTY_ARRAY" });
       graphAsTask.subGraph = graph;
 
       const outputSchema = graphAsTask.outputSchema();
@@ -344,7 +344,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
-      const graphAsTask = new GraphAsTask({}, { compoundMerge: "PROPERTY_ARRAY" });
+      const graphAsTask = new GraphAsTask({ compoundMerge: "PROPERTY_ARRAY" });
       graphAsTask.subGraph = graph;
 
       const outputSchema = graphAsTask.outputSchema();
@@ -564,8 +564,8 @@ describe("GraphAsTask Dynamic Schema", () => {
     it("should pass input to subgraph runReactive", async () => {
       // Create a subgraph with just an InputTask -> OutputTask
       const subGraph = new TaskGraph();
-      const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
-      const outputTask = new GraphAsTask_OutputTask({}, { id: "output" });
+      const inputTask = new GraphAsTask_InputTask({ id: "input" });
+      const outputTask = new GraphAsTask_OutputTask({ id: "output" });
 
       subGraph.addTask(inputTask);
       subGraph.addTask(outputTask);
@@ -574,8 +574,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       subGraph.addDataflow(new Dataflow("input", "value", "output", "value"));
 
       const graphAsTask = new TestGraphAsTask_Value(
-        { value: "initial" },
-        { id: "group", subGraph }
+        { id: "group", subGraph, defaults: { value: "initial" } }
       );
 
       // First run to initialize - verify the graph works with explicit registry
@@ -590,8 +589,8 @@ describe("GraphAsTask Dynamic Schema", () => {
     it("should propagate input to compute task in subgraph", async () => {
       // Create a subgraph: InputTask -> ComputeTask
       const subGraph = new TaskGraph();
-      const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
-      const computeTask = new GraphAsTask_ComputeTask({}, { id: "compute" });
+      const inputTask = new GraphAsTask_InputTask({ id: "input" });
+      const computeTask = new GraphAsTask_ComputeTask({ id: "compute" });
 
       subGraph.addTask(inputTask);
       subGraph.addTask(computeTask);
@@ -600,7 +599,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       subGraph.addDataflow(new Dataflow("input", "a", "compute", "a"));
       subGraph.addDataflow(new Dataflow("input", "b", "compute", "b"));
 
-      const graphAsTask = new TestGraphAsTask_AB({ a: 5, b: 3 }, { id: "group", subGraph });
+      const graphAsTask = new TestGraphAsTask_AB({ id: "group", subGraph, defaults: { a: 5, b: 3 } });
     });
   });
 });

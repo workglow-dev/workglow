@@ -97,7 +97,7 @@ describe("JavaScriptTask", () => {
     expect(result.output).toBe("012");
   });
   test("should throw an error if the code is empty", async () => {
-    const task = new JavaScriptTask({ javascript_code: "" });
+    const task = new JavaScriptTask({ defaults: { javascript_code: "" } });
     await expect(task.run()).rejects.toThrowError();
   });
 
@@ -212,20 +212,16 @@ describe("JavaScriptTask", () => {
   });
 
   test("in task mode", async () => {
-    const task = new JavaScriptTask(
-      {
-        javascript_code: "2 * 3",
-      },
-      { id: "js-task" }
-    );
+    const task = new JavaScriptTask({ id: "js-task", defaults: { javascript_code: "2 * 3" } });
     const result = await task.run();
     expect(result.output).toBe(6);
     expect(task.status).toBe(TaskStatus.COMPLETED);
   });
 
   test("in task mode with function", async () => {
-    const task = new JavaScriptTask(
-      {
+    const task = new JavaScriptTask({
+      id: "js-function",
+      defaults: {
         javascript_code: `
           var double = function(n) {
             return n * 2;
@@ -233,8 +229,7 @@ describe("JavaScriptTask", () => {
           double(7)
         `,
       },
-      { id: "js-function" }
-    );
+    });
     const result = await task.run();
     expect(result.output).toBe(14);
     expect(task.status).toBe(TaskStatus.COMPLETED);
@@ -243,12 +238,7 @@ describe("JavaScriptTask", () => {
   test("in task graph mode", async () => {
     const graph = new TaskGraph();
     graph.addTask(
-      new JavaScriptTask(
-        {
-          javascript_code: "10 * 10",
-        },
-        { id: "js-in-graph" }
-      )
+      new JavaScriptTask({ id: "js-in-graph", defaults: { javascript_code: "10 * 10" } })
     );
     const results = await graph.run();
     expect(results[0].data.output).toBe(100);
@@ -264,13 +254,13 @@ describe("JavaScriptTask", () => {
   });
 
   test("in task mode with input", async () => {
-    const task = new JavaScriptTask(
-      {
+    const task = new JavaScriptTask({
+      id: "js-with-input",
+      defaults: {
         javascript_code: "input.x + input.y",
         input: { x: 15, y: 25 },
       },
-      { id: "js-with-input" }
-    );
+    });
     const result = await task.run();
     expect(result.output).toBe(40);
     expect(task.status).toBe(TaskStatus.COMPLETED);
@@ -332,12 +322,10 @@ describe("JavaScriptTask", () => {
   });
 
   test("task metadata is preserved", async () => {
-    const task = new JavaScriptTask(
-      { javascript_code: "42" },
-      {
-        id: "test-metadata",
-      }
-    );
+    const task = new JavaScriptTask({
+      id: "test-metadata",
+      defaults: { javascript_code: "42" },
+    });
     await task.run();
     expect(task.id).toBe("test-metadata");
   });

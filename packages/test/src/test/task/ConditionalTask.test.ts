@@ -28,30 +28,26 @@ describe("ConditionalTask", () => {
   describe("ConditionalTask", () => {
     describe("Basic Functionality", () => {
       it("should create a ConditionalTask with branches", () => {
-        const task = new ConditionalTask(
-          { value: 10 },
-          {
+        const task = new ConditionalTask({
             branches: [
               { id: "high", condition: (i: any) => i.value > 5, outputPort: "high" },
               { id: "low", condition: (i: any) => i.value <= 5, outputPort: "low" },
             ],
-          }
-        );
+            defaults: { value: 10 },
+          });
 
         expect(task).toBeDefined();
         expect(task.config.branches).toHaveLength(2);
       });
 
       it("should evaluate conditions and activate correct branch", async () => {
-        const task = new ConditionalTask(
-          { value: 5 },
-          {
+        const task = new ConditionalTask({
             branches: [
               { id: "high", condition: (i: any) => i.value > 5, outputPort: "high" },
               { id: "low", condition: (i: any) => i.value <= 5, outputPort: "low" },
             ],
-          }
-        );
+            defaults: { value: 5 },
+          });
 
         await task.run({ value: 10 });
 
@@ -397,8 +393,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const doubleTask = new TrackingTask({}, { id: "double" });
-        const halveTask = new TrackingTask({}, { id: "halve" });
+        const doubleTask = new TrackingTask({ id: "double" });
+        const halveTask = new TrackingTask({ id: "halve" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, doubleTask, halveTask]);
@@ -425,8 +421,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const takenTask = new TrackingTask({}, { id: "taken" });
-        const notTakenTask = new TrackingTask({}, { id: "notTaken" });
+        const takenTask = new TrackingTask({ id: "taken" });
+        const notTakenTask = new TrackingTask({ id: "notTaken" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, takenTask, notTakenTask]);
@@ -457,10 +453,10 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const activeTask1 = new TrackingTask({}, { id: "activeTask1" });
-        const inactiveTask1 = new TrackingTask({}, { id: "inactiveTask1" });
-        const inactiveTask2 = new TrackingTask({}, { id: "inactiveTask2" });
-        const inactiveTask3 = new TrackingTask({}, { id: "inactiveTask3" });
+        const activeTask1 = new TrackingTask({ id: "activeTask1" });
+        const inactiveTask1 = new TrackingTask({ id: "inactiveTask1" });
+        const inactiveTask2 = new TrackingTask({ id: "inactiveTask2" });
+        const inactiveTask3 = new TrackingTask({ id: "inactiveTask3" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, activeTask1, inactiveTask1, inactiveTask2, inactiveTask3]);
@@ -499,7 +495,7 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const mergeTask = new TrackingTask({}, { id: "merge" });
+        const mergeTask = new TrackingTask({ id: "merge" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, mergeTask]);
@@ -531,9 +527,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const taskA = new TrackingTask({}, { id: "taskA" });
-        const taskB = new TrackingTask({}, { id: "taskB" });
-        const taskC = new TrackingTask({}, { id: "taskC" });
+        const taskA = new TrackingTask({ id: "taskA" });
+        const taskB = new TrackingTask({ id: "taskB" });
+        const taskC = new TrackingTask({ id: "taskC" });
 
         const graph = new TaskGraph();
         graph.addTasks([switchTask, taskA, taskB, taskC]);
@@ -565,9 +561,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const task1 = new TrackingTask({}, { id: "task1" });
-        const task2 = new TrackingTask({}, { id: "task2" });
-        const task3 = new TrackingTask({}, { id: "task3" });
+        const task1 = new TrackingTask({ id: "task1" });
+        const task2 = new TrackingTask({ id: "task2" });
+        const task3 = new TrackingTask({ id: "task3" });
 
         const graph = new TaskGraph();
         graph.addTasks([multiPath, task1, task2, task3]);
@@ -622,9 +618,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const goldTask = new TrackingTask({}, { id: "goldTask" });
-        const silverTask = new TrackingTask({}, { id: "silverTask" });
-        const standardTask = new TrackingTask({}, { id: "standardTask" });
+        const goldTask = new TrackingTask({ id: "goldTask" });
+        const silverTask = new TrackingTask({ id: "silverTask" });
+        const standardTask = new TrackingTask({ id: "standardTask" });
 
         const graph = new TaskGraph();
         graph.addTasks([typeConditional, tierConditional, goldTask, silverTask, standardTask]);
@@ -660,8 +656,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const activeTask = new TrackingTask({}, { id: "active" });
-        const inactiveTask = new TrackingTask({}, { id: "inactive" });
+        const activeTask = new TrackingTask({ id: "active" });
+        const inactiveTask = new TrackingTask({ id: "inactive" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, activeTask, inactiveTask]);
@@ -704,9 +700,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const taskA = new DoubleTask({}, { id: "taskA" });
-        const taskB = new HalveTask({}, { id: "taskB" });
-        const mergeTask = new TrackingTask({}, { id: "merge" });
+        const taskA = new DoubleTask({ id: "taskA" });
+        const taskB = new HalveTask({ id: "taskB" });
+        const mergeTask = new TrackingTask({ id: "merge" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, taskA, taskB, mergeTask]);
@@ -739,8 +735,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const highTask = new TrackingTask({}, { id: "high" });
-        const mediumTask = new TrackingTask({}, { id: "medium" });
+        const highTask = new TrackingTask({ id: "high" });
+        const mediumTask = new TrackingTask({ id: "medium" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, highTask, mediumTask]);
@@ -758,7 +754,7 @@ describe("ConditionalTask", () => {
     describe("Mixed Task Types", () => {
       it("should work with ConditionalTask mixed with regular tasks", async () => {
         // Graph: InputTask -> ConditionalTask -> OutputTask1/OutputTask2
-        const inputTask = new DoubleTask({}, { id: "input" });
+        const inputTask = new DoubleTask({ id: "input" });
 
         const conditional = new ConditionalTask(
           {},
@@ -771,8 +767,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const largeTask = new TrackingTask({}, { id: "large" });
-        const smallTask = new TrackingTask({}, { id: "small" });
+        const largeTask = new TrackingTask({ id: "large" });
+        const smallTask = new TrackingTask({ id: "small" });
 
         const graph = new TaskGraph();
         graph.addTasks([inputTask, conditional, largeTask, smallTask]);
@@ -814,10 +810,10 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const task1Yes = new TrackingTask({}, { id: "task1Yes" });
-        const task1No = new TrackingTask({}, { id: "task1No" });
-        const task2Yes = new TrackingTask({}, { id: "task2Yes" });
-        const task2No = new TrackingTask({}, { id: "task2No" });
+        const task1Yes = new TrackingTask({ id: "task1Yes" });
+        const task1No = new TrackingTask({ id: "task1No" });
+        const task2Yes = new TrackingTask({ id: "task2Yes" });
+        const task2No = new TrackingTask({ id: "task2No" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional1, conditional2, task1Yes, task1No, task2Yes, task2No]);
@@ -860,8 +856,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const processTask = new ProcessValueTask({}, { id: "processor" });
-        const skipTask = new TrackingTask({}, { id: "skipper" });
+        const processTask = new ProcessValueTask({ id: "processor" });
+        const skipTask = new TrackingTask({ id: "skipper" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, processTask, skipTask]);
@@ -897,8 +893,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const processTask = new ProcessValueTask({}, { id: "processor" });
-        const skipTask = new TrackingTask({}, { id: "skipper" });
+        const processTask = new ProcessValueTask({ id: "processor" });
+        const skipTask = new TrackingTask({ id: "skipper" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, processTask, skipTask]);
@@ -915,7 +911,7 @@ describe("ConditionalTask", () => {
 
       it("should chain ProcessValueTask after conditional with DoubleTask", async () => {
         // Graph: DoubleTask -> ConditionalTask -> ProcessValueTask/HalveTask
-        const doubler = new DoubleTask({}, { id: "doubler" });
+        const doubler = new DoubleTask({ id: "doubler" });
 
         const conditional = new ConditionalTask(
           {},
@@ -928,8 +924,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const processTask = new ProcessValueTask({}, { id: "processor" });
-        const halveTask = new HalveTask({}, { id: "halver" });
+        const processTask = new ProcessValueTask({ id: "processor" });
+        const halveTask = new HalveTask({ id: "halver" });
 
         const graph = new TaskGraph();
         graph.addTasks([doubler, conditional, processTask, halveTask]);
@@ -950,7 +946,7 @@ describe("ConditionalTask", () => {
       });
 
       it("should handle ProcessValueTask on the small branch", async () => {
-        const doubler = new DoubleTask({}, { id: "doubler" });
+        const doubler = new DoubleTask({ id: "doubler" });
 
         const conditional = new ConditionalTask(
           {},
@@ -963,8 +959,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const bigTask = new TrackingTask({}, { id: "bigTask" });
-        const smallTask = new TrackingTask({}, { id: "smallTask" });
+        const bigTask = new TrackingTask({ id: "bigTask" });
+        const smallTask = new TrackingTask({ id: "smallTask" });
 
         const graph = new TaskGraph();
         graph.addTasks([doubler, conditional, bigTask, smallTask]);
@@ -1004,8 +1000,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const processTask = new ProcessValueTask({}, { id: "process" });
-        const errorHandler = new TrackingTask({}, { id: "errorHandler" });
+        const processTask = new ProcessValueTask({ id: "process" });
+        const errorHandler = new TrackingTask({ id: "errorHandler" });
 
         const graph = new TaskGraph();
         graph.addTasks([validator, processTask, errorHandler]);
@@ -1049,10 +1045,10 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const criticalTask = new ProcessValueTask({}, { id: "criticalProcessor" });
-        const highTask = new ProcessValueTask({}, { id: "highProcessor" });
-        const normalTask = new ProcessValueTask({}, { id: "normalProcessor" });
-        const lowTask = new ProcessValueTask({}, { id: "lowProcessor" });
+        const criticalTask = new ProcessValueTask({ id: "criticalProcessor" });
+        const highTask = new ProcessValueTask({ id: "highProcessor" });
+        const normalTask = new ProcessValueTask({ id: "normalProcessor" });
+        const lowTask = new ProcessValueTask({ id: "lowProcessor" });
 
         const graph = new TaskGraph();
         graph.addTasks([router, criticalTask, highTask, normalTask, lowTask]);
@@ -1083,8 +1079,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const v2Processor = new DoubleTask({}, { id: "v2Processor" });
-        const v1Processor = new HalveTask({}, { id: "v1Processor" });
+        const v2Processor = new DoubleTask({ id: "v2Processor" });
+        const v1Processor = new HalveTask({ id: "v1Processor" });
 
         const graph = new TaskGraph();
         graph.addTasks([featureGate, v2Processor, v1Processor]);
@@ -1118,9 +1114,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const proc1 = new ProcessValueTask({}, { id: "proc1" });
-        const proc2 = new DoubleTask({}, { id: "proc2" });
-        const proc3 = new HalveTask({}, { id: "proc3" });
+        const proc1 = new ProcessValueTask({ id: "proc1" });
+        const proc2 = new DoubleTask({ id: "proc2" });
+        const proc3 = new HalveTask({ id: "proc3" });
 
         const graph = new TaskGraph();
         graph.addTasks([fanOut, proc1, proc2, proc3]);
@@ -1154,8 +1150,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const activeTask = new TrackingTask({}, { id: "active" });
-        const inactiveTask = new TrackingTask({}, { id: "inactive" });
+        const activeTask = new TrackingTask({ id: "active" });
+        const inactiveTask = new TrackingTask({ id: "inactive" });
 
         let disabledEventFired = false;
         inactiveTask.on("disabled", () => {
@@ -1186,8 +1182,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const noTask = new TrackingTask({}, { id: "noTask" });
-        const yesTask = new TrackingTask({}, { id: "yesTask" });
+        const noTask = new TrackingTask({ id: "noTask" });
+        const yesTask = new TrackingTask({ id: "yesTask" });
 
         const statusEvents: TaskStatus[] = [];
         noTask.on("status", (status) => {
@@ -1227,8 +1223,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const hugeTask = new ProcessValueTask({}, { id: "huge" });
-        const normalTask = new ProcessValueTask({}, { id: "normal" });
+        const hugeTask = new ProcessValueTask({ id: "huge" });
+        const normalTask = new ProcessValueTask({ id: "normal" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, hugeTask, normalTask]);
@@ -1256,9 +1252,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const adminTask = new TrackingTask({}, { id: "admin" });
-        const userTask = new TrackingTask({}, { id: "user" });
-        const guestTask = new TrackingTask({}, { id: "guest" });
+        const adminTask = new TrackingTask({ id: "admin" });
+        const userTask = new TrackingTask({ id: "user" });
+        const guestTask = new TrackingTask({ id: "guest" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, adminTask, userTask, guestTask]);
@@ -1294,8 +1290,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const hasItemsTask = new ProcessValueTask({}, { id: "hasItems" });
-        const emptyTask = new TrackingTask({}, { id: "empty" });
+        const hasItemsTask = new ProcessValueTask({ id: "hasItems" });
+        const emptyTask = new TrackingTask({ id: "empty" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, hasItemsTask, emptyTask]);
@@ -1336,8 +1332,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const deepTask = new TrackingTask({}, { id: "deep" });
-        const shallowTask = new TrackingTask({}, { id: "shallow" });
+        const deepTask = new TrackingTask({ id: "deep" });
+        const shallowTask = new TrackingTask({ id: "shallow" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, deepTask, shallowTask]);
@@ -1376,9 +1372,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const retryTask = new ProcessValueTask({}, { id: "retry" });
-        const failTask = new TrackingTask({}, { id: "fail" });
-        const successTask = new ProcessValueTask({}, { id: "success" });
+        const retryTask = new ProcessValueTask({ id: "retry" });
+        const failTask = new TrackingTask({ id: "fail" });
+        const successTask = new ProcessValueTask({ id: "success" });
 
         const graph = new TaskGraph();
         graph.addTasks([errorRouter, retryTask, failTask, successTask]);
@@ -1452,10 +1448,10 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const largeTask = new ProcessValueTask({}, { id: "large" });
-        const smallTask = new ProcessValueTask({}, { id: "small" });
-        const oddTask = new TrackingTask({}, { id: "odd" });
-        const nonPositiveTask = new TrackingTask({}, { id: "nonPositive" });
+        const largeTask = new ProcessValueTask({ id: "large" });
+        const smallTask = new ProcessValueTask({ id: "small" });
+        const oddTask = new TrackingTask({ id: "odd" });
+        const nonPositiveTask = new TrackingTask({ id: "nonPositive" });
 
         const graph = new TaskGraph();
         graph.addTasks([cond1, cond2, cond3, largeTask, smallTask, oddTask, nonPositiveTask]);
@@ -1507,9 +1503,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const doubleTask = new DoubleTask({}, { id: "double" });
-        const halveTask = new HalveTask({}, { id: "halve" });
-        const processTask = new ProcessValueTask({}, { id: "process" });
+        const doubleTask = new DoubleTask({ id: "double" });
+        const halveTask = new HalveTask({ id: "halve" });
+        const processTask = new ProcessValueTask({ id: "process" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, doubleTask, halveTask, processTask]);
@@ -1555,9 +1551,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const zeroProcessor = new ProcessValueTask({}, { id: "zeroProcessor" });
-        const negativeProcessor = new ProcessValueTask({}, { id: "negativeProcessor" });
-        const positiveProcessor = new ProcessValueTask({}, { id: "positiveProcessor" });
+        const zeroProcessor = new ProcessValueTask({ id: "zeroProcessor" });
+        const negativeProcessor = new ProcessValueTask({ id: "negativeProcessor" });
+        const positiveProcessor = new ProcessValueTask({ id: "positiveProcessor" });
 
         const graph = new TaskGraph();
         graph.addTasks([conditional, zeroProcessor, negativeProcessor, positiveProcessor]);
@@ -1599,8 +1595,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const processor1 = new ProcessValueTask({}, { id: "processor1" });
-        const processor2 = new ProcessValueTask({}, { id: "processor2" });
+        const processor1 = new ProcessValueTask({ id: "processor1" });
+        const processor2 = new ProcessValueTask({ id: "processor2" });
 
         const graph = new TaskGraph();
         graph.addTasks([fanOut, processor1, processor2]);
@@ -1631,9 +1627,9 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const evenProcessor = new ProcessValueTask({}, { id: "evenProcessor" });
-        const div3Processor = new ProcessValueTask({}, { id: "div3Processor" });
-        const div5Processor = new ProcessValueTask({}, { id: "div5Processor" });
+        const evenProcessor = new ProcessValueTask({ id: "evenProcessor" });
+        const div3Processor = new ProcessValueTask({ id: "div3Processor" });
+        const div5Processor = new ProcessValueTask({ id: "div5Processor" });
 
         const graph = new TaskGraph();
         graph.addTasks([multiPath, evenProcessor, div3Processor, div5Processor]);
@@ -1666,7 +1662,7 @@ describe("ConditionalTask", () => {
 
     describe("Edge Cases with Numeric Operations", () => {
       it("should handle DoubleTask -> ConditionalTask -> ProcessValueTask with boundary values", async () => {
-        const doubler = new DoubleTask({}, { id: "doubler" });
+        const doubler = new DoubleTask({ id: "doubler" });
 
         const conditional = new ConditionalTask(
           {},
@@ -1683,8 +1679,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const overflowProcessor = new ProcessValueTask({}, { id: "overflow" });
-        const normalProcessor = new ProcessValueTask({}, { id: "normal" });
+        const overflowProcessor = new ProcessValueTask({ id: "overflow" });
+        const normalProcessor = new ProcessValueTask({ id: "normal" });
 
         const graph = new TaskGraph();
         graph.addTasks([doubler, conditional, overflowProcessor, normalProcessor]);
@@ -1708,7 +1704,7 @@ describe("ConditionalTask", () => {
       });
 
       it("should handle HalveTask -> ConditionalTask -> ProcessValueTask with decimal results", async () => {
-        const halver = new HalveTask({}, { id: "halver" });
+        const halver = new HalveTask({ id: "halver" });
 
         const conditional = new ConditionalTask(
           {},
@@ -1729,8 +1725,8 @@ describe("ConditionalTask", () => {
           }
         );
 
-        const integerProcessor = new ProcessValueTask({}, { id: "integer" });
-        const decimalProcessor = new ProcessValueTask({}, { id: "decimal" });
+        const integerProcessor = new ProcessValueTask({ id: "integer" });
+        const decimalProcessor = new ProcessValueTask({ id: "decimal" });
 
         const graph = new TaskGraph();
         graph.addTasks([halver, conditional, integerProcessor, decimalProcessor]);
