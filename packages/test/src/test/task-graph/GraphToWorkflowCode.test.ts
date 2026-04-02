@@ -557,7 +557,7 @@ describe("GraphToWorkflowCode", () => {
   describe("graph -> code -> workflow -> graph (starting from raw graph)", () => {
     it("should convert a manually built graph with simple chain", () => {
       const graph = new TaskGraph();
-      const t1 = new TestSimpleTask({ input: "hello" });
+      const t1 = new TestSimpleTask({ defaults: { input: "hello" } });
       const t2 = new TestSimpleTask();
       graph.addTask(t1);
       graph.addTask(t2);
