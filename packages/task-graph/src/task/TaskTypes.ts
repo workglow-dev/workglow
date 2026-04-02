@@ -113,6 +113,11 @@ export const TaskConfigSchema = {
       additionalProperties: true,
       "x-ui-hidden": true,
     },
+    defaults: {
+      type: "object",
+      additionalProperties: true,
+      "x-ui-hidden": true,
+    },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
