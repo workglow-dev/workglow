@@ -24,6 +24,7 @@ function mapOpenAIToolChoice(
   if (!toolChoice || toolChoice === "auto") return "auto";
   if (toolChoice === "none") return "none";
   if (toolChoice === "required") return "required";
+  if (!toolChoice) return undefined;
   return { type: "function", function: { name: toolChoice } };
 }
 

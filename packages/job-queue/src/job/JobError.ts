@@ -9,9 +9,6 @@ import { BaseError } from "@workglow/util";
 export class JobError extends BaseError {
   public static override type: string = "JobError";
   public retryable = false;
-  constructor(override readonly message: string) {
-    super(message);
-  }
 }
 
 /**
@@ -38,7 +35,6 @@ export class RetryableJobError extends JobError {
     public retryDate?: Date
   ) {
     super(message);
-    this.retryable = true;
   }
 }
 
@@ -50,9 +46,6 @@ export class RetryableJobError extends JobError {
  */
 export class PermanentJobError extends JobError {
   public static override type: string = "PermanentJobError";
-  constructor(message: string) {
-    super(message);
-  }
 }
 
 /**
@@ -64,9 +57,6 @@ export class PermanentJobError extends JobError {
  */
 export class AbortSignalJobError extends PermanentJobError {
   public static override type: string = "AbortSignalJobError";
-  constructor(message: string) {
-    super(message);
-  }
 }
 
 /**
