@@ -54,7 +54,7 @@ export type ParserFn = (text: string) => ToolCallParserResult | null;
  */
 export function stripModelArtifacts(text: string): string {
   return text
-    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/<think>(?:[^<]|<(?!\/think>))*<\/think>/g, "")
     .replace(/<\|[a-z_]+\|>/g, "")
     .trim();
 }
@@ -77,6 +77,62 @@ export function tryParseJson(text: string): unknown | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Scan `source` for balanced blocks delimited by `openChar`/`closeChar`
+ * (e.g. `{`/`}` or `[`/`]`). Correctly handles JSON string literals so
+ * that braces inside strings are not counted.
+ *
+ * This is a ReDoS-safe alternative to regex patterns like `\{[\s\S]*?\}`.
+ */
+function findBalancedBlocks(
+  source: string,
+  openChar: string,
+  closeChar: string,
+  startFrom: number = 0
+): Array<{ text: string; start: number; end: number }> {
+  const results: Array<{ text: string; start: number; end: number }> = [];
+  const length = source.length;
+  let i = startFrom;
+  while (i < length) {
+    if (source[i] !== openChar) {
+      i++;
+      continue;
+    }
+    let depth = 1;
+    let j = i + 1;
+    let inString = false;
+    let escape = false;
+    while (j < length && depth > 0) {
+      const ch = source[j];
+      if (inString) {
+        if (escape) {
+          escape = false;
+        } else if (ch === "\\") {
+          escape = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+      } else {
+        if (ch === '"') {
+          inString = true;
+        } else if (ch === openChar) {
+          depth++;
+        } else if (ch === closeChar) {
+          depth--;
+        }
+      }
+      j++;
+    }
+    if (depth === 0) {
+      results.push({ text: source.slice(i, j), start: i, end: j });
+      i = j;
+    } else {
+      break;
+    }
+  }
+  return results;
 }
 
 export function parseJsonToolCallArray(
@@ -112,7 +168,7 @@ export function parseKeyValueArgs(argsStr: string): Record<string, unknown> {
   const args: Record<string, unknown> = {};
   if (!argsStr) return args;
 
-  const argRegex = /(\w+)\s*=\s*(?:"([^"]*?)"|'([^']*?)'|(\S+?))\s*(?:,|$)/g;
+  const argRegex = /(\w+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s,]+))\s*(?:,|$)/g;
   let match: RegExpExecArray | null;
   while ((match = argRegex.exec(argsStr)) !== null) {
     const key = match[1];
@@ -205,7 +261,7 @@ export const parseLlama: ParserFn = (text) => {
   let content = text;
 
   // Try <|python_tag|> format first
-  const pythonTagMatch = text.match(/<\|python_tag\|>([\s\S]*?)(?:<\|eot_id\|>|<\|eom_id\|>|$)/);
+  const pythonTagMatch = text.match(/<\|python_tag\|>((?:[^<]|<(?!\|eot_id\|>|\|eom_id\|>))*)(?:<\|eot_id\|>|<\|eom_id\|>|$)/);
   if (pythonTagMatch) {
     content = text.slice(0, text.indexOf("<|python_tag|>")).trim();
     const jsonSection = pythonTagMatch[1].trim();
@@ -227,7 +283,7 @@ export const parseLlama: ParserFn = (text) => {
 
   // Try <function=name>{args}</function> format (Llama 3.2 lightweight 1B/3B)
   if (calls.length === 0) {
-    const funcTagRegex = /<function=(\w+)>([\s\S]*?)<\/function>/g;
+    const funcTagRegex = /<function=(\w+)>((?:[^<]|<(?!\/function>))*)<\/function>/g;
     let funcMatch: RegExpExecArray | null;
     while ((funcMatch = funcTagRegex.exec(text)) !== null) {
       const args = tryParseJson(funcMatch[2].trim()) as Record<string, unknown> | undefined;
@@ -236,18 +292,17 @@ export const parseLlama: ParserFn = (text) => {
       }
     }
     if (calls.length > 0) {
-      content = text.replace(/<function=\w+>[\s\S]*?<\/function>/g, "").trim();
+      content = text.replace(/<function=\w+>(?:[^<]|<(?!\/function>))*<\/function>/g, "").trim();
     }
   }
 
   // Check for {"name":...} pattern at end of output (no python_tag)
+  // Uses balanced-brace scanning instead of regex to avoid ReDoS
   if (calls.length === 0) {
-    const jsonPattern =
-      /\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"(?:parameters|arguments)"\s*:\s*\{[\s\S]*?\}\s*\}/g;
-    let match: RegExpExecArray | null;
-    while ((match = jsonPattern.exec(text)) !== null) {
-      const parsed = tryParseJson(match[0]) as Record<string, unknown> | undefined;
-      if (parsed) {
+    const blocks = findBalancedBlocks(text, "{", "}");
+    for (const block of blocks) {
+      const parsed = tryParseJson(block.text) as Record<string, unknown> | undefined;
+      if (parsed?.name && (parsed.parameters !== undefined || parsed.arguments !== undefined)) {
         calls.push(
           makeToolCall(
             parsed.name as string,
@@ -288,7 +343,7 @@ export const parseMistral: ParserFn = (text) => {
  * Format: `<tool_call>\n{"name": "func", "arguments": {...}}\n</tool_call>`
  */
 export const parseHermes: ParserFn = (text) => {
-  const regex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+  const regex = /<tool_call>((?:[^<]|<(?!\/tool_call>))*)<\/tool_call>/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -307,7 +362,7 @@ export const parseHermes: ParserFn = (text) => {
 
   if (calls.length === 0) return null;
 
-  const content = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
+  const content = text.replace(/<tool_call>(?:[^<]|<(?!\/tool_call>))*<\/tool_call>/g, "").trim();
   return { tool_calls: calls, content, parser: "hermes" };
 };
 
@@ -319,10 +374,23 @@ export const parseHermes: ParserFn = (text) => {
  * - `Action: [{"tool_name": ..., "parameters": ...}]`
  */
 export const parseCohere: ParserFn = (text) => {
-  const blockMatch = text.match(/Action:\s*```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-  const inlineMatch = text.match(/Action:\s*(\[[\s\S]*?\])\s*$/m);
+  const blockMatch = text.match(/Action:\s*```(?:json)?\n?((?:[^`]|`(?!``))*)\n?```/);
+  // Use balanced-bracket scanning for inline format to avoid ReDoS
+  let inlineJsonStr: string | undefined;
+  if (!blockMatch) {
+    const actionIdx = text.indexOf("Action:");
+    if (actionIdx !== -1) {
+      const afterAction = text.slice(actionIdx + "Action:".length).trimStart();
+      if (afterAction.startsWith("[")) {
+        const blocks = findBalancedBlocks(afterAction, "[", "]");
+        if (blocks.length > 0) {
+          inlineJsonStr = blocks[0].text;
+        }
+      }
+    }
+  }
 
-  const jsonStr = blockMatch?.[1] ?? inlineMatch?.[1];
+  const jsonStr = blockMatch?.[1] ?? inlineJsonStr;
   if (!jsonStr) return null;
 
   const calls = parseJsonToolCallArray(jsonStr, "tool_name", ["parameters", "arguments"]);
@@ -356,7 +424,7 @@ export const parseDeepSeek: ParserFn = (text) => {
 
   // Try V3.1 format first: name<｜tool▁sep｜>{args}
   const v31Regex = new RegExp(
-    `<${bar}tool${sep}call${sep}begin${bar}>\\s*(\\w+)\\s*<${bar}tool${sep}sep${bar}>\\s*([\\s\\S]*?)\\s*<${bar}tool${sep}call${sep}end${bar}>`,
+    `<${bar}tool${sep}call${sep}begin${bar}>\\s*(\\w+)\\s*<${bar}tool${sep}sep${bar}>\\s*([^<]*(?:<(?!${bar}tool${sep}call${sep}end${bar}>)[^<]*)*)\\s*<${bar}tool${sep}call${sep}end${bar}>`,
     "g"
   );
   let match: RegExpExecArray | null;
@@ -370,7 +438,7 @@ export const parseDeepSeek: ParserFn = (text) => {
   // Try V2 format: name\n```json\n{args}\n```
   if (calls.length === 0) {
     const v2Regex = new RegExp(
-      `<${bar}tool${sep}call${sep}begin${bar}>\\s*(\\w+)\\s*\\n\`\`\`(?:json)?\\n([\\s\\S]*?)\\n\`\`\`\\s*<${bar}tool${sep}call${sep}end${bar}>`,
+      `<${bar}tool${sep}call${sep}begin${bar}>\\s*(\\w+)\\s*\\n\`\`\`(?:json)?\\n([^\`]*(?:\`(?!\`\`)[^\`]*)*)\\n\`\`\`\\s*<${bar}tool${sep}call${sep}end${bar}>`,
       "g"
     );
     while ((match = v2Regex.exec(text)) !== null) {
@@ -387,7 +455,7 @@ export const parseDeepSeek: ParserFn = (text) => {
     .replace(new RegExp(`<${bar}tool${sep}calls?${sep}(?:begin|end)${bar}>`, "g"), "")
     .replace(
       new RegExp(
-        `<${bar}tool${sep}call${sep}(?:begin|end)${bar}>[\\s\\S]*?<${bar}tool${sep}call${sep}end${bar}>`,
+        `<${bar}tool${sep}call${sep}(?:begin|end)${bar}>[^<]*(?:<(?!${bar}tool${sep}call${sep}end${bar}>)[^<]*)*<${bar}tool${sep}call${sep}end${bar}>`,
         "g"
       ),
       ""
@@ -403,7 +471,7 @@ export const parseDeepSeek: ParserFn = (text) => {
  * Format: `<|tool_calls|>[{"name": "func", "arguments": {...}}]<|/tool_calls|>`
  */
 export const parsePhi: ParserFn = (text) => {
-  const match = text.match(/<\|tool_calls\|>\s*([\s\S]*?)\s*<\|\/tool_calls\|>/);
+  const match = text.match(/<\|tool_calls\|>((?:[^<]|<(?!\|\/tool_calls\|>))*)<\|\/tool_calls\|>/);
   if (!match) return null;
 
   const calls = parseJsonToolCallArray(match[1]);
@@ -419,13 +487,21 @@ export const parsePhi: ParserFn = (text) => {
  * Format: `functools[{"name": "func", "arguments": {...}}]`
  */
 export const parsePhiFunctools: ParserFn = (text) => {
-  const match = text.match(/functools\s*(\[[\s\S]*?\])/);
-  if (!match) return null;
+  const idx = text.indexOf("functools");
+  if (idx === -1) return null;
 
-  const calls = parseJsonToolCallArray(match[1]);
+  // Scan forward past optional whitespace to find the opening [
+  let start = idx + "functools".length;
+  while (start < text.length && /\s/.test(text[start])) start++;
+  if (start >= text.length || text[start] !== "[") return null;
+
+  const blocks = findBalancedBlocks(text, "[", "]", start);
+  if (blocks.length === 0) return null;
+
+  const calls = parseJsonToolCallArray(blocks[0].text);
   if (!calls) return null;
 
-  const content = text.slice(0, text.indexOf("functools")).trim();
+  const content = text.slice(0, idx).trim();
   return { tool_calls: calls, content, parser: "phi_functools" };
 };
 
@@ -435,7 +511,7 @@ export const parsePhiFunctools: ParserFn = (text) => {
  * Format: `<|action_start|><|plugin|>\n{"name": "func", "parameters": {...}}<|action_end|>`
  */
 export const parseInternLM: ParserFn = (text) => {
-  const regex = /<\|action_start\|>\s*<\|plugin\|>\s*([\s\S]*?)\s*<\|action_end\|>/g;
+  const regex = /<\|action_start\|>\s*<\|plugin\|>((?:[^<]|<(?!\|action_end\|>))*)<\|action_end\|>/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -455,7 +531,7 @@ export const parseInternLM: ParserFn = (text) => {
   if (calls.length === 0) return null;
 
   const content = text
-    .replace(/<\|action_start\|>\s*<\|plugin\|>[\s\S]*?<\|action_end\|>/g, "")
+    .replace(/<\|action_start\|>\s*<\|plugin\|>(?:[^<]|<(?!\|action_end\|>))*<\|action_end\|>/g, "")
     .trim();
   return { tool_calls: calls, content, parser: "internlm" };
 };
@@ -487,7 +563,7 @@ export const parseChatGLM: ParserFn = (text) => {
  * Uses `all` as a special function name for regular text.
  */
 export const parseFunctionary: ParserFn = (text) => {
-  const regex = />>>\s*(\w+)\s*\n([\s\S]*?)(?=>>>|$)/g;
+  const regex = />>>\s*(\w+)\s*\n((?:(?!>>>)[\s\S])*)/g;
   const calls: ToolCall[] = [];
   let content = "";
   let match: RegExpExecArray | null;
@@ -515,7 +591,7 @@ export const parseFunctionary: ParserFn = (text) => {
  * Format: `<<function>>func_name(arg1="val1", arg2=val2)`
  */
 export const parseGorilla: ParserFn = (text) => {
-  const regex = /<<function>>\s*(\w+)\(([^)]*)\)/g;
+  const regex = /<<function>>\s{0,20}(\w+)\(([^)]*)\)/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -525,7 +601,7 @@ export const parseGorilla: ParserFn = (text) => {
 
   if (calls.length === 0) return null;
 
-  const content = text.replace(/<<function>>\s*\w+\([^)]*\)/g, "").trim();
+  const content = text.replace(/<<function>>\s{0,20}\w+\([^)]*\)/g, "").trim();
   return { tool_calls: calls, content, parser: "gorilla" };
 };
 
@@ -535,7 +611,7 @@ export const parseGorilla: ParserFn = (text) => {
  * Format: `Call: func_name(arg1="val1", arg2=val2)\nThought: reasoning...`
  */
 export const parseNexusRaven: ParserFn = (text) => {
-  const regex = /Call:\s*(\w+)\(([^)]*)\)/g;
+  const regex = /Call:\s{0,20}(\w+)\(([^)]*)\)/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -545,8 +621,8 @@ export const parseNexusRaven: ParserFn = (text) => {
 
   if (calls.length === 0) return null;
 
-  const thoughtMatch = text.match(/Thought:\s*([\s\S]*?)(?:Call:|$)/);
-  const content = thoughtMatch?.[1]?.trim() ?? text.replace(/Call:\s*\w+\([^)]*\)/g, "").trim();
+  const thoughtMatch = text.match(/Thought:\s*((?:(?!Call:)[\s\S])*)/);
+  const content = thoughtMatch?.[1]?.trim() ?? text.replace(/Call:\s{0,20}\w+\([^)]*\)/g, "").trim();
   return { tool_calls: calls, content, parser: "nexusraven" };
 };
 
@@ -557,15 +633,29 @@ export const parseNexusRaven: ParserFn = (text) => {
  * May be wrapped in ```json code blocks.
  */
 export const parseXLAM: ParserFn = (text) => {
-  const codeBlockMatch = text.match(/```(?:json)?\s*\n?(\[[\s\S]*?\])\n?\s*```/);
-  const jsonStr = codeBlockMatch?.[1] ?? text.trim();
+  // Try code block format first using ReDoS-safe backtick matching
+  const codeBlockMatch = text.match(/```(?:json)?\n?((?:[^`]|`(?!``))*)\n?```/);
+  let jsonStr: string | undefined;
+  let isCodeBlock = false;
 
-  if (!jsonStr.trimStart().startsWith("[")) return null;
+  if (codeBlockMatch) {
+    const inner = codeBlockMatch[1].trim();
+    if (inner.startsWith("[")) {
+      jsonStr = inner;
+      isCodeBlock = true;
+    }
+  }
+
+  if (!jsonStr) {
+    const trimmed = text.trim();
+    if (!trimmed.startsWith("[")) return null;
+    jsonStr = trimmed;
+  }
 
   const calls = parseJsonToolCallArray(jsonStr);
   if (!calls) return null;
 
-  const content = codeBlockMatch ? text.slice(0, text.indexOf("```")).trim() : "";
+  const content = isCodeBlock ? text.slice(0, text.indexOf("```")).trim() : "";
   return { tool_calls: calls, content, parser: "xlam" };
 };
 
@@ -575,10 +665,18 @@ export const parseXLAM: ParserFn = (text) => {
  * Format: `{"tool_calls": [{"function": {"name": "...", "arguments": "..."}}]}`
  */
 export const parseFireFunction: ParserFn = (text) => {
-  const openaiMatch = text.match(/\{"tool_calls"\s*:\s*(\[[\s\S]*?\])\s*\}/);
-  if (!openaiMatch) return null;
+  // Use balanced-bracket scanning to avoid ReDoS
+  const toolCallsIdx = text.indexOf('"tool_calls"');
+  if (toolCallsIdx === -1) return null;
 
-  const parsed = tryParseJson(openaiMatch[1]) as Array<Record<string, unknown>> | undefined;
+  // Find the opening [ after "tool_calls":
+  let bracketStart = text.indexOf("[", toolCallsIdx);
+  if (bracketStart === -1) return null;
+
+  const blocks = findBalancedBlocks(text, "[", "]", bracketStart);
+  if (blocks.length === 0) return null;
+
+  const parsed = tryParseJson(blocks[0].text) as Array<Record<string, unknown>> | undefined;
   if (!parsed || !Array.isArray(parsed)) return null;
 
   const calls: ToolCall[] = [];
@@ -608,7 +706,7 @@ export const parseFireFunction: ParserFn = (text) => {
  * Format: `<|tool_call|>{"name": "func", "arguments": {...}}<|/tool_call|>` or `<|end_of_text|>`
  */
 export const parseGranite: ParserFn = (text) => {
-  const regex = /<\|tool_call\|>\s*([\s\S]*?)\s*(?:<\|\/tool_call\|>|<\|end_of_text\|>|$)/g;
+  const regex = /<\|tool_call\|>((?:[^<]|<(?!\|\/tool_call\|>|\|end_of_text\|>))*?)(?:<\|\/tool_call\|>|<\|end_of_text\|>|$)/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -627,7 +725,9 @@ export const parseGranite: ParserFn = (text) => {
 
   if (calls.length === 0) return null;
 
-  const content = text.replace(/<\|tool_call\|>[\s\S]*?(?:<\|\/tool_call\|>|$)/g, "").trim();
+  const content = text
+    .replace(/<\|tool_call\|>(?:[^<]|<(?!\|\/tool_call\|>|\|end_of_text\|>))*(?:<\|\/tool_call\|>|$)/g, "")
+    .trim();
   return { tool_calls: calls, content, parser: "granite" };
 };
 
@@ -639,14 +739,14 @@ export const parseGranite: ParserFn = (text) => {
  * - `{"name": "func", "parameters": {...}}`
  */
 export const parseGemma: ParserFn = (text) => {
-  const codeMatch = text.match(/```tool_code\s*\n([\s\S]*?)\n\s*```/);
+  const codeMatch = text.match(/```tool_code\s*\n((?:[^`]|`(?!``))*)\n\s*```/);
   if (!codeMatch) return null;
 
   const code = codeMatch[1].trim();
   const funcMatch = code.match(/^(\w+)\(([\s\S]*)\)$/);
   if (!funcMatch) return null;
 
-  const content = text.replace(/```tool_code[\s\S]*?```/g, "").trim();
+  const content = text.replace(/```tool_code(?:[^`]|`(?!``))*```/g, "").trim();
   return {
     tool_calls: [makeToolCall(funcMatch[1], parseKeyValueArgs(funcMatch[2].trim()))],
     content,
@@ -664,7 +764,7 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
   if (!argsStr.trim()) return args;
 
   // Try <escape>-delimited format first: key:<escape>value<escape>
-  const escapeRegex = /([A-Za-z0-9_]+)\s*:\s*<escape>([\s\S]*?)<escape>/g;
+  const escapeRegex = /([A-Za-z0-9_]+)\s*:\s*<escape>((?:[^<]|<(?!escape>))*)<escape>/g;
   let escapeMatch: RegExpExecArray | null;
   while ((escapeMatch = escapeRegex.exec(argsStr)) !== null) {
     args[escapeMatch[1]] = coerceArgValue(escapeMatch[2]);
@@ -673,8 +773,7 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
 
   // Try plain key:value format (no escape tags): key:value separated by commas
   // Also handles cases where the model generates only a single <escape> tag
-  const plainRegex =
-    /([A-Za-z0-9_]+)\s*:\s*(?:'([^']*)'|"([^"]*)"|((?:(?![,}]\s*[A-Za-z0-9_]+\s*:)[^,}])+))/g;
+  const plainRegex = /([A-Za-z0-9_]+)\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}]+))/g;
   let plainMatch: RegExpExecArray | null;
   while ((plainMatch = plainRegex.exec(argsStr)) !== null) {
     const key = plainMatch[1].trim();
@@ -704,7 +803,7 @@ export const parseFunctionGemma: ParserFn = (text) => {
   // - `call:name{args}` or just `:name{args}` (model may omit `call` prefix)
   // - Optional whitespace/newlines between name and `{`
   const regex =
-    /(?:<start_function_call>\s*)?call:([^{\s]+)\s*\{([\s\S]*?)\}(?:\s*<end_function_call>)?/g;
+    /(?:<start_function_call>\s*)?call:([^{\s]+)\s*\{((?:[^}])*)\}(?:\s*<end_function_call>)?/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -714,7 +813,7 @@ export const parseFunctionGemma: ParserFn = (text) => {
 
   // Fallback: handle missing `call` prefix (`:name{args}` at start of text)
   if (calls.length === 0) {
-    const fallbackRegex = /^:([A-Za-z_]\w*)\s*\{([\s\S]*?)\}$/;
+    const fallbackRegex = /^:([A-Za-z_]\w*)\s*\{([^}]*)\}$/;
     const fallbackMatch = text.trim().match(fallbackRegex);
     if (fallbackMatch) {
       calls.push(makeToolCall(fallbackMatch[1].trim(), parseFunctionGemmaArgs(fallbackMatch[2])));
@@ -725,7 +824,7 @@ export const parseFunctionGemma: ParserFn = (text) => {
 
   const content = text
     .replace(
-      /(?:<start_function_call>\s*)?(?:call)?:([A-Za-z_]\w*)\s*\{[\s\S]*?\}(?:\s*<end_function_call>)?/g,
+      /(?:<start_function_call>\s*)?(?:call)?:([A-Za-z_]\w*)\s*\{[^}]*\}(?:\s*<end_function_call>)?/g,
       ""
     )
     .trim();
@@ -804,14 +903,14 @@ function extractPythonicCalls(text: string): ToolCall[] {
  */
 export const parseLiquid: ParserFn = (text) => {
   // Try special token format first
-  const specialMatch = text.match(/<\|tool_call_start\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/);
+  const specialMatch = text.match(/<\|tool_call_start\|>((?:[^<]|<(?!\|tool_call_end\|>))*)<\|tool_call_end\|>/);
   if (specialMatch) {
     const inner = specialMatch[1].trim();
     const unwrapped = inner.startsWith("[") && inner.endsWith("]") ? inner.slice(1, -1) : inner;
     const calls = extractPythonicCalls(unwrapped);
     if (calls.length > 0) {
       const content = stripModelArtifacts(
-        text.replace(/<\|tool_call_start\|>[\s\S]*?<\|tool_call_end\|>/g, "")
+        text.replace(/<\|tool_call_start\|>(?:[^<]|<(?!\|tool_call_end\|>))*<\|tool_call_end\|>/g, "")
       );
       return { tool_calls: calls, content, parser: "liquid" };
     }
@@ -845,7 +944,7 @@ export const parseLiquid: ParserFn = (text) => {
   }
 
   if (callCalls.length > 0) {
-    const content = stripModelArtifacts(text.replace(/\|?\|?Call:\s*\w+\([^]*?\)/g, ""));
+    const content = stripModelArtifacts(text.replace(/\|?\|?Call:\s{0,20}\w+\([^)]*\)/g, ""));
     return { tool_calls: callCalls, content, parser: "liquid" };
   }
 
@@ -859,7 +958,7 @@ export const parseLiquid: ParserFn = (text) => {
  * Also supports OpenAI-compatible format via FireFunction fallback.
  */
 export const parseJamba: ParserFn = (text) => {
-  const tagMatch = text.match(/<tool_calls>\s*([\s\S]*?)\s*<\/tool_calls>/);
+  const tagMatch = text.match(/<tool_calls>((?:[^<]|<(?!\/tool_calls>))*)<\/tool_calls>/);
   if (tagMatch) {
     const parsed = tryParseJson(tagMatch[1].trim());
     if (parsed) {
@@ -906,17 +1005,19 @@ export const parseJamba: ParserFn = (text) => {
  * into the arguments.
  */
 export const parseQwen35Xml: ParserFn = (text) => {
-  const toolCallMatches = text.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g);
+  const toolCallMatches = text.matchAll(/<tool_call>((?:[^<]|<(?!\/tool_call>))*)<\/tool_call>/g);
   const calls: ToolCall[] = [];
   for (const [_, toolCallBody] of toolCallMatches) {
-    const functionMatch = toolCallBody.match(/<function=([^>\n]+)>\s*([\s\S]*?)\s*<\/function>/);
+    const functionMatch = toolCallBody
+      .trim()
+      .match(/<function=([^>\n]+)>((?:[^<]|<(?!\/function>))*)<\/function>/);
     if (!functionMatch) {
       continue;
     }
     const [, rawName, functionBody] = functionMatch;
     const parsedInput: Record<string, unknown> = {};
     const parameterMatches = functionBody.matchAll(
-      /<parameter=([^>\n]+)>\s*([\s\S]*?)\s*<\/parameter>/g
+      /<parameter=([^>\n]+)>((?:[^<]|<(?!\/parameter>))*)<\/parameter>/g
     );
     for (const [__, rawParamName, rawValue] of parameterMatches) {
       const paramName = rawParamName.trim();
@@ -939,7 +1040,7 @@ export const parseQwen35Xml: ParserFn = (text) => {
 
   if (calls.length === 0) return null;
 
-  const content = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
+  const content = text.replace(/<tool_call>(?:[^<]|<(?!\/tool_call>))*<\/tool_call>/g, "").trim();
   return { tool_calls: calls, content, parser: "qwen35xml" };
 };
 
@@ -1195,48 +1296,7 @@ export function parseToolCallsFromText(responseText: string): {
   const toolCalls: ToolCalls = [];
   let callIndex = 0;
 
-  const jsonCandidates: Array<{ text: string; start: number; end: number }> = [];
-  (function collectBalancedJsonBlocks(source: string) {
-    const length = source.length;
-    let i = 0;
-    while (i < length) {
-      if (source[i] !== "{") {
-        i++;
-        continue;
-      }
-      let depth = 1;
-      let j = i + 1;
-      let inString = false;
-      let escape = false;
-      while (j < length && depth > 0) {
-        const ch = source[j];
-        if (inString) {
-          if (escape) {
-            escape = false;
-          } else if (ch === "\\") {
-            escape = true;
-          } else if (ch === '"') {
-            inString = false;
-          }
-        } else {
-          if (ch === '"') {
-            inString = true;
-          } else if (ch === "{") {
-            depth++;
-          } else if (ch === "}") {
-            depth--;
-          }
-        }
-        j++;
-      }
-      if (depth === 0) {
-        jsonCandidates.push({ text: source.slice(i, j), start: i, end: j });
-        i = j;
-      } else {
-        break;
-      }
-    }
-  })(responseText);
+  const jsonCandidates = findBalancedBlocks(responseText, "{", "}");
 
   const matchedRanges: Array<{ start: number; end: number }> = [];
   for (const candidate of jsonCandidates) {
