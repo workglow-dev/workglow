@@ -242,7 +242,7 @@ describe("TaskRunner Streaming", () => {
   setLogger(logger);
   describe("Append Mode", () => {
     it("should emit stream_start, stream_chunk, and stream_end events", async () => {
-      const task = new TestStreamingAppendTask({ prompt: "test" });
+      const task = new TestStreamingAppendTask({ defaults: { prompt: "test" } });
 
       const events: string[] = [];
       const chunks: StreamEvent[] = [];
@@ -266,7 +266,7 @@ describe("TaskRunner Streaming", () => {
     });
 
     it("should transition through PENDING -> PROCESSING -> STREAMING -> COMPLETED", async () => {
-      const task = new TestStreamingAppendTask({ prompt: "test" });
+      const task = new TestStreamingAppendTask({ defaults: { prompt: "test" } });
 
       const statuses: TaskStatus[] = [];
       task.on("status", (status) => statuses.push(status));
@@ -347,7 +347,7 @@ describe("TaskRunner Streaming", () => {
     });
 
     it("should report progress during streaming", async () => {
-      const task = new TestStreamingAppendTask({ prompt: "test" });
+      const task = new TestStreamingAppendTask({ defaults: { prompt: "test" } });
 
       const progressValues: number[] = [];
       task.on("progress", (progress) => progressValues.push(progress));
@@ -366,7 +366,7 @@ describe("TaskRunner Streaming", () => {
 
   describe("Replace Mode", () => {
     it("should emit snapshot chunks and update runOutputData on each", async () => {
-      const task = new TestStreamingReplaceTask({ prompt: "test" });
+      const task = new TestStreamingReplaceTask({ defaults: { prompt: "test" } });
 
       const snapshots: any[] = [];
       const runOutputSnapshots: any[] = [];
@@ -393,7 +393,7 @@ describe("TaskRunner Streaming", () => {
     });
 
     it("should have final snapshot in runOutputData after completion", async () => {
-      const task = new TestStreamingReplaceTask({ prompt: "test" });
+      const task = new TestStreamingReplaceTask({ defaults: { prompt: "test" } });
 
       const result = await task.run({ prompt: "test" });
 
@@ -402,7 +402,7 @@ describe("TaskRunner Streaming", () => {
     });
 
     it("should transition through STREAMING status", async () => {
-      const task = new TestStreamingReplaceTask({ prompt: "test" });
+      const task = new TestStreamingReplaceTask({ defaults: { prompt: "test" } });
 
       const statuses: TaskStatus[] = [];
       task.on("status", (status) => statuses.push(status));
@@ -429,7 +429,7 @@ describe("TaskRunner Streaming", () => {
 
   describe("Error Handling", () => {
     it("should throw and transition to FAILED on stream error", async () => {
-      const task = new TestStreamingErrorTask({ prompt: "test" });
+      const task = new TestStreamingErrorTask({ defaults: { prompt: "test" } });
 
       const statuses: TaskStatus[] = [];
       task.on("status", (status) => statuses.push(status));
@@ -441,7 +441,7 @@ describe("TaskRunner Streaming", () => {
     });
 
     it("should emit error event on stream error", async () => {
-      const task = new TestStreamingErrorTask({ prompt: "test" });
+      const task = new TestStreamingErrorTask({ defaults: { prompt: "test" } });
 
       const errors: Error[] = [];
       task.on("error", (err) => errors.push(err));
@@ -458,7 +458,7 @@ describe("TaskRunner Streaming", () => {
 
   describe("Abort Handling", () => {
     it("should abort a streaming task mid-stream", async () => {
-      const task = new TestStreamingAbortableTask({ prompt: "test" });
+      const task = new TestStreamingAbortableTask({ defaults: { prompt: "test" } });
 
       const chunks: StreamEvent[] = [];
       task.on("stream_chunk", (event) => chunks.push(event));
@@ -484,7 +484,7 @@ describe("TaskRunner Streaming", () => {
 
   describe("Non-text append port", () => {
     it("should accumulate text-deltas into the correct port name (code)", async () => {
-      const task = new TestStreamingCodeAppendTask({ prompt: "test" });
+      const task = new TestStreamingCodeAppendTask({ defaults: { prompt: "test" } });
 
       const result = await task.run({ prompt: "test" });
 
@@ -494,7 +494,7 @@ describe("TaskRunner Streaming", () => {
     });
 
     it("should emit stream events for non-text port", async () => {
-      const task = new TestStreamingCodeAppendTask({ prompt: "test" });
+      const task = new TestStreamingCodeAppendTask({ defaults: { prompt: "test" } });
 
       const chunks: StreamEvent[] = [];
       task.on("stream_chunk", (event) => chunks.push(event));
@@ -508,14 +508,14 @@ describe("TaskRunner Streaming", () => {
 
   describe("Port-level streaming detection", () => {
     it("should detect streaming via x-stream on output schema", async () => {
-      const task = new TestStreamingAppendTask({ prompt: "test" });
+      const task = new TestStreamingAppendTask({ defaults: { prompt: "test" } });
       // isTaskStreamable checks output schema for x-stream and executeStream presence
       expect(isTaskStreamable(task)).toBe(true);
       expect(getOutputStreamMode(task.outputSchema())).toBe("append");
     });
 
     it("should detect replace mode via x-stream on output schema", () => {
-      const task = new TestStreamingReplaceTask({ prompt: "test" });
+      const task = new TestStreamingReplaceTask({ defaults: { prompt: "test" } });
       expect(getOutputStreamMode(task.outputSchema())).toBe("replace");
     });
 

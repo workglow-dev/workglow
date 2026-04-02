@@ -57,7 +57,6 @@ describe("ConditionalTask", () => {
 
       it("should pass input through to active branch output port", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "high", condition: (i: any) => i.value > 5, outputPort: "high" },
@@ -73,7 +72,6 @@ describe("ConditionalTask", () => {
 
       it("should handle low value activating low branch", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "high", condition: (i: any) => i.value > 5, outputPort: "high" },
@@ -92,7 +90,6 @@ describe("ConditionalTask", () => {
     describe("Exclusive Mode (Default)", () => {
       it("should only activate first matching branch in exclusive mode", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "first", condition: (i: any) => i.value > 10, outputPort: "first" },
@@ -112,7 +109,6 @@ describe("ConditionalTask", () => {
 
       it("should activate middle branch when first doesn't match", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "first", condition: (i: any) => i.value > 20, outputPort: "first" },
@@ -133,7 +129,6 @@ describe("ConditionalTask", () => {
     describe("Multi-Path Mode", () => {
       it("should activate all matching branches in multi-path mode", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "first", condition: (i: any) => i.value > 10, outputPort: "first" },
@@ -154,7 +149,6 @@ describe("ConditionalTask", () => {
 
       it("should only activate branches that match in multi-path mode", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "first", condition: (i: any) => i.value > 20, outputPort: "first" },
@@ -176,7 +170,6 @@ describe("ConditionalTask", () => {
     describe("Default Branch", () => {
       it("should use default branch when no conditions match", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "high", condition: (i: any) => i.value > 100, outputPort: "high" },
@@ -196,7 +189,6 @@ describe("ConditionalTask", () => {
 
       it("should not use default branch when a condition matches", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "high", condition: (i: any) => i.value > 5, outputPort: "high" },
@@ -214,7 +206,6 @@ describe("ConditionalTask", () => {
 
       it("should ignore invalid default branch", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [{ id: "high", condition: (i: any) => i.value > 100, outputPort: "high" }],
             defaultBranch: "nonexistent",
@@ -230,7 +221,6 @@ describe("ConditionalTask", () => {
     describe("Edge Cases", () => {
       it("should handle empty branches array", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [],
           }
@@ -243,7 +233,6 @@ describe("ConditionalTask", () => {
 
       it("should handle condition that throws error", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               {
@@ -267,7 +256,6 @@ describe("ConditionalTask", () => {
 
       it("should handle null/undefined input gracefully", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               {
@@ -291,7 +279,6 @@ describe("ConditionalTask", () => {
 
       it("should clear active branches between runs", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "high", condition: (i: any) => i.value > 5, outputPort: "high" },
@@ -314,7 +301,6 @@ describe("ConditionalTask", () => {
     describe("Port Status Methods", () => {
       it("should return correct port active status", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "a", condition: (i: any) => i.value === "a", outputPort: "portA" },
@@ -332,7 +318,6 @@ describe("ConditionalTask", () => {
 
       it("should check individual port active status", async () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "active", condition: () => true, outputPort: "activePort" },
@@ -351,7 +336,6 @@ describe("ConditionalTask", () => {
     describe("Dynamic Output Schema", () => {
       it("should generate output schema based on branches", () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "high", condition: () => true, outputPort: "highOutput" },
@@ -383,7 +367,6 @@ describe("ConditionalTask", () => {
     describe("Basic Graph Routing", () => {
       it("should route to correct downstream task in simple if/else", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -411,7 +394,6 @@ describe("ConditionalTask", () => {
 
       it("should disable downstream task when branch not taken", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -443,7 +425,6 @@ describe("ConditionalTask", () => {
       it("should cascade disabled status through multiple levels", async () => {
         // Graph: Conditional -> Task1 -> Task2 -> Task3
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -485,7 +466,6 @@ describe("ConditionalTask", () => {
         //   Conditional (active) -----> MergeTask
         //   Conditional (inactive) ---> MergeTask
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -515,7 +495,6 @@ describe("ConditionalTask", () => {
     describe("Switch/Case Pattern", () => {
       it("should route based on enum-like value", async () => {
         const switchTask = new ConditionalTask(
-          {},
           {
             id: "switchTask",
             branches: [
@@ -549,7 +528,6 @@ describe("ConditionalTask", () => {
     describe("Multi-Path Execution", () => {
       it("should execute multiple downstream tasks in multi-path mode", async () => {
         const multiPath = new ConditionalTask(
-          {},
           {
             id: "multiPath",
             branches: [
@@ -584,7 +562,6 @@ describe("ConditionalTask", () => {
       it("should handle chained conditional tasks", async () => {
         // First conditional routes by type
         const typeConditional = new ConditionalTask(
-          {},
           {
             id: "typeConditional",
             branches: [
@@ -604,7 +581,6 @@ describe("ConditionalTask", () => {
 
         // Second conditional routes premium users by tier
         const tierConditional = new ConditionalTask(
-          {},
           {
             id: "tierConditional",
             branches: [
@@ -646,7 +622,6 @@ describe("ConditionalTask", () => {
     describe("Dataflow Status", () => {
       it("should set correct status on dataflows", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -690,7 +665,6 @@ describe("ConditionalTask", () => {
         //       \          /
         //        MergeTask
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -724,7 +698,6 @@ describe("ConditionalTask", () => {
     describe("No Matching Branches", () => {
       it("should disable all downstream tasks when no branch matches and no default", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -757,7 +730,6 @@ describe("ConditionalTask", () => {
         const inputTask = new DoubleTask({ id: "input" });
 
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -789,7 +761,6 @@ describe("ConditionalTask", () => {
     describe("Multiple Conditionals in Parallel", () => {
       it("should handle multiple independent conditional tasks", async () => {
         const conditional1 = new ConditionalTask(
-          {},
           {
             id: "cond1",
             branches: [
@@ -800,7 +771,6 @@ describe("ConditionalTask", () => {
         );
 
         const conditional2 = new ConditionalTask(
-          {},
           {
             id: "cond2",
             branches: [
@@ -838,7 +808,6 @@ describe("ConditionalTask", () => {
     describe("ProcessValueTask Integration", () => {
       it("should route to ProcessValueTask and get processed result", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -875,7 +844,6 @@ describe("ConditionalTask", () => {
 
       it("should skip ProcessValueTask when condition is false", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -914,7 +882,6 @@ describe("ConditionalTask", () => {
         const doubler = new DoubleTask({ id: "doubler" });
 
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -949,7 +916,6 @@ describe("ConditionalTask", () => {
         const doubler = new DoubleTask({ id: "doubler" });
 
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -982,7 +948,6 @@ describe("ConditionalTask", () => {
     describe("Real-World Patterns", () => {
       it("should implement a validation pipeline pattern", async () => {
         const validator = new ConditionalTask(
-          {},
           {
             id: "validator",
             branches: [
@@ -1023,7 +988,6 @@ describe("ConditionalTask", () => {
 
       it("should implement a tiered processing pattern", async () => {
         const router = new ConditionalTask(
-          {},
           {
             id: "router",
             branches: [
@@ -1069,7 +1033,6 @@ describe("ConditionalTask", () => {
 
       it("should implement a feature flag pattern", async () => {
         const featureGate = new ConditionalTask(
-          {},
           {
             id: "featureGate",
             branches: [
@@ -1102,7 +1065,6 @@ describe("ConditionalTask", () => {
 
       it("should implement a load balancing pattern with multi-path", async () => {
         const fanOut = new ConditionalTask(
-          {},
           {
             id: "fanOut",
             branches: [
@@ -1140,7 +1102,6 @@ describe("ConditionalTask", () => {
     describe("Event Handling", () => {
       it("should emit disabled event for inactive branch tasks", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1172,7 +1133,6 @@ describe("ConditionalTask", () => {
 
       it("should emit status event with DISABLED for inactive tasks", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1205,7 +1165,6 @@ describe("ConditionalTask", () => {
     describe("Boundary Conditions", () => {
       it("should handle very large numbers in conditions", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1240,7 +1199,6 @@ describe("ConditionalTask", () => {
 
       it("should handle string comparison conditions", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1272,7 +1230,6 @@ describe("ConditionalTask", () => {
 
       it("should handle array-based conditions", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1314,7 +1271,6 @@ describe("ConditionalTask", () => {
 
       it("should handle deeply nested object conditions", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1357,7 +1313,6 @@ describe("ConditionalTask", () => {
     describe("Error Recovery Patterns", () => {
       it("should allow retry path on specific error conditions", async () => {
         const errorRouter = new ConditionalTask(
-          {},
           {
             id: "errorRouter",
             branches: [
@@ -1402,7 +1357,6 @@ describe("ConditionalTask", () => {
       it("should handle three sequential conditionals", async () => {
         // First conditional: check if value is positive
         const cond1 = new ConditionalTask(
-          {},
           {
             id: "cond1",
             branches: [
@@ -1414,7 +1368,6 @@ describe("ConditionalTask", () => {
 
         // Second conditional: check if positive value is even
         const cond2 = new ConditionalTask(
-          {},
           {
             id: "cond2",
             branches: [
@@ -1430,7 +1383,6 @@ describe("ConditionalTask", () => {
 
         // Third conditional: check if even value is large
         const cond3 = new ConditionalTask(
-          {},
           {
             id: "cond3",
             branches: [
@@ -1480,7 +1432,6 @@ describe("ConditionalTask", () => {
     describe("ProcessValueTask Output Verification", () => {
       it("should process values correctly through conditional branches with different transformations", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1540,7 +1491,6 @@ describe("ConditionalTask", () => {
 
       it("should verify ProcessValueTask output format for different inputs", async () => {
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1584,7 +1534,6 @@ describe("ConditionalTask", () => {
     describe("Concurrent Branch Activation with ProcessValueTask", () => {
       it("should run multiple ProcessValueTasks concurrently in multi-path mode", async () => {
         const fanOut = new ConditionalTask(
-          {},
           {
             id: "fanOut",
             branches: [
@@ -1615,7 +1564,6 @@ describe("ConditionalTask", () => {
 
       it("should selectively run ProcessValueTasks based on conditions in multi-path mode", async () => {
         const multiPath = new ConditionalTask(
-          {},
           {
             id: "multiPath",
             branches: [
@@ -1665,7 +1613,6 @@ describe("ConditionalTask", () => {
         const doubler = new DoubleTask({ id: "doubler" });
 
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1707,7 +1654,6 @@ describe("ConditionalTask", () => {
         const halver = new HalveTask({ id: "halver" });
 
         const conditional = new ConditionalTask(
-          {},
           {
             id: "conditional",
             branches: [
@@ -1757,7 +1703,6 @@ describe("ConditionalTask", () => {
 
       it("should emit schemaChange event when emitSchemaChange is called", () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "branch1", condition: () => true, outputPort: "port1" },
@@ -1791,7 +1736,6 @@ describe("ConditionalTask", () => {
 
       it("should emit schemaChange event with provided schemas", () => {
         const task = new ConditionalTask(
-          {},
           {
             branches: [{ id: "branch1", condition: () => true, outputPort: "port1" }],
           }
@@ -1823,7 +1767,6 @@ describe("ConditionalTask", () => {
 
       it("should have different output schemas for different branch configurations", () => {
         const task1 = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "a", condition: () => true, outputPort: "outputA" },
@@ -1833,7 +1776,6 @@ describe("ConditionalTask", () => {
         );
 
         const task2 = new ConditionalTask(
-          {},
           {
             branches: [
               { id: "x", condition: () => true, outputPort: "outputX" },
