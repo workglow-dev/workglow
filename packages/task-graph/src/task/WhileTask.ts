@@ -716,7 +716,7 @@ declare module "../task-graph/Workflow" {
      *   .endWhile()
      * ```
      */
-    while: CreateLoopWorkflow<TaskInput, TaskOutput, WhileTaskConfig<TaskInput, TaskOutput>>;
+    while: CreateLoopWorkflow<TaskInput, TaskOutput, WhileTaskConfig<TaskInput, any>>;
 
     /**
      * Ends the while loop and returns to the parent workflow.
