@@ -406,8 +406,7 @@ describe("ArrayTask", () => {
   setLogger(logger);
   test("MultiplyRunTask in task mode run plain", async () => {
     const task = new MultiplyRunTask({
-      a: 4,
-      b: 5,
+      defaults: { a: 4, b: 5 },
     });
     // @ts-expect-error - we are testing the protected method
     // For plain tasks (not array mode), executeTaskChildren should not be called
@@ -419,8 +418,7 @@ describe("ArrayTask", () => {
 
   test("MultiplyRunTask in task mode run array", async () => {
     const task = new MultiplyRunTask({
-      a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      b: 1,
+      defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], b: 1 },
     });
     const results = await task.run();
     expect(results).toEqual({ result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] });
@@ -428,8 +426,7 @@ describe("ArrayTask", () => {
 
   test("MultiplyRunTask in task mode run array x array", async () => {
     const task = new MultiplyRunTask({
-      a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      b: [1, 2],
+      defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], b: [1, 2] },
     });
     const results = await task.run();
     expect(results).toEqual({
@@ -458,8 +455,7 @@ describe("ArrayTask", () => {
 
   test("MultiplyRunReactiveTask in task mode reactive run", async () => {
     const task = new MultiplyRunReactiveTask({
-      a: 2,
-      b: 10,
+      defaults: { a: 2, b: 10 },
     });
     const results = await task.runReactive();
     expect(results).toEqual({ result: 20 });
@@ -467,8 +463,7 @@ describe("ArrayTask", () => {
 
   test("MultiplyRunReactiveTask in task mode reactive runReactive", async () => {
     const task = new MultiplyRunReactiveTask({
-      a: 2,
-      b: 10,
+      defaults: { a: 2, b: 10 },
     });
     const results = await task.runReactive();
     expect(results).toEqual({ result: 20 });
@@ -476,8 +471,7 @@ describe("ArrayTask", () => {
 
   test("MultiplyRunReactiveTask in task mode reactive runReactive array", async () => {
     const task = new MultiplyRunReactiveTask({
-      a: [2],
-      b: [10],
+      defaults: { a: [2], b: [10] },
     });
     const results = await task.runReactive();
     expect(results).toEqual({ result: 20 });
@@ -485,42 +479,41 @@ describe("ArrayTask", () => {
 
   test("MultiplyRunReactiveTask in task mode reactive runReactive", async () => {
     const task = new MultiplyRunReactiveTask({
-      a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      b: 10,
+      defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], b: 10 },
     });
     const results = await task.runReactive();
     expect(results).toEqual({ result: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] });
   });
 
   test("SquareRunTask in task mode run with single", async () => {
-    const task = new SquareRunTask({ a: 5 });
+    const task = new SquareRunTask({ defaults: { a: 5 } });
     await task.run();
     const results = await task.runReactive();
     expect(results).toEqual({ result: 25 });
   });
 
   test("SquareRunTask in task mode reactive run with single", async () => {
-    const task = new SquareRunTask({ a: 5 });
+    const task = new SquareRunTask({ defaults: { a: 5 } });
     const results = await task.runReactive();
     expect(results).toEqual({} as SquareOutput);
   });
 
   test("SquareRunReactiveTask in task mode run with single", async () => {
-    const task = new SquareRunReactiveTask({ a: 5 });
+    const task = new SquareRunReactiveTask({ defaults: { a: 5 } });
     await task.run();
     const results = await task.runReactive();
     expect(results).toEqual({ result: 25 });
   });
 
   test("SquareRunReactiveTask in task mode reactive run with single", async () => {
-    const task = new SquareRunReactiveTask({ a: 5 });
+    const task = new SquareRunReactiveTask({ defaults: { a: 5 } });
     const results = await task.runReactive();
     expect(results).toEqual({ result: 25 } as SquareOutput);
   });
 
   test("ArrayTask runReactive calls executeReactive in single task mode (no children)", async () => {
     // Create a task with non-array input - this puts it in single task mode (no subtasks)
-    const task = new SquareRunReactiveTask({ a: 7 });
+    const task = new SquareRunReactiveTask({ defaults: { a: 7 } });
 
     // Verify it has no children (single task mode)
     expect(task.hasChildren()).toBe(false);
@@ -546,8 +539,7 @@ describe("ArrayTask", () => {
   test("ArrayTask runReactive works in single task mode without prior run() call", async () => {
     // This test ensures runReactive works even when run() hasn't been called first
     const task = new MultiplyRunReactiveTask({
-      a: 3,
-      b: 4,
+      defaults: { a: 3, b: 4 },
     });
 
     // Verify single task mode
@@ -563,7 +555,7 @@ describe("ArrayTask", () => {
 
   test("in task mode non-reactive run", async () => {
     const task = new SquareRunTask({
-      a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
     });
     const results = await task.run();
     expect(results).toEqual({ result: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100] });
@@ -571,7 +563,7 @@ describe("ArrayTask", () => {
 
   test("in task mode non-reactive runReactive", async () => {
     const task = new SquareRunReactiveTask({
-      a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
     });
     const results = await task.runReactive();
     expect(results).toEqual({ result: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100] });
@@ -581,8 +573,7 @@ describe("ArrayTask", () => {
     const graph = new TaskGraph();
     graph.addTask(
       new MultiplyRunTask({
-        a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        b: 11,
+        defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], b: 11 },
       })
     );
     const results = await graph.run<MultiplyOutput>();
@@ -596,7 +587,7 @@ describe("ArrayTask", () => {
   test("emits events correctly", async () => {
     // Create a task with a smaller array for testing events
     const task = new SquareRunTask({
-      a: [1, 2, 3],
+      defaults: { a: [1, 2, 3] },
     });
 
     // Create event tracking variables
@@ -646,7 +637,7 @@ describe("ArrayTask", () => {
   test("child tasks emit events that bubble up to parent", async () => {
     // Create a task with a smaller array for testing events
     const task = new SquareRunTask({
-      a: [1, 2],
+      defaults: { a: [1, 2] },
     });
 
     // Create event tracking variables for parent and children
@@ -786,7 +777,7 @@ describe("ArrayTask", () => {
 
   test("Task runReactive calls executeReactive in single task mode (no children)", async () => {
     // Create a Task with non-array input - this puts it in single task mode (no subtasks)
-    const task = new JobQueueReactiveTask({ value: 5 });
+    const task = new JobQueueReactiveTask({ defaults: { value: 5 } });
 
     // Verify it has no children (single task mode)
     expect(task.hasChildren()).toBe(false);
@@ -811,7 +802,7 @@ describe("ArrayTask", () => {
 
   test("Task runReactive works in single task mode without prior run() call", async () => {
     // This test ensures runReactive works even when run() hasn't been called first
-    const task = new JobQueueReactiveTask({ value: 7 });
+    const task = new JobQueueReactiveTask({ defaults: { value: 7 } });
 
     // Verify single task mode
     expect(task.hasChildren()).toBe(false);
@@ -839,8 +830,7 @@ describe("ArrayTask", () => {
 
   test("QueryAppendTask with single string input run reactive", async () => {
     const task = new QueryAppendTask({
-      query: "test",
-      val: 1,
+      defaults: { query: "test", val: 1 },
     });
     const results = await task.runReactive();
     expect(results).toEqual({ result: "test-reactive", val: 1 });
@@ -848,8 +838,7 @@ describe("ArrayTask", () => {
 
   test("QueryAppendTask with array string input run reactive", async () => {
     const task = new QueryAppendTask({
-      query: ["test1", "test2"],
-      val: 2,
+      defaults: { query: ["test1", "test2"], val: 2 },
     });
     const results = await task.runReactive();
     expect(results).toEqual({ result: ["test1-reactive", "test2-reactive"], val: 2 });
@@ -857,8 +846,7 @@ describe("ArrayTask", () => {
 
   test("QueryAppendTask with single string input", async () => {
     const task = new QueryAppendTask({
-      query: "test",
-      val: 1,
+      defaults: { query: "test", val: 1 },
     });
     const results = await task.run();
     expect(results).toEqual({ result: "test-output-reactive", val: 1 });
@@ -866,8 +854,7 @@ describe("ArrayTask", () => {
 
   test("QueryAppendTask with array string input", async () => {
     const task = new QueryAppendTask({
-      query: ["test1", "test2"],
-      val: 2,
+      defaults: { query: ["test1", "test2"], val: 2 },
     });
     const results = await task.run();
     expect(results).toEqual({ result: ["test1-output-reactive", "test2-output-reactive"], val: 2 });
