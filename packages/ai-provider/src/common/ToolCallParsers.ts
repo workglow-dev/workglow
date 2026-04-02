@@ -787,6 +787,8 @@ function extractPythonicCalls(text: string): ToolCall[] {
     if (depth === 0) {
       const argsStr = text.slice(argsStart, i - 1);
       calls.push(makeToolCall(funcName, parseLiquidArgs(argsStr)));
+      // Advance regex scanning position past this complete call to avoid matching inside args
+      startRegex.lastIndex = i;
     }
   }
   return calls;
