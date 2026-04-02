@@ -402,9 +402,12 @@ async function* streamTextChunks<T>(
   }
 
   if (completionError) {
-    if (!signal.aborted) throw completionError;
+    throw completionError;
   }
 
+  if (signal.aborted) {
+    throw (signal as any).reason ?? new Error("The operation was aborted");
+  }
   return { text: accumulatedText, result };
 }
 
