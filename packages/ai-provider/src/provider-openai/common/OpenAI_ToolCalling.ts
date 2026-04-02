@@ -24,7 +24,6 @@ function mapOpenAIToolChoice(
   if (!toolChoice || toolChoice === "auto") return "auto";
   if (toolChoice === "none") return "none";
   if (toolChoice === "required") return "required";
-  if (!toolChoice) return undefined;
   return { type: "function", function: { name: toolChoice } };
 }
 
@@ -57,10 +56,8 @@ export const OpenAI_ToolCalling: AiProviderRunFn<
     temperature: input.temperature,
   };
 
-  if (toolChoice !== undefined) {
-    params.tools = tools;
-    params.tool_choice = toolChoice;
-  }
+  params.tools = tools;
+  params.tool_choice = toolChoice;
 
   const response = await client.chat.completions.create(params, { signal });
 

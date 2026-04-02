@@ -412,7 +412,6 @@ describe("TaskGraph with format annotations", () => {
 
       // Different narrowings are incompatible because they filter to different model sets
       const embeddingProvider = new EmbeddingModelProviderTask({ id: "embedding" });
-      const textGenProvider = new TextGenerationModelProviderTask({ id: "textgen" });
 
       class TextGenConsumer extends Task<{ model: string }, { result: string }> {
         static override readonly type = "TextGenerationConsumer";

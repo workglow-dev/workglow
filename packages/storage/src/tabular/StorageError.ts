@@ -8,16 +8,10 @@ import { BaseError } from "@workglow/util";
 
 export class StorageError extends BaseError {
   static override readonly type: string = "StorageError";
-  constructor(message: string) {
-    super(message);
-  }
 }
 
 export class StorageValidationError extends StorageError {
   static override readonly type: string = "StorageValidationError";
-  constructor(message: string) {
-    super(message);
-  }
 }
 
 export class StorageEmptyCriteriaError extends StorageValidationError {
