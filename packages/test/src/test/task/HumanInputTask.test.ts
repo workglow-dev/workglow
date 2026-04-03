@@ -21,7 +21,7 @@ import {
   type IHumanRequest,
   type IHumanResponse,
 } from "@workglow/tasks";
-import { Container, globalServiceRegistry, ServiceRegistry } from "@workglow/util";
+import { Container, ServiceRegistry } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -29,9 +29,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 // Mock connector
 // ========================================================================
 
-function createMockConnector(
-  handler: (request: IHumanRequest) => IHumanResponse
-): IHumanConnector {
+function createMockConnector(handler: (request: IHumanRequest) => IHumanResponse): IHumanConnector {
   return {
     send: vi.fn(async (request: IHumanRequest, _signal: AbortSignal) => handler(request)),
   };
@@ -80,7 +78,7 @@ describe("HumanInputTask — elicit", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
+    registry = new ServiceRegistry(new Container());
   });
 
   test("returns human response data with action as output", async () => {
@@ -99,10 +97,7 @@ describe("HumanInputTask — elicit", () => {
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
 
-    const task = new HumanInputTask(
-      {},
-      { contentSchema, message: "What is your name?" }
-    );
+    const task = new HumanInputTask({}, { contentSchema, message: "What is your name?" });
     const result = await task.run({}, { registry });
 
     expect(result).toEqual({ action: "accept", name: "Alice" });
@@ -144,10 +139,7 @@ describe("HumanInputTask — elicit", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask(
-      { prompt: "Dynamic prompt" },
-      { message: "Base message" }
-    );
+    const task = new HumanInputTask({ prompt: "Dynamic prompt" }, { message: "Base message" });
     await task.run({}, { registry });
   });
 
@@ -188,9 +180,7 @@ describe("HumanInputTask — elicit", () => {
   test("throws when no IHumanConnector is registered", async () => {
     const emptyRegistry = new ServiceRegistry(new Container());
     const task = new HumanInputTask({}, {});
-    await expect(task.run({}, { registry: emptyRegistry })).rejects.toThrow(
-      TaskConfigurationError
-    );
+    await expect(task.run({}, { registry: emptyRegistry })).rejects.toThrow(TaskConfigurationError);
   });
 
   test("multi-turn mode: loops until done=true", async () => {
@@ -262,7 +252,12 @@ describe("HumanInputTask — elicit", () => {
       expect(req.contentSchema).toEqual(contentSchema);
       expect(req.kind).toBe("elicit");
       expect(req.expectsResponse).toBe(true);
-      return { requestId: req.requestId, action: "accept", content: { email: "a@b.c" }, done: true };
+      return {
+        requestId: req.requestId,
+        action: "accept",
+        content: { email: "a@b.c" },
+        done: true,
+      };
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
@@ -310,7 +305,7 @@ describe("HumanInputTask — notify", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
+    registry = new ServiceRegistry(new Container());
   });
 
   test("notify kind sends and resolves immediately", async () => {
@@ -323,10 +318,7 @@ describe("HumanInputTask — notify", () => {
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
 
-    const task = new HumanInputTask(
-      {},
-      { kind: "notify", message: "Deploy complete!" }
-    );
+    const task = new HumanInputTask({}, { kind: "notify", message: "Deploy complete!" });
     const result = await task.run({}, { registry });
     expect(result).toEqual({ action: "accept" });
   });
@@ -355,7 +347,7 @@ describe("HumanInputTask — display", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
+    registry = new ServiceRegistry(new Container());
   });
 
   test("display kind sends content for visualization", async () => {
@@ -395,7 +387,7 @@ describe("HumanApprovalTask", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
+    registry = new ServiceRegistry(new Container());
   });
 
   test("returns approved=true when human accepts", async () => {
@@ -438,6 +430,7 @@ describe("HumanApprovalTask", () => {
     const result = await new HumanApprovalTask({}, {}).run({}, { registry });
     expect(result.action).toBe("decline");
     expect(result.approved).toBe(false);
+    expect(result.reason).toBeUndefined();
   });
 
   test("returns approved=false when human cancels", async () => {
@@ -452,14 +445,22 @@ describe("HumanApprovalTask", () => {
     const result = await new HumanApprovalTask({}, {}).run({}, { registry });
     expect(result.action).toBe("cancel");
     expect(result.approved).toBe(false);
+    expect(result.reason).toBeUndefined();
   });
 
   test("sends as elicit kind with approval schema", async () => {
     const connector = createMockConnector((req) => {
       expect(req.kind).toBe("elicit");
       expect(req.mode).toBe("single");
-      expect((req.contentSchema as { properties: Record<string, unknown> }).properties).toHaveProperty("approved");
-      return { requestId: req.requestId, action: "accept", content: { approved: true }, done: true };
+      expect(
+        (req.contentSchema as { properties: Record<string, unknown> }).properties
+      ).toHaveProperty("approved");
+      return {
+        requestId: req.requestId,
+        action: "accept",
+        content: { approved: true },
+        done: true,
+      };
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
@@ -600,7 +601,8 @@ describe("McpElicitationConnector", () => {
 
   test("followUp delegates to another send call", async () => {
     const mockServer = {
-      elicitInput: vi.fn()
+      elicitInput: vi
+        .fn()
         .mockResolvedValueOnce({ action: "accept", content: { step: 1 } })
         .mockResolvedValueOnce({ action: "accept", content: { step: 2 } }),
     } as any;

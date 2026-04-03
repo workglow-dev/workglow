@@ -6,11 +6,7 @@
 
 import type { Server } from "@modelcontextprotocol/sdk/server";
 import type { ElicitRequestFormParams, ElicitResult } from "@modelcontextprotocol/sdk/types";
-import type {
-  IHumanConnector,
-  IHumanRequest,
-  IHumanResponse,
-} from "./HumanInputTask";
+import type { IHumanConnector, IHumanRequest, IHumanResponse } from "./HumanInputTask";
 
 /**
  * Converts a workglow DataPortSchema to MCP's flat requestedSchema format.
@@ -86,9 +82,8 @@ export class McpElicitationConnector implements IHumanConnector {
    */
   private async handleNotify(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
     if (signal.aborted) {
-      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      throw new Error("Aborted before sending notification");
     }
-
     await this.server.sendLoggingMessage({
       level: "info",
       data: request.contentData ?? request.message,
@@ -112,11 +107,13 @@ export class McpElicitationConnector implements IHumanConnector {
    * Uses MCP logging notification with the content data.
    * Resolves immediately since no response is expected by default.
    */
-  private async handleDisplay(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
+  private async handleDisplay(
+    request: IHumanRequest,
+    signal: AbortSignal
+  ): Promise<IHumanResponse> {
     if (signal.aborted) {
-      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      throw new Error("Aborted before sending display content");
     }
-
     await this.server.sendLoggingMessage({
       level: "info",
       data: {
@@ -142,17 +139,12 @@ export class McpElicitationConnector implements IHumanConnector {
   /**
    * Handle "elicit" kind — request structured input via MCP elicitation.
    */
-  private async handleElicit(
-    request: IHumanRequest,
-    signal: AbortSignal
-  ): Promise<IHumanResponse> {
+  private async handleElicit(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
     const mcpResult: ElicitResult = await this.server.elicitInput(
       {
         mode: "form",
         message: request.message,
-        requestedSchema: toMcpRequestedSchema(
-          request.contentSchema as Record<string, unknown>
-        ),
+        requestedSchema: toMcpRequestedSchema(request.contentSchema as Record<string, unknown>),
       },
       { signal }
     );
@@ -161,9 +153,7 @@ export class McpElicitationConnector implements IHumanConnector {
       requestId: request.requestId,
       action: mcpResult.action,
       content:
-        mcpResult.action === "accept"
-          ? (mcpResult.content as Record<string, unknown>)
-          : undefined,
+        mcpResult.action === "accept" ? (mcpResult.content as Record<string, unknown>) : undefined,
       done: true,
     };
   }
