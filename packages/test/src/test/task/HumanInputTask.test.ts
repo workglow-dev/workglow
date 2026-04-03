@@ -246,7 +246,7 @@ describe("HumanInputTask — elicit", () => {
     };
 
     const task = new HumanInputTask({}, { contentSchema });
-    const schema = task.outputSchema();
+    const schema = task.outputSchema() as { properties: Record<string, unknown> };
     expect(schema.properties).toHaveProperty("action");
     expect(schema.properties).toHaveProperty("color");
   });
@@ -458,7 +458,7 @@ describe("HumanApprovalTask", () => {
     const connector = createMockConnector((req) => {
       expect(req.kind).toBe("elicit");
       expect(req.mode).toBe("single");
-      expect(req.contentSchema.properties).toHaveProperty("approved");
+      expect((req.contentSchema as { properties: Record<string, unknown> }).properties).toHaveProperty("approved");
       return { requestId: req.requestId, action: "accept", content: { approved: true }, done: true };
     });
 
@@ -472,7 +472,7 @@ describe("HumanApprovalTask", () => {
   });
 
   test("output schema includes action, approved, and reason", () => {
-    const schema = HumanApprovalTask.outputSchema();
+    const schema = HumanApprovalTask.outputSchema() as { properties: Record<string, unknown> };
     expect(schema.properties).toHaveProperty("action");
     expect(schema.properties).toHaveProperty("approved");
     expect(schema.properties).toHaveProperty("reason");
