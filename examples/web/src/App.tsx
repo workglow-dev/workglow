@@ -230,7 +230,7 @@ export const App = () => {
   );
 
   return (
-    <ResizablePanelGroup direction="horizontal">
+    <ResizablePanelGroup orientation="horizontal">
       <ResizablePanel>
         <ReactFlowProvider>
           <Suspense fallback={<div className="p-4 text-sm text-neutral-400">Loading graph…</div>}>
@@ -239,9 +239,9 @@ export const App = () => {
         </ReactFlowProvider>
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={30}>
-        <ResizablePanelGroup direction="vertical">
-          <ResizablePanel defaultSize={82}>
+      <ResizablePanel defaultSize="30%">
+        <ResizablePanelGroup orientation="vertical">
+          <ResizablePanel defaultSize="82%">
             <Suspense
               fallback={<div className="p-4 text-sm text-neutral-400">Loading editor…</div>}
             >
