@@ -12,7 +12,7 @@ export const TaskDataButtons: React.FC<TaskDataButtonsProps> = ({ task }) => {
   const [showOutputData, setShowOutputData] = useState(false);
 
   const isPending = task.status === TaskStatus.PENDING;
-  const buttonBaseClass = "text-xs rounded px-2 py-0.5 transition-colors";
+  const buttonBaseClass = "text-xs rounded-sm px-2 py-0.5 transition-colors";
   const buttonEnabledClass = "bg-gray-800 hover:bg-gray-700";
   const buttonDisabledClass = "bg-gray-800 opacity-50 cursor-not-allowed";
 

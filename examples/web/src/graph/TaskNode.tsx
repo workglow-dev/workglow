@@ -145,7 +145,7 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
         <ProgressBar progress={progress} status={status} showText={true} />
 
         {(isStreaming || (status === TaskStatus.STREAMING && streamingText)) && (
-          <div className="mt-2 p-2 bg-[rgba(28,35,50,0.6)] rounded text-xs font-mono max-h-24 overflow-y-auto">
+          <div className="mt-2 p-2 bg-[rgba(28,35,50,0.6)] rounded-sm text-xs font-mono max-h-24 overflow-y-auto">
             <div className="flex items-center gap-1 mb-1">
               <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-streaming-pulse" />
               <span className="text-blue-400 text-[10px]">Streaming</span>
@@ -161,7 +161,7 @@ export function TaskNode(props: NodeProps<Node<TaskNodeData, string>>) {
             </div>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="text-xs bg-gray-800 hover:bg-gray-700 rounded px-2 py-0.5 transition-colors"
+              className="text-xs bg-gray-800 hover:bg-gray-700 rounded-sm px-2 py-0.5 transition-colors"
             >
               {isExpanded ? "Hide" : "Show"} sub-graph
             </button>
