@@ -18,72 +18,104 @@ import type { DataPortSchema } from "@workglow/util/schema";
 import { createServiceToken, uuid4 } from "@workglow/util";
 
 // ========================================================================
-// Human connector types — aligned with MCP elicitation semantics
+// Human connector types — unified schema-driven interactions
 // ========================================================================
 
-/** User action in response to an elicitation, matching MCP's ElicitResult.action */
+/**
+ * The kind of interaction being requested.
+ *
+ * - "notify":  One-way message, no response expected. Fire-and-forget.
+ * - "display": Present rich content (markdown, data, visualization hints).
+ *              Response optional (acknowledgment).
+ * - "elicit":  Request structured input via a form schema (MCP elicitation).
+ *              Response expected with user-submitted data.
+ */
+export type HumanInteractionKind = "notify" | "display" | "elicit";
+
+/** User action in response to an interaction (MCP-aligned for "elicit" kind) */
 export type HumanResponseAction = "accept" | "decline" | "cancel";
 
 /**
- * A request sent to a human via an IHumanConnector.
- * Schema follows MCP elicitation conventions (mode, message, requestedSchema).
+ * A unified request sent to a human via an IHumanConnector.
+ *
+ * The `kind` field determines the interaction pattern. The `content` schema
+ * describes WHAT to render — the UI layer interprets it based on `kind`.
  */
 export interface IHumanRequest {
-  /** Unique identifier for this request (used to correlate follow-ups) */
+  /** Unique identifier for this request (used to correlate responses) */
   readonly requestId: string;
   /** Target human identifier — "default" for the main user, or a specific user/role ID */
   readonly targetHumanId: string;
-  /**
-   * JSON schema describing the form to render for the human.
-   * For MCP elicitation this is a flat object schema (no nesting).
-   */
-  readonly requestedSchema: DataPortSchema;
+  /** What kind of interaction this is */
+  readonly kind: HumanInteractionKind;
   /** Explanatory message shown to the human */
   readonly message: string;
+  /**
+   * Content schema — describes what to render.
+   *
+   * For "notify":  Describes notification content (may be empty, message suffices).
+   * For "display": Describes the data/visualization to present. Properties contain
+   *                the actual data to render. Use x-ui-viewer annotations for hints.
+   * For "elicit":  Describes the form fields for user input (MCP requestedSchema).
+   */
+  readonly contentSchema: DataPortSchema;
+  /**
+   * Concrete data to display (for "notify" and "display" kinds).
+   * For "elicit", this is typically empty — the human provides the data.
+   */
+  readonly contentData: Record<string, unknown> | undefined;
+  /** Whether a response is expected. Default: true for "elicit", false for "notify"/"display". */
+  readonly expectsResponse: boolean;
   /** Interaction mode: single request-response or multi-turn conversation */
   readonly mode: "single" | "multi-turn";
-  /** Arbitrary context data passed through to the connector (e.g. for routing, display hints) */
+  /** Arbitrary context data passed through to the connector */
   readonly metadata: Record<string, unknown> | undefined;
 }
 
 /**
  * A response from a human, collected by the IHumanConnector.
- * Modelled after MCP's ElicitResult: { action, content }.
+ * For "notify"/"display" interactions, this may just be an acknowledgment.
  */
 export interface IHumanResponse {
   /** Correlates to the IHumanRequest.requestId */
   readonly requestId: string;
   /**
    * The human's action:
-   * - "accept": user submitted data (content is present)
+   * - "accept": user submitted data or acknowledged
    * - "decline": user explicitly refused
    * - "cancel": user dismissed without choosing
    */
   readonly action: HumanResponseAction;
-  /** The human's response data (present when action is "accept") */
+  /** The human's response data (present when action is "accept" and kind is "elicit") */
   readonly content: Record<string, unknown> | undefined;
   /** Whether the conversation is complete. Always true for "single" mode. */
   readonly done: boolean;
 }
 
 /**
- * Interface for reaching a human and collecting input.
+ * Interface for reaching a human and sending interactions.
  *
- * The library defines this contract; UI layers provide concrete implementations.
- * The primary implementation is McpElicitationConnector which delegates to
- * MCP Server.elicitInput() for standards-based elicitation.
+ * Unified schema-driven: the `kind` field in IHumanRequest determines the
+ * interaction pattern. The connector renders accordingly — a notification
+ * toast, a data visualization, or an input form.
+ *
+ * The primary MCP-backed implementation is McpElicitationConnector.
  */
 export interface IHumanConnector {
   /**
-   * Send a request to a human and wait for their response.
-   * Must respect the AbortSignal for cancellation (e.g. dismiss UI on abort).
+   * Send an interaction to a human.
+   *
+   * For "notify" and "display" kinds that don't expect a response, the
+   * connector may resolve immediately with action "accept" and no content.
+   *
+   * For "elicit" kind, blocks until the human submits, declines, or cancels.
+   * Must respect the AbortSignal for cancellation.
    */
-  request(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse>;
+  send(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse>;
 
   /**
    * Send a follow-up in a multi-turn conversation.
    * Only called when mode is "multi-turn" and the previous response had done=false.
-   * Connectors that only support single mode need not implement this.
    */
   followUp?(
     request: IHumanRequest,
@@ -109,12 +141,19 @@ const humanInputTaskConfigSchema = {
       description: "Identifier of the human to ask (e.g. 'default', 'admin', 'user:alice')",
       default: "default",
     },
-    requestedSchema: {
+    kind: {
+      type: "string",
+      title: "Kind",
+      description: "Interaction kind: notify (one-way), display (show content), elicit (request input)",
+      enum: ["notify", "display", "elicit"],
+      default: "elicit",
+    },
+    contentSchema: {
       type: "object",
       properties: {},
       additionalProperties: true,
-      title: "Requested Schema",
-      description: "JSON schema describing the form to present to the human",
+      title: "Content Schema",
+      description: "JSON schema describing the content/form to present",
       "x-ui-hidden": true,
     },
     message: {
@@ -142,8 +181,10 @@ const humanInputTaskConfigSchema = {
 export type HumanInputTaskConfig = TaskConfig & {
   /** Target human identifier — defaults to "default" */
   targetHumanId?: string;
-  /** JSON schema describing the form to render */
-  requestedSchema?: DataPortSchema;
+  /** Interaction kind — defaults to "elicit" */
+  kind?: HumanInteractionKind;
+  /** JSON schema describing the content/form to render */
+  contentSchema?: DataPortSchema;
   /** Explanatory message */
   message?: string;
   /** Interaction mode — defaults to "single" */
@@ -159,6 +200,13 @@ const defaultInputSchema = {
       type: "string",
       title: "Prompt",
       description: "Dynamic prompt text merged into the request message",
+    },
+    contentData: {
+      type: "object",
+      additionalProperties: true,
+      title: "Content Data",
+      description: "Data to display (for notify/display kinds)",
+      "x-ui-hidden": true,
     },
     context: {
       type: "object",
@@ -186,13 +234,14 @@ const defaultOutputSchema = {
 
 export type HumanInputTaskInput = {
   prompt?: string;
+  contentData?: Record<string, unknown>;
   context?: Record<string, unknown>;
 };
 
 export type HumanInputTaskOutput = {
   /** The human's action */
   action: HumanResponseAction;
-  /** The human's response data (present when action is "accept") */
+  /** Additional response data (for elicit kind) */
   [key: string]: unknown;
 };
 
@@ -201,15 +250,16 @@ export type HumanInputTaskOutput = {
 // ========================================================================
 
 /**
- * A task that pauses graph execution to request input from a human.
+ * A task that sends an interaction to a human via an IHumanConnector.
  *
- * Uses the MCP elicitation model: sends a JSON schema describing the desired
- * form to an IHumanConnector, waits for the human's response, and returns it
- * as task output with an `action` field ("accept", "decline", "cancel").
+ * Supports three interaction kinds:
+ * - "notify": Send a notification (fire-and-forget, task completes immediately)
+ * - "display": Present content to the human (charts, data, markdown)
+ * - "elicit": Request structured input via a form (MCP elicitation model)
  *
- * Supports two modes:
- * - "single": One request, one response (default)
- * - "multi-turn": Iterative conversation until the human signals done
+ * The contentSchema describes WHAT to render. The kind determines HOW.
+ * For "elicit", the output includes the human's submitted data.
+ * For "notify"/"display", the output is just `{ action: "accept" }`.
  */
 export class HumanInputTask extends Task<
   HumanInputTaskInput,
@@ -220,7 +270,7 @@ export class HumanInputTask extends Task<
   static override readonly category = "Flow Control";
   public static override title = "Human Input";
   public static override description =
-    "Pauses execution to collect input from a human via MCP elicitation";
+    "Sends an interaction (notification, display, or input request) to a human";
   static override readonly cacheable = false;
   public static override hasDynamicSchemas = true;
 
@@ -237,8 +287,8 @@ export class HumanInputTask extends Task<
   }
 
   public override outputSchema(): DataPortSchema {
-    if (this.config?.requestedSchema) {
-      const configSchema = this.config.requestedSchema as Record<string, unknown>;
+    if (this.config?.contentSchema && this.config.kind !== "notify") {
+      const configSchema = this.config.contentSchema as Record<string, unknown>;
       const existingProps = (configSchema.properties ?? {}) as Record<string, unknown>;
       const actionProp = {
         type: "string",
@@ -260,6 +310,7 @@ export class HumanInputTask extends Task<
     context: IExecuteContext
   ): Promise<HumanInputTaskOutput> {
     const connector = resolveHumanConnector(context);
+    const kind = this.config.kind ?? "elicit";
     const mode = this.config.mode ?? "single";
     const requestId = uuid4();
 
@@ -269,24 +320,33 @@ export class HumanInputTask extends Task<
         : input.prompt
       : this.config.message ?? "";
 
+    const emptySchema: DataPortSchema = {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    };
+
     const request: IHumanRequest = {
       requestId,
       targetHumanId: this.config.targetHumanId ?? "default",
-      requestedSchema: this.config.requestedSchema ?? defaultOutputSchema,
+      kind,
       message,
-      mode,
+      contentSchema: this.config.contentSchema ?? emptySchema,
+      contentData: input.contentData,
+      expectsResponse: kind === "elicit",
+      mode: kind === "elicit" ? mode : "single",
       metadata: input.context
         ? { ...this.config.metadata, ...input.context }
         : this.config.metadata,
     };
 
     if (context.signal.aborted) {
-      throw new TaskAbortedError("Task aborted before requesting human input");
+      throw new TaskAbortedError("Task aborted before sending human interaction");
     }
 
-    let response = await connector.request(request, context.signal);
+    let response = await connector.send(request, context.signal);
 
-    if (mode === "multi-turn" && !response.done) {
+    if (kind === "elicit" && mode === "multi-turn" && !response.done) {
       if (typeof connector.followUp !== "function") {
         throw new TaskConfigurationError(
           'HumanInputTask is configured for "multi-turn" mode but the registered ' +
