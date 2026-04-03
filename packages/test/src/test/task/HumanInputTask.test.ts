@@ -80,7 +80,7 @@ describe("HumanInputTask — elicit", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
   });
 
   test("returns human response data with action as output", async () => {
@@ -310,7 +310,7 @@ describe("HumanInputTask — notify", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
   });
 
   test("notify kind sends and resolves immediately", async () => {
@@ -355,7 +355,7 @@ describe("HumanInputTask — display", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
   });
 
   test("display kind sends content for visualization", async () => {
@@ -395,7 +395,7 @@ describe("HumanApprovalTask", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
   });
 
   test("returns approved=true when human accepts", async () => {

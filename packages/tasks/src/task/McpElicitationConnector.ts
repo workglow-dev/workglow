@@ -55,10 +55,10 @@ export class McpElicitationConnector implements IHumanConnector {
   async send(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
     switch (request.kind) {
       case "notify":
-        return this.handleNotify(request);
+        return this.handleNotify(request, signal);
 
       case "display":
-        return this.handleDisplay(request);
+        return this.handleDisplay(request, signal);
 
       case "elicit":
         return this.handleElicit(request, signal);
@@ -84,12 +84,20 @@ export class McpElicitationConnector implements IHumanConnector {
    * Handle "notify" kind — fire-and-forget notification.
    * Uses MCP logging notification to send the message to the client.
    */
-  private async handleNotify(request: IHumanRequest): Promise<IHumanResponse> {
+  private async handleNotify(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
+    if (signal.aborted) {
+      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    }
+
     await this.server.sendLoggingMessage({
       level: "info",
       data: request.contentData ?? request.message,
       logger: request.targetHumanId,
     });
+
+    if (signal.aborted) {
+      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    }
 
     return {
       requestId: request.requestId,
@@ -104,7 +112,11 @@ export class McpElicitationConnector implements IHumanConnector {
    * Uses MCP logging notification with the content data.
    * Resolves immediately since no response is expected by default.
    */
-  private async handleDisplay(request: IHumanRequest): Promise<IHumanResponse> {
+  private async handleDisplay(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
+    if (signal.aborted) {
+      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    }
+
     await this.server.sendLoggingMessage({
       level: "info",
       data: {
@@ -114,6 +126,10 @@ export class McpElicitationConnector implements IHumanConnector {
       },
       logger: request.targetHumanId,
     });
+
+    if (signal.aborted) {
+      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    }
 
     return {
       requestId: request.requestId,
