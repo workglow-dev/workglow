@@ -14,7 +14,7 @@ import {
   Workflow,
   type IExecuteContext,
 } from "@workglow/task-graph";
-import type { DataPortSchema } from "@workglow/util/schema";
+import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 import { createServiceToken, uuid4 } from "@workglow/util";
 
 // ========================================================================
@@ -144,7 +144,8 @@ const humanInputTaskConfigSchema = {
     kind: {
       type: "string",
       title: "Kind",
-      description: "Interaction kind: notify (one-way), display (show content), elicit (request input)",
+      description:
+        "Interaction kind: notify (one-way), display (show content), elicit (request input)",
       enum: ["notify", "display", "elicit"],
       default: "elicit",
     },
@@ -297,13 +298,14 @@ export class HumanInputTask extends Task<
         title: "Action",
         description: "The human's action: accept, decline, or cancel",
         enum: ["accept", "decline", "cancel"],
-      };
-      return {
+      } as const satisfies PropertySchema;
+      const result = {
         type: "object",
         properties: { action: actionProp, ...existingProps },
         ...(required ? { required: ["action", ...required] } : {}),
         additionalProperties,
-      } as DataPortSchema;
+      } as const satisfies DataPortSchema;
+      return result;
     }
     return (this.constructor as typeof HumanInputTask).outputSchema();
   }
@@ -321,7 +323,7 @@ export class HumanInputTask extends Task<
       ? this.config.message
         ? `${this.config.message}\n\n${input.prompt}`
         : input.prompt
-      : this.config.message ?? "";
+      : (this.config.message ?? "");
 
     const emptySchema: DataPortSchema = {
       type: "object",

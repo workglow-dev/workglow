@@ -15,7 +15,11 @@ import {
 } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
-import { resolveHumanConnector, type HumanResponseAction, type IHumanRequest } from "./HumanInputTask";
+import {
+  resolveHumanConnector,
+  type HumanResponseAction,
+  type IHumanRequest,
+} from "./HumanInputTask";
 
 // ========================================================================
 // Schemas
@@ -171,7 +175,7 @@ export class HumanApprovalTask extends Task<
       ? this.config.message
         ? `${this.config.message}\n\n${input.prompt}`
         : input.prompt
-      : this.config.message ?? "";
+      : (this.config.message ?? "");
 
     const request: IHumanRequest = {
       requestId,
