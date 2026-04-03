@@ -17,12 +17,12 @@ import type {
  *
  * MCP elicitation supports only a restricted subset of JSON Schema:
  * flat object with top-level properties only, no nesting.
- * This function extracts the properties and required fields.
  */
 function toMcpRequestedSchema(
   schema: Record<string, unknown>
 ): ElicitRequestFormParams["requestedSchema"] {
-  const props = (schema.properties ?? {}) as ElicitRequestFormParams["requestedSchema"]["properties"];
+  const props = (schema.properties ??
+    {}) as ElicitRequestFormParams["requestedSchema"]["properties"];
   const required = schema.required as string[] | undefined;
   return {
     type: "object" as const,
@@ -34,13 +34,15 @@ function toMcpRequestedSchema(
 /**
  * IHumanConnector implementation that delegates to MCP Server.elicitInput().
  *
- * When workglow runs inside an MCP server, this connector uses the MCP
- * elicitation protocol to request human input from the connected MCP client.
+ * Handles all three interaction kinds:
+ * - "notify": Sends a notification via MCP logging, resolves immediately.
+ * - "display": Sends content for display, resolves immediately.
+ * - "elicit": Delegates to Server.elicitInput() for structured form input.
  *
  * Usage:
  * ```ts
  * import { Server } from "@modelcontextprotocol/sdk/server";
- * import { McpElicitationConnector } from "@workglow/tasks";
+ * import { McpElicitationConnector, HUMAN_CONNECTOR } from "@workglow/tasks";
  *
  * const mcpServer: Server = ...; // your MCP server instance
  * const connector = new McpElicitationConnector(mcpServer);
@@ -50,12 +52,91 @@ function toMcpRequestedSchema(
 export class McpElicitationConnector implements IHumanConnector {
   constructor(private readonly server: Server) {}
 
-  async request(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
+  async send(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
+    switch (request.kind) {
+      case "notify":
+        return this.handleNotify(request);
+
+      case "display":
+        return this.handleDisplay(request);
+
+      case "elicit":
+        return this.handleElicit(request, signal);
+
+      default:
+        return this.handleElicit(request, signal);
+    }
+  }
+
+  /**
+   * Multi-turn follow-up via MCP elicitation.
+   * Each follow-up is a separate elicitInput() call.
+   */
+  async followUp(
+    request: IHumanRequest,
+    _previousResponse: IHumanResponse,
+    signal: AbortSignal
+  ): Promise<IHumanResponse> {
+    return this.send(request, signal);
+  }
+
+  /**
+   * Handle "notify" kind — fire-and-forget notification.
+   * Uses MCP logging notification to send the message to the client.
+   */
+  private async handleNotify(request: IHumanRequest): Promise<IHumanResponse> {
+    await this.server.sendLoggingMessage({
+      level: "info",
+      data: request.contentData ?? request.message,
+      logger: request.targetHumanId,
+    });
+
+    return {
+      requestId: request.requestId,
+      action: "accept",
+      content: undefined,
+      done: true,
+    };
+  }
+
+  /**
+   * Handle "display" kind — present content to the human.
+   * Uses MCP logging notification with the content data.
+   * Resolves immediately since no response is expected by default.
+   */
+  private async handleDisplay(request: IHumanRequest): Promise<IHumanResponse> {
+    await this.server.sendLoggingMessage({
+      level: "info",
+      data: {
+        message: request.message,
+        content: request.contentData,
+        schema: request.contentSchema,
+      },
+      logger: request.targetHumanId,
+    });
+
+    return {
+      requestId: request.requestId,
+      action: "accept",
+      content: undefined,
+      done: true,
+    };
+  }
+
+  /**
+   * Handle "elicit" kind — request structured input via MCP elicitation.
+   */
+  private async handleElicit(
+    request: IHumanRequest,
+    signal: AbortSignal
+  ): Promise<IHumanResponse> {
     const mcpResult: ElicitResult = await this.server.elicitInput(
       {
         mode: "form",
         message: request.message,
-        requestedSchema: toMcpRequestedSchema(request.requestedSchema as Record<string, unknown>),
+        requestedSchema: toMcpRequestedSchema(
+          request.contentSchema as Record<string, unknown>
+        ),
       },
       { signal }
     );
@@ -63,24 +144,11 @@ export class McpElicitationConnector implements IHumanConnector {
     return {
       requestId: request.requestId,
       action: mcpResult.action,
-      content: mcpResult.action === "accept" ? (mcpResult.content as Record<string, unknown>) : undefined,
+      content:
+        mcpResult.action === "accept"
+          ? (mcpResult.content as Record<string, unknown>)
+          : undefined,
       done: true,
     };
-  }
-
-  /**
-   * Multi-turn follow-up via MCP elicitation.
-   *
-   * Each follow-up is a separate elicitInput() call. The MCP client sees
-   * a new form each time — the previous response is not carried over
-   * automatically (the caller can merge data if needed).
-   */
-  async followUp(
-    request: IHumanRequest,
-    _previousResponse: IHumanResponse,
-    signal: AbortSignal
-  ): Promise<IHumanResponse> {
-    // For multi-turn, we re-elicit with the same schema
-    return this.request(request, signal);
   }
 }

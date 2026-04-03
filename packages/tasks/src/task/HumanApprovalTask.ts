@@ -15,11 +15,7 @@ import {
 } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
-import {
-  resolveHumanConnector,
-  type HumanResponseAction,
-  type IHumanRequest,
-} from "./HumanInputTask";
+import { resolveHumanConnector, type HumanResponseAction, type IHumanRequest } from "./HumanInputTask";
 
 // ========================================================================
 // Schemas
@@ -180,8 +176,11 @@ export class HumanApprovalTask extends Task<
     const request: IHumanRequest = {
       requestId,
       targetHumanId: this.config.targetHumanId ?? "default",
-      requestedSchema: approvalRequestedSchema,
+      kind: "elicit",
       message,
+      contentSchema: approvalRequestedSchema,
+      contentData: undefined,
+      expectsResponse: true,
       mode: "single",
       metadata: input.context
         ? { ...this.config.metadata, ...input.context }
@@ -192,7 +191,7 @@ export class HumanApprovalTask extends Task<
       throw new TaskAbortedError("Task aborted before requesting human approval");
     }
 
-    const response = await connector.request(request, context.signal);
+    const response = await connector.send(request, context.signal);
 
     // Map MCP actions to approval semantics:
     // - "accept" with approved field from content
