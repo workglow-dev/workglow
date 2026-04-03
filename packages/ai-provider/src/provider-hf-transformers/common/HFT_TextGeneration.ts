@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TextGenerationOutput, TextGenerationPipeline } from "@huggingface/transformers";
+import type {
+  Message,
+  TextGenerationOutput,
+  TextGenerationPipeline,
+} from "@huggingface/transformers";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -45,8 +49,12 @@ export const HFT_TextGeneration: AiProviderRunFn<
 
   const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
 
-  let results = await generateText(input.prompt, {
+  const messages: Message[] = [{ role: "user", content: input.prompt }];
+
+  let results = await generateText(messages, {
     streamer,
+    do_sample: false,
+    max_new_tokens: input.maxTokens ?? 4 * 1024,
   });
 
   if (!Array.isArray(results)) {
