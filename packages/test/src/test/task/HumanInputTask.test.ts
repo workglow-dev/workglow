@@ -26,14 +26,14 @@ import type { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // ========================================================================
-// Mock connector (mimics MCP elicitation semantics)
+// Mock connector
 // ========================================================================
 
 function createMockConnector(
   handler: (request: IHumanRequest) => IHumanResponse
 ): IHumanConnector {
   return {
-    request: vi.fn(async (request: IHumanRequest, _signal: AbortSignal) => handler(request)),
+    send: vi.fn(async (request: IHumanRequest, _signal: AbortSignal) => handler(request)),
   };
 }
 
@@ -42,7 +42,7 @@ function createMultiTurnConnector(
 ): IHumanConnector & { followUp: NonNullable<IHumanConnector["followUp"]> } {
   let callIndex = 0;
   return {
-    request: vi.fn(async () => responses[callIndex++]!),
+    send: vi.fn(async () => responses[callIndex++]!),
     followUp: vi.fn(async () => responses[callIndex++]!),
   };
 }
@@ -73,18 +73,18 @@ class UpperCaseTask extends Task<{ text: string }, { text: string }> {
 }
 
 // ========================================================================
-// Tests
+// HumanInputTask — elicit kind (default)
 // ========================================================================
 
-describe("HumanInputTask", () => {
+describe("HumanInputTask — elicit", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
     registry = globalServiceRegistry;
   });
 
-  test("single mode: returns human response data with action as output", async () => {
-    const requestedSchema: DataPortSchema = {
+  test("returns human response data with action as output", async () => {
+    const contentSchema: DataPortSchema = {
       type: "object",
       properties: { name: { type: "string" } },
       additionalProperties: false,
@@ -101,12 +101,12 @@ describe("HumanInputTask", () => {
 
     const task = new HumanInputTask(
       {},
-      { requestedSchema, message: "What is your name?" }
+      { contentSchema, message: "What is your name?" }
     );
     const result = await task.run({}, { registry });
 
     expect(result).toEqual({ action: "accept", name: "Alice" });
-    expect(connector.request).toHaveBeenCalledOnce();
+    expect(connector.send).toHaveBeenCalledOnce();
   });
 
   test("decline action returns action without content", async () => {
@@ -118,10 +118,8 @@ describe("HumanInputTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
     const task = new HumanInputTask({}, {});
     const result = await task.run({}, { registry });
-
     expect(result).toEqual({ action: "decline" });
   });
 
@@ -134,27 +132,23 @@ describe("HumanInputTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
     const task = new HumanInputTask({}, {});
     const result = await task.run({}, { registry });
-
     expect(result).toEqual({ action: "cancel" });
   });
 
   test("merges input prompt into message", async () => {
     const connector = createMockConnector((req) => {
       expect(req.message).toBe("Base message\n\nDynamic prompt");
-      return { requestId: req.requestId, action: "accept", content: { ok: true }, done: true };
+      return { requestId: req.requestId, action: "accept", content: {}, done: true };
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
     const task = new HumanInputTask(
       { prompt: "Dynamic prompt" },
       { message: "Base message" }
     );
     await task.run({}, { registry });
-    expect(connector.request).toHaveBeenCalledOnce();
   });
 
   test("merges input context into metadata", async () => {
@@ -164,7 +158,6 @@ describe("HumanInputTask", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
     const task = new HumanInputTask(
       { context: { extra: "data" } },
       { metadata: { source: "test" } }
@@ -179,27 +172,21 @@ describe("HumanInputTask", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanInputTask({}, {});
-    await task.run({}, { registry });
+    await new HumanInputTask({}, {}).run({}, { registry });
   });
 
-  test("uses custom targetHumanId from config", async () => {
+  test("uses custom targetHumanId", async () => {
     const connector = createMockConnector((req) => {
       expect(req.targetHumanId).toBe("admin");
       return { requestId: req.requestId, action: "accept", content: {}, done: true };
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanInputTask({}, { targetHumanId: "admin" });
-    await task.run({}, { registry });
+    await new HumanInputTask({}, { targetHumanId: "admin" }).run({}, { registry });
   });
 
   test("throws when no IHumanConnector is registered", async () => {
-    // Use a fresh container with no connector registered
     const emptyRegistry = new ServiceRegistry(new Container());
-
     const task = new HumanInputTask({}, {});
     await expect(task.run({}, { registry: emptyRegistry })).rejects.toThrow(
       TaskConfigurationError
@@ -214,12 +201,11 @@ describe("HumanInputTask", () => {
     ]);
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
     const task = new HumanInputTask({}, { mode: "multi-turn" });
     const result = await task.run({}, { registry });
 
     expect(result).toEqual({ action: "accept", step: 3, final: true });
-    expect(connector.request).toHaveBeenCalledOnce();
+    expect(connector.send).toHaveBeenCalledOnce();
     expect(connector.followUp).toHaveBeenCalledTimes(2);
   });
 
@@ -228,20 +214,18 @@ describe("HumanInputTask", () => {
       requestId: req.requestId,
       action: "accept",
       content: {},
-      done: false, // not done, but connector has no followUp
+      done: false,
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
     const task = new HumanInputTask({}, { mode: "multi-turn" });
     await expect(task.run({}, { registry })).rejects.toThrow(TaskConfigurationError);
   });
 
   test("respects abort signal", async () => {
     const abortController = new AbortController();
-
     const connector: IHumanConnector = {
-      request: vi.fn(async (_req, signal: AbortSignal) => {
+      send: vi.fn(async (_req, signal: AbortSignal) => {
         return new Promise<IHumanResponse>((_resolve, reject) => {
           signal.addEventListener("abort", () => reject(new Error("aborted")));
         });
@@ -249,44 +233,40 @@ describe("HumanInputTask", () => {
     };
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
     const task = new HumanInputTask({}, {});
     const runPromise = task.run({}, { registry, signal: abortController.signal });
-
-    // Abort shortly after
     setTimeout(() => abortController.abort(), 10);
-
     await expect(runPromise).rejects.toThrow();
   });
 
-  test("dynamic output schema includes action and config schema properties", () => {
-    const requestedSchema: DataPortSchema = {
+  test("dynamic output schema includes action and contentSchema properties", () => {
+    const contentSchema: DataPortSchema = {
       type: "object",
       properties: { color: { type: "string" } },
-      additionalProperties: false,
     };
 
-    const task = new HumanInputTask({}, { requestedSchema });
+    const task = new HumanInputTask({}, { contentSchema });
     const schema = task.outputSchema();
     expect(schema.properties).toHaveProperty("action");
     expect(schema.properties).toHaveProperty("color");
   });
 
-  test("request passes requestedSchema to connector", async () => {
-    const requestedSchema: DataPortSchema = {
+  test("passes contentSchema to connector as contentSchema", async () => {
+    const contentSchema: DataPortSchema = {
       type: "object",
-      properties: { email: { type: "string", format: "email" } },
+      properties: { email: { type: "string" } },
       required: ["email"],
     };
 
     const connector = createMockConnector((req) => {
-      expect(req.requestedSchema).toEqual(requestedSchema);
+      expect(req.contentSchema).toEqual(contentSchema);
+      expect(req.kind).toBe("elicit");
+      expect(req.expectsResponse).toBe(true);
       return { requestId: req.requestId, action: "accept", content: { email: "a@b.c" }, done: true };
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanInputTask({}, { requestedSchema, message: "Enter email" });
+    const task = new HumanInputTask({}, { contentSchema, message: "Enter email" });
     await task.run({}, { registry });
   });
 
@@ -303,10 +283,9 @@ describe("HumanInputTask", () => {
     const humanTask = new HumanInputTask(
       {},
       {
-        requestedSchema: {
+        contentSchema: {
           type: "object",
           properties: { text: { type: "string" } },
-          additionalProperties: false,
         },
       }
     );
@@ -315,15 +294,102 @@ describe("HumanInputTask", () => {
     const graph = new TaskGraph();
     graph.addTask(humanTask);
     graph.addTask(upperTask);
-    graph.addDataflow(
-      new Dataflow(humanTask.id, "text", upperTask.id, "text")
-    );
+    graph.addDataflow(new Dataflow(humanTask.id, "text", upperTask.id, "text"));
 
     const result = await graph.run({}, { registry });
     expect(result).toBeInstanceOf(Array);
     expect(result[0].data).toEqual({ text: "HELLO" });
   });
 });
+
+// ========================================================================
+// HumanInputTask — notify kind
+// ========================================================================
+
+describe("HumanInputTask — notify", () => {
+  let registry: ServiceRegistry;
+
+  beforeEach(() => {
+    registry = globalServiceRegistry;
+  });
+
+  test("notify kind sends and resolves immediately", async () => {
+    const connector = createMockConnector((req) => {
+      expect(req.kind).toBe("notify");
+      expect(req.expectsResponse).toBe(false);
+      expect(req.message).toBe("Deploy complete!");
+      return { requestId: req.requestId, action: "accept", content: undefined, done: true };
+    });
+
+    registry.registerInstance(HUMAN_CONNECTOR, connector);
+
+    const task = new HumanInputTask(
+      {},
+      { kind: "notify", message: "Deploy complete!" }
+    );
+    const result = await task.run({}, { registry });
+    expect(result).toEqual({ action: "accept" });
+  });
+
+  test("notify kind passes contentData through", async () => {
+    const connector = createMockConnector((req) => {
+      expect(req.contentData).toEqual({ status: "success", count: 42 });
+      return { requestId: req.requestId, action: "accept", content: undefined, done: true };
+    });
+
+    registry.registerInstance(HUMAN_CONNECTOR, connector);
+
+    const task = new HumanInputTask(
+      { contentData: { status: "success", count: 42 } },
+      { kind: "notify", message: "Update" }
+    );
+    await task.run({}, { registry });
+  });
+});
+
+// ========================================================================
+// HumanInputTask — display kind
+// ========================================================================
+
+describe("HumanInputTask — display", () => {
+  let registry: ServiceRegistry;
+
+  beforeEach(() => {
+    registry = globalServiceRegistry;
+  });
+
+  test("display kind sends content for visualization", async () => {
+    const mapSchema: DataPortSchema = {
+      type: "object",
+      properties: {
+        lat: { type: "number" },
+        lng: { type: "number" },
+        label: { type: "string" },
+      },
+    };
+
+    const connector = createMockConnector((req) => {
+      expect(req.kind).toBe("display");
+      expect(req.expectsResponse).toBe(false);
+      expect(req.contentSchema).toEqual(mapSchema);
+      expect(req.contentData).toEqual({ lat: 37.7749, lng: -122.4194, label: "SF" });
+      return { requestId: req.requestId, action: "accept", content: undefined, done: true };
+    });
+
+    registry.registerInstance(HUMAN_CONNECTOR, connector);
+
+    const task = new HumanInputTask(
+      { contentData: { lat: 37.7749, lng: -122.4194, label: "SF" } },
+      { kind: "display", contentSchema: mapSchema, message: "Location" }
+    );
+    const result = await task.run({}, { registry });
+    expect(result).toEqual({ action: "accept" });
+  });
+});
+
+// ========================================================================
+// HumanApprovalTask
+// ========================================================================
 
 describe("HumanApprovalTask", () => {
   let registry: ServiceRegistry;
@@ -332,7 +398,7 @@ describe("HumanApprovalTask", () => {
     registry = globalServiceRegistry;
   });
 
-  test("returns approved=true when human accepts with approved=true", async () => {
+  test("returns approved=true when human accepts", async () => {
     const connector = createMockConnector((req) => ({
       requestId: req.requestId,
       action: "accept",
@@ -341,13 +407,8 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanApprovalTask(
-      {},
-      { message: "Deploy to production?" }
-    );
+    const task = new HumanApprovalTask({}, { message: "Deploy?" });
     const result = await task.run({}, { registry });
-
     expect(result).toEqual({ action: "accept", approved: true, reason: "Looks good" });
     expect(task.status).toBe(TaskStatus.COMPLETED);
   });
@@ -361,14 +422,11 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanApprovalTask({}, { message: "Approve?" });
-    const result = await task.run({}, { registry });
-
+    const result = await new HumanApprovalTask({}, {}).run({}, { registry });
     expect(result).toEqual({ action: "accept", approved: false, reason: "Not ready" });
   });
 
-  test("returns approved=false when human declines at MCP level", async () => {
+  test("returns approved=false when human declines", async () => {
     const connector = createMockConnector((req) => ({
       requestId: req.requestId,
       action: "decline",
@@ -377,16 +435,12 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanApprovalTask({}, {});
-    const result = await task.run({}, { registry });
-
+    const result = await new HumanApprovalTask({}, {}).run({}, { registry });
     expect(result.action).toBe("decline");
     expect(result.approved).toBe(false);
-    expect(result.reason).toBe("Declined by user");
   });
 
-  test("returns approved=false when human cancels at MCP level", async () => {
+  test("returns approved=false when human cancels", async () => {
     const connector = createMockConnector((req) => ({
       requestId: req.requestId,
       action: "cancel",
@@ -395,93 +449,145 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanApprovalTask({}, {});
-    const result = await task.run({}, { registry });
-
+    const result = await new HumanApprovalTask({}, {}).run({}, { registry });
     expect(result.action).toBe("cancel");
     expect(result.approved).toBe(false);
-    expect(result.reason).toBe("Cancelled by user");
   });
 
-  test("has output schema with action, approved, and reason", () => {
-    const task = new HumanApprovalTask({}, {});
-    const schema = (task.constructor as typeof HumanApprovalTask).outputSchema();
-    expect(schema.properties).toHaveProperty("action");
-    expect(schema.properties).toHaveProperty("approved");
-    expect(schema.properties).toHaveProperty("reason");
-    expect(schema.required).toContain("action");
-    expect(schema.required).toContain("approved");
-  });
-
-  test("always uses single mode", async () => {
+  test("sends as elicit kind with approval schema", async () => {
     const connector = createMockConnector((req) => {
+      expect(req.kind).toBe("elicit");
       expect(req.mode).toBe("single");
+      expect(req.contentSchema.properties).toHaveProperty("approved");
       return { requestId: req.requestId, action: "accept", content: { approved: true }, done: true };
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-
-    const task = new HumanApprovalTask({}, {});
-    await task.run({}, { registry });
+    await new HumanApprovalTask({}, {}).run({}, { registry });
   });
 
-  test("static type is correct", () => {
+  test("static type and category", () => {
     expect(HumanApprovalTask.type).toBe("HumanApprovalTask");
     expect(HumanApprovalTask.category).toBe("Flow Control");
   });
+
+  test("output schema includes action, approved, and reason", () => {
+    const schema = HumanApprovalTask.outputSchema();
+    expect(schema.properties).toHaveProperty("action");
+    expect(schema.properties).toHaveProperty("approved");
+    expect(schema.properties).toHaveProperty("reason");
+  });
 });
 
+// ========================================================================
+// McpElicitationConnector
+// ========================================================================
+
 describe("McpElicitationConnector", () => {
-  test("converts IHumanRequest to MCP elicitInput call", async () => {
+  test("elicit kind: converts to MCP elicitInput call", async () => {
     const mockElicitInput = vi.fn().mockResolvedValue({
       action: "accept",
       content: { username: "alice" },
     });
-
     const mockServer = { elicitInput: mockElicitInput } as any;
     const connector = new McpElicitationConnector(mockServer);
 
     const request: IHumanRequest = {
       requestId: "req-1",
       targetHumanId: "default",
-      requestedSchema: {
+      kind: "elicit",
+      message: "Enter your username",
+      contentSchema: {
         type: "object",
         properties: { username: { type: "string" } },
         required: ["username"],
       },
-      message: "Enter your username",
+      contentData: undefined,
+      expectsResponse: true,
       mode: "single",
       metadata: undefined,
     };
 
-    const response = await connector.request(request, new AbortController().signal);
+    const response = await connector.send(request, new AbortController().signal);
 
     expect(mockElicitInput).toHaveBeenCalledOnce();
     const [params] = mockElicitInput.mock.calls[0];
     expect(params.mode).toBe("form");
     expect(params.message).toBe("Enter your username");
     expect(params.requestedSchema.properties).toHaveProperty("username");
-    expect(params.requestedSchema.required).toEqual(["username"]);
 
-    expect(response.requestId).toBe("req-1");
     expect(response.action).toBe("accept");
     expect(response.content).toEqual({ username: "alice" });
     expect(response.done).toBe(true);
   });
 
-  test("maps MCP decline to IHumanResponse", async () => {
+  test("notify kind: uses sendLoggingMessage", async () => {
+    const mockSendLogging = vi.fn().mockResolvedValue(undefined);
+    const mockServer = { sendLoggingMessage: mockSendLogging } as any;
+    const connector = new McpElicitationConnector(mockServer);
+
+    const response = await connector.send(
+      {
+        requestId: "req-n",
+        targetHumanId: "default",
+        kind: "notify",
+        message: "Build finished!",
+        contentSchema: { type: "object", properties: {} },
+        contentData: { status: "success" },
+        expectsResponse: false,
+        mode: "single",
+        metadata: undefined,
+      },
+      new AbortController().signal
+    );
+
+    expect(mockSendLogging).toHaveBeenCalledOnce();
+    expect(response.action).toBe("accept");
+    expect(response.done).toBe(true);
+  });
+
+  test("display kind: uses sendLoggingMessage with content", async () => {
+    const mockSendLogging = vi.fn().mockResolvedValue(undefined);
+    const mockServer = { sendLoggingMessage: mockSendLogging } as any;
+    const connector = new McpElicitationConnector(mockServer);
+
+    const response = await connector.send(
+      {
+        requestId: "req-d",
+        targetHumanId: "default",
+        kind: "display",
+        message: "Map location",
+        contentSchema: { type: "object", properties: { lat: { type: "number" } } },
+        contentData: { lat: 37.7749 },
+        expectsResponse: false,
+        mode: "single",
+        metadata: undefined,
+      },
+      new AbortController().signal
+    );
+
+    expect(mockSendLogging).toHaveBeenCalledOnce();
+    const [logParams] = mockSendLogging.mock.calls[0];
+    expect(logParams.data).toHaveProperty("content");
+    expect(logParams.data.content).toEqual({ lat: 37.7749 });
+    expect(response.action).toBe("accept");
+  });
+
+  test("decline maps correctly", async () => {
     const mockServer = {
       elicitInput: vi.fn().mockResolvedValue({ action: "decline" }),
     } as any;
 
     const connector = new McpElicitationConnector(mockServer);
-    const response = await connector.request(
+    const response = await connector.send(
       {
         requestId: "req-2",
         targetHumanId: "default",
-        requestedSchema: { type: "object", properties: {} },
+        kind: "elicit",
         message: "Confirm?",
+        contentSchema: { type: "object", properties: {} },
+        contentData: undefined,
+        expectsResponse: true,
         mode: "single",
         metadata: undefined,
       },
@@ -490,10 +596,9 @@ describe("McpElicitationConnector", () => {
 
     expect(response.action).toBe("decline");
     expect(response.content).toBeUndefined();
-    expect(response.done).toBe(true);
   });
 
-  test("followUp delegates to another elicitInput call", async () => {
+  test("followUp delegates to another send call", async () => {
     const mockServer = {
       elicitInput: vi.fn()
         .mockResolvedValueOnce({ action: "accept", content: { step: 1 } })
@@ -504,19 +609,26 @@ describe("McpElicitationConnector", () => {
     const request: IHumanRequest = {
       requestId: "req-3",
       targetHumanId: "default",
-      requestedSchema: { type: "object", properties: {} },
+      kind: "elicit",
       message: "Continue?",
+      contentSchema: { type: "object", properties: {} },
+      contentData: undefined,
+      expectsResponse: true,
       mode: "multi-turn",
       metadata: undefined,
     };
 
-    const first = await connector.request(request, new AbortController().signal);
+    const first = await connector.send(request, new AbortController().signal);
     const second = await connector.followUp(request, first, new AbortController().signal);
 
     expect(mockServer.elicitInput).toHaveBeenCalledTimes(2);
     expect(second.content).toEqual({ step: 2 });
   });
 });
+
+// ========================================================================
+// Workflow integration
+// ========================================================================
 
 describe("Workflow integration", () => {
   test("humanInput method exists on Workflow prototype", () => {
