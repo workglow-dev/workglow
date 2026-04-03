@@ -91,6 +91,7 @@ export const Entitlements = {
   MCP_TOOL_CALL: "mcp:tool-call",
   MCP_RESOURCE_READ: "mcp:resource-read",
   MCP_PROMPT_GET: "mcp:prompt-get",
+  MCP_STDIO: "mcp:stdio",
 
   // Storage / database
   STORAGE: "storage",

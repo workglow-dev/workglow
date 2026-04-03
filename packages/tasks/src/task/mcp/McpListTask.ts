@@ -9,6 +9,7 @@ import {
   CreateWorkflow,
   Entitlements,
   IExecuteContext,
+  mergeEntitlements,
   Task,
   TaskConfig,
   Workflow,
@@ -200,6 +201,21 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
         { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
       ],
     };
+  }
+
+  public override entitlements(): TaskEntitlements {
+    const base = McpListTask.entitlements();
+    const server = (this.config as Record<string, unknown>)?.server as
+      | Record<string, unknown>
+      | undefined;
+    if (server?.transport === "stdio") {
+      return mergeEntitlements(base, {
+        entitlements: [
+          { id: Entitlements.MCP_STDIO, reason: "Uses stdio transport to spawn local process" },
+        ],
+      });
+    }
+    return base;
   }
 
   public static override inputSchema(): DataPortSchema {
