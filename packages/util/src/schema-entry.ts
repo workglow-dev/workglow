@@ -15,3 +15,4 @@ export * from "./vector/TypedArray";
 export * from "./vector/TypedArrayUtils";
 export * from "./vector/VectorSimilarityUtils";
 export * from "./vector/VectorUtils";
+export * from "./vector/TurboQuantize";
