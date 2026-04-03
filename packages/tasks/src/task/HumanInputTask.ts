@@ -291,7 +291,6 @@ export class HumanInputTask extends Task<
     if (this.config?.contentSchema && (this.config.kind ?? "elicit") === "elicit") {
       const configSchema = this.config.contentSchema as Record<string, unknown>;
       const existingProps = (configSchema.properties ?? {}) as Record<string, unknown>;
-      const required = configSchema.required as string[] | undefined;
       const additionalProperties = configSchema.additionalProperties ?? false;
       const actionProp = {
         type: "string",
@@ -302,7 +301,7 @@ export class HumanInputTask extends Task<
       const result = {
         type: "object",
         properties: { ...existingProps, action: actionProp },
-        ...(required ? { required: ["action", ...required] } : {}),
+        required: ["action"],
         additionalProperties,
       } as const satisfies DataPortSchema;
       return result;
