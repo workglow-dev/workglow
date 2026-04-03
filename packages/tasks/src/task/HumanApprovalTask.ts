@@ -191,7 +191,15 @@ export class HumanApprovalTask extends Task<
       throw new TaskAbortedError("Task aborted before requesting human approval");
     }
 
-    const response = await connector.send(request, context.signal);
+    let response: Awaited<ReturnType<typeof connector.send>>;
+    try {
+      response = await connector.send(request, context.signal);
+    } catch (err) {
+      if (context.signal.aborted) {
+        throw new TaskAbortedError("Task aborted during human approval");
+      }
+      throw err;
+    }
 
     // Map MCP actions to approval semantics:
     // - "accept" with approved field from content

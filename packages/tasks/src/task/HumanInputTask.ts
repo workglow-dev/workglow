@@ -300,7 +300,7 @@ export class HumanInputTask extends Task<
       };
       return {
         type: "object",
-        properties: { action: actionProp, ...existingProps },
+        properties: { ...existingProps, action: actionProp },
         ...(required ? { required: ["action", ...required] } : {}),
         additionalProperties,
       } as DataPortSchema;
@@ -347,7 +347,15 @@ export class HumanInputTask extends Task<
       throw new TaskAbortedError("Task aborted before sending human interaction");
     }
 
-    let response = await connector.send(request, context.signal);
+    let response: IHumanResponse;
+    try {
+      response = await connector.send(request, context.signal);
+    } catch (err) {
+      if (context.signal.aborted) {
+        throw new TaskAbortedError("Task aborted during human interaction");
+      }
+      throw err;
+    }
 
     if (kind === "elicit" && mode === "multi-turn" && !response.done) {
       if (typeof connector.followUp !== "function") {
@@ -361,7 +369,14 @@ export class HumanInputTask extends Task<
         if (context.signal.aborted) {
           throw new TaskAbortedError("Task aborted during multi-turn conversation");
         }
-        response = await connector.followUp(request, response, context.signal);
+        try {
+          response = await connector.followUp(request, response, context.signal);
+        } catch (err) {
+          if (context.signal.aborted) {
+            throw new TaskAbortedError("Task aborted during multi-turn conversation");
+          }
+          throw err;
+        }
       }
     }
 
