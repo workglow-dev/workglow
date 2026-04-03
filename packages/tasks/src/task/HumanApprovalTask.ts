@@ -207,7 +207,7 @@ export class HumanApprovalTask extends Task<
     if (response.action === "accept" && response.content) {
       return {
         action: response.action,
-        approved: Boolean(response.content.approved),
+        approved: response.content.approved === true,
         reason: response.content.reason as string | undefined,
       };
     }
