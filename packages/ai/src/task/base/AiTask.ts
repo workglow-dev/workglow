@@ -109,6 +109,11 @@ export class AiTask<
       taskInput: input as Input & { model: ModelConfig },
     };
 
+    const taskTimeoutMs = (this.config as TaskConfig).timeout;
+    if (typeof taskTimeoutMs === "number" && taskTimeoutMs > 0) {
+      jobInput.timeoutMs = taskTimeoutMs;
+    }
+
     // Attach structured output schema if the task declares it.
     const inputOutputSchema = (input as any).outputSchema;
     if (
