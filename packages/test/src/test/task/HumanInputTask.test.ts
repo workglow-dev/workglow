@@ -21,7 +21,7 @@ import {
   type IHumanRequest,
   type IHumanResponse,
 } from "@workglow/tasks";
-import { Container, globalServiceRegistry, ServiceRegistry } from "@workglow/util";
+import { Container, ServiceRegistry } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -80,7 +80,7 @@ describe("HumanInputTask — elicit", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(new Container());
   });
 
   test("returns human response data with action as output", async () => {
@@ -310,7 +310,7 @@ describe("HumanInputTask — notify", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(new Container());
   });
 
   test("notify kind sends and resolves immediately", async () => {
@@ -355,7 +355,7 @@ describe("HumanInputTask — display", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(new Container());
   });
 
   test("display kind sends content for visualization", async () => {
@@ -395,7 +395,7 @@ describe("HumanApprovalTask", () => {
   let registry: ServiceRegistry;
 
   beforeEach(() => {
-    registry = globalServiceRegistry;
+    registry = new ServiceRegistry(new Container());
   });
 
   test("returns approved=true when human accepts", async () => {
@@ -438,6 +438,7 @@ describe("HumanApprovalTask", () => {
     const result = await new HumanApprovalTask({}, {}).run({}, { registry });
     expect(result.action).toBe("decline");
     expect(result.approved).toBe(false);
+    expect(result.reason).toBeUndefined();
   });
 
   test("returns approved=false when human cancels", async () => {
@@ -452,6 +453,7 @@ describe("HumanApprovalTask", () => {
     const result = await new HumanApprovalTask({}, {}).run({}, { registry });
     expect(result.action).toBe("cancel");
     expect(result.approved).toBe(false);
+    expect(result.reason).toBeUndefined();
   });
 
   test("sends as elicit kind with approval schema", async () => {

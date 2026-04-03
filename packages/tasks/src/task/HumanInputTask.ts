@@ -287,7 +287,7 @@ export class HumanInputTask extends Task<
   }
 
   public override outputSchema(): DataPortSchema {
-    if (this.config?.contentSchema && this.config.kind !== "notify") {
+    if (this.config?.contentSchema && (this.config.kind ?? "elicit") === "elicit") {
       const configSchema = this.config.contentSchema as Record<string, unknown>;
       const existingProps = (configSchema.properties ?? {}) as Record<string, unknown>;
       const actionProp = {
@@ -296,11 +296,17 @@ export class HumanInputTask extends Task<
         description: "The human's action: accept, decline, or cancel",
         enum: ["accept", "decline", "cancel"],
       };
-      return {
+      const result: Record<string, unknown> = {
         type: "object",
         properties: { action: actionProp, ...existingProps },
-        additionalProperties: true,
-      } as DataPortSchema;
+      };
+      if (configSchema.required) {
+        result.required = ["action", ...(configSchema.required as string[])];
+      }
+      if (configSchema.additionalProperties !== undefined) {
+        result.additionalProperties = configSchema.additionalProperties;
+      }
+      return result as DataPortSchema;
     }
     return (this.constructor as typeof HumanInputTask).outputSchema();
   }
@@ -362,7 +368,7 @@ export class HumanInputTask extends Task<
       }
     }
 
-    return { action: response.action, ...response.content };
+    return { ...response.content, action: response.action };
   }
 }
 

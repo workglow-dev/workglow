@@ -207,10 +207,7 @@ export class HumanApprovalTask extends Task<
     return {
       action: response.action,
       approved: false,
-      reason:
-        response.action === "decline"
-          ? "Declined by user"
-          : "Cancelled by user",
+      reason: undefined,
     };
   }
 }
