@@ -1,5 +1,11 @@
 # @workglow/task-graph
 
+## 0.1.1
+
+### Refactors
+
+- enable noImplicitOverride and update classes for TypeScript compliance
+
 ## 0.1.0
 
 ### Features

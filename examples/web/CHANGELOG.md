@@ -1,5 +1,23 @@
 # @workglow/web
 
+## 0.1.1
+
+### Refactors
+
+- update ResizablePanel components for improved clarity and functionality
+
+### Chores
+
+#### dependencies
+
+- update Tailwind CSS and related configurations
+
+### Updated Dependencies
+
+- `react-resizable-panels`: ^4.8.0
+- `tailwind-merge`: ^3.3.0
+- `tailwindcss`: ^4.1.7
+
 ## 0.1.0
 
 ### Features

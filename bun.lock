@@ -33,7 +33,7 @@
     },
     "examples/cli": {
       "name": "@workglow/cli",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "bin": "./dist/workglow.js",
       "dependencies": {
         "@anthropic-ai/sdk": "catalog:",
@@ -63,7 +63,7 @@
     },
     "examples/web": {
       "name": "@workglow/web",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@codemirror/lang-json": "^6.0.2",
         "@huggingface/transformers": "catalog:",
@@ -103,7 +103,7 @@
     },
     "packages/ai": {
       "name": "@workglow/ai",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
@@ -121,7 +121,7 @@
     },
     "packages/ai-provider": {
       "name": "@workglow/ai-provider",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@anthropic-ai/sdk": "catalog:",
         "@google/generative-ai": "catalog:",
@@ -180,7 +180,7 @@
     },
     "packages/job-queue": {
       "name": "@workglow/job-queue",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
@@ -192,7 +192,7 @@
     },
     "packages/knowledge-base": {
       "name": "@workglow/knowledge-base",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
@@ -204,7 +204,7 @@
     },
     "packages/storage": {
       "name": "@workglow/storage",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@electric-sql/pglite": "catalog:",
         "@sqlite.org/sqlite-wasm": "catalog:",
@@ -236,7 +236,7 @@
     },
     "packages/task-graph": {
       "name": "@workglow/task-graph",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
@@ -250,7 +250,7 @@
     },
     "packages/tasks": {
       "name": "@workglow/tasks",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "papaparse": "^5.5.3",
       },
@@ -272,7 +272,7 @@
     },
     "packages/test": {
       "name": "@workglow/test",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@anthropic-ai/sdk": "catalog:",
         "@electric-sql/pglite": "catalog:",
@@ -299,7 +299,7 @@
     },
     "packages/util": {
       "name": "@workglow/util",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@sroussey/json-schema-library": "^11.0.0",
         "@sroussey/json-schema-to-ts": "3.1.4",
@@ -307,7 +307,7 @@
     },
     "packages/workglow": {
       "name": "workglow",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@workglow/ai": "workspace:*",
         "@workglow/ai-provider": "workspace:*",

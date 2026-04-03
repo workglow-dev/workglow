@@ -1,5 +1,13 @@
 # @workglow/ai-provider
 
+## 0.1.1
+
+### Refactors
+
+- improve error handling during model loading in HFT_Pipeline
+- update text generation input structure and parameters
+- improve backpressure handling in wrapAbortableResponse and update abortableFetch signature
+
 ## 0.1.0
 
 ### Features

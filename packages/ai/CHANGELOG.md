@@ -1,5 +1,15 @@
 # @workglow/ai
 
+## 0.1.1
+
+### Refactors
+
+- enable noImplicitOverride and update classes for TypeScript compliance
+
+#### ai
+
+- standardize timeout handling for local models
+
 ## 0.1.0
 
 ### Features
