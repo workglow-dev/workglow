@@ -262,11 +262,15 @@ export async function getPipeline(
     return pipelines.get(cacheKey);
   }
 
-  // Output[number]-flight: only one load per model at a time to avoid concurrent writes to the same
+  // In-flight: only one load per model at a time to avoid concurrent writes to the same
   // ONNX cache path (which can yield "Protobuf parsing failed" when one process reads while another writes).
   const inFlight = pipelineLoadPromises.get(cacheKey);
   if (inFlight) {
-    await inFlight;
+    try {
+      await inFlight;
+    } catch {
+      // First load failed (e.g. aborted) — fall through to retry below.
+    }
     const cached = pipelines.get(cacheKey);
     if (cached) return cached;
     // Load failed for the other caller; fall through to retry (we remove from map in finally).
