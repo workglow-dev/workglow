@@ -43,7 +43,7 @@
     "publish-workspaces": "bun ./scripts/publish-workspaces.ts"
   },
   "dependencies": {
-    "caniuse-lite": "^1.0.30001782"
+    "caniuse-lite": "^1.0.30001784"
   },
   "catalog": {
     "@huggingface/transformers": "^4.0.0",
