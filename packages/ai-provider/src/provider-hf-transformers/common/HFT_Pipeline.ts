@@ -89,49 +89,63 @@ function wrapAbortableResponse(response: Response, signal: AbortSignal | undefin
       : undefined;
   const sourceBody = response.body;
 
-  const body = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const reader = sourceBody.getReader();
-      const abort = () => controller.error(createAbortError(signal));
-      signal.addEventListener("abort", abort, { once: true });
-      let loaded = 0;
+  // Use pull-based reading to maintain backpressure. The previous start()-based
+  // loop eagerly drained the source into the internal queue without waiting for
+  // the consumer, which could buffer the entire response body in memory — a
+  // problem for large model files (hundreds of MB to several GB).
+  let reader: ReadableStreamDefaultReader<Uint8Array>;
+  let abortHandler: (() => void) | undefined;
+  let loaded = 0;
 
+  const cleanup = () => {
+    if (abortHandler) {
+      signal.removeEventListener("abort", abortHandler);
+      abortHandler = undefined;
+    }
+    reader?.releaseLock();
+  };
+
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      reader = sourceBody.getReader();
+      if (signal.aborted) {
+        controller.error(createAbortError(signal));
+        return;
+      }
+      abortHandler = () => controller.error(createAbortError(signal));
+      signal.addEventListener("abort", abortHandler, { once: true });
+    },
+    async pull(controller) {
       try {
-        while (true) {
+        if (signal.aborted) {
+          throw createAbortError(signal);
+        }
+
+        const { done, value } = await reader.read();
+        if (done) {
           if (signal.aborted) {
             throw createAbortError(signal);
           }
-
-          const { done, value } = await reader.read();
-          if (done) {
-            if (signal.aborted) {
-              throw createAbortError(signal);
-            }
-            if (expectedSize !== undefined && loaded < expectedSize) {
-              throw new Error(
-                `Fetch ended before reading the full response body (${loaded}/${expectedSize} bytes)`
-              );
-            }
-            controller.close();
-            return;
+          if (expectedSize !== undefined && loaded < expectedSize) {
+            throw new Error(
+              `Fetch ended before reading the full response body (${loaded}/${expectedSize} bytes)`
+            );
           }
-
-          loaded += value.length;
-          controller.enqueue(value);
+          cleanup();
+          controller.close();
+          return;
         }
+
+        loaded += value.length;
+        controller.enqueue(value);
       } catch (error) {
+        cleanup();
         controller.error(error);
-      } finally {
-        signal.removeEventListener("abort", abort);
-        reader.releaseLock();
       }
     },
-    async cancel(reason) {
-      try {
-        await sourceBody.cancel(reason);
-      } catch {
-        // Ignore downstream cancellation errors.
-      }
+    cancel(reason) {
+      cleanup();
+      return sourceBody.cancel(reason);
     },
   });
 
@@ -142,7 +156,7 @@ function wrapAbortableResponse(response: Response, signal: AbortSignal | undefin
   });
 }
 
-function abortableFetch(url: string, options: RequestInit): Promise<Response> {
+function abortableFetch(url: string, options?: RequestInit): Promise<Response> {
   let modelSignal: AbortSignal | undefined;
   try {
     const pathname = new URL(url).pathname;
@@ -155,7 +169,9 @@ function abortableFetch(url: string, options: RequestInit): Promise<Response> {
   } catch {
     /* not a parseable URL, proceed without abort */
   }
-  const combinedSignal = combineAbortSignals(options.signal, modelSignal);
+  const combinedSignal = options?.signal
+    ? combineAbortSignals(options.signal, modelSignal)
+    : modelSignal;
   return fetch(url, { ...options, ...(combinedSignal ? { signal: combinedSignal } : {}) }).then(
     (response) => wrapAbortableResponse(response, combinedSignal)
   );
