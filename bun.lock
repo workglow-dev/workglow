@@ -8,7 +8,7 @@
         "caniuse-lite": "^1.0.30001782",
       },
       "devDependencies": {
-        "@sqliteai/sqlite-vector": "^0.9.93",
+        "@sqliteai/sqlite-vector": "^0.9.94",
         "@types/bun": "^1.3.11",
         "@types/node": "^24.1.0",
         "@typescript-eslint/eslint-plugin": "^8.58.0",
@@ -696,21 +696,21 @@
 
     "@sqlite.org/sqlite-wasm": ["@sqlite.org/sqlite-wasm@3.51.2-build8", "", {}, "sha512-NvWLTgbqGu1XOLKxePE5Jvc5bzy6QACAQLURQnumSFm0hQms09r2rjMp5i1rvh1DXCe5Rx1FEGcEeQ9BnBB2+Q=="],
 
-    "@sqliteai/sqlite-vector": ["@sqliteai/sqlite-vector@0.9.93", "", { "optionalDependencies": { "@sqliteai/sqlite-vector-darwin-arm64": "0.9.93", "@sqliteai/sqlite-vector-darwin-x86_64": "0.9.93", "@sqliteai/sqlite-vector-linux-arm64": "0.9.93", "@sqliteai/sqlite-vector-linux-arm64-musl": "0.9.93", "@sqliteai/sqlite-vector-linux-x86_64": "0.9.93", "@sqliteai/sqlite-vector-linux-x86_64-musl": "0.9.93", "@sqliteai/sqlite-vector-win32-x86_64": "0.9.93" } }, "sha512-zKNq3c5kYaASBJB6bktxxKDRV36hh4niui3wzrt/S+QvYNY5xmaomyxYOstYbKDIPSPRBgOeu6ozktzqAr+c2Q=="],
+    "@sqliteai/sqlite-vector": ["@sqliteai/sqlite-vector@0.9.94", "", { "optionalDependencies": { "@sqliteai/sqlite-vector-darwin-arm64": "0.9.94", "@sqliteai/sqlite-vector-darwin-x86_64": "0.9.94", "@sqliteai/sqlite-vector-linux-arm64": "0.9.94", "@sqliteai/sqlite-vector-linux-arm64-musl": "0.9.94", "@sqliteai/sqlite-vector-linux-x86_64": "0.9.94", "@sqliteai/sqlite-vector-linux-x86_64-musl": "0.9.94", "@sqliteai/sqlite-vector-win32-x86_64": "0.9.94" } }, "sha512-PGuPWp8PFTSR5aeV6TmJcOyEBrVWurAgQOz6s9MdhqiaiwTBKIWYijt2yM8SDm1ilF88z1sQ/MzCDrgT4dEhDw=="],
 
-    "@sqliteai/sqlite-vector-darwin-arm64": ["@sqliteai/sqlite-vector-darwin-arm64@0.9.93", "", { "os": "darwin", "cpu": "arm64" }, "sha512-QsU0Z4Lx4QtTfXE9tcAaDl1X7BBMOSFZE6VR5tIwIjRQqgRjdzmgaJzL2pSL7nQStuLK0hsleEulcbNieF1U+Q=="],
+    "@sqliteai/sqlite-vector-darwin-arm64": ["@sqliteai/sqlite-vector-darwin-arm64@0.9.94", "", { "os": "darwin", "cpu": "arm64" }, "sha512-jy4TQ5krNttzio7U9W8pldo6kOUulZWRDXCaBYTMUrJYogWvQ3ujmLwW+P5797QGpvoJYwAutQKeCD/Z2qnTHw=="],
 
-    "@sqliteai/sqlite-vector-darwin-x86_64": ["@sqliteai/sqlite-vector-darwin-x86_64@0.9.93", "", { "os": "darwin", "cpu": [ "x64", "ia32", ] }, "sha512-1Sfh3jcfoOy+/VbShOiiU1k0sjDFI5UsC+d4itmPgx3gR5fcIsRBrYrcROaxiVBba4AXSdxjFVf+Orwye/vHtg=="],
+    "@sqliteai/sqlite-vector-darwin-x86_64": ["@sqliteai/sqlite-vector-darwin-x86_64@0.9.94", "", { "os": "darwin", "cpu": [ "x64", "ia32", ] }, "sha512-okPKzELRdl5/E8IyvrcVke1wVVJm36kzjent4YDLLWfiWSI0e3Corm/e678BeN9Rk6IIfrm3DIcdgrIP0VIhZA=="],
 
-    "@sqliteai/sqlite-vector-linux-arm64": ["@sqliteai/sqlite-vector-linux-arm64@0.9.93", "", { "os": "linux", "cpu": "arm64" }, "sha512-N/bNzpkd9Su/ydrfrKT+UgII7xm2yMCk7VVIo/UnH67qxMrbV3wHDX5jjzQJoNUVgVxMQfZ/5vk2P5VB5z8WmA=="],
+    "@sqliteai/sqlite-vector-linux-arm64": ["@sqliteai/sqlite-vector-linux-arm64@0.9.94", "", { "os": "linux", "cpu": "arm64" }, "sha512-0lgUYdcrs0HAQAr6462K9X0cJ66YEvHbgmEB1ORYlXV8YUm7hSX9Ky9fG9oYqdkCDepp4O/cXKuEvQ//3ZItpg=="],
 
-    "@sqliteai/sqlite-vector-linux-arm64-musl": ["@sqliteai/sqlite-vector-linux-arm64-musl@0.9.93", "", { "os": "linux", "cpu": "arm64" }, "sha512-oMHLZIg9H4bJVnPBPvZDqww0l/Tx6bMabDafgRI93rjVYdpOUkflnA+vQfGsHJ43UG/liGHoDc83EvC8zL3p1A=="],
+    "@sqliteai/sqlite-vector-linux-arm64-musl": ["@sqliteai/sqlite-vector-linux-arm64-musl@0.9.94", "", { "os": "linux", "cpu": "arm64" }, "sha512-tcf+M7+RhVsxB0WfED+a/ziLdzKh3koeP9/YfP7CeyHpePdTxK921W71Wc+67Ul+Q7kT9kFnNtndEw0uLdQh7w=="],
 
-    "@sqliteai/sqlite-vector-linux-x86_64": ["@sqliteai/sqlite-vector-linux-x86_64@0.9.93", "", { "os": "linux", "cpu": [ "x64", "ia32", ] }, "sha512-q7stYxqmeMXq04/yjNeluceZOtfvHIzPHQ/yF3E1OnYr+lQCo5WgvzbQjTRk7ic/CQFhE8WJLPeEkWXxi/DeCg=="],
+    "@sqliteai/sqlite-vector-linux-x86_64": ["@sqliteai/sqlite-vector-linux-x86_64@0.9.94", "", { "os": "linux", "cpu": [ "x64", "ia32", ] }, "sha512-ZUlPYXAe7Xrgy3MT+pvIwiVpiOt60gp5/vpKJEl4XyNHIdJioRJjnL2Z6do4uppKnx8XRC/zYj5vYkFGQaXoYA=="],
 
-    "@sqliteai/sqlite-vector-linux-x86_64-musl": ["@sqliteai/sqlite-vector-linux-x86_64-musl@0.9.93", "", { "os": "linux", "cpu": [ "x64", "ia32", ] }, "sha512-rQyKpExLu5DvtxItr2oQkg9eNLO0Xebxv/tr0EzDjZQF99KxA2S4KE/jjP+O+bGrG/JPjM1YE3cRsBMAOLRIYg=="],
+    "@sqliteai/sqlite-vector-linux-x86_64-musl": ["@sqliteai/sqlite-vector-linux-x86_64-musl@0.9.94", "", { "os": "linux", "cpu": [ "x64", "ia32", ] }, "sha512-nAhZ92uK/2uf/wLs1xsuUNBIIPUvm6OoTAQupmXGowvrvg76V4wbdPO2T9fCr0JOQlu21rVY9TdPsDpIWWX6jw=="],
 
-    "@sqliteai/sqlite-vector-win32-x86_64": ["@sqliteai/sqlite-vector-win32-x86_64@0.9.93", "", { "os": "win32", "cpu": [ "x64", "ia32", ] }, "sha512-vxlGnyOJA4pTlP4+2EmZthfBVuxghI0lul26yQrBh+y94WvtHMdIY4jleL9jMbu2RSwa+8mRmUvZBi20Rivezg=="],
+    "@sqliteai/sqlite-vector-win32-x86_64": ["@sqliteai/sqlite-vector-win32-x86_64@0.9.94", "", { "os": "win32", "cpu": [ "x64", "ia32", ] }, "sha512-hkfVFgUOM+eItxGBY7CXQ5g39D4BX2Oef0Ed8sscu/eJQdzQW9B7WjJO4y4Y2Z6pskXIbbjRfw/6qDOV6E9A7A=="],
 
     "@sroussey/json-schema-library": ["@sroussey/json-schema-library@11.0.0", "", { "dependencies": { "@sagold/json-pointer": "^7.2.1", "@sagold/json-query": "^6.2.0", "deepmerge": "^4.3.1", "fast-copy": "^4.0.2", "fast-deep-equal": "^3.1.3", "lodash": "^4.17.23", "smtp-address-parser": "^1.1.0", "uri-js": "^4.4.1", "valid-url": "^1.0.9" } }, "sha512-H71yaoc7R1YPQshzYWEilyKWxvv0wCPm3YtbrQxKB6WFE1IsYuyMrdsyXppIjoolySHtFay5MnMJsUyP6T3WSQ=="],
 
