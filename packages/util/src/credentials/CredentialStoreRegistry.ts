@@ -6,6 +6,7 @@
 
 import { globalServiceRegistry } from "../di/ServiceRegistry";
 import type { ServiceRegistry } from "../di/ServiceRegistry";
+import { registerInputCompactor } from "../di/InputCompactorRegistry";
 import { registerInputResolver } from "../di/InputResolverRegistry";
 import { CREDENTIAL_STORE } from "./ICredentialStore";
 import type { ICredentialStore } from "./ICredentialStore";
@@ -62,4 +63,9 @@ export async function resolveCredential(
 // downstream code (e.g., provider getClient) can fall back to env vars.
 registerInputResolver("credential", async (id, _format, registry) => {
   return (await resolveCredential(id, registry)) ?? id;
+});
+
+// Credentials are already strings — pass through unchanged
+registerInputCompactor("credential", (value) => {
+  return typeof value === "string" ? value : undefined;
 });

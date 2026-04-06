@@ -10,6 +10,7 @@ export * from "./FallbackTask";
 export * from "./FallbackTaskRunner";
 export * from "./GraphAsTask";
 export * from "./GraphAsTaskRunner";
+export * from "./InputCompactor";
 export * from "./InputResolver";
 export * from "./ITask";
 export * from "./iterationSchema";

@@ -5,5 +5,6 @@
  */
 
 export * from "./Container";
+export * from "./InputCompactorRegistry";
 export * from "./InputResolverRegistry";
 export * from "./ServiceRegistry";

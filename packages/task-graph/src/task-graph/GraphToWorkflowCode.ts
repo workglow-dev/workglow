@@ -453,12 +453,28 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
 /**
  * Builds the argument string for a prototype method call.
  */
+/**
+ * Strips entries whose value is `undefined` — they carry no information
+ * and would emit noisy `key: undefined` literals in the generated code.
+ */
+function stripUndefined(
+  obj: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!obj) return obj;
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) result[k] = v;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function buildMethodArgs(
   defaults: Record<string, unknown> | undefined,
   config: Record<string, unknown>,
   baseIndent: string = "",
   columnOffset: number = 0
 ): string {
+  defaults = stripUndefined(defaults);
   const hasDefaults = defaults && Object.keys(defaults).length > 0;
   const hasConfig = Object.keys(config).length > 0;
 

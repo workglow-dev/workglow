@@ -7,6 +7,7 @@
 import {
   createServiceToken,
   globalServiceRegistry,
+  registerInputCompactor,
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
@@ -92,3 +93,12 @@ async function resolveServerFromRegistry(
 }
 
 registerInputResolver("mcp-server", resolveServerFromRegistry);
+
+// Register the compactor — extracts server_id from an McpServerRecord
+registerInputCompactor("mcp-server", (value) => {
+  if (typeof value === "object" && value !== null && "server_id" in value) {
+    const id = (value as Record<string, unknown>).server_id;
+    return typeof id === "string" ? id : undefined;
+  }
+  return undefined;
+});

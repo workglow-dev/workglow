@@ -7,6 +7,7 @@
 import {
   createServiceToken,
   globalServiceRegistry,
+  registerInputCompactor,
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
@@ -66,3 +67,19 @@ async function resolveModelFromRegistry(
 
 // Register the model resolver for format: "model" and "model:*"
 registerInputResolver("model", resolveModelFromRegistry);
+
+// Register the model compactor — extracts model_id from a ModelConfig
+registerInputCompactor("model", async (value, _format, registry) => {
+  if (typeof value === "object" && value !== null && "model_id" in value) {
+    const id = (value as Record<string, unknown>).model_id;
+    if (typeof id !== "string") return undefined;
+    const modelRepo = registry.has(MODEL_REPOSITORY)
+      ? registry.get<ModelRepository>(MODEL_REPOSITORY)
+      : getGlobalModelRepository();
+
+    const model = await modelRepo.findByName(id);
+    if (!model) return undefined;
+    return id;
+  }
+  return undefined;
+});

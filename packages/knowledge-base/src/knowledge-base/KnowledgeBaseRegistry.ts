@@ -7,6 +7,7 @@
 import {
   createServiceToken,
   globalServiceRegistry,
+  registerInputCompactor,
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
@@ -125,3 +126,15 @@ async function resolveKnowledgeBaseFromRegistry(
 
 // Register the resolver for format: "knowledge-base"
 registerInputResolver("knowledge-base", resolveKnowledgeBaseFromRegistry);
+
+// Register the compactor — reverse map lookup by identity
+registerInputCompactor("knowledge-base", (value, _format, registry) => {
+  const kbs = registry.has(KNOWLEDGE_BASES)
+    ? registry.get<Map<string, KnowledgeBase>>(KNOWLEDGE_BASES)
+    : getGlobalKnowledgeBases();
+
+  for (const [id, kb] of kbs) {
+    if (kb === value) return id;
+  }
+  return undefined;
+});

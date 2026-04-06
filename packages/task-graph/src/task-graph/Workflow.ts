@@ -361,11 +361,19 @@ export class Workflow<
    * @param cache - Optional repository for task outputs
    * @param parent - Optional parent workflow (for loop builder mode)
    * @param iteratorTask - Optional iterator task being configured (for loop builder mode)
+   * @param registry - Optional service registry to use for this workflow run
+   * @returns A new Workflow instance
    */
-  constructor(cache?: TaskOutputRepository, parent?: Workflow, iteratorTask?: GraphAsTask) {
+  constructor(
+    cache?: TaskOutputRepository,
+    parent?: Workflow,
+    iteratorTask?: GraphAsTask,
+    registry?: ServiceRegistry
+  ) {
     this._outputCache = cache;
     this._parentWorkflow = parent;
     this._iteratorTask = iteratorTask;
+    this._registry = registry ?? parent?._registry;
     this._graph = new TaskGraph({ outputCache: this._outputCache });
 
     if (!parent) {
@@ -379,6 +387,7 @@ export class Workflow<
   private _dataFlows: Dataflow[] = [];
   private _error: string = "";
   private _outputCache?: TaskOutputRepository;
+  /** @internal */ private _registry?: ServiceRegistry;
 
   // Abort controller for cancelling task execution
   private _abortController?: AbortController;
@@ -601,7 +610,7 @@ export class Workflow<
       const output = await this.graph.run<Output>(input, {
         parentSignal: this._abortController.signal,
         outputCache: this._outputCache,
-        registry: config?.registry,
+        registry: config?.registry ?? this._registry,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
         output,
@@ -970,7 +979,11 @@ export class Workflow<
     O extends DataPorts,
     C extends TaskConfig = TaskConfig,
   >(taskClass: ITaskConstructor<I, O, C>, input: I, config: C): ITask<I, O, C> {
-    const task = new taskClass(input, config);
+    const task = new taskClass(
+      input,
+      config,
+      this._registry ? { registry: this._registry } : undefined
+    );
     const id = this.graph.addTask(task);
     this.events.emit("changed", id);
     return task;
@@ -1044,7 +1057,8 @@ export class Workflow<
     const loopBuilder = new Workflow(
       this.outputCache(),
       this,
-      task as unknown as GraphAsTask
+      task as unknown as GraphAsTask,
+      this._registry
     ) as unknown as Workflow<I, O>;
     if (parent) {
       loopBuilder._pendingLoopConnect = { parent, iteratorTask: task };

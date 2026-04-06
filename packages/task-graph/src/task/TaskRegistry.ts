@@ -7,6 +7,7 @@
 import {
   createServiceToken,
   globalServiceRegistry,
+  registerInputCompactor,
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
@@ -145,3 +146,15 @@ function resolveTaskFromRegistry(
 
 // Register the tasks resolver for format: "tasks"
 registerInputResolver("tasks", resolveTaskFromRegistry);
+
+// Register the tasks compactor — extracts name from a resolved task definition
+registerInputCompactor("tasks", (value, _format, registry) => {
+  if (typeof value === "object" && value !== null && "name" in value) {
+    const name = (value as Record<string, unknown>).name;
+    if (typeof name !== "string") return undefined;
+    const constructors = getTaskConstructors(registry);
+    const ctor = constructors.get(name);
+    return ctor ? name : undefined;
+  }
+  return undefined;
+});

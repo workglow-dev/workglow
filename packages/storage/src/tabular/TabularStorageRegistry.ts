@@ -7,6 +7,7 @@
 import {
   createServiceToken,
   globalServiceRegistry,
+  registerInputCompactor,
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
@@ -77,3 +78,15 @@ function resolveRepositoryFromRegistry(
 
 // Register the repository resolver for format: "storage:tabular"
 registerInputResolver("storage:tabular", resolveRepositoryFromRegistry);
+
+// Register the compactor — reverse map lookup by identity
+registerInputCompactor("storage:tabular", (value, _format, registry) => {
+  const repos = registry.has(TABULAR_REPOSITORIES)
+    ? registry.get(TABULAR_REPOSITORIES)
+    : getGlobalTabularRepositories();
+
+  for (const [id, repo] of repos) {
+    if (repo === value) return id;
+  }
+  return undefined;
+});

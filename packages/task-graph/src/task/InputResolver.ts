@@ -18,7 +18,7 @@ export interface InputResolverConfig {
 /**
  * Extracts the format string from a schema, handling oneOf/anyOf wrappers.
  */
-function getSchemaFormat(schema: unknown): string | undefined {
+export function getSchemaFormat(schema: unknown): string | undefined {
   if (typeof schema !== "object" || schema === null) return undefined;
 
   const s = schema as Record<string, unknown>;
@@ -45,7 +45,7 @@ function getSchemaFormat(schema: unknown): string | undefined {
  * This is needed for patterns like `oneOf: [{ type: "string" }, { type: "object", properties: {...} }]`
  * where the model can be either a string ID or an inline config object.
  */
-function getObjectSchema(
+export function getObjectSchema(
   schema: unknown
 ): (Record<string, unknown> & { properties: Record<string, unknown> }) | undefined {
   if (typeof schema !== "object" || schema === null) return undefined;
@@ -78,7 +78,7 @@ function getObjectSchema(
  * For "model:TextEmbedding" returns "model"
  * For "storage:tabular" returns "storage"
  */
-function getFormatPrefix(format: string): string {
+export function getFormatPrefix(format: string): string {
   const colonIndex = format.indexOf(":");
   return colonIndex >= 0 ? format.substring(0, colonIndex) : format;
 }
