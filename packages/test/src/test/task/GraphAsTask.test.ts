@@ -573,9 +573,11 @@ describe("GraphAsTask Dynamic Schema", () => {
       // Connect InputTask.value -> OutputTask.value
       subGraph.addDataflow(new Dataflow("input", "value", "output", "value"));
 
-      const graphAsTask = new TestGraphAsTask_Value(
-        { id: "group", subGraph, defaults: { value: "initial" } }
-      );
+      const graphAsTask = new TestGraphAsTask_Value({
+        id: "group",
+        subGraph,
+        defaults: { value: "initial" },
+      });
 
       // First run to initialize - verify the graph works with explicit registry
       const runResult = await graphAsTask.run({ value: "initial" }, { registry });
@@ -599,7 +601,15 @@ describe("GraphAsTask Dynamic Schema", () => {
       subGraph.addDataflow(new Dataflow("input", "a", "compute", "a"));
       subGraph.addDataflow(new Dataflow("input", "b", "compute", "b"));
 
-      const graphAsTask = new TestGraphAsTask_AB({ id: "group", subGraph, defaults: { a: 5, b: 3 } });
+      const graphAsTask = new TestGraphAsTask_AB({
+        id: "group",
+        subGraph,
+        defaults: { a: 5, b: 3 },
+      });
+      const result = await graphAsTask.run({ a: 5, b: 3 }, { registry });
+      expect(result.result).toBe(8);
+      expect(computeTask.runInputData).toEqual({ a: 5, b: 3 });
+      expect(computeTask.runOutputData).toEqual({ result: 8 });
     });
   });
 });

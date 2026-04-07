@@ -386,31 +386,15 @@ Bob,35,`;
     const filePath = join(testDir, "progress.txt");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}` } });
+    const task = new FileLoaderTask();
 
     // Mock the task runner's updateProgress by accessing the task's progress property
     // Note: Progress updates happen internally via context.updateProgress
     // This test verifies the task completes successfully
-    const result = await task.run();
+    const result = await task.run({ url: `file://${filePath}` });
 
     expect(result.text).toBe(content);
     // Progress updates are internal to the task execution context
-  });
-
-  test("handles abort signal during file loading", async () => {
-    const content = "Test content";
-    const filePath = join(testDir, "abort.txt");
-    writeFileSync(filePath, content, "utf-8");
-
-    const abortController = new AbortController();
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}` } });
-
-    // Abort immediately
-    abortController.abort();
-
-    // Note: The actual abort handling depends on the task runner implementation
-    // This test verifies the task can be created with an abort signal
-    expect(abortController.signal.aborted).toBe(true);
   });
 
   test("handles CSV with Windows line endings", async () => {
@@ -418,8 +402,8 @@ Bob,35,`;
     const filePath = join(testDir, "windows.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}` } });
-    const result = await task.run();
+    const task = new FileLoaderTask();
+    const result = await task.run({ url: `file://${filePath}` });
 
     expect(result.csv).toHaveLength(2);
     expect(result.csv![0]).toEqual({ name: "John", age: "30" });
@@ -431,8 +415,8 @@ Bob,35,`;
     const filePath = join(testDir, "mixed.csv");
     writeFileSync(filePath, csvContent, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}` } });
-    const result = await task.run();
+    const task = new FileLoaderTask();
+    const result = await task.run({ url: `file://${filePath}` });
 
     expect(result.csv).toHaveLength(2);
   });
@@ -453,8 +437,8 @@ This is the body.`;
     const filePath = join(testDir, "frontmatter.md");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}`, format: "auto" } });
-    const result = await task.run();
+    const task = new FileLoaderTask();
+    const result = await task.run({ url: `file://${filePath}`, format: "auto" });
 
     expect(result.metadata.format).toBe("markdown");
     expect(result.frontmatter).toEqual({
@@ -519,8 +503,8 @@ Body content.`;
     const filePath = join(testDir, "types.md");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}` } });
-    const result = await task.run();
+    const task = new FileLoaderTask();
+    const result = await task.run({ url: `file://${filePath}` });
 
     expect(result.frontmatter).toEqual({
       string_val: "hello",
@@ -539,8 +523,8 @@ Body content.`;
     const filePath = join(testDir, "test.txt");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}`, format: "text" } });
-    const result = await task.run();
+    const task = new FileLoaderTask();
+    const result = await task.run({ url: `file://${filePath}`, format: "text" });
 
     expect(result.frontmatter).toBeUndefined();
     expect(result.text).toBe(content);
@@ -558,8 +542,8 @@ Body.`;
     const filePath = join(testDir, "nested.md");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}` } });
-    const result = await task.run();
+    const task = new FileLoaderTask();
+    const result = await task.run({ url: `file://${filePath}` });
 
     expect(result.frontmatter).toEqual({
       title: "Nested Test",
@@ -575,8 +559,8 @@ Body.`;
     const filePath = join(testDir, "test.markdown");
     writeFileSync(filePath, content, "utf-8");
 
-    const task = new FileLoaderTask({ defaults: { url: `file://${filePath}`, format: "auto" } });
-    const result = await task.run();
+    const task = new FileLoaderTask();
+    const result = await task.run({ url: `file://${filePath}`, format: "auto" });
 
     expect(result.metadata.format).toBe("markdown");
     expect(result.metadata.mimeType).toBe("text/markdown");
