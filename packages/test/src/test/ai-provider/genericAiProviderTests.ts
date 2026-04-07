@@ -4,13 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ToolCalls, ToolDefinition } from "@workglow/ai";
 import { agent, structuredGeneration, textGeneration, toolCalling } from "@workglow/ai";
-import type {
-  AgentTaskOutput,
-  StructuredGenerationTaskOutput,
-  ToolCalls,
-  ToolDefinition,
-} from "@workglow/ai";
 import { Workflow } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import type { JsonSchema } from "@workglow/util/schema";
@@ -162,131 +157,6 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
           });
 
           getLogger().debug("ToolCalling result", result);
-
-          expect(result).toBeDefined();
-          expect(result.toolCalls).toBeDefined();
-
-          const calls = result.toolCalls;
-          // The model should call get_weather
-          expect(calls.length).toBeGreaterThan(0);
-          expect(calls[0].name).toBe("get_weather");
-          expect(calls[0].input).toBeDefined();
-        },
-        setup.timeout
-      );
-
-      it(
-        "should produce no tool calls with toolChoice none",
-        async () => {
-          const result = await toolCalling({
-            model: setup.toolCallingModel!,
-            prompt: "What is the weather in San Francisco?",
-            tools: [weatherTool],
-            toolChoice: "none",
-            maxTokens: setup.maxTokens,
-          });
-
-          getLogger().debug("ToolCalling result", result);
-
-          expect(result).toBeDefined();
-          expect(typeof result.text).toBe("string");
-          expect(result.text.length).toBeGreaterThan(0);
-          expect(result.toolCalls).toHaveLength(0);
-        },
-        setup.timeout
-      );
-    });
-
-    // ====================================================================
-    // ToolCalling — multi-turn via messages
-    // ====================================================================
-
-    describe.skipIf(!setup.toolCallingModel)("ToolCalling multi-turn", () => {
-      it(
-        "should handle tool result fed back via messages",
-        async () => {
-          // First call: get tool call
-          const workflow1 = new Workflow();
-          workflow1.toolCalling({
-            model: setup.toolCallingModel!,
-            prompt: "What is the weather in Tokyo?",
-            tools: [weatherTool],
-            toolChoice: "auto",
-            maxTokens: setup.maxTokens,
-          });
-
-          const result1 = (await workflow1.run()) as {
-            text: string;
-            toolCalls: ToolCalls;
-          };
-
-          getLogger().debug("ToolCalling result", result1);
-
-          const calls = result1.toolCalls;
-          if (calls.length === 0) {
-            // Model didn't call the tool — can happen with small models; skip gracefully
-            return;
-          }
-
-          const call = calls[0];
-
-          // Second call: feed tool result back
-          const workflow2 = new Workflow();
-          workflow2.toolCalling({
-            model: setup.toolCallingModel!,
-            prompt: "What is the weather in Tokyo?",
-            tools: [weatherTool],
-            toolChoice: "auto",
-            maxTokens: setup.maxTokens,
-            messages: [
-              { role: "user", content: "What is the weather in Tokyo?" },
-              {
-                role: "assistant",
-                content: [
-                  { type: "text", text: result1.text || "Let me check" },
-                  { type: "tool_use", id: call.id, name: call.name, input: call.input },
-                ],
-              },
-              {
-                role: "tool",
-                content: [
-                  {
-                    type: "tool_result",
-                    tool_use_id: call.id,
-                    content: JSON.stringify({ temperature: 22, conditions: "sunny" }),
-                  },
-                ],
-              },
-            ],
-          });
-
-          const result2 = (await workflow2.run()) as { text: string };
-
-          expect(result2).toBeDefined();
-          expect(typeof result2.text).toBe("string");
-          expect(result2.text.length).toBeGreaterThan(0);
-        },
-        setup.timeout
-      );
-    });
-
-    // ====================================================================
-    // ToolCalling — single turn
-    // ====================================================================
-
-    describe.skipIf(!setup.toolCallingModel)("ToolCalling", () => {
-      it(
-        "should produce a tool call with toolChoice required",
-        async () => {
-          const result = await toolCalling({
-            model: setup.toolCallingModel!,
-            prompt: "What is the weather in San Francisco?",
-            tools: [weatherTool],
-            toolChoice: "required",
-            maxTokens: setup.maxTokens,
-          });
-
-          console.dir(result, { depth: null });
 
           expect(result).toBeDefined();
           expect(result.toolCalls).toBeDefined();
