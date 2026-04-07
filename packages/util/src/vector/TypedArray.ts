@@ -8,6 +8,18 @@ import { FromSchema, FromSchemaDefaultOptions, FromSchemaOptions } from "../json
 import { JsonSchema } from "../json-schema/JsonSchema";
 
 /**
+ * Polyfill Float16Array for runtimes that don't support it yet (Node < 24).
+ * Float16Array is referenced at module-load time in the schema options below,
+ * so the polyfill must run before any usage.
+ */
+if (typeof globalThis.Float16Array === "undefined") {
+  // @ts-expect-error — intentional minimal shim
+  globalThis.Float16Array = class Float16Array extends Uint16Array {
+    static override readonly BYTES_PER_ELEMENT = 2;
+  };
+}
+
+/**
  * Supported typed array types
  * - Float16Array: 16-bit floating point (medium precision)
  * - Float32Array: Standard 32-bit floating point (most common)
