@@ -835,7 +835,7 @@ export const parseFunctionGemma: ParserFn = (text) => {
   // - `call:name{args}` or just `:name{args}` (model may omit `call` prefix)
   // - Optional whitespace/newlines between name and `{`
   const regex =
-    /(?:<start_function_call>\s*)?call:([\w.]+)\s*\{([^}]*)\}(?:\s*<end_function_call>)?/g;
+    /(?:<start_function_call>\s*)?call:(?=([\w.]+))\1\s*\{([^}]*)\}(?:\s*<end_function_call>)?/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
