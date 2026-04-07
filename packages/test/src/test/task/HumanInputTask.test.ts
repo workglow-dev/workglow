@@ -97,7 +97,7 @@ describe("HumanInputTask — elicit", () => {
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
 
-    const task = new HumanInputTask({}, { contentSchema, message: "What is your name?" });
+    const task = new HumanInputTask({ contentSchema, message: "What is your name?" });
     const result = await task.run({}, { registry });
 
     expect(result).toEqual({ action: "accept", name: "Alice" });
@@ -113,7 +113,7 @@ describe("HumanInputTask — elicit", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask({}, {});
+    const task = new HumanInputTask({});
     const result = await task.run({}, { registry });
     expect(result).toEqual({ action: "decline" });
   });
@@ -127,7 +127,7 @@ describe("HumanInputTask — elicit", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask({}, {});
+    const task = new HumanInputTask();
     const result = await task.run({}, { registry });
     expect(result).toEqual({ action: "cancel" });
   });
@@ -139,8 +139,8 @@ describe("HumanInputTask — elicit", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask({ prompt: "Dynamic prompt" }, { message: "Base message" });
-    await task.run({}, { registry });
+    const task = new HumanInputTask({ message: "Base message" });
+    await task.run({ prompt: "Dynamic prompt" }, { registry });
   });
 
   test("merges input context into metadata", async () => {
@@ -150,11 +150,8 @@ describe("HumanInputTask — elicit", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask(
-      { context: { extra: "data" } },
-      { metadata: { source: "test" } }
-    );
-    await task.run({}, { registry });
+    const task = new HumanInputTask({ metadata: { source: "test" } });
+    await task.run({ context: { extra: "data" } }, { registry });
   });
 
   test("defaults targetHumanId to 'default'", async () => {
@@ -164,7 +161,7 @@ describe("HumanInputTask — elicit", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    await new HumanInputTask({}, {}).run({}, { registry });
+    await new HumanInputTask({}).run({}, { registry });
   });
 
   test("uses custom targetHumanId", async () => {
@@ -174,12 +171,12 @@ describe("HumanInputTask — elicit", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    await new HumanInputTask({}, { targetHumanId: "admin" }).run({}, { registry });
+    await new HumanInputTask({ targetHumanId: "admin" }).run({}, { registry });
   });
 
   test("throws when no IHumanConnector is registered", async () => {
     const emptyRegistry = new ServiceRegistry(new Container());
-    const task = new HumanInputTask({}, {});
+    const task = new HumanInputTask();
     await expect(task.run({}, { registry: emptyRegistry })).rejects.toThrow(TaskConfigurationError);
   });
 
@@ -191,7 +188,7 @@ describe("HumanInputTask — elicit", () => {
     ]);
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask({}, { mode: "multi-turn" });
+    const task = new HumanInputTask({ mode: "multi-turn" });
     const result = await task.run({}, { registry });
 
     expect(result).toEqual({ action: "accept", step: 3, final: true });
@@ -208,7 +205,7 @@ describe("HumanInputTask — elicit", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask({}, { mode: "multi-turn" });
+    const task = new HumanInputTask({ mode: "multi-turn" });
     await expect(task.run({}, { registry })).rejects.toThrow(TaskConfigurationError);
   });
 
@@ -223,7 +220,7 @@ describe("HumanInputTask — elicit", () => {
     };
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask({}, {});
+    const task = new HumanInputTask({});
     const runPromise = task.run({}, { registry, signal: abortController.signal });
     setTimeout(() => abortController.abort(), 10);
     await expect(runPromise).rejects.toThrow();
@@ -235,7 +232,7 @@ describe("HumanInputTask — elicit", () => {
       properties: { color: { type: "string" } },
     };
 
-    const task = new HumanInputTask({}, { contentSchema });
+    const task = new HumanInputTask({ contentSchema });
     const schema = task.outputSchema() as { properties: Record<string, unknown> };
     expect(schema.properties).toHaveProperty("action");
     expect(schema.properties).toHaveProperty("color");
@@ -261,7 +258,7 @@ describe("HumanInputTask — elicit", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanInputTask({}, { contentSchema, message: "Enter email" });
+    const task = new HumanInputTask({ contentSchema, message: "Enter email" });
     await task.run({}, { registry });
   });
 
@@ -275,15 +272,12 @@ describe("HumanInputTask — elicit", () => {
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
 
-    const humanTask = new HumanInputTask(
-      {},
-      {
-        contentSchema: {
-          type: "object",
-          properties: { text: { type: "string" } },
-        },
-      }
-    );
+    const humanTask = new HumanInputTask({
+      contentSchema: {
+        type: "object",
+        properties: { text: { type: "string" } },
+      },
+    });
     const upperTask = new UpperCaseTask({});
 
     const graph = new TaskGraph();
@@ -318,7 +312,7 @@ describe("HumanInputTask — notify", () => {
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
 
-    const task = new HumanInputTask({}, { kind: "notify", message: "Deploy complete!" });
+    const task = new HumanInputTask({ kind: "notify", message: "Deploy complete!" });
     const result = await task.run({}, { registry });
     expect(result).toEqual({ action: "accept" });
   });
@@ -331,11 +325,8 @@ describe("HumanInputTask — notify", () => {
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
 
-    const task = new HumanInputTask(
-      { contentData: { status: "success", count: 42 } },
-      { kind: "notify", message: "Update" }
-    );
-    await task.run({}, { registry });
+    const task = new HumanInputTask({ kind: "notify", message: "Update" });
+    await task.run({ contentData: { status: "success", count: 42 } }, { registry });
   });
 });
 
@@ -370,11 +361,15 @@ describe("HumanInputTask — display", () => {
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
 
-    const task = new HumanInputTask(
+    const task = new HumanInputTask({
+      kind: "display",
+      contentSchema: mapSchema,
+      message: "Location",
+    });
+    const result = await task.run(
       { contentData: { lat: 37.7749, lng: -122.4194, label: "SF" } },
-      { kind: "display", contentSchema: mapSchema, message: "Location" }
+      { registry }
     );
-    const result = await task.run({}, { registry });
     expect(result).toEqual({ action: "accept" });
   });
 });
@@ -399,7 +394,7 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const task = new HumanApprovalTask({}, { message: "Deploy?" });
+    const task = new HumanApprovalTask({ message: "Deploy?" });
     const result = await task.run({}, { registry });
     expect(result).toEqual({ action: "accept", approved: true, reason: "Looks good" });
     expect(task.status).toBe(TaskStatus.COMPLETED);
@@ -414,7 +409,7 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const result = await new HumanApprovalTask({}, {}).run({}, { registry });
+    const result = await new HumanApprovalTask({}).run({}, { registry });
     expect(result).toEqual({ action: "accept", approved: false, reason: "Not ready" });
   });
 
@@ -427,7 +422,7 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const result = await new HumanApprovalTask({}, {}).run({}, { registry });
+    const result = await new HumanApprovalTask({}).run({}, { registry });
     expect(result.action).toBe("decline");
     expect(result.approved).toBe(false);
     expect(result.reason).toBeUndefined();
@@ -442,7 +437,7 @@ describe("HumanApprovalTask", () => {
     }));
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    const result = await new HumanApprovalTask({}, {}).run({}, { registry });
+    const result = await new HumanApprovalTask({}).run({}, { registry });
     expect(result.action).toBe("cancel");
     expect(result.approved).toBe(false);
     expect(result.reason).toBeUndefined();
@@ -464,7 +459,7 @@ describe("HumanApprovalTask", () => {
     });
 
     registry.registerInstance(HUMAN_CONNECTOR, connector);
-    await new HumanApprovalTask({}, {}).run({}, { registry });
+    await new HumanApprovalTask({}).run({}, { registry });
   });
 
   test("static type and category", () => {
