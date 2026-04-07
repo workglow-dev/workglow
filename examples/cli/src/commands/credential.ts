@@ -64,9 +64,7 @@ async function promptSecret(message: string): Promise<string> {
 }
 
 export function registerCredentialCommand(program: Command): void {
-  const credential = program
-    .command("credential")
-    .description("Manage encrypted credentials");
+  const credential = program.command("credential").description("Manage encrypted credentials");
 
   credential
     .command("add")

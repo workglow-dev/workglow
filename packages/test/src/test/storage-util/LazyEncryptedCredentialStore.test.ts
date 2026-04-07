@@ -118,7 +118,7 @@ describe("LazyEncryptedCredentialStore", () => {
       await store.put("a", "1");
       await store.put("b", "2");
       await store.deleteAll();
-      expect([...await store.keys()]).toEqual([]);
+      expect([...(await store.keys())]).toEqual([]);
     });
 
     it("should not decrypt with a different passphrase", async () => {
