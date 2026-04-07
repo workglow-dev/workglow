@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TaskEntitlements } from "@workglow/task-graph";
 import {
   CreateWorkflow,
   Entitlements,
@@ -12,7 +13,6 @@ import {
   TaskConfigSchema,
   TaskInvalidInputError,
   Workflow,
-  type TaskEntitlements,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { Interpreter } from "../util/interpreter";

@@ -4,17 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TaskGraph } from "./TaskGraph";
-import type { TaskIdType } from "../task/TaskTypes";
-import { TaskStatus } from "../task/TaskTypes";
 import {
+  type EntitlementId,
   type TaskEntitlement,
   type TaskEntitlements,
   type TrackedTaskEntitlement,
   type TrackedTaskEntitlements,
-  type EntitlementId,
   EMPTY_ENTITLEMENTS,
 } from "../task/TaskEntitlements";
+import { TaskStatus } from "../task/TaskTypes";
+import type { TaskGraph } from "./TaskGraph";
 
 // ========================================================================
 // Options

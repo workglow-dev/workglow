@@ -91,6 +91,7 @@ export const Entitlements = {
   MCP_TOOL_CALL: "mcp:tool-call",
   MCP_RESOURCE_READ: "mcp:resource-read",
   MCP_PROMPT_GET: "mcp:prompt-get",
+  MCP_STDIO: "mcp:stdio",
 
   // Storage / database
   STORAGE: "storage",
@@ -169,10 +170,7 @@ export function resourcePatternMatches(grantPattern: string, requiredResource: s
  * - Requirement has no resources (broad need) → only a broad grant covers it
  * - Both have resources → every required resource must match at least one grant pattern
  */
-export function grantCoversResources(
-  grant: EntitlementGrant,
-  required: TaskEntitlement
-): boolean {
+export function grantCoversResources(grant: EntitlementGrant, required: TaskEntitlement): boolean {
   // Broad grant covers everything
   if (grant.resources === undefined) return true;
   // Scoped grant cannot cover a broad requirement
