@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  toTextFlatMessages,
-  type AiProviderRunFn,
-  type AiProviderStreamFn,
-} from "@workglow/ai/worker";
+import { toTextFlatMessages } from "@workglow/ai/worker";
+import type { AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai/worker";
 import type { OllamaModelConfig } from "./Ollama_ModelSchema";
 import { getClient } from "./Ollama_Client";
 import { createOllamaModelInfo } from "./Ollama_ModelInfo";

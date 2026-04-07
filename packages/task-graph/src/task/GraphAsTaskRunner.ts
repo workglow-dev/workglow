@@ -7,8 +7,8 @@
 import { GraphResultArray } from "../task-graph/TaskGraphRunner";
 import { GraphAsTask } from "./GraphAsTask";
 import { TaskRunner } from "./TaskRunner";
-import { TaskInput, TaskOutput } from "./TaskTypes";
-import { type GraphAsTaskConfig } from "./GraphAsTask";
+import type { TaskInput, TaskOutput } from "./TaskTypes";
+import type { GraphAsTaskConfig } from "./GraphAsTask";
 
 export class GraphAsTaskRunner<
   Input extends TaskInput = TaskInput,

@@ -44,7 +44,8 @@ export class ScalarTruncTask<
   static override readonly type = "ScalarTruncTask";
   static override readonly category = "Math";
   public static override title = "Truncate";
-  public static override description = "Returns the integer part of a number by removing fractional digits";
+  public static override description =
+    "Returns the integer part of a number by removing fractional digits";
 
   static override inputSchema() {
     return inputSchema;

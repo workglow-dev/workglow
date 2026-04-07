@@ -5,7 +5,8 @@
  */
 
 import { getLogger } from "@workglow/util";
-import { compileSchema, type DataPortSchema, type SchemaNode } from "@workglow/util/schema";
+import { compileSchema } from "@workglow/util/schema";
+import type { DataPortSchema, SchemaNode } from "@workglow/util/schema";
 import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
@@ -15,13 +16,8 @@ import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
 import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
-import {
-  TaskConfigSchema,
-  type TaskConfig,
-  type TaskInput,
-  type TaskOutput,
-  type TaskTypeName,
-} from "./TaskTypes";
+import { TaskConfigSchema } from "./TaskTypes";
+import type { TaskConfig, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
 export const graphAsTaskConfigSchema = {
   type: "object",

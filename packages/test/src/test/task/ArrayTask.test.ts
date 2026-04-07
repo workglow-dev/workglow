@@ -436,12 +436,12 @@ describe("ArrayTask", () => {
 
   test("MultiplyRunTask in task mode reactive run", async () => {
     const task = new MultiplyRunTask({
-        id: "test",
-        defaults: {
-          a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-          b: 10,
-        },
-      });
+      id: "test",
+      defaults: {
+        a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        b: 10,
+      },
+    });
     {
       // const results = await task.runReactive();
       // expect(results).toEqual({} as any);

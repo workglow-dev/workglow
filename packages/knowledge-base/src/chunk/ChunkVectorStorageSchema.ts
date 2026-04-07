@@ -5,11 +5,8 @@
  */
 
 import { IVectorStorage } from "@workglow/storage";
-import {
-  TypedArraySchema,
-  type DataPortSchemaObject,
-  type TypedArray,
-} from "@workglow/util/schema";
+import { TypedArraySchema } from "@workglow/util/schema";
+import type { DataPortSchemaObject, TypedArray } from "@workglow/util/schema";
 import type { ChunkRecord } from "./ChunkSchema";
 
 /**

@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AiProvider,
-  type AiProviderReactiveRunFn,
-  type AiProviderRunFn,
-  type AiProviderStreamFn,
+import { AiProvider } from "@workglow/ai/worker";
+import type {
+  AiProviderReactiveRunFn,
+  AiProviderRunFn,
+  AiProviderStreamFn,
 } from "@workglow/ai/worker";
 import { WEB_BROWSER } from "./common/WebBrowser_Constants";
 import type { WebBrowserModelConfig } from "./common/WebBrowser_ModelSchema";

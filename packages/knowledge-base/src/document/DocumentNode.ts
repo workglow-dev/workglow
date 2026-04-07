@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  NodeKind,
-  type DocumentNode,
-  type DocumentRootNode,
-  type NodeRange,
-  type SectionNode,
-  type TopicNode,
+import { NodeKind } from "./DocumentSchema";
+import type {
+  DocumentNode,
+  DocumentRootNode,
+  NodeRange,
+  SectionNode,
+  TopicNode,
 } from "./DocumentSchema";
 
 /**

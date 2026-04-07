@@ -4,14 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type ITabularStorage } from "@workglow/storage";
-import { EventEmitter, type EventParameters } from "@workglow/util";
+import type { ITabularStorage } from "@workglow/storage";
+import { EventEmitter } from "@workglow/util";
+import type { EventParameters } from "@workglow/util";
 
-import {
-  KnowledgeBasePrimaryKeyNames,
-  type KnowledgeBaseRecord,
-  KnowledgeBaseRecordSchema,
-} from "./KnowledgeBaseSchema";
+import { KnowledgeBasePrimaryKeyNames, KnowledgeBaseRecordSchema } from "./KnowledgeBaseSchema";
+import type { KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
 
 /**
  * Events that can be emitted by the KnowledgeBaseRepository

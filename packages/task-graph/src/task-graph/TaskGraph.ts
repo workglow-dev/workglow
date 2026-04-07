@@ -11,8 +11,10 @@ import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
-import { ensureTask, type PipeFunction } from "./Conversions";
-import { Dataflow, type DataflowIdType } from "./Dataflow";
+import { ensureTask } from "./Conversions";
+import type { PipeFunction } from "./Conversions";
+import { Dataflow } from "./Dataflow";
+import type { DataflowIdType } from "./Dataflow";
 import { addBoundaryNodesToDependencyJson, addBoundaryNodesToGraphJson } from "./GraphSchemaUtils";
 import type { ITaskGraph } from "./ITaskGraph";
 import {
@@ -25,12 +27,8 @@ import {
   TaskGraphStatusEvents,
   TaskGraphStatusListeners,
 } from "./TaskGraphEvents";
-import {
-  CompoundMergeStrategy,
-  GraphResult,
-  type GraphResultArray,
-  TaskGraphRunner,
-} from "./TaskGraphRunner";
+import { CompoundMergeStrategy, GraphResult, TaskGraphRunner } from "./TaskGraphRunner";
+import type { GraphResultArray } from "./TaskGraphRunner";
 
 /**
  * Configuration for running a task graph

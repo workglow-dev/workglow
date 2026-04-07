@@ -7,11 +7,8 @@
 import { QueuedExecutionStrategy } from "../execution/QueuedExecutionStrategy";
 import type { IAiExecutionStrategy } from "../execution/IAiExecutionStrategy";
 import type { ModelConfig } from "../model/ModelSchema";
-import {
-  AiProvider,
-  resolveAiProviderGpuQueueConcurrency,
-  type AiProviderRegisterOptions,
-} from "./AiProvider";
+import { AiProvider, resolveAiProviderGpuQueueConcurrency } from "./AiProvider";
+import type { AiProviderRegisterOptions } from "./AiProvider";
 import { getAiProviderRegistry } from "./AiProviderRegistry";
 
 /**

@@ -77,7 +77,11 @@ describe("TaskJSON", () => {
   });
   describe("Task.toJSON()", () => {
     test("should serialize a simple task to JSON", () => {
-      const task = new DoubleToResultTask({ id: "task1", title: "My Task", defaults: { value: 42 } });
+      const task = new DoubleToResultTask({
+        id: "task1",
+        title: "My Task",
+        defaults: { value: 42 },
+      });
       const json = task.toJSON();
 
       expect(json.id).toBe("task1");
@@ -88,14 +92,20 @@ describe("TaskJSON", () => {
     });
 
     test("should serialize task with defaults", () => {
-      const task = new TestTaskWithDefaults({ id: "task2", defaults: { value: 10, multiplier: 5 } });
+      const task = new TestTaskWithDefaults({
+        id: "task2",
+        defaults: { value: 10, multiplier: 5 },
+      });
       const json = task.toJSON();
 
       expect(json.defaults).toEqual({ value: 10, multiplier: 5 });
     });
 
     test("should omit config when there is nothing to serialize beyond id", () => {
-      const task = new TestTaskWithDefaults({ id: "task-no-config", defaults: { value: 10, multiplier: 5 } });
+      const task = new TestTaskWithDefaults({
+        id: "task-no-config",
+        defaults: { value: 10, multiplier: 5 },
+      });
       const json = task.toJSON();
 
       expect(json.config).toBeUndefined();
@@ -103,10 +113,10 @@ describe("TaskJSON", () => {
 
     test("should serialize task with extras", () => {
       const task = new DoubleToResultTask({
-          id: "task3",
-          extras: { metadata: { key: "value" } },
-          defaults: { value: 100 },
-        });
+        id: "task3",
+        extras: { metadata: { key: "value" } },
+        defaults: { value: 100 },
+      });
       const json = task.toJSON();
 
       expect(json.config?.extras).toEqual({ metadata: { key: "value" } });
@@ -328,8 +338,16 @@ describe("TaskJSON", () => {
   describe("Round-trip serialization", () => {
     test("should round-trip a simple task graph", () => {
       const originalGraph = new TaskGraph();
-      const task1 = new DoubleToResultTask({ id: "task1", title: "Task 1", defaults: { value: 10 } });
-      const task2 = new DoubleToResultTask({ id: "task2", title: "Task 2", defaults: { value: 20 } });
+      const task1 = new DoubleToResultTask({
+        id: "task1",
+        title: "Task 1",
+        defaults: { value: 10 },
+      });
+      const task2 = new DoubleToResultTask({
+        id: "task2",
+        title: "Task 2",
+        defaults: { value: 20 },
+      });
       originalGraph.addTask(task1);
       originalGraph.addTask(task2);
       originalGraph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -357,11 +375,11 @@ describe("TaskJSON", () => {
     test("should round-trip a task graph with defaults and extras", () => {
       const originalGraph = new TaskGraph();
       const task1 = new TestTaskWithDefaults({
-          id: "task1",
-          title: "Task with Defaults",
-          extras: { metadata: { key: "value" } },
-          defaults: { value: 10, multiplier: 3 },
-        });
+        id: "task1",
+        title: "Task with Defaults",
+        extras: { metadata: { key: "value" } },
+        defaults: { value: 10, multiplier: 3 },
+      });
       originalGraph.addTask(task1);
 
       const json = originalGraph.toJSON();
@@ -665,36 +683,36 @@ describe("TaskJSON", () => {
 
     test("WhileTask with declarative condition is serializable", () => {
       const task = new WhileTask({
-          conditionField: "done",
-          conditionOperator: "equals",
-          conditionValue: "false",
-        });
+        conditionField: "done",
+        conditionOperator: "equals",
+        conditionValue: "false",
+      });
       expect(task.canSerializeConfig()).toBe(true);
       expect(() => task.toJSON()).not.toThrow();
     });
 
     test("ConditionalTask with function branches is not serializable", () => {
       const task = new ConditionalTask({
-          branches: [{ id: "a", condition: (_input: any) => true, outputPort: "out_a" }],
-        });
+        branches: [{ id: "a", condition: (_input: any) => true, outputPort: "out_a" }],
+      });
       expect(task.canSerializeConfig()).toBe(false);
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
 
     test("ConditionalTask with conditionConfig is serializable", () => {
       const task = new ConditionalTask({
-          conditionConfig: {
-            branches: [
-              {
-                id: "a",
-                field: "x",
-                operator: "equals",
-                value: "1",
-              },
-            ],
-            exclusive: true,
-          },
-        });
+        conditionConfig: {
+          branches: [
+            {
+              id: "a",
+              field: "x",
+              operator: "equals",
+              value: "1",
+            },
+          ],
+          exclusive: true,
+        },
+      });
       expect(task.canSerializeConfig()).toBe(true);
       expect(() => task.toJSON()).not.toThrow();
     });

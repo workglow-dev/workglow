@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type PretrainedModelOptions, type ProgressInfo } from "@huggingface/transformers";
+import type { PretrainedModelOptions, ProgressInfo } from "@huggingface/transformers";
 import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 

@@ -4,12 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AiProvider,
-  type AiProviderReactiveRunFn,
-  type AiProviderRunFn,
-  type AiProviderStreamFn,
-} from "@workglow/ai";
+import { AiProvider } from "@workglow/ai";
+import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { HF_INFERENCE } from "./common/HFI_Constants";
 import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
 

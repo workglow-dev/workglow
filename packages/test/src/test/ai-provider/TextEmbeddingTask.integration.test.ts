@@ -14,9 +14,9 @@ import {
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
-  type HfTransformersOnnxModelRecord,
   registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers/runtime";
+import type { HfTransformersOnnxModelRecord } from "@workglow/ai-provider/hf-transformers/runtime";
 // import { TFMP_TASKS } from "@workglow/ai-provider/tf-mediapipe";
 import { getTaskQueueRegistry, setTaskQueueRegistry, Workflow } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";

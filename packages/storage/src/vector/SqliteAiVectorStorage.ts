@@ -13,13 +13,8 @@ import type {
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
 import { SqliteTabularStorage } from "../tabular/SqliteTabularStorage";
-import {
-  getMetadataProperty,
-  getVectorProperty,
-  type HybridSearchOptions,
-  type IVectorStorage,
-  type VectorSearchOptions,
-} from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
+import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
 
 /**
  * Maps TypedArray constructor types to their sqlite-vector encoding function names

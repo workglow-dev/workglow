@@ -60,7 +60,8 @@ export class StringTemplateTask<
   static override readonly type = "StringTemplateTask";
   static override readonly category = "String";
   public static override title = "Template";
-  public static override description = "Replaces {{key}} placeholders in a template string with values";
+  public static override description =
+    "Replaces {{key}} placeholders in a template string with values";
 
   static override inputSchema() {
     return inputSchema;

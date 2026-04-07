@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AiProvider,
-  type AiProviderReactiveRunFn,
-  type AiProviderRunFn,
-  type AiProviderStreamFn,
+import { AiProvider } from "@workglow/ai/worker";
+import type {
+  AiProviderReactiveRunFn,
+  AiProviderRunFn,
+  AiProviderStreamFn,
 } from "@workglow/ai/worker";
 import { LOCAL_LLAMACPP } from "./common/LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";

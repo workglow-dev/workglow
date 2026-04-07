@@ -110,8 +110,7 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
   const messages = toOpenAIMessages(input) as any[];
 
   const toolChoice = mapOpenAIToolChoice(input.toolChoice);
-  const toolOptions =
-    toolChoice === undefined ? {} : { tools, tool_choice: toolChoice };
+  const toolOptions = toolChoice === undefined ? {} : { tools, tool_choice: toolChoice };
 
   const stream = await client.chat.completions.create(
     {

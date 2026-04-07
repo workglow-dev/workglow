@@ -44,7 +44,8 @@ export class ScalarRoundTask<
   static override readonly type = "ScalarRoundTask";
   static override readonly category = "Math";
   public static override title = "Round";
-  public static override description = "Returns the value of a number rounded to the nearest integer";
+  public static override description =
+    "Returns the value of a number rounded to the nearest integer";
 
   static override inputSchema() {
     return inputSchema;

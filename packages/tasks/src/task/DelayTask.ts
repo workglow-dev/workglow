@@ -56,7 +56,8 @@ export class DelayTask<
   static override readonly type = "DelayTask";
   static override readonly category = "Utility";
   public static override title = "Delay";
-  public static override description = "Delays execution for a specified duration with progress tracking";
+  public static override description =
+    "Delays execution for a specified duration with progress tracking";
   static override readonly cacheable = false;
   public static override passthroughInputsToOutputs = true;
   public static override customizable = true;

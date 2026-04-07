@@ -54,9 +54,7 @@ export class WorkerManager {
         worker.removeEventListener("message", handleReady);
         worker.removeEventListener("error", handleError);
         reject(
-          new Error(
-            `Worker "${name}" initialization error: ${event.message ?? "unknown error"}`
-          )
+          new Error(`Worker "${name}" initialization error: ${event.message ?? "unknown error"}`)
         );
       };
 

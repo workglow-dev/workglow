@@ -12,23 +12,19 @@ import {
   objectDetection,
   setGlobalModelRepository,
   textClassification,
-  type AiJobInput,
 } from "@workglow/ai";
+import type { AiJobInput } from "@workglow/ai";
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
   HF_TRANSFORMERS_ONNX_CPU,
-  type HfTransformersOnnxModelRecord,
   registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers/runtime";
+import type { HfTransformersOnnxModelRecord } from "@workglow/ai-provider/hf-transformers/runtime";
 import { ConcurrencyLimiter, JobQueueClient, JobQueueServer } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
-import {
-  getTaskQueueRegistry,
-  setTaskQueueRegistry,
-  type TaskInput,
-  type TaskOutput,
-} from "@workglow/task-graph";
+import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
+import type { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";

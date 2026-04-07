@@ -182,7 +182,10 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpResourceReadTask({ server: baseServer, resource_uri: "file:///test.txt" });
+      const task = new McpResourceReadTask({
+        server: baseServer,
+        resource_uri: "file:///test.txt",
+      });
       const result = await task.run({});
 
       expect(result.contents).toEqual([{ uri: "file:///test.txt", text: "file contents" }]);

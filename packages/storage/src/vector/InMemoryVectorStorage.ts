@@ -12,13 +12,8 @@ import type {
 } from "@workglow/util/schema";
 import { cosineSimilarity } from "@workglow/util/schema";
 import { InMemoryTabularStorage } from "../tabular/InMemoryTabularStorage";
-import {
-  getMetadataProperty,
-  getVectorProperty,
-  type HybridSearchOptions,
-  type IVectorStorage,
-  type VectorSearchOptions,
-} from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
+import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
 
 /**
  * Check if metadata matches filter
@@ -177,7 +172,9 @@ export class InMemoryVectorStorage<
       const vectorScore = cosineSimilarity(query, vector);
 
       // Calculate text relevance (simple keyword matching)
-      const metadataText = Object.values(metadata ?? {}).join(" ").toLowerCase();
+      const metadataText = Object.values(metadata ?? {})
+        .join(" ")
+        .toLowerCase();
       const textScore = textRelevance(metadataText, textQuery);
 
       // Combine scores

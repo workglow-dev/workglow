@@ -6,14 +6,13 @@
   "description": "AI provider integrations for Workglow, supporting OpenAI, Hugging Face Transformers, MediaPipe, and GGML models.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-js": "concurrently -c 'auto' -n 'code,browser' 'bun run watch-code' 'bun run watch-browser'",
-    "watch-code": "bun build --watch --no-clear-screen --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/provider-anthropic/index.ts ./src/provider-anthropic/runtime.ts ./src/provider-gemini/index.ts ./src/provider-gemini/runtime.ts ./src/provider-hf-transformers/index.ts ./src/provider-hf-transformers/runtime.ts ./src/provider-llamacpp/index.ts ./src/provider-llamacpp/runtime.ts ./src/provider-hf-inference/index.ts ./src/provider-hf-inference/runtime.ts ./src/provider-ollama/index.ts ./src/provider-ollama/runtime.ts ./src/provider-openai/index.ts ./src/provider-openai/runtime.ts ./src/provider-chrome/index.ts ./src/provider-chrome/runtime.ts",
+    "watch-code": "bun build --watch --no-clear-screen --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/provider-anthropic/index.ts ./src/provider-anthropic/runtime.ts ./src/provider-gemini/index.ts ./src/provider-gemini/runtime.ts ./src/provider-hf-transformers/index.ts ./src/provider-hf-transformers/runtime.ts ./src/provider-llamacpp/index.ts ./src/provider-llamacpp/runtime.ts ./src/provider-hf-inference/index.ts ./src/provider-hf-inference/runtime.ts ./src/provider-ollama/index.ts ./src/provider-ollama/runtime.ts ./src/provider-openai/index.ts ./src/provider-openai/runtime.ts ./src/provider-chrome/index.ts ./src/provider-chrome/runtime.ts ./src/test.ts",
     "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/provider-ollama/runtime.browser.ts ./src/provider-openai/index.browser.ts ./src/provider-openai/runtime.browser.ts ./src/provider-tf-mediapipe/index.ts ./src/provider-tf-mediapipe/runtime.ts ./src/provider-chrome/index.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "concurrently -c 'auto' -n 'code,browser,types' 'bun run build-code' 'bun run build-browser' 'bun run build-types'",
     "build-js": "concurrently -c 'auto' -n 'code,browser' 'bun run build-code' 'bun run build-browser'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
-    "build-code": "bun build --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/provider-anthropic/index.ts ./src/provider-anthropic/runtime.ts ./src/provider-gemini/index.ts ./src/provider-gemini/runtime.ts ./src/provider-hf-transformers/index.ts ./src/provider-hf-transformers/runtime.ts ./src/provider-llamacpp/index.ts ./src/provider-llamacpp/runtime.ts ./src/provider-hf-inference/index.ts ./src/provider-hf-inference/runtime.ts ./src/provider-ollama/index.ts ./src/provider-ollama/runtime.ts ./src/provider-openai/index.ts ./src/provider-openai/runtime.ts ./src/provider-chrome/index.ts ./src/provider-chrome/runtime.ts",
+    "build-code": "bun build --sourcemap=external --packages=external --root ./src --outdir ./dist ./src/provider-anthropic/index.ts ./src/provider-anthropic/runtime.ts ./src/provider-gemini/index.ts ./src/provider-gemini/runtime.ts ./src/provider-hf-transformers/index.ts ./src/provider-hf-transformers/runtime.ts ./src/provider-llamacpp/index.ts ./src/provider-llamacpp/runtime.ts ./src/provider-hf-inference/index.ts ./src/provider-hf-inference/runtime.ts ./src/provider-ollama/index.ts ./src/provider-ollama/runtime.ts ./src/provider-openai/index.ts ./src/provider-openai/runtime.ts ./src/provider-chrome/index.ts ./src/provider-chrome/runtime.ts ./src/test.ts",
     "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/provider-ollama/index.browser.ts ./src/provider-ollama/runtime.browser.ts ./src/provider-openai/index.browser.ts ./src/provider-openai/runtime.browser.ts ./src/provider-tf-mediapipe/index.ts ./src/provider-tf-mediapipe/runtime.ts ./src/provider-chrome/index.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -21,8 +20,8 @@
   },
   "exports": {
     "./test": {
-      "types": "./src/common/ToolCallParsers.ts",
-      "import": "./src/common/ToolCallParsers.ts"
+      "types": "./dist/test.d.ts",
+      "import": "./dist/test.js"
     },
     "./anthropic": {
       "types": "./dist/provider-anthropic/index.d.ts",

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type BaseTabularStorage } from "@workglow/storage";
+import type { BaseTabularStorage } from "@workglow/storage";
 import { DataPortSchemaObject } from "@workglow/util/schema";
 import { compress, decompress } from "@workglow/util/compress";
 import { makeFingerprint } from "@workglow/util";

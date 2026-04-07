@@ -6,7 +6,8 @@
 
 import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import { GraphAsTask, type GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
+import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
+import type { GraphAsTaskConfig } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
 import { IteratorTaskRunner } from "./IteratorTaskRunner";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";

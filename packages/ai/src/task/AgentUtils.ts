@@ -4,12 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  DataPorts,
-  getTaskConstructors,
-  TaskAbortedError,
-  type IExecuteContext,
-} from "@workglow/task-graph";
+import { DataPorts, getTaskConstructors, TaskAbortedError } from "@workglow/task-graph";
+
+import type { IExecuteContext } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import type { ServiceRegistry } from "@workglow/util";
 import { findToolSource } from "./AgentTypes";

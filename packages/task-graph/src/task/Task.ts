@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { compileSchema, type DataPortSchema, type SchemaNode } from "@workglow/util/schema";
-import { deepEqual, EventEmitter, uuid4, type ServiceRegistry } from "@workglow/util";
+import { compileSchema } from "@workglow/util/schema";
+import type { DataPortSchema, SchemaNode } from "@workglow/util/schema";
+import { deepEqual, EventEmitter, uuid4 } from "@workglow/util";
+import type { ServiceRegistry } from "@workglow/util";
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import type { IExecuteContext, IExecuteReactiveContext, IRunConfig, ITask } from "./ITask";
@@ -16,23 +18,16 @@ import {
   TaskInvalidInputError,
   TaskSerializationError,
 } from "./TaskError";
-import {
-  type TaskEventListener,
-  type TaskEventListeners,
-  type TaskEventParameters,
-  type TaskEvents,
+import type {
+  TaskEventListener,
+  TaskEventListeners,
+  TaskEventParameters,
+  TaskEvents,
 } from "./TaskEvents";
 import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
-import {
-  TaskConfigSchema,
-  TaskStatus,
-  type TaskConfig,
-  type TaskIdType,
-  type TaskInput,
-  type TaskOutput,
-  type TaskTypeName,
-} from "./TaskTypes";
+import { TaskConfigSchema, TaskStatus } from "./TaskTypes";
+import type { TaskConfig, TaskIdType, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
 /**
  * Base class for all tasks that implements the ITask interface.
@@ -378,10 +373,7 @@ export class Task<
    * @param config Configuration for the task (includes defaults for input values)
    * @param runConfig Runtime configuration for the task
    */
-  constructor(
-    config: NoInfer<Partial<Config>> = {},
-    runConfig: NoInfer<Partial<IRunConfig>> = {}
-  ) {
+  constructor(config: NoInfer<Partial<Config>> = {}, runConfig: NoInfer<Partial<IRunConfig>> = {}) {
     // Extract caller-provided defaults from config
     const { defaults: callerDefaultInputs, ...restConfig } = config as Partial<Config> & {
       defaults?: Partial<Input>;

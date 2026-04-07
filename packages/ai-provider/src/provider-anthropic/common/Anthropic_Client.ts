@@ -46,8 +46,7 @@ export async function getClient(model: AnthropicModelConfig | undefined) {
       apiKey,
       baseURL: config?.base_url || undefined,
       dangerouslyAllowBrowser:
-        typeof globalThis.document !== "undefined" ||
-        "WorkerGlobalScope" in globalThis,
+        typeof globalThis.document !== "undefined" || "WorkerGlobalScope" in globalThis,
     });
   } catch (err) {
     throw new Error(

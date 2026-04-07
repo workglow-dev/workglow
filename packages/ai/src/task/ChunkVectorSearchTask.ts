@@ -5,13 +5,8 @@
  */
 
 import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  type TaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
+import type { TaskConfig } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,

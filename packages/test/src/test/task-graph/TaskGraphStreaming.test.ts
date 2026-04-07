@@ -12,8 +12,8 @@ import {
   TaskGraph,
   TaskGraphRunner,
   TaskStatus,
-  type StreamEvent,
 } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import { setLogger, sleep } from "@workglow/util";
 import { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";
@@ -66,7 +66,10 @@ class StreamSourceTask extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: { text: "one two three" } };
   }
 
-  override async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(
+    input: TextInput,
+    context: IExecuteContext
+  ): Promise<TextOutput | undefined> {
     return { text: "one two three" };
   }
 }
@@ -187,7 +190,10 @@ class AppendEmptyFinishSource extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: {} as TextOutput };
   }
 
-  override async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(
+    input: TextInput,
+    context: IExecuteContext
+  ): Promise<TextOutput | undefined> {
     return { text: "edge accumulated" };
   }
 }
@@ -229,7 +235,10 @@ class ReplaceSourceTask extends Task<TextInput, TextOutput> {
     yield { type: "finish", data: { text: "Hello world!" } };
   }
 
-  override async execute(input: TextInput, context: IExecuteContext): Promise<TextOutput | undefined> {
+  override async execute(
+    input: TextInput,
+    context: IExecuteContext
+  ): Promise<TextOutput | undefined> {
     return { text: "Hello world!" };
   }
 }

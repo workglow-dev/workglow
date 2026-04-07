@@ -13,8 +13,8 @@ import {
   ServiceRegistry,
   SpanStatusCode,
   uuid4,
-  type ISpan,
 } from "@workglow/util";
+import type { ISpan } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import { ITask } from "../task/ITask";
@@ -23,8 +23,8 @@ import {
   getOutputStreamMode,
   getStreamingPorts,
   isTaskStreamable,
-  type StreamEvent,
 } from "../task/StreamTypes";
+import type { StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import {
   TaskAbortedError,
@@ -386,7 +386,7 @@ export class TaskGraphRunner {
   protected filterLeafResults<T>(results: GraphResultArray<T>): GraphResultArray<T> {
     if (results.length <= 1) return results;
     const graphOutputResults = results.filter((r) => {
-      const task = this.graph.getTask(r.id as string);
+      const task = this.graph.getTask(r.id);
       return task && (task.constructor as typeof Task).isGraphOutput;
     });
     return graphOutputResults.length > 0 ? graphOutputResults : results;

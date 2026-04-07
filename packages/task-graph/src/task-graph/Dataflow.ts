@@ -6,7 +6,7 @@
 
 import { areSemanticallyCompatible } from "@workglow/util/schema";
 import { EventEmitter } from "@workglow/util";
-import { type StreamEvent } from "../task/StreamTypes";
+import type { StreamEvent } from "../task/StreamTypes";
 import { TaskError } from "../task/TaskError";
 import { DataflowJson } from "../task/TaskJSON";
 import { TaskIdType, TaskOutput, TaskStatus } from "../task/TaskTypes";

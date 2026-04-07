@@ -10,20 +10,16 @@ import {
   globalServiceRegistry,
   ServiceRegistry,
   SpanStatusCode,
-  type ISpan,
 } from "@workglow/util";
+import type { ISpan } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
-import { ensureTask, type Taskish } from "../task-graph/Conversions";
+import { ensureTask } from "../task-graph/Conversions";
+import type { Taskish } from "../task-graph/Conversions";
 import { resolveSchemaInputs, schemaHasFormatAnnotations } from "./InputResolver";
-import { IRunConfig, ITask } from "./ITask";
+import type { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
-import {
-  getOutputStreamMode,
-  getStreamingPorts,
-  isTaskStreamable,
-  type StreamEvent,
-  type StreamMode,
-} from "./StreamTypes";
+import { getOutputStreamMode, getStreamingPorts, isTaskStreamable } from "./StreamTypes";
+import type { StreamEvent, StreamMode } from "./StreamTypes";
 import { Task } from "./Task";
 import {
   TaskAbortedError,

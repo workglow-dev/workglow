@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  QueuedAiProvider,
-  type IAiExecutionStrategy,
-  type AiProviderReactiveRunFn,
-  type AiProviderRunFn,
-  type AiProviderStreamFn,
-  type AiProviderRegisterOptions,
-  type AiProviderQueueConcurrency,
+import { QueuedAiProvider } from "@workglow/ai";
+import type {
+  IAiExecutionStrategy,
+  AiProviderReactiveRunFn,
+  AiProviderRunFn,
+  AiProviderStreamFn,
+  AiProviderRegisterOptions,
+  AiProviderQueueConcurrency,
+  ModelConfig,
 } from "@workglow/ai";
-import type { ModelConfig } from "@workglow/ai";
 import { HF_TRANSFORMERS_ONNX, HF_TRANSFORMERS_ONNX_CPU } from "./common/HFT_Constants";
 import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
 

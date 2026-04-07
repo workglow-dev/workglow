@@ -11,6 +11,9 @@ export * from "./task/ArrayTask";
 export * from "./task/DebugLogTask";
 export * from "./task/DelayTask";
 export * from "./task/FetchUrlTask";
+export * from "./task/HumanApprovalTask";
+export * from "./task/HumanInputTask";
+export * from "./task/McpElicitationConnector";
 export * from "./task/InputTask";
 export * from "./task/JavaScriptTask";
 export * from "./task/JsonTask";
@@ -69,6 +72,8 @@ import { DateFormatTask } from "./task/DateFormatTask";
 import { DebugLogTask } from "./task/DebugLogTask";
 import { DelayTask } from "./task/DelayTask";
 import { FetchUrlTask } from "./task/FetchUrlTask";
+import { HumanApprovalTask } from "./task/HumanApprovalTask";
+import { HumanInputTask } from "./task/HumanInputTask";
 import { InputTask } from "./task/InputTask";
 import { JavaScriptTask } from "./task/JavaScriptTask";
 import { JsonPathTask } from "./task/JsonPathTask";
@@ -123,6 +128,8 @@ export let registerCommonTasks = () => {
     DebugLogTask,
     DelayTask,
     FetchUrlTask,
+    HumanApprovalTask,
+    HumanInputTask,
     InputTask,
     JavaScriptTask,
     JsonTask,

@@ -5,17 +5,14 @@
  */
 
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
-import {
-  globalServiceRegistry,
-  WORKER_MANAGER,
-  type WorkerServerBase as WorkerServer,
-} from "@workglow/util/worker";
+import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util/worker";
+import type { WorkerServerBase as WorkerServer } from "@workglow/util/worker";
 import type { ModelConfig } from "../model/ModelSchema";
-import {
-  type AiProviderReactiveRunFn,
-  type AiProviderRunFn,
-  type AiProviderStreamFn,
-  getAiProviderRegistry,
+import { getAiProviderRegistry } from "./AiProviderRegistry";
+import type {
+  AiProviderReactiveRunFn,
+  AiProviderRunFn,
+  AiProviderStreamFn,
 } from "./AiProviderRegistry";
 
 /**

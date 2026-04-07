@@ -19,10 +19,10 @@ import {
   getGlobalModelRepository,
   InMemoryModelRepository,
   setGlobalModelRepository,
-  type TextEmbeddingTaskOutput,
-  type TextGenerationTaskOutput,
 } from "@workglow/ai";
-import { LOCAL_LLAMACPP, type LlamaCppModelRecord } from "@workglow/ai-provider/llamacpp";
+import type { TextEmbeddingTaskOutput, TextGenerationTaskOutput } from "@workglow/ai";
+import { LOCAL_LLAMACPP } from "@workglow/ai-provider/llamacpp";
+import type { LlamaCppModelRecord } from "@workglow/ai-provider/llamacpp";
 import {
   disposeLlamaCppResources,
   registerLlamaCppInline,

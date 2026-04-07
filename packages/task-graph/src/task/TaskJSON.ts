@@ -136,6 +136,11 @@ const createSingleTaskFromJSON = (
   if (!taskClass)
     throw new TaskJSONError(`Task type ${item.type} not found, perhaps not registered?`);
 
+  // Validate that the resolved value is actually a constructable task class
+  if (typeof taskClass !== "function" || typeof taskClass.type !== "string") {
+    throw new TaskJSONError(`Task type ${item.type} resolved to an invalid constructor`);
+  }
+
   const taskConfig: TaskConfig = {
     ...item.config,
     id: item.id,

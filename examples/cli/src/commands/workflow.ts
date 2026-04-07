@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  computeGraphInputSchema,
-  createGraphFromGraphJSON,
-  type TaskGraphJson,
-} from "@workglow/task-graph";
+import { computeGraphInputSchema, createGraphFromGraphJSON } from "@workglow/task-graph";
+import type { TaskGraphJson } from "@workglow/task-graph";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";
