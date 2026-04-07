@@ -35,3 +35,4 @@ export * from "./vector/IVectorStorage";
 export * from "./vector/TelemetryVectorStorage";
 
 export * from "./credentials/EncryptedKvCredentialStore";
+export * from "./credentials/LazyEncryptedCredentialStore";

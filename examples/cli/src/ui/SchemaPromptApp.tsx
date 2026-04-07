@@ -6,14 +6,28 @@
 
 import { ConfirmInput, TextInput } from "@inkjs/ui";
 import { Box, Text, useInput } from "ink";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PromptFieldDescriptor } from "../input/prompt";
 import { setNestedValue } from "../util";
+import { CliPasswordInput } from "./CliPasswordInput";
 
 interface SchemaPromptAppProps {
   readonly fields: readonly PromptFieldDescriptor[];
   readonly onComplete: (values: Record<string, unknown>) => void;
   readonly onCancel: () => void;
+  /** When set, initial keyboard focus starts on this field key (e.g. `"value"` after a CLI pre-filled key). */
+  readonly initialFocusedFieldKey?: string;
+}
+
+function initialFocusIndexForFields(
+  fields: readonly PromptFieldDescriptor[],
+  initialFocusedFieldKey: string | undefined
+): number {
+  if (!initialFocusedFieldKey) {
+    return 0;
+  }
+  const idx = fields.findIndex((f) => f.key === initialFocusedFieldKey);
+  return idx >= 0 ? idx : 0;
 }
 
 function coercePromptValue(raw: string, field: PromptFieldDescriptor): unknown {
@@ -97,10 +111,21 @@ function isTextField(field: PromptFieldDescriptor): boolean {
   return field.type !== "enum" && field.type !== "boolean";
 }
 
+function formatCompletedFieldValue(
+  field: PromptFieldDescriptor,
+  rawValue: string | undefined
+): string {
+  if (field.format === "password" && rawValue !== undefined) {
+    return rawValue.length > 0 ? "•".repeat(rawValue.length) : "(empty)";
+  }
+  return rawValue ?? "";
+}
+
 export function SchemaPromptApp({
   fields,
   onComplete,
   onCancel,
+  initialFocusedFieldKey,
 }: SchemaPromptAppProps): React.ReactElement {
   // Seed refs with pre-populated defaultValues so untouched fields are included in output
   const { initialValues, initialRaw } = useMemo(() => {
@@ -119,12 +144,24 @@ export function SchemaPromptApp({
     return { initialValues: values, initialRaw: raw };
   }, [fields]);
 
-  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [focusedIndex, setFocusedIndex] = useState(() =>
+    initialFocusIndexForFields(fields, initialFocusedFieldKey)
+  );
   const valuesRef = useRef<Record<string, unknown>>(initialValues);
   const rawValuesRef = useRef<Record<string, string>>(initialRaw);
   const [rawValues, setRawValues] = useState<Record<string, string>>(initialRaw);
   const pendingTextRef = useRef("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const field = fields[focusedIndex];
+    if (field && isTextField(field)) {
+      pendingTextRef.current = rawValuesRef.current[field.key] ?? "";
+    } else {
+      pendingTextRef.current = "";
+    }
+    // Intentionally only focusedIndex: avoid resetting pending input when `fields` gets a new array reference.
+  }, [focusedIndex]);
 
   const saveRawValue = useCallback((key: string, raw: string) => {
     rawValuesRef.current[key] = raw;
@@ -265,7 +302,9 @@ export function SchemaPromptApp({
                   <Text color="red">(required)</Text>
                 </>
               )}
-              {!isFocused && isCompleted && <Text color="green"> = {rawValue}</Text>}
+              {!isFocused && isCompleted && (
+                <Text color="green"> = {formatCompletedFieldValue(field, rawValue)}</Text>
+              )}
               {!isFocused && !isCompleted && <Text dimColor> {"\u2014"}</Text>}
             </Box>
 
@@ -402,6 +441,19 @@ function FieldWidget({
       : field.type === "object"
         ? "JSON object"
         : undefined;
+
+  if (field.format === "password") {
+    const initial =
+      previousValue ?? (field.defaultValue !== undefined ? String(field.defaultValue) : "");
+    return (
+      <CliPasswordInput
+        defaultValue={initial}
+        placeholder={placeholder}
+        onChange={onTextChange}
+        onSubmit={onSubmit}
+      />
+    );
+  }
 
   return (
     <TextInput

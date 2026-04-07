@@ -330,6 +330,14 @@ export function registerAgentCommand(program: Command): void {
         process.exit(0);
       }
 
+      // Unlock encrypted credential store if the graph needs credentials
+      const { scanGraphForCredentials } = await import("@workglow/task-graph");
+      const scanResult = scanGraphForCredentials(graph);
+      if (scanResult.needsCredentials) {
+        const { ensureCredentialStoreUnlocked } = await import("../keyring");
+        await ensureCredentialStoreUnlocked();
+      }
+
       try {
         if (process.stdout.isTTY) {
           const { renderWorkflowRun } = await import("../ui/render");

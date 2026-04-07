@@ -168,8 +168,13 @@ export async function renderTaskInstanceRun(
   });
 }
 
+export interface SchemaPromptRenderOptions {
+  readonly initialFocusedFieldKey?: string;
+}
+
 export async function renderSchemaPrompt(
-  fields: readonly PromptFieldDescriptor[]
+  fields: readonly PromptFieldDescriptor[],
+  options?: SchemaPromptRenderOptions
 ): Promise<Record<string, unknown> | undefined> {
   const React = await import("react");
   const { render } = await import("ink");
@@ -195,6 +200,7 @@ export async function renderSchemaPrompt(
           fields,
           onComplete,
           onCancel,
+          initialFocusedFieldKey: options?.initialFocusedFieldKey,
         })
       )
     );

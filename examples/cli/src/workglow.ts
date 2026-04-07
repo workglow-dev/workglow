@@ -9,80 +9,39 @@
 import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
 import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
 import { registerBaseTasks } from "@workglow/task-graph";
-import { registerCommonTasks } from "@workglow/tasks";
+import { HUMAN_CONNECTOR, registerCommonTasks } from "@workglow/tasks";
 import {
   ChainedCredentialStore,
   EnvCredentialStore,
+  globalServiceRegistry,
   setGlobalCredentialStore,
 } from "@workglow/util";
-import { EncryptedKvCredentialStore, FsFolderJsonKvStorage } from "@workglow/storage";
 import { program } from "commander";
-import { randomBytes } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import path from "node:path";
 import { registerAgentCommand } from "./commands/agent";
+import { registerCredentialCommand } from "./commands/credential";
 import { registerInitCommand } from "./commands/init";
 import { registerMcpCommand } from "./commands/mcp";
 import { registerModelCommand } from "./commands/model";
 import { registerTaskCommand } from "./commands/task";
 import { registerWorkflowCommand } from "./commands/workflow";
 import { loadConfig } from "./config";
+import { lazyStore } from "./keyring";
 import { createModelRepository } from "./storage";
 import { detectCliTheme, setCliTheme } from "./terminal/detectTerminalTheme";
+import { InkHumanConnector } from "./ui/InkHumanConnector";
 
 // Register all task types so TaskRegistry is populated
 registerBaseTasks();
 registerCommonTasks();
 registerAiTasks();
 
-// Resolve or generate a persistent passphrase for the encrypted credential store.
-// Priority: WORKGLOW_CREDENTIAL_PASSPHRASE env var → persisted key file → generate and save.
-const workglowDir = path.join(homedir(), ".workglow");
-const credentialsDir = path.join(workglowDir, "credentials");
-const credentialKeyPath = path.join(workglowDir, ".credential-key");
+// Set up global credential store: lazy encrypted store (unlocked on demand) + env var fallback.
+// The lazyStore starts locked; ensureCredentialStoreUnlocked() is called before operations
+// that need encrypted credentials (workflow run, credential add, etc.).
+setGlobalCredentialStore(new ChainedCredentialStore([lazyStore, new EnvCredentialStore()]));
 
-function isFsCode(err: unknown, code: string): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === code
-  );
-}
-
-async function resolveCredentialPassphrase(): Promise<string> {
-  if (process.env.WORKGLOW_CREDENTIAL_PASSPHRASE) {
-    return process.env.WORKGLOW_CREDENTIAL_PASSPHRASE;
-  }
-  try {
-    return (await readFile(credentialKeyPath, "utf-8")).trim();
-  } catch (err) {
-    if (!isFsCode(err, "ENOENT")) {
-      throw err;
-    }
-    // Key file missing — create exclusively so concurrent CLIs agree on one key (wx + EEXIST → re-read).
-    const key = randomBytes(32).toString("hex");
-    await mkdir(path.dirname(credentialKeyPath), { recursive: true });
-    try {
-      await writeFile(credentialKeyPath, key, { mode: 0o600, flag: "wx" });
-      return key;
-    } catch (writeErr) {
-      if (isFsCode(writeErr, "EEXIST")) {
-        return (await readFile(credentialKeyPath, "utf-8")).trim();
-      }
-      throw writeErr;
-    }
-  }
-}
-
-// Set up global credential store: encrypted file-based (for persistent credential storage) + env var fallback
-const credentialPassphrase = await resolveCredentialPassphrase();
-const encryptedStore = new EncryptedKvCredentialStore(
-  new FsFolderJsonKvStorage(credentialsDir),
-  credentialPassphrase
-);
-setGlobalCredentialStore(new ChainedCredentialStore([encryptedStore, new EnvCredentialStore()]));
+globalServiceRegistry.registerInstance(HUMAN_CONNECTOR, new InkHumanConnector());
 
 // Set up global model repository backed by filesystem
 const config = await loadConfig();
@@ -105,6 +64,7 @@ registerModelCommand(program);
 registerMcpCommand(program);
 registerWorkflowCommand(program);
 registerAgentCommand(program);
+registerCredentialCommand(program);
 registerTaskCommand(program);
 
 await program.parseAsync(process.argv);
