@@ -141,16 +141,24 @@ export interface EntitlementGrant {
 
 /**
  * Check if a single grant resource pattern matches a single required resource.
- * Supports trailing `*` glob: "prefix*" matches anything starting with "prefix".
+ * Supports single-`*` glob matching:
+ * - "prefix*" matches anything starting with "prefix"
+ * - "*.example.com" matches anything ending with ".example.com"
+ * - "pre*suf" matches anything with both the given prefix and suffix
  * Without `*`, requires exact match.
  */
 export function resourcePatternMatches(grantPattern: string, requiredResource: string): boolean {
   if (grantPattern === requiredResource) return true;
   const starIdx = grantPattern.indexOf("*");
   if (starIdx === -1) return false;
-  // "prefix*" matches anything starting with "prefix"
+
   const prefix = grantPattern.slice(0, starIdx);
-  return requiredResource.startsWith(prefix);
+  const suffix = grantPattern.slice(starIdx + 1);
+
+  if (!requiredResource.startsWith(prefix)) return false;
+  if (!requiredResource.endsWith(suffix)) return false;
+
+  return requiredResource.length >= prefix.length + suffix.length;
 }
 
 /**
