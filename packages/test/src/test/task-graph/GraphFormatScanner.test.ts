@@ -12,7 +12,7 @@ import {
 import { Task, IExecuteContext } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { DataPortSchema } from "@workglow/util/schema";
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ---- Minimal task stubs for schema testing ----------------------------------------
