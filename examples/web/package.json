@@ -1,6 +1,6 @@
 {
   "name": "@workglow/web",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "Web interface example for Workglow, showcasing a React-based UI for building and visualizing AI task pipelines.",
   "scripts": {
@@ -46,7 +46,7 @@
     "@tailwindcss/vite": "^4.1.7",
     "tailwindcss": "^4.1.7",
     "rollup-plugin-visualizer": "^7.0.1",
-    "vite": "^8.0.3",
+    "vite": "^8.0.5",
     "vite-plugin-wasm": "^3.6.0"
   },
   "publishConfig": {

@@ -1,5 +1,11 @@
 # @workglow/tasks
 
+## 0.1.2
+
+### Features
+
+- implement input compactors for various registries
+
 ## 0.1.1
 
 ### Refactors

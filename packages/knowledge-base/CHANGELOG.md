@@ -1,5 +1,11 @@
 # @workglow/knowledge-base
 
+## 0.1.2
+
+### Features
+
+- implement input compactors for various registries
+
 ## 0.1.1
 
 ## 0.1.0

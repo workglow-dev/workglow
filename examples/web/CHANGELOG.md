@@ -1,5 +1,11 @@
 # @workglow/web
 
+## 0.1.2
+
+### Updated Dependencies
+
+- `vite`: ^8.0.5
+
 ## 0.1.1
 
 ### Refactors
