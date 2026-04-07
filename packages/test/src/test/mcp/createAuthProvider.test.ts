@@ -8,8 +8,8 @@ import {
   createAuthProvider,
   CredentialStoreOAuthProvider,
   resolveAuthSecrets,
-  type McpAuthConfig,
 } from "@workglow/tasks";
+import type { McpAuthConfig } from "@workglow/tasks";
 import { InMemoryCredentialStore } from "@workglow/util";
 import { describe, expect, it } from "vitest";
 

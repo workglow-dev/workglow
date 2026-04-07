@@ -4,15 +4,8 @@
  * All Rights Reserved
  */
 
-import {
-  CreateWorkflow,
-  Task,
-  TaskConfig,
-  Workflow,
-  type IExecuteContext,
-  type StreamEvent,
-  type StreamFinish,
-} from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import type { IExecuteContext, StreamEvent, StreamFinish } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 
 export type InputTaskInput = Record<string, unknown>;

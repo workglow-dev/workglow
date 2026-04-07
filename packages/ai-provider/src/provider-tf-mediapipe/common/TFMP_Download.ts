@@ -12,7 +12,8 @@ import type {
 import { PermanentJobError } from "@workglow/job-queue";
 import { loadTfmpTasksTextSDK, loadTfmpTasksVisionSDK } from "./TFMP_Client";
 import { TFMPModelConfig } from "./TFMP_ModelSchema";
-import { getModelTask, type TaskInstance, wasm_reference_counts } from "./TFMP_Runtime";
+import { getModelTask, wasm_reference_counts } from "./TFMP_Runtime";
+import type { TaskInstance } from "./TFMP_Runtime";
 
 export const TFMP_Download: AiProviderRunFn<
   DownloadModelTaskRunInput,

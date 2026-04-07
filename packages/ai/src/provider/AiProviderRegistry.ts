@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
-import { globalServiceRegistry, WORKER_MANAGER, type JsonSchema } from "@workglow/util/worker";
+import { TaskInput, TaskOutput } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
+import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util/worker";
+import type { JsonSchema } from "@workglow/util/worker";
 import { DirectExecutionStrategy } from "../execution/DirectExecutionStrategy";
 import type { IAiExecutionStrategy, AiStrategyResolver } from "../execution/IAiExecutionStrategy";
 import type { ModelConfig } from "../model/ModelSchema";

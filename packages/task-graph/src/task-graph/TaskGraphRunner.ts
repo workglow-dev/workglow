@@ -13,8 +13,8 @@ import {
   ServiceRegistry,
   SpanStatusCode,
   uuid4,
-  type ISpan,
 } from "@workglow/util";
+import type { ISpan } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import { ITask } from "../task/ITask";
@@ -23,8 +23,8 @@ import {
   getOutputStreamMode,
   getStreamingPorts,
   isTaskStreamable,
-  type StreamEvent,
 } from "../task/StreamTypes";
+import type { StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import {
   TaskAbortedError,

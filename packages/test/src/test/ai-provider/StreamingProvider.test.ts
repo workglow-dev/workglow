@@ -15,15 +15,16 @@ import type {
   AiProviderStreamFn,
 } from "@workglow/ai";
 import { JobQueueClient, JobQueueServer, RateLimiter } from "@workglow/job-queue";
-import { InMemoryQueueStorage, InMemoryRateLimiterStorage, IQueueStorage } from "@workglow/storage";
+import { InMemoryQueueStorage, InMemoryRateLimiterStorage } from "@workglow/storage";
+import type { IQueueStorage } from "@workglow/storage";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,
   TaskInput,
   TaskOutput,
   TaskQueueRegistry,
-  type StreamEvent,
 } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";

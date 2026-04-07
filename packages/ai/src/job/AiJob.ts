@@ -13,7 +13,8 @@ import {
   RetryableJobError,
   withJobErrorDiagnostics,
 } from "@workglow/job-queue";
-import { TaskInput, TaskOutput, type StreamEvent } from "@workglow/task-graph";
+import { TaskInput, TaskOutput } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util/worker";
 import type { JsonSchema } from "@workglow/util/schema";
 import type { ModelConfig } from "../model/ModelSchema";

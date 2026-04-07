@@ -5,13 +5,8 @@
  */
 
 import { DocumentNode, StructuralParser } from "@workglow/knowledge-base";
-import {
-  CreateWorkflow,
-  IExecuteContext,
-  type TaskConfig,
-  Task,
-  Workflow,
-} from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
+import type { TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
 

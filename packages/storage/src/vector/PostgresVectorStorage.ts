@@ -14,13 +14,8 @@ import type {
 import type { Pool } from "@workglow/storage/postgres";
 import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
 import { StorageValidationError } from "../tabular/StorageError";
-import {
-  getMetadataProperty,
-  getVectorProperty,
-  type HybridSearchOptions,
-  type IVectorStorage,
-  type VectorSearchOptions,
-} from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
+import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
 
 /**
  * PostgreSQL vector repository implementation using pgvector extension.

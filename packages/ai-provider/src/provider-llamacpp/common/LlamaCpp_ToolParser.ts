@@ -12,8 +12,8 @@ import {
   parseLlama,
   parseLiquid,
   parseQwen35Xml,
-  type ToolCallParserResult,
 } from "../../common/ToolCallParsers";
+import type { ToolCallParserResult } from "../../common/ToolCallParsers";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 
 // ============================================================================

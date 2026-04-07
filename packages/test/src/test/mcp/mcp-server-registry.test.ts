@@ -20,12 +20,8 @@ import {
   mcpClientFactory,
 } from "@workglow/tasks";
 import type { McpServerRecord } from "@workglow/tasks";
-import {
-  resolveSchemaInputs,
-  Task,
-  type IExecuteContext,
-  type TaskConfig,
-} from "@workglow/task-graph";
+import { resolveSchemaInputs, Task } from "@workglow/task-graph";
+import type { IExecuteContext, TaskConfig } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { globalServiceRegistry, ServiceRegistry, Container } from "@workglow/util";
 

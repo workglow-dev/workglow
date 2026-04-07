@@ -26,7 +26,8 @@ import type {
   OAuthClientMetadata,
   OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { getGlobalCredentialStore, type ICredentialStore } from "@workglow/util";
+import { getGlobalCredentialStore } from "@workglow/util";
+import type { ICredentialStore } from "@workglow/util";
 import type { McpAuthConfig } from "./McpAuthTypes";
 
 // ── Key helpers ────────────────────────────────────────────────────────

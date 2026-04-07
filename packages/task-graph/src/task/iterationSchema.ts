@@ -14,10 +14,8 @@ import {
   createFlexibleSchema,
   extractBaseSchema,
   ITERATOR_CONTEXT_SCHEMA,
-  type ExecutionMode,
-  type IterationInputMode,
-  type IterationPropertyConfig,
 } from "./IteratorTask";
+import type { ExecutionMode, IterationInputMode, IterationPropertyConfig } from "./IteratorTask";
 import { WHILE_CONTEXT_SCHEMA } from "./WhileTask";
 
 export {

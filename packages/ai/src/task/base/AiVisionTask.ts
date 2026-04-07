@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type TaskConfig, type TaskOutput } from "@workglow/task-graph";
+import type { TaskConfig, TaskOutput } from "@workglow/task-graph";
 import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";

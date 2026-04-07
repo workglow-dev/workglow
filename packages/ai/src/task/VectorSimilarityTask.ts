@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, GraphAsTask, Workflow, type TaskConfig } from "@workglow/task-graph";
+import { CreateWorkflow, GraphAsTask, Workflow } from "@workglow/task-graph";
+import type { TaskConfig } from "@workglow/task-graph";
 import {
   cosineSimilarity,
   DataPortSchema,

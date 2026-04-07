@@ -28,9 +28,8 @@ import { InMemoryQueueStorage } from "@workglow/storage";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,
-  type TaskInput,
-  type TaskOutput,
 } from "@workglow/task-graph";
+import type { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";

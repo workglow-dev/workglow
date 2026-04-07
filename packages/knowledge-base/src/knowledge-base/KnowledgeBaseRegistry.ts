@@ -14,7 +14,8 @@ import {
 import { InMemoryKnowledgeBaseRepository } from "./InMemoryKnowledgeBaseRepository";
 import type { KnowledgeBase } from "./KnowledgeBase";
 import { KnowledgeBaseRepository } from "./KnowledgeBaseRepository";
-import { knowledgeBaseTableNames, type KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
+import { knowledgeBaseTableNames } from "./KnowledgeBaseSchema";
+import type { KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
 
 /**
  * Service token for the knowledge base registry
