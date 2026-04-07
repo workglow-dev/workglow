@@ -9,3 +9,4 @@ export * from "./InMemoryCredentialStore";
 export * from "./EnvCredentialStore";
 export * from "./ChainedCredentialStore";
 export * from "./CredentialStoreRegistry";
+export * from "./OtpPassphraseCache";

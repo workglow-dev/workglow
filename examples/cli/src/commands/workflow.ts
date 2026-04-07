@@ -337,6 +337,14 @@ export function registerWorkflowCommand(program: Command): void {
         process.exit(0);
       }
 
+      // Unlock encrypted credential store if the graph needs credentials
+      const { scanGraphForCredentials } = await import("@workglow/task-graph");
+      const scanResult = scanGraphForCredentials(graph);
+      if (scanResult.needsCredentials) {
+        const { ensureCredentialStoreUnlocked } = await import("../keyring");
+        await ensureCredentialStoreUnlocked();
+      }
+
       try {
         const { withCli } = await import("../run-interactive");
         const result = await withCli(graph, { suppressResultOutput: true }).run(input, runConfig);
