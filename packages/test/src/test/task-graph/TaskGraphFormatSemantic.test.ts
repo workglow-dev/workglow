@@ -7,8 +7,10 @@
 import {
   InMemoryModelRepository,
   MODEL_REPOSITORY,
-  type ModelRecord,
-  type ModelRepository,
+} from "@workglow/ai";
+import type {
+  ModelRecord,
+  ModelRepository,
 } from "@workglow/ai";
 import { Dataflow, Task, TaskGraph, type TaskInput } from "@workglow/task-graph";
 import type { ServiceRegistry } from "@workglow/util";

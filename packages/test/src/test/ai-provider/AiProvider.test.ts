@@ -11,9 +11,11 @@ import {
   QueuedAiProvider,
   getAiProviderRegistry,
   setAiProviderRegistry,
-  type AiProviderRegisterContext,
-  type AiProviderRegisterOptions,
-  type AiProviderRunFn,
+} from "@workglow/ai";
+import type {
+  AiProviderRegisterContext,
+  AiProviderRegisterOptions,
+  AiProviderRunFn,
 } from "@workglow/ai";
 import {
   getTaskQueueRegistry,

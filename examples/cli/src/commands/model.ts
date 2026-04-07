@@ -7,8 +7,10 @@
 import {
   modelSearch,
   ModelRecordSchema,
-  type ModelRecord,
-  type ModelSearchResultItem,
+} from "@workglow/ai";
+import type {
+  ModelRecord,
+  ModelSearchResultItem,
 } from "@workglow/ai";
 import { AnthropicModelRecordSchema } from "@workglow/ai-provider/anthropic";
 import { GeminiModelRecordSchema } from "@workglow/ai-provider/gemini";

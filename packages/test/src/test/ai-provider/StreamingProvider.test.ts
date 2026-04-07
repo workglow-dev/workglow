@@ -10,7 +10,9 @@ import {
   AiProviderRegistry,
   getAiProviderRegistry,
   setAiProviderRegistry,
-  type AiProviderStreamFn,
+} from "@workglow/ai";
+import type {
+  AiProviderStreamFn,
 } from "@workglow/ai";
 import { JobQueueClient, JobQueueServer, RateLimiter } from "@workglow/job-queue";
 import { InMemoryQueueStorage, InMemoryRateLimiterStorage, IQueueStorage } from "@workglow/storage";
