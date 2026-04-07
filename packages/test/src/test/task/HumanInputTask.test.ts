@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,13 +12,13 @@ import {
   TaskStatus,
   Workflow,
 } from "@workglow/task-graph";
+import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/tasks";
 import {
   HUMAN_CONNECTOR,
   HumanApprovalTask,
   HumanInputTask,
   McpElicitationConnector,
 } from "@workglow/tasks";
-import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/tasks";
 import { Container, ServiceRegistry } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, test, vi } from "vitest";

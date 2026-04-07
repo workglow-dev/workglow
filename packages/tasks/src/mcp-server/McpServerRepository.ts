@@ -19,8 +19,7 @@ export type McpServerEventListeners = {
 
 export type McpServerEvents = keyof McpServerEventListeners;
 
-export type McpServerEventListener<Event extends McpServerEvents> =
-  McpServerEventListeners[Event];
+export type McpServerEventListener<Event extends McpServerEvents> = McpServerEventListeners[Event];
 
 export type McpServerEventParameters<Event extends McpServerEvents> = EventParameters<
   McpServerEventListeners,
@@ -34,10 +33,7 @@ export class McpServerRepository {
   >;
 
   constructor(
-    storage: ITabularStorage<
-      typeof McpServerRecordSchema,
-      typeof McpServerPrimaryKeyNames
-    >
+    storage: ITabularStorage<typeof McpServerRecordSchema, typeof McpServerPrimaryKeyNames>
   ) {
     this.storage = storage;
   }

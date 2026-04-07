@@ -44,7 +44,9 @@ describe("FileLoaderTask", () => {
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.txt", format: "text" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/test.txt", format: "text" },
+    });
     const result = await task.run();
 
     expect(result.text).toBe(textContent);
@@ -65,7 +67,9 @@ describe("FileLoaderTask", () => {
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.md", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/test.md", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.text).toBe(markdownContent);
@@ -86,7 +90,9 @@ describe("FileLoaderTask", () => {
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.json", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/test.json", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.json).toEqual(jsonData);
@@ -109,7 +115,9 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.csv", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/test.csv", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("csv");
@@ -164,7 +172,9 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.png", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/test.png", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.image).toContain("data:image/png;base64,");
@@ -188,7 +198,9 @@ Bob,35,Paris`;
         )
       );
 
-      const task = new FileLoaderTask({ defaults: { url: `https://example.com/test.${ext}`, format: "auto" } });
+      const task = new FileLoaderTask({
+        defaults: { url: `https://example.com/test.${ext}`, format: "auto" },
+      });
       const result = await task.run();
 
       expect(result.metadata.format).toBe("image");
@@ -211,7 +223,9 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.pdf", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/test.pdf", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.pdf).toContain("data:application/pdf;base64,");
@@ -232,7 +246,9 @@ Bob,35,Paris`;
     );
 
     // Even though URL ends with .json, force it as text
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/data.json", format: "text" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/data.json", format: "text" },
+    });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("text");
@@ -325,7 +341,9 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/TEST.JSON", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/TEST.JSON", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("json");
@@ -343,7 +361,9 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/file.xyz", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/file.xyz", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("text");
@@ -447,7 +467,9 @@ This is the body.`;
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/post.md", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/post.md", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("markdown");
@@ -500,7 +522,9 @@ import { getTestingLogger } from "../../binding/TestingLogger";
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/page.mdx", format: "auto" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/page.mdx", format: "auto" },
+    });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("markdown");
@@ -559,7 +583,9 @@ Body content.`;
       )
     );
 
-    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.txt", format: "text" } });
+    const task = new FileLoaderTask({
+      defaults: { url: "https://example.com/test.txt", format: "text" },
+    });
     const result = await task.run();
 
     expect(result.frontmatter).toBeUndefined();

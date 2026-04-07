@@ -4,14 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  InMemoryModelRepository,
-  MODEL_REPOSITORY,
-} from "@workglow/ai";
-import type {
-  ModelRecord,
-  ModelRepository,
-} from "@workglow/ai";
+import { InMemoryModelRepository, MODEL_REPOSITORY } from "@workglow/ai";
+import type { ModelRecord, ModelRepository } from "@workglow/ai";
 import { Dataflow, Task, TaskGraph } from "@workglow/task-graph";
 import type { TaskInput } from "@workglow/task-graph";
 import type { ServiceRegistry } from "@workglow/util";

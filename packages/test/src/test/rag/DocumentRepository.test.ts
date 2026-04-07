@@ -556,9 +556,9 @@ Paragraph.`;
     });
 
     it("should throw on missing or invalid root node in fromJSON", () => {
-      expect(() => Document.fromJSON(JSON.stringify({ metadata: { title: "T" }, chunks: [] }))).toThrow(
-        "Document.fromJSON: missing or invalid 'root' node"
-      );
+      expect(() =>
+        Document.fromJSON(JSON.stringify({ metadata: { title: "T" }, chunks: [] }))
+      ).toThrow("Document.fromJSON: missing or invalid 'root' node");
       expect(() =>
         Document.fromJSON(JSON.stringify({ root: {}, metadata: { title: "T" }, chunks: [] }))
       ).toThrow("Document.fromJSON: missing or invalid 'root' node");

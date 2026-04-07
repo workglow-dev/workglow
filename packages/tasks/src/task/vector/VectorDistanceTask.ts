@@ -55,7 +55,8 @@ export class VectorDistanceTask<
   static override readonly type = "VectorDistanceTask";
   static override readonly category = "Vector";
   public static override title = "Distance";
-  public static override description = "Returns the Euclidean distance between the first two vectors";
+  public static override description =
+    "Returns the Euclidean distance between the first two vectors";
 
   static override inputSchema() {
     return inputSchema;

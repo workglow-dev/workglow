@@ -37,11 +37,7 @@ export const HFT_TextClassification: AiProviderRunFn<
       {},
       signal
     );
-    const result: any = await zeroShotClassifier(
-      input.text,
-      input.candidateLabels as string[],
-      {}
-    );
+    const result: any = await zeroShotClassifier(input.text, input.candidateLabels as string[], {});
 
     return {
       categories: result.labels.map((label: string, idx: number) => ({

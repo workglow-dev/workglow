@@ -5,11 +5,7 @@
  */
 
 import { QueuedAiProvider } from "@workglow/ai";
-import type {
-  AiProviderReactiveRunFn,
-  AiProviderRunFn,
-  AiProviderStreamFn,
-} from "@workglow/ai";
+import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { WEB_BROWSER } from "./common/WebBrowser_Constants";
 import type { WebBrowserModelConfig } from "./common/WebBrowser_ModelSchema";
 

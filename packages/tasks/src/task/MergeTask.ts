@@ -64,7 +64,9 @@ export class MergeTask<
 
   override async execute(input: Input, _context: IExecuteContext): Promise<Output> {
     // Get all input keys and sort them for deterministic order
-    const keys = Object.keys(input).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const keys = Object.keys(input).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true })
+    );
 
     // Collect values in sorted order
     const values = keys.map((key) => input[key]);

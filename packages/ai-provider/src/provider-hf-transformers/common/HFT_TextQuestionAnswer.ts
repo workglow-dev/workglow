@@ -43,13 +43,9 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
   const { TextStreamer } = await loadTransformersSDK();
   const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress, TextStreamer, signal);
 
-  const result = await generateAnswer(
-    input.question,
-    input.context,
-    {
-      streamer,
-    } as any
-  );
+  const result = await generateAnswer(input.question, input.context, {
+    streamer,
+  } as any);
 
   let answerText = "";
   if (Array.isArray(result)) {
@@ -82,19 +78,20 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
   const { TextStreamer } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextQuestionAnswerTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateAnswer.tokenizer, queue, TextStreamer, signal);
+  const streamer = createStreamingTextStreamer(
+    generateAnswer.tokenizer,
+    queue,
+    TextStreamer,
+    signal
+  );
 
   let pipelineResult:
     | DocumentQuestionAnsweringOutput[number]
     | DocumentQuestionAnsweringOutput
     | undefined;
-  const pipelinePromise = generateAnswer(
-    input.question,
-    input.context,
-    {
-      streamer,
-    } as any
-  ).then(
+  const pipelinePromise = generateAnswer(input.question, input.context, {
+    streamer,
+  } as any).then(
     (result) => {
       pipelineResult = result;
       queue.done();

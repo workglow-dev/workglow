@@ -57,7 +57,10 @@ class SlowTask extends Task<{ input: number }, { output: number }> {
 
   public sleepMs = 200;
 
-  override async execute(input: { input: number }, context: IExecuteContext): Promise<{ output: number }> {
+  override async execute(
+    input: { input: number },
+    context: IExecuteContext
+  ): Promise<{ output: number }> {
     const step = 10;
     for (let elapsed = 0; elapsed < this.sleepMs; elapsed += step) {
       if (context.signal.aborted) {

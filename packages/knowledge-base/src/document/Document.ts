@@ -87,7 +87,11 @@ export class Document {
     if (!obj.root || typeof obj.root !== "object" || !obj.root.kind) {
       throw new Error("Document.fromJSON: missing or invalid 'root' node");
     }
-    if (!obj.metadata || typeof obj.metadata !== "object" || typeof obj.metadata.title !== "string") {
+    if (
+      !obj.metadata ||
+      typeof obj.metadata !== "object" ||
+      typeof obj.metadata.title !== "string"
+    ) {
       throw new Error("Document.fromJSON: missing or invalid 'metadata' (requires 'title' string)");
     }
     if (obj.chunks !== undefined && !Array.isArray(obj.chunks)) {

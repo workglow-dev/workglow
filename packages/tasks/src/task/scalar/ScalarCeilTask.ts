@@ -44,7 +44,8 @@ export class ScalarCeilTask<
   static override readonly type = "ScalarCeilTask";
   static override readonly category = "Math";
   public static override title = "Ceil";
-  public static override description = "Returns the smallest integer greater than or equal to a number";
+  public static override description =
+    "Returns the smallest integer greater than or equal to a number";
 
   static override inputSchema() {
     return inputSchema;

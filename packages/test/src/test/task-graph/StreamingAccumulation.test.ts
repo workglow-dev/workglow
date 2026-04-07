@@ -338,7 +338,9 @@ describe("Source-task streaming accumulation", () => {
           yield { type: "finish", data: { lang: "es" } as any };
         }
 
-        override async execute(_input: SimpleInput): Promise<{ text: string; lang: string } | undefined> {
+        override async execute(
+          _input: SimpleInput
+        ): Promise<{ text: string; lang: string } | undefined> {
           return { text: "Hola mundo", lang: "es" };
         }
       }
@@ -525,12 +527,18 @@ describe("Source-task streaming accumulation", () => {
     });
 
     it("should cache accumulated result and serve it on second run", async () => {
-      const task1 = new CacheableAppendTask({ defaults: { prompt: "hello" } }, { outputCache: cache });
+      const task1 = new CacheableAppendTask(
+        { defaults: { prompt: "hello" } },
+        { outputCache: cache }
+      );
       const result1 = await task1.run({ prompt: "hello" });
       expect(result1.text).toBe("cached value");
 
       // Second run: should hit cache
-      const task2 = new CacheableAppendTask({ defaults: { prompt: "hello" } }, { outputCache: cache });
+      const task2 = new CacheableAppendTask(
+        { defaults: { prompt: "hello" } },
+        { outputCache: cache }
+      );
       const events: StreamEvent[] = [];
       task2.on("stream_chunk", (e) => events.push(e));
 

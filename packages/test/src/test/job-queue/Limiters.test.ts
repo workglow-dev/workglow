@@ -165,15 +165,15 @@ describe("CompositeLimiter", () => {
 
 describe("EvenlySpacedRateLimiter", () => {
   it("should throw for invalid maxExecutions", () => {
-    expect(() => new EvenlySpacedRateLimiter({ maxExecutions: 0, windowSizeInSeconds: 10 })).toThrow(
-      "maxExecutions must be > 0"
-    );
+    expect(
+      () => new EvenlySpacedRateLimiter({ maxExecutions: 0, windowSizeInSeconds: 10 })
+    ).toThrow("maxExecutions must be > 0");
   });
 
   it("should throw for invalid windowSizeInSeconds", () => {
-    expect(
-      () => new EvenlySpacedRateLimiter({ maxExecutions: 5, windowSizeInSeconds: 0 })
-    ).toThrow("windowSizeInSeconds must be > 0");
+    expect(() => new EvenlySpacedRateLimiter({ maxExecutions: 5, windowSizeInSeconds: 0 })).toThrow(
+      "windowSizeInSeconds must be > 0"
+    );
   });
 
   it("should allow proceeding initially", async () => {

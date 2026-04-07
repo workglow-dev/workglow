@@ -1,9 +1,10 @@
 /**
  * @license
- * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { IExecuteContext } from "@workglow/task-graph";
 import {
   CreateWorkflow,
   Task,
@@ -12,11 +13,10 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import type { IExecuteContext } from "@workglow/task-graph";
-import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
-import { resolveHumanConnector } from "./HumanInputTask";
+import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import type { HumanResponseAction, IHumanRequest } from "./HumanInputTask";
+import { resolveHumanConnector } from "./HumanInputTask";
 
 // ========================================================================
 // Schemas

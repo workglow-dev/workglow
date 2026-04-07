@@ -5,7 +5,13 @@
  */
 
 import { NodeKind } from "./DocumentSchema";
-import type { DocumentNode, DocumentRootNode, NodeRange, SectionNode, TopicNode } from "./DocumentSchema";
+import type {
+  DocumentNode,
+  DocumentRootNode,
+  NodeRange,
+  SectionNode,
+  TopicNode,
+} from "./DocumentSchema";
 
 /**
  * Approximate token counting (v1) -- ~4 characters per token.

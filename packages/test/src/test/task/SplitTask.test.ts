@@ -87,9 +87,7 @@ describe("SplitTask", () => {
 
   test("in task graph mode", async () => {
     const graph = new TaskGraph();
-    graph.addTask(
-      new SplitTask({ id: "split-in-graph", defaults: { input: [10, 20, 30] } })
-    );
+    graph.addTask(new SplitTask({ id: "split-in-graph", defaults: { input: [10, 20, 30] } }));
     const results = await graph.run();
     expect(results[0].data.output_0).toBe(10);
     expect(results[0].data.output_1).toBe(20);

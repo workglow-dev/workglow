@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  agent,
-  structuredGeneration,
-  textGeneration,
-  toolCalling,
-} from "@workglow/ai";
+import { agent, structuredGeneration, textGeneration, toolCalling } from "@workglow/ai";
 import type {
   AgentTaskOutput,
   StructuredGenerationTaskOutput,

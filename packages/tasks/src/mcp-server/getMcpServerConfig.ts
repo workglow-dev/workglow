@@ -39,9 +39,7 @@ export function getMcpServerConfig(
   }
 
   if (transport === "stdio" && !base.command) {
-    throw new Error(
-      "MCP server config for stdio transport must include a 'command'"
-    );
+    throw new Error("MCP server config for stdio transport must include a 'command'");
   }
 
   if ((transport === "sse" || transport === "streamable-http") && !base.server_url) {

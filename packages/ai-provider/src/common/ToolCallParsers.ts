@@ -794,7 +794,8 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
   if (!argsStr.trim()) return args;
 
   // Try <escape>-delimited format first: key:<escape>value<escape>
-  const escapeRegex = /(?<![A-Za-z0-9_])([A-Za-z0-9_]+)\s*:\s*<escape>((?:[^<]|<(?!escape>))*)<escape>/g;
+  const escapeRegex =
+    /(?<![A-Za-z0-9_])([A-Za-z0-9_]+)\s*:\s*<escape>((?:[^<]|<(?!escape>))*)<escape>/g;
   let escapeMatch: RegExpExecArray | null;
   while ((escapeMatch = escapeRegex.exec(argsStr)) !== null) {
     args[escapeMatch[1]] = coerceArgValue(escapeMatch[2]);

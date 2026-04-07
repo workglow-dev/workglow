@@ -9,7 +9,11 @@ import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util/worker";
 import type { WorkerServerBase as WorkerServer } from "@workglow/util/worker";
 import type { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "./AiProviderRegistry";
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "./AiProviderRegistry";
+import type {
+  AiProviderReactiveRunFn,
+  AiProviderRunFn,
+  AiProviderStreamFn,
+} from "./AiProviderRegistry";
 
 /**
  * Job queue concurrency: one limit for the primary ({@link QueuedAiProvider} hardware) queue,

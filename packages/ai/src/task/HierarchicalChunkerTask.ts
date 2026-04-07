@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ChunkRecordSchema, estimateTokens, getChildren, hasChildren } from "@workglow/knowledge-base";
+import {
+  ChunkRecordSchema,
+  estimateTokens,
+  getChildren,
+  hasChildren,
+} from "@workglow/knowledge-base";
 
 import type { ChunkRecord, DocumentNode, TokenBudget } from "@workglow/knowledge-base";
 import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";

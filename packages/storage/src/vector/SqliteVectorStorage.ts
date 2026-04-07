@@ -166,7 +166,9 @@ export class SqliteVectorStorage<
       const vectorScore = cosineSimilarity(query, vector);
 
       // Calculate text relevance (simple keyword matching)
-      const metadataText = Object.values(metadata ?? {}).join(" ").toLowerCase();
+      const metadataText = Object.values(metadata ?? {})
+        .join(" ")
+        .toLowerCase();
       let textScore = 0;
       if (queryWords.length > 0) {
         let matches = 0;

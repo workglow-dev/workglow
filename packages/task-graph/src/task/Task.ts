@@ -373,10 +373,7 @@ export class Task<
    * @param config Configuration for the task (includes defaults for input values)
    * @param runConfig Runtime configuration for the task
    */
-  constructor(
-    config: NoInfer<Partial<Config>> = {},
-    runConfig: NoInfer<Partial<IRunConfig>> = {}
-  ) {
+  constructor(config: NoInfer<Partial<Config>> = {}, runConfig: NoInfer<Partial<IRunConfig>> = {}) {
     // Extract caller-provided defaults from config
     const { defaults: callerDefaultInputs, ...restConfig } = config as Partial<Config> & {
       defaults?: Partial<Input>;

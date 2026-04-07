@@ -120,7 +120,10 @@ class SlowSucceedingTask extends Task<{ value: number }, { result: number }> {
     } as const satisfies DataPortSchema;
   }
 
-  override async execute(input: { value: number }, context: IExecuteContext): Promise<{ result: number }> {
+  override async execute(
+    input: { value: number },
+    context: IExecuteContext
+  ): Promise<{ result: number }> {
     for (let elapsed = 0; elapsed < 300; elapsed += 10) {
       if (context.signal?.aborted) {
         throw new TaskAbortedError();
@@ -286,9 +289,9 @@ describe("FallbackTask", () => {
   describe("FallbackTask - Data Mode Execution", () => {
     test("first data alternative succeeds", async () => {
       const task = new FallbackTask({
-          fallbackMode: "data",
-          alternatives: [{ value: 10 }, { value: 20 }],
-        });
+        fallbackMode: "data",
+        alternatives: [{ value: 10 }, { value: 20 }],
+      });
       const subGraph = new TaskGraph();
       subGraph.addTask(new SucceedingTask({ id: "template", defaults: { value: 0 } }));
       task.subGraph = subGraph;
@@ -299,9 +302,9 @@ describe("FallbackTask", () => {
 
     test("first data alternative fails, second succeeds", async () => {
       const task = new FallbackTask({
-          fallbackMode: "data",
-          alternatives: [{ value: 2 }, { value: 10 }],
-        });
+        fallbackMode: "data",
+        alternatives: [{ value: 2 }, { value: 10 }],
+      });
       const subGraph = new TaskGraph();
       subGraph.addTask(new ConditionalFailTask({ id: "template", defaults: { value: 0 } }));
       task.subGraph = subGraph;
@@ -312,9 +315,9 @@ describe("FallbackTask", () => {
 
     test("all data alternatives fail - throws aggregate error", async () => {
       const task = new FallbackTask({
-          fallbackMode: "data",
-          alternatives: [{ value: 1 }, { value: 2 }],
-        });
+        fallbackMode: "data",
+        alternatives: [{ value: 1 }, { value: 2 }],
+      });
       const subGraph = new TaskGraph();
       subGraph.addTask(new ConditionalFailTask({ id: "template", defaults: { value: 0 } }));
       task.subGraph = subGraph;
@@ -335,9 +338,9 @@ describe("FallbackTask", () => {
 
     test("data mode merges alternative with original input", async () => {
       const task = new FallbackTask({
-          fallbackMode: "data",
-          alternatives: [{ value: 7 }],
-        });
+        fallbackMode: "data",
+        alternatives: [{ value: 7 }],
+      });
       const subGraph = new TaskGraph();
       subGraph.addTask(new SucceedingTask({ id: "template", defaults: { value: 0 } }));
       task.subGraph = subGraph;
@@ -511,8 +514,12 @@ describe("FallbackTask", () => {
       const task = new FallbackTask({ fallbackMode: "task" });
       const subGraph = new TaskGraph();
       // Both alternatives time out
-      subGraph.addTask(new SlowSucceedingTask({ id: "slow1", timeout: 50, defaults: { value: 0 } }));
-      subGraph.addTask(new SlowSucceedingTask({ id: "slow2", timeout: 50, defaults: { value: 0 } }));
+      subGraph.addTask(
+        new SlowSucceedingTask({ id: "slow1", timeout: 50, defaults: { value: 0 } })
+      );
+      subGraph.addTask(
+        new SlowSucceedingTask({ id: "slow2", timeout: 50, defaults: { value: 0 } })
+      );
       task.subGraph = subGraph;
 
       await expect(task.run({ value: 1 } as TaskInput)).rejects.toThrow("[timeout]");

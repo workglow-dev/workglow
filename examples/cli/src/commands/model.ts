@@ -4,14 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  modelSearch,
-  ModelRecordSchema,
-} from "@workglow/ai";
-import type {
-  ModelRecord,
-  ModelSearchResultItem,
-} from "@workglow/ai";
+import { modelSearch, ModelRecordSchema } from "@workglow/ai";
+import type { ModelRecord, ModelSearchResultItem } from "@workglow/ai";
 import { AnthropicModelRecordSchema } from "@workglow/ai-provider/anthropic";
 import { GeminiModelRecordSchema } from "@workglow/ai-provider/gemini";
 import { HfInferenceModelRecordSchema } from "@workglow/ai-provider/hf-inference";

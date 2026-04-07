@@ -19,13 +19,11 @@ export interface McpServerConnection {
   readonly config: McpServerRecord;
 }
 
-export const MCP_SERVERS = createServiceToken<Map<string, McpServerConnection>>(
-  "mcp-server.registry"
-);
+export const MCP_SERVERS =
+  createServiceToken<Map<string, McpServerConnection>>("mcp-server.registry");
 
-export const MCP_SERVER_REPOSITORY = createServiceToken<McpServerRepository>(
-  "mcp-server.repository"
-);
+export const MCP_SERVER_REPOSITORY =
+  createServiceToken<McpServerRepository>("mcp-server.repository");
 
 if (!globalServiceRegistry.has(MCP_SERVERS)) {
   globalServiceRegistry.register(
