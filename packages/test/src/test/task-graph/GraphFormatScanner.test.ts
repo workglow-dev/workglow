@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  scanGraphForCredentials,
-  scanGraphForFormat,
-  TaskGraph,
-} from "@workglow/task-graph";
-import { Task, IExecuteContext } from "@workglow/task-graph";
+import { scanGraphForCredentials, scanGraphForFormat, Task, TaskGraph } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";
@@ -28,10 +23,6 @@ class FlatCredentialTask extends Task<any, any> {
         model: { type: "string" },
       },
     } as const satisfies DataPortSchema;
-  }
-
-  protected override async executeReactive(_input: any, _ctx: IExecuteContext) {
-    return {};
   }
 }
 
@@ -52,10 +43,6 @@ class NestedCredentialTask extends Task<any, any> {
       },
     } as const satisfies DataPortSchema;
   }
-
-  protected override async executeReactive(_input: any, _ctx: IExecuteContext) {
-    return {};
-  }
 }
 
 class OneOfCredentialTask extends Task<any, any> {
@@ -70,10 +57,6 @@ class OneOfCredentialTask extends Task<any, any> {
         },
       },
     } as const satisfies DataPortSchema;
-  }
-
-  protected override async executeReactive(_input: any, _ctx: IExecuteContext) {
-    return {};
   }
 }
 
@@ -98,10 +81,6 @@ class AnyOfNestedCredentialTask extends Task<any, any> {
       },
     } as const satisfies DataPortSchema;
   }
-
-  protected override async executeReactive(_input: any, _ctx: IExecuteContext) {
-    return {};
-  }
 }
 
 class NoCredentialTask extends Task<any, any> {
@@ -115,10 +94,6 @@ class NoCredentialTask extends Task<any, any> {
         count: { type: "number" },
       },
     } as const satisfies DataPortSchema;
-  }
-
-  protected override async executeReactive(_input: any, _ctx: IExecuteContext) {
-    return {};
   }
 }
 
@@ -141,10 +116,6 @@ class ConfigCredentialTask extends Task<any, any> {
         api_key: { type: "string", format: "credential" },
       },
     } as const satisfies DataPortSchema;
-  }
-
-  protected override async executeReactive(_input: any, _ctx: IExecuteContext) {
-    return {};
   }
 }
 
