@@ -52,7 +52,6 @@ export class SplitTask<
   public static override title = "Split";
   public static override description =
     "Splits an array into individual outputs, creating one output per element";
-  static override hasDynamicSchemas = true;
   static override readonly cacheable = false;
 
   public static override inputSchema() {
@@ -60,10 +59,6 @@ export class SplitTask<
   }
 
   public static override outputSchema() {
-    return outputSchema;
-  }
-
-  public override outputSchema(): DataPortSchema {
     return outputSchema;
   }
 

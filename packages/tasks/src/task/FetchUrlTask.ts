@@ -358,7 +358,6 @@ export class FetchUrlTask<
   public static override description =
     "Fetches data from a URL with progress tracking and automatic retry handling";
   public static override hasDynamicSchemas: boolean = true;
-  public static override hasDynamicEntitlements: boolean = true;
 
   public static override entitlements(): TaskEntitlements {
     return {

@@ -78,7 +78,7 @@ export class JavaScriptTask extends Task<
   public static override description =
     "Executes JavaScript code in a sandboxed interpreter environment";
   public static override customizable = true;
-  public static override hasDynamicEntitlements = true;
+  public static override hasDynamicSchemas = true;
 
   public static override entitlements(): TaskEntitlements {
     return {
