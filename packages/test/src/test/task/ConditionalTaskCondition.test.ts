@@ -19,12 +19,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
   setLogger(logger);
   describe("conditionConfig from input", () => {
     it("should route to matching branch based on field/operator/value", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [], // empty branches - will be built from conditionConfig
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -41,12 +38,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should route to second branch when first does not match", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -63,12 +57,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should output data with numbered suffix for matched branch", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -89,12 +80,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should output data with _else suffix when no branch matches", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [{ id: "high", field: "value", operator: "greater_than", value: "1000" }],
@@ -110,12 +98,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
 
   describe("exclusive vs non-exclusive mode", () => {
     it("should only activate first matching branch in exclusive mode", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -132,12 +117,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should activate all matching branches in non-exclusive mode", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -154,12 +136,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should output to multiple branches in non-exclusive mode", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -179,12 +158,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
 
   describe("default branch", () => {
     it("should activate default branch when no conditions match", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -204,12 +180,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
 
   describe("nested field paths", () => {
     it("should access nested fields via dot notation", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -229,12 +202,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should handle deep nested field paths", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [{ id: "match", field: "data.nested.value", operator: "equals", value: "42" }],
@@ -250,12 +220,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should not match when nested path does not exist", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -275,12 +242,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
 
   describe("various operators via conditionConfig", () => {
     it("should work with contains operator", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [{ id: "match", field: "name", operator: "contains", value: "world" }],
@@ -292,12 +256,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should work with starts_with operator", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [{ id: "match", field: "name", operator: "starts_with", value: "hello" }],
@@ -309,12 +270,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should work with is_empty operator", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [
@@ -330,12 +288,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
     });
 
     it("should work with is_true / is_false operators", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [],
-        }
-      );
+        });
 
       const conditionConfig: UIConditionConfig = {
         branches: [{ id: "truthy", field: "active", operator: "is_true", value: "" }],
@@ -349,9 +304,7 @@ describe("ConditionalTask with serialized conditionConfig", () => {
 
   describe("conditionConfig from config", () => {
     it("should use conditionConfig from config when input has none", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           conditionConfig: {
             branches: [
               { id: "high", field: "value", operator: "greater_than", value: "50" },
@@ -359,8 +312,7 @@ describe("ConditionalTask with serialized conditionConfig", () => {
             ],
             exclusive: true,
           },
-        }
-      );
+        });
 
       await task.run({ value: 100 });
 
@@ -371,12 +323,9 @@ describe("ConditionalTask with serialized conditionConfig", () => {
 
   describe("function conditions still work", () => {
     it("should prefer config.branches with functions over conditionConfig", async () => {
-      const task = new ConditionalTask(
-        {},
-        {
+      const task = new ConditionalTask({
           branches: [{ id: "fn-branch", condition: (i: any) => i.value > 10, outputPort: "high" }],
-        }
-      );
+        });
 
       // Even if conditionConfig is provided, function branches should be used
       const conditionConfig: UIConditionConfig = {

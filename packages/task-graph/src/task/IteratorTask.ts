@@ -6,7 +6,7 @@
 
 import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
+import { GraphAsTask, type GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { IExecuteContext } from "./ITask";
 import { IteratorTaskRunner } from "./IteratorTaskRunner";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
@@ -79,7 +79,7 @@ export const iteratorTaskConfigSchema = {
  * Configuration type for IteratorTask.
  * Extends GraphAsTaskConfig with iterator-specific options.
  */
-export type IteratorTaskConfig = GraphAsTaskConfig & {
+export type IteratorTaskConfig<Input extends TaskInput = TaskInput> = GraphAsTaskConfig<Input> & {
   /**
    * Maximum number of concurrent iteration workers
    * @default undefined (unlimited)
@@ -268,7 +268,7 @@ export function schemaAcceptsArray(schema: DataPortSchema): boolean {
 export abstract class IteratorTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends IteratorTaskConfig = IteratorTaskConfig,
+  Config extends IteratorTaskConfig<Input> = IteratorTaskConfig<Input>,
 > extends GraphAsTask<Input, Output, Config> {
   public static override type: TaskTypeName = "IteratorTask";
   public static override category: string = "Flow Control";
@@ -295,10 +295,6 @@ export abstract class IteratorTask<
 
   /** Cached computed iteration input schema. */
   protected _iterationInputSchema: DataPortSchema | undefined;
-
-  constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
-    super(input, config as Config);
-  }
 
   // ========================================================================
   // TaskRunner Override

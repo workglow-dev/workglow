@@ -94,13 +94,13 @@ export class LambdaTask<
     return false;
   }
 
-  constructor(input: Partial<Input> = {}, config: Partial<Config> = {}) {
+  constructor(config: Partial<Config> = {}) {
     if (!config.execute && !config.executeReactive) {
       throw new TaskConfigurationError(
         "LambdaTask must have either execute or executeReactive function in config"
       );
     }
-    super(input, config as Config);
+    super(config);
   }
 
   override async execute(input: Input, context: IExecuteContext): Promise<Output> {
@@ -138,13 +138,12 @@ export function lambda<I extends TaskInput, O extends TaskOutput>(
   config?: LambdaTaskConfig<I, O>
 ): Promise<TaskOutput> {
   if (typeof input === "function") {
-    type Input = Parameters<typeof input>[0];
-    const task = new LambdaTask<Input, O>({} as Input, {
+    const task = new LambdaTask<I, O>({
       execute: input,
-    });
+    } as any);
     return task.run();
   }
-  const task = new LambdaTask<I, O>(input, config);
+  const task = new LambdaTask<I, O>({ ...config, defaults: input as Partial<I> } as any);
   return task.run();
 }
 

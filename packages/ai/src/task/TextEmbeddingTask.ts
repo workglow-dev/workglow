@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -52,6 +52,7 @@ export type TextEmbeddingTaskOutput = FromSchema<
   typeof TextEmbeddingOutputSchema,
   TypedArraySchemaOptions
 >;
+export type TextEmbeddingTaskConfig = TaskConfig<TextEmbeddingTaskInput>;
 
 /**
  * A task that generates vector embeddings for text using a specified embedding model.
@@ -60,11 +61,16 @@ export type TextEmbeddingTaskOutput = FromSchema<
  *
  * @extends AiTask
  */
-export class TextEmbeddingTask extends AiTask<TextEmbeddingTaskInput, TextEmbeddingTaskOutput> {
+export class TextEmbeddingTask extends AiTask<
+  TextEmbeddingTaskInput,
+  TextEmbeddingTaskOutput,
+  TextEmbeddingTaskConfig
+> {
   public static override type = "TextEmbeddingTask";
   public static override category = "AI Text Model";
   public static override title = "Text Embedding";
-  public static override description = "Generates vector embeddings for text to capture semantic meaning";
+  public static override description =
+    "Generates vector embeddings for text to capture semantic meaning";
   public static override inputSchema(): DataPortSchema {
     return TextEmbeddingInputSchema as DataPortSchema;
   }
@@ -78,13 +84,20 @@ export class TextEmbeddingTask extends AiTask<TextEmbeddingTaskInput, TextEmbedd
  * @param input - Input containing text(s) and model(s) for embedding
  * @returns  Promise resolving to the generated embeddings
  */
-export const textEmbedding = async (input: TextEmbeddingTaskInput, config?: TaskConfig) => {
-  return new TextEmbeddingTask({} as TextEmbeddingTaskInput, config).run(input);
+export const textEmbedding = async (
+  input: TextEmbeddingTaskInput,
+  config?: TextEmbeddingTaskConfig
+) => {
+  return new TextEmbeddingTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    textEmbedding: CreateWorkflow<TextEmbeddingTaskInput, TextEmbeddingTaskOutput, TaskConfig>;
+    textEmbedding: CreateWorkflow<
+      TextEmbeddingTaskInput,
+      TextEmbeddingTaskOutput,
+      TextEmbeddingTaskConfig
+    >;
   }
 }
 

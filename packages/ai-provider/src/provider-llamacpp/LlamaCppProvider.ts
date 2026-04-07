@@ -40,6 +40,7 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
+    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

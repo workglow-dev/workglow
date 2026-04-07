@@ -73,7 +73,8 @@ export class JavaScriptTask extends Task<
   public static override type = "JavaScriptTask";
   public static override category = "Utility";
   public static override title = "JavaScript Interpreter";
-  public static override description = "Executes JavaScript code in a sandboxed interpreter environment";
+  public static override description =
+    "Executes JavaScript code in a sandboxed interpreter environment";
   public static override customizable = true;
 
   public static override configSchema() {
@@ -86,13 +87,6 @@ export class JavaScriptTask extends Task<
 
   public static override outputSchema() {
     return outputSchema;
-  }
-
-  constructor(
-    input: Partial<JavaScriptTaskInput> = {},
-    config: Partial<JavaScriptTaskConfig> = {}
-  ) {
-    super(input, config);
   }
 
   public override inputSchema() {
@@ -133,7 +127,7 @@ export class JavaScriptTask extends Task<
 }
 
 export const javaScript = (input: JavaScriptTaskInput, config: TaskConfig = {}) => {
-  return new JavaScriptTask({}, config).run(input);
+  return new JavaScriptTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

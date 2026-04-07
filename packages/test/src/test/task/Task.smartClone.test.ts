@@ -16,7 +16,7 @@ describe("Task.smartClone circular reference detection", () => {
   let task: TestSmartCloneTask;
 
   beforeEach(() => {
-    task = new TestSmartCloneTask({ data: {} }, { id: "test-task" });
+    task = new TestSmartCloneTask({ id: "test-task", defaults: { data: {} } });
   });
 
   test("should handle simple objects without circular references", () => {

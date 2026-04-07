@@ -83,7 +83,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpToolCallTask({}, toolCallConfig);
+      const task = new McpToolCallTask(toolCallConfig);
       const result = await task.run({ name: "world" });
 
       expect(result.content).toEqual([{ type: "text", text: "hello" }]);
@@ -104,7 +104,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpToolCallTask({}, { server: baseServer, tool_name: "fail" });
+      const task = new McpToolCallTask({ server: baseServer, tool_name: "fail" });
       const result = await task.run({});
 
       expect(result.isError).toBe(true);
@@ -116,7 +116,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpToolCallTask({}, { server: baseServer, tool_name: "broken" });
+      const task = new McpToolCallTask({ server: baseServer, tool_name: "broken" });
       await expect(task.run({})).rejects.toThrow("connection lost");
       // discoverSchemas (mcpList) + execute each create a client; both get closed
       expect(mockClient.close.calls.length).toBeGreaterThanOrEqual(1);
@@ -132,7 +132,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpToolCallTask({}, toolCallConfig);
+      const task = new McpToolCallTask(toolCallConfig);
       const result = await task.run({});
 
       expect(result.content).toBeDefined();
@@ -156,7 +156,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpToolCallTask({}, toolCallConfig);
+      const task = new McpToolCallTask(toolCallConfig);
       const result = await task.run({});
 
       expect(result.content).toBeDefined();
@@ -182,7 +182,7 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpResourceReadTask({}, { server: baseServer, resource_uri: "file:///test.txt" });
+      const task = new McpResourceReadTask({ server: baseServer, resource_uri: "file:///test.txt" });
       const result = await task.run({});
 
       expect(result.contents).toEqual([{ uri: "file:///test.txt", text: "file contents" }]);
@@ -207,18 +207,15 @@ describe("MCP", () => {
       });
       mockFactory(mockClient);
 
-      const task = new McpPromptGetTask(
-        {},
-        {
-          server: baseServer,
-          prompt_name: "greeting",
-          inputSchema: {
-            type: "object",
-            properties: { lang: { type: "string" } },
-            additionalProperties: false,
-          },
-        }
-      );
+      const task = new McpPromptGetTask({
+        server: baseServer,
+        prompt_name: "greeting",
+        inputSchema: {
+          type: "object",
+          properties: { lang: { type: "string" } },
+          additionalProperties: false,
+        },
+      });
       const result = await task.run({ lang: "en" });
 
       expect(result.messages).toEqual([{ role: "user", content: { type: "text", text: "Hello" } }]);

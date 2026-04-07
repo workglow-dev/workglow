@@ -84,8 +84,8 @@ export const Anthropic_StructuredGeneration_Stream: AiProviderStreamFn<
 
   let accumulatedJson = "";
   for await (const event of stream) {
-    if (event.type === "content_block_delta" && (event.delta as any).type === "input_json_delta") {
-      accumulatedJson += (event.delta as any).partial_json;
+    if (event.type === "content_block_delta" && event.delta.type === "input_json_delta") {
+      accumulatedJson += event.delta.partial_json;
       const partial = parsePartialJson(accumulatedJson);
       if (partial !== undefined) {
         yield { type: "object-delta", port: "object", objectDelta: partial };

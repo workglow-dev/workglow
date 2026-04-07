@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, type TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -31,6 +31,7 @@ const UnloadModelOutputSchema = {
 
 export type UnloadModelTaskRunInput = FromSchema<typeof UnloadModelInputSchema>;
 export type UnloadModelTaskRunOutput = FromSchema<typeof UnloadModelOutputSchema>;
+export type UnloadModelTaskConfig = TaskConfig<UnloadModelTaskRunInput>;
 
 /**
  * Unload a model from memory and clear its cache.
@@ -41,12 +42,13 @@ export type UnloadModelTaskRunOutput = FromSchema<typeof UnloadModelOutputSchema
 export class UnloadModelTask extends AiTask<
   UnloadModelTaskRunInput,
   UnloadModelTaskRunOutput,
-  TaskConfig
+  UnloadModelTaskConfig
 > {
   public static override type = "UnloadModelTask";
   public static override category = "AI Model";
   public static override title = "Unload Model";
-  public static override description = "Unloads and clears cached AI models from memory and storage";
+  public static override description =
+    "Unloads and clears cached AI models from memory and storage";
   public static override inputSchema(): DataPortSchema {
     return UnloadModelInputSchema satisfies DataPortSchema;
   }
@@ -62,13 +64,17 @@ export class UnloadModelTask extends AiTask<
  * @param input - Input containing model(s) to unload
  * @returns Promise resolving to the unloaded model(s)
  */
-export const unloadModel = (input: UnloadModelTaskRunInput, config?: TaskConfig) => {
-  return new UnloadModelTask({} as UnloadModelTaskRunInput, config).run(input);
+export const unloadModel = (input: UnloadModelTaskRunInput, config?: UnloadModelTaskConfig) => {
+  return new UnloadModelTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    unloadModel: CreateWorkflow<UnloadModelTaskRunInput, UnloadModelTaskRunOutput, TaskConfig>;
+    unloadModel: CreateWorkflow<
+      UnloadModelTaskRunInput,
+      UnloadModelTaskRunOutput,
+      UnloadModelTaskConfig
+    >;
   }
 }
 

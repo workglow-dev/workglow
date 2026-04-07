@@ -94,8 +94,8 @@ describe("Workflow Streaming Events", () => {
   it("should emit stream_start on the workflow when a task begins streaming", async () => {
     const workflow = new Workflow();
 
-    const source = new WFStreamSource({ prompt: "hi" }, { id: "src" });
-    const sink = new WFNonStreamSink({} as any, { id: "sink" });
+    const source = new WFStreamSource({ id: "src", defaults: { prompt: "hi" } });
+    const sink = new WFNonStreamSink({ id: "sink" });
 
     workflow.graph.addTasks([source, sink]);
     workflow.graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -112,8 +112,8 @@ describe("Workflow Streaming Events", () => {
   it("should emit stream_chunk on the workflow for each chunk", async () => {
     const workflow = new Workflow();
 
-    const source = new WFStreamSource({ prompt: "hi" }, { id: "src" });
-    const sink = new WFNonStreamSink({} as any, { id: "sink" });
+    const source = new WFStreamSource({ id: "src", defaults: { prompt: "hi" } });
+    const sink = new WFNonStreamSink({ id: "sink" });
 
     workflow.graph.addTasks([source, sink]);
     workflow.graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -134,8 +134,8 @@ describe("Workflow Streaming Events", () => {
   it("should emit stream_end on the workflow when streaming finishes", async () => {
     const workflow = new Workflow();
 
-    const source = new WFStreamSource({ prompt: "hi" }, { id: "src" });
-    const sink = new WFNonStreamSink({} as any, { id: "sink" });
+    const source = new WFStreamSource({ id: "src", defaults: { prompt: "hi" } });
+    const sink = new WFNonStreamSink({ id: "sink" });
 
     workflow.graph.addTasks([source, sink]);
     workflow.graph.addDataflow(new Dataflow("src", "text", "sink", "text"));
@@ -155,7 +155,7 @@ describe("Workflow Streaming Events", () => {
   it("should clean up streaming subscriptions after workflow completes", async () => {
     const workflow = new Workflow();
 
-    const source = new WFStreamSource({ prompt: "hi" }, { id: "src" });
+    const source = new WFStreamSource({ id: "src", defaults: { prompt: "hi" } });
     workflow.graph.addTasks([source]);
 
     const starts: TaskIdType[] = [];
@@ -167,7 +167,7 @@ describe("Workflow Streaming Events", () => {
 
     // Reset and run again
     workflow.reset();
-    const source2 = new WFStreamSource({ prompt: "hi" }, { id: "src2" });
+    const source2 = new WFStreamSource({ id: "src2", defaults: { prompt: "hi" } });
     workflow.graph.addTasks([source2]);
 
     starts.length = 0;
@@ -213,7 +213,7 @@ describe("Workflow Streaming Events", () => {
       }
     }
 
-    const failTask = new FailingStreamTask({ prompt: "hi" }, { id: "fail" });
+    const failTask = new FailingStreamTask({ id: "fail", defaults: { prompt: "hi" } });
     workflow.graph.addTasks([failTask]);
 
     const errors: string[] = [];
@@ -231,8 +231,8 @@ describe("Workflow Streaming Events", () => {
   it("should propagate events from multiple streaming tasks", async () => {
     const workflow = new Workflow();
 
-    const source1 = new WFStreamSource({ prompt: "hi" }, { id: "src1" });
-    const source2 = new WFStreamSource({ prompt: "hi" }, { id: "src2" });
+    const source1 = new WFStreamSource({ id: "src1", defaults: { prompt: "hi" } });
+    const source2 = new WFStreamSource({ id: "src2", defaults: { prompt: "hi" } });
 
     workflow.graph.addTasks([source1, source2]);
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -151,6 +151,7 @@ export const HandLandmarkerOutputSchema = {
 
 export type HandLandmarkerTaskInput = FromSchema<typeof HandLandmarkerInputSchema>;
 export type HandLandmarkerTaskOutput = FromSchema<typeof HandLandmarkerOutputSchema>;
+export type HandLandmarkerTaskConfig = TaskConfig<HandLandmarkerTaskInput>;
 
 /**
  * Detects hand landmarks in images using MediaPipe Hand Landmarker.
@@ -159,7 +160,7 @@ export type HandLandmarkerTaskOutput = FromSchema<typeof HandLandmarkerOutputSch
 export class HandLandmarkerTask extends AiVisionTask<
   HandLandmarkerTaskInput,
   HandLandmarkerTaskOutput,
-  TaskConfig
+  HandLandmarkerTaskConfig
 > {
   public static override type = "HandLandmarkerTask";
   public static override category = "AI Vision Model";
@@ -180,13 +181,20 @@ export class HandLandmarkerTask extends AiVisionTask<
  * @param input The input parameters for hand landmark detection (image, model, and optional configuration)
  * @returns Promise resolving to the detected hand landmarks and handedness
  */
-export const handLandmarker = (input: HandLandmarkerTaskInput, config?: TaskConfig) => {
-  return new HandLandmarkerTask({} as HandLandmarkerTaskInput, config).run(input);
+export const handLandmarker = (
+  input: HandLandmarkerTaskInput,
+  config?: HandLandmarkerTaskConfig
+) => {
+  return new HandLandmarkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    handLandmarker: CreateWorkflow<HandLandmarkerTaskInput, HandLandmarkerTaskOutput, TaskConfig>;
+    handLandmarker: CreateWorkflow<
+      HandLandmarkerTaskInput,
+      HandLandmarkerTaskOutput,
+      HandLandmarkerTaskConfig
+    >;
   }
 }
 

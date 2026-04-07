@@ -100,7 +100,7 @@ export class DelayTask<
  * @param config - Task configuration; use `config.delay` for the delay in milliseconds
  */
 export const delay = (input: DelayTaskInput, config: DelayTaskConfig = { delay: 1 }) => {
-  const task = new DelayTask({}, config);
+  const task = new DelayTask(config);
   return task.run(input);
 };
 

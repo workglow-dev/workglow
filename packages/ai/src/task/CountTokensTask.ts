@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -40,6 +40,7 @@ export const CountTokensOutputSchema = {
 
 export type CountTokensTaskInput = FromSchema<typeof CountTokensInputSchema>;
 export type CountTokensTaskOutput = FromSchema<typeof CountTokensOutputSchema>;
+export type CountTokensTaskConfig = TaskConfig<CountTokensTaskInput>;
 
 /**
  * A task that counts the number of tokens in a text string using a specified model's tokenizer.
@@ -48,7 +49,11 @@ export type CountTokensTaskOutput = FromSchema<typeof CountTokensOutputSchema>;
  *
  * @extends AiTask
  */
-export class CountTokensTask extends AiTask<CountTokensTaskInput, CountTokensTaskOutput> {
+export class CountTokensTask extends AiTask<
+  CountTokensTaskInput,
+  CountTokensTaskOutput,
+  CountTokensTaskConfig
+> {
   public static override type = "CountTokensTask";
   public static override category = "AI Text Model";
   public static override title = "Count Tokens";
@@ -68,13 +73,13 @@ export class CountTokensTask extends AiTask<CountTokensTaskInput, CountTokensTas
  * @param input - Input containing text and model for token counting
  * @returns Promise resolving to the token count
  */
-export const countTokens = async (input: CountTokensTaskInput, config?: TaskConfig) => {
-  return new CountTokensTask({} as CountTokensTaskInput, config).run(input);
+export const countTokens = async (input: CountTokensTaskInput, config?: CountTokensTaskConfig) => {
+  return new CountTokensTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    countTokens: CreateWorkflow<CountTokensTaskInput, CountTokensTaskOutput, TaskConfig>;
+    countTokens: CreateWorkflow<CountTokensTaskInput, CountTokensTaskOutput, CountTokensTaskConfig>;
   }
 }
 

@@ -5,7 +5,13 @@
  */
 
 import { DocumentNode, StructuralParser } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
 
@@ -68,6 +74,7 @@ const outputSchema = {
 
 export type StructuralParserTaskInput = FromSchema<typeof inputSchema>;
 export type StructuralParserTaskOutput = FromSchema<typeof outputSchema>;
+export type StructuralParserTaskConfig = TaskConfig<StructuralParserTaskInput>;
 
 /**
  * Task for parsing documents into hierarchical tree structure
@@ -76,7 +83,7 @@ export type StructuralParserTaskOutput = FromSchema<typeof outputSchema>;
 export class StructuralParserTask extends Task<
   StructuralParserTaskInput,
   StructuralParserTaskOutput,
-  TaskConfig
+  StructuralParserTaskConfig
 > {
   public static override type = "StructuralParserTask";
   public static override category = "Document";
@@ -133,8 +140,11 @@ export class StructuralParserTask extends Task<
   }
 }
 
-export const structuralParser = (input: StructuralParserTaskInput, config?: TaskConfig) => {
-  return new StructuralParserTask({} as StructuralParserTaskInput, config).run(input);
+export const structuralParser = (
+  input: StructuralParserTaskInput,
+  config?: StructuralParserTaskConfig
+) => {
+  return new StructuralParserTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -142,7 +152,7 @@ declare module "@workglow/task-graph" {
     structuralParser: CreateWorkflow<
       StructuralParserTaskInput,
       StructuralParserTaskOutput,
-      TaskConfig
+      StructuralParserTaskConfig
     >;
   }
 }

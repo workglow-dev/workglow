@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const SegmentationMethod = {
@@ -87,6 +93,7 @@ const outputSchema = {
 
 export type TopicSegmenterTaskInput = FromSchema<typeof inputSchema>;
 export type TopicSegmenterTaskOutput = FromSchema<typeof outputSchema>;
+export type TopicSegmenterTaskConfig = TaskConfig<TopicSegmenterTaskInput>;
 
 /**
  * Task for segmenting text into topic-based sections
@@ -95,12 +102,13 @@ export type TopicSegmenterTaskOutput = FromSchema<typeof outputSchema>;
 export class TopicSegmenterTask extends Task<
   TopicSegmenterTaskInput,
   TopicSegmenterTaskOutput,
-  TaskConfig
+  TopicSegmenterTaskConfig
 > {
   public static override type = "TopicSegmenterTask";
   public static override category = "Document";
   public static override title = "Topic Segmenter";
-  public static override description = "Segment text into topic-based sections using hybrid approach";
+  public static override description =
+    "Segment text into topic-based sections using hybrid approach";
   public static override cacheable = true;
   private static readonly EMBEDDING_DIMENSIONS = 256;
 
@@ -413,13 +421,20 @@ export class TopicSegmenterTask extends Task<
   }
 }
 
-export const topicSegmenter = (input: TopicSegmenterTaskInput, config?: TaskConfig) => {
-  return new TopicSegmenterTask({} as TopicSegmenterTaskInput, config).run(input);
+export const topicSegmenter = (
+  input: TopicSegmenterTaskInput,
+  config?: TopicSegmenterTaskConfig
+) => {
+  return new TopicSegmenterTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    topicSegmenter: CreateWorkflow<TopicSegmenterTaskInput, TopicSegmenterTaskOutput, TaskConfig>;
+    topicSegmenter: CreateWorkflow<
+      TopicSegmenterTaskInput,
+      TopicSegmenterTaskOutput,
+      TopicSegmenterTaskConfig
+    >;
   }
 }
 

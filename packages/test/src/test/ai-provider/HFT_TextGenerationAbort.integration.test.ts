@@ -53,7 +53,7 @@ describe("TextGenerationTask abort behavior", () => {
     await getGlobalModelRepository().addModel(model);
 
     // Download (or warm up from cache) the model before running generation tests
-    const download = new DownloadModelTask({ model: MODEL_ID });
+    const download = new DownloadModelTask({ defaults: { model: MODEL_ID } });
     download.on("progress", (progress, _message, details) => {
       logger.info(
         `Download ${MODEL_ID}: ${progress}% | ${details?.file || "?"} @ ${(details?.progress || 0).toFixed(1)}%`

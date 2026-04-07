@@ -22,20 +22,20 @@ describe("InputTask", () => {
   });
 
   it("should pass through all input as output", async () => {
-    const task = new InputTask({}, { id: "input-test" });
+    const task = new InputTask({ id: "input-test" });
     const result = await task.run({ name: "Alice", count: 5 });
     expect(result).toEqual({ name: "Alice", count: 5 });
     expect(task.status).toBe(TaskStatus.COMPLETED);
   });
 
   it("should handle empty input", async () => {
-    const task = new InputTask({}, { id: "input-empty" });
+    const task = new InputTask({ id: "input-empty" });
     const result = await task.run({});
     expect(result).toEqual({});
   });
 
   it("should return default schema when no config schema provided", () => {
-    const task = new InputTask({}, { id: "input-schema" });
+    const task = new InputTask({ id: "input-schema" });
     const schema = task.inputSchema();
     expect(schema).toBeTruthy();
     expect(typeof schema).toBe("object");
@@ -54,20 +54,20 @@ describe("OutputTask", () => {
   });
 
   it("should pass through all input as output", async () => {
-    const task = new OutputTask({}, { id: "output-test" });
+    const task = new OutputTask({ id: "output-test" });
     const result = await task.run({ result: "done", value: 42 });
     expect(result).toEqual({ result: "done", value: 42 });
     expect(task.status).toBe(TaskStatus.COMPLETED);
   });
 
   it("should handle empty input", async () => {
-    const task = new OutputTask({}, { id: "output-empty" });
+    const task = new OutputTask({ id: "output-empty" });
     const result = await task.run({});
     expect(result).toEqual({});
   });
 
   it("should return default schema when no config schema provided", () => {
-    const task = new OutputTask({}, { id: "output-schema" });
+    const task = new OutputTask({ id: "output-schema" });
     const schema = task.outputSchema();
     expect(schema).toBeTruthy();
     expect(typeof schema).toBe("object");

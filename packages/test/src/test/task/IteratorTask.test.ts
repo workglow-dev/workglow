@@ -44,30 +44,24 @@ describe("IteratorTask", () => {
   describe("IteratorTask", () => {
     describe("constructor and configuration", () => {
       test("should create with default configuration", () => {
-        const task = new TestIteratorTask<ArrayInput>({}, {});
+        const task = new TestIteratorTask<ArrayInput>();
 
         expect(task.concurrencyLimit).toBe(undefined);
         expect(task.batchSize).toBe(undefined);
       });
 
       test("should respect custom configuration", () => {
-        const task = new TestIteratorTask<ArrayInput>(
-          {},
-          {
-            concurrencyLimit: 3,
-          }
-        );
+        const task = new TestIteratorTask<ArrayInput>({
+          concurrencyLimit: 3,
+        });
 
         expect(task.concurrencyLimit).toBe(3);
       });
 
       test("should support batchSize configuration", () => {
-        const task = new TestIteratorTask<ArrayInput>(
-          {},
-          {
-            batchSize: 10,
-          }
-        );
+        const task = new TestIteratorTask<ArrayInput>({
+          batchSize: 10,
+        });
 
         expect(task.batchSize).toBe(10);
       });
@@ -77,20 +71,17 @@ describe("IteratorTask", () => {
         // - Items are grouped into batches of batchSize
         // - Items within each batch run fully in parallel
         // - Batches run with concurrencyLimit parallelism
-        const task = new TestIteratorTask<ArrayInput>(
-          {},
-          {
-            concurrencyLimit: 2,
-            batchSize: 5,
-          }
-        );
+        const task = new TestIteratorTask<ArrayInput>({
+          concurrencyLimit: 2,
+          batchSize: 5,
+        });
 
         expect(task.concurrencyLimit).toBe(2);
         expect(task.batchSize).toBe(5);
       });
 
       test("should have undefined batchSize by default", () => {
-        const task = new TestIteratorTask<ArrayInput>({}, {});
+        const task = new TestIteratorTask<ArrayInput>();
 
         expect(task.batchSize).toBeUndefined();
       });
@@ -113,9 +104,9 @@ describe("IteratorTask", () => {
           }
         }
 
-        const task = new TestIteratorWithArray({ items: [1, 2, 3] }, {});
+        const task = new TestIteratorWithArray({ defaults: { items: [1, 2, 3] } });
         const subGraph = new TaskGraph();
-        subGraph.addTask(new DoubleTask({ value: 0 }, { id: "double" }));
+        subGraph.addTask(new DoubleTask({ id: "double", defaults: { value: 0 } }));
 
         task.subGraph = subGraph;
 
@@ -146,14 +137,14 @@ describe("IteratorTask", () => {
           }
         }
 
-        const task = new TestMapTask({ items: [] }, {});
+        const task = new TestMapTask({ defaults: { items: [] } });
         const result = await task.run();
 
         expect(result).toEqual({});
       });
 
       test("should have dynamic output schema", () => {
-        const task = new MapTask({}, {});
+        const task = new MapTask();
         const schema = task.outputSchema();
 
         // Without template graph, should return static schema
@@ -163,17 +154,17 @@ describe("IteratorTask", () => {
 
     describe("configuration", () => {
       test("should default preserveOrder to true", () => {
-        const task = new MapTask({}, {});
+        const task = new MapTask();
         expect(task.preserveOrder).toBe(true);
       });
 
       test("should default flatten to false", () => {
-        const task = new MapTask({}, {});
+        const task = new MapTask();
         expect(task.flatten).toBe(false);
       });
 
       test("should respect custom configuration", () => {
-        const task = new MapTask({}, { preserveOrder: false, flatten: true });
+        const task = new MapTask({ preserveOrder: false, flatten: true });
         expect(task.preserveOrder).toBe(false);
         expect(task.flatten).toBe(true);
       });
@@ -186,12 +177,12 @@ describe("IteratorTask", () => {
 
   describe("Type Safety", () => {
     test("IteratorTask should be an instance of IteratorTask", () => {
-      const task = new TestIteratorTask({}, {});
+      const task = new TestIteratorTask();
       expect(task).toBeInstanceOf(IteratorTask);
     });
 
     test("MapTask should be an instance of IteratorTask", () => {
-      const task = new MapTask({}, {});
+      const task = new MapTask();
       expect(task).toBeInstanceOf(IteratorTask);
       expect(task).toBeInstanceOf(MapTask);
     });
@@ -223,25 +214,22 @@ describe("IteratorTask", () => {
   describe("WhileTask", () => {
     describe("configuration", () => {
       test("should default maxIterations to 100", () => {
-        const task = new WhileTask({}, {});
+        const task = new WhileTask();
         expect(task.maxIterations).toBe(100);
       });
 
       test("should default chainIterations to true", () => {
-        const task = new WhileTask({}, {});
+        const task = new WhileTask();
         expect(task.chainIterations).toBe(true);
       });
 
       test("should respect custom configuration", () => {
         const condition = (output: any, iteration: number) => iteration < 5;
-        const task = new WhileTask(
-          {},
-          {
-            condition,
-            maxIterations: 50,
-            chainIterations: false,
-          }
-        );
+        const task = new WhileTask({
+          condition,
+          maxIterations: 50,
+          chainIterations: false,
+        });
 
         expect(task.condition).toBe(condition);
         expect(task.maxIterations).toBe(50);
@@ -251,9 +239,9 @@ describe("IteratorTask", () => {
 
     describe("subgraph", () => {
       test("should set and get subGraph", () => {
-        const task = new WhileTask({}, {});
+        const task = new WhileTask();
         const subGraph = new TaskGraph();
-        subGraph.addTask(new DoubleTask({ value: 0 }, { id: "double" }));
+        subGraph.addTask(new DoubleTask({ id: "double", defaults: { value: 0 } }));
 
         task.subGraph = subGraph;
 
@@ -263,7 +251,7 @@ describe("IteratorTask", () => {
 
     describe("type safety", () => {
       test("WhileTask should not be an instance of IteratorTask", () => {
-        const task = new WhileTask({}, {});
+        const task = new WhileTask();
         // WhileTask extends GraphAsTask, not IteratorTask
         expect(task).toBeInstanceOf(WhileTask);
       });
@@ -291,17 +279,17 @@ describe("IteratorTask", () => {
   describe("ReduceTask", () => {
     describe("configuration", () => {
       test("should default initialValue to empty object", () => {
-        const task = new ReduceTask({}, {});
+        const task = new ReduceTask();
         expect(task.initialValue).toEqual({});
       });
 
       test("should respect custom initialValue", () => {
-        const task = new ReduceTask({}, { initialValue: { sum: 0 } });
+        const task = new ReduceTask({ initialValue: { sum: 0 } });
         expect(task.initialValue).toEqual({ sum: 0 });
       });
 
       test("should force sequential execution mode (parallel-limited with concurrency 1)", () => {
-        const task = new ReduceTask({}, { concurrencyLimit: 5 });
+        const task = new ReduceTask({ concurrencyLimit: 5 });
         expect(task.concurrencyLimit).toBe(1);
         expect(task.batchSize).toBe(1);
       });
@@ -309,7 +297,7 @@ describe("IteratorTask", () => {
 
     describe("type safety", () => {
       test("ReduceTask should be an instance of IteratorTask", () => {
-        const task = new ReduceTask({}, {});
+        const task = new ReduceTask();
         expect(task).toBeInstanceOf(IteratorTask);
         expect(task).toBeInstanceOf(ReduceTask);
       });
@@ -758,9 +746,9 @@ describe("IteratorTask", () => {
     });
 
     test("direct MapTask.run should execute a reusable subgraph across iterations", async () => {
-      const mapTask = new MapTask({}, {});
+      const mapTask = new MapTask();
       const subGraph = new TaskGraph();
-      subGraph.addTask(new ProcessItemTask({ item: 0 }, { id: "process" }));
+      subGraph.addTask(new ProcessItemTask({ id: "process", defaults: { item: 0 } }));
 
       mapTask.subGraph = subGraph;
 
@@ -859,7 +847,11 @@ describe("IteratorTask", () => {
           } as const satisfies DataPortSchema;
         }
 
-        override async execute(input: { accumulator: { sum: number }; left: number; right: number }) {
+        override async execute(input: {
+          accumulator: { sum: number };
+          left: number;
+          right: number;
+        }) {
           return {
             sum: input.accumulator.sum + input.left + input.right,
           };
@@ -986,7 +978,7 @@ describe("IteratorTask", () => {
         }
       }
 
-      const task = new PrecedenceIterator({}, {});
+      const task = new PrecedenceIterator();
       const analysis = task.analyzeIterationInput({
         forceArray: [1, 2],
         forceScalar: [100, 200],

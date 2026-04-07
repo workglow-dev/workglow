@@ -254,7 +254,7 @@ export class TaskGraphRunner {
 
     await this.handleComplete();
 
-    return results;
+    return this.filterLeafResults(results);
   }
 
   /**
@@ -310,7 +310,7 @@ export class TaskGraphRunner {
         }
       }
       await this.handleCompleteReactive();
-      return results;
+      return this.filterLeafResults(results);
     } catch (error) {
       await this.handleErrorReactive();
       throw error;
@@ -378,6 +378,20 @@ export class TaskGraphRunner {
   // ========================================================================
   // Protected Handlers
   // ========================================================================
+
+  /**
+   * When leaf results include tasks with `isGraphOutput`, returns only those.
+   * Otherwise returns all leaf results unchanged.
+   */
+  protected filterLeafResults<T>(results: GraphResultArray<T>): GraphResultArray<T> {
+    if (results.length <= 1) return results;
+    const graphOutputResults = results.filter((r) => {
+      const task = this.graph.getTask(r.id as string);
+      return task && (task.constructor as typeof Task).isGraphOutput;
+    });
+    return graphOutputResults.length > 0 ? graphOutputResults : results;
+  }
+
   public mergeExecuteOutputsToRunOutput<
     ExecuteOutput extends TaskOutput,
     Merge extends CompoundMergeStrategy = CompoundMergeStrategy,

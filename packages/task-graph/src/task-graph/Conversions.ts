@@ -45,8 +45,8 @@ let _ConvWorkflowTask: GraphAsTaskConstructor;
 function getWrapperClasses() {
   if (!_OwnGraphTask) {
     class ListeningGraphAsTask extends GraphAsTask<any, any> {
-      constructor(input: any, config: any) {
-        super(input, config);
+      constructor(config: any) {
+        super(config);
         this.subGraph.on("start", () => {
           this.emit("start");
         });
@@ -115,7 +115,7 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
       return fn(input, context);
     }
   }
-  return new QuickTask({}, config);
+  return new QuickTask(config);
 }
 
 /**
@@ -145,18 +145,18 @@ export function ensureTask<I extends DataPorts, O extends DataPorts>(
     getWrapperClasses();
     const { isOwned, ...cleanConfig } = config;
     if (isOwned) {
-      return new _OwnGraphTask({}, { ...cleanConfig, subGraph: arg });
+      return new _OwnGraphTask({ ...cleanConfig, subGraph: arg });
     } else {
-      return new _GraphTask({}, { ...cleanConfig, subGraph: arg });
+      return new _GraphTask({ ...cleanConfig, subGraph: arg });
     }
   }
   if (isWorkflowLike(arg)) {
     getWrapperClasses();
     const { isOwned, ...cleanConfig } = config;
     if (isOwned) {
-      return new _OwnWorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
+      return new _OwnWorkflowTask({ ...cleanConfig, subGraph: arg.graph });
     } else {
-      return new _ConvWorkflowTask({}, { ...cleanConfig, subGraph: arg.graph });
+      return new _ConvWorkflowTask({ ...cleanConfig, subGraph: arg.graph });
     }
   }
   return convertPipeFunctionToTask(arg as PipeFunction<I, O>, config);

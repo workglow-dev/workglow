@@ -11,7 +11,13 @@ import {
   type Entity,
   type NodeEnrichment,
 } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  Task,
+  Workflow,
+  type TaskConfig,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ModelConfig } from "../model/ModelSchema";
 import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
@@ -90,6 +96,7 @@ const outputSchema = {
 
 export type DocumentEnricherTaskInput = FromSchema<typeof inputSchema>;
 export type DocumentEnricherTaskOutput = FromSchema<typeof outputSchema>;
+export type DocumentEnricherTaskConfig = TaskConfig<DocumentEnricherTaskInput>;
 
 /**
  * Task for enriching document nodes with summaries and entities
@@ -98,7 +105,7 @@ export type DocumentEnricherTaskOutput = FromSchema<typeof outputSchema>;
 export class DocumentEnricherTask extends Task<
   DocumentEnricherTaskInput,
   DocumentEnricherTaskOutput,
-  TaskConfig
+  DocumentEnricherTaskConfig
 > {
   public static override type = "DocumentEnricherTask";
   public static override category = "Document";
@@ -138,8 +145,8 @@ export class DocumentEnricherTask extends Task<
       extractEntities && nerModel
         ? async (text: string) => {
             const result = await context
-              .own(new TextNamedEntityRecognitionTask({ text, model: nerModel }))
-              .run();
+              .own(new TextNamedEntityRecognitionTask())
+              .run({ text, model: nerModel });
             return (result.entities as Array<{ entity: string; word: string; score: number }>).map(
               (e) => ({
                 type: e.entity,
@@ -243,7 +250,8 @@ export class DocumentEnricherTask extends Task<
     };
 
     if (enrichedChildren) {
-      (enrichedNode as any).children = enrichedChildren;
+      // @ts-expect-error - children are otherwise readonly
+      enrichedNode.children = enrichedChildren;
     }
 
     return enrichedNode;
@@ -393,8 +401,11 @@ export class DocumentEnricherTask extends Task<
   }
 }
 
-export const documentEnricher = (input: DocumentEnricherTaskInput, config?: TaskConfig) => {
-  return new DocumentEnricherTask({} as DocumentEnricherTaskInput, config).run(input);
+export const documentEnricher = (
+  input: DocumentEnricherTaskInput,
+  config?: DocumentEnricherTaskConfig
+) => {
+  return new DocumentEnricherTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -402,7 +413,7 @@ declare module "@workglow/task-graph" {
     documentEnricher: CreateWorkflow<
       DocumentEnricherTaskInput,
       DocumentEnricherTaskOutput,
-      TaskConfig
+      DocumentEnricherTaskConfig
     >;
   }
 }

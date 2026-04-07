@@ -385,7 +385,7 @@ describe("TaskRunner config resolution", () => {
 
   test("config.server is resolved to full record on task.config", async () => {
     await registerMcpServer(serverA);
-    const task = new ConfigResolverTestTask({}, { server: "server-a" });
+    const task = new ConfigResolverTestTask({ server: "server-a" });
     const output = await task.run({ value: "hello" });
 
     // execute() reads from this.config.server — it should be the resolved object
@@ -394,7 +394,7 @@ describe("TaskRunner config resolution", () => {
 
   test("original config is preserved for toJSON", async () => {
     await registerMcpServer(serverA);
-    const task = new ConfigResolverTestTask({}, { server: "server-a" });
+    const task = new ConfigResolverTestTask({ server: "server-a" });
     await task.run({ value: "hello" });
 
     // task.config.server was mutated to the resolved object
@@ -406,7 +406,7 @@ describe("TaskRunner config resolution", () => {
   });
 
   test("config resolution is a no-op when config has no format annotations", async () => {
-    const task = new ConfigResolverTestTask({}, {});
+    const task = new ConfigResolverTestTask();
     const output = await task.run({ value: "hello" });
     expect(output.configServer).toBeUndefined();
   });
@@ -472,7 +472,7 @@ describe("MCP tasks with server registry", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpToolCallTask({}, { server: "server-a", tool_name: "greet" });
+    const task = new McpToolCallTask({ server: "server-a", tool_name: "greet" });
     const result = await task.run({ name: "world" });
 
     expect(result.content).toEqual([{ type: "text", text: "hello" }]);
@@ -488,13 +488,10 @@ describe("MCP tasks with server registry", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpToolCallTask(
-      {},
-      {
-        server: { transport: "streamable-http", server_url: "http://inline.com" },
-        tool_name: "greet",
-      }
-    );
+    const task = new McpToolCallTask({
+      server: { transport: "streamable-http", server_url: "http://inline.com" },
+      tool_name: "greet",
+    });
     const result = await task.run({});
 
     expect(result.content).toEqual([{ type: "text", text: "hi" }]);
@@ -509,13 +506,10 @@ describe("MCP tasks with server registry", () => {
     });
     mockFactory(mockClient);
 
-    const task = new McpToolCallTask(
-      {},
-      {
-        server: { transport: "stdio", command: "test-server" },
-        tool_name: "greet",
-      }
-    );
+    const task = new McpToolCallTask({
+      server: { transport: "stdio", command: "test-server" },
+      tool_name: "greet",
+    });
     const result = await task.run({});
 
     expect(result.content).toEqual([{ type: "text", text: "ok" }]);

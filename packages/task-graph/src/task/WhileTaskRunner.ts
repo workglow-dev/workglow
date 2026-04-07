@@ -18,7 +18,7 @@ import type { WhileTask, WhileTaskConfig } from "./WhileTask";
 export class WhileTaskRunner<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends WhileTaskConfig<Output> = WhileTaskConfig<Output>,
+  Config extends WhileTaskConfig<Input, Output> = WhileTaskConfig<Input, Output>,
 > extends GraphAsTaskRunner<Input, Output, Config> {
   declare task: WhileTask<Input, Output, Config>;
 

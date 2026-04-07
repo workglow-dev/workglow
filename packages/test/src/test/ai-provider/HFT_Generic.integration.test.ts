@@ -5,7 +5,6 @@
  */
 
 import {
-  DownloadModelTask,
   getGlobalModelRepository,
   InMemoryModelRepository,
   setGlobalModelRepository,
@@ -27,12 +26,13 @@ const RUN = true;
 const TEXT_MODEL_ID = "onnx:onnx-community/Qwen2.5-1.5B-Instruct:q4";
 const TOOL_MODEL_ID = "onnx:onnx-community/functiongemma-270m-it-ONNX:q4f16";
 const THINKING_MODEL_ID = "onnx:LiquidAI/LFM2.5-1.2B-Thinking-WebGPU:q4";
+const INSTRUCT_MODEL_ID = "onnx:LiquidAI/LFM2.5-1.2B-Instruct-WebGPU:q4";
 
 const textModel: HfTransformersOnnxModelRecord = {
   model_id: TEXT_MODEL_ID,
   title: "Qwen2.5-1.5B-Instruct",
   description: "Instruction-tuned model with native tool calling support",
-  tasks: ["TextGenerationTask", "StructuredGenerationTask"],
+  tasks: ["TextGenerationTask", "StructuredGenerationTask", "AgentTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
@@ -46,13 +46,28 @@ const textModel: HfTransformersOnnxModelRecord = {
 const toolModel: HfTransformersOnnxModelRecord = {
   model_id: TOOL_MODEL_ID,
   title: "FunctionGemma 270M IT ONNX",
-  description: "Tool-calling-focused ONNX model quantized to q4f16",
-  tasks: ["StructuredGenerationTask"],
+  description: "Tool-calling-focused ONNX model quantized to fp16",
+  tasks: ["ToolCallingTask", "StructuredGenerationTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
     model_path: "onnx-community/functiongemma-270m-it-ONNX",
-    dtype: "q4f16",
+    dtype: "fp16",
+    seed: 42,
+  },
+  metadata: {},
+};
+
+const instructModel: HfTransformersOnnxModelRecord = {
+  model_id: INSTRUCT_MODEL_ID,
+  title: "LFM2.5-1.2B-Instruct-WebGPU",
+  description: "Liquid 1.2B Instruct WebGPU",
+  tasks: ["TextGenerationTask", "ToolCallingTask", "StructuredGenerationTask", "AgentTask"],
+  provider: HF_TRANSFORMERS_ONNX,
+  provider_config: {
+    pipeline: "text-generation",
+    model_path: "LiquidAI/LFM2.5-1.2B-Instruct-ONNX",
+    dtype: "q4",
     seed: 42,
   },
   metadata: {},
@@ -62,7 +77,7 @@ const thinkingModel: HfTransformersOnnxModelRecord = {
   model_id: THINKING_MODEL_ID,
   title: "LFM2.5-1.2B-Thinking-WebGPU",
   description: "Liquid 1.2B Thinking WebGPU",
-  tasks: ["TextGenerationTask", "StructuredGenerationTask"],
+  tasks: ["TextGenerationTask", "ToolCallingTask", "StructuredGenerationTask", "AgentTask"],
   provider: HF_TRANSFORMERS_ONNX,
   provider_config: {
     pipeline: "text-generation",
@@ -87,26 +102,17 @@ runGenericAiProviderTests({
     await getGlobalModelRepository().addModel(textModel);
     await getGlobalModelRepository().addModel(toolModel);
     await getGlobalModelRepository().addModel(thinkingModel);
-
-    for (const modelId of [TEXT_MODEL_ID, TOOL_MODEL_ID, THINKING_MODEL_ID]) {
-      const download = new DownloadModelTask({ model: modelId });
-      download.on("progress", (progress, _message, details) => {
-        logger.info(
-          `Download ${modelId}: ${progress}% | ${details?.file || "?"} @ ${(details?.progress || 0).toFixed(1)}%`
-        );
-      });
-      await download.run();
-    }
+    await getGlobalModelRepository().addModel(instructModel);
   },
   teardown: async () => {
     await getTaskQueueRegistry().stopQueues();
     await getTaskQueueRegistry().clearQueues();
     await setTaskQueueRegistry(null);
   },
-  textGenerationModel: TEXT_MODEL_ID,
-  // toolCallingModel: TOOL_MODEL_ID,
-  // structuredGenerationModel: THINKING_MODEL_ID,
-  // thinkingModel: THINKING_MODEL_ID,
+  textGenerationModel: INSTRUCT_MODEL_ID,
+  toolCallingModel: INSTRUCT_MODEL_ID,
+  structuredGenerationModel: INSTRUCT_MODEL_ID,
+  agentModel: INSTRUCT_MODEL_ID,
   maxTokens: 2600,
   timeout: 300000,
 });

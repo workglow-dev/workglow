@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -62,11 +62,16 @@ export const TextFillMaskOutputSchema = {
 
 export type TextFillMaskTaskInput = FromSchema<typeof TextFillMaskInputSchema>;
 export type TextFillMaskTaskOutput = FromSchema<typeof TextFillMaskOutputSchema>;
+export type TextFillMaskTaskConfig = TaskConfig<TextFillMaskTaskInput>;
 
 /**
  * Fills masked tokens in text using language models
  */
-export class TextFillMaskTask extends AiTask<TextFillMaskTaskInput, TextFillMaskTaskOutput> {
+export class TextFillMaskTask extends AiTask<
+  TextFillMaskTaskInput,
+  TextFillMaskTaskOutput,
+  TextFillMaskTaskConfig
+> {
   public static override type = "TextFillMaskTask";
   public static override category = "AI Text Model";
   public static override title = "Fill Mask";
@@ -85,13 +90,17 @@ export class TextFillMaskTask extends AiTask<TextFillMaskTaskInput, TextFillMask
  * @param input The input parameters for fill mask (text with mask token and model)
  * @returns Promise resolving to the predicted tokens with scores and complete sequences
  */
-export const textFillMask = (input: TextFillMaskTaskInput, config?: TaskConfig) => {
-  return new TextFillMaskTask({} as TextFillMaskTaskInput, config).run(input);
+export const textFillMask = (input: TextFillMaskTaskInput, config?: TextFillMaskTaskConfig) => {
+  return new TextFillMaskTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    textFillMask: CreateWorkflow<TextFillMaskTaskInput, TextFillMaskTaskOutput, TaskConfig>;
+    textFillMask: CreateWorkflow<
+      TextFillMaskTaskInput,
+      TextFillMaskTaskOutput,
+      TextFillMaskTaskConfig
+    >;
   }
 }
 

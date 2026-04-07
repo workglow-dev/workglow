@@ -7,12 +7,13 @@
 import { GraphResultArray } from "../task-graph/TaskGraphRunner";
 import { GraphAsTask } from "./GraphAsTask";
 import { TaskRunner } from "./TaskRunner";
-import { TaskConfig, TaskInput, TaskOutput } from "./TaskTypes";
+import { TaskInput, TaskOutput } from "./TaskTypes";
+import { type GraphAsTaskConfig } from "./GraphAsTask";
 
 export class GraphAsTaskRunner<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends TaskConfig = TaskConfig,
+  Config extends GraphAsTaskConfig<Input> = GraphAsTaskConfig<Input>,
 > extends TaskRunner<Input, Output, Config> {
   declare task: GraphAsTask<Input, Output, Config>;
 

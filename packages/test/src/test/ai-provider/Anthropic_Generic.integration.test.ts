@@ -40,6 +40,7 @@ runGenericAiProviderTests({
         "TextRewriterTask",
         "TextSummaryTask",
         "StructuredGenerationTask",
+        "ToolCallingTask",
       ],
       provider: ANTHROPIC as typeof ANTHROPIC,
       provider_config: { model_name: "claude-haiku-4-5-20251001" },
@@ -52,7 +53,9 @@ runGenericAiProviderTests({
     await setTaskQueueRegistry(null);
   },
   textGenerationModel: MODEL_ID,
+  toolCallingModel: MODEL_ID,
   structuredGenerationModel: MODEL_ID,
+  agentModel: MODEL_ID,
   maxTokens: 100,
   timeout: 30000,
 });

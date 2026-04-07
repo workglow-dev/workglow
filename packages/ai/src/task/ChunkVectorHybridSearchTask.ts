@@ -5,7 +5,13 @@
  */
 
 import { KnowledgeBase, TypeKnowledgeBase, type ChunkRecord } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -125,6 +131,7 @@ const outputSchema = {
 
 export type HybridSearchTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
 export type HybridSearchTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
+export type ChunkVectorHybridSearchTaskConfig = TaskConfig<HybridSearchTaskInput>;
 
 /**
  * Task for hybrid search combining vector similarity and full-text search.
@@ -137,7 +144,7 @@ export type HybridSearchTaskOutput = FromSchema<typeof outputSchema, TypedArrayS
 export class ChunkVectorHybridSearchTask extends Task<
   HybridSearchTaskInput,
   HybridSearchTaskOutput,
-  TaskConfig
+  ChunkVectorHybridSearchTaskConfig
 > {
   public static override type = "ChunkVectorHybridSearchTask";
   public static override category = "RAG";
@@ -208,14 +215,18 @@ export class ChunkVectorHybridSearchTask extends Task<
 
 export const hybridSearch = async (
   input: HybridSearchTaskInput,
-  config?: TaskConfig
+  config?: ChunkVectorHybridSearchTaskConfig
 ): Promise<HybridSearchTaskOutput> => {
-  return new ChunkVectorHybridSearchTask({} as HybridSearchTaskInput, config).run(input);
+  return new ChunkVectorHybridSearchTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    hybridSearch: CreateWorkflow<HybridSearchTaskInput, HybridSearchTaskOutput, TaskConfig>;
+    hybridSearch: CreateWorkflow<
+      HybridSearchTaskInput,
+      HybridSearchTaskOutput,
+      ChunkVectorHybridSearchTaskConfig
+    >;
   }
 }
 

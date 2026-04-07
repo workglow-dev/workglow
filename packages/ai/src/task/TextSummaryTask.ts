@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -41,12 +41,17 @@ export const TextSummaryOutputSchema = {
 
 export type TextSummaryTaskInput = FromSchema<typeof TextSummaryInputSchema>;
 export type TextSummaryTaskOutput = FromSchema<typeof TextSummaryOutputSchema>;
+export type TextSummaryTaskConfig = TaskConfig<TextSummaryTaskInput>;
 
 /**
  * This summarizes a piece of text
  */
 
-export class TextSummaryTask extends StreamingAiTask<TextSummaryTaskInput, TextSummaryTaskOutput> {
+export class TextSummaryTask extends StreamingAiTask<
+  TextSummaryTaskInput,
+  TextSummaryTaskOutput,
+  TextSummaryTaskConfig
+> {
   public static override type = "TextSummaryTask";
   public static override category = "AI Text Model";
   public static override title = "Text Summary";
@@ -66,13 +71,13 @@ export class TextSummaryTask extends StreamingAiTask<TextSummaryTaskInput, TextS
  * @param input The input parameters for text summary (text and model)
  * @returns Promise resolving to the summarized text output(s)
  */
-export const textSummary = async (input: TextSummaryTaskInput, config?: TaskConfig) => {
-  return new TextSummaryTask({} as TextSummaryTaskInput, config).run(input);
+export const textSummary = async (input: TextSummaryTaskInput, config?: TextSummaryTaskConfig) => {
+  return new TextSummaryTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    textSummary: CreateWorkflow<TextSummaryTaskInput, TextSummaryTaskOutput, TaskConfig>;
+    textSummary: CreateWorkflow<TextSummaryTaskInput, TextSummaryTaskOutput, TextSummaryTaskConfig>;
   }
 }
 

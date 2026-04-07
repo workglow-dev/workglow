@@ -19,7 +19,10 @@ export const wasm_tasks = new Map<string, TFMPWasmFileset>();
 export const wasm_reference_counts = new Map<string, number>();
 
 type TaskConstructor = {
-  createFromOptions(wasmFileset: TFMPWasmFileset, options: Record<string, unknown>): Promise<any>;
+  createFromOptions(
+    wasmFileset: TFMPWasmFileset,
+    options: Record<string, unknown>
+  ): Promise<TaskInstance>;
 };
 
 export type TaskInstance = {
@@ -131,7 +134,7 @@ export const getModelTask = async (
 
   onProgress(0.2, "Creating model task");
 
-  const task = await (TaskType as any).createFromOptions(wasmFileset, {
+  const task = await TaskType.createFromOptions(wasmFileset, {
     baseOptions: {
       modelAssetPath: model_path,
     },

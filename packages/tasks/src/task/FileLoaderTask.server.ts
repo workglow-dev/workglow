@@ -237,7 +237,7 @@ export class FileLoaderTask extends BaseFileLoaderTask {
 }
 
 export const fileLoader = (input: FileLoaderTaskInput, config?: TaskConfig) => {
-  return new FileLoaderTask({}, config).run(input);
+  return new FileLoaderTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

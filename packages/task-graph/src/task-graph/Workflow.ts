@@ -19,7 +19,7 @@ import { getPortStreamMode, type StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
-import { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
+import type { DataPorts, TaskConfig, TaskIdType, TaskInput, TaskOutput } from "../task/TaskTypes";
 import { ensureTask, type PipeFunction, type Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import type { ITaskGraph } from "./ITaskGraph";
@@ -121,7 +121,6 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
 ): IWorkflow<I, O> {
   let previousTask = getLastTask(workflow);
   const tasks = args.map((arg) => ensureTask(arg));
-  const input = {};
   const config = {
     compoundMerge: mergeFn,
   };
@@ -129,7 +128,7 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
   class ParallelTask extends GraphAsTask<I, O> {
     public static override type = name;
   }
-  const mergeTask = new ParallelTask(input, config);
+  const mergeTask = new ParallelTask(config);
   mergeTask.subGraph!.addTasks(tasks);
   workflow.graph.addTask(mergeTask);
   if (previousTask) {
@@ -139,7 +138,7 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
 }
 
 // Type definitions for the workflow
-export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends TaskConfig> = (
+export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends TaskConfig<I>> = (
   input?: Partial<I>,
   config?: Partial<C>
 ) => Workflow<I, O>;
@@ -147,7 +146,7 @@ export type CreateWorkflow<I extends DataPorts, O extends DataPorts, C extends T
 export function CreateWorkflow<
   I extends DataPorts,
   O extends DataPorts,
-  C extends TaskConfig = TaskConfig,
+  C extends TaskConfig<I> = TaskConfig<I>,
 >(taskClass: ITaskConstructor<I, O, C>): CreateWorkflow<I, O, C> {
   return Workflow.createWorkflow<I, O, C>(taskClass);
 }
@@ -160,7 +159,7 @@ export function CreateWorkflow<
 export type CreateLoopWorkflow<
   I extends DataPorts,
   O extends DataPorts,
-  C extends TaskConfig = TaskConfig,
+  C extends TaskConfig<I> = TaskConfig<I>,
 > = (this: Workflow<I, O>, config?: Partial<C>) => Workflow<I, O>;
 
 /**
@@ -173,7 +172,7 @@ export type CreateLoopWorkflow<
 export function CreateLoopWorkflow<
   I extends DataPorts,
   O extends DataPorts,
-  C extends TaskConfig = TaskConfig,
+  C extends TaskConfig<I> = TaskConfig<I>,
 >(taskClass: ITaskConstructor<I, O, C>): CreateLoopWorkflow<I, O, C> {
   return function (this: Workflow<I, O>, config: Partial<C> = {}): Workflow<I, O> {
     return this.addLoopTask(taskClass, config);
@@ -269,8 +268,8 @@ export type CreateAdaptiveWorkflow<
   OS extends DataPorts,
   IV extends DataPorts,
   OV extends DataPorts,
-  CS extends TaskConfig = TaskConfig,
-  CV extends TaskConfig = TaskConfig,
+  CS extends TaskConfig<IS> = TaskConfig<IS>,
+  CV extends TaskConfig<IV> = TaskConfig<IV>,
 > = (
   this: Workflow,
   input?: Partial<IS> & Partial<IV>,
@@ -292,8 +291,8 @@ export function CreateAdaptiveWorkflow<
   OS extends DataPorts,
   IV extends DataPorts,
   OV extends DataPorts,
-  CS extends TaskConfig = TaskConfig,
-  CV extends TaskConfig = TaskConfig,
+  CS extends TaskConfig<IS> = TaskConfig<IS>,
+  CV extends TaskConfig<IV> = TaskConfig<IV>,
 >(
   scalarClass: ITaskConstructor<IS, OS, CS>,
   vectorClass: ITaskConstructor<IV, OV, CV>
@@ -426,7 +425,7 @@ export class Workflow<
   public static createWorkflow<
     I extends DataPorts,
     O extends DataPorts,
-    C extends TaskConfig = TaskConfig,
+    C extends TaskConfig<I> = TaskConfig<I>,
   >(taskClass: ITaskConstructor<I, O, C>): CreateWorkflow<I, O, C> {
     const helper = function (
       this: Workflow<any, any>,
@@ -437,11 +436,11 @@ export class Workflow<
 
       const parent = getLastTask(this);
 
-      const task = this.addTaskToGraph<I, O, C>(
-        taskClass,
-        input as I,
-        { id: uuid4(), ...config } as C
-      );
+      const task = this.addTaskToGraph<I, O, C>(taskClass, {
+        id: uuid4(),
+        ...config,
+        defaults: input,
+      } as C);
 
       // Process any pending data flows
       if (this._dataFlows.length > 0) {
@@ -977,13 +976,9 @@ export class Workflow<
   public addTaskToGraph<
     I extends DataPorts,
     O extends DataPorts,
-    C extends TaskConfig = TaskConfig,
-  >(taskClass: ITaskConstructor<I, O, C>, input: I, config: C): ITask<I, O, C> {
-    const task = new taskClass(
-      input,
-      config,
-      this._registry ? { registry: this._registry } : undefined
-    );
+    C extends TaskConfig<I> = TaskConfig<I>,
+  >(taskClass: ITaskConstructor<I, O, C>, config: C): ITask<I, O, C> {
+    const task = new taskClass(config, this._registry ? { registry: this._registry } : undefined);
     const id = this.graph.addTask(task);
     this.events.emit("changed", id);
     return task;
@@ -998,7 +993,7 @@ export class Workflow<
    * @param config - Optional configuration (id will be auto-generated if not provided)
    * @returns The workflow for chaining
    */
-  public addTask<I extends DataPorts, O extends DataPorts, C extends TaskConfig = TaskConfig>(
+  public addTask<I extends DataPorts, O extends DataPorts, C extends TaskConfig<I> = TaskConfig<I>>(
     taskClass: ITaskConstructor<I, O, C>,
     input?: Partial<I>,
     config?: Partial<C>
@@ -1019,15 +1014,16 @@ export class Workflow<
    * @param config - Optional configuration for the iterator task
    * @returns A new loop builder Workflow for adding tasks inside the loop
    */
-  public addLoopTask<I extends DataPorts, O extends DataPorts, C extends TaskConfig = TaskConfig>(
-    taskClass: ITaskConstructor<I, O, C>,
-    config: Partial<C> = {}
-  ): Workflow<I, O> {
+  public addLoopTask<
+    I extends DataPorts,
+    O extends DataPorts,
+    C extends TaskConfig<I> = TaskConfig<I>,
+  >(taskClass: ITaskConstructor<I, O, C>, config: Partial<C> = {}): Workflow<I, O> {
     this._error = "";
 
     const parent = getLastTask(this);
 
-    const task = this.addTaskToGraph<I, O, C>(taskClass, {} as I, { id: uuid4(), ...config } as C);
+    const task = this.addTaskToGraph<I, O, C>(taskClass, { id: uuid4(), ...config } as C);
 
     // Process any pending data flows (same as createWorkflow)
     if (this._dataFlows.length > 0) {
@@ -1107,7 +1103,7 @@ export class Workflow<
       if (task.type === "InputTask") {
         // If the schema is marked as fully manual (x-ui-manual at schema level),
         // skip edge-based regeneration — the user explicitly defined this schema.
-        const existingConfig = (task as any).config;
+        const existingConfig = (task as ITask).config;
         const existingSchema = existingConfig?.inputSchema ?? existingConfig?.outputSchema;
         if (
           existingSchema &&
@@ -1146,8 +1142,9 @@ export class Workflow<
           additionalProperties: false,
         } as DataPortSchema;
 
-        (task as any).config = {
-          ...(task as any).config,
+        // @ts-expect-error - config is readonly
+        task.config = {
+          ...task.config,
           inputSchema: schema,
           outputSchema: schema,
         };
@@ -1184,8 +1181,9 @@ export class Workflow<
           additionalProperties: false,
         } as DataPortSchema;
 
-        (task as any).config = {
-          ...(task as any).config,
+        // @ts-expect-error - config is readonly
+        task.config = {
+          ...task.config,
           inputSchema: schema,
           outputSchema: schema,
         };
@@ -1483,7 +1481,7 @@ export class Workflow<
         // (x-ui-manual), only connect ports that exist in its schema.
         // Otherwise, treat it as a universal provider.
         if (earlierTask.type === "InputTask") {
-          const inputConfig = (earlierTask as any).config;
+          const inputConfig = earlierTask.config;
           const inputSchema = inputConfig?.inputSchema ?? inputConfig?.outputSchema;
           const isManualSchema =
             inputSchema &&

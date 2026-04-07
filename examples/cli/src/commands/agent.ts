@@ -8,6 +8,7 @@ import {
   computeGraphInputSchema,
   createGraphFromGraphJSON,
   type TaskGraphJson,
+  type TaskDeserializationOptions,
 } from "@workglow/task-graph";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
@@ -233,9 +234,24 @@ export function registerAgentCommand(program: Command): void {
         process.exit(1);
       }
 
+      // Restrict which task types can be instantiated from untrusted agent JSON.
+      // This allowlist should include only task types that are safe and expected in agent graphs.
+      const deserializationOptions: TaskDeserializationOptions = {
+        allowedTypes: new Set<string>([
+          // Core control-flow / composition tasks
+          "GraphAsTask",
+          "ConditionalTask",
+          "IteratorTask",
+          "MapTask",
+          "ReduceTask",
+          "WhileTask",
+          // Add additional allowed task type names here as needed.
+        ]),
+      };
+
       let graph;
       try {
-        graph = createGraphFromGraphJSON(json);
+        graph = createGraphFromGraphJSON(json, undefined, deserializationOptions);
       } catch (e) {
         console.error(`Invalid agent graph: ${formatError(e)}`);
         process.exit(1);

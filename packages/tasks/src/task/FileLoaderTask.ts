@@ -130,18 +130,11 @@ export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutp
     }
     await context.updateProgress(10, `Fetching ${detectedFormat} file from ${url}`);
 
-    const fetchTask = context.own(
-      new FetchUrlTask(
-        {
-          url,
-          response_type: responseType,
-        },
-        {
-          queue: false, // Run directly
-        }
-      )
-    );
-    const response = await fetchTask.run();
+    const fetchTask = context.own(new FetchUrlTask({ queue: false }));
+    const response = await fetchTask.run({
+      url,
+      response_type: responseType,
+    });
 
     if (context.signal.aborted) {
       throw new TaskAbortedError("Task aborted");
@@ -581,7 +574,7 @@ export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutp
 }
 
 export const fileLoader = (input: FileLoaderTaskInput, config?: TaskConfig) => {
-  return new FileLoaderTask({}, config).run(input);
+  return new FileLoaderTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {

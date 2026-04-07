@@ -98,6 +98,13 @@ export class Task<
   public static customizable: boolean = false;
 
   /**
+   * When true, this task defines the graph's output. The graph runner will
+   * collect results only from tasks with this flag when they exist among the
+   * leaf nodes; otherwise it falls back to collecting from all leaves.
+   */
+  public static isGraphOutput: boolean = false;
+
+  /**
    * Input schema for this task
    */
   public static inputSchema(): DataPortSchema {
@@ -368,18 +375,21 @@ export class Task<
   /**
    * Creates a new task instance
    *
-   * @param callerDefaultInputs Default input values provided by the caller
-   * @param config Configuration for the task
+   * @param config Configuration for the task (includes defaults for input values)
    * @param runConfig Runtime configuration for the task
    */
   constructor(
-    callerDefaultInputs: NoInfer<Partial<Input>> = {},
     config: NoInfer<Partial<Config>> = {},
     runConfig: NoInfer<Partial<IRunConfig>> = {}
   ) {
+    // Extract caller-provided defaults from config
+    const { defaults: callerDefaultInputs, ...restConfig } = config as Partial<Config> & {
+      defaults?: Partial<Input>;
+    };
+
     // Initialize input defaults
     const inputDefaults = this.getDefaultInputsFromStaticInputDefinitions();
-    const mergedDefaults = Object.assign(inputDefaults, callerDefaultInputs);
+    const mergedDefaults = Object.assign(inputDefaults, callerDefaultInputs ?? {});
     // Strip symbol properties (like [$JSONSchema]) before storing defaults
     this.defaults = this.stripSymbols(mergedDefaults) as Record<string, any>;
     this.resetInputData();
@@ -390,7 +400,7 @@ export class Task<
       {
         ...(title ? { title } : {}),
       },
-      config
+      restConfig
     ) as Config;
     if (baseConfig.id === undefined) {
       (baseConfig as Record<string, unknown>).id = uuid4();
@@ -567,8 +577,11 @@ export class Task<
     for (const [inputId, prop] of Object.entries(properties)) {
       if (input[inputId] !== undefined) {
         this.runInputData[inputId] = input[inputId];
-      } else if (this.runInputData[inputId] === undefined && (prop as any).default !== undefined) {
-        this.runInputData[inputId] = (prop as any).default;
+      } else if (
+        this.runInputData[inputId] === undefined &&
+        (prop as { default?: unknown }).default !== undefined
+      ) {
+        this.runInputData[inputId] = prop.default;
       }
     }
 
@@ -795,7 +808,7 @@ export class Task<
     const result = schemaNode.validate(config);
     if (!result.valid) {
       const errorMessages = result.errors.map((e) => {
-        const path = (e as any).data?.pointer || "";
+        const path = e.data?.pointer || "";
         return `${e.message}${path ? ` (${path})` : ""}`;
       });
       throw new TaskConfigurationError(

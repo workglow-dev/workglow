@@ -9,6 +9,7 @@ import type { TaskIdType } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import type { TaskGraph } from "./TaskGraph";
 import { Workflow } from "./Workflow";
+import { Task } from "../task/Task";
 
 /**
  * Options controlling the generated workflow code.
@@ -379,8 +380,8 @@ function computeRenames(
 function extractTaskConfig(task: ITask): Record<string, unknown> {
   const config: Record<string, unknown> = {};
   const rawConfig = task.config;
-  const staticTitle = (task.constructor as any).title || "";
-  const staticDescription = (task.constructor as any).description || "";
+  const staticTitle = (task.constructor as typeof Task).title || "";
+  const staticDescription = (task.constructor as typeof Task).description || "";
   if (rawConfig.title && rawConfig.title !== staticTitle) config.title = rawConfig.title;
   if (rawConfig.description && rawConfig.description !== staticDescription)
     config.description = rawConfig.description;

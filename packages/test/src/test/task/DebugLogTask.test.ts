@@ -16,7 +16,7 @@ describe("DebugLogTask", () => {
   let task: DebugLogTask;
 
   beforeEach(() => {
-    task = new DebugLogTask({}, { id: "debuglog-test" });
+    task = new DebugLogTask({ id: "debuglog-test" });
     vi.restoreAllMocks();
   });
 
@@ -43,7 +43,7 @@ describe("DebugLogTask", () => {
   });
 
   it("should use console.dir when log_level is dir", async () => {
-    const dirTask = new DebugLogTask({}, { id: "debuglog-dir", log_level: "dir" });
+    const dirTask = new DebugLogTask({ id: "debuglog-dir", log_level: "dir" });
     const spy = vi.spyOn(console, "dir").mockImplementation(() => {});
     await dirTask.run({ data: "test" });
     expect(spy).toHaveBeenCalledWith({ data: "test" }, { depth: null });
@@ -51,7 +51,7 @@ describe("DebugLogTask", () => {
   });
 
   it("should use console.warn when log_level is warn", async () => {
-    const warnTask = new DebugLogTask({}, { id: "debuglog-warn", log_level: "warn" });
+    const warnTask = new DebugLogTask({ id: "debuglog-warn", log_level: "warn" });
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     await warnTask.run({ data: "test" });
     expect(spy).toHaveBeenCalled();
@@ -59,7 +59,7 @@ describe("DebugLogTask", () => {
   });
 
   it("should use console.error when log_level is error", async () => {
-    const errorTask = new DebugLogTask({}, { id: "debuglog-error", log_level: "error" });
+    const errorTask = new DebugLogTask({ id: "debuglog-error", log_level: "error" });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     await errorTask.run({ data: "test" });
     expect(spy).toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe("DebugLogTask", () => {
   });
 
   it("should use console.info when log_level is info", async () => {
-    const infoTask = new DebugLogTask({}, { id: "debuglog-info", log_level: "info" });
+    const infoTask = new DebugLogTask({ id: "debuglog-info", log_level: "info" });
     const spy = vi.spyOn(console, "info").mockImplementation(() => {});
     await infoTask.run({ data: "test" });
     expect(spy).toHaveBeenCalled();
@@ -75,7 +75,7 @@ describe("DebugLogTask", () => {
   });
 
   it("should use console.debug when log_level is debug", async () => {
-    const debugTask = new DebugLogTask({}, { id: "debuglog-debug", log_level: "debug" });
+    const debugTask = new DebugLogTask({ id: "debuglog-debug", log_level: "debug" });
     const spy = vi.spyOn(console, "debug").mockImplementation(() => {});
     await debugTask.run({ data: "test" });
     expect(spy).toHaveBeenCalled();

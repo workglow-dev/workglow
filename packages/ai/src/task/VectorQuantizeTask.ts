@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, type TaskConfig, Task, Workflow } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -92,6 +92,7 @@ const outputSchema = {
 
 export type VectorQuantizeTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
 export type VectorQuantizeTaskOutput = FromSchema<typeof outputSchema, TypedArraySchemaOptions>;
+export type VectorQuantizeTaskConfig = TaskConfig<VectorQuantizeTaskInput>;
 
 /**
  * Task for quantizing vectors to reduce storage and improve performance.
@@ -100,7 +101,7 @@ export type VectorQuantizeTaskOutput = FromSchema<typeof outputSchema, TypedArra
 export class VectorQuantizeTask extends Task<
   VectorQuantizeTaskInput,
   VectorQuantizeTaskOutput,
-  TaskConfig
+  VectorQuantizeTaskConfig
 > {
   public static override type = "VectorQuantizeTask";
   public static override category = "Vector";
@@ -116,7 +117,9 @@ export class VectorQuantizeTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  override async executeReactive(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
+  override async executeReactive(
+    input: VectorQuantizeTaskInput
+  ): Promise<VectorQuantizeTaskOutput> {
     const { vector, targetType, normalize = true } = input;
     const isArray = Array.isArray(vector);
     const vectors = isArray ? vector : [vector];
@@ -232,13 +235,20 @@ export class VectorQuantizeTask extends Task<
   }
 }
 
-export const vectorQuantize = (input: VectorQuantizeTaskInput, config?: TaskConfig) => {
-  return new VectorQuantizeTask({} as VectorQuantizeTaskInput, config).run(input);
+export const vectorQuantize = (
+  input: VectorQuantizeTaskInput,
+  config?: VectorQuantizeTaskConfig
+) => {
+  return new VectorQuantizeTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    vectorQuantize: CreateWorkflow<VectorQuantizeTaskInput, VectorQuantizeTaskOutput, TaskConfig>;
+    vectorQuantize: CreateWorkflow<
+      VectorQuantizeTaskInput,
+      VectorQuantizeTaskOutput,
+      VectorQuantizeTaskConfig
+    >;
   }
 }
 

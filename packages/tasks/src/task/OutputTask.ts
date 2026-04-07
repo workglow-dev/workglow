@@ -27,6 +27,7 @@ export class OutputTask extends Task<OutputTaskInput, OutputTaskOutput, OutputTa
   static override description = "Ends the workflow";
   static override hasDynamicSchemas = true;
   static override cacheable = false;
+  static override isGraphOutput = true;
 
   public static override inputSchema(): DataPortSchema {
     return {

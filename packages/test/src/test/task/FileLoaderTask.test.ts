@@ -44,7 +44,7 @@ describe("FileLoaderTask", () => {
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.txt", format: "text" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.txt", format: "text" } });
     const result = await task.run();
 
     expect(result.text).toBe(textContent);
@@ -65,7 +65,7 @@ describe("FileLoaderTask", () => {
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.md", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.md", format: "auto" } });
     const result = await task.run();
 
     expect(result.text).toBe(markdownContent);
@@ -86,7 +86,7 @@ describe("FileLoaderTask", () => {
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.json", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.json", format: "auto" } });
     const result = await task.run();
 
     expect(result.json).toEqual(jsonData);
@@ -109,7 +109,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.csv", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.csv", format: "auto" } });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("csv");
@@ -134,7 +134,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/products.csv" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/products.csv" } });
     const result = await task.run();
 
     expect(result.csv).toHaveLength(2);
@@ -164,7 +164,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.png", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.png", format: "auto" } });
     const result = await task.run();
 
     expect(result.image).toContain("data:image/png;base64,");
@@ -188,7 +188,7 @@ Bob,35,Paris`;
         )
       );
 
-      const task = new FileLoaderTask({ url: `https://example.com/test.${ext}`, format: "auto" });
+      const task = new FileLoaderTask({ defaults: { url: `https://example.com/test.${ext}`, format: "auto" } });
       const result = await task.run();
 
       expect(result.metadata.format).toBe("image");
@@ -211,7 +211,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.pdf", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.pdf", format: "auto" } });
     const result = await task.run();
 
     expect(result.pdf).toContain("data:application/pdf;base64,");
@@ -232,7 +232,7 @@ Bob,35,Paris`;
     );
 
     // Even though URL ends with .json, force it as text
-    const task = new FileLoaderTask({ url: "https://example.com/data.json", format: "text" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/data.json", format: "text" } });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("text");
@@ -251,7 +251,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/empty.csv" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/empty.csv" } });
     const result = await task.run();
 
     expect(result.csv).toEqual([]);
@@ -266,7 +266,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/empty.txt" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/empty.txt" } });
     const result = await task.run();
 
     expect(result.text).toBe("");
@@ -285,7 +285,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/empty.png" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/empty.png" } });
     const result = await task.run();
 
     expect(result.image).toContain("data:image/png;base64,");
@@ -305,7 +305,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/empty.pdf" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/empty.pdf" } });
     const result = await task.run();
 
     expect(result.pdf).toContain("data:application/pdf;base64,");
@@ -325,7 +325,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/TEST.JSON", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/TEST.JSON", format: "auto" } });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("json");
@@ -343,7 +343,7 @@ Bob,35,Paris`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/file.xyz", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/file.xyz", format: "auto" } });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("text");
@@ -364,7 +364,7 @@ Bob,35,`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/sparse.csv" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/sparse.csv" } });
     const result = await task.run();
 
     expect(result.csv).toHaveLength(3);
@@ -385,7 +385,7 @@ Bob,35,`;
     );
 
     const url = "https://example.com/folder/file.txt";
-    const task = new FileLoaderTask({ url, format: "text" });
+    const task = new FileLoaderTask({ defaults: { url, format: "text" } });
     const result = await task.run();
 
     expect(result.metadata).toHaveProperty("url", url);
@@ -416,7 +416,7 @@ Bob,35,`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/complex.json" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/complex.json" } });
     const result = await task.run();
 
     expect(result.json).toEqual(jsonData);
@@ -447,7 +447,7 @@ This is the body.`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/post.md", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/post.md", format: "auto" } });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("markdown");
@@ -471,7 +471,7 @@ This is the body.`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/plain.md" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/plain.md" } });
     const result = await task.run();
 
     expect(result.frontmatter).toBeUndefined();
@@ -500,7 +500,7 @@ import { getTestingLogger } from "../../binding/TestingLogger";
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/page.mdx", format: "auto" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/page.mdx", format: "auto" } });
     const result = await task.run();
 
     expect(result.metadata.format).toBe("markdown");
@@ -533,7 +533,7 @@ Body content.`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/types.md" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/types.md" } });
     const result = await task.run();
 
     expect(result.frontmatter).toEqual({
@@ -559,7 +559,7 @@ Body content.`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.txt", format: "text" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.txt", format: "text" } });
     const result = await task.run();
 
     expect(result.frontmatter).toBeUndefined();
@@ -577,7 +577,7 @@ Body content.`;
       )
     );
 
-    const task = new FileLoaderTask({ url: "https://example.com/test.json" });
+    const task = new FileLoaderTask({ defaults: { url: "https://example.com/test.json" } });
     const result = await task.run();
 
     expect(result.json).toEqual(jsonData);

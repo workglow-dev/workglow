@@ -36,8 +36,6 @@ function schemaFormat(schema: JsonSchema): string | undefined {
     : undefined;
 }
 
-export type AiTaskConfig = TaskConfig;
-
 const aiTaskConfigSchema = {
   type: "object",
   properties: {
@@ -46,7 +44,7 @@ const aiTaskConfigSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export interface AiSingleTaskInput extends TaskInput {
+export interface AiTaskInput extends TaskInput {
   model: string | ModelConfig;
 }
 
@@ -58,9 +56,9 @@ export interface AiSingleTaskInput extends TaskInput {
  * By the time execute() is called, input.model is always a ModelConfig object.
  */
 export class AiTask<
-  Input extends AiSingleTaskInput = AiSingleTaskInput,
+  Input extends AiTaskInput = AiTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends AiTaskConfig = AiTaskConfig,
+  Config extends TaskConfig<Input> = TaskConfig<Input>,
 > extends Task<Input, Output, Config> {
   public static override type: string = "AiTask";
 
@@ -115,7 +113,7 @@ export class AiTask<
     }
 
     // Attach structured output schema if the task declares it.
-    const inputOutputSchema = (input as any).outputSchema;
+    const inputOutputSchema = input.outputSchema as DataPortSchema;
     if (
       inputOutputSchema &&
       typeof inputOutputSchema === "object" &&

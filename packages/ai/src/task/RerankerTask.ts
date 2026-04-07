@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 import { ModelConfig } from "../model/ModelSchema";
@@ -106,6 +112,7 @@ const outputSchema = {
 
 export type RerankerTaskInput = FromSchema<typeof inputSchema>;
 export type RerankerTaskOutput = FromSchema<typeof outputSchema>;
+export type RerankerTaskConfig = TaskConfig<RerankerTaskInput>;
 
 interface RankedItem {
   chunk: string;
@@ -121,7 +128,7 @@ interface RankedItem {
  * Note: Cross-encoder reranking requires a model to be loaded.
  * For now, this implements simple heuristic-based reranking.
  */
-export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, TaskConfig> {
+export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, RerankerTaskConfig> {
   public static override type = "RerankerTask";
   public static override category = "RAG";
   public static override title = "Reranker";
@@ -137,7 +144,10 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Ta
     return outputSchema as DataPortSchema;
   }
 
-  override async execute(input: RerankerTaskInput, context: IExecuteContext): Promise<RerankerTaskOutput> {
+  override async execute(
+    input: RerankerTaskInput,
+    context: IExecuteContext
+  ): Promise<RerankerTaskOutput> {
     const { query, chunks, scores = [], metadata = [], topK, method = "simple", model } = input;
 
     let rankedItems: RankedItem[];
@@ -202,13 +212,9 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Ta
     const items = await Promise.all(
       chunks.map(async (chunk, index) => {
         const pairText = `${query} [SEP] ${chunk}`;
-        const task = context.own(
-          new TextClassificationTask({ text: pairText, model: model, maxCategories: 2 })
-        );
-        const result = await task.run();
-        const crossScore = this.extractCrossEncoderScore(
-          result.categories as Array<{ label: string; score: number }>
-        );
+        const task = context.own(new TextClassificationTask({ defaults: { model } }));
+        const result = await task.run({ text: pairText, maxCategories: 2 });
+        const crossScore = this.extractCrossEncoderScore(result.categories);
         return {
           chunk,
           score: Number.isFinite(crossScore) ? crossScore : scores[index] || 0,
@@ -328,13 +334,13 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Ta
   }
 }
 
-export const reranker = (input: RerankerTaskInput, config?: TaskConfig) => {
-  return new RerankerTask({} as RerankerTaskInput, config).run(input);
+export const reranker = (input: RerankerTaskInput, config?: RerankerTaskConfig) => {
+  return new RerankerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    reranker: CreateWorkflow<RerankerTaskInput, RerankerTaskOutput, TaskConfig>;
+    reranker: CreateWorkflow<RerankerTaskInput, RerankerTaskOutput, RerankerTaskConfig>;
   }
 }
 

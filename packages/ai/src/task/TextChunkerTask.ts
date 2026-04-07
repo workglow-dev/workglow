@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, TaskConfig, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  type TaskConfig,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const ChunkingStrategy = {
@@ -81,6 +87,7 @@ const outputSchema = {
 
 export type TextChunkerTaskInput = FromSchema<typeof inputSchema>;
 export type TextChunkerTaskOutput = FromSchema<typeof outputSchema>;
+export type TextChunkerTaskConfig = TaskConfig<TextChunkerTaskInput>;
 
 interface ChunkMetadata {
   index: number;
@@ -93,7 +100,11 @@ interface ChunkMetadata {
  * Task for chunking text into smaller segments with configurable strategies.
  * Supports fixed-size, sentence-based, paragraph-based, and semantic chunking.
  */
-export class TextChunkerTask extends Task<TextChunkerTaskInput, TextChunkerTaskOutput, TaskConfig> {
+export class TextChunkerTask extends Task<
+  TextChunkerTaskInput,
+  TextChunkerTaskOutput,
+  TextChunkerTaskConfig
+> {
   public static override type = "TextChunkerTask";
   public static override category = "Document";
   public static override title = "Text Chunker";
@@ -332,13 +343,13 @@ export class TextChunkerTask extends Task<TextChunkerTaskInput, TextChunkerTaskO
   }
 }
 
-export const textChunker = (input: TextChunkerTaskInput, config?: TaskConfig) => {
-  return new TextChunkerTask({} as TextChunkerTaskInput, config).run(input);
+export const textChunker = (input: TextChunkerTaskInput, config?: TextChunkerTaskConfig) => {
+  return new TextChunkerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    textChunker: CreateWorkflow<TextChunkerTaskInput, TextChunkerTaskOutput, TaskConfig>;
+    textChunker: CreateWorkflow<TextChunkerTaskInput, TextChunkerTaskOutput, TextChunkerTaskConfig>;
   }
 }
 

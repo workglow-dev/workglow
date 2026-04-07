@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
@@ -48,6 +48,7 @@ export type ImageEmbeddingTaskOutput = FromSchema<
   typeof ImageEmbeddingOutputSchema,
   TypedArraySchemaOptions
 >;
+export type ImageEmbeddingTaskConfig = TaskConfig<ImageEmbeddingTaskInput>;
 
 /**
  * Generates embeddings from images using vision models
@@ -55,7 +56,7 @@ export type ImageEmbeddingTaskOutput = FromSchema<
 export class ImageEmbeddingTask extends AiVisionTask<
   ImageEmbeddingTaskInput,
   ImageEmbeddingTaskOutput,
-  TaskConfig
+  ImageEmbeddingTaskConfig
 > {
   public static override type = "ImageEmbeddingTask";
   public static override category = "AI Vision Model";
@@ -75,13 +76,20 @@ export class ImageEmbeddingTask extends AiVisionTask<
  * @param input The input parameters for image embedding (image and model)
  * @returns Promise resolving to the image embedding vector
  */
-export const imageEmbedding = (input: ImageEmbeddingTaskInput, config?: TaskConfig) => {
-  return new ImageEmbeddingTask({} as ImageEmbeddingTaskInput, config).run(input);
+export const imageEmbedding = (
+  input: ImageEmbeddingTaskInput,
+  config?: ImageEmbeddingTaskConfig
+) => {
+  return new ImageEmbeddingTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    imageEmbedding: CreateWorkflow<ImageEmbeddingTaskInput, ImageEmbeddingTaskOutput, TaskConfig>;
+    imageEmbedding: CreateWorkflow<
+      ImageEmbeddingTaskInput,
+      ImageEmbeddingTaskOutput,
+      ImageEmbeddingTaskConfig
+    >;
   }
 }
 

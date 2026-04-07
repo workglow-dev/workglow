@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -52,6 +52,7 @@ export const TextQuestionAnswerOutputSchema = {
 
 export type TextQuestionAnswerTaskInput = FromSchema<typeof TextQuestionAnswerInputSchema>;
 export type TextQuestionAnswerTaskOutput = FromSchema<typeof TextQuestionAnswerOutputSchema>;
+export type TextQuestionAnswerTaskConfig = TaskConfig<TextQuestionAnswerTaskInput>;
 
 /**
  * This is a special case of text generation that takes a context and a question
@@ -59,12 +60,13 @@ export type TextQuestionAnswerTaskOutput = FromSchema<typeof TextQuestionAnswerO
 export class TextQuestionAnswerTask extends StreamingAiTask<
   TextQuestionAnswerTaskInput,
   TextQuestionAnswerTaskOutput,
-  TaskConfig
+  TextQuestionAnswerTaskConfig
 > {
   public static override type = "TextQuestionAnswerTask";
   public static override category = "AI Text Model";
   public static override title = "Text Question Answer";
-  public static override description = "Answers questions based on provided context using language models";
+  public static override description =
+    "Answers questions based on provided context using language models";
   public static override inputSchema(): DataPortSchema {
     return TextQuestionAnswerInputSchema as DataPortSchema;
   }
@@ -79,8 +81,11 @@ export class TextQuestionAnswerTask extends StreamingAiTask<
  * @param input The input parameters for text question answer (context, question, and model)
  * @returns Promise resolving to the generated answer(s)
  */
-export const textQuestionAnswer = (input: TextQuestionAnswerTaskInput, config?: TaskConfig) => {
-  return new TextQuestionAnswerTask({} as TextQuestionAnswerTaskInput, config).run(input);
+export const textQuestionAnswer = (
+  input: TextQuestionAnswerTaskInput,
+  config?: TextQuestionAnswerTaskConfig
+) => {
+  return new TextQuestionAnswerTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -88,7 +93,7 @@ declare module "@workglow/task-graph" {
     textQuestionAnswer: CreateWorkflow<
       TextQuestionAnswerTaskInput,
       TextQuestionAnswerTaskOutput,
-      TaskConfig
+      TextQuestionAnswerTaskConfig
     >;
   }
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { AiTask } from "./base/AiTask";
 import { TypeModel } from "./base/AiTaskSchemas";
@@ -75,6 +75,7 @@ export const TextClassificationOutputSchema = {
 
 export type TextClassificationTaskInput = FromSchema<typeof TextClassificationInputSchema>;
 export type TextClassificationTaskOutput = FromSchema<typeof TextClassificationOutputSchema>;
+export type TextClassificationTaskConfig = TaskConfig<TextClassificationTaskInput>;
 
 /**
  * Classifies text into categories using language models.
@@ -82,7 +83,8 @@ export type TextClassificationTaskOutput = FromSchema<typeof TextClassificationO
  */
 export class TextClassificationTask extends AiTask<
   TextClassificationTaskInput,
-  TextClassificationTaskOutput
+  TextClassificationTaskOutput,
+  TextClassificationTaskConfig
 > {
   public static override type = "TextClassificationTask";
   public static override category = "AI Text Model";
@@ -103,8 +105,11 @@ export class TextClassificationTask extends AiTask<
  * @param input The input parameters for text classification (text and model)
  * @returns Promise resolving to the classification categories with scores
  */
-export const textClassification = (input: TextClassificationTaskInput, config?: TaskConfig) => {
-  return new TextClassificationTask({} as TextClassificationTaskInput, config).run(input);
+export const textClassification = (
+  input: TextClassificationTaskInput,
+  config?: TextClassificationTaskConfig
+) => {
+  return new TextClassificationTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
@@ -112,7 +117,7 @@ declare module "@workglow/task-graph" {
     textClassification: CreateWorkflow<
       TextClassificationTaskInput,
       TextClassificationTaskOutput,
-      TaskConfig
+      TextClassificationTaskConfig
     >;
   }
 }

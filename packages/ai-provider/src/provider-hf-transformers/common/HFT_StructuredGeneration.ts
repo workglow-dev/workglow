@@ -35,13 +35,30 @@ function buildStructuredGenerationPrompt(input: StructuredGenerationTaskInput): 
   );
 }
 
+/**
+ * Strip thinking blocks (`<think>...</think>`) and HFT special tokens
+ * (`<|im_end|>`, `<|end_of_turn|>`, etc.) that thinking models prepend
+ * to their actual output.
+ */
+function stripThinkingAndSpecialTokens(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/<\|[a-z_]+\|>/g, "")
+    .trim();
+}
+
 function extractJsonFromText(text: string): Record<string, unknown> {
-  // Try parsing directly first
+  // Strip thinking blocks and special tokens first so they don't
+  // interfere with JSON extraction (greedy regex would match braces
+  // inside thinking content).
+  const cleaned = stripThinkingAndSpecialTokens(text);
+
+  // Try parsing the cleaned text directly
   try {
-    return JSON.parse(text);
+    return JSON.parse(cleaned);
   } catch {
     // Try to extract JSON object from the text
-    const match = text.match(/\{[\s\S]*\}/);
+    const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
       try {
         return JSON.parse(match[0]);
@@ -65,7 +82,7 @@ export const HFT_StructuredGeneration: AiProviderRunFn<
 
   const messages: Message[] = [{ role: "user", content: prompt }];
 
-  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+  const formattedPrompt = generateText.tokenizer.apply_chat_template(messages, {
     tokenize: false,
     add_generation_prompt: true,
   }) as string;
@@ -108,7 +125,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
 
   const messages: Message[] = [{ role: "user", content: prompt }];
 
-  const formattedPrompt = (generateText.tokenizer as any).apply_chat_template(messages, {
+  const formattedPrompt = generateText.tokenizer.apply_chat_template(messages, {
     tokenize: false,
     add_generation_prompt: true,
   }) as string;
@@ -121,9 +138,10 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
   const originalPush = queue.push;
   queue.push = (event: StreamEvent<StructuredGenerationTaskOutput>) => {
     if (event.type === "text-delta" && "textDelta" in event) {
-      fullText += (event as any).textDelta;
+      fullText += event.textDelta;
       // Try to parse partial JSON and emit object-delta
-      const match = fullText.match(/\{[\s\S]*/);
+      const cleanedSoFar = stripThinkingAndSpecialTokens(fullText);
+      const match = cleanedSoFar.match(/\{[\s\S]*/);
       if (match) {
         const partial = parsePartialJson(match[0]);
         if (partial !== undefined) {

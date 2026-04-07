@@ -140,23 +140,19 @@ export function runGenericTaskGraphJobQueueTests(
 
   it("should run a task via job queue", async () => {
     await registeredQueue.server.start();
-    const task = new TestJobTask(
-      { a: 1, b: 2 },
-      {
-        queue: registeredQueue.server.queueName,
-      }
-    );
+    const task = new TestJobTask({
+      queue: registeredQueue.server.queueName,
+      defaults: { a: 1, b: 2 },
+    });
     const result = await task.run();
     expect(result).toEqual({ result: 3 });
   });
 
   it("should not run a task via job queue if not started", async () => {
-    const task = new TestJobTask(
-      { a: 1, b: 2 },
-      {
-        queue: registeredQueue.server.queueName,
-      }
-    );
+    const task = new TestJobTask({
+      queue: registeredQueue.server.queueName,
+      defaults: { a: 1, b: 2 },
+    });
     const wait = (ms: number, result: unknown) =>
       new Promise((resolve) => setTimeout(resolve, ms, result));
     const result = await Promise.race([task.run(), wait(10, "STOP")]);

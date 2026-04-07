@@ -448,7 +448,7 @@ describe("FetchUrlTask", () => {
 
   describe("dynamic outputSchema", () => {
     test("outputSchema returns all output types when response_type is null", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: null });
+      const task = new FetchUrlTask({ defaults: { url: "https://api.example.com/test", response_type: null } });
       const schema = task.outputSchema();
 
       expect(typeof schema).toBe("object");
@@ -462,7 +462,7 @@ describe("FetchUrlTask", () => {
     });
 
     test("outputSchema returns all output types when response_type is undefined", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test" });
+      const task = new FetchUrlTask({ defaults: { url: "https://api.example.com/test" } });
       const schema = task.outputSchema();
 
       expect(typeof schema).toBe("object");
@@ -476,7 +476,7 @@ describe("FetchUrlTask", () => {
     });
 
     test("outputSchema returns only json when response_type is json", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: "json" });
+      const task = new FetchUrlTask({ defaults: { url: "https://api.example.com/test", response_type: "json" } });
       const schema = task.outputSchema();
 
       expect(typeof schema).toBe("object");
@@ -490,7 +490,7 @@ describe("FetchUrlTask", () => {
     });
 
     test("outputSchema returns only text when response_type is text", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: "text" });
+      const task = new FetchUrlTask({ defaults: { url: "https://api.example.com/test", response_type: "text" } });
       const schema = task.outputSchema();
 
       expect(typeof schema).toBe("object");
@@ -504,7 +504,7 @@ describe("FetchUrlTask", () => {
     });
 
     test("outputSchema returns only blob when response_type is blob", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: "blob" });
+      const task = new FetchUrlTask({ defaults: { url: "https://api.example.com/test", response_type: "blob" } });
       const schema = task.outputSchema();
 
       expect(typeof schema).toBe("object");
@@ -519,8 +519,7 @@ describe("FetchUrlTask", () => {
 
     test("outputSchema returns only arraybuffer when response_type is arraybuffer", () => {
       const task = new FetchUrlTask({
-        url: "https://api.example.com/test",
-        response_type: "arraybuffer",
+        defaults: { url: "https://api.example.com/test", response_type: "arraybuffer" },
       });
       const schema = task.outputSchema();
 
@@ -536,8 +535,7 @@ describe("FetchUrlTask", () => {
 
     test("outputSchema updates when response_type changes", () => {
       const task = new FetchUrlTask<FetchUrlTaskInput>({
-        url: "https://api.example.com/test",
-        response_type: null,
+        defaults: { url: "https://api.example.com/test", response_type: null },
       });
       let schema = task.outputSchema();
 
@@ -578,8 +576,7 @@ describe("FetchUrlTask", () => {
 
     test("emits schemaChange event when response_type changes", () => {
       const task = new FetchUrlTask<FetchUrlTaskInput>({
-        url: "https://api.example.com/test",
-        response_type: null,
+        defaults: { url: "https://api.example.com/test", response_type: null },
       });
 
       let schemaChangeEmitted = false;
@@ -614,8 +611,7 @@ describe("FetchUrlTask", () => {
 
     test("emits schemaChange event when response_type changes from json to text", () => {
       const task = new FetchUrlTask<FetchUrlTaskInput>({
-        url: "https://api.example.com/test",
-        response_type: "json",
+        defaults: { url: "https://api.example.com/test", response_type: "json" },
       });
 
       let schemaChangeEmitted = false;
@@ -646,7 +642,7 @@ describe("FetchUrlTask", () => {
     });
 
     test("does not emit schemaChange event when response_type does not change", () => {
-      const task = new FetchUrlTask({ url: "https://api.example.com/test", response_type: "json" });
+      const task = new FetchUrlTask({ defaults: { url: "https://api.example.com/test", response_type: "json" } });
 
       let schemaChangeEmitted = false;
 

@@ -102,8 +102,8 @@ describe("TaskGraph with format annotations", () => {
 
   describe("static compatibility", () => {
     it("should be statically compatible when semantic annotations match exactly", () => {
-      const sourceTask = new ModelProviderTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new ModelProviderTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -117,8 +117,8 @@ describe("TaskGraph with format annotations", () => {
 
     it("should be statically compatible when source has narrowing but target doesn't", () => {
       // Source: model:EmbeddingTask -> Target: model (accepts any model)
-      const sourceTask = new EmbeddingModelProviderTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new EmbeddingModelProviderTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -132,8 +132,8 @@ describe("TaskGraph with format annotations", () => {
 
     it("should be statically compatible when both have same narrowing", () => {
       // Source: model:EmbeddingTask -> Target: model:EmbeddingTask
-      const sourceTask = new EmbeddingModelProviderTask({}, { id: "source" });
-      const targetTask = new EmbeddingConsumerTask({}, { id: "target" });
+      const sourceTask = new EmbeddingModelProviderTask({ id: "source" });
+      const targetTask = new EmbeddingConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -147,8 +147,8 @@ describe("TaskGraph with format annotations", () => {
 
     it("should be statically compatible when source has format but target doesn't", () => {
       // Source: model -> Target: plain string
-      const sourceTask = new ModelProviderTask({}, { id: "source" });
-      const targetTask = new PlainStringConsumerTask({}, { id: "target" });
+      const sourceTask = new ModelProviderTask({ id: "source" });
+      const targetTask = new PlainStringConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -162,8 +162,8 @@ describe("TaskGraph with format annotations", () => {
 
     it("should be incompatible when target has format but source doesn't", () => {
       // Source: plain string -> Target: model (with format)
-      const sourceTask = new PlainStringProviderTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new PlainStringProviderTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -180,8 +180,8 @@ describe("TaskGraph with format annotations", () => {
     it("should require runtime check when target has narrowing but source doesn't", () => {
       // Source: model (generic) -> Target: model:EmbeddingTask (specific)
       // This requires runtime narrowing to filter compatible models
-      const sourceTask = new ModelProviderTask({}, { id: "source" });
-      const targetTask = new EmbeddingConsumerTask({}, { id: "target" });
+      const sourceTask = new ModelProviderTask({ id: "source" });
+      const targetTask = new EmbeddingConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -251,7 +251,7 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const task = new NarrowableModelConsumerTask({}, { id: "consumer" });
+      const task = new NarrowableModelConsumerTask({ id: "consumer" });
 
       // Create test registry with embedding and text generation models
       const registry = await createTestRegistry([...EMBEDDING_MODELS, ...TEXT_GEN_MODELS]);
@@ -314,7 +314,7 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const task = new NarrowableModelTask({}, { id: "task" });
+      const task = new NarrowableModelTask({ id: "task" });
 
       // Create test registry with only embedding models
       const registry = await createTestRegistry(EMBEDDING_MODELS);
@@ -383,8 +383,8 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const sourceTask = new GenericModelProvider({}, { id: "source" });
-      const targetTask = new EmbeddingConsumerTask({}, { id: "target" });
+      const sourceTask = new GenericModelProvider({ id: "source" });
+      const targetTask = new EmbeddingConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -411,8 +411,7 @@ describe("TaskGraph with format annotations", () => {
       // - "model:TextGenerationTask" = only models compatible with TextGenerationTask (narrowed)
 
       // Different narrowings are incompatible because they filter to different model sets
-      const embeddingProvider = new EmbeddingModelProviderTask({}, { id: "embedding" });
-      const textGenProvider = new TextGenerationModelProviderTask({}, { id: "textgen" });
+      const embeddingProvider = new EmbeddingModelProviderTask({ id: "embedding" });
 
       class TextGenConsumer extends Task<{ model: string }, { result: string }> {
         static override readonly type = "TextGenerationConsumer";
@@ -446,7 +445,7 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const textGenConsumer = new TextGenConsumer({}, { id: "consumer" });
+      const textGenConsumer = new TextGenConsumer({ id: "consumer" });
 
       graph.addTask(embeddingProvider);
       graph.addTask(textGenConsumer);
@@ -499,8 +498,8 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const sourceTask = new ModelProviderTask({}, { id: "source" });
-      const targetTask = new PromptConsumerTask({}, { id: "target" });
+      const sourceTask = new ModelProviderTask({ id: "source" });
+      const targetTask = new PromptConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -514,8 +513,8 @@ describe("TaskGraph with format annotations", () => {
 
     it("should be incompatible when narrowing types differ", () => {
       // Source: model:EmbeddingTask -> Target: model:TextGenerationTask
-      const sourceTask = new EmbeddingModelProviderTask({}, { id: "source" });
-      const targetTask = new TextGenerationModelProviderTask({}, { id: "target" });
+      const sourceTask = new EmbeddingModelProviderTask({ id: "source" });
+      const targetTask = new TextGenerationModelProviderTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -557,7 +556,7 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const textGenConsumer = new TextGenerationConsumerTask({}, { id: "textgenConsumer" });
+      const textGenConsumer = new TextGenerationConsumerTask({ id: "textgenConsumer" });
       graph.addTask(textGenConsumer);
 
       const dataflow2 = new Dataflow("source", "model", "textgenConsumer", "model");
@@ -600,8 +599,8 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const sourceTask = new NumberProviderTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new NumberProviderTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -617,10 +616,10 @@ describe("TaskGraph with format annotations", () => {
   describe("complex graph scenarios", () => {
     it("should handle a multi-task graph with mixed semantic compatibility", () => {
       // Create a graph: GenericModel -> SpecificEmbedding -> Consumer
-      const genericProvider = new ModelProviderTask({}, { id: "genericProvider" });
-      const embeddingConsumer = new EmbeddingConsumerTask({}, { id: "embeddingConsumer" });
-      const embeddingProvider = new EmbeddingModelProviderTask({}, { id: "embeddingProvider" });
-      const genericConsumer = new GenericModelConsumerTask({}, { id: "genericConsumer" });
+      const genericProvider = new ModelProviderTask({ id: "genericProvider" });
+      const embeddingConsumer = new EmbeddingConsumerTask({ id: "embeddingConsumer" });
+      const embeddingProvider = new EmbeddingModelProviderTask({ id: "embeddingProvider" });
+      const genericConsumer = new GenericModelConsumerTask({ id: "genericConsumer" });
 
       graph.addTask(genericProvider);
       graph.addTask(embeddingConsumer);
@@ -643,8 +642,8 @@ describe("TaskGraph with format annotations", () => {
     });
 
     it("should handle dataflow with DATAFLOW_ALL_PORTS wildcard", () => {
-      const sourceTask = new ModelProviderTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new ModelProviderTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -726,8 +725,8 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const sourceTask = new Float64ArrayProviderTask({}, { id: "source" });
-      const targetTask = new Float64ArrayConsumerTask({}, { id: "target" });
+      const sourceTask = new Float64ArrayProviderTask({ id: "source" });
+      const targetTask = new Float64ArrayConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -806,8 +805,8 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const sourceTask = new Float64ArrayProviderTask({}, { id: "source" });
-      const targetTask = new Float32ArrayConsumerTask({}, { id: "target" });
+      const sourceTask = new Float64ArrayProviderTask({ id: "source" });
+      const targetTask = new Float32ArrayConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -824,8 +823,8 @@ describe("TaskGraph with format annotations", () => {
   describe("edge cases", () => {
     it("should be incompatible when connecting to non-existent port", () => {
       // Try to connect to a port that doesn't exist in the target's input schema
-      const sourceTask = new ModelProviderTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new ModelProviderTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -840,8 +839,8 @@ describe("TaskGraph with format annotations", () => {
 
     it("should be incompatible when connecting from non-existent port", () => {
       // Try to connect from a port that doesn't exist in the source's output schema
-      const sourceTask = new ModelProviderTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new ModelProviderTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -871,8 +870,8 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const sourceTask = new NoSchemaTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new NoSchemaTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);
@@ -902,8 +901,8 @@ describe("TaskGraph with format annotations", () => {
         }
       }
 
-      const sourceTask = new FalseSchemaTask({}, { id: "source" });
-      const targetTask = new GenericModelConsumerTask({}, { id: "target" });
+      const sourceTask = new FalseSchemaTask({ id: "source" });
+      const targetTask = new GenericModelConsumerTask({ id: "target" });
 
       graph.addTask(sourceTask);
       graph.addTask(targetTask);

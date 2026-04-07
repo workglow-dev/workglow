@@ -113,6 +113,11 @@ export const TaskConfigSchema = {
       additionalProperties: true,
       "x-ui-hidden": true,
     },
+    defaults: {
+      type: "object",
+      additionalProperties: true,
+      "x-ui-hidden": true,
+    },
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -124,13 +129,18 @@ type BaseFromSchema = FromSchema<typeof TaskConfigSchema>;
  * Use `TaskConfigSchema` when building JSON schemas in subclasses.
  * Use this type when declaring the Config generic parameter.
  */
-export type TaskConfig = Omit<BaseFromSchema, "id" | "inputSchema" | "outputSchema"> & {
+export type TaskConfig<Input extends DataPorts = DataPorts> = Omit<
+  BaseFromSchema,
+  "id" | "inputSchema" | "outputSchema"
+> & {
   /** Unique identifier for the task (uuid4 by default) */
   id?: unknown;
   /** Dynamic input schema override for the task instance */
   inputSchema?: DataPortSchema;
   /** Dynamic output schema override for the task instance */
   outputSchema?: DataPortSchema;
+  /** Default input values provided at construction time */
+  defaults?: NoInfer<Partial<Input>>;
 };
 
 /** Type for task ID */

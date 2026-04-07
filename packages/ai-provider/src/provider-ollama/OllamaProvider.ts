@@ -38,6 +38,7 @@ export class OllamaProvider extends AiProvider<OllamaModelConfig> {
     "TextEmbeddingTask",
     "TextRewriterTask",
     "TextSummaryTask",
+    "ToolCallingTask",
     "ModelSearchTask",
   ] as const;
 

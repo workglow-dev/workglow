@@ -14,6 +14,7 @@ import { uuid4 } from "@workglow/util";
 
 import {
   GraphAsTask,
+  GraphAsTaskConfig,
   GraphAsTaskRunner,
   GraphResultArray,
   JsonTaskItem,
@@ -77,7 +78,7 @@ export type DeReplicateFromSchema<S extends { properties: Record<string, any> }>
 export abstract class ArrayTask<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends TaskConfig = TaskConfig,
+  Config extends GraphAsTaskConfig<Input> = GraphAsTaskConfig<Input>,
 > extends GraphAsTask<Input, Output, Config> {
   /**
    * The type identifier for this task class
@@ -160,8 +161,11 @@ export abstract class ArrayTask<
       // Create a new instance of this same class
       const { id, title, ...rest } = this.config;
       const task = new (this.constructor as any)(
-        { ...this.defaults, ...this.runInputData, ...combination },
-        { ...rest, id: `${id}_${uuid4()}` },
+        {
+          ...rest,
+          id: `${id}_${uuid4()}`,
+          defaults: { ...this.defaults, ...this.runInputData, ...combination },
+        },
         this.runConfig
       );
       return task;
@@ -255,7 +259,7 @@ export abstract class ArrayTask<
 class ArrayTaskRunner<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends TaskConfig = TaskConfig,
+  Config extends GraphAsTaskConfig<Input> = GraphAsTaskConfig<Input>,
 > extends GraphAsTaskRunner<Input, Output, Config> {
   declare task: ArrayTask<Input, Output, Config>;
 

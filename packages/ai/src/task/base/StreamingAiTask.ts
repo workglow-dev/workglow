@@ -11,13 +11,14 @@
 
 import {
   getStreamingPorts,
+  type TaskConfig,
   TaskConfigurationError,
   type IExecuteContext,
   type StreamEvent,
   type TaskOutput,
 } from "@workglow/task-graph";
 
-import { AiSingleTaskInput, AiTask, type AiTaskConfig } from "./AiTask";
+import { type AiTaskInput, AiTask } from "./AiTask";
 import { getAiProviderRegistry } from "../../provider/AiProviderRegistry";
 import type { ModelConfig } from "../../model/ModelSchema";
 
@@ -38,9 +39,9 @@ import type { ModelConfig } from "../../model/ModelSchema";
  * output schema before they reach the TaskRunner.
  */
 export class StreamingAiTask<
-  Input extends AiSingleTaskInput = AiSingleTaskInput,
+  Input extends AiTaskInput = AiTaskInput,
   Output extends TaskOutput = TaskOutput,
-  Config extends AiTaskConfig = AiTaskConfig,
+  Config extends TaskConfig<Input> = TaskConfig<Input>,
 > extends AiTask<Input, Output, Config> {
   public static override type: string = "StreamingAiTask";
 
@@ -79,9 +80,9 @@ export class StreamingAiTask<
 
     for await (const event of strategy.executeStream(jobInput, context, this.runConfig.runnerId)) {
       if (event.type === "text-delta") {
-        yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
+        yield { ...event, port: event.port ?? defaultPort } as StreamEvent<Output>;
       } else if (event.type === "object-delta") {
-        yield { ...event, port: (event as any).port ?? defaultPort } as StreamEvent<Output>;
+        yield { ...event, port: event.port ?? defaultPort } as StreamEvent<Output>;
       } else {
         yield event as StreamEvent<Output>;
       }

@@ -77,12 +77,7 @@ describe("SplitTask", () => {
   });
 
   test("in task mode", async () => {
-    const task = new SplitTask(
-      {
-        input: ["a", "b", "c"],
-      },
-      { id: "split-task" }
-    );
+    const task = new SplitTask({ id: "split-task", defaults: { input: ["a", "b", "c"] } });
     const result = await task.run();
     expect(result.output_0).toBe("a");
     expect(result.output_1).toBe("b");
@@ -93,12 +88,7 @@ describe("SplitTask", () => {
   test("in task graph mode", async () => {
     const graph = new TaskGraph();
     graph.addTask(
-      new SplitTask(
-        {
-          input: [10, 20, 30],
-        },
-        { id: "split-in-graph" }
-      )
+      new SplitTask({ id: "split-in-graph", defaults: { input: [10, 20, 30] } })
     );
     const results = await graph.run();
     expect(results[0].data.output_0).toBe(10);
@@ -142,13 +132,11 @@ describe("SplitTask", () => {
   });
 
   test("task metadata is preserved", async () => {
-    const task = new SplitTask(
-      { input: [1, 2] },
-      {
-        id: "test-metadata",
-        title: "Test Split Task",
-      }
-    );
+    const task = new SplitTask({
+      id: "test-metadata",
+      title: "Test Split Task",
+      defaults: { input: [1, 2] },
+    });
     await task.run();
     expect(task.id).toBe("test-metadata");
     expect(task.config.title).toBe("Test Split Task");

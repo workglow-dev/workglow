@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  Task,
+  type TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 import type { ModelRecord } from "../model/ModelSchema";
@@ -92,11 +98,16 @@ const ModelSearchOutputSchema = {
 
 export type ModelSearchTaskInput = FromSchema<typeof ModelSearchInputSchema>;
 export type ModelSearchTaskOutput = { results: ModelSearchResultItem[] };
+export type ModelSearchTaskConfig = TaskConfig<ModelSearchTaskInput>;
 
 /**
  * Search for models using a provider-specific run function from the AiProviderRegistry.
  */
-export class ModelSearchTask extends Task<ModelSearchTaskInput, ModelSearchTaskOutput, TaskConfig> {
+export class ModelSearchTask extends Task<
+  ModelSearchTaskInput,
+  ModelSearchTaskOutput,
+  ModelSearchTaskConfig
+> {
   public static override type = "ModelSearchTask";
   public static override category = "AI Model";
   public static override title = "Model Search";
@@ -132,13 +143,13 @@ export class ModelSearchTask extends Task<ModelSearchTaskInput, ModelSearchTaskO
 /**
  * Search for models using a provider-specific search function.
  */
-export const modelSearch = (input: ModelSearchTaskInput, config?: TaskConfig) => {
-  return new ModelSearchTask({} as ModelSearchTaskInput, config).run(input);
+export const modelSearch = (input: ModelSearchTaskInput, config?: ModelSearchTaskConfig) => {
+  return new ModelSearchTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    modelSearch: CreateWorkflow<ModelSearchTaskInput, ModelSearchTaskOutput, TaskConfig>;
+    modelSearch: CreateWorkflow<ModelSearchTaskInput, ModelSearchTaskOutput, ModelSearchTaskConfig>;
   }
 }
 

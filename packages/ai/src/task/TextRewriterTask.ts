@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
@@ -46,18 +46,21 @@ export const TextRewriterOutputSchema = {
 
 export type TextRewriterTaskInput = FromSchema<typeof TextRewriterInputSchema>;
 export type TextRewriterTaskOutput = FromSchema<typeof TextRewriterOutputSchema>;
+export type TextRewriterTaskConfig = TaskConfig<TextRewriterTaskInput>;
 
 /**
  * This is a special case of text generation that takes a prompt and text to rewrite
  */
 export class TextRewriterTask extends StreamingAiTask<
   TextRewriterTaskInput,
-  TextRewriterTaskOutput
+  TextRewriterTaskOutput,
+  TextRewriterTaskConfig
 > {
   public static override type = "TextRewriterTask";
   public static override category = "AI Text Model";
   public static override title = "Text Rewriter";
-  public static override description = "Rewrites text according to a given prompt using language models";
+  public static override description =
+    "Rewrites text according to a given prompt using language models";
   public static override inputSchema(): DataPortSchema {
     return TextRewriterInputSchema as DataPortSchema;
   }
@@ -72,13 +75,17 @@ export class TextRewriterTask extends StreamingAiTask<
  * @param input The input parameters for text rewriting (text, prompt, and model)
  * @returns Promise resolving to the rewritten text output(s)
  */
-export const textRewriter = (input: TextRewriterTaskInput, config?: TaskConfig) => {
-  return new TextRewriterTask({} as TextRewriterTaskInput, config).run(input);
+export const textRewriter = (input: TextRewriterTaskInput, config?: TextRewriterTaskConfig) => {
+  return new TextRewriterTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    textRewriter: CreateWorkflow<TextRewriterTaskInput, TextRewriterTaskOutput, TaskConfig>;
+    textRewriter: CreateWorkflow<
+      TextRewriterTaskInput,
+      TextRewriterTaskOutput,
+      TextRewriterTaskConfig
+    >;
   }
 }
 

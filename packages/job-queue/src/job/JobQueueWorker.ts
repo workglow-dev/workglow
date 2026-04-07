@@ -17,6 +17,7 @@ import {
   PermanentJobError,
   RetryableJobError,
 } from "./JobError";
+import { withJobErrorDiagnostics } from "./JobErrorDiagnostics";
 import { classToStorage, storageToClass } from "./JobStorageConverters";
 
 /**
@@ -588,7 +589,7 @@ export class JobQueueWorker<
       return err;
     }
     if (err instanceof Error) {
-      return new PermanentJobError(err.message);
+      return new PermanentJobError(withJobErrorDiagnostics(err.message, err));
     }
     return new PermanentJobError(String(err));
   }

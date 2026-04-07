@@ -107,7 +107,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       // TaskC has an incoming connection from TaskA, making it a non-starting node
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
-      const graphAsTask = new GraphAsTask({}, { subGraph: graph });
+      const graphAsTask = new GraphAsTask({ subGraph: graph });
 
       // TaskA and TaskB are starting nodes (no incoming connections)
       // TaskC is NOT a starting node (has incoming connection from TaskA)
@@ -216,7 +216,7 @@ describe("GraphAsTask Dynamic Schema", () => {
   describe("Full Graph Integration", () => {
     it("should work with a complete graph execution", async () => {
       // Create a simple pipeline: TaskA -> TaskB
-      const taskA = new GraphAsTask_TaskA({ inputA1: "test", inputA2: 10 });
+      const taskA = new GraphAsTask_TaskA({ defaults: { inputA1: "test", inputA2: 10 } });
       const taskB = new GraphAsTask_TaskB();
 
       const graph = new TaskGraph();
@@ -254,9 +254,9 @@ describe("GraphAsTask Dynamic Schema", () => {
       //     \    /
       //      (outputs from both)
 
-      const taskA = new GraphAsTask_TaskA({ inputA1: "start", inputA2: 1 });
+      const taskA = new GraphAsTask_TaskA({ defaults: { inputA1: "start", inputA2: 1 } });
       const taskB = new GraphAsTask_TaskB();
-      const taskC = new GraphAsTask_TaskC({ inputC2: "extra" }); // Set default since inputC2 won't be in schema
+      const taskC = new GraphAsTask_TaskC({ defaults: { inputC2: "extra" } }); // Set default since inputC2 won't be in schema
 
       const graph = new TaskGraph();
       graph.addTask(taskA);
@@ -317,7 +317,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addTask(taskB);
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
 
-      const graphAsTask = new GraphAsTask({}, { compoundMerge: "PROPERTY_ARRAY" });
+      const graphAsTask = new GraphAsTask({ compoundMerge: "PROPERTY_ARRAY" });
       graphAsTask.subGraph = graph;
 
       const outputSchema = graphAsTask.outputSchema();
@@ -327,7 +327,7 @@ describe("GraphAsTask Dynamic Schema", () => {
         return;
       }
       expect(outputSchema.properties!["outputB"]).toBeDefined();
-      expect((outputSchema.properties!["outputB"] as any).type).not.toBe("array");
+      expect(outputSchema.properties!["outputB"].type).not.toBe("array");
     });
 
     it("should generate correct schema for PROPERTY_ARRAY strategy with multiple ending nodes", () => {
@@ -344,7 +344,7 @@ describe("GraphAsTask Dynamic Schema", () => {
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskB.id, "inputB"));
       graph.addDataflow(new Dataflow(taskA.id, "outputA", taskC.id, "inputC1"));
 
-      const graphAsTask = new GraphAsTask({}, { compoundMerge: "PROPERTY_ARRAY" });
+      const graphAsTask = new GraphAsTask({ compoundMerge: "PROPERTY_ARRAY" });
       graphAsTask.subGraph = graph;
 
       const outputSchema = graphAsTask.outputSchema();
@@ -353,9 +353,9 @@ describe("GraphAsTask Dynamic Schema", () => {
       }
 
       // Multiple ending nodes: all properties should be arrays (due to collectPropertyValues behavior)
-      expect((outputSchema.properties!["outputB"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC1"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC2"] as any).type).toBe("array");
+      expect(outputSchema.properties!["outputB"].type).toBe("array");
+      expect(outputSchema.properties!["outputC1"].type).toBe("array");
+      expect(outputSchema.properties!["outputC2"].type).toBe("array");
     });
   });
 
@@ -425,8 +425,8 @@ describe("GraphAsTask Dynamic Schema", () => {
       expect(outputSchema.properties!["outputC2"]).toBeDefined();
 
       // The output should NOT be arrays since there's only one node at the last level
-      expect((outputSchema.properties!["outputC1"] as any).type).not.toBe("array");
-      expect((outputSchema.properties!["outputC2"] as any).type).not.toBe("array");
+      expect(outputSchema.properties!["outputC1"].type).not.toBe("array");
+      expect(outputSchema.properties!["outputC2"].type).not.toBe("array");
     });
 
     it("should include multiple outputs when they are all at the same maximum depth", () => {
@@ -460,15 +460,15 @@ describe("GraphAsTask Dynamic Schema", () => {
       expect(outputSchema.properties!["outputC2"]).toBeDefined();
 
       // The outputs should be arrays since there are multiple nodes at the last level
-      expect((outputSchema.properties!["outputB"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC1"] as any).type).toBe("array");
-      expect((outputSchema.properties!["outputC2"] as any).type).toBe("array");
+      expect(outputSchema.properties!["outputB"].type).toBe("array");
+      expect(outputSchema.properties!["outputC1"].type).toBe("array");
+      expect(outputSchema.properties!["outputC2"].type).toBe("array");
     });
   });
 
   describe("Dynamic Schemas", () => {
     it("should have hasDynamicSchemas set to true", () => {
-      expect((GraphAsTask as any).hasDynamicSchemas).toBe(true);
+      expect(GraphAsTask.hasDynamicSchemas).toBe(true);
     });
 
     it("should emit schemaChange event when emitSchemaChange is called", () => {
@@ -495,8 +495,8 @@ describe("GraphAsTask Dynamic Schema", () => {
         }
       );
 
-      // Call the protected method via type assertion
-      (graphAsTask as any).emitSchemaChange();
+      // @ts-expect-error - emitSchemaChange is protected
+      graphAsTask.emitSchemaChange();
 
       expect(schemaChangeEmitted).toBe(true);
       expect(receivedInputSchema).toBeDefined();
@@ -526,7 +526,8 @@ describe("GraphAsTask Dynamic Schema", () => {
         properties: { customOut: { type: "string" } },
       };
 
-      (graphAsTask as any).emitSchemaChange(customInputSchema, customOutputSchema);
+      // @ts-expect-error - emitSchemaChange is protected
+      graphAsTask.emitSchemaChange(customInputSchema, customOutputSchema);
 
       expect(receivedInputSchema).toEqual(customInputSchema);
       expect(receivedOutputSchema).toEqual(customOutputSchema);
@@ -563,8 +564,8 @@ describe("GraphAsTask Dynamic Schema", () => {
     it("should pass input to subgraph runReactive", async () => {
       // Create a subgraph with just an InputTask -> OutputTask
       const subGraph = new TaskGraph();
-      const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
-      const outputTask = new GraphAsTask_OutputTask({}, { id: "output" });
+      const inputTask = new GraphAsTask_InputTask({ id: "input" });
+      const outputTask = new GraphAsTask_OutputTask({ id: "output" });
 
       subGraph.addTask(inputTask);
       subGraph.addTask(outputTask);
@@ -572,10 +573,11 @@ describe("GraphAsTask Dynamic Schema", () => {
       // Connect InputTask.value -> OutputTask.value
       subGraph.addDataflow(new Dataflow("input", "value", "output", "value"));
 
-      const graphAsTask = new TestGraphAsTask_Value(
-        { value: "initial" },
-        { id: "group", subGraph }
-      );
+      const graphAsTask = new TestGraphAsTask_Value({
+        id: "group",
+        subGraph,
+        defaults: { value: "initial" },
+      });
 
       // First run to initialize - verify the graph works with explicit registry
       const runResult = await graphAsTask.run({ value: "initial" }, { registry });
@@ -589,8 +591,8 @@ describe("GraphAsTask Dynamic Schema", () => {
     it("should propagate input to compute task in subgraph", async () => {
       // Create a subgraph: InputTask -> ComputeTask
       const subGraph = new TaskGraph();
-      const inputTask = new GraphAsTask_InputTask({}, { id: "input" });
-      const computeTask = new GraphAsTask_ComputeTask({}, { id: "compute" });
+      const inputTask = new GraphAsTask_InputTask({ id: "input" });
+      const computeTask = new GraphAsTask_ComputeTask({ id: "compute" });
 
       subGraph.addTask(inputTask);
       subGraph.addTask(computeTask);
@@ -599,7 +601,15 @@ describe("GraphAsTask Dynamic Schema", () => {
       subGraph.addDataflow(new Dataflow("input", "a", "compute", "a"));
       subGraph.addDataflow(new Dataflow("input", "b", "compute", "b"));
 
-      const graphAsTask = new TestGraphAsTask_AB({ a: 5, b: 3 }, { id: "group", subGraph });
+      const graphAsTask = new TestGraphAsTask_AB({
+        id: "group",
+        subGraph,
+        defaults: { a: 5, b: 3 },
+      });
+      const result = await graphAsTask.run({ a: 5, b: 3 }, { registry });
+      expect(result.result).toBe(8);
+      expect(computeTask.runInputData).toEqual({ a: 5, b: 3 });
+      expect(computeTask.runOutputData).toEqual({ result: 8 });
     });
   });
 });

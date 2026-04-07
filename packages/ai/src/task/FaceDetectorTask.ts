@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Workflow, type TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { TypeImageInput, TypeModel } from "./base/AiTaskSchemas";
 import { AiVisionTask } from "./base/AiVisionTask";
@@ -137,6 +137,7 @@ export const FaceDetectorOutputSchema = {
 
 export type FaceDetectorTaskInput = FromSchema<typeof FaceDetectorInputSchema>;
 export type FaceDetectorTaskOutput = FromSchema<typeof FaceDetectorOutputSchema>;
+export type FaceDetectorTaskConfig = TaskConfig<FaceDetectorTaskInput>;
 
 /**
  * Detects faces in images using MediaPipe Face Detector.
@@ -145,7 +146,7 @@ export type FaceDetectorTaskOutput = FromSchema<typeof FaceDetectorOutputSchema>
 export class FaceDetectorTask extends AiVisionTask<
   FaceDetectorTaskInput,
   FaceDetectorTaskOutput,
-  TaskConfig
+  FaceDetectorTaskConfig
 > {
   public static override type = "FaceDetectorTask";
   public static override category = "AI Vision Model";
@@ -166,13 +167,17 @@ export class FaceDetectorTask extends AiVisionTask<
  * @param input The input parameters for face detection (image, model, and optional configuration)
  * @returns Promise resolving to the detected faces with bounding boxes and keypoints
  */
-export const faceDetector = (input: FaceDetectorTaskInput, config?: TaskConfig) => {
-  return new FaceDetectorTask({} as FaceDetectorTaskInput, config).run(input);
+export const faceDetector = (input: FaceDetectorTaskInput, config?: FaceDetectorTaskConfig) => {
+  return new FaceDetectorTask(config).run(input);
 };
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    faceDetector: CreateWorkflow<FaceDetectorTaskInput, FaceDetectorTaskOutput, TaskConfig>;
+    faceDetector: CreateWorkflow<
+      FaceDetectorTaskInput,
+      FaceDetectorTaskOutput,
+      FaceDetectorTaskConfig
+    >;
   }
 }
 
