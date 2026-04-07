@@ -61,7 +61,7 @@ export function applyPersistedDiagnosticsToStack(
   jobError: JobErrorLike,
   fullMessage: string
 ): void {
-  if (!fullMessage.includes("--- Error diagnostics ---")) {
+  if (!fullMessage.includes(JOB_ERROR_DIAGNOSTICS_MARKER)) {
     return;
   }
   const firstLine = fullMessage.split("\n")[0] ?? fullMessage;

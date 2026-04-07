@@ -14,6 +14,12 @@ import type { IHumanConnector, IHumanRequest, IHumanResponse } from "./HumanInpu
  * MCP elicitation supports only a restricted subset of JSON Schema:
  * flat object with top-level properties only, no nesting.
  */
+function defaultAbortError(): Error {
+  const err = new Error("The operation was aborted");
+  err.name = "AbortError";
+  return err;
+}
+
 function toMcpRequestedSchema(
   schema: Record<string, unknown>
 ): ElicitRequestFormParams["requestedSchema"] {
@@ -82,8 +88,9 @@ export class McpElicitationConnector implements IHumanConnector {
    */
   private async handleNotify(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
     if (signal.aborted) {
-      throw new Error("Aborted before sending notification");
+      throw signal.reason ?? defaultAbortError();
     }
+
     await this.server.sendLoggingMessage({
       level: "info",
       data: request.contentData ?? request.message,
@@ -91,7 +98,7 @@ export class McpElicitationConnector implements IHumanConnector {
     });
 
     if (signal.aborted) {
-      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      throw signal.reason ?? defaultAbortError();
     }
 
     return {
@@ -112,7 +119,7 @@ export class McpElicitationConnector implements IHumanConnector {
     signal: AbortSignal
   ): Promise<IHumanResponse> {
     if (signal.aborted) {
-      throw new Error("Aborted before sending display content");
+      throw signal.reason ?? defaultAbortError();
     }
     await this.server.sendLoggingMessage({
       level: "info",
@@ -125,7 +132,7 @@ export class McpElicitationConnector implements IHumanConnector {
     });
 
     if (signal.aborted) {
-      throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      throw signal.reason ?? defaultAbortError();
     }
 
     return {

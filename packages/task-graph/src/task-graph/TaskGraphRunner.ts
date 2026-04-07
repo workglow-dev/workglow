@@ -386,7 +386,7 @@ export class TaskGraphRunner {
   protected filterLeafResults<T>(results: GraphResultArray<T>): GraphResultArray<T> {
     if (results.length <= 1) return results;
     const graphOutputResults = results.filter((r) => {
-      const task = this.graph.getTask(r.id as string);
+      const task = this.graph.getTask(r.id);
       return task && (task.constructor as typeof Task).isGraphOutput;
     });
     return graphOutputResults.length > 0 ? graphOutputResults : results;
