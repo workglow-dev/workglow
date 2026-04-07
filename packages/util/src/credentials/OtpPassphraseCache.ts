@@ -31,9 +31,11 @@ export interface OtpPassphraseCacheOptions {
 const DEFAULT_HARD_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /**
- * XOR-masks a passphrase with a random one-time pad so the plaintext string
- * is never held directly in memory. The masked value and pad are stored as
- * `Uint8Array` instances and zeroed on {@link clear}.
+ * XOR-masks a passphrase with a random one-time pad so the cache does not
+ * retain the plaintext in its internal storage. The masked value and pad are
+ * stored as `Uint8Array` instances and zeroed on {@link clear}. Plaintext may
+ * still exist transiently as a JavaScript `string` when passed to
+ * {@link store} or returned from {@link retrieve}.
  *
  * @example
  * ```ts

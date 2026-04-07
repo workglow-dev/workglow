@@ -91,6 +91,10 @@ export function registerCredentialCommand(program: Command): void {
           chunks.push(chunk);
         }
         value = Buffer.concat(chunks).toString("utf-8").trim();
+        if (!value) {
+          console.error("No value provided.");
+          process.exit(1);
+        }
       }
 
       const store = getGlobalCredentialStore();

@@ -6,7 +6,6 @@
 
 import { OtpPassphraseCache } from "@workglow/util";
 import { FsFolderJsonKvStorage, LazyEncryptedCredentialStore } from "@workglow/storage";
-import { Entry } from "@napi-rs/keyring";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -59,25 +58,38 @@ export async function resolvePassphraseFromKeyring(): Promise<string> {
     return process.env.WORKGLOW_CREDENTIAL_PASSPHRASE;
   }
 
-  // 2. Try OS keyring
-  const entry = new Entry(KEYRING_SERVICE, KEYRING_ACCOUNT);
+  // Attempt to load the native keyring module; fall through to file-based
+  // storage if the module is unavailable on this platform/runtime.
+  let entry: { getPassword(): string | null; setPassword(pw: string): void } | undefined;
   try {
-    const existing = entry.getPassword();
-    if (existing) return existing;
+    const { Entry } = await import("@napi-rs/keyring");
+    entry = new Entry(KEYRING_SERVICE, KEYRING_ACCOUNT);
   } catch {
-    // Keyring not available or no entry — fall through
+    // Native addon unavailable — skip keyring entirely
+  }
+
+  // 2. Try OS keyring
+  if (entry) {
+    try {
+      const existing = entry.getPassword();
+      if (existing) return existing;
+    } catch {
+      // Keyring not available or no entry — fall through
+    }
   }
 
   // 3. Migrate from legacy file-based storage
   try {
     const fileKey = (await readFile(credentialKeyPath, "utf-8")).trim();
     if (fileKey) {
-      try {
-        entry.setPassword(fileKey);
-        // Migration successful — remove the old file
-        await unlink(credentialKeyPath);
-      } catch {
-        // Keyring write failed; leave file in place as active store
+      if (entry) {
+        try {
+          entry.setPassword(fileKey);
+          // Migration successful — remove the old file
+          await unlink(credentialKeyPath);
+        } catch {
+          // Keyring write failed; leave file in place as active store
+        }
       }
       return fileKey;
     }
@@ -88,19 +100,31 @@ export async function resolvePassphraseFromKeyring(): Promise<string> {
 
   // 4. Generate new passphrase
   const key = randomBytes(32).toString("hex");
-  try {
-    entry.setPassword(key);
-  } catch {
-    // Keyring unavailable — fall back to file storage
-    await mkdir(path.dirname(credentialKeyPath), { recursive: true });
+  if (entry) {
     try {
-      await writeFile(credentialKeyPath, key, { mode: 0o600, flag: "wx" });
-    } catch (writeErr) {
-      if (isFsCode(writeErr, "EEXIST")) {
-        return (await readFile(credentialKeyPath, "utf-8")).trim();
+      entry.setPassword(key);
+      // Read back to handle any concurrent writes — use the persisted value
+      try {
+        const stored = entry.getPassword();
+        if (stored) return stored;
+      } catch {
+        // Read-back failed; use the key we just generated
       }
-      throw writeErr;
+      return key;
+    } catch {
+      // Keyring write failed — fall back to file storage below
     }
+  }
+
+  // Fall back to file storage when keyring is unavailable or write failed
+  await mkdir(path.dirname(credentialKeyPath), { recursive: true });
+  try {
+    await writeFile(credentialKeyPath, key, { mode: 0o600, flag: "wx" });
+  } catch (writeErr) {
+    if (isFsCode(writeErr, "EEXIST")) {
+      return (await readFile(credentialKeyPath, "utf-8")).trim();
+    }
+    throw writeErr;
   }
   return key;
 }
