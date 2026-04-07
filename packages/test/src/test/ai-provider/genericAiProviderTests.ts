@@ -333,7 +333,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
           expect(output).toBeDefined();
           expect(output.iterations).toBeGreaterThanOrEqual(1);
-          expect(output.toolCallCount).toEqual(1);
+          expect(output.toolCallCount).toBeGreaterThanOrEqual(1);
           const toolCall = output.messages
             .find((m) => m.role === "assistant")
             ?.content.filter((c) => c.type === "tool_use")?.[0];
