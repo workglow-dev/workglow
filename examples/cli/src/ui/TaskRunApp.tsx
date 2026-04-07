@@ -4,21 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import path from "node:path";
-import React, { useState, useEffect, useRef } from "react";
-import { Box, Text, Static } from "ink";
 import type { TaskGraph } from "@workglow/task-graph";
+import { Box, Static, Text } from "ink";
+import path from "node:path";
+import React, { useEffect, useRef, useState } from "react";
 import {
   sortCliTaskLinesForDisplay,
   startGraphTaskPoll,
   startTaskInstancePoll,
   type TaskFileProgressRow,
 } from "./cliTaskUi";
+import { useCliTheme } from "./CliThemeContext";
 import { CLI_SPINNER_FRAMES } from "./components/CliSpinner";
 import { ProgressBar } from "./components/ProgressBar";
 import { StreamOutput } from "./components/StreamOutput";
 import { TaskStatusProgressRow } from "./components/TaskStatusProgressRow";
-import { useCliTheme } from "./CliThemeContext";
+import { HumanInteractionHost } from "./HumanInteractionHost";
 import type { CliTaskLine, IterationSlotRow } from "./taskGraphCliSubscriptions";
 import {
   iterationSlotToTaskStatus,
@@ -226,88 +227,90 @@ export function TaskRunApp({
     (subTaskInfos.size > 0 || subOverallProgress !== undefined);
 
   return (
-    <Box flexDirection="column">
-      <Static items={logs}>
-        {(log) => (
-          <Text key={log.id} color={bodyColor}>
-            {log.text}
-          </Text>
-        )}
-      </Static>
-
+    <HumanInteractionHost>
       <Box flexDirection="column">
-        <TaskStatusProgressRow
-          type={taskType}
-          status={status}
-          message={isDownloadModelTask ? undefined : batch.message}
-          barProgress={batch.progress}
-          spinnerFrame={batch.spin}
-          progressBarWidth={isDownloadModelTask ? DOWNLOAD_PROGRESS_BAR_WIDTH : undefined}
-        />
-        {showFileDownloadList && (
-          <Box paddingLeft={2} flexDirection="column">
-            {downloadFiles.map((f) => (
-              <Box key={f.file} flexDirection="row" flexWrap="nowrap" alignItems="center">
-                <Box flexGrow={1} minWidth={0} overflow="hidden" marginRight={1}>
-                  <Text dimColor wrap="truncate-end">
-                    {path.basename(f.file)}
-                  </Text>
-                </Box>
-                <Box flexShrink={0}>
-                  <ProgressBar progress={f.progress} width={DOWNLOAD_PROGRESS_BAR_WIDTH} />
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        )}
-        {streamText && <StreamOutput text={streamText} />}
-        {showSubtasksSection && (
-          <Box flexDirection="column" marginTop={1}>
-            <Text dimColor>Subtasks</Text>
+        <Static items={logs}>
+          {(log) => (
+            <Text key={log.id} color={bodyColor}>
+              {log.text}
+            </Text>
+          )}
+        </Static>
+
+        <Box flexDirection="column">
+          <TaskStatusProgressRow
+            type={taskType}
+            status={status}
+            message={isDownloadModelTask ? undefined : batch.message}
+            barProgress={batch.progress}
+            spinnerFrame={batch.spin}
+            progressBarWidth={isDownloadModelTask ? DOWNLOAD_PROGRESS_BAR_WIDTH : undefined}
+          />
+          {showFileDownloadList && (
             <Box paddingLeft={2} flexDirection="column">
-              {subOverallProgress !== undefined && (
-                <Box flexDirection="row" justifyContent="space-between" width="100%">
-                  <Text color={bodyColor}>Subgraph: </Text>
-                  <Box flexShrink={0} marginLeft={1}>
-                    <ProgressBar progress={subOverallProgress} />
+              {downloadFiles.map((f) => (
+                <Box key={f.file} flexDirection="row" flexWrap="nowrap" alignItems="center">
+                  <Box flexGrow={1} minWidth={0} overflow="hidden" marginRight={1}>
+                    <Text dimColor wrap="truncate-end">
+                      {path.basename(f.file)}
+                    </Text>
+                  </Box>
+                  <Box flexShrink={0}>
+                    <ProgressBar progress={f.progress} width={DOWNLOAD_PROGRESS_BAR_WIDTH} />
                   </Box>
                 </Box>
-              )}
-              {orderedSubTasks.map((t) => {
-                const slots = subIterationSlots.get(t.id);
-                const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
-                return (
-                  <Box key={t.id} flexDirection="column">
-                    <TaskStatusProgressRow
-                      type={t.type}
-                      status={t.status}
-                      message={t.message}
-                      barProgress={t.progress ?? 0}
-                    />
-                    {sortedSlots.map((slot) => (
-                      <Box
-                        key={`${t.id}-iter-${slot.index}`}
-                        flexDirection="column"
-                        paddingLeft={2}
-                      >
-                        <TaskStatusProgressRow
-                          type={`#${slot.index + 1}`}
-                          status={iterationSlotToTaskStatus(slot.status)}
-                          message={slot.status === "completed" ? undefined : slot.message}
-                          barProgress={slot.progress ?? 0}
-                          suppressProgressBar={
-                            slot.status !== "running" || slot.progress === undefined
-                          }
-                        />
-                      </Box>
-                    ))}
-                  </Box>
-                );
-              })}
+              ))}
             </Box>
-          </Box>
-        )}
+          )}
+          {streamText && <StreamOutput text={streamText} />}
+          {showSubtasksSection && (
+            <Box flexDirection="column" marginTop={1}>
+              <Text dimColor>Subtasks</Text>
+              <Box paddingLeft={2} flexDirection="column">
+                {subOverallProgress !== undefined && (
+                  <Box flexDirection="row" justifyContent="space-between" width="100%">
+                    <Text color={bodyColor}>Subgraph: </Text>
+                    <Box flexShrink={0} marginLeft={1}>
+                      <ProgressBar progress={subOverallProgress} />
+                    </Box>
+                  </Box>
+                )}
+                {orderedSubTasks.map((t) => {
+                  const slots = subIterationSlots.get(t.id);
+                  const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
+                  return (
+                    <Box key={t.id} flexDirection="column">
+                      <TaskStatusProgressRow
+                        type={t.type}
+                        status={t.status}
+                        message={t.message}
+                        barProgress={t.progress ?? 0}
+                      />
+                      {sortedSlots.map((slot) => (
+                        <Box
+                          key={`${t.id}-iter-${slot.index}`}
+                          flexDirection="column"
+                          paddingLeft={2}
+                        >
+                          <TaskStatusProgressRow
+                            type={`#${slot.index + 1}`}
+                            status={iterationSlotToTaskStatus(slot.status)}
+                            message={slot.status === "completed" ? undefined : slot.message}
+                            barProgress={slot.progress ?? 0}
+                            suppressProgressBar={
+                              slot.status !== "running" || slot.progress === undefined
+                            }
+                          />
+                        </Box>
+                      ))}
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
+        </Box>
       </Box>
-    </Box>
+    </HumanInteractionHost>
   );
 }

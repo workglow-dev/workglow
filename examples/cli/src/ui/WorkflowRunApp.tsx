@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
-import { Box, Text } from "ink";
 import type { TaskGraph } from "@workglow/task-graph";
+import { Box, Text } from "ink";
+import React, { useEffect, useState } from "react";
 import { sortCliTaskLinesForDisplay, startGraphTaskPoll } from "./cliTaskUi";
+import { useCliTheme } from "./CliThemeContext";
 import { ProgressBar } from "./components/ProgressBar";
 import { TaskStatusProgressRow } from "./components/TaskStatusProgressRow";
-import { useCliTheme } from "./CliThemeContext";
+import { HumanInteractionHost } from "./HumanInteractionHost";
 import type { CliTaskLine, IterationSlotRow } from "./taskGraphCliSubscriptions";
 import {
   iterationSlotToTaskStatus,
@@ -67,42 +68,44 @@ export function WorkflowRunApp({
   const orderedTasks = sortCliTaskLinesForDisplay(Array.from(taskInfos.values()), order);
 
   return (
-    <Box flexDirection="column">
+    <HumanInteractionHost>
       <Box flexDirection="column">
-        {overallProgress !== undefined && (
-          <Box flexDirection="row" justifyContent="space-between" width="100%">
-            <Text color={bodyColor}>Workflow: </Text>
-            <Box flexShrink={0} marginLeft={1}>
-              <ProgressBar progress={overallProgress} />
+        <Box flexDirection="column">
+          {overallProgress !== undefined && (
+            <Box flexDirection="row" justifyContent="space-between" width="100%">
+              <Text color={bodyColor}>Workflow: </Text>
+              <Box flexShrink={0} marginLeft={1}>
+                <ProgressBar progress={overallProgress} />
+              </Box>
             </Box>
-          </Box>
-        )}
-        {orderedTasks.map((t) => {
-          const slots = iterationSlots.get(t.id);
-          const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
-          return (
-            <Box key={t.id} flexDirection="column">
-              <TaskStatusProgressRow
-                type={t.type}
-                status={t.status}
-                message={t.message}
-                barProgress={t.progress ?? 0}
-              />
-              {sortedSlots.map((slot) => (
-                <Box key={`${t.id}-iter-${slot.index}`} flexDirection="column" paddingLeft={2}>
-                  <TaskStatusProgressRow
-                    type={`#${slot.index + 1}`}
-                    status={iterationSlotToTaskStatus(slot.status)}
-                    message={slot.status === "completed" ? undefined : slot.message}
-                    barProgress={slot.progress ?? 0}
-                    suppressProgressBar={slot.status !== "running" || slot.progress === undefined}
-                  />
-                </Box>
-              ))}
-            </Box>
-          );
-        })}
+          )}
+          {orderedTasks.map((t) => {
+            const slots = iterationSlots.get(t.id);
+            const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
+            return (
+              <Box key={t.id} flexDirection="column">
+                <TaskStatusProgressRow
+                  type={t.type}
+                  status={t.status}
+                  message={t.message}
+                  barProgress={t.progress ?? 0}
+                />
+                {sortedSlots.map((slot) => (
+                  <Box key={`${t.id}-iter-${slot.index}`} flexDirection="column" paddingLeft={2}>
+                    <TaskStatusProgressRow
+                      type={`#${slot.index + 1}`}
+                      status={iterationSlotToTaskStatus(slot.status)}
+                      message={slot.status === "completed" ? undefined : slot.message}
+                      barProgress={slot.progress ?? 0}
+                      suppressProgressBar={slot.status !== "running" || slot.progress === undefined}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            );
+          })}
+        </Box>
       </Box>
-    </Box>
+    </HumanInteractionHost>
   );
 }

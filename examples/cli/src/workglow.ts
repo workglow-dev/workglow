@@ -9,10 +9,11 @@
 import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
 import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
 import { registerBaseTasks } from "@workglow/task-graph";
-import { registerCommonTasks } from "@workglow/tasks";
+import { HUMAN_CONNECTOR, registerCommonTasks } from "@workglow/tasks";
 import {
   ChainedCredentialStore,
   EnvCredentialStore,
+  globalServiceRegistry,
   setGlobalCredentialStore,
 } from "@workglow/util";
 import { program } from "commander";
@@ -24,10 +25,11 @@ import { registerMcpCommand } from "./commands/mcp";
 import { registerModelCommand } from "./commands/model";
 import { registerTaskCommand } from "./commands/task";
 import { registerWorkflowCommand } from "./commands/workflow";
-import { lazyStore } from "./keyring";
 import { loadConfig } from "./config";
+import { lazyStore } from "./keyring";
 import { createModelRepository } from "./storage";
 import { detectCliTheme, setCliTheme } from "./terminal/detectTerminalTheme";
+import { InkHumanConnector } from "./ui/InkHumanConnector";
 
 // Register all task types so TaskRegistry is populated
 registerBaseTasks();
@@ -38,6 +40,8 @@ registerAiTasks();
 // The lazyStore starts locked; ensureCredentialStoreUnlocked() is called before operations
 // that need encrypted credentials (workflow run, credential add, etc.).
 setGlobalCredentialStore(new ChainedCredentialStore([lazyStore, new EnvCredentialStore()]));
+
+globalServiceRegistry.registerInstance(HUMAN_CONNECTOR, new InkHumanConnector());
 
 // Set up global model repository backed by filesystem
 const config = await loadConfig();

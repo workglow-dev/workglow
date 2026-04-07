@@ -6,8 +6,8 @@
 
 import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util/schema";
 import { getNestedValue } from "../util";
-import { evaluateConditionalRequired } from "./schema-conditions";
 import { deepMerge } from "./resolve-input";
+import { evaluateConditionalRequired } from "./schema-conditions";
 
 export interface PromptFieldDescriptor {
   readonly key: string;
@@ -274,22 +274,40 @@ function collectAllFields(
 }
 
 /**
+ * Builds field descriptors for an Ink form (including model/credential option enrichment).
+ */
+export async function prepareSchemaFormFields(
+  input: Record<string, unknown>,
+  schema: DataPortSchemaObject
+): Promise<PromptFieldDescriptor[]> {
+  let fields = getAllFields(input, schema);
+  return enrichFieldsWithOptions(fields);
+}
+
+export interface PromptEditableInputOptions {
+  /** Schema field `key` to focus first (e.g. `"value"` when Key was pre-filled from the CLI). */
+  readonly initialFocusedFieldKey?: string;
+}
+
+/**
  * Present a full editable form with all schema fields pre-populated from input.
  * Returns the edited values merged with input, or exits if cancelled.
  */
 export async function promptEditableInput(
   input: Record<string, unknown>,
-  schema: DataPortSchemaObject
+  schema: DataPortSchemaObject,
+  options?: PromptEditableInputOptions
 ): Promise<Record<string, unknown>> {
   if (!process.stdin.isTTY) {
     return input;
   }
 
-  let fields = getAllFields(input, schema);
-  fields = await enrichFieldsWithOptions(fields);
+  const fields = await prepareSchemaFormFields(input, schema);
 
   const { renderSchemaPrompt } = await import("../ui/render");
-  const prompted = await renderSchemaPrompt(fields);
+  const prompted = await renderSchemaPrompt(fields, {
+    initialFocusedFieldKey: options?.initialFocusedFieldKey,
+  });
   if (prompted === undefined) {
     process.exit(0);
   }

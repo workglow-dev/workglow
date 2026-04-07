@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export * from "./ChainedCredentialStore";
+export * from "./CredentialProviderOptions";
+export * from "./CredentialPutInputSchema";
+export * from "./CredentialStoreRegistry";
+export * from "./EnvCredentialStore";
 export * from "./ICredentialStore";
 export * from "./InMemoryCredentialStore";
-export * from "./EnvCredentialStore";
-export * from "./ChainedCredentialStore";
-export * from "./CredentialStoreRegistry";
 export * from "./OtpPassphraseCache";

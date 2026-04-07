@@ -4,104 +4,120 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getGlobalCredentialStore } from "@workglow/util";
+import {
+  CREDENTIAL_PROVIDER_NONE,
+  CredentialPutInputSchema,
+  getGlobalCredentialStore,
+} from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
-import { createInterface } from "node:readline";
+import {
+  applySchemaDefaults,
+  generateSchemaHelpText,
+  parseDynamicFlags,
+  resolveInput,
+  validateInput,
+} from "../input";
 import { ensureCredentialStoreUnlocked } from "../keyring";
 
-/**
- * Prompts for a secret value with masked input (shows asterisks).
- */
-async function promptSecret(message: string): Promise<string> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    // Mask the input by intercepting keystrokes
-    const stdin = process.stdin;
-    const stdout = process.stdout;
-    const wasRaw = stdin.isRaw;
-
-    stdout.write(message);
-    stdin.setRawMode(true);
-    stdin.resume();
-
-    let input = "";
-    const onData = (chunk: Buffer) => {
-      const char = chunk.toString("utf-8");
-
-      if (char === "\n" || char === "\r") {
-        // Enter pressed
-        stdin.removeListener("data", onData);
-        stdin.setRawMode(wasRaw ?? false);
-        stdout.write("\n");
-        rl.close();
-        resolve(input);
-      } else if (char === "\u0003") {
-        // Ctrl-C
-        stdin.removeListener("data", onData);
-        stdin.setRawMode(wasRaw ?? false);
-        stdout.write("\n");
-        rl.close();
-        process.exit(0);
-      } else if (char === "\u007F" || char === "\b") {
-        // Backspace
-        if (input.length > 0) {
-          input = input.slice(0, -1);
-          stdout.write("\b \b");
-        }
-      } else if (char.charCodeAt(0) >= 32) {
-        // Printable character
-        input += char;
-        stdout.write("*");
-      }
-    };
-
-    stdin.on("data", onData);
-  });
-}
+const CredentialSchema = CredentialPutInputSchema as unknown as DataPortSchemaObject;
 
 export function registerCredentialCommand(program: Command): void {
   const credential = program.command("credential").description("Manage encrypted credentials");
 
-  credential
+  const add = credential
     .command("add")
-    .argument("<key>", "credential key (e.g., openai-api-key)")
+    .argument("[key]", "optional credential key; pre-fills Key and focuses Value in the form")
     .description("Add or update an encrypted credential")
-    .option("--provider <name>", "provider name (e.g., openai, anthropic)")
-    .option("--label <text>", "human-readable label")
-    .action(async (key: string, opts: { provider?: string; label?: string }) => {
-      await ensureCredentialStoreUnlocked();
+    .allowUnknownOption()
+    .allowExcessArguments(true)
+    .helpOption(false)
+    .option("--input-json <json>", "Input as JSON string")
+    .option("--input-json-file <path>", "Input from JSON file")
+    .option("--dry-run", "Validate input without saving")
+    .option("--help", "Show help")
+    .action(
+      async (cliKey: string | undefined, opts: Record<string, string | boolean | undefined>) => {
+        if (opts.help) {
+          add.outputHelp();
+          console.log("\nInput flags (from credential schema):");
+          console.log(generateSchemaHelpText(CredentialSchema));
+          process.exit(0);
+        }
 
-      let value: string;
-      if (process.stdin.isTTY) {
-        value = await promptSecret("Enter credential value: ");
-        if (!value) {
-          console.error("No value provided.");
+        await ensureCredentialStoreUnlocked();
+
+        const dynamicFlags = parseDynamicFlags(process.argv, CredentialSchema);
+        let input = await resolveInput({
+          inputJson: opts.inputJson as string | undefined,
+          inputJsonFile: opts.inputJsonFile as string | undefined,
+          dynamicFlags,
+          schema: CredentialSchema,
+        });
+
+        input = applySchemaDefaults(input, CredentialSchema);
+
+        const trimmedPositional = cliKey !== undefined ? String(cliKey).trim() : "";
+        let usedPositionalKey = false;
+        if (trimmedPositional !== "") {
+          const existing = input.key;
+          const hasExplicitKey =
+            existing !== undefined && existing !== null && String(existing).trim() !== "";
+          if (!hasExplicitKey) {
+            input = { ...input, key: trimmedPositional };
+            usedPositionalKey = true;
+          }
+        }
+
+        if (process.stdin.isTTY) {
+          const { promptEditableInput } = await import("../input/prompt");
+          input = await promptEditableInput(input, CredentialSchema, {
+            initialFocusedFieldKey: usedPositionalKey ? "value" : undefined,
+          });
+        }
+
+        const validation = validateInput(input, CredentialSchema);
+        if (!validation.valid) {
+          console.error("Input validation failed:");
+          for (const err of validation.errors) {
+            console.error(`  - ${err}`);
+          }
           process.exit(1);
         }
-      } else {
-        // Read from stdin pipe
-        const chunks: Buffer[] = [];
-        for await (const chunk of process.stdin) {
-          chunks.push(chunk);
-        }
-        value = Buffer.concat(chunks).toString("utf-8").trim();
-        if (!value) {
-          console.error("No value provided.");
+
+        const key = String(input.key ?? "").trim();
+        const value = String(input.value ?? "");
+        const labelRaw = input.label;
+        const providerRaw = input.provider;
+        const label =
+          typeof labelRaw === "string" && labelRaw.trim() !== "" ? labelRaw.trim() : undefined;
+        const providerTrim =
+          typeof providerRaw === "string" && providerRaw.trim() !== ""
+            ? providerRaw.trim()
+            : undefined;
+        const provider =
+          providerTrim !== undefined && providerTrim !== CREDENTIAL_PROVIDER_NONE
+            ? providerTrim
+            : undefined;
+
+        if (!key || !value) {
+          console.error("Key and value are required and must be non-empty.");
           process.exit(1);
         }
+
+        if (opts.dryRun) {
+          console.log(JSON.stringify({ key, value: "(redacted)", label, provider }, null, 2));
+          process.exit(0);
+        }
+
+        const store = getGlobalCredentialStore();
+        await store.put(key, value, {
+          provider,
+          label,
+        });
+        console.log(`Credential "${key}" saved.`);
       }
-
-      const store = getGlobalCredentialStore();
-      await store.put(key, value, {
-        provider: opts.provider,
-        label: opts.label,
-      });
-      console.log(`Credential "${key}" saved.`);
-    });
+    );
 
   credential
     .command("list")

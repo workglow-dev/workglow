@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { OtpPassphraseCache } from "@workglow/util";
 import { FsFolderJsonKvStorage, LazyEncryptedCredentialStore } from "@workglow/storage";
+import { OtpPassphraseCache } from "@workglow/util";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -45,6 +45,33 @@ function isFsCode(err: unknown, code: string): boolean {
   );
 }
 
+function formatKeyringError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** One warning per process: OS keychain was not used (no permission dialog / no secure storage). */
+let keyringFallbackWarned = false;
+
+/**
+ * Explains why the user may not see a macOS Keychain (or Linux Secret Service) prompt.
+ * Set `WORKGLOW_SILENT_KEYRING=1` to suppress.
+ */
+function warnKeyringFallback(summary: string): void {
+  if (keyringFallbackWarned || process.env.WORKGLOW_SILENT_KEYRING === "1") {
+    return;
+  }
+  keyringFallbackWarned = true;
+  const platformHint =
+    process.platform === "darwin"
+      ? " On macOS, use a normal GUI login session and allow your terminal app to access the keychain when prompted."
+      : process.platform === "linux"
+        ? " On Linux, a desktop session with Secret Service (e.g. gnome-keyring / kwallet) over D-Bus is usually required; SSH and many containers have no keychain."
+        : "";
+  console.warn(
+    `[workglow] ${summary} Storing the encryption passphrase in ${credentialKeyPath} (file mode 0600) instead.${platformHint}`
+  );
+}
+
 /**
  * Resolves the credential passphrase from (in priority order):
  * 1. `WORKGLOW_CREDENTIAL_PASSPHRASE` environment variable
@@ -64,8 +91,8 @@ export async function resolvePassphraseFromKeyring(): Promise<string> {
   try {
     const { Entry } = await import("@napi-rs/keyring");
     entry = new Entry(KEYRING_SERVICE, KEYRING_ACCOUNT);
-  } catch {
-    // Native addon unavailable — skip keyring entirely
+  } catch (err) {
+    warnKeyringFallback(`OS keyring module failed to load (${formatKeyringError(err)}).`);
   }
 
   // 2. Try OS keyring
@@ -73,8 +100,8 @@ export async function resolvePassphraseFromKeyring(): Promise<string> {
     try {
       const existing = entry.getPassword();
       if (existing) return existing;
-    } catch {
-      // Keyring not available or no entry — fall through
+    } catch (err) {
+      warnKeyringFallback(`Cannot read OS keychain (${formatKeyringError(err)}).`);
     }
   }
 
@@ -87,8 +114,10 @@ export async function resolvePassphraseFromKeyring(): Promise<string> {
           entry.setPassword(fileKey);
           // Migration successful — remove the old file
           await unlink(credentialKeyPath);
-        } catch {
-          // Keyring write failed; leave file in place as active store
+        } catch (err) {
+          warnKeyringFallback(
+            `Could not migrate passphrase into OS keychain (${formatKeyringError(err)}).`
+          );
         }
       }
       return fileKey;
@@ -107,12 +136,16 @@ export async function resolvePassphraseFromKeyring(): Promise<string> {
       try {
         const stored = entry.getPassword();
         if (stored) return stored;
-      } catch {
-        // Read-back failed; use the key we just generated
+      } catch (err) {
+        warnKeyringFallback(
+          `Could not read back passphrase from OS keychain (${formatKeyringError(err)}).`
+        );
       }
       return key;
-    } catch {
-      // Keyring write failed — fall back to file storage below
+    } catch (err) {
+      warnKeyringFallback(
+        `Could not write passphrase to OS keychain (${formatKeyringError(err)}).`
+      );
     }
   }
 
