@@ -35,6 +35,7 @@ export class RetryableJobError extends JobError {
     public retryDate?: Date
   ) {
     super(message);
+    this.retryable = true;
   }
 }
 
