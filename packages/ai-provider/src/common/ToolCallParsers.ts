@@ -804,7 +804,8 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
 
   // Try plain key:value format (no escape tags): key:value separated by commas
   // Also handles cases where the model generates only a single <escape> tag
-  const plainRegex = /(?<![A-Za-z0-9_])([A-Za-z0-9_]+)\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}]+))/g;
+  const plainRegex =
+    /(?<![A-Za-z0-9_])(?=([A-Za-z0-9_]+))\1\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}]+))/g;
   let plainMatch: RegExpExecArray | null;
   while ((plainMatch = plainRegex.exec(argsStr)) !== null) {
     const key = plainMatch[1].trim();
@@ -855,7 +856,7 @@ export const parseFunctionGemma: ParserFn = (text) => {
 
   const content = text
     .replace(
-      /(?:<start_function_call>\s*)?(?:call)?:([\w.]+)\s*\{[^}]*\}(?:\s*<end_function_call>)?/g,
+      /(?:<start_function_call>\s*)?(?:call)?:(?=([\w.]+))\1\s*\{[^}]*\}(?:\s*<end_function_call>)?/g,
       ""
     )
     .trim();
