@@ -9,8 +9,6 @@ import {
   structuredGeneration,
   textGeneration,
   toolCalling,
-  type AgentTaskOutput,
-  type StructuredGenerationTaskOutput,
   type ToolCalls,
   type ToolDefinition,
 } from "@workglow/ai";
