@@ -168,7 +168,7 @@ export function parseKeyValueArgs(argsStr: string): Record<string, unknown> {
   const args: Record<string, unknown> = {};
   if (!argsStr) return args;
 
-  const argRegex = /(\w+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s,]+))\s*(?:,|$)/g;
+  const argRegex = /(?<!\w)(\w+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s,]+))/g;
   let match: RegExpExecArray | null;
   while ((match = argRegex.exec(argsStr)) !== null) {
     const key = match[1];
@@ -739,14 +739,36 @@ export const parseGranite: ParserFn = (text) => {
  * - `{"name": "func", "parameters": {...}}`
  */
 export const parseGemma: ParserFn = (text) => {
-  const codeMatch = text.match(/```tool_code\s*\n((?:[^`]|`(?!``))*)\n\s*```/);
-  if (!codeMatch) return null;
+  // Manual extraction to avoid ReDoS with backtick-matching regexes
+  const openMarker = "```tool_code";
+  const openIdx = text.indexOf(openMarker);
+  if (openIdx === -1) return null;
+  const lineStart = text.indexOf("\n", openIdx + openMarker.length);
+  if (lineStart === -1) return null;
+  // Find closing ``` on its own line after the content
+  let closeIdx = -1;
+  let searchFrom = lineStart + 1;
+  while (searchFrom < text.length) {
+    const candidate = text.indexOf("```", searchFrom);
+    if (candidate === -1) break;
+    // Ensure the ``` is preceded by a newline (possibly with whitespace)
+    const lineBegin = text.lastIndexOf("\n", candidate - 1);
+    if (lineBegin >= lineStart && text.slice(lineBegin + 1, candidate).trim() === "") {
+      closeIdx = candidate;
+      break;
+    }
+    searchFrom = candidate + 3;
+  }
+  if (closeIdx === -1) return null;
 
-  const code = codeMatch[1].trim();
+  const rawCode = text.slice(lineStart + 1, closeIdx).replace(/\n[ \t]*$/, "");
+  const code = rawCode.trim();
   const funcMatch = code.match(/^(\w+)\(([\s\S]*)\)$/);
   if (!funcMatch) return null;
 
-  const content = text.replace(/```tool_code(?:[^`]|`(?!``))*```/g, "").trim();
+  // Remove the entire fenced block from content
+  const blockEnd = closeIdx + 3;
+  const content = (text.slice(0, openIdx) + text.slice(blockEnd)).trim();
   return {
     tool_calls: [makeToolCall(funcMatch[1], parseKeyValueArgs(funcMatch[2].trim()))],
     content,
@@ -764,7 +786,7 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
   if (!argsStr.trim()) return args;
 
   // Try <escape>-delimited format first: key:<escape>value<escape>
-  const escapeRegex = /([A-Za-z0-9_]+)\s*:\s*<escape>((?:[^<]|<(?!escape>))*)<escape>/g;
+  const escapeRegex = /(?<![A-Za-z0-9_])([A-Za-z0-9_]+)\s*:\s*<escape>((?:[^<]|<(?!escape>))*)<escape>/g;
   let escapeMatch: RegExpExecArray | null;
   while ((escapeMatch = escapeRegex.exec(argsStr)) !== null) {
     args[escapeMatch[1]] = coerceArgValue(escapeMatch[2]);
@@ -773,7 +795,7 @@ function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
 
   // Try plain key:value format (no escape tags): key:value separated by commas
   // Also handles cases where the model generates only a single <escape> tag
-  const plainRegex = /([A-Za-z0-9_]+)\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}]+))/g;
+  const plainRegex = /(?<![A-Za-z0-9_])([A-Za-z0-9_]+)\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}]+))/g;
   let plainMatch: RegExpExecArray | null;
   while ((plainMatch = plainRegex.exec(argsStr)) !== null) {
     const key = plainMatch[1].trim();
@@ -803,7 +825,7 @@ export const parseFunctionGemma: ParserFn = (text) => {
   // - `call:name{args}` or just `:name{args}` (model may omit `call` prefix)
   // - Optional whitespace/newlines between name and `{`
   const regex =
-    /(?:<start_function_call>\s*)?call:([^{\s]+)\s*\{((?:[^}])*)\}(?:\s*<end_function_call>)?/g;
+    /(?:<start_function_call>\s*)?call:([\w.]+)\s*\{([^}]*)\}(?:\s*<end_function_call>)?/g;
   const calls: ToolCall[] = [];
   let match: RegExpExecArray | null;
 
@@ -824,7 +846,7 @@ export const parseFunctionGemma: ParserFn = (text) => {
 
   const content = text
     .replace(
-      /(?:<start_function_call>\s*)?(?:call)?:([A-Za-z_]\w*)\s*\{[^}]*\}(?:\s*<end_function_call>)?/g,
+      /(?:<start_function_call>\s*)?(?:call)?:([\w.]+)\s*\{[^}]*\}(?:\s*<end_function_call>)?/g,
       ""
     )
     .trim();
@@ -869,7 +891,7 @@ function parseLiquidArgs(argsStr: string): Record<string, unknown> {
  */
 function extractPythonicCalls(text: string): ToolCall[] {
   const calls: ToolCall[] = [];
-  const startRegex = /(\w+)\(/g;
+  const startRegex = /(?<!\w)(\w+)\(/g;
   let startMatch: RegExpExecArray | null;
   while ((startMatch = startRegex.exec(text)) !== null) {
     const funcName = startMatch[1];
@@ -917,18 +939,45 @@ export const parseLiquid: ParserFn = (text) => {
   }
 
   // Try bracket-only format: [func(args)] without special tokens
-  const bracketRegex = /\[(\w+\([^)]*(?:\([^)]*\))*[^)]*\))\]/g;
+  // Use manual balanced-paren extraction to avoid ReDoS
   const bracketCalls: ToolCall[] = [];
-  let bracketMatch: RegExpExecArray | null;
-  while ((bracketMatch = bracketRegex.exec(text)) !== null) {
-    const inner = bracketMatch[1];
-    const calls = extractPythonicCalls(inner);
-    bracketCalls.push(...calls);
+  const bracketSpans: Array<[number, number]> = [];
+  {
+    const bracketOpenRegex = /\[(?=\w+\()/g;
+    let bm: RegExpExecArray | null;
+    while ((bm = bracketOpenRegex.exec(text)) !== null) {
+      const innerStart = bm.index + 1;
+      // Find balanced closing ] by tracking parens
+      let depth = 0;
+      let i = innerStart;
+      let foundClose = false;
+      while (i < text.length) {
+        const ch = text[i];
+        if (ch === "(") depth++;
+        else if (ch === ")") {
+          depth--;
+          if (depth === 0 && i + 1 < text.length && text[i + 1] === "]") {
+            const inner = text.slice(innerStart, i + 1);
+            const calls = extractPythonicCalls(inner);
+            bracketCalls.push(...calls);
+            bracketSpans.push([bm.index, i + 2]);
+            bracketOpenRegex.lastIndex = i + 2;
+            foundClose = true;
+            break;
+          }
+        }
+        i++;
+      }
+      if (!foundClose) break;
+    }
   }
 
   if (bracketCalls.length > 0) {
-    const content = stripModelArtifacts(text.replace(/\[\w+\([^)]*(?:\([^)]*\))*[^)]*\)\]/g, ""));
-    return { tool_calls: bracketCalls, content, parser: "liquid" };
+    let content = text;
+    for (let k = bracketSpans.length - 1; k >= 0; k--) {
+      content = content.slice(0, bracketSpans[k][0]) + content.slice(bracketSpans[k][1]);
+    }
+    return { tool_calls: bracketCalls, content: stripModelArtifacts(content), parser: "liquid" };
   }
 
   // Try ||Call: format (LFM2 text-based variant): ||Call: func_name(args)
@@ -1010,14 +1059,14 @@ export const parseQwen35Xml: ParserFn = (text) => {
   for (const [_, toolCallBody] of toolCallMatches) {
     const functionMatch = toolCallBody
       .trim()
-      .match(/<function=([^>\n]+)>((?:[^<]|<(?!\/function>))*)<\/function>/);
+      .match(/<function=([^>\n<]+)>((?:[^<]|<(?!\/function>))*)<\/function>/);
     if (!functionMatch) {
       continue;
     }
     const [, rawName, functionBody] = functionMatch;
     const parsedInput: Record<string, unknown> = {};
     const parameterMatches = functionBody.matchAll(
-      /<parameter=([^>\n]+)>((?:[^<]|<(?!\/parameter>))*)<\/parameter>/g
+      /<parameter=([^>\n<]+)>((?:[^<]|<(?!\/parameter>))*)<\/parameter>/g
     );
     for (const [__, rawParamName, rawValue] of parameterMatches) {
       const paramName = rawParamName.trim();
