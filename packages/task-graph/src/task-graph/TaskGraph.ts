@@ -4,18 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DirectedAcyclicGraph } from "@workglow/util/graph";
 import { EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
+import { DirectedAcyclicGraph } from "@workglow/util/graph";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
 import type { TaskEntitlements } from "../task/TaskEntitlements";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
-import { ensureTask } from "./Conversions";
 import type { PipeFunction } from "./Conversions";
-import { Dataflow } from "./Dataflow";
+import { ensureTask } from "./Conversions";
 import type { DataflowIdType } from "./Dataflow";
+import { Dataflow } from "./Dataflow";
+import { computeGraphEntitlements } from "./GraphEntitlementUtils";
 import { addBoundaryNodesToDependencyJson, addBoundaryNodesToGraphJson } from "./GraphSchemaUtils";
 import type { ITaskGraph } from "./ITaskGraph";
 import {
@@ -28,8 +29,8 @@ import {
   TaskGraphStatusEvents,
   TaskGraphStatusListeners,
 } from "./TaskGraphEvents";
-import { CompoundMergeStrategy, GraphResult, TaskGraphRunner } from "./TaskGraphRunner";
 import type { GraphResultArray } from "./TaskGraphRunner";
+import { CompoundMergeStrategy, GraphResult, TaskGraphRunner } from "./TaskGraphRunner";
 
 /**
  * Configuration for running a task graph
@@ -584,8 +585,9 @@ export class TaskGraph implements ITaskGraph {
     const unsubscribes: (() => void)[] = [];
 
     const emitChange = () => {
-      const { computeGraphEntitlements } = require("./GraphEntitlementUtils");
-      callback(computeGraphEntitlements(this));
+      const entitlements = computeGraphEntitlements(this);
+      this.emit("entitlementChange", entitlements);
+      callback(entitlements);
     };
 
     // Subscribe to entitlementChange events on all existing tasks

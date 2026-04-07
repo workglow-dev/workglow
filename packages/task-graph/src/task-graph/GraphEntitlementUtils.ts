@@ -6,6 +6,7 @@
 
 import type { TaskGraph } from "./TaskGraph";
 import type { TaskIdType } from "../task/TaskTypes";
+import { TaskStatus } from "../task/TaskTypes";
 import {
   type TaskEntitlement,
   type TaskEntitlements,
@@ -69,7 +70,6 @@ export function computeGraphEntitlements(
   for (const task of tasks) {
     // For ConditionalTask with "active" mode, skip disabled tasks
     if (conditionalBranches === "active" && task.status !== undefined) {
-      const { TaskStatus } = require("../task/TaskTypes");
       if (task.status === TaskStatus.DISABLED) continue;
     }
 
