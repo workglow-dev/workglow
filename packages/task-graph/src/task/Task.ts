@@ -98,6 +98,13 @@ export class Task<
   public static customizable: boolean = false;
 
   /**
+   * When true, this task defines the graph's output. The graph runner will
+   * collect results only from tasks with this flag when they exist among the
+   * leaf nodes; otherwise it falls back to collecting from all leaves.
+   */
+  public static isGraphOutput: boolean = false;
+
+  /**
    * Input schema for this task
    */
   public static inputSchema(): DataPortSchema {
