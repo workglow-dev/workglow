@@ -32,6 +32,7 @@ import {
   type GraphResultArray,
   TaskGraphRunner,
 } from "./TaskGraphRunner";
+import { computeGraphEntitlements } from "./GraphEntitlementUtils";
 
 /**
  * Configuration for running a task graph
@@ -589,8 +590,9 @@ export class TaskGraph implements ITaskGraph {
     const unsubscribes: (() => void)[] = [];
 
     const emitChange = () => {
-      const { computeGraphEntitlements } = require("./GraphEntitlementUtils");
-      callback(computeGraphEntitlements(this));
+      const entitlements = computeGraphEntitlements(this);
+      this.emit("entitlementChange", entitlements);
+      callback(entitlements);
     };
 
     // Subscribe to entitlementChange events on all existing tasks
