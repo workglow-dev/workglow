@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AiProvider, type AiProviderReactiveRunFn, type AiProviderRunFn } from "@workglow/ai";
+import { AiProvider } from "@workglow/ai";
+import type { AiProviderReactiveRunFn, AiProviderRunFn } from "@workglow/ai";
 import { TENSORFLOW_MEDIAPIPE, TFMP_DEFAULT_TASK_TYPES } from "./common/TFMP_Constants";
 import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 

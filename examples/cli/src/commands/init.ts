@@ -7,7 +7,8 @@
 import type { Command } from "commander";
 import { writeFile, mkdir } from "fs/promises";
 import { stringify } from "smol-toml";
-import { CONFIG_PATH, DEFAULT_CONFIG, type CliConfig } from "../config";
+import { CONFIG_PATH, DEFAULT_CONFIG } from "../config";
+import type { CliConfig } from "../config";
 
 export function registerInitCommand(program: Command): void {
   program

@@ -11,9 +11,8 @@ import {
   GraphAsTask,
   TaskGraph,
   TaskRegistry,
-  type TaskGraphJson,
-  type JsonTaskItem,
 } from "@workglow/task-graph";
+import type { TaskGraphJson, JsonTaskItem } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
 import {

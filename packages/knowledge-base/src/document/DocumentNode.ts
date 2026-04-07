@@ -4,14 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  NodeKind,
-  type DocumentNode,
-  type DocumentRootNode,
-  type NodeRange,
-  type SectionNode,
-  type TopicNode,
-} from "./DocumentSchema";
+import { NodeKind } from "./DocumentSchema";
+import type { DocumentNode, DocumentRootNode, NodeRange, SectionNode, TopicNode } from "./DocumentSchema";
 
 /**
  * Approximate token counting (v1) -- ~4 characters per token.

@@ -7,10 +7,13 @@
 import {
   InMemoryModelRepository,
   MODEL_REPOSITORY,
-  type ModelRecord,
-  type ModelRepository,
 } from "@workglow/ai";
-import { Dataflow, Task, TaskGraph, type TaskInput } from "@workglow/task-graph";
+import type {
+  ModelRecord,
+  ModelRepository,
+} from "@workglow/ai";
+import { Dataflow, Task, TaskGraph } from "@workglow/task-graph";
+import type { TaskInput } from "@workglow/task-graph";
 import type { ServiceRegistry } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, it } from "vitest";

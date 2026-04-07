@@ -14,12 +14,14 @@ import {
   McpPromptGetTask,
   McpResourceReadTask,
   McpToolCallTask,
-  type McpListTaskOutput,
-  type McpPromptGetTaskConfig,
-  type McpPromptGetTaskOutput,
-  type McpResourceReadTaskConfig,
-  type McpResourceReadTaskOutput,
-  type McpToolCallTaskConfig,
+} from "@workglow/tasks";
+import type {
+  McpListTaskOutput,
+  McpPromptGetTaskConfig,
+  McpPromptGetTaskOutput,
+  McpResourceReadTaskConfig,
+  McpResourceReadTaskOutput,
+  McpToolCallTaskConfig,
 } from "@workglow/tasks";
 import { describe, expect, test } from "vitest";
 import { setLogger } from "@workglow/util";

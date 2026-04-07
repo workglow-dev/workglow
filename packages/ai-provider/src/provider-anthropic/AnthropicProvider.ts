@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AiProvider,
-  type AiProviderReactiveRunFn,
-  type AiProviderRunFn,
-  type AiProviderStreamFn,
+import { AiProvider } from "@workglow/ai/worker";
+import type {
+  AiProviderReactiveRunFn,
+  AiProviderRunFn,
+  AiProviderStreamFn,
 } from "@workglow/ai/worker";
 import { ANTHROPIC } from "./common/Anthropic_Constants";
 import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";

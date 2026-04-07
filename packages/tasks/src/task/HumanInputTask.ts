@@ -12,8 +12,8 @@ import {
   TaskConfigSchema,
   TaskConfigurationError,
   Workflow,
-  type IExecuteContext,
 } from "@workglow/task-graph";
+import type { IExecuteContext } from "@workglow/task-graph";
 import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 import { createServiceToken, uuid4 } from "@workglow/util";
 

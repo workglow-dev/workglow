@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, type JsonSchema } from "@workglow/util/worker";
+import { getLogger } from "@workglow/util/worker";
+import type { JsonSchema } from "@workglow/util/worker";
 
 /**
  * A tool definition that can be passed to an LLM for tool calling.

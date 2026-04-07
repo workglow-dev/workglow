@@ -4,14 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  CreateWorkflow,
-  Task,
-  Workflow,
-  type IExecuteContext,
-  type StreamEvent,
-  type TaskConfig,
-} from "@workglow/task-graph";
+import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
+
+import type { IExecuteContext, StreamEvent, TaskConfig } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { assistantMessage, toolMessage, toolSourceDefinitions, userMessage } from "./AgentTypes";

@@ -11,15 +11,12 @@ import {
   TaskConfig,
   TaskConfigSchema,
   Workflow,
-  type IExecuteContext,
 } from "@workglow/task-graph";
+import type { IExecuteContext } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
-import {
-  resolveHumanConnector,
-  type HumanResponseAction,
-  type IHumanRequest,
-} from "./HumanInputTask";
+import { resolveHumanConnector } from "./HumanInputTask";
+import type { HumanResponseAction, IHumanRequest } from "./HumanInputTask";
 
 // ========================================================================
 // Schemas

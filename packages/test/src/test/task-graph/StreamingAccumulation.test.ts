@@ -33,8 +33,8 @@ import {
   TaskGraph,
   TaskGraphRunner,
   TaskStatus,
-  type StreamEvent,
 } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, it } from "vitest";

@@ -10,8 +10,8 @@ import {
   TaskStatus,
   getOutputStreamMode,
   isTaskStreamable,
-  type StreamEvent,
 } from "@workglow/task-graph";
+import type { StreamEvent } from "@workglow/task-graph";
 import { setLogger, sleep } from "@workglow/util";
 import { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";

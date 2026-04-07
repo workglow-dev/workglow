@@ -10,8 +10,8 @@ import {
   NodeKind,
   StructuralParser,
   createKnowledgeBase,
-  type SectionNode,
 } from "@workglow/knowledge-base";
+import type { SectionNode } from "@workglow/knowledge-base";
 import { setLogger, uuid4 } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";

@@ -10,17 +10,8 @@
  */
 
 import { Job } from "@workglow/job-queue";
-import {
-  Task,
-  TaskConfigSchema,
-  TaskConfigurationError,
-  TaskInput,
-  type IExecuteContext,
-  type IExecuteReactiveContext,
-  type TaskConfig,
-  type TaskOutput,
-  hasStructuredOutput,
-} from "@workglow/task-graph";
+import { Task, TaskConfigSchema, TaskConfigurationError, TaskInput, hasStructuredOutput } from "@workglow/task-graph";
+import type { IExecuteContext, IExecuteReactiveContext, TaskConfig, TaskOutput } from "@workglow/task-graph";
 import type { DataPortSchema, JsonSchema } from "@workglow/util/schema";
 import type { ServiceRegistry } from "@workglow/util";
 

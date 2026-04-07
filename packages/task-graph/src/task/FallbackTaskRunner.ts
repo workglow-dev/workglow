@@ -8,7 +8,8 @@ import type { FallbackTask, FallbackTaskConfig } from "./FallbackTask";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { ITask } from "./ITask";
 import { TaskAbortedError, TaskFailedError, TaskTimeoutError } from "./TaskError";
-import { TaskStatus, type TaskInput, type TaskOutput } from "./TaskTypes";
+import { TaskStatus } from "./TaskTypes";
+import type { TaskInput, TaskOutput } from "./TaskTypes";
 
 /**
  * Runner for FallbackTask that executes alternatives sequentially until one succeeds.

@@ -4,14 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type ITabularStorage } from "@workglow/storage";
-import { EventEmitter, type EventParameters } from "@workglow/util";
+import type { ITabularStorage } from "@workglow/storage";
+import { EventEmitter } from "@workglow/util";
+import type { EventParameters } from "@workglow/util";
 
-import {
-  McpServerPrimaryKeyNames,
-  type McpServerRecord,
-  McpServerRecordSchema,
-} from "./McpServerSchema";
+import { McpServerPrimaryKeyNames, McpServerRecordSchema } from "./McpServerSchema";
+import type { McpServerRecord } from "./McpServerSchema";
 
 export type McpServerEventListeners = {
   server_added: (record: McpServerRecord) => void;

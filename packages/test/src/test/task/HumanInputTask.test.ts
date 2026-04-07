@@ -17,10 +17,8 @@ import {
   HumanApprovalTask,
   HumanInputTask,
   McpElicitationConnector,
-  type IHumanConnector,
-  type IHumanRequest,
-  type IHumanResponse,
 } from "@workglow/tasks";
+import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/tasks";
 import { Container, ServiceRegistry } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, test, vi } from "vitest";

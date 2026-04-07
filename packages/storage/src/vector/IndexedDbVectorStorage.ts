@@ -16,13 +16,8 @@ import { IndexedDbTabularStorage } from "../tabular/IndexedDbTabularStorage";
 import type { ClientProvidedKeysOption } from "../tabular/BaseTabularStorage";
 import type { AnyVectorStorage } from "./IVectorStorage";
 import type { MigrationOptions } from "../util/IndexedDbTable";
-import {
-  getMetadataProperty,
-  getVectorProperty,
-  type HybridSearchOptions,
-  type IVectorStorage,
-  type VectorSearchOptions,
-} from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
+import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
 
 export const IDB_VECTOR_REPOSITORY = createServiceToken<AnyVectorStorage>(
   "storage.vectorRepository.indexedDb"

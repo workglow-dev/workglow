@@ -9,16 +9,11 @@
  * Extends AiTask with executeStream() that yields StreamEvents from the provider.
  */
 
-import {
-  getStreamingPorts,
-  type TaskConfig,
-  TaskConfigurationError,
-  type IExecuteContext,
-  type StreamEvent,
-  type TaskOutput,
-} from "@workglow/task-graph";
+import { getStreamingPorts, TaskConfigurationError } from "@workglow/task-graph";
+import type { TaskConfig, IExecuteContext, StreamEvent, TaskOutput } from "@workglow/task-graph";
 
-import { type AiTaskInput, AiTask } from "./AiTask";
+import { AiTask } from "./AiTask";
+import type { AiTaskInput } from "./AiTask";
 import { getAiProviderRegistry } from "../../provider/AiProviderRegistry";
 import type { ModelConfig } from "../../model/ModelSchema";
 

@@ -7,20 +7,20 @@
 import {
   computeGraphInputSchema,
   createGraphFromGraphJSON,
-  type TaskGraphJson,
   type TaskDeserializationOptions,
+  type TaskGraphJson,
 } from "@workglow/task-graph";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
-import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
+import { editStringInExternalEditor } from "../editInEditor";
 import {
-  parseDynamicFlags,
   generateSchemaHelpText,
-  resolveInput,
-  resolveConfig,
-  validateInput,
+  parseDynamicFlags,
   readJsonInput,
+  resolveConfig,
+  resolveInput,
+  validateInput,
 } from "../input";
 import { createAgentRepository } from "../storage";
 import { formatError, formatTable, outputResult } from "../util";

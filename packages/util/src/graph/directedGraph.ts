@@ -3,7 +3,8 @@
 // license: MIT
 
 import { NodeDoesntExistError } from "./errors";
-import { type AdjacencyMatrix, Graph } from "./graph";
+import { Graph } from "./graph";
+import type { AdjacencyMatrix } from "./graph";
 
 /**
  * # DirectedGraph

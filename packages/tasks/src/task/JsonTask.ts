@@ -14,9 +14,9 @@ import {
   JsonTaskItem,
   TaskConfig,
   TaskConfigurationError,
-  type TaskGraphJson,
   Workflow,
 } from "@workglow/task-graph";
+import type { TaskGraphJson } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {

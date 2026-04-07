@@ -6,16 +6,12 @@
 
 import type { DataPortSchema } from "@workglow/util/schema";
 import { getLogger } from "@workglow/util";
-import { evaluateCondition, getNestedValue, type UIConditionConfig } from "./ConditionUtils";
+import { evaluateCondition, getNestedValue } from "./ConditionUtils";
+import type { UIConditionConfig } from "./ConditionUtils";
 import type { IExecuteContext } from "./ITask";
 import { Task } from "./Task";
-import {
-  TaskConfigSchema,
-  type TaskConfig,
-  type TaskInput,
-  type TaskOutput,
-  type TaskTypeName,
-} from "./TaskTypes";
+import { TaskConfigSchema } from "./TaskTypes";
+import type { TaskConfig, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 
 // ============================================================================
 // Types and Interfaces

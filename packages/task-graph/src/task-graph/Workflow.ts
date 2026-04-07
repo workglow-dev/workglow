@@ -4,32 +4,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { JsonSchema, type DataPortSchema } from "@workglow/util/schema";
-import {
-  EventEmitter,
-  getLogger,
-  ServiceRegistry,
-  uuid4,
-  type EventParameters,
-} from "@workglow/util";
+import { JsonSchema } from "@workglow/util/schema";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { EventEmitter, getLogger, ServiceRegistry, uuid4 } from "@workglow/util";
+import type { EventParameters } from "@workglow/util";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
-import { getPortStreamMode, type StreamEvent } from "../task/StreamTypes";
+import { getPortStreamMode } from "../task/StreamTypes";
+import type { StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { DataPorts, TaskConfig, TaskIdType, TaskInput, TaskOutput } from "../task/TaskTypes";
-import { ensureTask, type PipeFunction, type Taskish } from "./Conversions";
+import { ensureTask } from "./Conversions";
+import type { PipeFunction, Taskish } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import type { ITaskGraph } from "./ITaskGraph";
-import { IWorkflow, WorkflowRunConfig } from "./IWorkflow";
+import type { IWorkflow, WorkflowRunConfig } from "./IWorkflow";
 import { TaskGraph } from "./TaskGraph";
-import {
-  CompoundMergeStrategy,
-  PROPERTY_ARRAY,
-  type PropertyArrayGraphResult,
-} from "./TaskGraphRunner";
+import { CompoundMergeStrategy, PROPERTY_ARRAY } from "./TaskGraphRunner";
+import type { PropertyArrayGraphResult } from "./TaskGraphRunner";
 
 // ============================================================================
 // Standalone utility functions (moved from Conversions.ts to break circular

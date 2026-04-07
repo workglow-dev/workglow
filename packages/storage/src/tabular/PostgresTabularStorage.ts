@@ -4,13 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  DataPortSchemaObject,
-  FromSchema,
-  JsonSchema,
-  type TypedArray,
-  TypedArraySchemaOptions,
-} from "@workglow/util/schema";
+import { DataPortSchemaObject, FromSchema, JsonSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
+import type { TypedArray } from "@workglow/util/schema";
 import { createServiceToken } from "@workglow/util";
 import type { Pool } from "@workglow/storage/postgres";
 import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
