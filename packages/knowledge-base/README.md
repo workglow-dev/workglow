@@ -540,8 +540,8 @@ Pass `{ sharedTables: true }` when registering so that the metadata record uses 
 ```typescript
 import { registerKnowledgeBase } from "@workglow/knowledge-base";
 
-registerKnowledgeBase("kb-1", kb1, { sharedTables: true });
-registerKnowledgeBase("kb-2", kb2, { sharedTables: true });
+await registerKnowledgeBase("kb-1", kb1, { sharedTables: true });
+await registerKnowledgeBase("kb-2", kb2, { sharedTables: true });
 ```
 
 You can check whether a persisted record uses shared tables with the `isSharedTableMode` helper:

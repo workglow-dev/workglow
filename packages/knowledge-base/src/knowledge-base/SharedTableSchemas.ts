@@ -61,14 +61,30 @@ export const SharedChunkVectorStorageSchema = {
 } as const satisfies DataPortSchemaObject;
 
 /**
+ * Composite primary key for shared document table — includes `kb_id` to prevent
+ * cross-KB key collisions when multiple knowledge bases share the same table.
+ */
+export const SharedDocumentPrimaryKey = ["kb_id", "doc_id"] as const;
+export type SharedDocumentPrimaryKey = typeof SharedDocumentPrimaryKey;
+
+/**
+ * Composite primary key for shared chunk table — includes `kb_id` to prevent
+ * cross-KB key collisions when multiple knowledge bases share the same table.
+ */
+export const SharedChunkPrimaryKey = ["kb_id", "chunk_id"] as const;
+export type SharedChunkPrimaryKey = typeof SharedChunkPrimaryKey;
+
+/**
  * Index definitions for efficient KB-scoped queries on shared document table.
  */
-export const SharedDocumentIndexes: ReadonlyArray<ReadonlyArray<string>> = [["kb_id"]];
+export const SharedDocumentIndexes = [["kb_id"]] as const satisfies readonly (
+  keyof any | readonly (keyof any)[]
+)[];
 
 /**
  * Index definitions for efficient KB-scoped queries on shared chunk table.
  */
-export const SharedChunkIndexes: ReadonlyArray<ReadonlyArray<string>> = [
+export const SharedChunkIndexes = [
   ["kb_id"],
   ["kb_id", "doc_id"],
-];
+] as const satisfies readonly (keyof any | readonly (keyof any)[])[]; 

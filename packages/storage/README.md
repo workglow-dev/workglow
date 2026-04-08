@@ -641,11 +641,7 @@ await task.run({ dataSource: userRepoInstance }); // Direct instance
 The package provides schema helper functions for defining repository inputs with proper format annotations:
 
 ```typescript
-import {
-  TypeTabularStorage,
-  TypeVectorRepository,
-  TypeDocumentRepository,
-} from "@workglow/storage";
+import { TypeTabularStorage } from "@workglow/storage";
 
 // Tabular repository (format: "storage:tabular")
 const tabularSchema = TypeTabularStorage({

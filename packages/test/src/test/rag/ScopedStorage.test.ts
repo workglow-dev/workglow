@@ -6,17 +6,17 @@
 
 import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import {
-  ChunkVectorPrimaryKey,
   createKnowledgeBase,
-  DocumentStorageKey,
   isSharedTableMode,
   registerKnowledgeBase,
   getGlobalKnowledgeBaseRepository,
   ScopedTabularStorage,
   ScopedVectorStorage,
   SharedChunkIndexes,
+  SharedChunkPrimaryKey,
   SharedChunkVectorStorageSchema,
   SharedDocumentIndexes,
+  SharedDocumentPrimaryKey,
   SharedDocumentStorageSchema,
 } from "@workglow/knowledge-base";
 import { uuid4 } from "@workglow/util";
@@ -30,8 +30,8 @@ describe("ScopedTabularStorage", () => {
   beforeEach(async () => {
     sharedStorage = new InMemoryTabularStorage(
       SharedDocumentStorageSchema,
-      DocumentStorageKey,
-      SharedDocumentIndexes as any
+      SharedDocumentPrimaryKey,
+      SharedDocumentIndexes
     );
     await sharedStorage.setupDatabase();
     scopeA = new ScopedTabularStorage(sharedStorage, "kb-a");
@@ -96,6 +96,24 @@ describe("ScopedTabularStorage", () => {
 
       const queried = await scopeA.query({ doc_id: "strip1" } as any);
       expect("kb_id" in queried![0]).toBe(false);
+    });
+  });
+
+  describe("key collision prevention", () => {
+    test("identical doc_id across scopes do not collide", async () => {
+      await scopeA.put({ doc_id: "same-id", data: "scope-A data" });
+      await scopeB.put({ doc_id: "same-id", data: "scope-B data" });
+
+      const fromA = await scopeA.get({ doc_id: "same-id" });
+      const fromB = await scopeB.get({ doc_id: "same-id" });
+
+      expect(fromA).toBeDefined();
+      expect(fromB).toBeDefined();
+      expect((fromA as any).data).toBe("scope-A data");
+      expect((fromB as any).data).toBe("scope-B data");
+
+      expect(await scopeA.size()).toBe(1);
+      expect(await scopeB.size()).toBe(1);
     });
   });
 
@@ -233,8 +251,8 @@ describe("ScopedVectorStorage", () => {
   beforeEach(async () => {
     sharedStorage = new InMemoryVectorStorage(
       SharedChunkVectorStorageSchema,
-      ChunkVectorPrimaryKey,
-      SharedChunkIndexes as any,
+      SharedChunkPrimaryKey,
+      SharedChunkIndexes,
       3
     );
     await sharedStorage.setupDatabase();

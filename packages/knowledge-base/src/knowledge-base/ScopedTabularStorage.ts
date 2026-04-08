@@ -76,9 +76,8 @@ export class ScopedTabularStorage<
   }
 
   async get(key: PrimaryKey): Promise<Entity | undefined> {
-    const result = await this.inner.get(key as any);
+    const result = await this.inner.get({ ...(key as any), kb_id: this.kbId } as any);
     if (!result) return undefined;
-    if ((result as any).kb_id !== this.kbId) return undefined;
     const stripped = this.strip(result);
     this.events.emit("get", key, stripped);
     return stripped;

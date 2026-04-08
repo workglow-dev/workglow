@@ -44,13 +44,22 @@ export class ScopedVectorStorage<
 
   private filterAndStrip(
     results: any[],
-    topK: number | undefined
+    topK: number | undefined,
+    overfetchLimit: number | undefined
   ): (Entity & { score: number })[] {
     const filtered = results
       .filter((r: any) => r.kb_id === this.kbId)
       .slice(0, topK);
 
-    if (topK && filtered.length < topK) {
+    // Only warn when cross-KB filtering is likely the culprit: the inner search
+    // returned exactly as many results as we requested (overfetch limit) and
+    // filtering still left us short of topK.
+    if (
+      topK &&
+      overfetchLimit &&
+      results.length >= overfetchLimit &&
+      filtered.length < topK
+    ) {
       console.warn(
         `ScopedVectorStorage: search returned ${filtered.length}/${topK} results after ` +
           `kb_id filtering. Consider increasing overFetchMultiplier (currently ${this.overFetchMultiplier}).`
@@ -67,12 +76,13 @@ export class ScopedVectorStorage<
     query: TypedArray,
     options?: VectorSearchOptions<Metadata>
   ): Promise<(Entity & { score: number })[]> {
+    const overfetchLimit = options?.topK ? options.topK * this.overFetchMultiplier : undefined;
     const results = await this.inner.similaritySearch(query, {
       ...options,
-      topK: options?.topK ? options.topK * this.overFetchMultiplier : undefined,
+      topK: overfetchLimit,
     } as any);
 
-    return this.filterAndStrip(results, options?.topK);
+    return this.filterAndStrip(results, options?.topK, overfetchLimit);
   }
 
   async hybridSearch(
@@ -85,11 +95,12 @@ export class ScopedVectorStorage<
           "Please use a vector storage implementation that provides `hybridSearch`."
       );
     }
+    const overfetchLimit = options?.topK ? options.topK * this.overFetchMultiplier : undefined;
     const results = await this.inner.hybridSearch(query, {
       ...options,
-      topK: options?.topK ? options.topK * this.overFetchMultiplier : undefined,
+      topK: overfetchLimit,
     } as any);
 
-    return this.filterAndStrip(results, options?.topK);
+    return this.filterAndStrip(results, options?.topK, overfetchLimit);
   }
 }
