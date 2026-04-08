@@ -297,6 +297,7 @@ export class GraphAsTask<
   public override regenerateGraph(): void {
     this._inputSchemaNode = undefined;
     this.events.emit("regenerate");
+    this.emitEntitlementChange();
   }
 
   // ========================================================================

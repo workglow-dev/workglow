@@ -603,6 +603,9 @@ export class TaskGraph implements ITaskGraph {
       subscribeTask(task.id);
     }
 
+    // Emit the initial state immediately so subscribers don't miss the current entitlements
+    emitChange();
+
     // Subscribe to new tasks being added
     globalUnsubs.push(
       this.subscribe("task_added", (taskId: TaskIdType) => {

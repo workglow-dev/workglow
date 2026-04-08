@@ -18,7 +18,7 @@ import {
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import type { IEntitlementEnforcer } from "../task/EntitlementEnforcer";
-import { ENTITLEMENT_ENFORCER, PERMISSIVE_ENFORCER } from "../task/EntitlementEnforcer";
+import { ENTITLEMENT_ENFORCER } from "../task/EntitlementEnforcer";
 import { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
 import {
@@ -1045,9 +1045,13 @@ export class TaskGraphRunner {
 
     // Opt-in entitlement enforcement (preflight)
     if (config?.enforceEntitlements) {
-      this.activeEnforcer = this.registry.has(ENTITLEMENT_ENFORCER)
-        ? this.registry.get(ENTITLEMENT_ENFORCER)
-        : PERMISSIVE_ENFORCER;
+      if (!this.registry.has(ENTITLEMENT_ENFORCER)) {
+        throw new TaskConfigurationError(
+          "enforceEntitlements is enabled but no IEntitlementEnforcer is registered. " +
+            "Register an enforcer via ENTITLEMENT_ENFORCER before running the graph."
+        );
+      }
+      this.activeEnforcer = this.registry.get(ENTITLEMENT_ENFORCER);
       const denied = await this.activeEnforcer.checkAll(computeGraphEntitlements(this.graph));
       if (denied.length > 0) {
         this.activeEnforcer = undefined;
@@ -1119,6 +1123,7 @@ export class TaskGraphRunner {
   protected async handleComplete(): Promise<void> {
     this.clearGraphTimeout();
     this.running = false;
+    this.activeEnforcer = undefined;
 
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.OK);
@@ -1146,6 +1151,7 @@ export class TaskGraphRunner {
       })
     );
     this.running = false;
+    this.activeEnforcer = undefined;
 
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.ERROR, error.message);
@@ -1174,6 +1180,7 @@ export class TaskGraphRunner {
       })
     );
     this.running = false;
+    this.activeEnforcer = undefined;
 
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.ERROR, "aborted");

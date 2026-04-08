@@ -193,12 +193,12 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     "Lists tools, resources, or prompts available on an MCP server";
   static override readonly cacheable = false;
   public static override hasDynamicSchemas: boolean = true;
+  public static override hasDynamicEntitlements: boolean = true;
 
   public static override entitlements(): TaskEntitlements {
     return {
       entitlements: [
         { id: Entitlements.MCP, reason: "Lists tools, resources, or prompts on MCP servers" },
-        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
       ],
     };
   }
@@ -223,14 +223,18 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
 
   public override entitlements(): TaskEntitlements {
     const base = McpListTask.entitlements();
-    if (this.getServerTransport() === "stdio") {
+    const transport = this.getServerTransport();
+    if (transport === "stdio") {
       return mergeEntitlements(base, {
         entitlements: [
           { id: Entitlements.MCP_STDIO, reason: "Uses stdio transport to spawn local process" },
         ],
       });
     }
-    return base;
+    // sse and streamable-http transports require network access
+    return mergeEntitlements(base, {
+      entitlements: [{ id: Entitlements.NETWORK_HTTP, reason: "Connects to MCP server over HTTP" }],
+    });
   }
 
   public static override inputSchema(): DataPortSchema {

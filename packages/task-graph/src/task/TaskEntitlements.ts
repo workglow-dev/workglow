@@ -235,9 +235,8 @@ export function mergeResources(
   a: readonly string[] | undefined,
   b: readonly string[] | undefined
 ): readonly string[] | undefined {
-  if (a === undefined && b === undefined) return undefined;
-  if (a === undefined) return b;
-  if (b === undefined) return a;
+  // undefined means "all resources" (broad), so if either side is broad the merged result stays broad
+  if (a === undefined || b === undefined) return undefined;
   const set = new Set([...a, ...b]);
   return Array.from(set);
 }

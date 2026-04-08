@@ -174,11 +174,7 @@ export class McpToolCallTask extends Task<
 
   public static override entitlements(): TaskEntitlements {
     return {
-      entitlements: [
-        { id: Entitlements.MCP_TOOL_CALL, reason: "Calls tools on MCP servers" },
-        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
-        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
-      ],
+      entitlements: [{ id: Entitlements.MCP_TOOL_CALL, reason: "Calls tools on MCP servers" }],
     };
   }
 
@@ -192,7 +188,13 @@ export class McpToolCallTask extends Task<
         ],
       });
     }
-    return base;
+    // sse and streamable-http transports require network access
+    return mergeEntitlements(base, {
+      entitlements: [
+        { id: Entitlements.NETWORK_HTTP, reason: "Connects to MCP server over HTTP" },
+        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
+      ],
+    });
   }
 
   public static override inputSchema() {

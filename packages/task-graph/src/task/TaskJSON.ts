@@ -71,7 +71,12 @@ export type JsonTaskItem = {
   /** Nested tasks for compound operations */
   subtasks?: JsonTaskItem[];
 
-  /** Entitlements required by this task */
+  /**
+   * Entitlements required by this task.
+   * @output-only This field is populated during serialization (toJSON/toDependencyJSON)
+   * and is ignored during deserialization. User-supplied entitlements in JSON input
+   * are not applied to the reconstructed task.
+   */
   entitlements?: TaskEntitlements;
 };
 
@@ -85,6 +90,10 @@ export type TaskGraphItemJson = {
   config?: JsonTaskConfig;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
+  /**
+   * Entitlements required by this task.
+   * @output-only This field is populated during serialization and is ignored during deserialization.
+   */
   entitlements?: TaskEntitlements;
 };
 

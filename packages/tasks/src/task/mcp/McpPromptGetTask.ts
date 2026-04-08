@@ -180,8 +180,6 @@ export class McpPromptGetTask extends Task<
     return {
       entitlements: [
         { id: Entitlements.MCP_PROMPT_GET, reason: "Gets prompts from MCP servers" },
-        { id: Entitlements.NETWORK, reason: "Connects to MCP server", optional: true },
-        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
       ],
     };
   }
@@ -196,7 +194,13 @@ export class McpPromptGetTask extends Task<
         ],
       });
     }
-    return base;
+    // sse and streamable-http transports require network access
+    return mergeEntitlements(base, {
+      entitlements: [
+        { id: Entitlements.NETWORK_HTTP, reason: "Connects to MCP server over HTTP" },
+        { id: Entitlements.CREDENTIAL, reason: "May require authentication", optional: true },
+      ],
+    });
   }
 
   public static override inputSchema() {

@@ -78,7 +78,14 @@ export class AiTask<
     const base: TaskEntitlement[] = [
       { id: Entitlements.AI_INFERENCE, reason: "Runs AI model inference" },
     ];
-    const modelId = typeof this.defaults.model === "string" ? this.defaults.model : undefined;
+    // Prefer runInputData.model (runtime) over defaults.model (construction-time)
+    const runModel = this.runInputData?.model;
+    const modelId =
+      typeof runModel === "string"
+        ? runModel
+        : typeof this.defaults.model === "string"
+          ? this.defaults.model
+          : undefined;
     if (modelId) {
       base.push({
         id: Entitlements.AI_MODEL,

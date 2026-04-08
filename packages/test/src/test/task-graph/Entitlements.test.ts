@@ -337,8 +337,8 @@ describe("Entitlements", () => {
       const a = { id: "network", resources: ["api.example.com"] as const };
       const b = { id: "network" };
       const result = mergeEntitlementPair(a, b);
-      // When one is undefined and the other has resources, the one with resources wins
-      expect(result.resources).toEqual(["api.example.com"]);
+      // When one side is broad (resources undefined), the merged result remains broad
+      expect(result.resources).toBeUndefined();
     });
 
     it("both without resources = undefined", () => {
