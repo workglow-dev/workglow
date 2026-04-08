@@ -203,12 +203,26 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     };
   }
 
-  public override entitlements(): TaskEntitlements {
-    const base = McpListTask.entitlements();
-    const server = (this.config as Record<string, unknown>)?.server as
+  private getServerTransport(): string | undefined {
+    const runInputData = (this as { runInputData?: Record<string, unknown> }).runInputData;
+    const inputServer = runInputData?.server as Record<string, unknown> | undefined;
+    if (typeof inputServer?.transport === "string") {
+      return inputServer.transport;
+    }
+
+    const configServer = (this.config as Record<string, unknown>)?.server as
       | Record<string, unknown>
       | undefined;
-    if (server?.transport === "stdio") {
+    if (typeof configServer?.transport === "string") {
+      return configServer.transport;
+    }
+
+    return undefined;
+  }
+
+  public override entitlements(): TaskEntitlements {
+    const base = McpListTask.entitlements();
+    if (this.getServerTransport() === "stdio") {
       return mergeEntitlements(base, {
         entitlements: [
           { id: Entitlements.MCP_STDIO, reason: "Uses stdio transport to spawn local process" },
