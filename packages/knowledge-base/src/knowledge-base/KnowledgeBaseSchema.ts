@@ -5,6 +5,7 @@
  */
 
 import type { DataPortSchemaObject, FromSchema } from "@workglow/util/schema";
+import { SHARED_CHUNK_TABLE, SHARED_DOCUMENT_TABLE } from "./SharedTableSchemas";
 
 /**
  * Schema for persisting KnowledgeBase metadata to tabular storage.
@@ -40,14 +41,6 @@ export const KnowledgeBasePrimaryKeyNames = ["kb_id"] as const;
 /**
  * Generates SQL-safe table names for a knowledge base's document and chunk storage.
  */
-/**
- * Checks whether a KnowledgeBaseRecord uses shared-table mode.
- */
-export function isSharedTableMode(record: KnowledgeBaseRecord): boolean {
-  // Avoid circular import — inline the constants
-  return record.document_table === "shared_documents" && record.chunk_table === "shared_chunks";
-}
-
 export function knowledgeBaseTableNames(kbId: string): {
   readonly documentTable: string;
   readonly chunkTable: string;
@@ -57,4 +50,11 @@ export function knowledgeBaseTableNames(kbId: string): {
     documentTable: `kb_docs_${safe}`,
     chunkTable: `kb_chunks_${safe}`,
   };
+}
+
+/**
+ * Checks whether a KnowledgeBaseRecord uses shared-table mode.
+ */
+export function isSharedTableMode(record: KnowledgeBaseRecord): boolean {
+  return record.document_table === SHARED_DOCUMENT_TABLE && record.chunk_table === SHARED_CHUNK_TABLE;
 }

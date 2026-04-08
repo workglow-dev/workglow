@@ -12,11 +12,13 @@ import type {
   SearchCriteria,
   TabularChangePayload,
   TabularEventListener,
+  TabularEventListeners,
   TabularEventName,
   TabularEventParameters,
   TabularSubscribeOptions,
 } from "@workglow/storage";
-import type { DataPortSchemaObject } from "@workglow/util";
+import { EventEmitter } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 
 /**
  * Wrapper implementing `ITabularStorage` that delegates to an inner shared
@@ -34,6 +36,7 @@ export class ScopedTabularStorage<
 {
   protected readonly inner: AnyTabularStorage;
   protected readonly kbId: string;
+  protected readonly events = new EventEmitter<TabularEventListeners<PrimaryKey, Entity>>();
 
   constructor(inner: AnyTabularStorage, kbId: string) {
     this.inner = inner;
@@ -57,24 +60,33 @@ export class ScopedTabularStorage<
 
   async put(value: InsertType): Promise<Entity> {
     const result = await this.inner.put(this.inject(value));
-    return this.strip(result);
+    const stripped = this.strip(result);
+    this.events.emit("put", stripped);
+    return stripped;
   }
 
   async putBulk(values: InsertType[]): Promise<Entity[]> {
     const injected = values.map((v) => this.inject(v));
     const results = await this.inner.putBulk(injected);
-    return results.map((r: any) => this.strip(r));
+    const stripped = results.map((r: any) => this.strip(r));
+    for (const entity of stripped) {
+      this.events.emit("put", entity);
+    }
+    return stripped;
   }
 
   async get(key: PrimaryKey): Promise<Entity | undefined> {
     const result = await this.inner.get(key as any);
     if (!result) return undefined;
     if ((result as any).kb_id !== this.kbId) return undefined;
-    return this.strip(result);
+    const stripped = this.strip(result);
+    this.events.emit("get", key, stripped);
+    return stripped;
   }
 
   async delete(key: PrimaryKey | Entity): Promise<void> {
-    return this.inner.delete(key as any);
+    await this.inner.deleteSearch({ ...(key as any), kb_id: this.kbId } as any);
+    this.events.emit("delete", key as keyof Entity);
   }
 
   async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
@@ -84,11 +96,25 @@ export class ScopedTabularStorage<
 
   async deleteAll(): Promise<void> {
     await this.inner.deleteSearch({ kb_id: this.kbId } as any);
+    this.events.emit("clearall");
   }
 
+  // O(n) — ITabularStorage has no count() method. Uses pagination to limit peak memory.
   async size(): Promise<number> {
-    const results = await this.inner.query({ kb_id: this.kbId } as any);
-    return results ? results.length : 0;
+    let count = 0;
+    const pageSize = 1000;
+    let offset = 0;
+    while (true) {
+      const page = await this.inner.query(
+        { kb_id: this.kbId } as any,
+        { offset, limit: pageSize }
+      );
+      if (!page || page.length === 0) break;
+      count += page.length;
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
+    return count;
   }
 
   async query(
@@ -99,7 +125,9 @@ export class ScopedTabularStorage<
       { ...(criteria as any), kb_id: this.kbId },
       options as any
     );
-    return this.stripArray(results);
+    const stripped = this.stripArray(results);
+    this.events.emit("query", criteria as Partial<Entity>, stripped);
+    return stripped;
   }
 
   async deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
@@ -145,46 +173,57 @@ export class ScopedTabularStorage<
     }
   }
 
-  // Event delegation
+  // Events — scoped via local emitter; mutation methods emit here after inner ops
   on<Event extends TabularEventName>(
     name: Event,
     fn: TabularEventListener<Event, PrimaryKey, Entity>
   ): void {
-    this.inner.on(name, fn as any);
+    this.events.on(name, fn);
   }
 
   off<Event extends TabularEventName>(
     name: Event,
     fn: TabularEventListener<Event, PrimaryKey, Entity>
   ): void {
-    this.inner.off(name, fn as any);
+    this.events.off(name, fn);
   }
 
   emit<Event extends TabularEventName>(
     name: Event,
     ...args: TabularEventParameters<Event, PrimaryKey, Entity>
   ): void {
-    this.inner.emit(name, ...(args as any));
+    this.events.emit(name, ...args);
   }
 
   once<Event extends TabularEventName>(
     name: Event,
     fn: TabularEventListener<Event, PrimaryKey, Entity>
   ): void {
-    this.inner.once(name, fn as any);
+    this.events.once(name, fn);
   }
 
   waitOn<Event extends TabularEventName>(
     name: Event
   ): Promise<TabularEventParameters<Event, PrimaryKey, Entity>> {
-    return this.inner.waitOn(name) as any;
+    return this.events.waitOn(name);
   }
 
   subscribeToChanges(
     callback: (change: TabularChangePayload<Entity>) => void,
     options?: TabularSubscribeOptions
   ): () => void {
-    return this.inner.subscribeToChanges(callback as any, options);
+    return this.inner.subscribeToChanges((change: TabularChangePayload<any>) => {
+      const newKbId = change.new?.kb_id;
+      const oldKbId = change.old?.kb_id;
+      if (newKbId !== undefined && newKbId !== this.kbId) return;
+      if (oldKbId !== undefined && oldKbId !== this.kbId) return;
+      if (newKbId === undefined && oldKbId === undefined) return;
+      callback({
+        type: change.type,
+        ...(change.old ? { old: this.strip(change.old) } : {}),
+        ...(change.new ? { new: this.strip(change.new) } : {}),
+      } as TabularChangePayload<Entity>);
+    }, options);
   }
 
   // Lifecycle — no-op for shared storage

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TypedArraySchema, type DataPortSchemaObject } from "@workglow/util";
+import { TypedArraySchema, type DataPortSchemaObject } from "@workglow/util/schema";
 
 /**
  * Default table names for shared-table mode.

@@ -10,7 +10,7 @@ import type {
   IVectorStorage,
   VectorSearchOptions,
 } from "@workglow/storage";
-import type { DataPortSchemaObject, TypedArray } from "@workglow/util";
+import type { DataPortSchemaObject, TypedArray } from "@workglow/util/schema";
 import { ScopedTabularStorage } from "./ScopedTabularStorage";
 
 /**
@@ -30,14 +30,37 @@ export class ScopedVectorStorage<
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   protected override readonly inner: AnyVectorStorage;
+  private readonly overFetchMultiplier: number;
 
-  constructor(inner: AnyVectorStorage, kbId: string) {
+  constructor(inner: AnyVectorStorage, kbId: string, overFetchMultiplier: number = 3) {
     super(inner, kbId);
     this.inner = inner;
+    this.overFetchMultiplier = overFetchMultiplier;
   }
 
   getVectorDimensions(): number {
     return this.inner.getVectorDimensions();
+  }
+
+  private filterAndStrip(
+    results: any[],
+    topK: number | undefined
+  ): (Entity & { score: number })[] {
+    const filtered = results
+      .filter((r: any) => r.kb_id === this.kbId)
+      .slice(0, topK);
+
+    if (topK && filtered.length < topK) {
+      console.warn(
+        `ScopedVectorStorage: search returned ${filtered.length}/${topK} results after ` +
+          `kb_id filtering. Consider increasing overFetchMultiplier (currently ${this.overFetchMultiplier}).`
+      );
+    }
+
+    return filtered.map((r: any) => {
+      const { kb_id: _, ...rest } = r;
+      return rest as Entity & { score: number };
+    });
   }
 
   async similaritySearch(
@@ -46,49 +69,27 @@ export class ScopedVectorStorage<
   ): Promise<(Entity & { score: number })[]> {
     const results = await this.inner.similaritySearch(query, {
       ...options,
-      // Request extra results to account for post-filtering
-      topK: options?.topK ? options.topK * 3 : undefined,
+      topK: options?.topK ? options.topK * this.overFetchMultiplier : undefined,
     } as any);
 
-    const filtered = results
-      .filter((r: any) => r.kb_id === this.kbId)
-      .slice(0, options?.topK);
-
-    return filtered.map((r: any) => {
-      const { kb_id: _, ...rest } = r;
-      return rest as Entity & { score: number };
-    });
+    return this.filterAndStrip(results, options?.topK);
   }
 
-  hybridSearch?(
+  async hybridSearch(
     query: TypedArray,
     options: HybridSearchOptions<Metadata>
-  ): Promise<(Entity & { score: number })[]>;
-}
+  ): Promise<(Entity & { score: number })[]> {
+    if (typeof this.inner.hybridSearch !== "function") {
+      throw new Error(
+        "Hybrid search is not supported by the configured chunk storage backend. " +
+          "Please use a vector storage implementation that provides `hybridSearch`."
+      );
+    }
+    const results = await this.inner.hybridSearch(query, {
+      ...options,
+      topK: options?.topK ? options.topK * this.overFetchMultiplier : undefined,
+    } as any);
 
-// Implement hybridSearch on the prototype so it matches the optional interface
-ScopedVectorStorage.prototype.hybridSearch = async function (
-  this: ScopedVectorStorage<any, any, any, any>,
-  query: TypedArray,
-  options: HybridSearchOptions<any>
-): Promise<any[]> {
-  if (typeof this.inner.hybridSearch !== "function") {
-    throw new Error(
-      "Hybrid search is not supported by the configured chunk storage backend. " +
-        "Please use a vector storage implementation that provides `hybridSearch`."
-    );
+    return this.filterAndStrip(results, options?.topK);
   }
-  const results = await this.inner.hybridSearch(query, {
-    ...options,
-    topK: options?.topK ? options.topK * 3 : undefined,
-  } as any);
-
-  const filtered = results
-    .filter((r: any) => r.kb_id === this.kbId)
-    .slice(0, options?.topK);
-
-  return filtered.map((r: any) => {
-    const { kb_id: _, ...rest } = r;
-    return rest;
-  });
-};
+}
