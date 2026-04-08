@@ -10,8 +10,9 @@
 
 The AI provider system is the bridge between abstract AI tasks and concrete model execution. A
 **provider** represents a backend service or runtime -- OpenAI's API, Anthropic's API, a local
-Ollama server, HuggingFace Transformers running in-browser via WebGPU, and so on. Each provider
-registers **run functions** that know how to execute specific task types against that backend.
+Ollama server, HuggingFace Transformers running in-browser via WebGPU, Chrome's built-in AI APIs,
+and so on. Each provider registers **run functions** that know how to execute specific task types
+against that backend.
 
 The system is designed around two registration modes:
 
@@ -23,14 +24,14 @@ The system is designed around two registration modes:
 
 ```
 Main Thread                              Worker Thread
-┌──────────────────────┐                ┌──────────────────────┐
-│  AiProvider.register │                │  AiProvider          │
-│    (worker mode)     │                │  .registerOnWorker   │
-│                      │     message    │  Server(server)      │
-│  workerProxy(fn) ────┼───────────────>│                      │
-│                      │     result     │  actual run fn       │
-│  <───────────────────┼────────────────│  (heavy ML imports)  │
-└──────────────────────┘                └──────────────────────┘
++-----------------------+                +-----------------------+
+|  AiProvider.register  |                |  AiProvider           |
+|    (worker mode)      |                |  .registerOnWorker    |
+|                       |     message    |  Server(server)       |
+|  workerProxy(fn) -----+--------------->|                       |
+|                       |     result     |  actual run fn        |
+|  <--------------------+----------------|  (heavy ML imports)   |
++-----------------------+                +-----------------------+
 ```
 
 Source files:
@@ -74,7 +75,7 @@ abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig> {
 }
 ```
 
-### Constructor
+### Constructor Injection
 
 The constructor accepts three optional maps of run functions:
 
@@ -86,8 +87,9 @@ constructor(
 )
 ```
 
-If `tasks` is provided, the provider operates in **inline mode**. If omitted, it operates in
-**worker mode** and requires a `worker` option during registration.
+Heavy ML library imports live in the run function files (`*_JobRunFns.ts`), not in the provider
+class itself. If `tasks` is provided, the provider operates in **inline mode**. If omitted, it
+operates in **worker mode** and requires a `worker` option during registration.
 
 ### Run Function Types
 
@@ -117,91 +119,66 @@ type AiProviderReactiveRunFn<Input, Output, Model> = (
 ) => Promise<Output | undefined>;
 ```
 
-### Registration: register()
+---
 
-The `register()` method is the main entry point for adding a provider to the system:
+## Inline vs Worker Registration
+
+### Inline Mode
+
+The provider imports run functions directly and registers them on the main thread. Best for
+cloud API providers where the "heavy" dependency is just an HTTP SDK:
 
 ```typescript
-async register(options: AiProviderRegisterOptions = {}): Promise<void>
+import { ANTHROPIC_TASKS, ANTHROPIC_STREAM_TASKS, ANTHROPIC_REACTIVE_TASKS }
+  from "./common/Anthropic_JobRunFns";
+import { AnthropicQueuedProvider } from "./AnthropicQueuedProvider";
+
+await new AnthropicQueuedProvider(
+  ANTHROPIC_TASKS,
+  ANTHROPIC_STREAM_TASKS,
+  ANTHROPIC_REACTIVE_TASKS
+).register();
 ```
 
-The method inspects whether `tasks` was provided via the constructor to determine inline vs worker
-mode:
+### Worker Mode
 
-**Inline mode** (tasks provided):
-1. Calls `onInitialize()` lifecycle hook.
-2. Registers each task's run function directly with `AiProviderRegistry.registerRunFn()`.
-3. Registers streaming functions if `streamTasks` was provided.
-4. Registers reactive functions if `reactiveTasks` was provided.
-5. Registers the provider instance on the registry.
-6. Calls `afterRegister()` lifecycle hook.
-
-**Worker mode** (no tasks, worker required):
-1. Calls `onInitialize()` lifecycle hook.
-2. Registers the worker with the `WorkerManager` from the DI system.
-3. For each task type, registers worker proxy functions via
-   `registerAsWorkerRunFn()`, `registerAsWorkerStreamFn()`, and
-   `registerAsWorkerReactiveRunFn()`.
-4. Registers the provider instance on the registry.
-5. Calls `afterRegister()` lifecycle hook.
-
-If `afterRegister()` throws (e.g., queue creation fails), the provider is cleaned up from the
-registry to avoid an inconsistent state.
+The provider is constructed without tasks. A `Worker` (or lazy `() => Worker` factory) is passed
+during registration. Proxy functions are created automatically that delegate to the worker via
+`WorkerManager`:
 
 ```typescript
-// Worker mode example
-await new MyProvider().register({
+// Main thread -- lightweight, no heavy ML imports:
+await new HuggingFaceTransformersQueuedProvider().register({
   worker: () => new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
-  queue: { concurrency: 1 },
+  queue: { concurrency: { gpu: 1, cpu: 4 } },
 });
-
-// Inline mode example
-import { MY_TASKS, MY_STREAM_TASKS } from "./MyJobRunFns";
-await new MyProvider(MY_TASKS, MY_STREAM_TASKS).register();
 ```
 
-### Registration: registerOnWorkerServer()
-
-Called inside a Web Worker to make the provider's functions available for remote invocation:
-
-```typescript
-registerOnWorkerServer(workerServer: WorkerServer): void
-```
-
-This method requires `tasks` to have been provided via the constructor. It registers each function
-on the `WorkerServer`, which handles the message-passing protocol with the main thread.
+On the worker side, the provider is constructed with tasks and registered on a `WorkerServer`:
 
 ```typescript
 // Inside worker.ts
-import { MY_TASKS, MY_STREAM_TASKS } from "./MyJobRunFns";
-const server = new WorkerServer();
-new MyProvider(MY_TASKS, MY_STREAM_TASKS).registerOnWorkerServer(server);
+import { HFT_TASKS, HFT_STREAM_TASKS } from "./common/HFT_JobRunFns";
+import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
+
+const workerServer = globalServiceRegistry.get(WORKER_SERVER);
+new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS)
+  .registerOnWorkerServer(workerServer);
+workerServer.sendReady();
 ```
-
-### Lifecycle Hooks
-
-| Hook | When Called | Purpose |
-|------|------------|---------|
-| `onInitialize(context)` | Start of `register()` | Provider-specific setup (e.g., WASM backend config) |
-| `afterRegister(options)` | End of `register()` | Post-registration setup (e.g., queue creation) |
-| `dispose()` | Manual teardown | Resource cleanup (e.g., clearing pipeline caches) |
 
 ---
 
 ## QueuedAiProvider
 
-`QueuedAiProvider` extends `AiProvider` for providers that need serialized GPU access. It
-automatically creates a `QueuedExecutionStrategy` and registers a strategy resolver.
-
-```typescript
-abstract class QueuedAiProvider<TModelConfig extends ModelConfig = ModelConfig>
-  extends AiProvider<TModelConfig>
-```
+`QueuedAiProvider` extends `AiProvider` for providers that need serialized access to hardware
+resources. It automatically creates a `QueuedExecutionStrategy` and registers a strategy resolver
+with the `AiProviderRegistry`.
 
 ### Queue Setup
 
 The `afterRegister()` override creates a `QueuedExecutionStrategy` with a queue named
-`{providerName}_gpu` and registers a strategy resolver on the `AiProviderRegistry`:
+`{providerName}_gpu` and registers a strategy resolver:
 
 ```typescript
 protected override async afterRegister(options: AiProviderRegisterOptions): Promise<void> {
@@ -217,9 +194,10 @@ protected override async afterRegister(options: AiProviderRegisterOptions): Prom
 }
 ```
 
-### Concurrency Configuration
+The queue is created lazily on first use, backed by `InMemoryQueueStorage` with a
+`ConcurrencyLimiter` to control how many jobs run simultaneously.
 
-The `queue.concurrency` option controls how many jobs can run simultaneously:
+### Concurrency Configuration
 
 ```typescript
 type AiProviderQueueConcurrency = number | Record<string, number>;
@@ -230,22 +208,32 @@ type AiProviderQueueConcurrency = number | Record<string, number>;
   `{ gpu: 1, cpu: 4 }` to run one WebGPU model at a time but allow four CPU/WASM models
   concurrently.
 
-The `resolveAiProviderGpuQueueConcurrency()` helper resolves the primary GPU queue limit from
-either form, defaulting to 1.
-
 ### Model-Aware Strategy Selection
 
-Subclasses can override `getStrategyForModel()` to make the execution strategy depend on the
-model's configuration:
+Subclasses override `getStrategyForModel()` to route different models through different queues.
+The HuggingFace Transformers provider demonstrates this by maintaining two separate queued
+strategies:
 
 ```typescript
-// Example: HFT provider routes WebGPU models through the queue,
-// but WASM models can run directly
-protected getStrategyForModel(model: ModelConfig): IAiExecutionStrategy {
-  if (model.provider_config?.device === "webgpu") {
-    return this.queuedStrategy!;
+class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider {
+  private cpuStrategy: IAiExecutionStrategy | undefined;
+
+  protected override async afterRegister(options: AiProviderRegisterOptions): Promise<void> {
+    await super.afterRegister(options); // creates this.queuedStrategy for GPU
+    this.cpuStrategy = this.createQueuedStrategy(
+      HF_TRANSFORMERS_ONNX_CPU,
+      resolveHftCpuQueueConcurrency(options.queue?.concurrency, hftDefaultCpuQueueConcurrency),
+      options
+    );
   }
-  return new DirectExecutionStrategy();
+
+  protected override getStrategyForModel(model: ModelConfig): IAiExecutionStrategy {
+    const device = (model as HfTransformersOnnxModelConfig).provider_config?.device;
+    if (device && GPU_DEVICES.has(device)) {
+      return this.queuedStrategy!; // WebGPU/Metal -> serialized
+    }
+    return this.cpuStrategy!;       // WASM/CPU -> higher concurrency
+  }
 }
 ```
 
@@ -258,6 +246,8 @@ lookups, and execution strategy resolution.
 
 ### Internal State
 
+The registry maintains three two-level `Map` structures, keyed by task type then provider name:
+
 ```typescript
 class AiProviderRegistry {
   runFnRegistry: Map<string, Map<string, AiProviderRunFn>>;       // taskType -> provider -> fn
@@ -269,91 +259,41 @@ class AiProviderRegistry {
 }
 ```
 
-The function registries use a two-level `Map`: the outer key is the **task type** (e.g.,
-`"TextGenerationTask"`), and the inner key is the **provider name** (e.g., `"OPENAI"`). This allows
-efficient lookup: given a task type and provider, the correct function is found in O(1).
+This enables O(1) function lookup given a task type and provider name.
 
 ### Singleton Access
 
 ```typescript
-let providerRegistry: AiProviderRegistry = new AiProviderRegistry();
-
 function getAiProviderRegistry(): AiProviderRegistry;
 function setAiProviderRegistry(pr: AiProviderRegistry): void;
 ```
 
-`setAiProviderRegistry()` allows replacing the singleton, which is useful for testing or for
-creating isolated environments.
-
-### Function Registration
-
-#### Direct Registration
-
-```typescript
-registry.registerRunFn("OPENAI", "TextGenerationTask", openaiTextGenFn);
-registry.registerStreamFn("OPENAI", "TextGenerationTask", openaiTextGenStreamFn);
-registry.registerReactiveRunFn("OPENAI", "CountTokensTask", openaiCountTokensFn);
-```
-
-#### Worker Proxy Registration
-
-For worker-backed providers, proxy functions are created automatically:
-
-```typescript
-registry.registerAsWorkerRunFn("HF_TRANSFORMERS_ONNX", "TextEmbeddingTask");
-registry.registerAsWorkerStreamFn("HF_TRANSFORMERS_ONNX", "TextGenerationTask");
-registry.registerAsWorkerReactiveRunFn("HF_TRANSFORMERS_ONNX", "CountTokensTask");
-```
-
-The proxy functions delegate to `WorkerManager.callWorkerFunction()`,
-`callWorkerStreamFunction()`, and `callWorkerReactiveFunction()` respectively.
-
-### Function Retrieval
-
-```typescript
-// Throws if no function is found (with helpful diagnostic message)
-const runFn = registry.getDirectRunFn<Input, Output>("OPENAI", "TextGenerationTask");
-
-// Returns undefined if not found
-const streamFn = registry.getStreamFn<Input, Output>("OPENAI", "TextGenerationTask");
-const reactiveFn = registry.getReactiveRunFn<Input, Output>("OPENAI", "CountTokensTask");
-```
-
-`getDirectRunFn()` throws with a diagnostic message that lists installed providers and which
-providers support the requested task type, helping developers identify registration issues.
+`setAiProviderRegistry()` allows replacing the singleton for testing or isolated environments.
 
 ### Strategy Resolution
 
-```typescript
-// Register a strategy resolver for a provider
-registry.registerStrategyResolver("HF_TRANSFORMERS_ONNX", (model) => {
-  if (model.provider_config?.device === "webgpu") {
-    return queuedStrategy;
-  }
-  return directStrategy;
-});
+When a task executes, the registry resolves the execution strategy for the model's provider. If a
+provider registered a strategy resolver (via `QueuedAiProvider`), it is called with the full
+`ModelConfig`. Otherwise, a shared `DirectExecutionStrategy` singleton is returned:
 
-// Resolve strategy for a model (falls back to DirectExecutionStrategy)
+```typescript
 const strategy = registry.getStrategy(model);
+// -> calls strategyResolvers.get(model.provider)(model)
+// -> falls back to DirectExecutionStrategy if no resolver
 ```
 
 ### Provider Introspection
 
 ```typescript
-// Get a specific provider instance
-const provider = registry.getProvider("OPENAI");
-
-// Get all registered providers
-const providers: Map<string, AiProvider> = registry.getProviders();
-
-// Get sorted list of installed provider IDs
 const ids: string[] = registry.getInstalledProviderIds();
-// ["ANTHROPIC", "HF_TRANSFORMERS_ONNX", "OPENAI", "OLLAMA"]
+// ["ANTHROPIC", "HF_TRANSFORMERS_ONNX", "OLLAMA", "OPENAI"]
 
-// Get providers that support a specific task type
 const textGenProviders: string[] = registry.getProviderIdsForTask("TextGenerationTask");
 // ["ANTHROPIC", "OPENAI", "OLLAMA"]
 ```
+
+`getDirectRunFn()` throws with a diagnostic message listing installed providers and which support
+the requested task type.
 
 ---
 
@@ -367,10 +307,10 @@ The complete lifecycle of a provider from registration to execution:
 
 2. Registration (main thread)
    await provider.register({ worker?, queue? })
-     -> onInitialize(context)
-     -> register run functions (inline or worker proxy)
-     -> registerProvider(this) on AiProviderRegistry
-     -> afterRegister(options) -- QueuedAiProvider creates queue here
+     -> onInitialize(context)          // provider-specific setup
+     -> register run functions         // inline or worker proxy
+     -> registerProvider(this)         // add to AiProviderRegistry
+     -> afterRegister(options)         // QueuedAiProvider creates queue here
 
 3. Worker Setup (worker thread, if worker mode)
    new MyProvider(tasks, streamTasks).registerOnWorkerServer(server)
@@ -385,11 +325,20 @@ The complete lifecycle of a provider from registration to execution:
    await provider.dispose()
 ```
 
+| Hook | When Called | Purpose |
+|------|------------|---------|
+| `onInitialize(context)` | Start of `register()` | Provider-specific setup (e.g., WASM backend config) |
+| `afterRegister(options)` | End of `register()` | Post-registration setup (e.g., queue creation) |
+| `dispose()` | Manual teardown | Resource cleanup (e.g., clearing pipeline caches) |
+
+If `afterRegister()` throws, the provider is cleaned up from the registry via
+`unregisterProvider()` to avoid an inconsistent state.
+
 ---
 
 ## Streaming Convention
 
-Provider stream functions (`AiProviderStreamFn`) follow a strict convention:
+Provider stream functions (`AiProviderStreamFn`) follow a strict stateless convention:
 
 1. **Do not accumulate output.** Yield incremental `text-delta` or `object-delta` events only.
 2. **Yield a `finish` event** at the end with `{} as Output`. The consumer (`StreamingAiTask` /
@@ -402,7 +351,6 @@ Provider stream functions (`AiProviderStreamFn`) follow a strict convention:
 This design keeps providers stateless and avoids double-buffering.
 
 ```typescript
-// Correct streaming implementation
 async function* myStreamFn(
   input: Input,
   model: ModelConfig,
@@ -419,6 +367,9 @@ async function* myStreamFn(
 }
 ```
 
+For queued providers, `QueuedExecutionStrategy.executeStream()` falls back to `execute()` and
+yields a single `finish` event so GPU serialization is still respected.
+
 ---
 
 ## Sub-Path Exports
@@ -428,105 +379,92 @@ Unlike other packages that build per-runtime targets (`browser.ts`, `node.ts`, `
 with optional peer dependencies:
 
 ```typescript
-import "@workglow/ai-provider/anthropic";   // Claude (requires @anthropic-ai/sdk)
-import "@workglow/ai-provider/openai";       // OpenAI (requires openai)
-import "@workglow/ai-provider/gemini";       // Google Gemini
-import "@workglow/ai-provider/ollama";       // Ollama (browser + node)
-import "@workglow/ai-provider/hf-transformers"; // HuggingFace Transformers.js
-import "@workglow/ai-provider/hf-inference";    // HuggingFace Inference API
-import "@workglow/ai-provider/llamacpp";     // node-llama-cpp
-import "@workglow/ai-provider/tf-mediapipe"; // TensorFlow MediaPipe (browser)
+import "@workglow/ai-provider/anthropic";       // Claude (requires @anthropic-ai/sdk)
+import "@workglow/ai-provider/openai";           // OpenAI (requires openai)
+import "@workglow/ai-provider/gemini";           // Google Gemini (requires @google/generative-ai)
+import "@workglow/ai-provider/ollama";           // Ollama (requires ollama)
+import "@workglow/ai-provider/hf-transformers";  // HuggingFace Transformers.js
+import "@workglow/ai-provider/hf-inference";     // HuggingFace Inference API
+import "@workglow/ai-provider/llamacpp";         // node-llama-cpp
+import "@workglow/ai-provider/tf-mediapipe";     // TensorFlow MediaPipe (browser)
+import "@workglow/ai-provider/chrome";           // Chrome Built-in AI
 ```
 
-Each sub-path exports a provider class and its associated task run functions. The heavy ML
-libraries are peer dependencies so they are only installed when the specific provider is used.
+Each sub-path also has a `/runtime` variant (e.g., `@workglow/ai-provider/anthropic/runtime`) that
+exports the heavy run function implementations and worker registration helpers. The main sub-path
+exports only the lightweight provider class, constants, and the worker-backed registration function.
+
+Some providers (Ollama, OpenAI) also have browser-specific conditional exports in `package.json`.
 
 ---
 
 ## Available Providers
 
 | Provider | Class | `name` | Local | Browser | Key Task Types |
-|----------|-------|--------|-------|---------|----------------|
-| Anthropic | `AnthropicProvider` | `"ANTHROPIC"` | No | No | Text generation, summarization, tool calling |
-| OpenAI | `OpenAiProvider` | `"OPENAI"` | No | No | Text generation, embeddings, structured output |
-| Google Gemini | `GeminiProvider` | `"GOOGLE_GEMINI"` | No | No | Text generation, embeddings |
-| Ollama | `OllamaProvider` | `"OLLAMA"` | Yes | Yes | Text generation, embeddings |
-| HF Transformers | `HftProvider` | `"HF_TRANSFORMERS_ONNX"` | Yes | Yes | Embeddings, classification, NER, segmentation |
-| HF Inference | `HfInferenceProvider` | `"HF_INFERENCE"` | No | Yes | Text generation, embeddings |
-| LlamaCpp | `LlamaCppProvider` | `"LOCAL_LLAMACPP"` | Yes | No | Text generation |
-| MediaPipe | `MediaPipeProvider` | `"TF_MEDIAPIPE"` | Yes | Yes | Pose detection, face/hand landmarks |
+|----------|-------|--------|:-----:|:-------:|----------------|
+| Anthropic | `AnthropicProvider` | `"ANTHROPIC"` | No | Yes | Text generation, summarization, rewriting, structured output, tool calling |
+| OpenAI | `OpenAiProvider` | `"OPENAI"` | No | Yes | Text generation, embeddings, structured output, tool calling |
+| Google Gemini | `GoogleGeminiProvider` | `"GOOGLE_GEMINI"` | No | Yes | Text generation, embeddings, structured output, tool calling |
+| Ollama | `OllamaProvider` | `"OLLAMA"` | Yes | Yes | Text generation, embeddings, rewriting, summarization, tool calling |
+| HF Transformers | `HuggingFaceTransformersProvider` | `"HF_TRANSFORMERS_ONNX"` | Yes | Yes | Embeddings, classification, NER, translation, image segmentation, object detection |
+| HF Inference | `HfInferenceProvider` | `"HF_INFERENCE"` | No | Yes | Text generation, embeddings, rewriting, summarization, tool calling |
+| LlamaCpp | `LlamaCppProvider` | `"LOCAL_LLAMACPP"` | Yes | No | Text generation, embeddings, token counting, tool calling |
+| MediaPipe | `TensorFlowMediaPipeProvider` | `"TENSORFLOW_MEDIAPIPE"` | Yes | Yes | Text/image embeddings, classification, segmentation, pose/face/hand landmarks |
+| Chrome Built-in AI | `WebBrowserProvider` | `"WEB_BROWSER"` | Yes | Yes | Text generation, summarization, translation, language detection, rewriting |
 
 ---
 
 ## Adding a New Provider
 
-To add a new provider to the Workglow framework:
-
-### Step 1: Create the Provider Class
+### Step 1: Define the Provider Class
 
 ```typescript
-import { AiProvider } from "@workglow/ai";
-// Or QueuedAiProvider for GPU-bound providers:
-// import { QueuedAiProvider } from "@workglow/ai";
+// MyCloudProvider.ts -- worker-side (extends AiProvider, no queue/storage)
+import { AiProvider } from "@workglow/ai/worker";
+import type { AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai/worker";
 
 export class MyCloudProvider extends AiProvider {
   readonly name = "MY_CLOUD";
   readonly displayName = "My Cloud AI";
   readonly isLocal = false;
   readonly supportsBrowser = true;
-  readonly taskTypes = [
-    "TextGenerationTask",
-    "TextEmbeddingTask",
-  ] as const;
+  readonly taskTypes = ["TextGenerationTask", "TextEmbeddingTask"] as const;
 }
 ```
 
+For providers that need GPU queuing, extend `QueuedAiProvider` instead and import from
+`@workglow/ai` (not `@workglow/ai/worker`).
+
 ### Step 2: Implement Run Functions
 
-Create a separate file (e.g., `MyCloudJobRunFns.ts`) with the actual implementations:
+Create a `MyCloud_JobRunFns.ts` file with the actual implementations. Export task maps keyed by
+task type name:
 
 ```typescript
-import type { AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
-
-const textGenerationRunFn: AiProviderRunFn = async (input, model, updateProgress, signal) => {
-  const response = await fetch("https://api.mycloud.ai/generate", {
-    method: "POST",
-    body: JSON.stringify({ prompt: input.prompt, model: model?.model_id }),
-    signal,
-  });
-  return { text: await response.text() };
-};
-
-const textGenerationStreamFn: AiProviderStreamFn = async function* (input, model, signal) {
-  const response = await fetch("https://api.mycloud.ai/stream", {
-    method: "POST",
-    body: JSON.stringify({ prompt: input.prompt, model: model?.model_id }),
-    signal,
-  });
-  const reader = response.body!.getReader();
-  // ... yield text-delta events ...
-  yield { type: "finish", data: {} as any };
-};
-
 export const MY_CLOUD_TASKS = {
-  TextGenerationTask: textGenerationRunFn,
-  TextEmbeddingTask: textEmbeddingRunFn,
+  TextGenerationTask: async (input, model, updateProgress, signal) => {
+    const response = await fetch("https://api.mycloud.ai/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt: input.prompt, model: model?.model_id }),
+      signal,
+    });
+    return { text: await response.text() };
+  },
 };
 
 export const MY_CLOUD_STREAM_TASKS = {
-  TextGenerationTask: textGenerationStreamFn,
+  TextGenerationTask: async function* (input, model, signal) {
+    // ... yield text-delta events, then finish with {} as Output
+    yield { type: "finish", data: {} as any };
+  },
 };
 ```
 
-### Step 3: Register the Provider
+### Step 3: Create Registration Helpers
 
-```typescript
-import { MyCloudProvider } from "./MyCloudProvider";
-import { MY_CLOUD_TASKS, MY_CLOUD_STREAM_TASKS } from "./MyCloudJobRunFns";
-
-// Inline registration
-await new MyCloudProvider(MY_CLOUD_TASKS, MY_CLOUD_STREAM_TASKS).register();
-```
+Create `registerMyCloudInline.ts` (imports run functions, constructs provider with tasks) and
+`registerMyCloudWorker.ts` (registers on `WorkerServer` inside a worker). Follow the Anthropic
+provider as a template.
 
 ### Step 4: Register Models
 
@@ -544,6 +482,10 @@ await repo.addModel({
   metadata: {},
 });
 ```
+
+### Step 5: Add Sub-Path Export
+
+Add the provider to `package.json` `exports` and the build scripts.
 
 ---
 
