@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TaskEntitlements } from "@workglow/task-graph";
 import {
   CreateWorkflow,
+  Entitlements,
   Task,
   TaskConfig,
   TaskConfigSchema,
@@ -76,6 +78,18 @@ export class JavaScriptTask extends Task<
   public static override description =
     "Executes JavaScript code in a sandboxed interpreter environment";
   public static override customizable = true;
+  public static override hasDynamicSchemas = true;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        {
+          id: Entitlements.CODE_EXECUTION_JS,
+          reason: "Executes user-provided JavaScript code in a sandboxed interpreter",
+        },
+      ],
+    };
+  }
 
   public static override configSchema() {
     return configSchema;

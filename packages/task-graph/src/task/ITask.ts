@@ -13,6 +13,7 @@ import type { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import type { StreamEvent } from "./StreamTypes";
 import { TaskError } from "./TaskError";
+import type { TaskEntitlements } from "./TaskEntitlements";
 import type {
   TaskEventListener,
   TaskEventListeners,
@@ -96,6 +97,13 @@ export interface IRunConfig {
    * Set automatically by context.own() to propagate cancellation from parent to child tasks.
    */
   signal?: AbortSignal;
+
+  /**
+   * When true, check entitlements via the registered IEntitlementEnforcer
+   * before graph execution begins. Throws TaskEntitlementError if denied.
+   * Default: false (entitlements are declarative only, not enforced by the engine).
+   */
+  enforceEntitlements?: boolean;
 }
 
 /**
@@ -110,12 +118,14 @@ export interface ITaskStaticProperties {
   readonly description?: string;
   readonly cacheable: boolean;
   readonly hasDynamicSchemas: boolean;
+  readonly hasDynamicEntitlements: boolean;
   readonly passthroughInputsToOutputs?: boolean;
   readonly isGraphOutput?: boolean;
   readonly customizable?: boolean;
   readonly inputSchema: () => DataPortSchema;
   readonly outputSchema: () => DataPortSchema;
   readonly configSchema: () => DataPortSchema;
+  readonly entitlements: () => TaskEntitlements;
 }
 
 /**
@@ -188,6 +198,7 @@ export interface ITaskIO<Input extends TaskInput> {
   validateInput(input: Input): Promise<boolean>;
   get cacheable(): boolean;
   narrowInput(input: Partial<Input>, registry: ServiceRegistry): Promise<Partial<Input>>;
+  entitlements(): TaskEntitlements;
 }
 
 export interface ITaskInternalGraph {

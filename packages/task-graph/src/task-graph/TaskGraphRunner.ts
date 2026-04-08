@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ISpan } from "@workglow/util";
 import {
   collectPropertyValues,
   ConvertAllToOptionalArray,
@@ -14,26 +15,29 @@ import {
   SpanStatusCode,
   uuid4,
 } from "@workglow/util";
-import type { ISpan } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
+import type { IEntitlementEnforcer } from "../task/EntitlementEnforcer";
+import { ENTITLEMENT_ENFORCER } from "../task/EntitlementEnforcer";
 import { ITask } from "../task/ITask";
+import type { StreamEvent } from "../task/StreamTypes";
 import {
   edgeNeedsAccumulation,
   getOutputStreamMode,
   getStreamingPorts,
   isTaskStreamable,
 } from "../task/StreamTypes";
-import type { StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
 import {
   TaskAbortedError,
   TaskConfigurationError,
+  TaskEntitlementError,
   TaskError,
   TaskGraphTimeoutError,
 } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
+import { computeGraphEntitlements } from "./GraphEntitlementUtils";
 import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
@@ -132,6 +136,12 @@ export class TaskGraphRunner {
    * can surface the correct error type.
    */
   protected pendingGraphTimeoutError?: TaskGraphTimeoutError;
+
+  /**
+   * The entitlement enforcer for the current run, if enforcement is enabled.
+   * Set during handleStart and cleared after the run completes.
+   */
+  protected activeEnforcer?: IEntitlementEnforcer;
 
   /**
    * Constructor for TaskGraphRunner
@@ -712,6 +722,16 @@ export class TaskGraphRunner {
 
     this.copyInputFromEdgesToNode(task);
 
+    // Runtime entitlement enforcement for tasks with dynamic entitlements
+    if (this.activeEnforcer && (task.constructor as typeof Task).hasDynamicEntitlements) {
+      const denied = await this.activeEnforcer.checkTask(task);
+      if (denied.length > 0) {
+        throw new TaskEntitlementError(
+          `Task ${(task.constructor as typeof Task).type} denied entitlements: ${denied.map((e) => e.id).join(", ")}`
+        );
+      }
+    }
+
     if (isStreamable) {
       return this.runStreamingTask<T>(task, input);
     }
@@ -972,15 +992,6 @@ export class TaskGraphRunner {
       }
       this.graph.outputCache = this.outputCache;
     }
-    // Validate graph size limits
-    if (config?.maxTasks !== undefined && config.maxTasks > 0) {
-      const taskCount = this.graph.getTasks().length;
-      if (taskCount > config.maxTasks) {
-        throw new TaskConfigurationError(
-          `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
-        );
-      }
-    }
 
     // Prevent reentrancy
     if (this.running || this.reactiveRunning) {
@@ -1016,11 +1027,56 @@ export class TaskGraphRunner {
     }
 
     this.runId = uuid4();
-    this.resetGraph(this.graph, this.runId);
+    this.resetGraph(this.graph, this.runId); // Reset graph and regenerate sub-graphs, changes task count / entitlements
     this.processScheduler.reset();
     this.inProgressTasks.clear();
     this.inProgressFunctions.clear();
     this.failedTaskErrors.clear();
+
+    // Validate and enforce after resetGraph (which regenerates sub-graphs and may
+    // change task count / entitlements). On failure, clean up running state so the
+    // runner remains reusable.
+    try {
+      // Validate graph size limits
+      if (config?.maxTasks !== undefined && config.maxTasks > 0) {
+        const taskCount = this.graph.getTasks().length;
+        if (taskCount > config.maxTasks) {
+          throw new TaskConfigurationError(
+            `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
+          );
+        }
+      }
+
+      // Opt-in entitlement enforcement (preflight)
+      if (config?.enforceEntitlements) {
+        if (!this.registry.has(ENTITLEMENT_ENFORCER)) {
+          throw new TaskConfigurationError(
+            "enforceEntitlements is enabled but no IEntitlementEnforcer is registered. " +
+              "Register an enforcer via ENTITLEMENT_ENFORCER before running the graph."
+          );
+        }
+        const enforcer = this.registry.get(ENTITLEMENT_ENFORCER);
+        const denied = await enforcer.checkAll(computeGraphEntitlements(this.graph));
+        if (denied.length > 0) {
+          throw new TaskEntitlementError(
+            `Denied entitlements: ${denied.map((e: { id: string }) => e.id).join(", ")}`
+          );
+        }
+        this.activeEnforcer = enforcer;
+      } else {
+        this.activeEnforcer = undefined;
+      }
+    } catch (err) {
+      // Reset running state so the runner is reusable after validation failures
+      if (this.graphTimeoutTimer !== undefined) {
+        clearTimeout(this.graphTimeoutTimer);
+        this.graphTimeoutTimer = undefined;
+      }
+      this.abortController = undefined;
+      this.activeEnforcer = undefined;
+      this.running = false;
+      throw err;
+    }
 
     // Start telemetry span for the graph run
     const telemetry = getTelemetryProvider();
@@ -1082,6 +1138,7 @@ export class TaskGraphRunner {
   protected async handleComplete(): Promise<void> {
     this.clearGraphTimeout();
     this.running = false;
+    this.activeEnforcer = undefined;
 
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.OK);
@@ -1109,6 +1166,7 @@ export class TaskGraphRunner {
       })
     );
     this.running = false;
+    this.activeEnforcer = undefined;
 
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.ERROR, error.message);
@@ -1137,6 +1195,7 @@ export class TaskGraphRunner {
       })
     );
     this.running = false;
+    this.activeEnforcer = undefined;
 
     if (this.telemetrySpan) {
       this.telemetrySpan.setStatus(SpanStatusCode.ERROR, "aborted");

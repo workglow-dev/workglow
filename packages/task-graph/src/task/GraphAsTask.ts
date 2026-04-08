@@ -5,8 +5,9 @@
  */
 
 import { getLogger } from "@workglow/util";
-import { compileSchema } from "@workglow/util/schema";
 import type { DataPortSchema, SchemaNode } from "@workglow/util/schema";
+import { compileSchema } from "@workglow/util/schema";
+import { computeGraphEntitlements } from "../task-graph/GraphEntitlementUtils";
 import { computeGraphInputSchema, computeGraphOutputSchema } from "../task-graph/GraphSchemaUtils";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
@@ -15,9 +16,10 @@ import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
+import type { TaskEntitlements } from "./TaskEntitlements";
 import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
-import { TaskConfigSchema } from "./TaskTypes";
 import type { TaskConfig, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+import { TaskConfigSchema } from "./TaskTypes";
 
 export const graphAsTaskConfigSchema = {
   type: "object",
@@ -54,6 +56,9 @@ export class GraphAsTask<
 
   /** This task has dynamic schemas that change based on the subgraph structure */
   public static override hasDynamicSchemas: boolean = true;
+
+  /** Entitlements are always dynamic — they depend on child tasks in the subgraph */
+  public static override hasDynamicEntitlements: boolean = true;
 
   // ========================================================================
   // Constructor
@@ -163,6 +168,16 @@ export class GraphAsTask<
     }
 
     return computeGraphOutputSchema(this.subGraph);
+  }
+
+  /**
+   * Override entitlements to aggregate from all tasks in the subgraph.
+   */
+  public override entitlements(): TaskEntitlements {
+    if (!this.hasChildren()) {
+      return (this.constructor as typeof Task).entitlements();
+    }
+    return computeGraphEntitlements(this.subGraph);
   }
 
   /**
@@ -282,6 +297,7 @@ export class GraphAsTask<
   public override regenerateGraph(): void {
     this._inputSchemaNode = undefined;
     this.events.emit("regenerate");
+    this.emitEntitlementChange();
   }
 
   // ========================================================================

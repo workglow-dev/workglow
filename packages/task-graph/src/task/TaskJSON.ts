@@ -8,6 +8,7 @@ import type { ServiceRegistry } from "@workglow/util";
 import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
+import type { TaskEntitlements } from "../task/TaskEntitlements";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
 import { getTaskConstructors } from "../task/TaskRegistry";
 import { ConditionalTaskConfig } from "./ConditionalTask";
@@ -69,6 +70,14 @@ export type JsonTaskItem = {
 
   /** Nested tasks for compound operations */
   subtasks?: JsonTaskItem[];
+
+  /**
+   * Entitlements required by this task.
+   * @output-only This field is populated during serialization (toJSON/toDependencyJSON)
+   * and is ignored during deserialization. User-supplied entitlements in JSON input
+   * are not applied to the reconstructed task.
+   */
+  entitlements?: TaskEntitlements;
 };
 
 /**
@@ -81,6 +90,11 @@ export type TaskGraphItemJson = {
   config?: JsonTaskConfig;
   subgraph?: TaskGraphJson;
   merge?: CompoundMergeStrategy;
+  /**
+   * Entitlements required by this task.
+   * @output-only This field is populated during serialization and is ignored during deserialization.
+   */
+  entitlements?: TaskEntitlements;
 };
 
 export type TaskGraphJson = {

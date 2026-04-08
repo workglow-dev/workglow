@@ -4,11 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
-import { getMcpTaskDeps } from "../../util/McpTaskDeps";
+import type { TaskEntitlements } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  Entitlements,
+  IExecuteContext,
+  mergeEntitlements,
+  Task,
+  TaskConfig,
+  Workflow,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
+import { getMcpServerTransport } from "../../util/getMcpServerTransport";
+import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
 
@@ -184,6 +194,31 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     "Lists tools, resources, or prompts available on an MCP server";
   static override readonly cacheable = false;
   public static override hasDynamicSchemas: boolean = true;
+  public static override hasDynamicEntitlements: boolean = true;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.MCP, reason: "Lists tools, resources, or prompts on MCP servers" },
+      ],
+    };
+  }
+
+  public override entitlements(): TaskEntitlements {
+    const base = McpListTask.entitlements();
+    const transport = getMcpServerTransport(this);
+    if (transport === "stdio") {
+      return mergeEntitlements(base, {
+        entitlements: [
+          { id: Entitlements.MCP_STDIO, reason: "Uses stdio transport to spawn local process" },
+        ],
+      });
+    }
+    // sse and streamable-http transports require network access
+    return mergeEntitlements(base, {
+      entitlements: [{ id: Entitlements.NETWORK_HTTP, reason: "Connects to MCP server over HTTP" }],
+    });
+  }
 
   public static override inputSchema(): DataPortSchema {
     const { mcpServerConfigSchema } = getMcpTaskDeps();

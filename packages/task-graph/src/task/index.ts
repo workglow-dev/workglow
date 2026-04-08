@@ -6,6 +6,10 @@
 
 export * from "./ConditionalTask";
 export * from "./ConditionUtils";
+export * from "./EntitlementEnforcer";
+export * from "./EntitlementPolicy";
+export * from "./EntitlementProfiles";
+export * from "./EntitlementResolver";
 export * from "./FallbackTask";
 export * from "./FallbackTaskRunner";
 export * from "./GraphAsTask";
@@ -21,6 +25,7 @@ export * from "./MapTask";
 export * from "./ReduceTask";
 export * from "./StreamTypes";
 export * from "./Task";
+export * from "./TaskEntitlements";
 export * from "./TaskError";
 export * from "./TaskEvents";
 export * from "./TaskJSON";

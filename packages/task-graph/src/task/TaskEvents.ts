@@ -8,6 +8,7 @@ import type { DataPortSchema } from "@workglow/util/schema";
 import { EventParameters } from "@workglow/util";
 import type { StreamEvent } from "./StreamTypes";
 import { TaskAbortedError, TaskError } from "./TaskError";
+import type { TaskEntitlements } from "./TaskEntitlements";
 import { TaskStatus } from "./TaskTypes";
 
 // ========================================================================
@@ -69,6 +70,9 @@ export type TaskEventListeners = {
 
   /** Fired when a task's input or output schema changes (for tasks with dynamic schemas) */
   schemaChange: (inputSchema?: DataPortSchema, outputSchema?: DataPortSchema) => void;
+
+  /** Fired when a task's required entitlements change (for tasks with dynamic entitlements) */
+  entitlementChange: (entitlements: TaskEntitlements) => void;
 
   /** Fired when a streaming task begins producing chunks */
   stream_start: () => void;

@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { compileSchema } from "@workglow/util/schema";
-import type { DataPortSchema, SchemaNode } from "@workglow/util/schema";
-import { deepEqual, EventEmitter, uuid4 } from "@workglow/util";
 import type { ServiceRegistry } from "@workglow/util";
+import { deepEqual, EventEmitter, uuid4 } from "@workglow/util";
+import type { DataPortSchema, SchemaNode } from "@workglow/util/schema";
+import { compileSchema } from "@workglow/util/schema";
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import type { IExecuteContext, IExecuteReactiveContext, IRunConfig, ITask } from "./ITask";
+import { EMPTY_ENTITLEMENTS, type TaskEntitlements } from "./TaskEntitlements";
 import {
   TaskAbortedError,
   TaskConfigurationError,
@@ -26,8 +27,8 @@ import type {
 } from "./TaskEvents";
 import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
 import { TaskRunner } from "./TaskRunner";
-import { TaskConfigSchema, TaskStatus } from "./TaskTypes";
 import type { TaskConfig, TaskIdType, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
+import { TaskConfigSchema, TaskStatus } from "./TaskTypes";
 
 /**
  * Base class for all tasks that implements the ITask interface.
@@ -98,6 +99,21 @@ export class Task<
    * leaf nodes; otherwise it falls back to collecting from all leaves.
    */
   public static isGraphOutput: boolean = false;
+
+  /**
+   * Whether this task has dynamic entitlements that can change at runtime.
+   * Tasks with dynamic entitlements should override the instance entitlements() method
+   * and emit 'entitlementChange' events when their entitlements change.
+   */
+  public static hasDynamicEntitlements: boolean = false;
+
+  /**
+   * Entitlements required by this task class.
+   * Subclasses override to declare their permission requirements.
+   */
+  public static entitlements(): TaskEntitlements {
+    return EMPTY_ENTITLEMENTS;
+  }
 
   /**
    * Input schema for this task
@@ -248,6 +264,24 @@ export class Task<
    */
   public configSchema(): DataPortSchema {
     return (this.constructor as typeof Task).configSchema();
+  }
+
+  /**
+   * Gets entitlements for this task instance.
+   * For tasks with dynamic entitlements, override this to compute based on config/state.
+   */
+  public entitlements(): TaskEntitlements {
+    return (this.constructor as typeof Task).entitlements();
+  }
+
+  /**
+   * Emits an entitlementChange event when the task's required entitlements change.
+   * Call this from tasks with dynamic entitlements when their configuration changes
+   * in a way that affects their entitlements.
+   */
+  protected emitEntitlementChange(entitlements?: TaskEntitlements): void {
+    const final = entitlements ?? this.entitlements();
+    this.emit("entitlementChange", final);
   }
 
   public get type(): TaskTypeName {
@@ -994,6 +1028,13 @@ export class Task<
     if (Object.keys(config).length > 0) {
       base.config = config;
     }
+
+    // Include entitlements if present
+    const taskEntitlements = this.entitlements();
+    if (taskEntitlements.entitlements.length > 0) {
+      base.entitlements = taskEntitlements;
+    }
+
     return this.stripSymbols(base) as TaskGraphItemJson;
   }
 

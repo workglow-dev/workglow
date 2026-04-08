@@ -4,17 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DirectedAcyclicGraph } from "@workglow/util/graph";
 import { EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
+import { DirectedAcyclicGraph } from "@workglow/util/graph";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
+import type { TaskEntitlements } from "../task/TaskEntitlements";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
 import type { TaskIdType, TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
-import { ensureTask } from "./Conversions";
 import type { PipeFunction } from "./Conversions";
-import { Dataflow } from "./Dataflow";
+import { ensureTask } from "./Conversions";
 import type { DataflowIdType } from "./Dataflow";
+import { Dataflow } from "./Dataflow";
+import { computeGraphEntitlements } from "./GraphEntitlementUtils";
 import { addBoundaryNodesToDependencyJson, addBoundaryNodesToGraphJson } from "./GraphSchemaUtils";
 import type { ITaskGraph } from "./ITaskGraph";
 import {
@@ -27,8 +29,8 @@ import {
   TaskGraphStatusEvents,
   TaskGraphStatusListeners,
 } from "./TaskGraphEvents";
-import { CompoundMergeStrategy, GraphResult, TaskGraphRunner } from "./TaskGraphRunner";
 import type { GraphResultArray } from "./TaskGraphRunner";
+import { CompoundMergeStrategy, GraphResult, TaskGraphRunner } from "./TaskGraphRunner";
 
 /**
  * Configuration for running a task graph
@@ -57,9 +59,16 @@ export interface TaskGraphRunConfig {
    * Defaults to no limit. Set this to prevent runaway graph construction.
    */
   maxTasks?: number;
+  /**
+   * When true, check entitlements via the registered IEntitlementEnforcer before
+   * graph execution begins. Throws TaskEntitlementError if any required (non-optional)
+   * entitlements are denied. Default: false.
+   */
+  enforceEntitlements?: boolean;
 }
 
-export interface TaskGraphRunReactiveConfig extends TaskGraphRunConfig {
+export interface TaskGraphRunReactiveConfig
+  extends Omit<TaskGraphRunConfig, "enforceEntitlements" | "timeout"> {
   /** Optional service registry to use for this task graph */
   registry?: ServiceRegistry;
 }
@@ -560,6 +569,67 @@ export class TaskGraph implements ITaskGraph {
 
     return () => {
       unsubscribes.forEach((unsub) => unsub());
+    };
+  }
+
+  /**
+   * Subscribes to entitlement changes on all tasks (existing and future).
+   * When any task's entitlements change, the graph recomputes and emits its own
+   * `entitlementChange` event. Structural changes (task_added, task_removed) also trigger.
+   *
+   * @param callback - Function called with the aggregated entitlements whenever they change
+   * @returns a function to unsubscribe from all entitlement events
+   */
+  public subscribeToTaskEntitlements(
+    callback: (entitlements: TaskEntitlements) => void
+  ): () => void {
+    const globalUnsubs: (() => void)[] = [];
+    const taskUnsubs = new Map<TaskIdType, () => void>();
+
+    const emitChange = () => {
+      const entitlements = computeGraphEntitlements(this);
+      this.emit("entitlementChange", entitlements);
+      callback(entitlements);
+    };
+
+    const subscribeTask = (taskId: TaskIdType) => {
+      const task = this.getTask(taskId);
+      if (!task || typeof task.subscribe !== "function") return;
+      const unsub = task.subscribe("entitlementChange", () => emitChange());
+      taskUnsubs.set(taskId, unsub);
+    };
+
+    // Subscribe to entitlementChange events on all existing tasks
+    for (const task of this.getTasks()) {
+      subscribeTask(task.id);
+    }
+
+    // Emit the initial state immediately so subscribers don't miss the current entitlements
+    emitChange();
+
+    // Subscribe to new tasks being added
+    globalUnsubs.push(
+      this.subscribe("task_added", (taskId: TaskIdType) => {
+        subscribeTask(taskId);
+        emitChange();
+      })
+    );
+
+    globalUnsubs.push(
+      this.subscribe("task_removed", (taskId: TaskIdType) => {
+        const unsub = taskUnsubs.get(taskId);
+        if (unsub) {
+          unsub();
+          taskUnsubs.delete(taskId);
+        }
+        emitChange();
+      })
+    );
+
+    return () => {
+      globalUnsubs.forEach((unsub) => unsub());
+      taskUnsubs.forEach((unsub) => unsub());
+      taskUnsubs.clear();
     };
   }
 

@@ -202,9 +202,7 @@ describe("TaskGraphRunner", () => {
     it("should throw TaskConfigurationError when task count exceeds maxTasks", async () => {
       // graph already has 3 tasks (task0, task1, task2) from beforeEach
       await expect(runner.runGraph({}, { maxTasks: 2 })).rejects.toThrow(TaskConfigurationError);
-      await expect(runner.runGraph({}, { maxTasks: 2 })).rejects.toThrow(
-        "exceeding the limit of 2"
-      );
+      await expect(runner.runGraph({}, { maxTasks: 2 })).rejects.toThrow("exceeding the limit of 2");
     });
 
     it("should not throw when task count is within maxTasks", async () => {
