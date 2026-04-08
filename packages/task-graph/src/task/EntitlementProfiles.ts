@@ -5,10 +5,12 @@
  *
  * Pre-built entitlement grant profiles for common runtime environments.
  * The library has no concept of Electron, brands, or deployment targets —
- * only capability profiles expressed as entitlement grants.
+ * only capability profiles expressed as entitlement policies.
  */
 
-import { createScopedEnforcer, type IEntitlementEnforcer } from "./EntitlementEnforcer";
+import { createPolicyEnforcer, type IEntitlementEnforcer } from "./EntitlementEnforcer";
+import type { EntitlementPolicy } from "./EntitlementPolicy";
+import type { IEntitlementResolver } from "./EntitlementResolver";
 import type { EntitlementGrant } from "./TaskEntitlements";
 import { Entitlements } from "./TaskEntitlements";
 
@@ -48,7 +50,7 @@ export const DESKTOP_GRANTS: readonly EntitlementGrant[] = [
 export const SERVER_GRANTS: readonly EntitlementGrant[] = [...DESKTOP_GRANTS];
 
 // ========================================================================
-// Profile Factory
+// Policy Factory
 // ========================================================================
 
 export type EntitlementProfile = "browser" | "desktop" | "server";
@@ -60,11 +62,26 @@ const PROFILE_GRANTS: Record<EntitlementProfile, readonly EntitlementGrant[]> = 
 };
 
 /**
- * Creates a scoped entitlement enforcer for the given runtime profile.
- * Tasks requiring entitlements not in the profile will be denied.
+ * Creates an entitlement policy for the given runtime profile.
+ * The profile's grants become the policy's grant rules.
+ * Deny and ask arrays are empty by default — callers can extend the returned policy.
  */
-export function createProfileEnforcer(profile: EntitlementProfile): IEntitlementEnforcer {
-  return createScopedEnforcer(PROFILE_GRANTS[profile]);
+export function createProfilePolicy(profile: EntitlementProfile): EntitlementPolicy {
+  return { deny: [], grant: PROFILE_GRANTS[profile], ask: [] };
+}
+
+/**
+ * Creates an entitlement enforcer for the given runtime profile.
+ * Tasks requiring entitlements not in the profile will be denied.
+ *
+ * @param profile - The runtime profile to use
+ * @param resolver - Optional resolver for handling "ask" verdicts
+ */
+export function createProfileEnforcer(
+  profile: EntitlementProfile,
+  resolver?: IEntitlementResolver
+): IEntitlementEnforcer {
+  return createPolicyEnforcer(createProfilePolicy(profile), resolver);
 }
 
 /**

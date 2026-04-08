@@ -17,6 +17,7 @@ import {
 } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
+import type { IEntitlementEnforcer } from "../task/EntitlementEnforcer";
 import { ENTITLEMENT_ENFORCER, PERMISSIVE_ENFORCER } from "../task/EntitlementEnforcer";
 import { ITask } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
@@ -135,6 +136,12 @@ export class TaskGraphRunner {
    * can surface the correct error type.
    */
   protected pendingGraphTimeoutError?: TaskGraphTimeoutError;
+
+  /**
+   * The entitlement enforcer for the current run, if enforcement is enabled.
+   * Set during handleStart and cleared after the run completes.
+   */
+  protected activeEnforcer?: IEntitlementEnforcer;
 
   /**
    * Constructor for TaskGraphRunner
@@ -715,6 +722,16 @@ export class TaskGraphRunner {
 
     this.copyInputFromEdgesToNode(task);
 
+    // Runtime entitlement enforcement for tasks with dynamic entitlements
+    if (this.activeEnforcer && (task.constructor as typeof Task).hasDynamicEntitlements) {
+      const denied = await this.activeEnforcer.checkTask(task);
+      if (denied.length > 0) {
+        throw new TaskEntitlementError(
+          `Task ${(task.constructor as typeof Task).type} denied entitlements: ${denied.map((e) => e.id).join(", ")}`
+        );
+      }
+    }
+
     if (isStreamable) {
       return this.runStreamingTask<T>(task, input);
     }
@@ -1026,17 +1043,20 @@ export class TaskGraphRunner {
       }
     }
 
-    // Opt-in entitlement enforcement
+    // Opt-in entitlement enforcement (preflight)
     if (config?.enforceEntitlements) {
-      const enforcer = this.registry.has(ENTITLEMENT_ENFORCER)
+      this.activeEnforcer = this.registry.has(ENTITLEMENT_ENFORCER)
         ? this.registry.get(ENTITLEMENT_ENFORCER)
         : PERMISSIVE_ENFORCER;
-      const denied = enforcer.check(computeGraphEntitlements(this.graph));
+      const denied = await this.activeEnforcer.checkAll(computeGraphEntitlements(this.graph));
       if (denied.length > 0) {
+        this.activeEnforcer = undefined;
         throw new TaskEntitlementError(
           `Denied entitlements: ${denied.map((e) => e.id).join(", ")}`
         );
       }
+    } else {
+      this.activeEnforcer = undefined;
     }
 
     // Start telemetry span for the graph run
