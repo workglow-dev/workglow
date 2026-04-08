@@ -1,63 +1,84 @@
 <!--
-@license
-Copyright 2025 Steven Roussey <sroussey@gmail.com>
-SPDX-License-Identifier: Apache-2.0
+  @license
+  Copyright 2025 Steven Roussey <sroussey@gmail.com>
+  SPDX-License-Identifier: Apache-2.0
 -->
 
-# Model Registry and Repository System
+# Model Registry
 
-## 1. Overview
+## Overview
 
-The Workglow Model Registry and Repository system provides a centralized mechanism for
-discovering, storing, and managing AI model configurations across providers. It decouples
-task execution from model discovery: tasks declare which model format they accept via JSON
-Schema annotations, and the runtime resolves string model identifiers into fully-hydrated
-`ModelConfig` objects before execution begins.
+The model registry is the central catalog of AI models available to Workglow. It provides a
+persistent, queryable store of model configurations and their associations with tasks. When a
+task input contains a model string like `"gpt-4"`, the input resolution system looks up the
+corresponding `ModelConfig` from the model registry. When a UI needs to populate a model dropdown
+for a specific task type, it queries the registry for compatible models.
 
-The system is composed of four primary components:
+The system is composed of four collaborating pieces:
 
-| Component | Responsibility |
-|---|---|
-| **ModelConfig** | Lightweight configuration carried through task inputs and job payloads |
-| **ModelRecord** | Persistent, fully-specified record suitable for storage in a repository |
-| **ModelRepository** | Abstract base class providing CRUD operations and event emission over a `TabularStorage` backend |
-| **ModelRegistry** (singleton) | Global access layer wiring the repository into the `ServiceRegistry` and the input resolver system |
+1. **`ModelConfig` / `ModelRecord`** -- data types representing model configurations at different
+   levels of specificity.
+2. **`ModelRepository`** -- the base class providing CRUD operations and event emission for model
+   records, backed by `ITabularStorage`.
+3. **`InMemoryModelRepository`** -- a default in-memory implementation.
+4. **`ModelRegistry` module** -- the DI wiring that provides a global `MODEL_REPOSITORY` service
+   token, convenience accessors, and the input resolver/compactor registrations that connect models
+   to the schema system.
 
-Together, these components enable a workflow where:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ModelRegistry Module                      │
+│                                                             │
+│  MODEL_REPOSITORY token ──> globalServiceRegistry           │
+│  registerInputResolver("model", ...)                        │
+│  registerInputCompactor("model", ...)                       │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │                  ModelRepository                      │  │
+│  │                                                       │  │
+│  │  addModel()    findByName()    findModelsByTask()     │  │
+│  │  removeModel() findTasksByModel() enumerateAllModels()│  │
+│  │                                                       │  │
+│  │  events: model_added, model_removed, model_updated    │  │
+│  │                                                       │  │
+│  │  ┌─────────────────────────────────────────────────┐  │  │
+│  │  │        ITabularStorage<ModelRecordSchema>       │  │  │
+│  │  │  (InMemory, SQLite, PostgreSQL, ...)            │  │  │
+│  │  └─────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
 
-1. Providers register models at application startup.
-2. Tasks declare model inputs with `format: "model"` or `format: "model:TaskType"` annotations.
-3. The `TaskRunner` automatically resolves string model IDs to `ModelConfig` objects via the input resolver system.
-4. `AiTask` validates model-task compatibility before execution.
-5. The resolved `ModelConfig` is forwarded to the provider execution strategy.
+Source files:
 
-**Source files:**
-
-- `packages/ai/src/model/ModelSchema.ts` -- schema and type definitions
-- `packages/ai/src/model/ModelRepository.ts` -- abstract repository class
-- `packages/ai/src/model/InMemoryModelRepository.ts` -- default in-memory implementation
-- `packages/ai/src/model/ModelRegistry.ts` -- singleton registration, input resolver/compactor
+| File | Purpose |
+|------|---------|
+| `packages/ai/src/model/ModelSchema.ts` | `ModelConfig`, `ModelRecord` types and schemas |
+| `packages/ai/src/model/ModelRepository.ts` | `ModelRepository` base class |
+| `packages/ai/src/model/InMemoryModelRepository.ts` | In-memory implementation |
+| `packages/ai/src/model/ModelRegistry.ts` | DI wiring, global accessors, resolver/compactor |
 
 ---
 
-## 2. ModelConfig
+## ModelConfig vs ModelRecord
 
-`ModelConfig` is a lightweight configuration type designed to travel through task inputs and
-serialized job payloads. It is intentionally less strict than `ModelRecord` so that jobs
-executing inside workers can carry only the provider configuration required for execution,
-without requiring access to a model repository.
+The model system uses two related but distinct types to represent model configurations at different
+levels of specificity.
 
-### Schema Definition
+### ModelConfig
+
+`ModelConfig` is the lightweight configuration that tasks and jobs carry. It requires only the
+provider and provider configuration, with all other fields optional:
 
 ```typescript
-export const ModelConfigSchema = {
+const ModelConfigSchema = {
   type: "object",
   properties: {
-    model_id:        { type: "string" },
-    tasks:           { type: "array", items: { type: "string" }, "x-ui-editor": "multiselect" },
-    title:           { type: "string" },
-    description:     { type: "string", "x-ui-editor": "textarea" },
-    provider:        { type: "string" },
+    model_id: { type: "string" },
+    tasks: { type: "array", items: { type: "string" }, "x-ui-editor": "multiselect" },
+    title: { type: "string" },
+    description: { type: "string", "x-ui-editor": "textarea" },
+    provider: { type: "string" },
     provider_config: {
       type: "object",
       properties: {
@@ -66,203 +87,228 @@ export const ModelConfigSchema = {
       additionalProperties: true,
       default: {},
     },
-    metadata:        { type: "object", default: {}, "x-ui-hidden": true },
+    metadata: { type: "object", default: {}, "x-ui-hidden": true },
   },
   required: ["provider", "provider_config"],
   format: "model",
   additionalProperties: true,
 } as const satisfies DataPortSchemaObject;
+
+type ModelConfig = FromSchema<typeof ModelConfigSchema>;
 ```
 
-### Properties
+Key fields:
 
-| Property | Type | Required | Description |
-|---|---|---|---|
-| `model_id` | `string` | No | Unique identifier for the model (e.g., `"onnx:Xenova/LaMini-Flan-T5-783M:q8"`) |
-| `tasks` | `string[]` | No | Task type names this model is compatible with (e.g., `["TextGenerationTask", "TextRewriterTask"]`) |
-| `title` | `string` | No | Human-readable display name |
-| `description` | `string` | No | Human-readable description |
-| `provider` | `string` | **Yes** | Provider identifier (e.g., `"HF_TRANSFORMERS_ONNX"`, `"openai"`, `"anthropic"`) |
-| `provider_config` | `object` | **Yes** | Provider-specific configuration (e.g., `pipeline`, `model_path`, `dtype`, `credential_key`). Allows additional properties beyond `credential_key`. |
-| `metadata` | `object` | No | Arbitrary metadata. Hidden from the UI. |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model_id` | `string` | No | Unique identifier for the model |
+| `tasks` | `string[]` | No | Task types this model supports |
+| `title` | `string` | No | Human-readable name |
+| `description` | `string` | No | Description of the model |
+| `provider` | `string` | Yes | Provider name (e.g., `"OPENAI"`) |
+| `provider_config` | `object` | Yes | Provider-specific settings |
+| `metadata` | `object` | No | Arbitrary metadata |
 
-The `ModelConfig` type is derived from this schema via `FromSchema<typeof ModelConfigSchema>`.
+The `provider_config` object supports `additionalProperties: true`, so providers can include
+their own fields (e.g., `model_name`, `device`, `dtype`). The `credential_key` sub-field uses
+`format: "credential"` to trigger credential resolution through the input resolver system.
 
-**Key design decision:** Only `provider` and `provider_config` are required. This allows
-inline model configurations in task inputs that bypass the repository entirely, which is
-useful for one-off executions and testing.
+### ModelRecord
 
----
-
-## 3. ModelRecord
-
-`ModelRecord` is the persistence-oriented counterpart to `ModelConfig`. It requires all fields
-that `ModelConfig` leaves optional, ensuring every record in the repository is fully specified.
-
-### Schema Definition
+`ModelRecord` is the fully-specified variant used for persistence in the `ModelRepository`. All
+fields are required:
 
 ```typescript
-export const ModelRecordSchema = {
+const ModelRecordSchema = {
   type: "object",
   properties: {
     ...ModelConfigSchema.properties,
   },
   required: [
-    "model_id",
-    "tasks",
-    "provider",
-    "title",
-    "description",
-    "provider_config",
-    "metadata",
+    "model_id", "tasks", "provider", "title",
+    "description", "provider_config", "metadata",
   ],
   format: "model",
   additionalProperties: false,
 } as const satisfies DataPortSchemaObject;
+
+type ModelRecord = FromSchema<typeof ModelRecordSchema>;
 ```
 
-### Differences from ModelConfig
-
-| Aspect | ModelConfig | ModelRecord |
-|---|---|---|
-| Required fields | `provider`, `provider_config` | All seven properties |
-| `additionalProperties` | `true` | `false` |
-| Use case | Task input, job payload | Repository persistence |
-| Primary key | N/A | `model_id` |
-
-The primary key is defined as:
+The `additionalProperties: false` constraint ensures that only the declared fields are persisted.
+The primary key is defined by:
 
 ```typescript
-export const ModelPrimaryKeyNames = ["model_id"] as const;
+const ModelPrimaryKeyNames = ["model_id"] as const;
 ```
 
-This tells the underlying `TabularStorage` to index and look up records by `model_id`.
+### Relationship
+
+`ModelConfig` is a superset of `ModelRecord` in terms of flexibility (allows additional properties,
+fewer required fields). A `ModelRecord` retrieved from the repository is always a valid
+`ModelConfig`, but not vice versa. This design allows jobs to carry only the provider configuration
+needed for execution without requiring a round-trip to the model repository.
 
 ---
 
-## 4. ModelRepository Interface
+## ModelRepository Interface
 
-`ModelRepository` is the base class for all model storage backends. It wraps an
-`ITabularStorage<typeof ModelRecordSchema, typeof ModelPrimaryKeyNames>` instance and
-provides a domain-specific API for model lifecycle management.
+`ModelRepository` is the base class for all model storage backends. It wraps an `ITabularStorage`
+instance and provides domain-specific query methods plus event emission.
 
 ### Constructor
 
 ```typescript
-constructor(
-  modelTabularRepository: ITabularStorage<
-    typeof ModelRecordSchema,
-    typeof ModelPrimaryKeyNames,
-    ModelRecord
-  >
-)
+class ModelRepository {
+  constructor(
+    modelTabularRepository: ITabularStorage<
+      typeof ModelRecordSchema,
+      typeof ModelPrimaryKeyNames,
+      ModelRecord
+    >
+  )
+}
 ```
 
-The repository delegates all storage operations to the injected `ITabularStorage` backend.
-This allows the same `ModelRepository` API to work with in-memory storage, SQLite, PostgreSQL,
-IndexedDB, or any other backend that implements the tabular storage interface.
+The constructor accepts any `ITabularStorage` implementation, making the repository backend-
+agnostic. The same `ModelRepository` API works with in-memory storage, SQLite, PostgreSQL, or any
+other storage backend.
 
-### Methods
+### CRUD Operations
 
-| Method | Signature | Description |
-|---|---|---|
-| `setupDatabase()` | `async (): Promise<void>` | Initializes the underlying storage (creates tables, indices). Must be called before any other method. |
-| `addModel(model)` | `async (model: ModelRecord): Promise<ModelRecord>` | Inserts or upserts a model record. Emits `model_added`. |
-| `removeModel(model_id)` | `async (model_id: string): Promise<void>` | Deletes a model by ID. Throws if not found. Emits `model_removed`. |
-| `findByName(model_id)` | `async (model_id: string): Promise<ModelRecord \| undefined>` | Retrieves a single model by its `model_id`. Returns `undefined` if not found. |
-| `findModelsByTask(task)` | `async (task: string): Promise<ModelRecord[] \| undefined>` | Returns all models whose `tasks` array includes the given task type. Returns `undefined` if none match. |
-| `findTasksByModel(model_id)` | `async (model_id: string): Promise<string[] \| undefined>` | Returns the `tasks` array for a specific model. Returns `undefined` if the model is not found or has no tasks. |
-| `enumerateAllModels()` | `async (): Promise<ModelRecord[] \| undefined>` | Returns all models in the repository. Returns `undefined` if empty. |
-| `enumerateAllTasks()` | `async (): Promise<string[] \| undefined>` | Returns a deduplicated array of all task type strings across all models. Returns `undefined` if none exist. |
-| `size()` | `async (): Promise<number>` | Returns the total number of stored models. |
+#### addModel(model: ModelRecord): Promise<ModelRecord>
 
-### Usage Example
+Adds a new model to the repository and emits a `model_added` event:
 
 ```typescript
-import { getGlobalModelRepository } from "@workglow/ai";
-
 const repo = getGlobalModelRepository();
-
-// Register a model
 await repo.addModel({
-  model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
-  title: "LaMini-Flan-T5-783M",
-  description: "LaMini-Flan-T5-783M quantized to 8-bit",
-  tasks: ["TextGenerationTask", "TextRewriterTask"],
-  provider: "HF_TRANSFORMERS_ONNX",
+  model_id: "gpt-4-turbo",
+  title: "GPT-4 Turbo",
+  description: "OpenAI's GPT-4 Turbo model",
+  provider: "OPENAI",
+  tasks: ["TextGenerationTask", "TextSummaryTask", "ToolCallingTask"],
   provider_config: {
-    pipeline: "text2text-generation",
-    model_path: "Xenova/LaMini-Flan-T5-783M",
-    dtype: "q8",
+    model_name: "gpt-4-turbo-preview",
+    credential_key: "openai-api-key",
   },
-  metadata: {},
+  metadata: { context_window: 128000 },
 });
+```
 
-// Look up by name
-const model = await repo.findByName("onnx:Xenova/LaMini-Flan-T5-783M:q8");
+#### removeModel(model_id: string): Promise<void>
 
-// Find all models that can do text generation
-const genModels = await repo.findModelsByTask("TextGenerationTask");
+Removes a model by ID and emits a `model_removed` event. Throws if the model is not found:
 
-// Find what tasks a model supports
-const tasks = await repo.findTasksByModel("onnx:Xenova/LaMini-Flan-T5-783M:q8");
-// => ["TextGenerationTask", "TextRewriterTask"]
+```typescript
+await repo.removeModel("gpt-4-turbo");
+```
+
+#### findByName(model_id: string): Promise<ModelRecord | undefined>
+
+Retrieves a single model by its `model_id`. Returns `undefined` if not found:
+
+```typescript
+const model = await repo.findByName("gpt-4-turbo");
+if (model) {
+  console.log(model.provider); // "OPENAI"
+}
+```
+
+### Query Operations
+
+#### findModelsByTask(task: string): Promise<ModelRecord[] | undefined>
+
+Returns all models whose `tasks` array includes the given task type. Returns `undefined` if no
+models match:
+
+```typescript
+const embeddingModels = await repo.findModelsByTask("TextEmbeddingTask");
+// [{ model_id: "text-embedding-3-small", ... }, { model_id: "all-MiniLM-L6-v2", ... }]
+```
+
+#### findTasksByModel(model_id: string): Promise<string[] | undefined>
+
+Returns the task types supported by a specific model:
+
+```typescript
+const tasks = await repo.findTasksByModel("gpt-4-turbo");
+// ["TextGenerationTask", "TextSummaryTask", "ToolCallingTask"]
+```
+
+#### enumerateAllTasks(): Promise<string[] | undefined>
+
+Returns a deduplicated list of all task types across all registered models:
+
+```typescript
+const allTasks = await repo.enumerateAllTasks();
+// ["TextGenerationTask", "TextEmbeddingTask", "TextSummaryTask", ...]
+```
+
+#### enumerateAllModels(): Promise<ModelRecord[] | undefined>
+
+Returns all models in the repository:
+
+```typescript
+const allModels = await repo.enumerateAllModels();
+```
+
+#### size(): Promise<number>
+
+Returns the total number of models stored:
+
+```typescript
+const count = await repo.size();
+```
+
+### Database Setup
+
+#### setupDatabase(): Promise<void>
+
+Initializes the underlying storage. Must be called before using any other methods when using
+persistent backends (SQLite, PostgreSQL). In-memory storage does not require this call but
+supports it as a no-op:
+
+```typescript
+const repo = new SqliteModelRepository(dbPath);
+await repo.setupDatabase();
 ```
 
 ---
 
-## 5. InMemoryModelRepository
+## InMemoryModelRepository
 
-`InMemoryModelRepository` is the default implementation shipped with `@workglow/ai`. It
-wraps an `InMemoryTabularStorage` instance, making it suitable for development, testing, and
-single-process applications that do not need durable persistence.
-
-### Implementation
+The default implementation that stores models in memory. It is registered automatically as the
+global model repository if no other implementation is provided:
 
 ```typescript
-import { InMemoryTabularStorage } from "@workglow/storage";
-import { ModelRepository } from "./ModelRepository";
-import { ModelPrimaryKeyNames, ModelRecordSchema } from "./ModelSchema";
-
-export class InMemoryModelRepository extends ModelRepository {
+class InMemoryModelRepository extends ModelRepository {
   constructor() {
     super(new InMemoryTabularStorage(ModelRecordSchema, ModelPrimaryKeyNames));
   }
 }
 ```
 
-The entire class is a single constructor call. All behavior is inherited from
-`ModelRepository`, which delegates to the `InMemoryTabularStorage` backend.
-
-For production deployments requiring persistence, you can create a custom repository by
-passing a different `ITabularStorage` implementation (e.g., SQLite, PostgreSQL) to the
-`ModelRepository` constructor:
-
-```typescript
-import { SqliteTabularStorage } from "@workglow/storage";
-import { ModelRepository, ModelRecordSchema, ModelPrimaryKeyNames } from "@workglow/ai";
-
-const sqliteStorage = new SqliteTabularStorage(db, "models", ModelRecordSchema, ModelPrimaryKeyNames);
-const repo = new ModelRepository(sqliteStorage);
-await repo.setupDatabase();
-```
+This implementation is suitable for applications that register models programmatically at startup
+and do not need persistence across restarts. For persistent storage, replace the global repository
+with a SQLite or PostgreSQL-backed implementation.
 
 ---
 
-## 6. ModelRegistry Singleton
+## ModelRegistry Singleton
 
-The `ModelRegistry.ts` module establishes the global model repository as a singleton service
-and wires it into the input resolution system. It does not define a `ModelRegistry` class;
-instead it provides service tokens, accessor functions, and resolver registrations.
+The `ModelRegistry.ts` module provides the DI wiring that connects the `ModelRepository` to the
+rest of the framework.
 
-### Service Token
+### SERVICE_TOKEN
 
 ```typescript
-export const MODEL_REPOSITORY = createServiceToken<ModelRepository>("model.repository");
+const MODEL_REPOSITORY = createServiceToken<ModelRepository>("model.repository");
 ```
 
-This token is used to register and retrieve the model repository from any `ServiceRegistry`
-instance. On import, the module registers a default factory with the `globalServiceRegistry`:
+This token is used with the `ServiceRegistry` to register and retrieve the global model repository
+instance. A default `InMemoryModelRepository` is auto-registered if no other implementation is
+provided:
 
 ```typescript
 if (!globalServiceRegistry.has(MODEL_REPOSITORY)) {
@@ -274,226 +320,121 @@ if (!globalServiceRegistry.has(MODEL_REPOSITORY)) {
 }
 ```
 
-The `true` parameter indicates this is a singleton: the factory executes once and the
-resulting instance is cached for the lifetime of the process.
-
-### Accessor Functions
-
-| Function | Signature | Description |
-|---|---|---|
-| `getGlobalModelRepository()` | `(): ModelRepository` | Returns the model repository from the `globalServiceRegistry`. |
-| `setGlobalModelRepository(repo)` | `(repository: ModelRepository): void` | Replaces the global model repository instance. Useful for testing or switching to a persistent backend. |
-
-### Swapping the Repository
+### Global Accessors
 
 ```typescript
-import { setGlobalModelRepository, ModelRepository } from "@workglow/ai";
-import { SqliteTabularStorage } from "@workglow/storage";
+// Get the current global model repository
+function getGlobalModelRepository(): ModelRepository;
 
-const sqliteRepo = new ModelRepository(
-  new SqliteTabularStorage(db, "models", ModelRecordSchema, ModelPrimaryKeyNames)
-);
-await sqliteRepo.setupDatabase();
-setGlobalModelRepository(sqliteRepo);
+// Replace the global model repository
+function setGlobalModelRepository(repository: ModelRepository): void;
 ```
 
-After this call, all subsequent calls to `getGlobalModelRepository()` and all input
-resolution will use the SQLite-backed repository.
-
-### Per-TaskGraph Registries
-
-The `MODEL_REPOSITORY` token works with scoped `ServiceRegistry` instances as well. When
-running a `TaskGraph`, you can provide a local registry with its own model repository, isolating
-it from the global state:
-
-```typescript
-import { ServiceRegistry } from "@workglow/util";
-import { MODEL_REPOSITORY, InMemoryModelRepository } from "@workglow/ai";
-
-const registry = new ServiceRegistry();
-const localRepo = new InMemoryModelRepository();
-await localRepo.addModel({ /* ... */ });
-registry.registerInstance(MODEL_REPOSITORY, localRepo);
-
-// Pass to TaskGraph run
-await graph.run({ registry });
-```
+`setGlobalModelRepository()` calls `globalServiceRegistry.registerInstance()` to replace the
+singleton, ensuring all subsequent calls to `getGlobalModelRepository()` and DI-based lookups
+return the new instance.
 
 ---
 
-## 7. Model-Task Compatibility
+## Model-Task Compatibility
 
-The model-task compatibility system ensures that models are only used with tasks they are
-designed to support. This validation operates at two levels: input narrowing (pre-resolution)
-and input validation (post-resolution).
+The model registry enforces compatibility between models and tasks through the `tasks` array on
+each `ModelRecord`. This array lists the task type names that the model can handle.
 
-### The `tasks` Array
+### At Registration Time
 
-Every `ModelRecord` includes a `tasks` array listing the task type names the model supports.
-For example:
+When a provider registers its models, the `tasks` array declares which task types each model
+supports:
 
 ```typescript
-{
-  model_id: "gpt-4",
-  tasks: ["TextGenerationTask", "ToolCallingTask"],
-  provider: "openai",
-  // ...
+await repo.addModel({
+  model_id: "all-MiniLM-L6-v2",
+  title: "All MiniLM L6 v2",
+  description: "Sentence transformer for embeddings",
+  provider: "HF_TRANSFORMERS_ONNX",
+  tasks: ["TextEmbeddingTask"],  // Only supports embeddings
+  provider_config: { model_name: "Xenova/all-MiniLM-L6-v2" },
+  metadata: {},
+});
+```
+
+### At Validation Time
+
+`AiTask.validateInput()` checks that the resolved `ModelConfig.tasks` array includes the current
+task type. If not, it throws a `TaskConfigurationError`:
+
+```typescript
+const tasks = (model as ModelConfig).tasks;
+if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
+  throw new TaskConfigurationError(
+    `Model "${modelId}" is not compatible with task '${this.type}'`
+  );
 }
 ```
 
-This model can be used with `TextGenerationTask` and `ToolCallingTask`, but not with
-`TextEmbeddingTask` or `ImageClassificationTask`.
+### At Narrowing Time
 
-### narrowInput() -- Pre-Execution Filtering
-
-`AiTask.narrowInput()` runs before the task executes. It examines all input properties with
-`format: "model:TaskType"` annotations and validates compatibility:
-
-1. For string model IDs: queries the repository for models matching the current task type.
-   If the requested model ID is not in the result set, the input is set to `undefined`.
-2. For resolved `ModelConfig` objects: checks whether the model's `tasks` array includes
-   the current task type. If not, the input is set to `undefined`.
+`AiTask.narrowInput()` is called by the UI to filter out incompatible models. It queries the
+repository for models that support the current task type and sets incompatible model inputs to
+`undefined`:
 
 ```typescript
-// Simplified from AiTask.narrowInput()
 const taskModels = await modelRepo.findModelsByTask(this.type);
-
-for (const [key, propSchema] of modelTaskProperties) {
+for (const [key] of modelTaskProperties) {
   const requestedModel = input[key];
   if (typeof requestedModel === "string") {
     const found = taskModels?.find((m) => m.model_id === requestedModel);
     if (!found) {
-      input[key] = undefined;
-    }
-  } else if (typeof requestedModel === "object") {
-    const tasks = requestedModel.tasks;
-    if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
-      input[key] = undefined;
+      (input as any)[key] = undefined;
     }
   }
 }
 ```
 
-This is intentionally lenient: an empty or missing `tasks` array is treated as "compatible
-with everything", allowing inline configurations without explicit task lists.
-
-### validateInput() -- Post-Resolution Validation
-
-After input resolution, `AiTask.validateInput()` performs a stricter check. For properties
-annotated with `format: "model:TaskType"`:
-
-- If the resolved model has a non-empty `tasks` array that does **not** include the current
-  task type, a `TaskConfigurationError` is thrown.
-- If the value is not an object (i.e., resolution failed and left a raw string), a
-  `TaskConfigurationError` is thrown indicating the model was not found in the repository.
-
-```typescript
-throw new TaskConfigurationError(
-  `AiTask: Model "${modelId}" for '${key}' is not compatible with task '${this.type}'. ` +
-  `Model supports: [${tasks.join(", ")}]`
-);
-```
+This enables UI model dropdowns to show only models that are compatible with the selected task.
 
 ---
 
-## 8. Input Resolver System
+## Input Resolver Integration
 
-The input resolver system is the mechanism by which string model IDs in task inputs are
-automatically expanded to full `ModelConfig` objects. This happens transparently in the
-`TaskRunner` before task execution.
+The model registry integrates with the input resolution system (see
+[Schema System and Input Resolution](./09-schema-and-input-resolution.md)) through two
+registrations that happen at module load time.
 
-### Format Annotations
+### Model Resolver
 
-Task input schemas use the `format` property to indicate that a field requires resolution:
-
-| Format | Meaning |
-|---|---|
-| `format: "model"` | Accepts any model, resolved from the repository by `model_id` |
-| `format: "model:TextGenerationTask"` | Accepts models compatible with `TextGenerationTask` |
-| `format: "model:TextEmbeddingTask"` | Accepts models compatible with `TextEmbeddingTask` |
-| `format: "model:ImageClassificationTask"` | Accepts models compatible with `ImageClassificationTask` |
-
-These annotations are created using the `TypeModel()` helper function:
+Converts a model ID string to a `ModelConfig` object:
 
 ```typescript
-import { TypeModel } from "@workglow/ai";
-
-// In a task's input schema:
-const inputSchema = {
-  type: "object",
-  properties: {
-    model: TypeModel("model:TextGenerationTask"),
-    prompt: { type: "string" },
-  },
-  required: ["model", "prompt"],
-} as const satisfies DataPortSchema;
-```
-
-The `TypeModel()` helper produces a `oneOf` schema allowing either a string ID or an inline
-`ModelConfig` object:
-
-```typescript
-function TypeModel(semantic) {
-  return {
-    oneOf: [
-      TypeModelAsString(semantic),   // { type: "string", format: "model:..." }
-      TypeModelByDetail(semantic),   // { ...ModelConfigSchema, format: "model:..." }
-    ],
-    format: semantic,
-  };
-}
-```
-
-### Resolution Flow
-
-When the `TaskRunner` processes a task, it calls `resolveSchemaInputs()` before execution:
-
-1. **Schema inspection:** The resolver iterates over all properties in the task's input schema.
-2. **Format detection:** For each property, `getSchemaFormat()` extracts the format string,
-   handling `oneOf`/`anyOf` wrappers.
-3. **Resolver lookup:** The format prefix (everything before the first `:`) is used to look
-   up a registered resolver. For `"model:TextGenerationTask"`, the prefix is `"model"`.
-4. **String resolution:** If the input value is a string, the resolver is called with the
-   string ID, the full format string, and the current `ServiceRegistry`.
-5. **Object passthrough:** If the input value is already an object (inline `ModelConfig`),
-   it passes through unchanged.
-
-The model resolver registered in `ModelRegistry.ts`:
-
-```typescript
-async function resolveModelFromRegistry(
-  id: string,
-  format: string,
-  registry: ServiceRegistry
-): Promise<ModelConfig | undefined> {
+registerInputResolver("model", async (id, format, registry) => {
   const modelRepo = registry.has(MODEL_REPOSITORY)
     ? registry.get<ModelRepository>(MODEL_REPOSITORY)
     : getGlobalModelRepository();
 
   const model = await modelRepo.findByName(id);
-  if (!model) {
-    throw new Error(`Model "${id}" not found in repository`);
-  }
+  if (!model) throw new Error(`Model "${id}" not found in repository`);
   return model;
-}
-
-registerInputResolver("model", resolveModelFromRegistry);
+});
 ```
 
-### Input Compactor
+The resolver first checks the provided `ServiceRegistry` for a `MODEL_REPOSITORY` token (allowing
+per-run overrides), then falls back to the global repository. This is important for testing and
+for multi-tenant scenarios where different runs may use different model repositories.
 
-The complementary compactor converts resolved `ModelConfig` objects back to their string
-`model_id` for serialization (e.g., when persisting task graphs or transferring between
-processes):
+### Model Compactor
+
+Converts a `ModelConfig` object back to its string `model_id`:
 
 ```typescript
-registerInputCompactor("model", async (value, _format, registry) => {
+registerInputCompactor("model", async (value, format, registry) => {
   if (typeof value === "object" && value !== null && "model_id" in value) {
     const id = (value as Record<string, unknown>).model_id;
     if (typeof id !== "string") return undefined;
+
     const modelRepo = registry.has(MODEL_REPOSITORY)
       ? registry.get<ModelRepository>(MODEL_REPOSITORY)
       : getGlobalModelRepository();
+
     const model = await modelRepo.findByName(id);
     if (!model) return undefined;
     return id;
@@ -502,48 +443,49 @@ registerInputCompactor("model", async (value, _format, registry) => {
 });
 ```
 
-The compactor validates that the model still exists in the repository before returning the
-ID, preventing stale references.
+The compactor validates that the model ID actually exists in the repository before returning it.
+If the model has been removed, compaction returns `undefined` and the value remains as an object.
 
-### Resolution Diagram
+### Resolution Flow Example
 
-```
-Task Input                   resolveSchemaInputs()              Task.execute()
-+-----------------------+    +---------------------------+      +------------------+
-| { model: "gpt-4",    | -> | Look up format: "model:*" | ->   | { model: {       |
-|   prompt: "Hello" }   |    | Find resolver for "model" |      |     model_id:    |
-+-----------------------+    | Call resolver("gpt-4")    |      |     "gpt-4",     |
-                             | Query ModelRepository     |      |     provider:    |
-                             | Return ModelRecord        |      |     "openai",    |
-                             +---------------------------+      |     ...          |
-                                                                |   },            |
-                                                                |   prompt: "Hello"|
-                                                                | }               |
-                                                                +------------------+
+```typescript
+// 1. User creates a task with a string model ID
+const task = new TextGenerationTask({ model: "gpt-4", prompt: "Hello" });
+
+// 2. TaskRunner calls resolveSchemaInputs() before execute()
+//    - Schema has: model: { format: "model:TextGenerationTask", oneOf: [...] }
+//    - Resolver finds "model" prefix, calls registered resolver
+//    - Resolver calls modelRepo.findByName("gpt-4")
+//    - Returns full ModelConfig
+
+// 3. AiTask.execute() receives resolved input
+//    input.model === {
+//      model_id: "gpt-4",
+//      provider: "OPENAI",
+//      tasks: ["TextGenerationTask", ...],
+//      provider_config: { model_name: "gpt-4", credential_key: "openai-key" },
+//      ...
+//    }
+
+// 4. AiTask delegates to strategy based on model.provider
 ```
 
 ---
 
-## 9. Events
+## Events
 
-The `ModelRepository` emits events for all lifecycle mutations, enabling reactive UI updates,
-logging, and synchronization with external systems.
+The `ModelRepository` emits events through an `EventEmitter<ModelEventListeners>` instance.
+These events enable reactive UI updates and cross-component communication.
 
 ### Event Types
 
 ```typescript
-export type ModelEventListeners = {
-  model_added:   (model: ModelRecord) => void;
+type ModelEventListeners = {
+  model_added: (model: ModelRecord) => void;
   model_removed: (model: ModelRecord) => void;
   model_updated: (model: ModelRecord) => void;
 };
 ```
-
-| Event | Emitted When | Payload |
-|---|---|---|
-| `model_added` | After `addModel()` successfully inserts a record | The inserted `ModelRecord` |
-| `model_removed` | After `removeModel()` successfully deletes a record | The deleted `ModelRecord` (fetched before deletion) |
-| `model_updated` | After a model record is updated | The updated `ModelRecord` |
 
 ### Subscribing to Events
 
@@ -555,158 +497,97 @@ repo.on("model_added", (model) => {
   console.log(`New model registered: ${model.model_id} (${model.provider})`);
 });
 
-// One-time listener
-repo.once("model_removed", (model) => {
+// Listen for removals
+repo.on("model_removed", (model) => {
   console.log(`Model removed: ${model.model_id}`);
 });
 
-// Promise-based waiting
-const [addedModel] = await repo.waitOn("model_added");
-console.log(`Waited for model: ${addedModel.model_id}`);
+// One-time listener
+repo.once("model_added", (model) => {
+  console.log(`First model added: ${model.model_id}`);
+});
 
-// Unsubscribe
+// Promise-based waiting
+const [newModel] = await repo.waitOn("model_added");
+console.log(`Waited for model: ${newModel.model_id}`);
+```
+
+### Unsubscribing
+
+```typescript
 const handler = (model: ModelRecord) => { /* ... */ };
 repo.on("model_added", handler);
+// Later:
 repo.off("model_added", handler);
 ```
 
-### Event Methods
-
-| Method | Signature | Description |
-|---|---|---|
-| `on(name, fn)` | `<E extends ModelEvents>(name: E, fn: ModelEventListener<E>): void` | Registers a persistent listener |
-| `off(name, fn)` | `<E extends ModelEvents>(name: E, fn: ModelEventListener<E>): void` | Removes a listener |
-| `once(name, fn)` | `<E extends ModelEvents>(name: E, fn: ModelEventListener<E>): void` | Registers a listener that fires once and auto-removes |
-| `waitOn(name)` | `<E extends ModelEvents>(name: E): Promise<ModelEventParameters<E>>` | Returns a promise that resolves with the event arguments the next time the event fires |
-
 ---
 
-## 10. API Reference
+## API Reference
 
-### Types
+### ModelConfig (type)
+
+Lightweight model configuration for task inputs and job payloads. Required fields: `provider`,
+`provider_config`.
+
+### ModelRecord (type)
+
+Fully-specified model record for repository persistence. Required fields: `model_id`, `tasks`,
+`provider`, `title`, `description`, `provider_config`, `metadata`.
+
+### ModelPrimaryKeyNames
 
 ```typescript
-// Lightweight config for task inputs and job payloads
-type ModelConfig = FromSchema<typeof ModelConfigSchema>;
-
-// Fully-specified record for repository persistence
-type ModelRecord = FromSchema<typeof ModelRecordSchema>;
-
-// Primary key definition
 const ModelPrimaryKeyNames = ["model_id"] as const;
-
-// Event system types
-type ModelEventListeners = {
-  model_added:   (model: ModelRecord) => void;
-  model_removed: (model: ModelRecord) => void;
-  model_updated: (model: ModelRecord) => void;
-};
-type ModelEvents = keyof ModelEventListeners;
-type ModelEventListener<E extends ModelEvents> = ModelEventListeners[E];
-type ModelEventParameters<E extends ModelEvents> = EventParameters<ModelEventListeners, E>;
-
-// Format annotation types
-type TypeModelSemantic = "model" | `model:${string}`;
 ```
 
-### Schema Constants
-
-| Constant | Description |
-|---|---|
-| `ModelConfigSchema` | JSON Schema for `ModelConfig`. `required: ["provider", "provider_config"]`. |
-| `ModelRecordSchema` | JSON Schema for `ModelRecord`. All fields required, no additional properties. |
-| `ModelPrimaryKeyNames` | `["model_id"]` -- used by `TabularStorage` for indexing. |
-
-### Classes
-
-#### `ModelRepository`
+### MODEL_REPOSITORY
 
 ```typescript
-class ModelRepository {
-  constructor(modelTabularRepository: ITabularStorage<...>);
-
-  async setupDatabase(): Promise<void>;
-
-  async addModel(model: ModelRecord): Promise<ModelRecord>;
-  async removeModel(model_id: string): Promise<void>;
-  async findByName(model_id: string): Promise<ModelRecord | undefined>;
-  async findModelsByTask(task: string): Promise<ModelRecord[] | undefined>;
-  async findTasksByModel(model_id: string): Promise<string[] | undefined>;
-  async enumerateAllModels(): Promise<ModelRecord[] | undefined>;
-  async enumerateAllTasks(): Promise<string[] | undefined>;
-  async size(): Promise<number>;
-
-  on<E extends ModelEvents>(name: E, fn: ModelEventListener<E>): void;
-  off<E extends ModelEvents>(name: E, fn: ModelEventListener<E>): void;
-  once<E extends ModelEvents>(name: E, fn: ModelEventListener<E>): void;
-  waitOn<E extends ModelEvents>(name: E): Promise<ModelEventParameters<E>>;
-}
+const MODEL_REPOSITORY: ServiceToken<ModelRepository>;
 ```
 
-#### `InMemoryModelRepository`
+DI service token for the global model repository.
+
+### getGlobalModelRepository()
+
+Returns the global `ModelRepository` instance from the `globalServiceRegistry`.
+
+### setGlobalModelRepository(repository)
+
+Replaces the global `ModelRepository` instance.
+
+### ModelRepository
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `setupDatabase()` | `Promise<void>` | Initialize storage backend |
+| `addModel(model)` | `Promise<ModelRecord>` | Add a model, emit `model_added` |
+| `removeModel(model_id)` | `Promise<void>` | Remove a model, emit `model_removed` |
+| `findByName(model_id)` | `Promise<ModelRecord \| undefined>` | Look up by ID |
+| `findModelsByTask(task)` | `Promise<ModelRecord[] \| undefined>` | Models supporting a task |
+| `findTasksByModel(model_id)` | `Promise<string[] \| undefined>` | Tasks supported by a model |
+| `enumerateAllTasks()` | `Promise<string[] \| undefined>` | All unique task types |
+| `enumerateAllModels()` | `Promise<ModelRecord[] \| undefined>` | All models |
+| `size()` | `Promise<number>` | Total model count |
+| `on(event, fn)` | `void` | Subscribe to events |
+| `off(event, fn)` | `void` | Unsubscribe from events |
+| `once(event, fn)` | `void` | One-time event listener |
+| `waitOn(event)` | `Promise<[ModelRecord]>` | Wait for an event (promise) |
+
+### InMemoryModelRepository
 
 ```typescript
-class InMemoryModelRepository extends ModelRepository {
-  constructor();  // Creates an InMemoryTabularStorage internally
-}
+class InMemoryModelRepository extends ModelRepository
 ```
 
-### Functions
+Default in-memory implementation. No constructor arguments required. Auto-registered as the global
+model repository via the DI system.
 
-| Function | Module | Description |
-|---|---|---|
-| `getGlobalModelRepository()` | `ModelRegistry` | Returns the singleton `ModelRepository` from the global `ServiceRegistry` |
-| `setGlobalModelRepository(repo)` | `ModelRegistry` | Replaces the global repository instance |
-| `TypeModel(semantic?, options?)` | `AiTaskSchemas` | Creates a `oneOf` schema accepting either a string model ID or an inline `ModelConfig` |
-| `TypeModelAsString(semantic?, options?)` | `AiTaskSchemas` | Creates a string-only schema with the given format annotation |
-| `TypeModelByDetail(semantic?, options?)` | `AiTaskSchemas` | Creates an object schema based on `ModelConfigSchema` with the given format annotation |
+### Model Events
 
-### Service Tokens
-
-| Token | Type | Key | Description |
-|---|---|---|---|
-| `MODEL_REPOSITORY` | `ModelRepository` | `"model.repository"` | The global model repository instance |
-
-### Related Tasks
-
-| Task | Description |
-|---|---|
-| `ModelSearchTask` | Searches for models using provider-specific search functions. Input: `provider`, `query`. Output: array of `ModelSearchResultItem`. |
-| `ModelInfoTask` | Retrieves runtime metadata about a model (locality, cache status, file sizes). Input: `model`. Output: `is_local`, `is_remote`, `is_cached`, `is_loaded`, `file_sizes`, etc. |
-| `DownloadModelTask` | Downloads model files to local cache. |
-| `UnloadModelTask` | Unloads a model from memory. |
-
-### Import Paths
-
-All public exports are available from the `@workglow/ai` package:
-
-```typescript
-import {
-  // Types and schemas
-  ModelConfig,
-  ModelRecord,
-  ModelConfigSchema,
-  ModelRecordSchema,
-  ModelPrimaryKeyNames,
-
-  // Repository
-  ModelRepository,
-  InMemoryModelRepository,
-
-  // Singleton access
-  MODEL_REPOSITORY,
-  getGlobalModelRepository,
-  setGlobalModelRepository,
-
-  // Schema helpers
-  TypeModel,
-  TypeModelAsString,
-  TypeModelByDetail,
-
-  // Event types
-  ModelEventListeners,
-  ModelEvents,
-  ModelEventListener,
-  ModelEventParameters,
-} from "@workglow/ai";
-```
+| Event | Payload | Emitted When |
+|-------|---------|-------------|
+| `model_added` | `ModelRecord` | After `addModel()` succeeds |
+| `model_removed` | `ModelRecord` | After `removeModel()` succeeds |
+| `model_updated` | `ModelRecord` | After a model is updated |
