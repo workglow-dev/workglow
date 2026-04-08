@@ -6,7 +6,6 @@
 
 import { createServiceToken } from "@workglow/util";
 import type { EntitlementGrant, TaskEntitlement, TaskEntitlements } from "./TaskEntitlements";
-import { entitlementCovers, grantCoversResources } from "./TaskEntitlements";
 import type { EntitlementPolicy } from "./EntitlementPolicy";
 import { EMPTY_POLICY, evaluatePolicy } from "./EntitlementPolicy";
 import type { IEntitlementResolver } from "./EntitlementResolver";
