@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
-import { Text } from "ink";
+import React from "react";
+import { Text, useAnimation } from "ink";
 
 /** Braille-pattern frames (same family as cli-spinners “dots”). */
 export const CLI_SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
@@ -17,15 +17,8 @@ interface CliSpinnerProps {
 }
 
 export function CliSpinner({ color, frameIndex }: CliSpinnerProps): React.ReactElement {
-  const [frame, setFrame] = useState(0);
   const controlled = frameIndex !== undefined;
-  useEffect(() => {
-    if (controlled) return;
-    const id = setInterval(() => {
-      setFrame((n) => (n + 1) % CLI_SPINNER_FRAMES.length);
-    }, 80);
-    return () => clearInterval(id);
-  }, [controlled]);
-  const i = controlled ? frameIndex % CLI_SPINNER_FRAMES.length : frame;
+  const { frame } = useAnimation({ interval: 80, isActive: !controlled });
+  const i = (controlled ? frameIndex : frame) % CLI_SPINNER_FRAMES.length;
   return <Text color={color}>{CLI_SPINNER_FRAMES[i]}</Text>;
 }

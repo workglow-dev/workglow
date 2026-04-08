@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { Box, Text, useInput, useStdout } from "ink";
+import { Box, Text, useInput, useWindowSize } from "ink";
 import { Select } from "@inkjs/ui";
 
 interface SelectPromptAppProps {
@@ -24,8 +24,7 @@ export function SelectPromptApp({
   onSelect,
   onCancel,
 }: SelectPromptAppProps): React.ReactElement {
-  const { stdout } = useStdout();
-  const terminalRows = stdout?.rows ?? 24;
+  const { rows: terminalRows } = useWindowSize();
   const maxVisible = Math.max(3, terminalRows - CHROME_ROWS);
   const visibleCount = Math.min(options.length, maxVisible);
   const isScrollable = options.length > visibleCount;
