@@ -10,7 +10,6 @@ import {
   createKnowledgeBase,
   DocumentStorageKey,
   isSharedTableMode,
-  KnowledgeBase,
   registerKnowledgeBase,
   getGlobalKnowledgeBaseRepository,
   ScopedTabularStorage,
