@@ -653,17 +653,6 @@ const tabularSchema = TypeTabularStorage({
   description: "Tabular data repository",
 });
 
-// Vector repository (format: "repository:document-node-vector")
-const vectorSchema = TypeVectorRepository({
-  title: "Embeddings Store",
-  description: "Vector embeddings repository",
-});
-
-// Document repository (format: "repository:document")
-const docSchema = TypeDocumentRepository({
-  title: "Document Store",
-  description: "Document storage repository",
-});
 ```
 
 ### Event-Driven Architecture

@@ -40,6 +40,14 @@ export const KnowledgeBasePrimaryKeyNames = ["kb_id"] as const;
 /**
  * Generates SQL-safe table names for a knowledge base's document and chunk storage.
  */
+/**
+ * Checks whether a KnowledgeBaseRecord uses shared-table mode.
+ */
+export function isSharedTableMode(record: KnowledgeBaseRecord): boolean {
+  // Avoid circular import — inline the constants
+  return record.document_table === "shared_documents" && record.chunk_table === "shared_chunks";
+}
+
 export function knowledgeBaseTableNames(kbId: string): {
   readonly documentTable: string;
   readonly chunkTable: string;
