@@ -582,7 +582,8 @@ export class TaskGraph implements ITaskGraph {
   public subscribeToTaskEntitlements(
     callback: (entitlements: TaskEntitlements) => void
   ): () => void {
-    const unsubscribes: (() => void)[] = [];
+    const globalUnsubs: (() => void)[] = [];
+    const taskUnsubs = new Map<TaskIdType, () => void>();
 
     const emitChange = () => {
       const entitlements = computeGraphEntitlements(this);
@@ -590,30 +591,41 @@ export class TaskGraph implements ITaskGraph {
       callback(entitlements);
     };
 
-    // Subscribe to entitlementChange events on all existing tasks
-    for (const task of this.getTasks()) {
-      const unsub = task.subscribe("entitlementChange", () => emitChange());
-      unsubscribes.push(unsub);
-    }
-
-    // Subscribe to new tasks being added
-    const handleTaskAdded = (taskId: TaskIdType) => {
+    const subscribeTask = (taskId: TaskIdType) => {
       const task = this.getTask(taskId);
       if (!task || typeof task.subscribe !== "function") return;
       const unsub = task.subscribe("entitlementChange", () => emitChange());
-      unsubscribes.push(unsub);
-      emitChange();
+      taskUnsubs.set(taskId, unsub);
     };
 
-    const handleTaskRemoved = () => {
-      emitChange();
-    };
+    // Subscribe to entitlementChange events on all existing tasks
+    for (const task of this.getTasks()) {
+      subscribeTask(task.id);
+    }
 
-    unsubscribes.push(this.subscribe("task_added", handleTaskAdded));
-    unsubscribes.push(this.subscribe("task_removed", handleTaskRemoved));
+    // Subscribe to new tasks being added
+    globalUnsubs.push(
+      this.subscribe("task_added", (taskId: TaskIdType) => {
+        subscribeTask(taskId);
+        emitChange();
+      })
+    );
+
+    globalUnsubs.push(
+      this.subscribe("task_removed", (taskId: TaskIdType) => {
+        const unsub = taskUnsubs.get(taskId);
+        if (unsub) {
+          unsub();
+          taskUnsubs.delete(taskId);
+        }
+        emitChange();
+      })
+    );
 
     return () => {
-      unsubscribes.forEach((unsub) => unsub());
+      globalUnsubs.forEach((unsub) => unsub());
+      taskUnsubs.forEach((unsub) => unsub());
+      taskUnsubs.clear();
     };
   }
 

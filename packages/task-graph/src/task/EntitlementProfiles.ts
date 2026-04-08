@@ -8,8 +8,9 @@
  * only capability profiles expressed as entitlement grants.
  */
 
-import type { EntitlementGrant } from "./TaskEntitlements";
 import { createScopedEnforcer, type IEntitlementEnforcer } from "./EntitlementEnforcer";
+import type { EntitlementGrant } from "./TaskEntitlements";
+import { Entitlements } from "./TaskEntitlements";
 
 // ========================================================================
 // Grant Profiles
@@ -20,13 +21,13 @@ import { createScopedEnforcer, type IEntitlementEnforcer } from "./EntitlementEn
  * No filesystem access, no code execution, no stdio MCP.
  */
 export const BROWSER_GRANTS: readonly EntitlementGrant[] = [
-  { id: "network" },
-  { id: "ai" },
-  { id: "mcp:tool-call" },
-  { id: "mcp:resource-read" },
-  { id: "mcp:prompt-get" },
-  { id: "storage" },
-  { id: "credential" },
+  { id: Entitlements.NETWORK },
+  { id: Entitlements.AI },
+  { id: Entitlements.MCP_TOOL_CALL },
+  { id: Entitlements.MCP_RESOURCE_READ },
+  { id: Entitlements.MCP_PROMPT_GET },
+  { id: Entitlements.STORAGE },
+  { id: Entitlements.CREDENTIAL },
 ];
 
 /**
@@ -35,18 +36,16 @@ export const BROWSER_GRANTS: readonly EntitlementGrant[] = [
  */
 export const DESKTOP_GRANTS: readonly EntitlementGrant[] = [
   ...BROWSER_GRANTS,
-  { id: "filesystem" },
-  { id: "code-execution" },
-  { id: "mcp:stdio" },
+  { id: Entitlements.FILESYSTEM },
+  { id: Entitlements.CODE_EXECUTION },
+  { id: Entitlements.MCP_STDIO },
 ];
 
 /**
  * Server environment grants (e.g., cloud deployment).
  * Same as desktop for now; can add resource scoping later.
  */
-export const SERVER_GRANTS: readonly EntitlementGrant[] = [
-  ...DESKTOP_GRANTS,
-];
+export const SERVER_GRANTS: readonly EntitlementGrant[] = [...DESKTOP_GRANTS];
 
 // ========================================================================
 // Profile Factory

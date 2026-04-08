@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TaskIdType } from "./TaskTypes";
+
 // ========================================================================
 // Entitlement Types
 // ========================================================================
@@ -46,7 +48,7 @@ export interface TaskEntitlements {
  */
 export interface TrackedTaskEntitlement extends TaskEntitlement {
   /** Task IDs that require this entitlement */
-  readonly sourceTaskIds: readonly unknown[];
+  readonly sourceTaskIds: readonly TaskIdType[];
 }
 
 /**
@@ -83,6 +85,7 @@ export const Entitlements = {
   CREDENTIAL: "credential",
 
   // AI models
+  AI: "ai",
   AI_MODEL: "ai:model",
   AI_INFERENCE: "ai:inference",
 
@@ -214,19 +217,21 @@ export function mergeEntitlements(a: TaskEntitlements, b: TaskEntitlements): Tas
  * - reason: first non-empty wins
  * - resources: union
  */
-function mergeEntitlementPair(a: TaskEntitlement, b: TaskEntitlement): TaskEntitlement {
-  const optional = (a.optional ?? true) && (b.optional ?? true) ? true : undefined;
+export function mergeEntitlementPair(a: TaskEntitlement, b: TaskEntitlement): TaskEntitlement {
+  const optional = (a.optional ?? false) && (b.optional ?? false) ? true : undefined;
   const reason = a.reason ?? b.reason;
   const resources = mergeResources(a.resources, b.resources);
 
-  const result: Record<string, unknown> = { id: a.id };
-  if (reason !== undefined) result.reason = reason;
-  if (optional === true) result.optional = true;
-  if (resources !== undefined) result.resources = resources;
-  return result as unknown as TaskEntitlement;
+  const result: TaskEntitlement = {
+    id: a.id,
+    ...(reason !== undefined && { reason }),
+    ...(optional === true && { optional: true }),
+    ...(resources !== undefined && { resources }),
+  };
+  return result;
 }
 
-function mergeResources(
+export function mergeResources(
   a: readonly string[] | undefined,
   b: readonly string[] | undefined
 ): readonly string[] | undefined {

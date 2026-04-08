@@ -11,7 +11,9 @@ import {
   type TrackedTaskEntitlement,
   type TrackedTaskEntitlements,
   EMPTY_ENTITLEMENTS,
+  mergeEntitlementPair,
 } from "../task/TaskEntitlements";
+import type { TaskIdType } from "../task/TaskTypes";
 import { TaskStatus } from "../task/TaskTypes";
 import type { TaskGraph } from "./TaskGraph";
 
@@ -63,7 +65,7 @@ export function computeGraphEntitlements(
   // Accumulate entitlements by ID
   const merged = new Map<
     EntitlementId,
-    { entitlement: TaskEntitlement; sourceTaskIds: unknown[] }
+    { entitlement: TaskEntitlement; sourceTaskIds: TaskIdType[] }
   >();
 
   for (const task of tasks) {
@@ -101,31 +103,4 @@ export function computeGraphEntitlements(
   }
 
   return { entitlements: Array.from(merged.values()).map((e) => e.entitlement) };
-}
-
-// ========================================================================
-// Internal Helpers
-// ========================================================================
-
-function mergeEntitlementPair(a: TaskEntitlement, b: TaskEntitlement): TaskEntitlement {
-  const optional = (a.optional ?? true) && (b.optional ?? true) ? true : undefined;
-  const reason = a.reason ?? b.reason;
-  const resources = mergeResources(a.resources, b.resources);
-
-  const result: Record<string, unknown> = { id: a.id };
-  if (reason !== undefined) result.reason = reason;
-  if (optional === true) result.optional = true;
-  if (resources !== undefined) result.resources = resources;
-  return result as unknown as TaskEntitlement;
-}
-
-function mergeResources(
-  a: readonly string[] | undefined,
-  b: readonly string[] | undefined
-): readonly string[] | undefined {
-  if (a === undefined && b === undefined) return undefined;
-  if (a === undefined) return b;
-  if (b === undefined) return a;
-  const set = new Set([...a, ...b]);
-  return Array.from(set);
 }

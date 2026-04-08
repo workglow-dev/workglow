@@ -213,6 +213,7 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     const configServer = (this.config as Record<string, unknown>)?.server as
       | Record<string, unknown>
       | undefined;
+
     if (typeof configServer?.transport === "string") {
       return configServer.transport;
     }

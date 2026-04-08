@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ISpan } from "@workglow/util";
 import {
   collectPropertyValues,
   ConvertAllToOptionalArray,
@@ -14,19 +15,18 @@ import {
   SpanStatusCode,
   uuid4,
 } from "@workglow/util";
-import type { ISpan } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
+import { ENTITLEMENT_ENFORCER, PERMISSIVE_ENFORCER } from "../task/EntitlementEnforcer";
 import { ITask } from "../task/ITask";
+import type { StreamEvent } from "../task/StreamTypes";
 import {
   edgeNeedsAccumulation,
   getOutputStreamMode,
   getStreamingPorts,
   isTaskStreamable,
 } from "../task/StreamTypes";
-import type { StreamEvent } from "../task/StreamTypes";
 import { Task } from "../task/Task";
-import { ENTITLEMENT_ENFORCER, PERMISSIVE_ENFORCER } from "../task/EntitlementEnforcer";
 import {
   TaskAbortedError,
   TaskConfigurationError,
@@ -36,6 +36,7 @@ import {
 } from "../task/TaskError";
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
+import { computeGraphEntitlements } from "./GraphEntitlementUtils";
 import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
@@ -974,29 +975,6 @@ export class TaskGraphRunner {
       }
       this.graph.outputCache = this.outputCache;
     }
-    // Validate graph size limits
-    if (config?.maxTasks !== undefined && config.maxTasks > 0) {
-      const taskCount = this.graph.getTasks().length;
-      if (taskCount > config.maxTasks) {
-        throw new TaskConfigurationError(
-          `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
-        );
-      }
-    }
-
-    // Opt-in entitlement enforcement
-    if (config?.enforceEntitlements) {
-      const enforcer = this.registry.has(ENTITLEMENT_ENFORCER)
-        ? this.registry.get(ENTITLEMENT_ENFORCER)
-        : PERMISSIVE_ENFORCER;
-      const { computeGraphEntitlements } = await import("./GraphEntitlementUtils");
-      const denied = enforcer.check(computeGraphEntitlements(this.graph));
-      if (denied.length > 0) {
-        throw new TaskEntitlementError(
-          `Denied entitlements: ${denied.map((e) => e.id).join(", ")}`
-        );
-      }
-    }
 
     // Prevent reentrancy
     if (this.running || this.reactiveRunning) {
@@ -1037,6 +1015,29 @@ export class TaskGraphRunner {
     this.inProgressTasks.clear();
     this.inProgressFunctions.clear();
     this.failedTaskErrors.clear();
+
+    // Validate graph size limits
+    if (config?.maxTasks !== undefined && config.maxTasks > 0) {
+      const taskCount = this.graph.getTasks().length;
+      if (taskCount > config.maxTasks) {
+        throw new TaskConfigurationError(
+          `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
+        );
+      }
+    }
+
+    // Opt-in entitlement enforcement
+    if (config?.enforceEntitlements) {
+      const enforcer = this.registry.has(ENTITLEMENT_ENFORCER)
+        ? this.registry.get(ENTITLEMENT_ENFORCER)
+        : PERMISSIVE_ENFORCER;
+      const denied = enforcer.check(computeGraphEntitlements(this.graph));
+      if (denied.length > 0) {
+        throw new TaskEntitlementError(
+          `Denied entitlements: ${denied.map((e) => e.id).join(", ")}`
+        );
+      }
+    }
 
     // Start telemetry span for the graph run
     const telemetry = getTelemetryProvider();
