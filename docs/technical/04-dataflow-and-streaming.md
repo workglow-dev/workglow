@@ -8,342 +8,460 @@
 
 ## Overview
 
-In Workglow's task graph engine, edges between tasks are not passive wires. They are first-class `Dataflow` objects that carry typed data, track their own lifecycle status, validate schema compatibility between source and target ports, emit events, and -- when the upstream task supports streaming -- hold a `ReadableStream<StreamEvent>` that delivers incremental output to downstream consumers in real time.
+The Workglow task graph engine connects tasks through **dataflow edges** that carry typed data between output and input ports. While the DAG structure defines the dependency order, dataflows define the data contracts -- which output port feeds which input port, how values are propagated, and whether data flows as a complete materialized value or as a stream of incremental events.
 
-This architecture solves a fundamental problem in DAG-based pipeline frameworks: how to support streaming data (LLM token generation, progressive image refinement, structured object construction) without breaking the contract that downstream tasks expect a complete value. Workglow achieves this through a layered design: schema annotations declare streaming behavior per port, the `TaskRunner` accumulates deltas when needed, the `TaskGraphRunner` propagates streams across edges with fan-out via `tee()`, and the `Dataflow` object materializes the final value once the stream completes.
+This document covers two interconnected systems:
 
-All streaming types and helpers live in `packages/task-graph/src/task/StreamTypes.ts`. The `Dataflow` class lives in `packages/task-graph/src/task-graph/Dataflow.ts`.
+1. **Dataflow** -- the edge abstraction that connects task ports, carries values, and manages lifecycle status.
+2. **Streaming** -- the system for incremental output delivery, including stream modes, stream events, the `x-stream` schema annotation, and delta accumulation.
+
+Together, these systems enable everything from simple port-to-port value passing to real-time token-by-token streaming of AI model output through a multi-task pipeline.
 
 ---
 
 ## The Dataflow Class
 
-A `Dataflow` represents a single edge in the task graph, connecting one output port of a source task to one input port of a target task.
+### Identity and Structure
 
-### Constructor
+A `Dataflow` represents a single directed edge from one task's output port to another task's input port. It is defined by four identifiers:
 
-```ts
-class Dataflow {
-  constructor(
-    public sourceTaskId: TaskIdType,
-    public sourceTaskPortId: string,
-    public targetTaskId: TaskIdType,
-    public targetTaskPortId: string
-  ) {}
-}
+```typescript
+const dataflow = new Dataflow(
+  sourceTaskId,      // ID of the source task
+  sourceTaskPortId,  // Name of the output port on the source task
+  targetTaskId,      // ID of the target task
+  targetTaskPortId   // Name of the input port on the target task
+);
 ```
 
-The four parameters define the edge's endpoints: which task and which port on each side. The dataflow's `id` is derived from these coordinates as a human-readable arrow string.
+The dataflow's `id` is a deterministic string derived from these four components:
 
-### Identity
-
-The static `Dataflow.createId()` method and the instance `id` getter produce a deterministic string identifier:
-
-```ts
-Dataflow.createId("gen-1", "text", "rewrite-1", "text");
-// => "gen-1[text] ==> rewrite-1[text]"
+```
+sourceTaskId[sourceTaskPortId] ==> targetTaskId[targetTaskPortId]
 ```
 
-This format is also the basis for `DataflowIdType`, a template literal type that enforces the pattern at the type level. The convenience subclass `DataflowArrow` parses such a string back into a `Dataflow` instance.
+For example: `"task-abc[result] ==> task-def[value]"`.
 
-### Value and Status
+### State Management
 
-Each dataflow tracks the data flowing through it and the current execution state:
+Each dataflow maintains its own lifecycle state, mirroring the task lifecycle:
 
-- **`value: any`** -- The materialized data for this edge, set when the source task completes or when a stream is consumed to completion.
-- **`status: TaskStatus`** -- Mirrors the lifecycle of the source task's execution through this edge: `PENDING`, `PROCESSING`, `STREAMING`, `COMPLETED`, `FAILED`, `DISABLED`, or `ABORTING`.
-- **`error: TaskError | undefined`** -- Populated when the edge transitions to `FAILED`.
+| Property  | Type         | Description                                        |
+|-----------|--------------|----------------------------------------------------|
+| `value`   | `any`        | The materialized data carried by the dataflow      |
+| `status`  | `TaskStatus`  | Current lifecycle status                          |
+| `error`   | `TaskError`   | Error object if the dataflow failed               |
+| `stream`  | `ReadableStream<StreamEvent>` | Active stream for streaming tasks  |
 
-Status transitions emit events through the dataflow's event system (`start`, `streaming`, `complete`, `abort`, `reset`, `error`, `disabled`, `status`).
+The dataflow status transitions mirror the source task's execution:
 
-### Stream
-
-```ts
-public stream: ReadableStream<StreamEvent> | undefined = undefined;
+```
+PENDING --> PROCESSING --> STREAMING --> COMPLETED
+                            |
+                            +--> FAILED
 ```
 
-When the upstream task begins producing streaming output, the `TaskGraphRunner` attaches a `ReadableStream<StreamEvent>` to the dataflow. This stream carries incremental events (text deltas, object deltas, snapshots) and terminates with a `finish` or `error` event. Multiple downstream consumers each receive an independent copy of the stream via `tee()`.
+### Value Propagation
 
----
+When the TaskGraphRunner pushes output from a completed task onto outgoing dataflows, it calls `setPortData(entireDataBlock)`:
 
-## Port System
+```typescript
+// If sourceTaskPortId is a specific port name:
+dataflow.value = entireDataBlock[sourceTaskPortId];
 
-Workglow tasks declare their input and output shapes as JSON Schema objects (`DataPortSchema`). Each top-level property in the schema represents a **port**. Dataflows connect a specific output port on one task to a specific input port on another.
+// If sourceTaskPortId is "*" (DATAFLOW_ALL_PORTS):
+dataflow.value = entireDataBlock;  // Entire output object
 
-Two special port identifiers exist:
+// If sourceTaskPortId is "[error]" (DATAFLOW_ERROR_PORT):
+dataflow.error = entireDataBlock;
+```
 
-- **`"*"` (`DATAFLOW_ALL_PORTS`)** -- Captures the entire output (or provides the entire input) as a single value, bypassing per-property routing.
-- **`"[error]"` (`DATAFLOW_ERROR_PORT`)** -- Routes error data from a failed task to a downstream error handler.
+When the runner copies input from dataflows into a target task, it calls `getPortData()`:
 
-When a dataflow's source port is a named property, `setPortData(entireDataBlock)` extracts `entireDataBlock[sourceTaskPortId]` and stores it in `value`. When the target port is a named property, `getPortData()` wraps the value back into `{ [targetTaskPortId]: value }`. This symmetric extraction/wrapping allows the graph runner to assemble a task's full input by merging `getPortData()` results from all incoming edges.
+```typescript
+// If targetTaskPortId is a specific port name:
+return { [targetTaskPortId]: dataflow.value };
+
+// If targetTaskPortId is "*" (DATAFLOW_ALL_PORTS):
+return dataflow.value;  // Entire value object
+
+// If targetTaskPortId is "[error]" (DATAFLOW_ERROR_PORT):
+return { "[error]": dataflow.error };
+```
+
+### Special Port Identifiers
+
+| Constant             | Value       | Description                                              |
+|----------------------|-------------|----------------------------------------------------------|
+| `DATAFLOW_ALL_PORTS` | `"*"`       | Pass the entire output/input object, not a single port   |
+| `DATAFLOW_ERROR_PORT`| `"[error]"` | Route error objects between tasks for error handling      |
+
+The wildcard port `"*"` is used when a task should receive the complete output object from its upstream dependency, rather than a single named property.
 
 ### Semantic Compatibility
 
-Before data flows, the `semanticallyCompatible()` method validates that the source output port and target input port have compatible types. It inspects the JSON Schema properties on both endpoints and returns:
+Dataflows validate that source and target ports are semantically compatible by inspecting their JSON Schema types:
 
-- `"static"` -- Types match at construction time.
-- `"runtime"` -- Compatible but requires runtime narrowing.
-- `"incompatible"` -- The connection is invalid.
+```typescript
+dataflow.semanticallyCompatible(graph, dataflow);
+// Returns: "static" | "runtime" | "incompatible"
+```
 
-Results are cached for tasks with stable (non-dynamic) schemas and invalidated when a task emits a `schemaChange` event.
+| Result          | Meaning                                                    |
+|-----------------|------------------------------------------------------------|
+| `"static"`      | Types are statically compatible                            |
+| `"runtime"`     | Compatibility can only be determined at runtime            |
+| `"incompatible"`| Types are known to be incompatible                         |
+
+Compatibility results are cached for tasks with stable schemas. Tasks with `hasDynamicSchemas = true` bypass the cache because their schemas may change between checks.
+
+### Reset
+
+Calling `dataflow.reset()` returns the dataflow to its initial state:
+
+```typescript
+dataflow.reset();
+// value = undefined
+// status = PENDING
+// error = undefined
+// stream = undefined
+// compatibility cache cleared
+```
+
+---
+
+## The Port System
+
+### Port Definition via JSON Schema
+
+Task input and output ports are defined by the `properties` of the JSON Schema returned by `inputSchema()` and `outputSchema()`. Each property name is a port identifier, and the property's schema defines the port's type contract.
+
+```typescript
+static outputSchema(): DataPortSchema {
+  return {
+    type: "object",
+    properties: {
+      text: { type: "string", title: "Generated Text" },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
+    },
+  } as const satisfies DataPortSchema;
+}
+```
+
+This task has two output ports: `text` (string) and `confidence` (number).
+
+### Schema Annotations
+
+Ports support several custom annotations beyond standard JSON Schema:
+
+| Annotation              | Type      | Description                                              |
+|-------------------------|-----------|----------------------------------------------------------|
+| `x-stream`              | `string`  | Streaming mode: `"append"`, `"replace"`, or `"object"`  |
+| `x-ui-hidden`           | `boolean` | Hide from UI display                                    |
+| `x-ui-iteration`        | `boolean` | Iteration context port (hidden from parent display)     |
+| `x-ui-manual`           | `boolean` | User-added port (dynamic)                               |
+| `x-auto-generated`      | `boolean` | Auto-generated primary key                              |
+| `x-structured-output`   | `boolean` | Port schema used for structured AI output               |
+| `format`                | `string`  | Semantic type hint (e.g., `"model"`, `"storage:tabular"`, `"knowledge-base"`) |
 
 ---
 
 ## Stream Modes
 
-Stream modes declare how a task's streaming output should be interpreted. Each mode corresponds to a different contract between producer and consumer.
+### The x-stream Annotation
 
-### `"none"` (Default)
+The `x-stream` annotation on output port schemas declares how a task produces streaming output. When a task's output schema includes ports with `x-stream`, and the task implements `executeStream()`, the TaskRunner uses the streaming execution path.
 
-The task does not stream. `execute()` returns `Promise<Output>` and the dataflow receives a complete value.
+### Available Stream Modes
 
-### `"append"`
+#### none (default)
 
-Each chunk is a delta -- a new piece of text to concatenate onto what came before. This is the natural mode for LLM token streaming. AI tasks such as `TextGenerationTask`, `TextSummaryTask`, and `TextRewriterTask` use append mode on their text output ports.
+No streaming. The task returns its output as a complete `Promise<Output>` from `execute()`. This is the default when `x-stream` is absent.
 
-```ts
-{
-  type: "string",
-  title: "Text",
-  "x-stream": "append",
+```typescript
+// No x-stream annotation: standard execution
+properties: {
+  result: { type: "string" }
 }
 ```
 
-### `"replace"`
+#### append
 
-Each chunk is a corrected, revised snapshot of the complete output so far. The consumer does not concatenate; it overwrites. This is the right mode for translation, where early chunks are rough approximations that get refined. `TextTranslationTask` uses replace mode.
+Each chunk is a **text delta** -- a new token or fragment to be appended to the accumulated output. The consumer is responsible for concatenating deltas.
 
-```ts
-{
-  type: "string",
-  title: "Text",
-  "x-stream": "replace",
+```typescript
+properties: {
+  text: {
+    type: "string",
+    "x-stream": "append",  // Token-by-token streaming
+  }
 }
 ```
 
-### `"object"`
+Produces `StreamTextDelta` events:
 
-Each chunk is a progressively more complete partial object. Consumers should replace (not merge) their state with the latest delta. This mode is designed for structured generation where an LLM produces JSON conforming to a schema. `StructuredGenerationTask` uses object mode.
+```typescript
+{ type: "text-delta", port: "text", textDelta: " Hello" }
+{ type: "text-delta", port: "text", textDelta: " world" }
+{ type: "text-delta", port: "text", textDelta: "!" }
+// Accumulated: " Hello world!"
+```
 
-```ts
-{
-  type: "object",
-  title: "Structured Output",
-  "x-stream": "object",
-  "x-structured-output": true,
-  additionalProperties: true,
+#### replace
+
+Each chunk is a **complete snapshot** of the output so far. The consumer replaces its state with the latest snapshot.
+
+```typescript
+properties: {
+  image: {
+    type: "object",
+    "x-stream": "replace",  // Progressive refinement
+  }
 }
 ```
 
-### `"mixed"`
+Produces `StreamSnapshot` events:
 
-Automatically detected when different output ports on the same task use different stream modes. For example, a task streaming `text` in append mode and `toolCalls` in object mode simultaneously. This mode is never declared directly; the `getOutputStreamMode()` function returns it when it discovers heterogeneous port annotations.
+```typescript
+{ type: "snapshot", data: { image: lowResVersion } }
+{ type: "snapshot", data: { image: mediumResVersion } }
+{ type: "snapshot", data: { image: highResVersion } }
+```
+
+#### object
+
+Each chunk is a **progressively more complete partial object**. The consumer replaces (not merges) its state with each update.
+
+```typescript
+properties: {
+  structured: {
+    type: "object",
+    "x-stream": "object",  // Structured streaming
+  }
+}
+```
+
+Produces `StreamObjectDelta` events:
+
+```typescript
+{ type: "object-delta", port: "structured", objectDelta: { name: "Al" } }
+{ type: "object-delta", port: "structured", objectDelta: { name: "Alice", age: 30 } }
+{ type: "object-delta", port: "structured", objectDelta: { name: "Alice", age: 30, role: "Engineer" } }
+```
+
+#### mixed
+
+When multiple output ports use different stream modes, the overall task stream mode is `"mixed"`. This is detected automatically by `getOutputStreamMode()`:
+
+```typescript
+properties: {
+  text: { type: "string", "x-stream": "append" },
+  metadata: { type: "object", "x-stream": "object" },
+}
+// getOutputStreamMode() returns "mixed"
+```
 
 ---
 
 ## StreamEvent Types
 
-All streaming communication uses a single discriminated union type, `StreamEvent<Output>`. Each variant serves a specific purpose within the streaming protocol.
+All streaming data flows through the `StreamEvent` discriminated union type:
 
-### `StreamTextDelta`
+```typescript
+type StreamEvent<Output = Record<string, any>> =
+  | StreamTextDelta
+  | StreamObjectDelta
+  | StreamSnapshot<Output>
+  | StreamFinish<Output>
+  | StreamError;
+```
 
-```ts
-type StreamTextDelta = {
+### StreamTextDelta
+
+```typescript
+interface StreamTextDelta {
   type: "text-delta";
-  port: string;
-  textDelta: string;
-};
+  port: string;       // Output port name
+  textDelta: string;  // Incremental text fragment
+}
 ```
 
-Carries a single token or text fragment for append-mode streaming. The `port` field identifies which output port the delta belongs to. The `TaskRunner` accumulates these into a complete string when `shouldAccumulate` is true.
+Used with `x-stream: "append"`. Each event carries a fragment of text that should be appended to the accumulated result for the named port.
 
-### `StreamObjectDelta`
+### StreamObjectDelta
 
-```ts
-type StreamObjectDelta = {
+```typescript
+interface StreamObjectDelta {
   type: "object-delta";
-  port: string;
-  objectDelta: Record<string, unknown> | unknown[];
-};
+  port: string;                                    // Output port name
+  objectDelta: Record<string, unknown> | unknown[]; // Progressive partial object
+}
 ```
 
-Carries a progressively more complete partial object for object-mode streaming. Each delta replaces (not merges with) the previous state. The `TaskRunner` tracks the latest delta per port when accumulating.
+Used with `x-stream: "object"`. Each event carries a progressively more complete object snapshot. Consumers should **replace** (not merge) their state with the latest delta.
 
-### `StreamSnapshot`
+### StreamSnapshot
 
-```ts
-type StreamSnapshot<Output> = {
+```typescript
+interface StreamSnapshot<Output = Record<string, any>> {
   type: "snapshot";
-  data: Output;
-};
+  data: Output;  // Complete snapshot of current output state
+}
 ```
 
-Carries a full replacement of the current output state for replace-mode streaming. The `Dataflow.awaitStreamValue()` method gives snapshot data priority over finish data when materializing values, since the last snapshot represents the most recent complete state.
+Used with `x-stream: "replace"`. Each event carries a full snapshot of the output. During graph execution, the runner updates `task.runOutputData` with the snapshot before emitting the `stream_chunk` event.
 
-### `StreamFinish`
+### StreamFinish
 
-```ts
-type StreamFinish<Output> = {
+```typescript
+interface StreamFinish<Output = Record<string, any>> {
   type: "finish";
-  data: Output;
-};
+  data: Output;  // Final output data
+}
 ```
 
-Signals that the stream has completed. When the `TaskRunner` has accumulated deltas, it emits an enriched finish event with the accumulated data merged into `data`. When accumulation is off, providers emit the raw finish event (typically with `{} as Output`). This is the primary materialization path for `awaitStreamValue()`.
+Signals that the stream has ended. In append mode, the TaskRunner enriches this event with accumulated text (when `shouldAccumulate` is true). In replace mode, `data` contains the final output.
 
-### `StreamError`
+**Provider convention**: Provider stream functions must yield `{ type: "finish", data: {} as Output }` -- an empty finish event. The TaskRunner handles accumulation. Providers must not accumulate deltas themselves.
 
-```ts
-type StreamError = {
+### StreamError
+
+```typescript
+interface StreamError {
   type: "error";
-  error: Error;
-};
+  error: Error;  // The error that occurred
+}
 ```
 
-Signals a fatal error in the stream. When `awaitStreamValue()` encounters this event, it sets the dataflow to `FAILED` status and throws the error.
-
----
-
-## The `x-stream` Schema Annotation
-
-The `x-stream` extension property on individual port properties in a task's JSON Schema is the single source of truth for streaming behavior:
-
-```ts
-export const TextGenerationOutputSchema = {
-  type: "object",
-  properties: {
-    text: {
-      type: "string",
-      title: "Text",
-      "x-stream": "append",
-    },
-  },
-  required: ["text"],
-} as const satisfies DataPortSchema;
-```
-
-A task is considered streamable when two conditions are met: at least one output port has an `x-stream` annotation, and the task class implements the `executeStream()` method. The `isTaskStreamable()` helper checks both conditions.
-
-This schema-driven approach means streaming behavior is declarative. A task author annotates their output schema and implements `executeStream()`. The framework handles stream creation, fan-out, accumulation, and materialization automatically.
+Signals that the stream encountered a fatal error. The TaskRunner throws this error, transitioning the task to `FAILED` status.
 
 ---
 
 ## Stream Lifecycle
 
-### `setStream(stream)`
+### 1. Detection
 
-```ts
-public setStream(stream: ReadableStream<StreamEvent>): void
-```
+Before executing a task, the TaskRunner checks whether streaming is appropriate:
 
-Called by the `TaskGraphRunner` to attach a stream to a dataflow edge. The `pushStreamToEdges()` method creates `ReadableStream` instances from task events via `createStreamFromTaskEvents()`, then assigns them to outgoing edges.
-
-### `getStream()`
-
-```ts
-public getStream(): ReadableStream<StreamEvent> | undefined
-```
-
-Returns the active stream on this dataflow, or `undefined` if the edge is not currently streaming. Downstream tasks can use this to check whether streaming data is available.
-
-### `awaitStreamValue()`
-
-```ts
-public async awaitStreamValue(): Promise<void>
-```
-
-Consumes the active stream to completion and materializes the final value on the dataflow. This method reads all events from the stream, handling three event types:
-
-- **`snapshot`** -- Stores the data as `lastSnapshotData` (used for replace-mode tasks).
-- **`finish`** -- Stores the data as `finishData` (the primary materialization path for append/object modes).
-- **`error`** -- Stores the error, sets the dataflow to `FAILED`, and throws.
-
-Text-delta and object-delta events are ignored because the source task has already accumulated them into the enriched finish event. After consumption, the stream reference is cleared. The materialization priority is snapshot over finish, since the last snapshot in replace mode represents the most current complete state.
-
-### Fan-Out with `tee()`
-
-When a streaming task feeds multiple downstream consumers, the `pushStreamToEdges()` method groups outgoing dataflows by source port and uses the Web Streams API `tee()` to split each stream:
-
-```ts
-for (const [portKey, edges] of groups) {
-  const stream = this.createStreamFromTaskEvents(task, filterPort);
-
-  if (edges.length === 1) {
-    edges[0].setStream(stream);
-  } else {
-    let currentStream = stream;
-    for (let i = 0; i < edges.length; i++) {
-      if (i === edges.length - 1) {
-        edges[i].setStream(currentStream);
-      } else {
-        const [s1, s2] = currentStream.tee();
-        edges[i].setStream(s1);
-        currentStream = s2;
-      }
-    }
-  }
+```typescript
+function isTaskStreamable(task): boolean {
+  // Must implement executeStream()
+  if (typeof task.executeStream !== "function") return false;
+  // Must have at least one x-stream annotated output port
+  return getOutputStreamMode(task.outputSchema()) !== "none";
 }
 ```
 
-Each downstream edge gets an independent reader. One consumer reading slowly does not block another from reading quickly. Because `tee()` is part of the standard Web Streams API, this works identically across browsers, Node.js, and Bun.
+If a task declares streaming output via `x-stream` but does not implement `executeStream()`, the runner falls back to non-streaming `execute()` and logs a warning.
 
-### `reset()`
+### 2. Stream Start
 
-```ts
-public reset(): void
+When streaming begins, the TaskRunner:
+
+1. Validates the output schema has appropriate `x-stream` annotations
+2. Emits `stream_start` event on the task
+3. Calls `task.executeStream(input, context)` to obtain the async iterable
+4. Begins consuming events
+
+### 3. Chunk Processing
+
+For each event from the async iterable:
+
+```
+text-delta:
+  - Accumulate text per-port (if shouldAccumulate)
+  - Emit "stream_chunk" on the task
+  - Update progress (asymptotic curve: 1 - e^(-0.05*chunkCount))
+
+object-delta:
+  - Accumulate per-port (if shouldAccumulate)
+  - Update runOutputData progressively
+  - Emit "stream_chunk"
+
+snapshot:
+  - Update runOutputData BEFORE emitting (so listeners see latest state)
+  - Emit "stream_chunk"
+
+finish:
+  - If accumulating: merge accumulated text/objects into finish data
+  - Set finalOutput
+  - Emit enriched "stream_chunk" with complete data
+
+error:
+  - Throw the error (handled by run()'s catch block)
 ```
 
-Clears the dataflow back to its initial state: status returns to `PENDING`, value and error are set to `undefined`, the stream reference is cleared, and the compatibility cache is invalidated.
+After the first chunk, the task status transitions to `STREAMING`.
+
+### 4. Stream End
+
+After all events are consumed:
+
+1. Check if the task was aborted during streaming
+2. Set `task.runOutputData` to the final accumulated output
+3. Emit `stream_end` event with the complete output
+4. Call `executeTaskReactive()` for any reactive overlay
+5. Return the final output
 
 ---
 
-## Delta Accumulation Responsibility
+## Delta Accumulation
 
-One of the most important architectural decisions in the streaming system is the strict separation between **providers** (which yield deltas) and the **TaskRunner** (which accumulates them).
+### The shouldAccumulate Flag
 
-### Providers Are Stateless
+The TaskRunner's `shouldAccumulate` flag controls whether text-delta and object-delta events are accumulated into a final output value:
 
-AI provider stream functions yield incremental events and a final `finish` event with an empty data payload:
+- **`true` (default)**: Text deltas are concatenated per-port. Object deltas are stored per-port. The finish event is enriched with accumulated data before emission.
+- **`false`**: All events pass through unmodified. No accumulation maps are maintained.
 
-```ts
-// Provider yields deltas without tracking state
-yield { type: "text-delta", port: "text", textDelta: "Hello" };
-yield { type: "text-delta", port: "text", textDelta: " world" };
-yield { type: "finish", data: {} as TextGenerationTaskOutput };
+### When Accumulation is Needed
+
+The graph runner sets `shouldAccumulate` based on whether any downstream edge needs materialized data:
+
+- **Accumulate**: When the task has downstream dataflows that need complete values, or when caching is enabled.
+- **Don't accumulate**: When all downstream edges are also streaming (pure pass-through) and no cache is needed.
+
+### Accumulation Example
+
+Given a streaming AI task with `x-stream: "append"` on the `text` port:
+
+```
+Event 1: { type: "text-delta", port: "text", textDelta: "Hello" }
+Event 2: { type: "text-delta", port: "text", textDelta: " world" }
+Event 3: { type: "text-delta", port: "text", textDelta: "!" }
+Event 4: { type: "finish", data: { model: "gpt-4" } }  // Provider finish (no text)
 ```
 
-Providers never accumulate, never track how many tokens have been emitted, and never build the complete output string. They yield deltas and a termination signal. This keeps providers simple, testable, and free of double-buffering bugs.
+With `shouldAccumulate = true`, the runner:
 
-### The TaskRunner Accumulates When Needed
+1. Accumulates: `text -> "Hello world!"`
+2. On finish: merges accumulated text into finish data
+3. Emits enriched finish: `{ type: "finish", data: { text: "Hello world!", model: "gpt-4" } }`
+4. Downstream dataflows receive `{ text: "Hello world!", model: "gpt-4" }` as the materialized value
 
-The `TaskRunner.executeStreamingTask()` method decides whether to accumulate based on a `shouldAccumulate` flag, computed by the `TaskGraphRunner` from the graph topology. Accumulation is needed when:
+### Dataflow Stream Materialization
 
-- Output caching is active (the cached value must be fully materialized).
-- Any downstream edge connects to an input port that does not accept the same stream mode.
+When a dataflow carries a stream (rather than a materialized value), calling `dataflow.awaitStreamValue()` consumes the stream to completion:
 
-When accumulating, the runner maintains `Map<string, string>` for text deltas and `Map<string, Record<string, unknown> | unknown[]>` for object deltas. On the `finish` event, it merges the accumulated data into an enriched finish event:
-
-```ts
-const merged: Record<string, unknown> = { ...(event.data || {}) };
-for (const [port, text] of accumulated) {
-  if (text.length > 0) merged[port] = text;
-}
-finalOutput = merged as unknown as Output;
-this.task.emit("stream_chunk", { type: "finish", data: merged });
+```typescript
+await dataflow.awaitStreamValue();
+// After: dataflow.value contains the materialized port data
+// After: dataflow.stream is cleared (set to undefined)
 ```
 
-Because all downstream edges share the enriched event through tee'd streams, no edge needs to re-accumulate independently. The `Dataflow.awaitStreamValue()` method reads the finish event's `data` field and sets it as the edge's materialized value.
+The method prioritizes events:
+1. `snapshot` events: Use the last snapshot data
+2. `finish` events: Use the finish data (which may include accumulated text from the source)
+3. `text-delta` / `object-delta`: Ignored here (source task handles accumulation)
 
 ### Edge-Level Accumulation Detection
 
-The `edgeNeedsAccumulation()` helper determines whether a specific edge requires accumulation by comparing the source and target port stream modes:
+The `edgeNeedsAccumulation()` function determines whether a specific dataflow edge needs its source's stream to be accumulated:
 
-```ts
+```typescript
 function edgeNeedsAccumulation(
-  sourceSchema: DataPortSchema,
-  sourcePort: string,
-  targetSchema: DataPortSchema,
-  targetPort: string
+  sourceSchema, sourcePort,
+  targetSchema, targetPort
 ): boolean {
   const sourceMode = getPortStreamMode(sourceSchema, sourcePort);
   if (sourceMode === "none") return false;
@@ -352,42 +470,293 @@ function edgeNeedsAccumulation(
 }
 ```
 
-When the source port streams but the target port does not declare the same stream mode, the edge needs a materialized value -- triggering accumulation at the runner level.
+If the source port streams in "append" mode but the target port does not declare "append" on its input, the edge needs accumulation to materialize the value.
+
+---
+
+## Dataflow Event System
+
+Dataflows emit events for lifecycle changes:
+
+| Event       | Parameters   | Description                          |
+|-------------|--------------|--------------------------------------|
+| `start`     | --           | Dataflow status set to PROCESSING    |
+| `streaming` | --           | Dataflow status set to STREAMING     |
+| `complete`  | --           | Dataflow status set to COMPLETED     |
+| `error`     | `TaskError`  | Dataflow status set to FAILED        |
+| `abort`     | --           | Dataflow status set to ABORTING      |
+| `disabled`  | --           | Dataflow status set to DISABLED      |
+| `reset`     | --           | Dataflow reset to initial state      |
+| `status`    | `TaskStatus` | Any status change                    |
+
+### Subscribing to Dataflow Events
+
+```typescript
+const unsub = dataflow.subscribe("status", (status) => {
+  console.log(`Dataflow ${dataflow.id}: ${status}`);
+});
+
+// One-time listener
+dataflow.once("complete", () => {
+  console.log(`Value: ${dataflow.value}`);
+});
+
+// Promise-based wait
+await dataflow.waitOn("complete");
+```
+
+### Graph-Level Dataflow Subscription
+
+```typescript
+const unsub = graph.subscribeToDataflowStatus((dataflowId, status) => {
+  console.log(`Dataflow ${dataflowId}: ${status}`);
+});
+```
 
 ---
 
 ## API Reference
 
-### Dataflow
+### Dataflow Class
 
-| Member | Signature | Description |
-|---|---|---|
-| `constructor` | `(sourceTaskId, sourceTaskPortId, targetTaskId, targetTaskPortId)` | Creates a dataflow edge between two task ports |
-| `id` | `get id(): DataflowIdType` | Returns the deterministic string ID in `source[port] ==> target[port]` format |
-| `createId` | `static createId(sourceTaskId, sourceTaskPortId, targetTaskId, targetTaskPortId): DataflowIdType` | Static factory for dataflow IDs |
-| `value` | `any` | The materialized data for this edge |
-| `status` | `TaskStatus` | Current lifecycle status of the edge |
-| `stream` | `ReadableStream<StreamEvent> \| undefined` | Active stream when the source task is streaming |
-| `setStream` | `(stream: ReadableStream<StreamEvent>): void` | Attaches a stream to this edge |
-| `getStream` | `(): ReadableStream<StreamEvent> \| undefined` | Returns the active stream or undefined |
-| `awaitStreamValue` | `(): Promise<void>` | Consumes the stream to completion and materializes the value |
-| `setPortData` | `(entireDataBlock: any): void` | Extracts this edge's value from the source task's full output |
-| `getPortData` | `(): TaskOutput` | Wraps the value into the target task's input shape |
-| `setStatus` | `(status: TaskStatus): void` | Updates status and emits the corresponding event |
-| `reset` | `(): void` | Clears all state back to `PENDING` |
-| `semanticallyCompatible` | `(graph, dataflow): "static" \| "runtime" \| "incompatible"` | Validates type compatibility between source and target ports |
-| `invalidateCompatibilityCache` | `(): void` | Forces recomputation of the compatibility check |
+```typescript
+class Dataflow {
+  // Construction
+  constructor(sourceTaskId, sourceTaskPortId, targetTaskId, targetTaskPortId);
+  static createId(sourceTaskId, sourcePortId, targetTaskId, targetPortId): DataflowIdType;
 
-### StreamTypes Helpers
+  // Identity
+  readonly id: DataflowIdType;
+  sourceTaskId: TaskIdType;
+  sourceTaskPortId: string;
+  targetTaskId: TaskIdType;
+  targetTaskPortId: string;
 
-| Function | Signature | Description |
-|---|---|---|
-| `getPortStreamMode` | `(schema: DataPortSchema \| JsonSchema, portId: string): StreamMode` | Returns the stream mode for a single port (`"none"` if absent) |
-| `getStreamingPorts` | `(schema: DataPortSchema): Array<{ port: string; mode: StreamMode }>` | Returns all ports with `x-stream` annotations |
-| `getOutputStreamMode` | `(outputSchema: DataPortSchema): StreamMode` | Returns the dominant output stream mode or `"mixed"` |
-| `isTaskStreamable` | `(task): boolean` | Checks both schema annotations and `executeStream()` implementation |
-| `edgeNeedsAccumulation` | `(sourceSchema, sourcePort, targetSchema, targetPort): boolean` | Determines if an edge needs the runner to accumulate |
-| `getAppendPortId` | `(schema: DataPortSchema): string \| undefined` | Finds the first port with `x-stream: "append"` |
-| `getObjectPortId` | `(schema: DataPortSchema): string \| undefined` | Finds the first port with `x-stream: "object"` |
-| `getStructuredOutputSchemas` | `(schema: DataPortSchema): Map<string, JsonSchema>` | Returns schemas for all ports with `x-structured-output: true` |
-| `hasStructuredOutput` | `(schema: DataPortSchema): boolean` | Checks if any port declares structured output |
+  // State
+  value: any;
+  status: TaskStatus;
+  error: TaskError | undefined;
+  stream: ReadableStream<StreamEvent> | undefined;
+
+  // Value management
+  setPortData(entireDataBlock: any): void;
+  getPortData(): TaskOutput;
+  setStatus(status: TaskStatus): void;
+  reset(): void;
+
+  // Stream management
+  setStream(stream: ReadableStream<StreamEvent>): void;
+  getStream(): ReadableStream<StreamEvent> | undefined;
+  awaitStreamValue(): Promise<void>;
+
+  // Compatibility
+  semanticallyCompatible(graph, dataflow): "static" | "runtime" | "incompatible";
+  invalidateCompatibilityCache(): void;
+
+  // Events
+  subscribe(event, callback): () => void;
+  on(event, callback): void;
+  off(event, callback): void;
+  once(event, callback): void;
+  waitOn(event): Promise<any>;
+  emit(event, ...args): void;
+
+  // Serialization
+  toJSON(): DataflowJson;
+}
+```
+
+### DataflowArrow Helper
+
+For constructing dataflows from the string ID format:
+
+```typescript
+const dataflow = new DataflowArrow("taskA[result] ==> taskB[value]");
+// Equivalent to: new Dataflow("taskA", "result", "taskB", "value")
+```
+
+### Stream Helper Functions
+
+```typescript
+// Get the stream mode of a specific port
+function getPortStreamMode(schema: DataPortSchema, portId: string): StreamMode;
+
+// Get all streaming ports with their modes
+function getStreamingPorts(schema: DataPortSchema): Array<{ port: string; mode: StreamMode }>;
+
+// Get the dominant output stream mode for a task
+function getOutputStreamMode(outputSchema: DataPortSchema): StreamMode;
+
+// Check if a task supports streaming execution
+function isTaskStreamable(task: { outputSchema(); executeStream? }): boolean;
+
+// Get the first append-mode port name
+function getAppendPortId(schema: DataPortSchema): string | undefined;
+
+// Get the first object-mode port name
+function getObjectPortId(schema: DataPortSchema): string | undefined;
+
+// Check if a dataflow edge needs value accumulation
+function edgeNeedsAccumulation(
+  sourceSchema, sourcePort, targetSchema, targetPort
+): boolean;
+
+// Get schemas for structured output ports
+function getStructuredOutputSchemas(schema: DataPortSchema): Map<string, JsonSchema>;
+
+// Check if any port has structured output
+function hasStructuredOutput(schema: DataPortSchema): boolean;
+```
+
+---
+
+## Examples
+
+### Basic Dataflow Wiring
+
+```typescript
+import { Task, TaskGraph, Dataflow } from "@workglow/task-graph";
+
+const producer = new ProducerTask({ id: "producer" });
+const consumer = new ConsumerTask({ id: "consumer" });
+
+const graph = new TaskGraph();
+graph.addTasks([producer, consumer]);
+graph.addDataflow(new Dataflow("producer", "output", "consumer", "input"));
+
+const results = await graph.run();
+```
+
+### Streaming AI Task
+
+```typescript
+class StreamingTextTask extends Task<{ prompt: string }, { text: string }> {
+  static readonly type = "StreamingTextTask";
+  static readonly cacheable = false;
+
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          "x-stream": "append",  // Enable append-mode streaming
+        },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async *executeStream(input, context): AsyncIterable<StreamEvent> {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt: input.prompt }),
+      signal: context.signal,
+    });
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      yield {
+        type: "text-delta",
+        port: "text",
+        textDelta: decoder.decode(value),
+      };
+    }
+
+    yield { type: "finish", data: {} as any };
+  }
+}
+```
+
+### Subscribing to Stream Events
+
+```typescript
+const graph = new TaskGraph();
+// ... add streaming tasks ...
+
+// Listen for streaming events at the graph level
+const unsub = graph.subscribeToTaskStreaming({
+  onStreamStart: (taskId) => {
+    console.log(`Stream started: ${taskId}`);
+    showSpinner(taskId);
+  },
+  onStreamChunk: (taskId, event) => {
+    if (event.type === "text-delta") {
+      appendToUI(taskId, event.textDelta);
+    } else if (event.type === "object-delta") {
+      updateStructuredView(taskId, event.objectDelta);
+    }
+  },
+  onStreamEnd: (taskId, output) => {
+    console.log(`Stream ended: ${taskId}`, output);
+    hideSpinner(taskId);
+  },
+});
+
+await graph.run({ prompt: "Explain quantum computing" });
+unsub();
+```
+
+### Wildcard Port Dataflow
+
+```typescript
+// Pass entire output object as input using DATAFLOW_ALL_PORTS
+import { DATAFLOW_ALL_PORTS } from "@workglow/task-graph";
+
+graph.addDataflow(new Dataflow(
+  "producer", DATAFLOW_ALL_PORTS,   // All output properties
+  "consumer", DATAFLOW_ALL_PORTS    // Spread into all input properties
+));
+```
+
+### Checking Port Compatibility
+
+```typescript
+const dataflow = new Dataflow("taskA", "text", "taskB", "input");
+graph.addDataflow(dataflow);
+
+const compat = dataflow.semanticallyCompatible(graph, dataflow);
+if (compat === "incompatible") {
+  console.warn(`Port types are incompatible: ${dataflow.id}`);
+}
+```
+
+### Object Streaming for Structured Data
+
+```typescript
+class StructuredOutputTask extends Task<{ query: string }, { result: object }> {
+  static outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: {
+          type: "object",
+          "x-stream": "object",
+          "x-structured-output": true,
+          properties: {
+            name: { type: "string" },
+            age: { type: "number" },
+            skills: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    } as const satisfies DataPortSchema;
+  }
+
+  async *executeStream(input, context): AsyncIterable<StreamEvent> {
+    // Simulate progressive object construction
+    yield { type: "object-delta", port: "result", objectDelta: { name: "Alice" } };
+    yield { type: "object-delta", port: "result", objectDelta: { name: "Alice", age: 30 } };
+    yield {
+      type: "object-delta",
+      port: "result",
+      objectDelta: { name: "Alice", age: 30, skills: ["TypeScript", "Rust"] },
+    };
+    yield { type: "finish", data: {} as any };
+  }
+}
+```
