@@ -17,6 +17,7 @@ import {
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
 import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
+import { getMcpServerTransport } from "../../util/getMcpServerTransport";
 import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 
 const mcpListTypes = ["tools", "resources", "prompts"] as const;
@@ -203,27 +204,9 @@ export class McpListTask extends Task<McpListTaskInput, McpListTaskOutput, TaskC
     };
   }
 
-  private getServerTransport(): string | undefined {
-    const runInputData = (this as { runInputData?: Record<string, unknown> }).runInputData;
-    const inputServer = runInputData?.server as Record<string, unknown> | undefined;
-    if (typeof inputServer?.transport === "string") {
-      return inputServer.transport;
-    }
-
-    const configServer = (this.config as Record<string, unknown>)?.server as
-      | Record<string, unknown>
-      | undefined;
-
-    if (typeof configServer?.transport === "string") {
-      return configServer.transport;
-    }
-
-    return undefined;
-  }
-
   public override entitlements(): TaskEntitlements {
     const base = McpListTask.entitlements();
-    const transport = this.getServerTransport();
+    const transport = getMcpServerTransport(this);
     if (transport === "stdio") {
       return mergeEntitlements(base, {
         entitlements: [

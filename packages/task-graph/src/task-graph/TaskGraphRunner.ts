@@ -1027,40 +1027,55 @@ export class TaskGraphRunner {
     }
 
     this.runId = uuid4();
-    this.resetGraph(this.graph, this.runId);
+    this.resetGraph(this.graph, this.runId); // Reset graph and regenerate sub-graphs, changes task count / entitlements
     this.processScheduler.reset();
     this.inProgressTasks.clear();
     this.inProgressFunctions.clear();
     this.failedTaskErrors.clear();
 
-    // Validate graph size limits
-    if (config?.maxTasks !== undefined && config.maxTasks > 0) {
-      const taskCount = this.graph.getTasks().length;
-      if (taskCount > config.maxTasks) {
-        throw new TaskConfigurationError(
-          `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
-        );
+    // Validate and enforce after resetGraph (which regenerates sub-graphs and may
+    // change task count / entitlements). On failure, clean up running state so the
+    // runner remains reusable.
+    try {
+      // Validate graph size limits
+      if (config?.maxTasks !== undefined && config.maxTasks > 0) {
+        const taskCount = this.graph.getTasks().length;
+        if (taskCount > config.maxTasks) {
+          throw new TaskConfigurationError(
+            `Graph has ${taskCount} tasks, exceeding the limit of ${config.maxTasks}`
+          );
+        }
       }
-    }
 
-    // Opt-in entitlement enforcement (preflight)
-    if (config?.enforceEntitlements) {
-      if (!this.registry.has(ENTITLEMENT_ENFORCER)) {
-        throw new TaskConfigurationError(
-          "enforceEntitlements is enabled but no IEntitlementEnforcer is registered. " +
-            "Register an enforcer via ENTITLEMENT_ENFORCER before running the graph."
-        );
-      }
-      this.activeEnforcer = this.registry.get(ENTITLEMENT_ENFORCER);
-      const denied = await this.activeEnforcer.checkAll(computeGraphEntitlements(this.graph));
-      if (denied.length > 0) {
+      // Opt-in entitlement enforcement (preflight)
+      if (config?.enforceEntitlements) {
+        if (!this.registry.has(ENTITLEMENT_ENFORCER)) {
+          throw new TaskConfigurationError(
+            "enforceEntitlements is enabled but no IEntitlementEnforcer is registered. " +
+              "Register an enforcer via ENTITLEMENT_ENFORCER before running the graph."
+          );
+        }
+        const enforcer = this.registry.get(ENTITLEMENT_ENFORCER);
+        const denied = await enforcer.checkAll(computeGraphEntitlements(this.graph));
+        if (denied.length > 0) {
+          throw new TaskEntitlementError(
+            `Denied entitlements: ${denied.map((e: { id: string }) => e.id).join(", ")}`
+          );
+        }
+        this.activeEnforcer = enforcer;
+      } else {
         this.activeEnforcer = undefined;
-        throw new TaskEntitlementError(
-          `Denied entitlements: ${denied.map((e) => e.id).join(", ")}`
-        );
       }
-    } else {
+    } catch (err) {
+      // Reset running state so the runner is reusable after validation failures
+      if (this.graphTimeoutTimer !== undefined) {
+        clearTimeout(this.graphTimeoutTimer);
+        this.graphTimeoutTimer = undefined;
+      }
+      this.abortController = undefined;
       this.activeEnforcer = undefined;
+      this.running = false;
+      throw err;
     }
 
     // Start telemetry span for the graph run

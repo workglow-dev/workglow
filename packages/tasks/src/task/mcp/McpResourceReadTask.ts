@@ -17,6 +17,7 @@ import {
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
+import { getMcpServerTransport } from "../../util/getMcpServerTransport";
 import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
 import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 
@@ -82,6 +83,7 @@ export class McpResourceReadTask extends Task<
   public static override description = "Reads a resource from an MCP server";
   static override readonly cacheable = false;
   public static override customizable = true;
+  public static override hasDynamicEntitlements: boolean = true;
 
   public static override entitlements(): TaskEntitlements {
     return {
@@ -93,8 +95,8 @@ export class McpResourceReadTask extends Task<
 
   public override entitlements(): TaskEntitlements {
     const base = McpResourceReadTask.entitlements();
-    const server = this.config?.server as Record<string, unknown> | undefined;
-    if (server?.transport === "stdio") {
+    const transport = getMcpServerTransport(this);
+    if (transport === "stdio") {
       return mergeEntitlements(base, {
         entitlements: [
           { id: Entitlements.MCP_STDIO, reason: "Uses stdio transport to spawn local process" },

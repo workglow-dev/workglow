@@ -67,7 +67,8 @@ export interface TaskGraphRunConfig {
   enforceEntitlements?: boolean;
 }
 
-export interface TaskGraphRunReactiveConfig extends TaskGraphRunConfig {
+export interface TaskGraphRunReactiveConfig
+  extends Omit<TaskGraphRunConfig, "enforceEntitlements" | "timeout"> {
   /** Optional service registry to use for this task graph */
   registry?: ServiceRegistry;
 }
