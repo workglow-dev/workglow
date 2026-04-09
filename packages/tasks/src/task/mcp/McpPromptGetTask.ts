@@ -238,45 +238,47 @@ export class McpPromptGetTask extends Task<
     return this.config?.outputSchema ?? fallbackOutputSchema;
   }
 
-  private _schemasDiscovering = false;
+  private _schemasDiscoveringPromise: Promise<void> | undefined = undefined;
 
   async discoverSchemas(_signal?: AbortSignal, serverConfig?: McpServerConfig): Promise<void> {
     if (this.config.inputSchema) return;
-    if (this._schemasDiscovering) return;
+    if (this._schemasDiscoveringPromise) return this._schemasDiscoveringPromise;
     const resolved = serverConfig ?? getMcpServerConfig(this.config as Record<string, unknown>);
     if (!resolved.transport || !this.config.prompt_name) return;
 
-    this._schemasDiscovering = true;
-    try {
-      const result = await mcpList({
-        server: resolved,
-        list_type: "prompts",
-      } as McpListTaskInput);
+    this._schemasDiscoveringPromise = (async () => {
+      try {
+        const result = await mcpList({
+          server: resolved,
+          list_type: "prompts",
+        } as McpListTaskInput);
 
-      const prompt = result.prompts?.find((p) => p.name === this.config.prompt_name);
-      if (prompt) {
-        const args = prompt.arguments ?? [];
-        const required = args.filter((a) => a.required).map((a) => a.name);
-        const properties: DataPortSchemaObject["properties"] = {};
-        for (const arg of args) {
-          properties[arg.name] = {
-            type: "string",
-            ...(arg.description ? { description: arg.description } : {}),
+        const prompt = result.prompts?.find((p) => p.name === this.config.prompt_name);
+        if (prompt) {
+          const args = prompt.arguments ?? [];
+          const required = args.filter((a) => a.required).map((a) => a.name);
+          const properties: DataPortSchemaObject["properties"] = {};
+          for (const arg of args) {
+            properties[arg.name] = {
+              type: "string",
+              ...(arg.description ? { description: arg.description } : {}),
+            };
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          this.config.inputSchema = {
+            type: "object",
+            properties,
+            ...(required.length > 0 ? { required } : {}),
+            additionalProperties: false,
           };
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.config.inputSchema = {
-          type: "object",
-          properties,
-          ...(required.length > 0 ? { required } : {}),
-          additionalProperties: false,
-        };
 
-        this.emitSchemaChange();
+          this.emitSchemaChange();
+        }
+      } finally {
+        this._schemasDiscoveringPromise = undefined;
       }
-    } finally {
-      this._schemasDiscovering = false;
-    }
+    })();
+    return this._schemasDiscoveringPromise;
   }
 
   override async execute(
