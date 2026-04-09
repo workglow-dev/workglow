@@ -93,11 +93,15 @@ export class WorkerManager {
     let init = this.lazyInitPromises.get(name);
     if (!init) {
       init = (async () => {
-        const f = this.lazyFactories.get(name)!;
-        this.lazyFactories.delete(name);
-        const worker = f();
-        this.attachWorkerInstance(name, worker);
-        await this.readyWorkers.get(name)!;
+        try {
+          const f = this.lazyFactories.get(name)!;
+          this.lazyFactories.delete(name);
+          const worker = f();
+          this.attachWorkerInstance(name, worker);
+          await this.readyWorkers.get(name)!;
+        } finally {
+          this.lazyInitPromises.delete(name);
+        }
       })();
       this.lazyInitPromises.set(name, init);
     }
