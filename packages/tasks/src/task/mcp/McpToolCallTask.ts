@@ -234,34 +234,36 @@ export class McpToolCallTask extends Task<
     return this.config?.outputSchema ?? fallbackOutputSchema;
   }
 
-  private _schemasDiscovering = false;
+  private _schemasDiscoveringPromise: Promise<void> | undefined;
 
   async discoverSchemas(_signal?: AbortSignal, serverConfig?: McpServerConfig): Promise<void> {
     if (this.config.inputSchema && this.config.outputSchema) return;
-    if (this._schemasDiscovering) return;
+    if (this._schemasDiscoveringPromise) return this._schemasDiscoveringPromise;
     const resolved = serverConfig ?? getMcpServerConfig(this.config as Record<string, unknown>);
     if (!resolved.transport || !this.config.tool_name) return;
 
-    this._schemasDiscovering = true;
-    try {
-      const result = await mcpList({
-        server: resolved,
-        list_type: "tools",
-      } as McpListTaskInput);
+    this._schemasDiscoveringPromise = (async () => {
+      try {
+        const result = await mcpList({
+          server: resolved,
+          list_type: "tools",
+        } as McpListTaskInput);
 
-      const tool = result.tools?.find((t) => t.name === this.config.tool_name);
-      if (tool) {
-        if (!this.config.inputSchema) {
-          this.config.inputSchema = tool.inputSchema as DataPortSchemaObject;
+        const tool = result.tools?.find((t) => t.name === this.config.tool_name);
+        if (tool) {
+          if (!this.config.inputSchema) {
+            this.config.inputSchema = tool.inputSchema as DataPortSchemaObject;
+          }
+          if (!this.config.outputSchema && tool.outputSchema) {
+            this.config.outputSchema = tool.outputSchema as DataPortSchemaObject;
+          }
+          this.emitSchemaChange();
         }
-        if (!this.config.outputSchema && tool.outputSchema) {
-          this.config.outputSchema = tool.outputSchema as DataPortSchemaObject;
-        }
-        this.emitSchemaChange();
+      } finally {
+        this._schemasDiscoveringPromise = undefined;
       }
-    } finally {
-      this._schemasDiscovering = false;
-    }
+    })();
+    return this._schemasDiscoveringPromise;
   }
 
   override async execute(
