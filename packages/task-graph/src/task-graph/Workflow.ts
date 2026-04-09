@@ -1176,13 +1176,35 @@ export class Workflow<
           if (!sourceTask) continue;
           const sourceSchema = sourceTask.outputSchema();
           if (typeof sourceSchema === "boolean") continue;
-          const prop = (sourceSchema.properties as any)?.[df.sourceTaskPortId];
+          let prop = (sourceSchema.properties as any)?.[df.sourceTaskPortId];
+          let propRequired = sourceSchema.required?.includes(df.sourceTaskPortId) ?? false;
+
+          // For passthrough tasks with additionalProperties (e.g. DebugLogTask),
+          // the port won't appear in the static output schema. Trace back through
+          // the passthrough task's own incoming dataflows to find the actual schema.
+          if (
+            !prop &&
+            sourceSchema.additionalProperties === true &&
+            (sourceTask.constructor as typeof Task).passthroughInputsToOutputs === true
+          ) {
+            const upstreamDfs = graph.getSourceDataflows(sourceTask.id);
+            for (const udf of upstreamDfs) {
+              if (udf.targetTaskPortId !== df.sourceTaskPortId) continue;
+              const upstreamTask = graph.getTask(udf.sourceTaskId);
+              if (!upstreamTask) continue;
+              const upstreamSchema = upstreamTask.outputSchema();
+              if (typeof upstreamSchema === "boolean") continue;
+              prop = (upstreamSchema.properties as any)?.[udf.sourceTaskPortId];
+              if (prop) {
+                propRequired = upstreamSchema.required?.includes(udf.sourceTaskPortId) ?? false;
+                break;
+              }
+            }
+          }
+
           if (prop && typeof prop !== "boolean") {
             properties[df.targetTaskPortId] = prop;
-            if (
-              sourceSchema.required?.includes(df.sourceTaskPortId) &&
-              !required.includes(df.targetTaskPortId)
-            ) {
+            if (propRequired && !required.includes(df.targetTaskPortId)) {
               required.push(df.targetTaskPortId);
             }
           }
@@ -1371,12 +1393,34 @@ export class Workflow<
           toSchema === true ||
           (typeof toSchema === "object" && toSchema.additionalProperties === true)
         ) {
-          for (const fromOutputPortId of Object.keys(fromSchema.properties || {})) {
-            if (matches.has(fromOutputPortId)) continue;
-            matches.set(fromOutputPortId, fromOutputPortId);
-            graph.addDataflow(
-              new Dataflow(fromTaskId, fromOutputPortId, toTaskId, fromOutputPortId)
-            );
+          const outputKeys = Object.keys(fromSchema.properties || {});
+          if (outputKeys.length > 0) {
+            for (const fromOutputPortId of outputKeys) {
+              if (matches.has(fromOutputPortId)) continue;
+              matches.set(fromOutputPortId, fromOutputPortId);
+              graph.addDataflow(
+                new Dataflow(fromTaskId, fromOutputPortId, toTaskId, fromOutputPortId)
+              );
+            }
+          } else if (fromSchema.additionalProperties === true) {
+            // For passthrough tasks with no named output ports, infer output
+            // port names from the task's incoming dataflows so the downstream
+            // connection is established (e.g. DebugLogTask → OutputTask).
+            const sourceGraphTask = graph.getTask(fromTaskId);
+            if (
+              sourceGraphTask &&
+              (sourceGraphTask.constructor as typeof Task).passthroughInputsToOutputs === true
+            ) {
+              const incomingDfs = graph.getSourceDataflows(fromTaskId);
+              for (const df of incomingDfs) {
+                const portId = df.targetTaskPortId;
+                if (portId === DATAFLOW_ALL_PORTS) continue;
+                if (matches.has(portId)) continue;
+                if (connectedInputKeys.has(portId)) continue;
+                matches.set(portId, portId);
+                graph.addDataflow(new Dataflow(fromTaskId, portId, toTaskId, portId));
+              }
+            }
           }
           return;
         }
