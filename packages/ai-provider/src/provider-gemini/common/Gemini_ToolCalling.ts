@@ -205,32 +205,26 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
 
   const result = await genModel.generateContentStream({ contents }, { signal });
 
-  let accumulatedText = "";
-  const toolCalls: ToolCalls = [];
   let callIndex = 0;
 
   for await (const chunk of result.stream) {
     const parts = chunk.candidates?.[0]?.content?.parts ?? [];
     for (const part of parts) {
       if ("text" in part && part.text) {
-        accumulatedText += part.text;
         yield { type: "text-delta", port: "text", textDelta: part.text };
       }
       if ("functionCall" in part && part.functionCall) {
         const id = `call_${callIndex++}`;
-        toolCalls.push({
-          id,
-          name: part.functionCall.name,
-          input: (part.functionCall.args as Record<string, unknown>) ?? {},
-        });
-        yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCalls] };
+        yield {
+          type: "object-delta",
+          port: "toolCalls",
+          objectDelta: [
+            { id, name: part.functionCall.name, input: (part.functionCall.args as Record<string, unknown>) ?? {} },
+          ],
+        };
       }
     }
   }
 
-  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
-  yield {
-    type: "finish",
-    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
-  };
+  yield { type: "finish", data: {} as ToolCallingTaskOutput };
 };

@@ -124,7 +124,6 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
     { signal }
   );
 
-  let accumulatedText = "";
   const toolCallAccumulator = new Map<number, { id: string; name: string; arguments: string }>();
 
   for await (const chunk of stream) {
@@ -133,7 +132,6 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
 
     const contentDelta = choice.delta?.content ?? "";
     if (contentDelta) {
-      accumulatedText += contentDelta;
       yield { type: "text-delta", port: "text", textDelta: contentDelta };
     }
 
@@ -152,37 +150,22 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
         if (tcDelta.id) acc.id = tcDelta.id;
         if (tcDelta.function?.name) acc.name = tcDelta.function.name;
         if (tcDelta.function?.arguments) acc.arguments += tcDelta.function.arguments;
-      }
 
-      const snapshot: ToolCalls = [];
-      for (const [, tc] of toolCallAccumulator) {
         let parsedInput: Record<string, unknown>;
         try {
-          parsedInput = JSON.parse(tc.arguments);
+          parsedInput = JSON.parse(acc.arguments);
         } catch {
-          const partial = parsePartialJson(tc.arguments);
+          const partial = parsePartialJson(acc.arguments);
           parsedInput = (partial as Record<string, unknown>) ?? {};
         }
-        snapshot.push({ id: tc.id, name: tc.name, input: parsedInput });
+        yield {
+          type: "object-delta",
+          port: "toolCalls",
+          objectDelta: [{ id: acc.id, name: acc.name, input: parsedInput }],
+        };
       }
-      yield { type: "object-delta", port: "toolCalls", objectDelta: snapshot };
     }
   }
 
-  const toolCalls: ToolCalls = [];
-  for (const [, tc] of toolCallAccumulator) {
-    let finalInput: Record<string, unknown>;
-    try {
-      finalInput = JSON.parse(tc.arguments);
-    } catch {
-      finalInput = (parsePartialJson(tc.arguments) as Record<string, unknown>) ?? {};
-    }
-    toolCalls.push({ id: tc.id, name: tc.name, input: finalInput });
-  }
-
-  const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
-  yield {
-    type: "finish",
-    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
-  };
+  yield { type: "finish", data: {} as ToolCallingTaskOutput };
 };

@@ -8,7 +8,6 @@ import { buildToolDescription, filterValidToolCalls } from "@workglow/ai/worker"
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
-  ToolCall,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolCalls,
@@ -196,8 +195,6 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(params, { signal });
 
   const blockMeta = new Map<number, { type: string; id?: string; name?: string; json: string }>();
-  let accumulatedText = "";
-  const toolCallMap = new Map<string, ToolCall>();
 
   for await (const event of stream) {
     if (event.type === "content_block_start") {
@@ -217,7 +214,6 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
       const index = event.index as number;
       const delta = event.delta as any;
       if (delta.type === "text_delta") {
-        accumulatedText += delta.text;
         yield { type: "text-delta", port: "text", textDelta: delta.text };
       } else if (delta.type === "input_json_delta") {
         const meta = blockMeta.get(index);
@@ -230,12 +226,11 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
             const partial = parsePartialJson(meta.json);
             parsedInput = (partial as Record<string, unknown>) ?? {};
           }
-          toolCallMap.set(meta.id ?? "", {
-            id: meta.id ?? "",
-            name: meta.name ?? "",
-            input: parsedInput,
-          });
-          yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCallMap.values()] };
+          yield {
+            type: "object-delta",
+            port: "toolCalls",
+            objectDelta: [{ id: meta.id ?? "", name: meta.name ?? "", input: parsedInput }],
+          };
         }
       }
     } else if (event.type === "content_block_stop") {
@@ -248,17 +243,15 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
         } catch {
           finalInput = (parsePartialJson(meta.json) as Record<string, unknown>) ?? {};
         }
-        const id = meta.id ?? "";
-        toolCallMap.set(id, { id, name: meta.name ?? "", input: finalInput });
-        yield { type: "object-delta", port: "toolCalls", objectDelta: [...toolCallMap.values()] };
+        yield {
+          type: "object-delta",
+          port: "toolCalls",
+          objectDelta: [{ id: meta.id ?? "", name: meta.name ?? "", input: finalInput }],
+        };
       }
       blockMeta.delete(index);
     }
   }
 
-  const validToolCalls = filterValidToolCalls([...toolCallMap.values()], input.tools);
-  yield {
-    type: "finish",
-    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
-  };
+  yield { type: "finish", data: {} as ToolCallingTaskOutput };
 };
