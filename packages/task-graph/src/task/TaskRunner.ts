@@ -399,12 +399,32 @@ export class TaskRunner<
         }
         case "object-delta": {
           if (accumulatedObjects) {
-            accumulatedObjects.set(event.port, event.objectDelta);
+            const existing = accumulatedObjects.get(event.port);
+            if (Array.isArray(event.objectDelta)) {
+              // Array delta: upsert items by `id` into accumulated array
+              const arr: unknown[] = Array.isArray(existing) ? [...existing] : [];
+              for (const item of event.objectDelta) {
+                const itemObj = item as Record<string, unknown>;
+                if (itemObj && typeof itemObj === "object" && "id" in itemObj) {
+                  const idx = arr.findIndex(
+                    (e) => (e as Record<string, unknown>).id === itemObj.id
+                  );
+                  if (idx >= 0) arr[idx] = item;
+                  else arr.push(item);
+                } else {
+                  arr.push(item);
+                }
+              }
+              accumulatedObjects.set(event.port, arr);
+            } else {
+              // Non-array (e.g. structured generation): replace semantics
+              accumulatedObjects.set(event.port, event.objectDelta);
+            }
           }
-          // Update runOutputData progressively so listeners see growing state
+          // Update runOutputData with accumulated state so listeners see growing state
           this.task.runOutputData = {
             ...this.task.runOutputData,
-            [event.port]: event.objectDelta,
+            [event.port]: accumulatedObjects?.get(event.port) ?? event.objectDelta,
           } as Output;
           this.task.emit("stream_chunk", event as StreamEvent);
           const progress = Math.min(99, Math.round(100 * (1 - Math.exp(-0.05 * chunkCount))));

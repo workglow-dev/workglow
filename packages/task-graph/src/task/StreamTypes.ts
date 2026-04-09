@@ -32,8 +32,12 @@ export type StreamTextDelta = {
 /**
  * Object delta for structured/object streaming.
  * `port` identifies which output port this delta belongs to.
- * Each `objectDelta` is a progressively more complete partial object snapshot.
- * Consumers should replace (not merge) their state with the latest delta.
+ *
+ * - **Non-array** (e.g. structured generation): each `objectDelta` is a
+ *   progressively more complete partial object snapshot. Consumers should
+ *   replace (not merge) their state with the latest delta.
+ * - **Array** (e.g. tool calls): each `objectDelta` is a single-element
+ *   array containing one item to upsert by `id` into the accumulated array.
  */
 export type StreamObjectDelta = {
   type: "object-delta";

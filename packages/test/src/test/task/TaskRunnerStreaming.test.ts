@@ -6,6 +6,7 @@
 
 import {
   IExecuteContext,
+  IRunConfig,
   Task,
   TaskStatus,
   getOutputStreamMode,
@@ -230,6 +231,128 @@ class TestStreamingCodeAppendTask extends Task<CodeTestInput, CodeTestOutput> {
     yield { type: "text-delta", port: "code", textDelta: ' println!("hi")' };
     yield { type: "text-delta", port: "code", textDelta: " }" };
     yield { type: "finish", data: {} as CodeTestOutput };
+  }
+}
+
+// ============================================================================
+// Object-delta (tool calls) test task
+// ============================================================================
+
+type ToolCallItem = { id: string; name: string; arguments: string };
+type ToolCallInput = { prompt: string };
+type ToolCallOutput = { toolCalls: ToolCallItem[] };
+
+/**
+ * A task that streams tool calls as single-element `object-delta` array
+ * chunks. Mirrors the delta convention used by AI providers (OpenAI,
+ * Anthropic, Gemini) after the streaming fix.
+ *
+ * Chunk sequence:
+ *  1. toolCall "tc1" first fragment (arguments partial)
+ *  2. toolCall "tc1" updated (arguments complete)
+ *  3. toolCall "tc2" first (and only) fragment
+ *  4. finish with empty payload
+ */
+class TestStreamingToolCallTask extends Task<ToolCallInput, ToolCallOutput> {
+  public static override type = "TestStreamingToolCallTask";
+  public static override cacheable = false;
+
+  public static override inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        prompt: { type: "string" },
+      },
+      required: ["prompt"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static override outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        toolCalls: { type: "array", "x-stream": "object" },
+      },
+      required: ["toolCalls"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async *executeStream(
+    _input: ToolCallInput,
+    _context: IExecuteContext
+  ): AsyncIterable<StreamEvent<ToolCallOutput>> {
+    // Chunk 1: first fragment of tc1 (partial arguments)
+    yield {
+      type: "object-delta",
+      port: "toolCalls",
+      objectDelta: [{ id: "tc1", name: "get_weather", arguments: '{"loc' }],
+    };
+    // Chunk 2: tc1 updated with complete arguments (same id → upsert)
+    yield {
+      type: "object-delta",
+      port: "toolCalls",
+      objectDelta: [{ id: "tc1", name: "get_weather", arguments: '{"location":"NYC"}' }],
+    };
+    // Chunk 3: brand-new tool call tc2 (different id → append)
+    yield {
+      type: "object-delta",
+      port: "toolCalls",
+      objectDelta: [{ id: "tc2", name: "get_time", arguments: '{}' }],
+    };
+    yield { type: "finish", data: {} as ToolCallOutput };
+  }
+}
+
+/**
+ * A task that streams a non-array object-delta (structured generation).
+ * Each chunk should *replace* (not merge) the previous state.
+ */
+type StructuredInput = { prompt: string };
+type StructuredOutput = { result: Record<string, unknown> };
+
+class TestStreamingStructuredTask extends Task<StructuredInput, StructuredOutput> {
+  public static override type = "TestStreamingStructuredTask";
+  public static override cacheable = false;
+
+  public static override inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        prompt: { type: "string" },
+      },
+      required: ["prompt"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  public static override outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {
+        result: { type: "object", "x-stream": "object" },
+      },
+      required: ["result"],
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  async *executeStream(
+    _input: StructuredInput,
+    _context: IExecuteContext
+  ): AsyncIterable<StreamEvent<StructuredOutput>> {
+    yield {
+      type: "object-delta",
+      port: "result",
+      objectDelta: { name: "Al" },
+    };
+    yield {
+      type: "object-delta",
+      port: "result",
+      objectDelta: { name: "Alice", age: 30 },
+    };
+    yield { type: "finish", data: {} as StructuredOutput };
   }
 }
 
@@ -543,6 +666,111 @@ describe("TaskRunner Streaming", () => {
       const result = await task.run({ prompt: "config-test" });
 
       expect(result.text).toBe("Hello world");
+    });
+  });
+
+  describe("Object-delta (tool calls)", () => {
+    it("should upsert a tool call when the same id arrives in multiple chunks", async () => {
+      const task = new TestStreamingToolCallTask({ defaults: { prompt: "test" } });
+
+      const result = await task.run({ prompt: "test" });
+
+      // tc1 should have been upserted (second chunk overwrites first)
+      const tc1 = (result.toolCalls as ToolCallItem[]).find((t) => t.id === "tc1");
+      expect(tc1).toBeDefined();
+      expect(tc1!.arguments).toBe('{"location":"NYC"}');
+    });
+
+    it("should accumulate tool calls with different ids into a single array", async () => {
+      const task = new TestStreamingToolCallTask({ defaults: { prompt: "test" } });
+
+      const result = await task.run({ prompt: "test" });
+
+      expect(result.toolCalls).toHaveLength(2);
+      const ids = (result.toolCalls as ToolCallItem[]).map((t) => t.id);
+      expect(ids).toContain("tc1");
+      expect(ids).toContain("tc2");
+    });
+
+    it("should enrich the finish event with accumulated tool calls (shouldAccumulate=true)", async () => {
+      const task = new TestStreamingToolCallTask({ defaults: { prompt: "test" } });
+      const emitted: StreamEvent[] = [];
+      task.on("stream_chunk", (e) => emitted.push(e));
+
+      await task.run({ prompt: "test" });
+
+      const finishEvent = emitted.find((e) => e.type === "finish");
+      expect(finishEvent).toBeDefined();
+      const toolCalls = (finishEvent!.data as any).toolCalls as ToolCallItem[];
+      expect(toolCalls).toHaveLength(2);
+      expect(toolCalls.find((t) => t.id === "tc1")?.arguments).toBe('{"location":"NYC"}');
+      expect(toolCalls.find((t) => t.id === "tc2")?.name).toBe("get_time");
+    });
+
+    it("should emit raw empty finish when shouldAccumulate=false", async () => {
+      const task = new TestStreamingToolCallTask({ defaults: { prompt: "test" } });
+      const emitted: StreamEvent[] = [];
+      task.on("stream_chunk", (e) => emitted.push(e));
+
+      const config: IRunConfig = { shouldAccumulate: false };
+      await task.runner.run({ prompt: "test" }, config);
+
+      const finishEvent = emitted.find((e) => e.type === "finish");
+      expect(finishEvent).toBeDefined();
+      // No accumulation: finish payload is the raw empty object from the provider
+      expect(finishEvent!.data).toEqual({});
+    });
+
+    it("should update runOutputData with the growing accumulated array on each chunk", async () => {
+      const task = new TestStreamingToolCallTask({ defaults: { prompt: "test" } });
+
+      const snapshots: ToolCallItem[][] = [];
+      task.on("stream_chunk", (e) => {
+        if (e.type === "object-delta") {
+          snapshots.push([...((task.runOutputData?.toolCalls ?? []) as ToolCallItem[])]);
+        }
+      });
+
+      await task.run({ prompt: "test" });
+
+      // After chunk 1: only tc1 (partial)
+      expect(snapshots[0]).toHaveLength(1);
+      expect(snapshots[0][0].id).toBe("tc1");
+      // After chunk 2: still 1 item (tc1 upserted)
+      expect(snapshots[1]).toHaveLength(1);
+      expect(snapshots[1][0].arguments).toBe('{"location":"NYC"}');
+      // After chunk 3: tc2 added
+      expect(snapshots[2]).toHaveLength(2);
+    });
+
+    it("should apply replace semantics for non-array object-delta (structured generation)", async () => {
+      const task = new TestStreamingStructuredTask({ defaults: { prompt: "test" } });
+
+      const result = await task.run({ prompt: "test" });
+
+      // Each non-array chunk replaces the previous; final value is the last chunk
+      expect((result.result as any).name).toBe("Alice");
+      expect((result.result as any).age).toBe(30);
+    });
+
+    it("should replace, not merge, earlier partial structured output with later chunks", async () => {
+      const task = new TestStreamingStructuredTask({ defaults: { prompt: "test" } });
+
+      const snapshots: Record<string, unknown>[] = [];
+      task.on("stream_chunk", (e) => {
+        if (e.type === "object-delta") {
+          snapshots.push({ ...(task.runOutputData?.result as Record<string, unknown>) });
+        }
+      });
+
+      await task.run({ prompt: "test" });
+
+      // First chunk: only `name` partial
+      expect(snapshots[0]).toEqual({ name: "Al" });
+      // Second chunk: full object, NOT merged with first
+      expect(snapshots[1]).toEqual({ name: "Alice", age: 30 });
+      // `age` should NOT appear in the first snapshot (replace, not merge)
+      expect(snapshots[0]).not.toHaveProperty("age");
     });
   });
 });

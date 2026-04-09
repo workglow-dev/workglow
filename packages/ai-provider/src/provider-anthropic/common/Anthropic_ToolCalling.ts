@@ -196,7 +196,6 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(params, { signal });
 
   const blockMeta = new Map<number, { type: string; id?: string; name?: string; json: string }>();
-  let accumulatedText = "";
   /** Keyed by Anthropic content block index — avoids collisions when `id` is missing during early deltas. */
   const toolCallsByBlockIndex = new Map<number, ToolCall>();
 
@@ -221,7 +220,6 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
       const index = event.index as number;
       const delta = event.delta as any;
       if (delta.type === "text_delta") {
-        accumulatedText += delta.text;
         yield { type: "text-delta", port: "text", textDelta: delta.text };
       } else if (delta.type === "input_json_delta") {
         const meta = blockMeta.get(index);
@@ -268,9 +266,5 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
     }
   }
 
-  const validToolCalls = filterValidToolCalls(toolCallsInStreamOrder(), input.tools);
-  yield {
-    type: "finish",
-    data: { text: accumulatedText, toolCalls: validToolCalls } as ToolCallingTaskOutput,
-  };
+  yield { type: "finish", data: { text: "", toolCalls: [] } as ToolCallingTaskOutput };
 };
