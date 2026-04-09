@@ -223,20 +223,6 @@ export async function registerHuggingfaceLocalModels(): Promise<void> {
       metadata: {},
     },
     {
-      model_id: "onnx:Xenova/m2m100_418M:q8",
-      title: "m2m100_418M",
-      description: "Xenova/m2m100_418M quantized to 8bit",
-      tasks: ["TextTranslationTask"],
-      provider: HF_TRANSFORMERS_ONNX,
-      provider_config: {
-        pipeline: "translation",
-        model_path: "Xenova/m2m100_418M",
-        language_style: "ISO-639",
-        dtype: "q8",
-      },
-      metadata: {},
-    },
-    {
       model_id: "onnx:Xenova/mbart-large-50-many-to-many-mmt:q8",
       title: "mbart-large-50-many-to-many-mmt",
       description: "Xenova/mbart-large-50-many-to-many-mmt quantized to 8bit",

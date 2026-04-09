@@ -5,7 +5,14 @@
  */
 
 import { IQueueStorage, JobStatus, JobStorageFormat } from "@workglow/storage";
-import { EventEmitter, getTelemetryProvider, sleep, SpanStatusCode, uuid4 } from "@workglow/util";
+import {
+  EventEmitter,
+  getLogger,
+  getTelemetryProvider,
+  sleep,
+  SpanStatusCode,
+  uuid4,
+} from "@workglow/util";
 import { ILimiter } from "../limiter/ILimiter";
 import { NullLimiter } from "../limiter/NullLimiter";
 import { Job, JobClass } from "./Job";
@@ -449,7 +456,7 @@ export class JobQueueWorker<
       await this.storage.complete(this.classToStorage(job));
       this.events.emit("job_complete", job.id, output as Output);
     } catch (err) {
-      console.error("completeJob errored:", err);
+      getLogger().error("completeJob errored:", { error: err });
     } finally {
       this.cleanupJob(job.id);
     }
@@ -471,7 +478,7 @@ export class JobQueueWorker<
       await this.storage.complete(this.classToStorage(job));
       this.events.emit("job_error", job.id, error.message, error.constructor.name);
     } catch (err) {
-      console.error("failJob errored:", err);
+      getLogger().error("failJob errored:", { error: err });
     } finally {
       this.cleanupJob(job.id);
     }
@@ -491,7 +498,7 @@ export class JobQueueWorker<
       await this.storage.complete(this.classToStorage(job));
       this.events.emit("job_disabled", job.id);
     } catch (err) {
-      console.error("disableJob errored:", err);
+      getLogger().error("disableJob errored:", { error: err });
     } finally {
       this.cleanupJob(job.id);
     }
@@ -515,7 +522,7 @@ export class JobQueueWorker<
       await this.storage.complete(this.classToStorage(job));
       this.events.emit("job_retry", job.id, job.runAfter);
     } catch (err) {
-      console.error("rescheduleJob errored:", err);
+      getLogger().error("rescheduleJob errored:", { error: err });
     }
   }
 
@@ -541,7 +548,7 @@ export class JobQueueWorker<
   protected async handleAbort(jobId: unknown): Promise<void> {
     const job = await this.getJob(jobId);
     if (!job) {
-      console.error("handleAbort: job not found", jobId);
+      getLogger().error("handleAbort: job not found", { jobId });
       return;
     }
     const error = new AbortSignalJobError("Job Aborted");

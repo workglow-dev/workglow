@@ -130,12 +130,13 @@ export class DirectedAcyclicGraph<
       toReturn.push(curNode);
 
       adjCopy[this.getNodeIndex(n[0])]?.forEach((edge, index) => {
-        if (edge !== null) {
+        if (edge !== null && edge.length > 0) {
+          const edgeCount = edge.length;
           adjCopy[this.getNodeIndex(n[0])][index] = null;
           const target = nodeInDegrees.get(nodeIndices[index]);
           if (target !== undefined) {
-            nodeInDegrees.set(nodeIndices[index], target - 1);
-            if (target - 1 === 0) {
+            nodeInDegrees.set(nodeIndices[index], target - edgeCount);
+            if (target - edgeCount === 0) {
               toSearch.push([nodeIndices[index], 0]);
             }
           } else {

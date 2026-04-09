@@ -6,8 +6,30 @@
 
 import { ITabularStorage } from "@workglow/storage";
 import { EventEmitter, EventParameters } from "@workglow/util";
+import { compileSchema } from "@workglow/util/schema";
+import type { SchemaNode } from "@workglow/util/schema";
 
 import { ModelPrimaryKeyNames, ModelRecord, ModelRecordSchema } from "./ModelSchema";
+
+let compiledModelRecordSchema: SchemaNode | undefined;
+function getModelRecordSchemaNode(): SchemaNode {
+  if (!compiledModelRecordSchema) {
+    compiledModelRecordSchema = compileSchema(ModelRecordSchema);
+  }
+  return compiledModelRecordSchema;
+}
+
+function validateModelRecord(model: ModelRecord): void {
+  const schemaNode = getModelRecordSchemaNode();
+  const result = schemaNode.validate(model);
+  if (!result.valid) {
+    const errorMessages = result.errors.map((e) => {
+      const path = e.data?.pointer || "";
+      return `${e.message}${path ? ` (${path})` : ""}`;
+    });
+    throw new Error(`Invalid model record: ${errorMessages.join(", ")}`);
+  }
+}
 
 /**
  * Events that can be emitted by the ModelRepository
@@ -99,12 +121,40 @@ export class ModelRepository {
   }
 
   /**
-   * Adds a new model to the repository
+   * Adds a new model to the repository.
+   * Validates against ModelRecordSchema and rejects duplicates.
    * @param model - The model instance to add
+   * @throws if the model fails schema validation or a model with the same model_id already exists
    */
-  async addModel(model: ModelRecord) {
+  async addModel(model: ModelRecord): Promise<ModelRecord> {
+    validateModelRecord(model);
+
+    const existing = await this.modelTabularRepository.get({ model_id: model.model_id });
+    if (existing) {
+      throw new Error(`Model with id "${model.model_id}" already exists`);
+    }
+
     await this.modelTabularRepository.put(model);
     this.events.emit("model_added", model);
+    return model;
+  }
+
+  /**
+   * Updates an existing model in the repository.
+   * Validates against ModelRecordSchema and requires the model to already exist.
+   * @param model - The model instance with updated fields
+   * @throws if the model fails schema validation or the model_id does not exist
+   */
+  async updateModel(model: ModelRecord): Promise<ModelRecord> {
+    validateModelRecord(model);
+
+    const existing = await this.modelTabularRepository.get({ model_id: model.model_id });
+    if (!existing) {
+      throw new Error(`Model with id "${model.model_id}" not found`);
+    }
+
+    await this.modelTabularRepository.put(model);
+    this.events.emit("model_updated", model);
     return model;
   }
 
