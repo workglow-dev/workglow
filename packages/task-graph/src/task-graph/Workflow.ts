@@ -1160,7 +1160,7 @@ export class Workflow<
           if (
             !prop &&
             sourceSchema.additionalProperties === true &&
-            (sourceTask.constructor as any).passthroughInputsToOutputs === true
+            (sourceTask.constructor as typeof Task).passthroughInputsToOutputs === true
           ) {
             const upstreamDfs = graph.getSourceDataflows(sourceTask.id);
             for (const udf of upstreamDfs) {
@@ -1383,13 +1383,14 @@ export class Workflow<
             const sourceGraphTask = graph.getTask(fromTaskId);
             if (
               sourceGraphTask &&
-              (sourceGraphTask.constructor as any).passthroughInputsToOutputs === true
+              (sourceGraphTask.constructor as typeof Task).passthroughInputsToOutputs === true
             ) {
               const incomingDfs = graph.getSourceDataflows(fromTaskId);
               for (const df of incomingDfs) {
                 const portId = df.targetTaskPortId;
                 if (portId === DATAFLOW_ALL_PORTS) continue;
                 if (matches.has(portId)) continue;
+                if (connectedInputKeys.has(portId)) continue;
                 matches.set(portId, portId);
                 graph.addDataflow(new Dataflow(fromTaskId, portId, toTaskId, portId));
               }

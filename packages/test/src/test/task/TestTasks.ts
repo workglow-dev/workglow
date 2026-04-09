@@ -1204,6 +1204,41 @@ export class PassthroughVectorTask extends Task<
 }
 
 // ============================================================================
+// Passthrough task with additionalProperties (like DebugLogTask)
+// ============================================================================
+
+/**
+ * A test passthrough task that passes all inputs through to outputs unchanged.
+ * Has additionalProperties: true and no named ports in its static schema,
+ * mirroring DebugLogTask's behavior.
+ */
+export class WildcardPassthroughTask extends Task {
+  static override type = "WildcardPassthroughTask";
+  static override category = "Test";
+  static override passthroughInputsToOutputs = true;
+
+  static override inputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  static override outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    } as const satisfies DataPortSchema;
+  }
+
+  override async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return { ...input };
+  }
+}
+
+// ============================================================================
 // Consolidated test tasks from ConditionalTask, IteratorTask, etc.
 // ============================================================================
 
@@ -2495,6 +2530,7 @@ declare module "@workglow/task-graph" {
     bulkProcess(input?: Partial<{ items: readonly number[] }>, config?: Partial<TaskConfig>): this;
     testIterator(input?: Partial<{ items: number[] }>, config?: Partial<TaskConfig>): this;
     processItem(input?: Partial<{ item: number }>, config?: Partial<TaskConfig>): this;
+    wildcardPassthrough(input?: Partial<Record<string, unknown>>, config?: Partial<TaskConfig>): this;
   }
 }
 
@@ -2521,3 +2557,4 @@ Workflow.prototype.addToSum = CreateWorkflow(AddToSumTask);
 Workflow.prototype.bulkProcess = CreateWorkflow(BulkProcessTask);
 Workflow.prototype.testIterator = CreateWorkflow(TestIteratorTask);
 Workflow.prototype.processItem = CreateWorkflow(ProcessItemTask);
+Workflow.prototype.wildcardPassthrough = CreateWorkflow(WildcardPassthroughTask);

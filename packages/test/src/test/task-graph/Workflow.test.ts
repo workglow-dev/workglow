@@ -38,6 +38,7 @@ import {
   TestInputTask,
   TestOutputTask,
   TestSimpleTask,
+  WildcardPassthroughTask,
 } from "../task/TestTasks";
 // Import to register vector test tasks with the workflow system
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -1099,6 +1100,81 @@ describe("Workflow", () => {
       expect(dataflows).toHaveLength(1);
       expect(dataflows[0].sourceTaskPortId).toBe("output");
       expect(dataflows[0].targetTaskPortId).toBe("output");
+    });
+
+    describe("passthrough task with additionalProperties and no named ports", () => {
+      it("should infer output port names from incoming dataflows and connect to OutputTask", () => {
+        // TestSimpleTask outputs { output: string }
+        // WildcardPassthroughTask has additionalProperties:true, no named ports
+        // OutputTask has additionalProperties:true, no named ports
+        // The passthrough task's incoming dataflow port "output" should be used to
+        // create a WildcardPassthroughTask -> OutputTask connection.
+        workflow = workflow.testSimple({ input: "test" }).wildcardPassthrough().output();
+
+        expect(workflow.error).toBe("");
+        const nodes = workflow.graph.getTasks();
+        expect(nodes).toHaveLength(3);
+        expect(nodes[1]).toBeInstanceOf(WildcardPassthroughTask);
+        expect(nodes[2]).toBeInstanceOf(OutputTask);
+
+        const dataflows = workflow.graph.getDataflows();
+
+        // TestSimpleTask -> WildcardPassthroughTask via "output" port
+        const passthroughIncoming = dataflows.find(
+          (df) => df.targetTaskId === nodes[1].id && df.targetTaskPortId === "output"
+        );
+        expect(passthroughIncoming).toBeDefined();
+        expect(passthroughIncoming?.sourceTaskId).toBe(nodes[0].id);
+
+        // WildcardPassthroughTask -> OutputTask via inferred "output" port
+        const outputIncoming = dataflows.find(
+          (df) => df.targetTaskId === nodes[2].id && df.targetTaskPortId === "output"
+        );
+        expect(outputIncoming).toBeDefined();
+        expect(outputIncoming?.sourceTaskId).toBe(nodes[1].id);
+      });
+
+      it("should update OutputTask schema when preceded by a passthrough task", () => {
+        workflow = workflow.testSimple({ input: "test" }).wildcardPassthrough().output();
+
+        expect(workflow.error).toBe("");
+        const nodes = workflow.graph.getTasks();
+        const outputTask = nodes[nodes.length - 1];
+        expect(outputTask.type).toBe("OutputTask");
+
+        const schema = outputTask.inputSchema();
+        expect(typeof schema).toBe("object");
+        if (typeof schema === "object") {
+          expect(schema.properties).toHaveProperty("output");
+          expect((schema.properties as any).output.type).toBe("string");
+          expect(schema.additionalProperties).toBe(false);
+        }
+      });
+
+      it("should not add duplicate connections when downstream port is already connected", () => {
+        // Manually pre-connect the port, then auto-connect should skip it
+        workflow = workflow.testSimple({ input: "test" }).wildcardPassthrough();
+        const nodes = workflow.graph.getTasks();
+        const passthroughTask = nodes[1];
+
+        // Count dataflows before adding output()
+        workflow = workflow.output();
+        const dfsAfter = workflow.graph.getDataflows();
+
+        // Only one new connection should have been added (no duplicates to OutputTask)
+        const outputTask = workflow.graph.getTasks()[2];
+        const outputIncoming = dfsAfter.filter((df) => df.targetTaskId === outputTask.id);
+        expect(outputIncoming).toHaveLength(1);
+        expect(outputIncoming[0].sourceTaskId).toBe(passthroughTask.id);
+      });
+
+      it("should execute end-to-end through a passthrough task to output()", async () => {
+        workflow = workflow.testSimple().wildcardPassthrough().output();
+
+        expect(workflow.error).toBe("");
+        const result = await workflow.run({ input: "hello" }, { registry });
+        expect(result).toEqual({ output: "processed-hello" });
+      });
     });
   });
 });
