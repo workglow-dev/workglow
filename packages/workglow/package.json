@@ -2,6 +2,11 @@
   "name": "workglow",
   "type": "module",
   "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workglow-dev/workglow.git",
+    "directory": "packages/workglow"
+  },
   "description": "Workglow meta-package: re-exports all @workglow/* packages for convenient single-import usage.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
