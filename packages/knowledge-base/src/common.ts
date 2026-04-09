@@ -12,6 +12,9 @@ export * from "./knowledge-base/KnowledgeBaseRepository";
 export * from "./knowledge-base/InMemoryKnowledgeBaseRepository";
 export * from "./knowledge-base/KnowledgeBaseRegistry";
 export * from "./knowledge-base/createKnowledgeBase";
+export * from "./knowledge-base/ScopedTabularStorage";
+export * from "./knowledge-base/ScopedVectorStorage";
+export * from "./knowledge-base/SharedTableSchemas";
 
 export * from "./util/DatasetSchema";
 export * from "./document/Document";

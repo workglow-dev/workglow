@@ -180,9 +180,7 @@ export class McpPromptGetTask extends Task<
 
   public static override entitlements(): TaskEntitlements {
     return {
-      entitlements: [
-        { id: Entitlements.MCP_PROMPT_GET, reason: "Gets prompts from MCP servers" },
-      ],
+      entitlements: [{ id: Entitlements.MCP_PROMPT_GET, reason: "Gets prompts from MCP servers" }],
     };
   }
 

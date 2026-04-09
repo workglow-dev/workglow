@@ -1,0 +1,360 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  createKnowledgeBase,
+  getGlobalKnowledgeBaseRepository,
+  isSharedTableMode,
+  registerKnowledgeBase,
+  ScopedTabularStorage,
+  ScopedVectorStorage,
+  SharedChunkIndexes,
+  SharedChunkPrimaryKey,
+  SharedChunkVectorStorageSchema,
+  SharedDocumentIndexes,
+  SharedDocumentPrimaryKey,
+  SharedDocumentStorageSchema,
+} from "@workglow/knowledge-base";
+import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
+import { uuid4 } from "@workglow/util";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+describe("ScopedTabularStorage", () => {
+  let sharedStorage: InMemoryTabularStorage<
+    typeof SharedDocumentStorageSchema,
+    typeof SharedDocumentPrimaryKey
+  >;
+  let scopeA: ScopedTabularStorage<any, any>;
+  let scopeB: ScopedTabularStorage<any, any>;
+
+  beforeEach(async () => {
+    sharedStorage = new InMemoryTabularStorage(
+      SharedDocumentStorageSchema,
+      SharedDocumentPrimaryKey,
+      SharedDocumentIndexes
+    );
+    await sharedStorage.setupDatabase();
+    scopeA = new ScopedTabularStorage(sharedStorage, "kb-a");
+    scopeB = new ScopedTabularStorage(sharedStorage, "kb-b");
+  });
+
+  afterEach(() => {
+    sharedStorage.destroy();
+  });
+
+  describe("CRUD isolation", () => {
+    test("put via scope-A is invisible to scope-B", async () => {
+      const entity = await scopeA.put({ doc_id: "d1", data: '{"text":"hello"}' });
+      expect(entity).toBeDefined();
+      expect(entity.doc_id).toBe("d1");
+      expect((entity as any).kb_id).toBeUndefined();
+
+      const fromA = await scopeA.get({ doc_id: "d1" });
+      expect(fromA).toBeDefined();
+      expect(fromA!.doc_id).toBe("d1");
+
+      const fromB = await scopeB.get({ doc_id: "d1" });
+      expect(fromB).toBeUndefined();
+    });
+
+    test("getAll returns only own scope's records", async () => {
+      await scopeA.put({ doc_id: "a1", data: "a" });
+      await scopeA.put({ doc_id: "a2", data: "a" });
+      await scopeB.put({ doc_id: "b1", data: "b" });
+
+      const allA = await scopeA.getAll();
+      const allB = await scopeB.getAll();
+      expect(allA).toHaveLength(2);
+      expect(allB).toHaveLength(1);
+      expect(allA!.every((e: any) => e.kb_id === undefined)).toBe(true);
+    });
+
+    test("query filters by kb_id", async () => {
+      await scopeA.put({ doc_id: "q1", data: "shared-data" });
+      await scopeB.put({ doc_id: "q2", data: "shared-data" });
+
+      const resultsA = await scopeA.query({ data: "shared-data" } as any);
+      expect(resultsA).toHaveLength(1);
+      expect(resultsA![0].doc_id).toBe("q1");
+    });
+
+    test("size returns count for only this scope", async () => {
+      await scopeA.put({ doc_id: "s1", data: "a" });
+      await scopeA.put({ doc_id: "s2", data: "a" });
+      await scopeB.put({ doc_id: "s3", data: "b" });
+
+      expect(await scopeA.size()).toBe(2);
+      expect(await scopeB.size()).toBe(1);
+    });
+
+    test("returned entities do not include kb_id", async () => {
+      const entity = await scopeA.put({ doc_id: "strip1", data: "x" });
+      expect("kb_id" in entity).toBe(false);
+
+      const got = await scopeA.get({ doc_id: "strip1" });
+      expect("kb_id" in got!).toBe(false);
+
+      const queried = await scopeA.query({ doc_id: "strip1" } as any);
+      expect("kb_id" in queried![0]).toBe(false);
+    });
+  });
+
+  describe("key collision prevention", () => {
+    test("identical doc_id across scopes do not collide", async () => {
+      await scopeA.put({ doc_id: "same-id", data: "scope-A data" });
+      await scopeB.put({ doc_id: "same-id", data: "scope-B data" });
+
+      const fromA = await scopeA.get({ doc_id: "same-id" });
+      const fromB = await scopeB.get({ doc_id: "same-id" });
+
+      expect(fromA).toBeDefined();
+      expect(fromB).toBeDefined();
+      expect((fromA as any).data).toBe("scope-A data");
+      expect((fromB as any).data).toBe("scope-B data");
+
+      expect(await scopeA.size()).toBe(1);
+      expect(await scopeB.size()).toBe(1);
+    });
+  });
+
+  describe("putBulk", () => {
+    test("bulk inserts are scoped correctly", async () => {
+      const entities = await scopeA.putBulk([
+        { doc_id: "b1", data: "a" },
+        { doc_id: "b2", data: "a" },
+      ]);
+      expect(entities).toHaveLength(2);
+      expect(entities.every((e: any) => e.kb_id === undefined)).toBe(true);
+
+      expect(await scopeA.size()).toBe(2);
+      expect(await scopeB.size()).toBe(0);
+    });
+  });
+
+  describe("delete isolation", () => {
+    test("delete via scope-B cannot remove scope-A's record", async () => {
+      await scopeA.put({ doc_id: "del1", data: "a" });
+      await scopeB.delete({ doc_id: "del1" });
+
+      const fromA = await scopeA.get({ doc_id: "del1" });
+      expect(fromA).toBeDefined();
+    });
+
+    test("delete via own scope removes the record", async () => {
+      await scopeA.put({ doc_id: "del2", data: "a" });
+      await scopeA.delete({ doc_id: "del2" });
+
+      const fromA = await scopeA.get({ doc_id: "del2" });
+      expect(fromA).toBeUndefined();
+    });
+
+    test("deleteAll does not affect other scope", async () => {
+      await scopeA.put({ doc_id: "da1", data: "a" });
+      await scopeA.put({ doc_id: "da2", data: "a" });
+      await scopeB.put({ doc_id: "db1", data: "b" });
+
+      await scopeA.deleteAll();
+
+      expect(await scopeA.size()).toBe(0);
+      expect(await scopeB.size()).toBe(1);
+    });
+
+    test("deleteSearch is scoped", async () => {
+      await scopeA.put({ doc_id: "ds1", data: "target" });
+      await scopeB.put({ doc_id: "ds2", data: "target" });
+
+      await scopeA.deleteSearch({ data: "target" } as any);
+
+      expect(await scopeA.size()).toBe(0);
+      expect(await scopeB.size()).toBe(1);
+    });
+  });
+
+  describe("event isolation", () => {
+    test("on('put') only fires for own scope", async () => {
+      const listenerA = vi.fn();
+      const listenerB = vi.fn();
+
+      scopeA.on("put", listenerA);
+      scopeB.on("put", listenerB);
+
+      await scopeA.put({ doc_id: "ev1", data: "a" });
+
+      expect(listenerA).toHaveBeenCalledTimes(1);
+      expect(listenerB).not.toHaveBeenCalled();
+
+      await scopeB.put({ doc_id: "ev2", data: "b" });
+
+      expect(listenerA).toHaveBeenCalledTimes(1);
+      expect(listenerB).toHaveBeenCalledTimes(1);
+    });
+
+    test("on('clearall') only fires for own scope", async () => {
+      const listenerA = vi.fn();
+      const listenerB = vi.fn();
+
+      scopeA.on("clearall", listenerA);
+      scopeB.on("clearall", listenerB);
+
+      await scopeA.deleteAll();
+
+      expect(listenerA).toHaveBeenCalledTimes(1);
+      expect(listenerB).not.toHaveBeenCalled();
+    });
+
+    test("off removes the listener", async () => {
+      const listener = vi.fn();
+      scopeA.on("put", listener);
+      scopeA.off("put", listener);
+
+      await scopeA.put({ doc_id: "off1", data: "a" });
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("records and pages generators", () => {
+    test("records() yields only scoped records", async () => {
+      await scopeA.put({ doc_id: "r1", data: "a" });
+      await scopeA.put({ doc_id: "r2", data: "a" });
+      await scopeB.put({ doc_id: "r3", data: "b" });
+
+      const collected = [];
+      for await (const record of scopeA.records(10)) {
+        collected.push(record);
+      }
+      expect(collected).toHaveLength(2);
+      expect(collected.every((e: any) => e.kb_id === undefined)).toBe(true);
+    });
+
+    test("pages() yields only scoped records", async () => {
+      await scopeA.put({ doc_id: "p1", data: "a" });
+      await scopeA.put({ doc_id: "p2", data: "a" });
+      await scopeA.put({ doc_id: "p3", data: "a" });
+      await scopeB.put({ doc_id: "p4", data: "b" });
+
+      const pages = [];
+      for await (const page of scopeA.pages(2)) {
+        pages.push(page);
+      }
+      const total = pages.reduce((sum, p) => sum + p.length, 0);
+      expect(total).toBe(3);
+    });
+  });
+});
+
+describe("ScopedVectorStorage", () => {
+  let sharedStorage: InMemoryVectorStorage<
+    typeof SharedChunkVectorStorageSchema,
+    typeof SharedChunkPrimaryKey
+  >;
+  let scopeA: ScopedVectorStorage<any, any>;
+  let scopeB: ScopedVectorStorage<any, any>;
+
+  beforeEach(async () => {
+    sharedStorage = new InMemoryVectorStorage(
+      SharedChunkVectorStorageSchema,
+      SharedChunkPrimaryKey,
+      SharedChunkIndexes,
+      3
+    );
+    await sharedStorage.setupDatabase();
+    scopeA = new ScopedVectorStorage(sharedStorage, "kb-a");
+    scopeB = new ScopedVectorStorage(sharedStorage, "kb-b");
+  });
+
+  afterEach(() => {
+    sharedStorage?.destroy?.();
+  });
+
+  test("getVectorDimensions delegates to inner", () => {
+    expect(scopeA.getVectorDimensions()).toBe(3);
+  });
+
+  test("similaritySearch returns only own scope's results", async () => {
+    const vecA = new Float32Array([1, 0, 0]);
+    const vecB = new Float32Array([0, 1, 0]);
+
+    await scopeA.put({
+      chunk_id: "ca1",
+      doc_id: "doc-a",
+      vector: vecA,
+      metadata: { text: "scope A chunk" },
+    });
+    await scopeB.put({
+      chunk_id: "cb1",
+      doc_id: "doc-b",
+      vector: vecB,
+      metadata: { text: "scope B chunk" },
+    });
+
+    const query = new Float32Array([1, 0, 0]);
+    const results = await scopeA.similaritySearch(query, { topK: 10 });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].chunk_id).toBe("ca1");
+    expect((results[0] as any).kb_id).toBeUndefined();
+    expect(results[0].score).toBeDefined();
+  });
+
+  test("CRUD isolation works for vector storage", async () => {
+    await scopeA.put({
+      chunk_id: "iso1",
+      doc_id: "doc-a",
+      vector: new Float32Array([1, 0, 0]),
+      metadata: {},
+    });
+
+    expect(await scopeA.get({ chunk_id: "iso1" })).toBeDefined();
+    expect(await scopeB.get({ chunk_id: "iso1" })).toBeUndefined();
+
+    await scopeB.delete({ chunk_id: "iso1" });
+    expect(await scopeA.get({ chunk_id: "iso1" })).toBeDefined();
+
+    await scopeA.delete({ chunk_id: "iso1" });
+    expect(await scopeA.get({ chunk_id: "iso1" })).toBeUndefined();
+  });
+});
+
+describe("registerKnowledgeBase with sharedTables", () => {
+  test("persisted record uses shared table names", async () => {
+    const kb = await createKnowledgeBase({
+      name: `shared-reg-${uuid4()}`,
+      vectorDimensions: 3,
+      register: false,
+    });
+
+    const id = `shared-${uuid4()}`;
+    await registerKnowledgeBase(id, kb, { sharedTables: true });
+
+    const repo = getGlobalKnowledgeBaseRepository();
+    const record = await repo.getKnowledgeBase(id);
+    expect(record).toBeDefined();
+    expect(record!.document_table).toBe("shared_documents");
+    expect(record!.chunk_table).toBe("shared_chunks");
+    expect(isSharedTableMode(record!)).toBe(true);
+
+    kb.destroy();
+  });
+
+  test("default registration uses per-KB table names", async () => {
+    const kb = await createKnowledgeBase({
+      name: `default-reg-${uuid4()}`,
+      vectorDimensions: 3,
+      register: false,
+    });
+
+    const id = `default-${uuid4()}`;
+    await registerKnowledgeBase(id, kb);
+
+    const repo = getGlobalKnowledgeBaseRepository();
+    const record = await repo.getKnowledgeBase(id);
+    expect(record).toBeDefined();
+    expect(isSharedTableMode(record!)).toBe(false);
+
+    kb.destroy();
+  });
+});

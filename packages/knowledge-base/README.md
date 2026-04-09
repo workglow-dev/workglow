@@ -21,6 +21,13 @@ Document management, hierarchical chunking, and knowledge base infrastructure fo
   - [Tree Traversal](#tree-traversal)
   - [Lifecycle Management](#lifecycle-management)
   - [Registry](#registry)
+- [Shared-Table Mode](#shared-table-mode)
+  - [Overview](#overview-1)
+  - [Setting Up Shared Storage](#setting-up-shared-storage)
+  - [Scoped Wrappers](#scoped-wrappers)
+  - [Registering with Shared Tables](#registering-with-shared-tables)
+  - [Schemas and Indexes](#schemas-and-indexes)
+  - [When to Use Shared Tables](#when-to-use-shared-tables)
 - [Data Flow](#data-flow)
   - [Ingestion Pipeline](#ingestion-pipeline)
   - [Retrieval Pipeline](#retrieval-pipeline)
@@ -28,6 +35,8 @@ Document management, hierarchical chunking, and knowledge base infrastructure fo
   - [Document](#document)
   - [KnowledgeBase](#knowledgebase-1)
   - [createKnowledgeBase](#createknowledgebase)
+  - [ScopedTabularStorage](#scopedtabularstorage)
+  - [ScopedVectorStorage](#scopedvectorstorage)
   - [StructuralParser](#structuralparser)
   - [Type Helpers](#type-helpers)
 - [License](#license)
@@ -442,6 +451,134 @@ await task.run({ knowledgeBase: kb }); // Direct instance
 await task.run({ knowledgeBase: "my-kb" }); // Resolved from registry
 ```
 
+## Shared-Table Mode
+
+### Overview
+
+By default, each `KnowledgeBase` gets its own document table and chunk table. **Shared-table mode** lets multiple knowledge bases share the same underlying storage tables, partitioned by a `kb_id` column. This is useful when you have many knowledge bases and want to reduce table proliferation in your database.
+
+```
+Default mode (per-KB tables):          Shared-table mode:
+┌──────────────────────┐               ┌──────────────────────────┐
+│ kb_docs_my_kb        │               │ shared_documents         │
+│ (doc_id, data)       │               │ (doc_id, kb_id, data)    │
+├──────────────────────┤               │  ├─ kb_id = "kb-1" rows  │
+│ kb_chunks_my_kb      │               │  └─ kb_id = "kb-2" rows  │
+│ (chunk_id, vector..) │               ├──────────────────────────┤
+├──────────────────────┤               │ shared_chunks            │
+│ kb_docs_other_kb     │               │ (chunk_id, kb_id, vec..) │
+│ (doc_id, data)       │               │  ├─ kb_id = "kb-1" rows  │
+├──────────────────────┤               │  └─ kb_id = "kb-2" rows  │
+│ kb_chunks_other_kb   │               └──────────────────────────┘
+│ (chunk_id, vector..) │
+└──────────────────────┘
+```
+
+The `KnowledgeBase` class itself is unchanged — shared-table mode is implemented via thin wrapper classes (`ScopedTabularStorage`, `ScopedVectorStorage`) that inject `kb_id` on writes and filter by `kb_id` on reads.
+
+### Setting Up Shared Storage
+
+Create the shared storage instances once, globally:
+
+```typescript
+import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
+import {
+  SharedDocumentStorageSchema,
+  SharedChunkVectorStorageSchema,
+  SharedDocumentIndexes,
+  SharedChunkIndexes,
+  SHARED_DOCUMENT_TABLE,
+  SHARED_CHUNK_TABLE,
+  DocumentStorageKey,
+  ChunkVectorPrimaryKey,
+} from "@workglow/knowledge-base";
+
+const sharedDocStorage = new InMemoryTabularStorage(
+  SharedDocumentStorageSchema,
+  DocumentStorageKey,
+  SharedDocumentIndexes
+);
+
+const sharedChunkStorage = new InMemoryVectorStorage(
+  SharedChunkVectorStorageSchema,
+  ChunkVectorPrimaryKey,
+  SharedChunkIndexes,
+  1024 // vector dimensions
+);
+```
+
+For SQL backends (SQLite, PostgreSQL), replace `InMemoryTabularStorage` / `InMemoryVectorStorage` with the appropriate implementations. The shared schemas include indexes on `kb_id` and `[kb_id, doc_id]` for efficient scoped queries.
+
+### Scoped Wrappers
+
+For each knowledge base, create scoped wrappers that filter to that KB's data:
+
+```typescript
+import {
+  ScopedTabularStorage,
+  ScopedVectorStorage,
+  KnowledgeBase,
+} from "@workglow/knowledge-base";
+
+// KB 1
+const scopedDocs1 = new ScopedTabularStorage(sharedDocStorage, "kb-1");
+const scopedChunks1 = new ScopedVectorStorage(sharedChunkStorage, "kb-1");
+const kb1 = new KnowledgeBase("kb-1", scopedDocs1, scopedChunks1);
+
+// KB 2
+const scopedDocs2 = new ScopedTabularStorage(sharedDocStorage, "kb-2");
+const scopedChunks2 = new ScopedVectorStorage(sharedChunkStorage, "kb-2");
+const kb2 = new KnowledgeBase("kb-2", scopedDocs2, scopedChunks2);
+```
+
+Each `KnowledgeBase` instance works exactly the same as in default mode — all CRUD, search, and lifecycle operations are transparently scoped to the KB's data.
+
+### Registering with Shared Tables
+
+Pass `{ sharedTables: true }` when registering so that the metadata record uses the shared table names:
+
+```typescript
+import { registerKnowledgeBase } from "@workglow/knowledge-base";
+
+await registerKnowledgeBase("kb-1", kb1, { sharedTables: true });
+await registerKnowledgeBase("kb-2", kb2, { sharedTables: true });
+```
+
+You can check whether a persisted record uses shared tables with the `isSharedTableMode` helper:
+
+```typescript
+import { isSharedTableMode } from "@workglow/knowledge-base";
+
+const record = await repo.getKnowledgeBase("kb-1");
+if (isSharedTableMode(record)) {
+  // reconstruct using scoped wrappers
+}
+```
+
+### Schemas and Indexes
+
+The shared schemas augment the standard schemas with a `kb_id` column:
+
+| Schema                          | Base Schema                | Added Column |
+| ------------------------------- | -------------------------- | ------------ |
+| `SharedDocumentStorageSchema`   | `DocumentStorageSchema`    | `kb_id: string` |
+| `SharedChunkVectorStorageSchema`| `ChunkVectorStorageSchema` | `kb_id: string` |
+
+Default shared table names: `SHARED_DOCUMENT_TABLE = "shared_documents"`, `SHARED_CHUNK_TABLE = "shared_chunks"`.
+
+Pre-defined index arrays for efficient queries:
+- `SharedDocumentIndexes` — `[["kb_id"]]`
+- `SharedChunkIndexes` — `[["kb_id"], ["kb_id", "doc_id"]]`
+
+### When to Use Shared Tables
+
+| Scenario | Recommendation |
+| --- | --- |
+| Few knowledge bases, each large | Default (per-KB tables) — simpler, no `kb_id` overhead |
+| Many knowledge bases (e.g., per-user, per-tenant) | Shared tables — avoids table proliferation |
+| Need cross-KB queries | Shared tables — query the shared storage directly |
+| Using managed databases with table limits | Shared tables |
+
 ## Data Flow
 
 ### Ingestion Pipeline
@@ -637,6 +774,35 @@ interface CreateKnowledgeBaseOptions {
   readonly backend?: "in-memory";
   readonly vectorType?: { new (array: number[]): TypedArray };
   readonly register?: boolean; // Default: true
+}
+```
+
+### ScopedTabularStorage
+
+```typescript
+class ScopedTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, InsertType>
+  implements ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, InsertType>
+{
+  constructor(inner: AnyTabularStorage, kbId: string);
+
+  // All ITabularStorage methods are implemented.
+  // Writes inject kb_id, reads filter by kb_id, results strip kb_id.
+  // setupDatabase() and destroy() are no-ops (shared storage lifecycle is external).
+}
+```
+
+### ScopedVectorStorage
+
+```typescript
+class ScopedVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
+  extends ScopedTabularStorage<Schema, PrimaryKeyNames, Entity>
+  implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
+{
+  constructor(inner: AnyVectorStorage, kbId: string);
+
+  getVectorDimensions(): number; // Delegates to inner
+  similaritySearch(query, options?): Promise<(Entity & { score })[]>; // Post-filters by kb_id
+  hybridSearch?(query, options): Promise<(Entity & { score })[]>; // Post-filters by kb_id
 }
 ```
 

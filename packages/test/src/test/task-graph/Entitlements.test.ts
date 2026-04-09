@@ -43,16 +43,22 @@ class NetworkTask extends Task {
   static override readonly type = "NetworkTask";
   static override entitlements(): TaskEntitlements {
     return {
-      entitlements: [
-        { id: Entitlements.NETWORK_HTTP, reason: "Fetches data" },
-      ],
+      entitlements: [{ id: Entitlements.NETWORK_HTTP, reason: "Fetches data" }],
     };
   }
   static override inputSchema(): DataPortSchema {
-    return { type: "object", properties: { url: { type: "string" } }, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { url: { type: "string" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   static override outputSchema(): DataPortSchema {
-    return { type: "object", properties: { data: { type: "string" } }, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { data: { type: "string" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   override async execute() {
     return { data: "ok" };
@@ -63,16 +69,22 @@ class CodeExecTask extends Task {
   static override readonly type = "CodeExecTask";
   static override entitlements(): TaskEntitlements {
     return {
-      entitlements: [
-        { id: Entitlements.CODE_EXECUTION_JS, reason: "Runs JS" },
-      ],
+      entitlements: [{ id: Entitlements.CODE_EXECUTION_JS, reason: "Runs JS" }],
     };
   }
   static override inputSchema(): DataPortSchema {
-    return { type: "object", properties: { code: { type: "string" } }, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { code: { type: "string" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   static override outputSchema(): DataPortSchema {
-    return { type: "object", properties: { result: { type: "string" } }, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { result: { type: "string" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   override async execute() {
     return { result: "done" };
@@ -90,10 +102,18 @@ class OptionalCredentialTask extends Task {
     };
   }
   static override inputSchema(): DataPortSchema {
-    return { type: "object", properties: {}, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   static override outputSchema(): DataPortSchema {
-    return { type: "object", properties: { data: { type: "string" } }, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { data: { type: "string" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   override async execute() {
     return { data: "ok" };
@@ -103,10 +123,18 @@ class OptionalCredentialTask extends Task {
 class NoEntitlementTask extends Task {
   static override readonly type = "NoEntitlementTask";
   static override inputSchema(): DataPortSchema {
-    return { type: "object", properties: { input: { type: "string" } }, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { input: { type: "string" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   static override outputSchema(): DataPortSchema {
-    return { type: "object", properties: { output: { type: "string" } }, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { output: { type: "string" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   override async execute() {
     return { output: "pass" };
@@ -123,10 +151,18 @@ class ScopedAiTask extends Task {
     };
   }
   static override inputSchema(): DataPortSchema {
-    return { type: "object", properties: {}, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   static override outputSchema(): DataPortSchema {
-    return { type: "object", properties: {}, additionalProperties: false } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
   }
   override async execute() {
     return {};
@@ -236,9 +272,7 @@ describe("Entitlements", () => {
     });
 
     it("broad grant covers broad requirement", () => {
-      expect(
-        grantCoversResources({ id: "network" }, { id: "network:http" })
-      ).toBe(true);
+      expect(grantCoversResources({ id: "network" }, { id: "network:http" })).toBe(true);
     });
 
     it("scoped grant cannot cover broad requirement", () => {
@@ -422,10 +456,7 @@ describe("Entitlements", () => {
     it("grants multiple matching entitlements", async () => {
       const enforcer = createGrantListEnforcer(["network", "code-execution"]);
       const denied = await enforcer.checkAll({
-        entitlements: [
-          { id: "network:http" },
-          { id: "code-execution:javascript" },
-        ],
+        entitlements: [{ id: "network:http" }, { id: "code-execution:javascript" }],
       });
       expect(denied).toHaveLength(0);
     });
@@ -445,9 +476,7 @@ describe("Entitlements", () => {
     });
 
     it("scoped grant covers matching resource", async () => {
-      const enforcer = createScopedEnforcer([
-        { id: "ai:model", resources: ["claude-*"] },
-      ]);
+      const enforcer = createScopedEnforcer([{ id: "ai:model", resources: ["claude-*"] }]);
       const denied = await enforcer.checkAll({
         entitlements: [{ id: "ai:model", resources: ["claude-3-opus"] }],
       });
@@ -455,9 +484,7 @@ describe("Entitlements", () => {
     });
 
     it("scoped grant denies non-matching resource", async () => {
-      const enforcer = createScopedEnforcer([
-        { id: "ai:model", resources: ["claude-*"] },
-      ]);
+      const enforcer = createScopedEnforcer([{ id: "ai:model", resources: ["claude-*"] }]);
       const denied = await enforcer.checkAll({
         entitlements: [{ id: "ai:model", resources: ["gpt-4o"] }],
       });
@@ -465,9 +492,7 @@ describe("Entitlements", () => {
     });
 
     it("scoped grant cannot cover broad requirement", async () => {
-      const enforcer = createScopedEnforcer([
-        { id: "network", resources: ["api.example.com"] },
-      ]);
+      const enforcer = createScopedEnforcer([{ id: "network", resources: ["api.example.com"] }]);
       const denied = await enforcer.checkAll({
         entitlements: [{ id: "network:http" }],
       });
@@ -644,9 +669,9 @@ describe("Entitlements", () => {
       // Register a restrictive enforcer that grants nothing
       registry.register(ENTITLEMENT_ENFORCER, () => createGrantListEnforcer([]));
       const runner = new TaskGraphRunner(graph);
-      await expect(
-        runner.runGraph({}, { registry, enforceEntitlements: true })
-      ).rejects.toThrow(TaskEntitlementError);
+      await expect(runner.runGraph({}, { registry, enforceEntitlements: true })).rejects.toThrow(
+        TaskEntitlementError
+      );
     });
 
     it("passes when enforcer grants required entitlements", async () => {
@@ -670,21 +695,19 @@ describe("Entitlements", () => {
 
     it("scoped enforcer denies wrong resource", async () => {
       graph.addTask(new ScopedAiTask({ id: "t1" }));
-      registry.register(
-        ENTITLEMENT_ENFORCER,
-        () => createScopedEnforcer([{ id: "ai:model", resources: ["gpt-*"] }])
+      registry.register(ENTITLEMENT_ENFORCER, () =>
+        createScopedEnforcer([{ id: "ai:model", resources: ["gpt-*"] }])
       );
       const runner = new TaskGraphRunner(graph);
-      await expect(
-        runner.runGraph({}, { registry, enforceEntitlements: true })
-      ).rejects.toThrow(TaskEntitlementError);
+      await expect(runner.runGraph({}, { registry, enforceEntitlements: true })).rejects.toThrow(
+        TaskEntitlementError
+      );
     });
 
     it("scoped enforcer allows matching resource", async () => {
       graph.addTask(new ScopedAiTask({ id: "t1" }));
-      registry.register(
-        ENTITLEMENT_ENFORCER,
-        () => createScopedEnforcer([{ id: "ai:model", resources: ["claude-*"] }])
+      registry.register(ENTITLEMENT_ENFORCER, () =>
+        createScopedEnforcer([{ id: "ai:model", resources: ["claude-*"] }])
       );
       const runner = new TaskGraphRunner(graph);
       await expect(
@@ -786,10 +809,10 @@ describe("Entitlements", () => {
       };
       const results = evaluatePolicy(policy, {
         entitlements: [
-          { id: "filesystem:write" },    // denied by deny rule
-          { id: "network:http" },         // granted
+          { id: "filesystem:write" }, // denied by deny rule
+          { id: "network:http" }, // granted
           { id: "code-execution:javascript" }, // ask
-          { id: "storage:read" },         // default deny
+          { id: "storage:read" }, // default deny
         ],
       });
       expect(results).toHaveLength(4);
@@ -946,30 +969,23 @@ describe("Entitlements", () => {
 
     it("deny rule blocks graph execution", async () => {
       graph.addTask(new NetworkTask({ id: "t1", defaults: { url: "test" } }));
-      registry.register(
-        ENTITLEMENT_ENFORCER,
-        () =>
-          createPolicyEnforcer({
-            deny: [{ id: "network:http" }],
-            grant: [{ id: "network" }],
-            ask: [],
-          })
+      registry.register(ENTITLEMENT_ENFORCER, () =>
+        createPolicyEnforcer({
+          deny: [{ id: "network:http" }],
+          grant: [{ id: "network" }],
+          ask: [],
+        })
       );
       const runner = new TaskGraphRunner(graph);
-      await expect(
-        runner.runGraph({}, { registry, enforceEntitlements: true })
-      ).rejects.toThrow(TaskEntitlementError);
+      await expect(runner.runGraph({}, { registry, enforceEntitlements: true })).rejects.toThrow(
+        TaskEntitlementError
+      );
     });
 
     it("ask rule with permissive resolver allows execution", async () => {
       graph.addTask(new NetworkTask({ id: "t1", defaults: { url: "test" } }));
-      registry.register(
-        ENTITLEMENT_ENFORCER,
-        () =>
-          createPolicyEnforcer(
-            { deny: [], grant: [], ask: [{ id: "network" }] },
-            PERMISSIVE_RESOLVER
-          )
+      registry.register(ENTITLEMENT_ENFORCER, () =>
+        createPolicyEnforcer({ deny: [], grant: [], ask: [{ id: "network" }] }, PERMISSIVE_RESOLVER)
       );
       const runner = new TaskGraphRunner(graph);
       await expect(
@@ -979,18 +995,13 @@ describe("Entitlements", () => {
 
     it("ask rule with deny resolver blocks execution", async () => {
       graph.addTask(new NetworkTask({ id: "t1", defaults: { url: "test" } }));
-      registry.register(
-        ENTITLEMENT_ENFORCER,
-        () =>
-          createPolicyEnforcer(
-            { deny: [], grant: [], ask: [{ id: "network" }] },
-            DENY_ALL_RESOLVER
-          )
+      registry.register(ENTITLEMENT_ENFORCER, () =>
+        createPolicyEnforcer({ deny: [], grant: [], ask: [{ id: "network" }] }, DENY_ALL_RESOLVER)
       );
       const runner = new TaskGraphRunner(graph);
-      await expect(
-        runner.runGraph({}, { registry, enforceEntitlements: true })
-      ).rejects.toThrow(TaskEntitlementError);
+      await expect(runner.runGraph({}, { registry, enforceEntitlements: true })).rejects.toThrow(
+        TaskEntitlementError
+      );
     });
   });
 });

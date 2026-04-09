@@ -14,8 +14,9 @@ import {
 import { InMemoryKnowledgeBaseRepository } from "./InMemoryKnowledgeBaseRepository";
 import type { KnowledgeBase } from "./KnowledgeBase";
 import { KnowledgeBaseRepository } from "./KnowledgeBaseRepository";
-import { knowledgeBaseTableNames } from "./KnowledgeBaseSchema";
 import type { KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
+import { knowledgeBaseTableNames } from "./KnowledgeBaseSchema";
+import { SHARED_CHUNK_TABLE, SHARED_DOCUMENT_TABLE } from "./SharedTableSchemas";
 
 /**
  * Service token for the knowledge base registry
@@ -70,15 +71,28 @@ export function setGlobalKnowledgeBaseRepository(repository: KnowledgeBaseReposi
   globalServiceRegistry.registerInstance(KNOWLEDGE_BASE_REPOSITORY, repository);
 }
 
+export interface RegisterKnowledgeBaseOptions {
+  /** When true, record uses shared table names instead of per-KB table names. */
+  readonly sharedTables?: boolean;
+}
+
 /**
  * Registers a knowledge base globally by ID.
  * Adds to both the live Map and the persistent repository.
  */
-export async function registerKnowledgeBase(id: string, kb: KnowledgeBase): Promise<void> {
+
+export async function registerKnowledgeBase(
+  id: string,
+  kb: KnowledgeBase,
+  options?: RegisterKnowledgeBaseOptions
+): Promise<void> {
   const kbs = getGlobalKnowledgeBases();
 
   const now = new Date().toISOString();
-  const tableNames = knowledgeBaseTableNames(id);
+  const useShared = options?.sharedTables === true;
+  const tableNames = useShared
+    ? { documentTable: SHARED_DOCUMENT_TABLE, chunkTable: SHARED_CHUNK_TABLE }
+    : knowledgeBaseTableNames(id);
   const record: KnowledgeBaseRecord = {
     kb_id: id,
     title: kb.title,

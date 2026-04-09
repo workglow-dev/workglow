@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { EntitlementGrant, EntitlementId, TaskEntitlement, TaskEntitlements } from "./TaskEntitlements";
+import type {
+  EntitlementGrant,
+  EntitlementId,
+  TaskEntitlement,
+  TaskEntitlements,
+} from "./TaskEntitlements";
 import { entitlementCovers, grantCoversResources } from "./TaskEntitlements";
 
 // ========================================================================
