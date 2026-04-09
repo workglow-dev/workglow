@@ -4,19 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { buildToolDescription, filterValidToolCalls } from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  ToolCall,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
+import { buildToolDescription, filterValidToolCalls } from "@workglow/ai/worker";
 import type { StreamEvent } from "@workglow/task-graph";
 import { parsePartialJson } from "@workglow/util/worker";
-import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 import { getClient, getMaxTokens, getModelName } from "./Anthropic_Client";
+import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 
 function mapUserContentToAnthropic(content: unknown): any {
   if (typeof content === "string") return content;
@@ -195,6 +196,12 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(params, { signal });
 
   const blockMeta = new Map<number, { type: string; id?: string; name?: string; json: string }>();
+  let accumulatedText = "";
+  /** Keyed by Anthropic content block index — avoids collisions when `id` is missing during early deltas. */
+  const toolCallsByBlockIndex = new Map<number, ToolCall>();
+
+  const toolCallsInStreamOrder = (): ToolCall[] =>
+    [...toolCallsByBlockIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, tc]) => tc);
 
   for await (const event of stream) {
     if (event.type === "content_block_start") {
@@ -226,10 +233,15 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
             const partial = parsePartialJson(meta.json);
             parsedInput = (partial as Record<string, unknown>) ?? {};
           }
+          toolCallsByBlockIndex.set(index, {
+            id: meta.id ?? "",
+            name: meta.name ?? "",
+            input: parsedInput,
+          });
           yield {
             type: "object-delta",
             port: "toolCalls",
-            objectDelta: [{ id: meta.id ?? "", name: meta.name ?? "", input: parsedInput }],
+            objectDelta: toolCallsInStreamOrder(),
           };
         }
       }
@@ -243,10 +255,12 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
         } catch {
           finalInput = (parsePartialJson(meta.json) as Record<string, unknown>) ?? {};
         }
+        const id = meta.id ?? "";
+        toolCallsByBlockIndex.set(index, { id, name: meta.name ?? "", input: finalInput });
         yield {
           type: "object-delta",
           port: "toolCalls",
-          objectDelta: [{ id: meta.id ?? "", name: meta.name ?? "", input: finalInput }],
+          objectDelta: toolCallsInStreamOrder(),
         };
       }
       blockMeta.delete(index);

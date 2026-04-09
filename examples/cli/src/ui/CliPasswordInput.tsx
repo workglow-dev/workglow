@@ -10,7 +10,7 @@
  */
 
 import chalk from "chalk";
-import { Text, useInput } from "ink";
+import { Text, useInput, usePaste } from "ink";
 import { useCallback, useEffect, useMemo, useReducer, type ReactElement } from "react";
 
 const cursor = chalk.inverse(" ");
@@ -25,7 +25,8 @@ type PasswordReducerAction =
   | { type: "move-cursor-left" }
   | { type: "move-cursor-right" }
   | { type: "insert"; text: string }
-  | { type: "delete" };
+  | { type: "delete" }
+  | { type: "forward-delete" };
 
 function passwordReducer(
   state: PasswordReducerState,
@@ -56,12 +57,23 @@ function passwordReducer(
       };
     }
     case "delete": {
-      const newCursorOffset = Math.max(0, state.cursorOffset - 1);
+      if (state.cursorOffset === 0) return state;
+      const newCursorOffset = state.cursorOffset - 1;
       return {
         ...state,
         previousValue: state.value,
         value: state.value.slice(0, newCursorOffset) + state.value.slice(newCursorOffset + 1),
         cursorOffset: newCursorOffset,
+      };
+    }
+    case "forward-delete": {
+      if (state.cursorOffset >= state.value.length) return state;
+      return {
+        ...state,
+        previousValue: state.value,
+        value:
+          state.value.slice(0, state.cursorOffset) + state.value.slice(state.cursorOffset + 1),
+        cursorOffset: state.cursorOffset,
       };
     }
     default:
@@ -82,6 +94,7 @@ function useCliPasswordInputState({
   moveCursorRight: () => void;
   insert: (text: string) => void;
   delete: () => void;
+  forwardDelete: () => void;
   submit: () => void;
 } {
   const [state, dispatch] = useReducer(passwordReducer, {
@@ -102,6 +115,9 @@ function useCliPasswordInputState({
   const deleteCharacter = useCallback(() => {
     dispatch({ type: "delete" });
   }, []);
+  const forwardDeleteCharacter = useCallback(() => {
+    dispatch({ type: "forward-delete" });
+  }, []);
   const submit = useCallback(() => {
     onSubmit?.(state.value);
   }, [state.value, onSubmit]);
@@ -118,6 +134,7 @@ function useCliPasswordInputState({
     moveCursorRight,
     insert,
     delete: deleteCharacter,
+    forwardDelete: forwardDeleteCharacter,
     submit,
   };
 }
@@ -157,6 +174,13 @@ function useCliPasswordInput({
     return result;
   }, [isDisabled, state.value, state.cursorOffset]);
 
+  usePaste(
+    (text) => {
+      state.insert(text);
+    },
+    { isActive: !isDisabled }
+  );
+
   useInput(
     (input, key) => {
       if (
@@ -176,8 +200,10 @@ function useCliPasswordInput({
         state.moveCursorLeft();
       } else if (key.rightArrow) {
         state.moveCursorRight();
-      } else if (key.backspace || key.delete) {
+      } else if (key.backspace) {
         state.delete();
+      } else if (key.delete) {
+        state.forwardDelete();
       } else {
         state.insert(input);
       }
