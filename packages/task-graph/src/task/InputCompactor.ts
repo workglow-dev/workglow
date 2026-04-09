@@ -20,8 +20,11 @@ export interface InputCompactorConfig {
  * Checks if a schema allows a string variant, recursively checking
  * through oneOf/anyOf nesting (e.g., TypeSingleOrArray(TypeModel(...))).
  */
-function schemaAllowsString(schema: unknown): boolean {
+function schemaAllowsString(schema: unknown, visited: WeakSet<object> = new WeakSet()): boolean {
   if (typeof schema !== "object" || schema === null) return false;
+  if (visited.has(schema)) return false;
+  visited.add(schema);
+
   const s = schema as Record<string, unknown>;
 
   if (s.type === "string") return true;
@@ -29,14 +32,14 @@ function schemaAllowsString(schema: unknown): boolean {
   const variants = (s.oneOf ?? s.anyOf) as unknown[] | undefined;
   if (Array.isArray(variants)) {
     for (const variant of variants) {
-      if (schemaAllowsString(variant)) return true;
+      if (schemaAllowsString(variant, visited)) return true;
     }
   }
 
   const allOf = s.allOf as unknown[] | undefined;
   if (Array.isArray(allOf)) {
     for (const sub of allOf) {
-      if (schemaAllowsString(sub)) return true;
+      if (schemaAllowsString(sub, visited)) return true;
     }
   }
 
@@ -138,12 +141,16 @@ export async function compactSchemaInputs<T extends Record<string, unknown>>(
       const objectSchema = getObjectSchema(propSchema);
       if (objectSchema && !visited.has(objectSchema)) {
         visited.add(objectSchema);
-        compacted[key] = await compactSchemaInputs(
-          value as Record<string, unknown>,
-          objectSchema as DataPortSchema,
-          config,
-          visited
-        );
+        try {
+          compacted[key] = await compactSchemaInputs(
+            value as Record<string, unknown>,
+            objectSchema as DataPortSchema,
+            config,
+            visited
+          );
+        } finally {
+          visited.delete(objectSchema);
+        }
       }
     }
   }

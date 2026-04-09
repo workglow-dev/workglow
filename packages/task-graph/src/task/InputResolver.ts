@@ -18,8 +18,13 @@ export interface InputResolverConfig {
 /**
  * Extracts the format string from a schema, handling oneOf/anyOf wrappers.
  */
-export function getSchemaFormat(schema: unknown): string | undefined {
+export function getSchemaFormat(
+  schema: unknown,
+  visited: WeakSet<object> = new WeakSet()
+): string | undefined {
   if (typeof schema !== "object" || schema === null) return undefined;
+  if (visited.has(schema)) return undefined;
+  visited.add(schema);
 
   const s = schema as Record<string, unknown>;
 
@@ -40,7 +45,7 @@ export function getSchemaFormat(schema: unknown): string | undefined {
   const allOf = s.allOf as unknown[] | undefined;
   if (Array.isArray(allOf)) {
     for (const sub of allOf) {
-      const fmt = getSchemaFormat(sub);
+      const fmt = getSchemaFormat(sub, visited);
       if (fmt !== undefined) return fmt;
     }
   }
@@ -54,9 +59,12 @@ export function getSchemaFormat(schema: unknown): string | undefined {
  * where the model can be either a string ID or an inline config object.
  */
 export function getObjectSchema(
-  schema: unknown
+  schema: unknown,
+  visited: WeakSet<object> = new WeakSet()
 ): (Record<string, unknown> & { properties: Record<string, unknown> }) | undefined {
   if (typeof schema !== "object" || schema === null) return undefined;
+  if (visited.has(schema)) return undefined;
+  visited.add(schema);
 
   const s = schema as Record<string, unknown>;
 
@@ -82,7 +90,7 @@ export function getObjectSchema(
   const allOf = s.allOf as unknown[] | undefined;
   if (Array.isArray(allOf)) {
     for (const sub of allOf) {
-      const result = getObjectSchema(sub);
+      const result = getObjectSchema(sub, visited);
       if (result !== undefined) return result;
     }
   }
@@ -192,12 +200,16 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
       const objectSchema = getObjectSchema(propSchema);
       if (objectSchema && !visited.has(objectSchema)) {
         visited.add(objectSchema);
-        resolved[key] = await resolveSchemaInputs(
-          value as Record<string, unknown>,
-          objectSchema as DataPortSchema,
-          config,
-          visited
-        );
+        try {
+          resolved[key] = await resolveSchemaInputs(
+            value as Record<string, unknown>,
+            objectSchema as DataPortSchema,
+            config,
+            visited
+          );
+        } finally {
+          visited.delete(objectSchema);
+        }
       }
     }
   }

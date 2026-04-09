@@ -508,6 +508,49 @@ describe("InputCompactor", () => {
       // Should complete without stack overflow
       expect(compacted).toBeDefined();
     });
+
+    test("should compact sibling properties sharing the same schema reference", async () => {
+      registerInputCompactor("sibling-compact", (value) => {
+        if (typeof value === "object" && value !== null && "ref" in value) {
+          const ref = (value as Record<string, unknown>).ref;
+          return typeof ref === "string" ? ref : undefined;
+        }
+        return undefined;
+      });
+
+      const sharedNestedSchema: DataPortSchema = {
+        type: "object",
+        properties: {
+          resource: {
+            oneOf: [
+              { type: "string", format: "sibling-compact" },
+              { type: "object", properties: { ref: { type: "string" } } },
+            ],
+          },
+        },
+      };
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          first: sharedNestedSchema,
+          second: sharedNestedSchema,
+        },
+      };
+
+      const input = {
+        first: { resource: { ref: "res-a" } },
+        second: { resource: { ref: "res-b" } },
+      };
+      const compacted = await compactSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(compacted.first).toEqual({ resource: "res-a" });
+      expect(compacted.second).toEqual({ resource: "res-b" });
+
+      getInputCompactors().delete("sibling-compact");
+    });
   });
 
   describe("roundtrip", () => {

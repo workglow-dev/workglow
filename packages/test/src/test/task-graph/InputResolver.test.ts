@@ -348,6 +348,37 @@ describe("InputResolver", () => {
       // Should complete without stack overflow; inner values pass through unchanged
       expect(resolved).toBeDefined();
     });
+
+    test("should resolve sibling properties sharing the same schema reference", async () => {
+      registerInputResolver("sibling-test", (_id, _format, _registry) => {
+        return "sibling-resolved";
+      });
+
+      const sharedNestedSchema: DataPortSchema = {
+        type: "object",
+        properties: {
+          key: { type: "string", format: "sibling-test" },
+        },
+      };
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          first: sharedNestedSchema,
+          second: sharedNestedSchema,
+        },
+      };
+
+      const input = { first: { key: "id-a" }, second: { key: "id-b" } };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.first).toEqual({ key: "sibling-resolved" });
+      expect(resolved.second).toEqual({ key: "sibling-resolved" });
+
+      getInputResolvers().delete("sibling-test");
+    });
   });
 
   describe("mixed array resolution", () => {
