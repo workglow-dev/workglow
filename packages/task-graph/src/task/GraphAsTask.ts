@@ -234,14 +234,22 @@ export class GraphAsTask<
       }
 
       const eventQueue: StreamEvent<Output>[] = [];
-      let resolveWaiting: (() => void) | undefined;
       let subgraphDone = false;
+
+      // Eager promise/resolver — always available for producers to signal.
+      // Prevents a race where producers call a stale or undefined resolver,
+      // causing the generator to hang on a promise that never resolves.
+      let { promise: notifyPromise, resolve: notifyResolve } = Promise.withResolvers<void>();
+      const notify = () => {
+        notifyResolve();
+        ({ promise: notifyPromise, resolve: notifyResolve } = Promise.withResolvers<void>());
+      };
 
       const unsub = this.subGraph.subscribeToTaskStreaming({
         onStreamChunk: (taskId, event) => {
           if (endingNodeIds.has(taskId) && event.type !== "finish") {
             eventQueue.push(event as StreamEvent<Output>);
-            resolveWaiting?.();
+            notify();
           }
         },
       });
@@ -250,16 +258,14 @@ export class GraphAsTask<
         .run<Output>(input, { parentSignal: context.signal, accumulateLeafOutputs: false })
         .then((results) => {
           subgraphDone = true;
-          resolveWaiting?.();
+          notify();
           return results;
         });
 
       // Yield events as they arrive from ending nodes
       while (!subgraphDone) {
         if (eventQueue.length === 0) {
-          await new Promise<void>((resolve) => {
-            resolveWaiting = resolve;
-          });
+          await notifyPromise;
         }
         while (eventQueue.length > 0) {
           yield eventQueue.shift()!;
