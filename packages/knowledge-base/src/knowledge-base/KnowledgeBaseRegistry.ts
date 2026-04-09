@@ -117,11 +117,12 @@ export async function registerKnowledgeBase(
  * Removes from both the live Map and the persistent repository.
  */
 export async function deregisterKnowledgeBase(id: string): Promise<void> {
-  const kbs = getGlobalKnowledgeBases();
-  kbs.delete(id);
-
+  // Remove from persistent repository first so a failure doesn't leave stale in-memory state
   const repo = getGlobalKnowledgeBaseRepository();
   await repo.removeKnowledgeBase(id);
+
+  const kbs = getGlobalKnowledgeBases();
+  kbs.delete(id);
 }
 
 /**

@@ -58,7 +58,10 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
    * 0 means unlimited (default).
    */
   setMaxListeners(n: number): this {
-    this.maxListeners = n;
+    if (!Number.isFinite(n) || n < 0) {
+      throw new RangeError(`"n" must be a non-negative finite number. Got ${n}.`);
+    }
+    this.maxListeners = Math.trunc(n);
     this.warnedEvents.clear();
     return this;
   }
@@ -128,6 +131,9 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
     const index = listeners.findIndex((l) => l.listener === listener);
     if (index >= 0) {
       listeners.splice(index, 1);
+      if (this.maxListeners > 0 && listeners.length <= this.maxListeners) {
+        this.warnedEvents.delete(event);
+      }
     }
     return this;
   }
@@ -192,6 +198,12 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
       }
       // Remove once listeners we just called
       this.listeners[event] = listeners.filter((l) => !l.once);
+      if (
+        this.maxListeners > 0 &&
+        (this.listeners[event]?.length ?? 0) <= this.maxListeners
+      ) {
+        this.warnedEvents.delete(event);
+      }
       // Re-throw the first error after all listeners have been called
       if (errors.length > 0) {
         throw errors[0];

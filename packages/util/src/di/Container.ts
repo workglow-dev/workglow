@@ -83,19 +83,30 @@ export class Container {
    * Services implementing dispose(), Symbol.asyncDispose, or Symbol.dispose will be cleaned up.
    */
   async dispose(): Promise<void> {
-    for (const service of this.services.values()) {
-      if (service == null || typeof service !== "object") continue;
-      if (typeof service[Symbol.asyncDispose] === "function") {
-        await service[Symbol.asyncDispose]();
-      } else if (typeof service[Symbol.dispose] === "function") {
-        service[Symbol.dispose]();
-      } else if (typeof service.dispose === "function") {
-        await service.dispose();
+    const errors: unknown[] = [];
+    try {
+      for (const service of this.services.values()) {
+        if (service == null) continue;
+        try {
+          if (typeof service[Symbol.asyncDispose] === "function") {
+            await service[Symbol.asyncDispose]();
+          } else if (typeof service[Symbol.dispose] === "function") {
+            service[Symbol.dispose]();
+          } else if (typeof service.dispose === "function") {
+            await service.dispose();
+          }
+        } catch (err) {
+          errors.push(err);
+        }
       }
+    } finally {
+      this.services.clear();
+      this.factories.clear();
+      this.singletons.clear();
     }
-    this.services.clear();
-    this.factories.clear();
-    this.singletons.clear();
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "One or more services failed to dispose");
+    }
   }
 
   async [Symbol.asyncDispose](): Promise<void> {

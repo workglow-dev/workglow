@@ -243,9 +243,6 @@ export class WorkerManager {
    */
   async terminateWorker(name: string): Promise<void> {
     const worker = this.workers.get(name);
-    if (worker && "terminate" in worker && typeof worker.terminate === "function") {
-      await worker.terminate();
-    }
     this.workers.delete(name);
     this.readyWorkers.delete(name);
     this.workerFunctions.delete(name);
@@ -253,6 +250,13 @@ export class WorkerManager {
     this.workerReactiveFunctions.delete(name);
     this.lazyFactories.delete(name);
     this.lazyInitPromises.delete(name);
+    try {
+      if (worker && "terminate" in worker && typeof worker.terminate === "function") {
+        await worker.terminate();
+      }
+    } catch {
+      // Best-effort termination; state is already cleaned up above.
+    }
   }
 
   /**
