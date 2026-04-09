@@ -14,8 +14,8 @@ Simple library to build linear and graph based workflows. It is designed to be s
 
 ## Roadmap
 
-- [x] Release 0.1.0: Stable API for task graph, storage, and job queue.\* _31 March 2026_
-- [ ] Release 0.2.0: Stable API for task, stable text generation; beta: entitlements, toolcalling, and agent loops.\* _8 April 2026_
+- [x] Release 0.1.0: Stable API for task(input,config) graph, storage, and job queue.\* _31 March 2026_
+- [x] Release 0.2.0: Stable API for task(config), stable text generation; beta: entitlements, toolcalling, and agent loops.\* _9 April 2026_
 - [ ] Release 0.3.0: Stable toolcalling, agent loops, entitlments, user in the loop.
 - [ ] Release 0.4.0: Browser control (direct and mcp).
 - [ ] Release 0.5.0: Reworked output cache, checkpointing, and resumption.
