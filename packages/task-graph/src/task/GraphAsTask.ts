@@ -239,10 +239,22 @@ export class GraphAsTask<
       // Eager promise/resolver — always available for producers to signal.
       // Prevents a race where producers call a stale or undefined resolver,
       // causing the generator to hang on a promise that never resolves.
+      // `isWaiting` is true only while the generator is suspended at `await notifyPromise`.
+      // `hasPending` records a notification that arrived while the generator was active,
+      // so the generator skips the next wait without allocating a new promise.
       let { promise: notifyPromise, resolve: notifyResolve } = Promise.withResolvers<void>();
+      let isWaiting = false;
+      let hasPending = false;
       const notify = () => {
-        notifyResolve();
-        ({ promise: notifyPromise, resolve: notifyResolve } = Promise.withResolvers<void>());
+        if (isWaiting) {
+          // Wake the generator and prepare a fresh deferred for the next wait.
+          notifyResolve();
+          ({ promise: notifyPromise, resolve: notifyResolve } = Promise.withResolvers<void>());
+          isWaiting = false;
+        } else {
+          // Generator is still draining; skip the allocation.
+          hasPending = true;
+        }
       };
 
       const unsub = this.subGraph.subscribeToTaskStreaming({
@@ -256,16 +268,29 @@ export class GraphAsTask<
 
       const runPromise = this.subGraph
         .run<Output>(input, { parentSignal: context.signal, accumulateLeafOutputs: false })
-        .then((results) => {
-          subgraphDone = true;
-          notify();
-          return results;
-        });
+        .then(
+          (results) => {
+            subgraphDone = true;
+            notify();
+            return results;
+          },
+          (err) => {
+            subgraphDone = true;
+            notify();
+            throw err;
+          }
+        );
 
       // Yield events as they arrive from ending nodes
       while (!subgraphDone) {
         if (eventQueue.length === 0) {
-          await notifyPromise;
+          if (hasPending) {
+            // A notification arrived while we were active; consume it without blocking.
+            hasPending = false;
+          } else {
+            isWaiting = true;
+            await notifyPromise;
+          }
         }
         while (eventQueue.length > 0) {
           yield eventQueue.shift()!;
