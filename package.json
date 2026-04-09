@@ -2,6 +2,10 @@
   "name": "workglow",
   "type": "module",
   "version": "0.0.10",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workglow-dev/workglow.git"
+  },
   "description": "Workglow is a tool for building and running DAG pipelines.",
   "workspaces": [
     "./packages/*",

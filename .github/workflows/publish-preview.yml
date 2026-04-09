@@ -22,4 +22,4 @@ jobs:
           bun-version: latest
       - run: bun i
       - run: bun run build
-      - run: bunx pkg-pr-new publish --bun './packages/util' './packages/storage' './packages/job-queue' './packages/task-graph' './packages/knowledge-base' './packages/tasks' './packages/ai' './packages/ai-provider' './packages/workglow'
+      - run: bunx pkg-pr-new publish './packages/util' './packages/storage' './packages/job-queue' './packages/task-graph' './packages/knowledge-base' './packages/tasks' './packages/ai' './packages/ai-provider' './packages/workglow'

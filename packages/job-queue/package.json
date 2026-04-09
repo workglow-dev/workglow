@@ -3,6 +3,11 @@
   "type": "module",
   "sideEffects": false,
   "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workglow-dev/workglow.git",
+    "directory": "packages/job-queue"
+  },
   "description": "Job queue management for Workglow, handling task scheduling, execution, and distributed processing.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

@@ -3,6 +3,11 @@
   "type": "module",
   "sideEffects": false,
   "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workglow-dev/workglow.git",
+    "directory": "packages/ai-provider"
+  },
   "description": "AI provider integrations for Workglow, supporting OpenAI, Hugging Face Transformers, MediaPipe, and GGML models.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
