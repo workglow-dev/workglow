@@ -60,6 +60,7 @@ export class SharedInMemoryTabularStorage<
   private inMemoryRepo: InMemoryTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private isInitialized = false;
   private syncInProgress = false;
+  private pendingMessages: BroadcastMessage[] = [];
 
   /**
    * Creates a new SharedInMemoryTabularStorage instance
@@ -146,7 +147,8 @@ export class SharedInMemoryTabularStorage<
    */
   private async handleBroadcastMessage(message: BroadcastMessage): Promise<void> {
     if (this.syncInProgress && message.type !== "SYNC_RESPONSE") {
-      // Ignore messages during sync to avoid race conditions
+      // Queue messages during sync to replay after sync completes
+      this.pendingMessages.push(message);
       return;
     }
 
@@ -168,6 +170,7 @@ export class SharedInMemoryTabularStorage<
           await this.copyDataFromArray(message.data);
         }
         this.syncInProgress = false;
+        await this.drainPendingMessages();
         break;
 
       case "PUT":
@@ -198,6 +201,17 @@ export class SharedInMemoryTabularStorage<
   }
 
   /**
+   * Drains pending messages that were queued during sync
+   */
+  private async drainPendingMessages(): Promise<void> {
+    const messages = this.pendingMessages;
+    this.pendingMessages = [];
+    for (const message of messages) {
+      await this.handleBroadcastMessage(message);
+    }
+  }
+
+  /**
    * Requests synchronization from other tabs
    */
   private syncFromOtherTabs(): void {
@@ -207,8 +221,11 @@ export class SharedInMemoryTabularStorage<
     this.channel.postMessage({ type: "SYNC_REQUEST" } as BroadcastMessage);
 
     // Set a timeout to stop waiting for sync response
-    setTimeout(() => {
-      this.syncInProgress = false;
+    setTimeout(async () => {
+      if (this.syncInProgress) {
+        this.syncInProgress = false;
+        await this.drainPendingMessages();
+      }
     }, 1000);
   }
 
@@ -251,7 +268,7 @@ export class SharedInMemoryTabularStorage<
    */
   public async put(value: InsertType): Promise<Entity> {
     const result = await this.inMemoryRepo.put(value);
-    this.broadcast({ type: "PUT", entity: value });
+    this.broadcast({ type: "PUT", entity: result });
     return result;
   }
 
@@ -263,7 +280,7 @@ export class SharedInMemoryTabularStorage<
    */
   public async putBulk(values: InsertType[]): Promise<Entity[]> {
     const result = await this.inMemoryRepo.putBulk(values);
-    this.broadcast({ type: "PUT_BULK", entities: values });
+    this.broadcast({ type: "PUT_BULK", entities: result });
     return result;
   }
 
