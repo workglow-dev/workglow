@@ -5,8 +5,8 @@
  */
 
 import { Task, TaskRegistry } from "@workglow/task-graph";
-import { afterEach, describe, expect, it } from "vitest";
 import { DataPortSchema } from "@workglow/util/schema";
+import { afterEach, describe, expect, it } from "vitest";
 
 // Minimal task classes used only for TaskRegistry registration tests
 
@@ -18,9 +18,6 @@ class TaskA extends Task {
   static override outputSchema(): DataPortSchema {
     return { type: "object", properties: {}, additionalProperties: false } as const;
   }
-  async run() {
-    return {};
-  }
 }
 
 class TaskB extends Task {
@@ -30,9 +27,6 @@ class TaskB extends Task {
   }
   static override outputSchema(): DataPortSchema {
     return { type: "object", properties: {}, additionalProperties: false } as const;
-  }
-  async run() {
-    return {};
   }
 }
 
