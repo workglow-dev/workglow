@@ -196,7 +196,6 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   const stream = client.messages.stream(params, { signal });
 
   const blockMeta = new Map<number, { type: string; id?: string; name?: string; json: string }>();
-  let accumulatedText = "";
   /** Keyed by Anthropic content block index — avoids collisions when `id` is missing during early deltas. */
   const toolCallsByBlockIndex = new Map<number, ToolCall>();
 
@@ -267,5 +266,5 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
     }
   }
 
-  yield { type: "finish", data: {} as ToolCallingTaskOutput };
+  yield { type: "finish", data: { text: "", toolCalls: [] } as ToolCallingTaskOutput };
 };

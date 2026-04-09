@@ -330,11 +330,19 @@ export class AgentTask extends Task<AgentTaskInput, AgentTaskOutput, AgentTaskCo
         if (event.type === "text-delta") {
           yield { type: "text-delta", port: "text", textDelta: event.textDelta };
           iterationText += event.textDelta;
+        } else if (event.type === "object-delta" && event.port === "toolCalls") {
+          // Upsert streamed tool call deltas by id
+          const items = event.objectDelta as ToolCalls;
+          for (const item of items) {
+            const idx = toolCalls.findIndex((tc) => tc.id === item.id);
+            if (idx >= 0) toolCalls[idx] = item;
+            else toolCalls.push(item);
+          }
         } else if (event.type === "finish") {
           const data = event.data as Record<string, unknown> | undefined;
           iterationText = (data?.text as string) ?? iterationText;
-          if (data?.toolCalls) {
-            toolCalls = (data.toolCalls as ToolCalls) ?? [];
+          if (data?.toolCalls && (data.toolCalls as ToolCalls).length > 0) {
+            toolCalls = data.toolCalls as ToolCalls;
           }
         }
       }

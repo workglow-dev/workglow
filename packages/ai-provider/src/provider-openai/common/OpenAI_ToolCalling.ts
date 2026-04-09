@@ -167,5 +167,5 @@ export const OpenAI_ToolCalling_Stream: AiProviderStreamFn<
     }
   }
 
-  yield { type: "finish", data: {} as ToolCallingTaskOutput };
+  yield { type: "finish", data: { text: "", toolCalls: [] } as ToolCallingTaskOutput };
 };
