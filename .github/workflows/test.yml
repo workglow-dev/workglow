@@ -5,6 +5,8 @@ permissions:
 
 on:
   push:
+    branches: [main]
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
@@ -404,6 +406,7 @@ jobs:
           path: coverage
           retention-days: 1
       - name: Report Coverage
+        if: github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@v2
       - name: Delete Vitest coverage fragments
         if: always()
