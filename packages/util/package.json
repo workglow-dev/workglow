@@ -2,6 +2,11 @@
   "name": "@workglow/util",
   "type": "module",
   "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workglow-dev/workglow.git",
+    "directory": "packages/util"
+  },
   "description": "Utility functions and shared types for Workglow, providing common functionality across all packages.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",

@@ -507,14 +507,6 @@ export class TaskRunner<
       this.handleAbort();
     });
 
-    // If a parent signal is provided (e.g. set by context.own()), link it so
-    // that aborting the parent also aborts this task.
-    if (config.signal?.aborted) {
-      this.abortController.abort();
-    } else if (config.signal) {
-      config.signal.addEventListener("abort", () => this.abortController!.abort(), { once: true });
-    }
-
     const cache = config.outputCache ?? this.task.runConfig?.outputCache;
     if (cache === true) {
       let instance = globalServiceRegistry.get(TASK_OUTPUT_REPOSITORY);
@@ -528,6 +520,28 @@ export class TaskRunner<
     // shouldAccumulate defaults to true (backward-compatible for standalone runs)
     this.shouldAccumulate = config.shouldAccumulate !== false;
 
+    if (config.updateProgress) {
+      this.updateProgress = config.updateProgress;
+    }
+
+    if (config.registry) {
+      this.registry = config.registry;
+    }
+
+    // If a parent signal is provided (e.g. set by context.own()), link it so
+    // that aborting the parent also aborts this task.
+    // Listen first, then check — addEventListener on an already-aborted signal
+    // does not fire, so checking .aborted after ensures we never miss an abort.
+    if (config.signal) {
+      const onAbort = () => this.abortController!.abort();
+      config.signal.addEventListener("abort", onAbort, { once: true });
+      if (config.signal.aborted) {
+        config.signal.removeEventListener("abort", onAbort);
+        this.abortController.abort();
+        return;
+      }
+    }
+
     // Start timeout timer if configured (timeout is a design-time config property)
     const timeout = (this.task.config as Record<string, unknown>).timeout as number | undefined;
     if (timeout !== undefined && timeout > 0) {
@@ -535,14 +549,6 @@ export class TaskRunner<
       this.timeoutTimer = setTimeout(() => {
         this.abort();
       }, timeout);
-    }
-
-    if (config.updateProgress) {
-      this.updateProgress = config.updateProgress;
-    }
-
-    if (config.registry) {
-      this.registry = config.registry;
     }
 
     // Start telemetry span

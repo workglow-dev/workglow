@@ -157,6 +157,54 @@ describe("EventEmitter", () => {
     });
   });
 
+  describe("error handling", () => {
+    it("should throw a single listener error directly", () => {
+      const error = new Error("listener failed");
+      emitter.on("test", () => {
+        throw error;
+      });
+
+      expect(() => emitter.emit("test", "hello")).toThrow(error);
+    });
+
+    it("should throw AggregateError when multiple listeners throw", () => {
+      const error1 = new Error("first");
+      const error2 = new Error("second");
+      emitter.on("test", () => {
+        throw error1;
+      });
+      emitter.on("test", () => {
+        throw error2;
+      });
+
+      try {
+        emitter.emit("test", "hello");
+        expect.unreachable("should have thrown");
+      } catch (e) {
+        expect(e).toBeInstanceOf(AggregateError);
+        const agg = e as AggregateError;
+        expect(agg.errors).toHaveLength(2);
+        expect(agg.errors[0]).toBe(error1);
+        expect(agg.errors[1]).toBe(error2);
+        expect(agg.message).toContain("2 listener(s) threw");
+      }
+    });
+
+    it("should call all listeners even when earlier ones throw", () => {
+      const listener1 = mock(() => {
+        throw new Error("fail");
+      });
+      const listener2 = mock((_value: string) => {});
+
+      emitter.on("test", listener1);
+      emitter.on("test", listener2);
+
+      expect(() => emitter.emit("test", "hello")).toThrow();
+      expect(listener1).toHaveBeenCalledTimes(1);
+      expect(listener2).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("emitted", () => {
     it("should return a promise that resolves when the event is emitted with an array containing the argument", async () => {
       const promise = emitter.waitOn("test");

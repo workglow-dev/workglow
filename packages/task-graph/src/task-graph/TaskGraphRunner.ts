@@ -1013,17 +1013,18 @@ export class TaskGraphRunner {
       }, config.timeout);
     }
 
-    if (config?.parentSignal?.aborted) {
-      this.abortController.abort(); // Immediately abort if the parent is already aborted
-      return;
-    } else {
-      config?.parentSignal?.addEventListener(
-        "abort",
-        () => {
-          this.abortController?.abort();
-        },
-        { once: true }
-      );
+    // Listen first, then check — addEventListener on an already-aborted signal
+    // does not fire, so checking .aborted after ensures we never miss an abort.
+    if (config?.parentSignal) {
+      const onParentAbort = () => {
+        this.abortController?.abort();
+      };
+      config.parentSignal.addEventListener("abort", onParentAbort, { once: true });
+      if (config.parentSignal.aborted) {
+        config.parentSignal.removeEventListener("abort", onParentAbort);
+        this.abortController.abort();
+        return;
+      }
     }
 
     this.runId = uuid4();
