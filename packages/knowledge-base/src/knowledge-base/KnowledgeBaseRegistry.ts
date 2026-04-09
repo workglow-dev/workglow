@@ -151,6 +151,19 @@ export function unregisterKnowledgeBase(id: string): Promise<void> {
 }
 
 /**
+ * Deregisters a knowledge base by ID.
+ * Removes from both the live Map and the persistent repository.
+ */
+export async function deregisterKnowledgeBase(id: string): Promise<void> {
+  // Remove from persistent repository first so a failure doesn't leave stale in-memory state
+  const repo = getGlobalKnowledgeBaseRepository();
+  await repo.removeKnowledgeBase(id);
+
+  const kbs = getGlobalKnowledgeBases();
+  kbs.delete(id);
+}
+
+/**
  * Gets a knowledge base by ID from the global registry
  */
 export function getKnowledgeBase(id: string): KnowledgeBase | undefined {

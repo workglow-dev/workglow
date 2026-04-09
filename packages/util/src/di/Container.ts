@@ -104,6 +104,41 @@ export class Container {
   }
 
   /**
+   * Dispose all instantiated singleton services and clear registrations.
+   * Services implementing dispose(), Symbol.asyncDispose, or Symbol.dispose will be cleaned up.
+   */
+  async dispose(): Promise<void> {
+    const errors: unknown[] = [];
+    try {
+      for (const service of this.services.values()) {
+        if (service == null) continue;
+        try {
+          if (typeof service[Symbol.asyncDispose] === "function") {
+            await service[Symbol.asyncDispose]();
+          } else if (typeof service[Symbol.dispose] === "function") {
+            service[Symbol.dispose]();
+          } else if (typeof service.dispose === "function") {
+            await service.dispose();
+          }
+        } catch (err) {
+          errors.push(err);
+        }
+      }
+    } finally {
+      this.services.clear();
+      this.factories.clear();
+      this.singletons.clear();
+    }
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "One or more services failed to dispose");
+    }
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.dispose();
+  }
+
+  /**
    * Create a child container that inherits registrations from the parent
    * @returns A new child container
    */

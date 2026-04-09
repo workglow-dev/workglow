@@ -50,6 +50,37 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
   private listeners: {
     [Event in keyof EventListenerTypes]?: EventListeners<EventListenerTypes, Event>;
   } = {};
+  private maxListeners: number = 0;
+  private warnedEvents = new Set<keyof EventListenerTypes>();
+
+  /**
+   * Set the maximum number of listeners per event before a warning is emitted.
+   * 0 means unlimited (default).
+   */
+  setMaxListeners(n: number): this {
+    if (!Number.isFinite(n) || n < 0) {
+      throw new RangeError(`"n" must be a non-negative finite number. Got ${n}.`);
+    }
+    this.maxListeners = Math.trunc(n);
+    this.warnedEvents.clear();
+    return this;
+  }
+
+  /**
+   * Get the number of listeners for a specific event
+   */
+  listenerCount<Event extends keyof EventListenerTypes>(event: Event): number {
+    return this.listeners[event]?.length ?? 0;
+  }
+
+  /**
+   * Get all event names that have registered listeners
+   */
+  eventNames(): Array<keyof EventListenerTypes> {
+    return (Object.keys(this.listeners) as Array<keyof EventListenerTypes>).filter(
+      (k) => (this.listeners[k]?.length ?? 0) > 0
+    );
+  }
 
   /**
    * Remove all listeners for a specific event or all events
@@ -59,8 +90,10 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
   removeAllListeners<Event extends keyof EventListenerTypes>(event?: Event): this {
     if (event) {
       delete this.listeners[event];
+      this.warnedEvents.delete(event);
     } else {
       this.listeners = {};
+      this.warnedEvents.clear();
     }
     return this;
   }
@@ -78,6 +111,7 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
     const listeners: EventListeners<EventListenerTypes, Event> =
       this.listeners[event] || (this.listeners[event] = []);
     listeners.push({ listener });
+    this.checkMaxListeners(event, listeners.length);
     return this;
   }
 
@@ -97,6 +131,9 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
     const index = listeners.findIndex((l) => l.listener === listener);
     if (index >= 0) {
       listeners.splice(index, 1);
+      if (this.maxListeners > 0 && listeners.length <= this.maxListeners) {
+        this.warnedEvents.delete(event);
+      }
     }
     return this;
   }
@@ -114,6 +151,7 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
     const listeners: EventListeners<EventListenerTypes, Event> =
       this.listeners[event] || (this.listeners[event] = []);
     listeners.push({ listener, once: true });
+    this.checkMaxListeners(event, listeners.length);
     return this;
   }
 
@@ -160,16 +198,35 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
       }
       // Remove once listeners we just called
       this.listeners[event] = listeners.filter((l) => !l.once);
-      // Re-throw error(s) after all listeners have been called
-      if (errors.length === 1) {
-        throw errors[0];
+      if (
+        this.maxListeners > 0 &&
+        (this.listeners[event]?.length ?? 0) <= this.maxListeners
+      ) {
+        this.warnedEvents.delete(event);
       }
+      // Re-throw errors after all listeners have been called
       if (errors.length > 1) {
         throw new AggregateError(
           errors,
           `${errors.length} listener(s) threw on "${String(event)}"`
         );
+      } else if (errors.length === 1) {
+        throw errors[0];
       }
+    }
+  }
+
+  private checkMaxListeners<Event extends keyof EventListenerTypes>(
+    event: Event,
+    count: number
+  ): void {
+    if (this.maxListeners > 0 && count > this.maxListeners && !this.warnedEvents.has(event)) {
+      this.warnedEvents.add(event);
+      console.warn(
+        `MaxListenersExceededWarning: Possible EventEmitter memory leak detected. ` +
+          `${count} listeners added for event "${String(event)}". ` +
+          `Use setMaxListeners() to increase limit (current: ${this.maxListeners}).`
+      );
     }
   }
 
