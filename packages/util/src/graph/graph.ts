@@ -436,6 +436,11 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
           }
         }
       }
+      // Normalize empty edge arrays to null to maintain the invariant that adjacency
+      // cells are either null or a non-empty array.
+      if (this.adjacency[node1Index][node2Index]?.length === 0) {
+        this.adjacency[node1Index][node2Index] = null;
+      }
     }
     this.emit("edge-removed", edgeIdentity as EdgeId);
   }

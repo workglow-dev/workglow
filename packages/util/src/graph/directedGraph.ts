@@ -52,7 +52,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
 
       const nodeIndex = this.getNodeIndex(cur[0]);
       this.adjacency[nodeIndex].forEach((hasAdj, index) => {
-        if (hasAdj !== null) {
+        if (hasAdj !== null && hasAdj.length > 0) {
           const edgeCount = hasAdj.length;
           const currentInDegree = nodeInDegrees.get(nodeIndices[index]);
           if (currentInDegree !== undefined) {

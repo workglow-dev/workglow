@@ -130,7 +130,7 @@ export class DirectedAcyclicGraph<
       toReturn.push(curNode);
 
       adjCopy[this.getNodeIndex(n[0])]?.forEach((edge, index) => {
-        if (edge !== null) {
+        if (edge !== null && edge.length > 0) {
           const edgeCount = edge.length;
           adjCopy[this.getNodeIndex(n[0])][index] = null;
           const target = nodeInDegrees.get(nodeIndices[index]);
