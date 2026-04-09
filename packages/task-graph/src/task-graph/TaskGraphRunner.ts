@@ -1016,14 +1016,12 @@ export class TaskGraphRunner {
     // Listen first, then check — addEventListener on an already-aborted signal
     // does not fire, so checking .aborted after ensures we never miss an abort.
     if (config?.parentSignal) {
-      config.parentSignal.addEventListener(
-        "abort",
-        () => {
-          this.abortController?.abort();
-        },
-        { once: true }
-      );
+      const onParentAbort = () => {
+        this.abortController?.abort();
+      };
+      config.parentSignal.addEventListener("abort", onParentAbort, { once: true });
       if (config.parentSignal.aborted) {
+        config.parentSignal.removeEventListener("abort", onParentAbort);
         this.abortController.abort();
         return;
       }
