@@ -15,10 +15,10 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util/schema";
+import { DataPortSchema, DataPortSchemaObject } from "@workglow/util/schema";
 import { getMcpServerConfig } from "../../mcp-server/getMcpServerConfig";
-import { getMcpServerTransport } from "../../util/getMcpServerTransport";
 import { TypeMcpServer } from "../../mcp-server/mcpServerReferenceObjectSchema";
+import { getMcpServerTransport } from "../../util/getMcpServerTransport";
 import type { McpServerConfig } from "../../util/McpTaskDeps";
 import { getMcpTaskDeps } from "../../util/McpTaskDeps";
 import type { McpListTaskInput } from "./McpListTask";
@@ -249,17 +249,13 @@ export class McpToolCallTask extends Task<
           list_type: "tools",
         } as McpListTaskInput);
 
-        const tool = result.tools?.find((t) => t.name === this.config.tool_name);
-        if (tool) {
-          if (!this.config.inputSchema) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this.config as any).inputSchema = tool.inputSchema;
-          }
-          if (!this.config.outputSchema && tool.outputSchema) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this.config as any).outputSchema = tool.outputSchema;
-          }
-          this.emitSchemaChange();
+      const tool = result.tools?.find((t) => t.name === this.config.tool_name);
+      if (tool) {
+        if (!this.config.inputSchema) {
+          this.config.inputSchema = tool.inputSchema as DataPortSchemaObject;
+        }
+        if (!this.config.outputSchema && tool.outputSchema) {
+          this.config.outputSchema = tool.outputSchema as DataPortSchemaObject;
         }
       } finally {
         this._schemasDiscoveringPromise = undefined;
