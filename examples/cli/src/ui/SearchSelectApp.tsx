@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { Box, Text, useInput, useStdout } from "ink";
+import { Box, Text, useInput, useWindowSize } from "ink";
 import { TextInput, Spinner } from "@inkjs/ui";
 
 export interface SearchSelectItem {
@@ -41,8 +41,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
   renderItem,
   debounceMs = 300,
 }: SearchSelectAppProps<T>): React.ReactElement {
-  const { stdout } = useStdout();
-  const terminalRows = stdout?.rows ?? 24;
+  const { rows: terminalRows } = useWindowSize();
   // Each item takes ~2 rows (label + description), so divide available space
   const maxVisibleItems = Math.max(3, Math.floor((terminalRows - CHROME_ROWS) / 2));
   const [items, setItems] = useState<T[]>([]);
@@ -171,7 +170,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
         <Text bold={isFocused}>{item.label}</Text>
       </Box>
       {item.description && (
-        <Box marginLeft={4}>
+        <Box marginLeft={4} maxWidth={80}>
           <Text dimColor>{item.description}</Text>
         </Box>
       )}
