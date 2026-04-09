@@ -420,26 +420,21 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
     if (edgeIdentity === undefined) {
       this.adjacency[node1Index][node2Index] = null;
     } else {
-      // Remove the corresponding column from the adjacency matrix
-      // this is not an optimized way to do this but we have edge as an opaque type
-      for (const row of this.adjacency) {
-        for (const edgelist of row) {
-          if (edgelist !== null) {
-            for (let edgeIndex = 0; edgeIndex < edgelist.length; edgeIndex++) {
-              if (
-                this.edgeIdentity(edgelist[edgeIndex], node1Identity, node2Identity) ===
-                edgeIdentity
-              ) {
-                edgelist.splice(edgeIndex, 1);
-              }
-            }
+      // Remove the specific edge matching edgeIdentity from this node pair
+      const edgeList = this.adjacency[node1Index][node2Index];
+      if (edgeList !== null) {
+        for (let edgeIndex = 0; edgeIndex < edgeList.length; edgeIndex++) {
+          if (
+            this.edgeIdentity(edgeList[edgeIndex], node1Identity, node2Identity) ===
+            edgeIdentity
+          ) {
+            edgeList.splice(edgeIndex, 1);
+            break;
           }
         }
-      }
-      // Normalize empty edge arrays to null to maintain the invariant that adjacency
-      // cells are either null or a non-empty array.
-      if (this.adjacency[node1Index][node2Index]?.length === 0) {
-        this.adjacency[node1Index][node2Index] = null;
+        if (edgeList.length === 0) {
+          this.adjacency[node1Index][node2Index] = null;
+        }
       }
     }
     this.emit("edge-removed", edgeIdentity as EdgeId);

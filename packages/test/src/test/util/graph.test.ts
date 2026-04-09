@@ -324,6 +324,46 @@ describe("Graph", () => {
     expect((graph as any).adjacency[1][2]).toBeFalsy();
   });
 
+  it("can remove a specific edge by identity", () => {
+    interface NodeType {
+      a: number;
+      b: string;
+    }
+    interface EdgeType {
+      c: string;
+    }
+    const graph = new Graph<NodeType, EdgeType>((n: NodeType) => n.a.toFixed(2), edgeIdentity);
+
+    graph.insert({ a: 1, b: "b" });
+    graph.insert({ a: 2, b: "b" });
+
+    const id1 = graph.addEdge("1.00", "2.00", { c: "c1" });
+    const id2 = graph.addEdge("1.00", "2.00", { c: "c2" });
+    const id3 = graph.addEdge("1.00", "2.00", { c: "c3" });
+
+    expect(graph.getEdges().length).toBe(3);
+    const edgeIds = () => graph.getEdges().map(([n1, n2, e]) => edgeIdentity(e, n1, n2));
+    expect(edgeIds().sort()).toEqual([id1, id2, id3].sort());
+
+    // Remove the middle edge by identity
+    graph.removeEdge("1.00", "2.00", id2);
+    expect(graph.getEdges().length).toBe(2);
+    expect(edgeIds().sort()).toEqual([id1, id3].sort());
+    expect((graph as any).adjacency[0][1]).toBeTruthy();
+
+    // Remove another edge by identity
+    graph.removeEdge("1.00", "2.00", id1);
+    expect(graph.getEdges().length).toBe(1);
+    expect(edgeIds()).toEqual([id3]);
+    expect((graph as any).adjacency[0][1]).toBeTruthy();
+
+    // Remove the last edge — cell should become null
+    graph.removeEdge("1.00", "2.00", id3);
+    expect(graph.getEdges().length).toBe(0);
+    expect(edgeIds()).toEqual([]);
+    expect((graph as any).adjacency[0][1]).toBeFalsy();
+  });
+
   it("can return the nodes", () => {
     interface NodeType {
       a: number;
