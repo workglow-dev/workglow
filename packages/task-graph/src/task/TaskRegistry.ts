@@ -25,17 +25,32 @@ const taskConstructors = new Map<string, AnyTaskConstructor>();
 /**
  * Registers a task constructor with the registry.
  * This allows the task type to be instantiated dynamically based on its type identifier.
+ * Re-registering the exact same class is idempotent and does nothing.
  *
- * @param type - The unique identifier for the task type
- * @param constructor - The constructor function for the task
- * @throws Error if a task with the same type is already registered
+ * @param baseClass - The constructor function for the task to register
+ * @throws Error if a different constructor is already registered for the same task type.
+ *   Call {@link unregisterTask} first to replace an existing registration.
  */
 function registerTask(baseClass: AnyTaskConstructor): void {
-  if (taskConstructors.has(baseClass.type)) {
-    // TODO: fix this
-    // throw new Error(`Task type ${baseClass.type} is already registered`);
+  const existing = taskConstructors.get(baseClass.type);
+  if (existing) {
+    if (existing === baseClass) return; // same class, idempotent
+    throw new Error(
+      `Task type "${baseClass.type}" is already registered. Unregister it first to replace.`
+    );
   }
   taskConstructors.set(baseClass.type, baseClass);
+}
+
+/**
+ * Removes a task constructor from the registry.
+ * Must be called before re-registering a task type with a different constructor.
+ *
+ * @param type - The task type identifier to remove
+ * @returns true if the task type was found and removed, false otherwise
+ */
+function unregisterTask(type: string): boolean {
+  return taskConstructors.delete(type);
 }
 
 /**
@@ -52,6 +67,11 @@ export const TaskRegistry = {
    * Function to register new task types
    */
   registerTask,
+
+  /**
+   * Function to remove a registered task type
+   */
+  unregisterTask,
 };
 
 // ========================================================================

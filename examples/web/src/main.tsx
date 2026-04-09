@@ -21,7 +21,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 installDevToolsFormatters();
 const tasks = [...registerBaseTasks()];
-[Workflow, ...registerBaseTasks(), ...registerCommonTasks(), ...registerAiTasks()].forEach(
+[Workflow, ...tasks, ...registerCommonTasks(), ...registerAiTasks()].forEach(
   (item) => {
     (window as any)[item.name] = item;
   }
