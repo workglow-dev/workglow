@@ -77,8 +77,33 @@ export interface RegisterKnowledgeBaseOptions {
 }
 
 /**
+ * Per-ID promise chain that serializes register/unregister operations
+ * on the same knowledge base ID, preventing Map/repo divergence
+ * during async interleaving.
+ */
+const pendingOps = new Map<string, Promise<void>>();
+
+/**
+ * Enqueues an async operation for the given ID so that concurrent
+ * calls on the same ID execute sequentially.
+ */
+function withIdLock(id: string, fn: () => Promise<void>): Promise<void> {
+  const prev = pendingOps.get(id) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  pendingOps.set(id, next);
+  const cleanup = () => {
+    if (pendingOps.get(id) === next) {
+      pendingOps.delete(id);
+    }
+  };
+  next.then(cleanup, cleanup);
+  return next;
+}
+
+/**
  * Registers a knowledge base globally by ID.
  * Adds to both the live Map and the persistent repository.
+ * Serialized per-ID to prevent Map/repo divergence on concurrent calls.
  */
 
 export async function registerKnowledgeBase(
@@ -86,30 +111,47 @@ export async function registerKnowledgeBase(
   kb: KnowledgeBase,
   options?: RegisterKnowledgeBaseOptions
 ): Promise<void> {
-  const kbs = getGlobalKnowledgeBases();
+  return withIdLock(id, async () => {
+    const kbs = getGlobalKnowledgeBases();
 
-  const now = new Date().toISOString();
-  const useShared = options?.sharedTables === true;
-  const tableNames = useShared
-    ? { documentTable: SHARED_DOCUMENT_TABLE, chunkTable: SHARED_CHUNK_TABLE }
-    : knowledgeBaseTableNames(id);
-  const record: KnowledgeBaseRecord = {
-    kb_id: id,
-    title: kb.title,
-    description: kb.description,
-    vector_dimensions: kb.getVectorDimensions(),
-    document_table: tableNames.documentTable,
-    chunk_table: tableNames.chunkTable,
-    created_at: now,
-    updated_at: now,
-  };
+    const now = new Date().toISOString();
+    const useShared = options?.sharedTables === true;
+    const tableNames = useShared
+      ? { documentTable: SHARED_DOCUMENT_TABLE, chunkTable: SHARED_CHUNK_TABLE }
+      : knowledgeBaseTableNames(id);
+    const record: KnowledgeBaseRecord = {
+      kb_id: id,
+      title: kb.title,
+      description: kb.description,
+      vector_dimensions: kb.getVectorDimensions(),
+      document_table: tableNames.documentTable,
+      chunk_table: tableNames.chunkTable,
+      created_at: now,
+      updated_at: now,
+    };
 
-  // Write to persistent repository first so a failure doesn't leave stale in-memory state
-  const repo = getGlobalKnowledgeBaseRepository();
-  await repo.addKnowledgeBase(record);
+    // Write to persistent repository first so a failure doesn't leave stale in-memory state
+    const repo = getGlobalKnowledgeBaseRepository();
+    await repo.addKnowledgeBase(record);
 
-  // Only add to live map after successful persistence
-  kbs.set(id, kb);
+    // Only add to live map after successful persistence
+    kbs.set(id, kb);
+  });
+}
+
+/**
+ * Unregisters a knowledge base by ID.
+ * Removes from both the persistent repository and the live Map.
+ * Serialized per-ID to prevent Map/repo divergence on concurrent calls.
+ */
+export async function unregisterKnowledgeBase(id: string): Promise<void> {
+  return withIdLock(id, async () => {
+    const repo = getGlobalKnowledgeBaseRepository();
+    await repo.removeKnowledgeBase(id);
+
+    const kbs = getGlobalKnowledgeBases();
+    kbs.delete(id);
+  });
 }
 
 /**
