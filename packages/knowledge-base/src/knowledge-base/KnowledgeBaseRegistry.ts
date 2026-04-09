@@ -96,7 +96,7 @@ function withIdLock(id: string, fn: () => Promise<void>): Promise<void> {
       pendingOps.delete(id);
     }
   };
-  next.then(cleanup, cleanup);
+  next.finally(cleanup);
   return next;
 }
 
@@ -106,7 +106,7 @@ function withIdLock(id: string, fn: () => Promise<void>): Promise<void> {
  * Serialized per-ID to prevent Map/repo divergence on concurrent calls.
  */
 
-export async function registerKnowledgeBase(
+export function registerKnowledgeBase(
   id: string,
   kb: KnowledgeBase,
   options?: RegisterKnowledgeBaseOptions
@@ -144,7 +144,7 @@ export async function registerKnowledgeBase(
  * Removes from both the persistent repository and the live Map.
  * Serialized per-ID to prevent Map/repo divergence on concurrent calls.
  */
-export async function unregisterKnowledgeBase(id: string): Promise<void> {
+export function unregisterKnowledgeBase(id: string): Promise<void> {
   return withIdLock(id, async () => {
     const repo = getGlobalKnowledgeBaseRepository();
     await repo.removeKnowledgeBase(id);
