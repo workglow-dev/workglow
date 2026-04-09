@@ -17,7 +17,8 @@
         "src/**/*.tsx",
         "src/**/*.json",
         "tsconfig.json",
-        "package.json"
+        "package.json",
+        "build*.ts"
       ],
       "outputs": [
         "dist/**/*.js",
@@ -36,7 +37,9 @@
         "src/**/*.ts",
         "src/**/*.tsx",
         "src/**/*.json",
-        "package.json"
+        "tsconfig.json",
+        "package.json",
+        "build*.ts"
       ],
       "outputs": [
         "dist/**/*.js",
@@ -74,6 +77,8 @@
         "src/**/*.json",
         "src/**/*.html",
         "src/**/*.css",
+        "index.html",
+        "vite.config.*",
         "tsconfig.json",
         "package.json"
       ],
