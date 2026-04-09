@@ -149,13 +149,14 @@ When defining task input schemas, you can use `format` annotations to enable aut
 
 The system supports several format annotations out of the box:
 
-| Format                         | Description                         | Helper Function               |
-| ------------------------------ | ----------------------------------- | ----------------------------- |
-| `model`                        | Any AI model configuration          | `TypeModel()`                 |
-| `model:TaskName`               | Model compatible with specific task | —                             |
-| `storage:tabular`              | Tabular data dataset                | `TypeTabularStorage()`        |
-| `dataset:document-node-vector` | Vector storage dataset              | `TypeChunkVectorRepository()` |
-| `dataset:document`             | Document dataset                    | `TypeDocumentRepository()`    |
+| Format                            | Description                         | Helper Function               |
+| --------------------------------- | ----------------------------------- | ----------------------------- |
+| `model`                           | Any AI model configuration          | `TypeModel()`                 |
+| `model:TaskName`                  | Model compatible with specific task | —                             |
+| `storage:tabular`                 | Tabular data storage                | `TypeTabularStorage()`        |
+| `knowledge-base`                  | Knowledge base instance             | `TypeKnowledgeBase()`         |
+| `credential`                      | Credential from credential store    | —                             |
+| `tasks`                           | Task class from task registry       | —                             |
 
 ### Example: Using Format Annotations
 
