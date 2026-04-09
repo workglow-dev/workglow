@@ -1,5 +1,34 @@
 # @workglow/knowledge-base
 
+## 0.1.3
+
+### Features
+
+- add lifecycle management across core infrastructure (#384)
+- add pkg-pr-new for preview package publishing (#379)
+
+#### knowledge-base
+
+- implement shared-table mode for knowledge bases
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+#### di
+
+- add reentrancy guard and atomic registerIfAbsent to Container (#387)
+
+#### knowledge-base
+
+- serialize concurrent registry operations per ID (#383)
+
+#### tests
+
+- update ScopedStorage tests for type safety
+
 ## 0.1.2
 
 ### Features

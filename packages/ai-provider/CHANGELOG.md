@@ -1,5 +1,32 @@
 # @workglow/ai-provider
 
+## 0.1.3
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+#### ai-provider
+
+- emit incremental tool call deltas instead of full a… (#392)
+
+### Refactors
+
+#### ai-provider
+
+- improve tool call handling in Anthropic_ToolCalling
+
+### Chores
+
+- format changes
+
 ## 0.1.2
 
 ## 0.1.1

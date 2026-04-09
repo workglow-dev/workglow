@@ -1,5 +1,44 @@
 # @workglow/storage
 
+## 0.1.3
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### knowledge-base
+
+- implement shared-table mode for knowledge bases
+
+#### cli
+
+- keyring (#367)
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+#### storage
+
+- queue BroadcastChannel messages during sync instead of … (#381)
+
+#### di
+
+- add reentrancy guard and atomic registerIfAbsent to Container (#387)
+
+#### tests
+
+- update ScopedStorage tests for type safety
+
+### Refactors
+
+#### storage
+
+- streamline package.json exports for SQLite and browser
+
 ## 0.1.2
 
 ### Features

@@ -1,5 +1,11 @@
 # workglow
 
+## 0.1.3
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+
 ## 0.1.2
 
 ## 0.1.1

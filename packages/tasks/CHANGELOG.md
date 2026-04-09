@@ -1,5 +1,35 @@
 # @workglow/tasks
 
+## 0.1.3
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### entitlements
+
+- add entitlement/permission system for tasks and workflows (#370)
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+#### mcp
+
+- replace boolean flag with promise to prevent TOCTOU race in… (#390)
+- enhance type safety for input and output schemas in McpToolCallTask
+
+#### di
+
+- add reentrancy guard and atomic registerIfAbsent to Container (#387)
+
+#### tests
+
+- update ScopedStorage tests for type safety
+
 ## 0.1.2
 
 ### Features

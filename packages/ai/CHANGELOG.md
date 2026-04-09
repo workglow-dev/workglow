@@ -1,5 +1,35 @@
 # @workglow/ai
 
+## 0.1.3
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### ai
+
+- add schema validation and duplicate prevention to ModelRepo… (#380)
+- ToolCallingTask and AgentTask
+
+#### knowledge-base
+
+- implement shared-table mode for knowledge bases
+
+#### entitlements
+
+- add entitlement/permission system for tasks and workflows (#370)
+
+### Bug Fixes
+
+#### ai-provider
+
+- emit incremental tool call deltas instead of full a… (#392)
+
+#### di
+
+- add reentrancy guard and atomic registerIfAbsent to Container (#387)
+
 ## 0.1.2
 
 ### Features
