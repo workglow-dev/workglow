@@ -342,20 +342,24 @@ describe("Graph", () => {
     const id3 = graph.addEdge("1.00", "2.00", { c: "c3" });
 
     expect(graph.getEdges().length).toBe(3);
+    expect(graph.getEdges().map(edgeIdentity).sort()).toEqual([id1, id2, id3].sort());
 
     // Remove the middle edge by identity
     graph.removeEdge("1.00", "2.00", id2);
     expect(graph.getEdges().length).toBe(2);
+    expect(graph.getEdges().map(edgeIdentity).sort()).toEqual([id1, id3].sort());
     expect((graph as any).adjacency[0][1]).toBeTruthy();
 
     // Remove another edge by identity
     graph.removeEdge("1.00", "2.00", id1);
     expect(graph.getEdges().length).toBe(1);
+    expect(graph.getEdges().map(edgeIdentity).sort()).toEqual([id3]);
     expect((graph as any).adjacency[0][1]).toBeTruthy();
 
     // Remove the last edge — cell should become null
     graph.removeEdge("1.00", "2.00", id3);
     expect(graph.getEdges().length).toBe(0);
+    expect(graph.getEdges().map(edgeIdentity)).toEqual([]);
     expect((graph as any).adjacency[0][1]).toBeFalsy();
   });
 
