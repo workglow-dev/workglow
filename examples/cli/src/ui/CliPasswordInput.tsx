@@ -57,7 +57,8 @@ function passwordReducer(
       };
     }
     case "delete": {
-      const newCursorOffset = Math.max(0, state.cursorOffset - 1);
+      if (state.cursorOffset === 0) return state;
+      const newCursorOffset = state.cursorOffset - 1;
       return {
         ...state,
         previousValue: state.value,

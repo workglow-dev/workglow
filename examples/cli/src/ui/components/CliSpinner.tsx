@@ -19,6 +19,7 @@ interface CliSpinnerProps {
 export function CliSpinner({ color, frameIndex }: CliSpinnerProps): React.ReactElement {
   const controlled = frameIndex !== undefined;
   const { frame } = useAnimation({ interval: 80, isActive: !controlled });
-  const i = (controlled ? frameIndex : frame) % CLI_SPINNER_FRAMES.length;
+  const activeFrame = frameIndex ?? frame;
+  const i = activeFrame % CLI_SPINNER_FRAMES.length;
   return <Text color={color}>{CLI_SPINNER_FRAMES[i]}</Text>;
 }
