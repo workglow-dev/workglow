@@ -338,7 +338,7 @@ export class ConditionalTask<
         }
       } catch (error) {
         // If condition throws, treat it as false (branch not taken)
-        getLogger().warn(`Condition evaluation failed for branch "${branch.id}":`, { error });
+        getLogger().error(`Condition evaluation failed for branch "${branch.id}":`, { error });
       }
     }
 

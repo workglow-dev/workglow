@@ -160,9 +160,15 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
       }
       // Remove once listeners we just called
       this.listeners[event] = listeners.filter((l) => !l.once);
-      // Re-throw the first error after all listeners have been called
-      if (errors.length > 0) {
+      // Re-throw error(s) after all listeners have been called
+      if (errors.length === 1) {
         throw errors[0];
+      }
+      if (errors.length > 1) {
+        throw new AggregateError(
+          errors,
+          `${errors.length} listener(s) threw on "${String(event)}"`
+        );
       }
     }
   }
