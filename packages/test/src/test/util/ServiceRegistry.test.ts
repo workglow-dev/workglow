@@ -48,6 +48,22 @@ describe("ServiceRegistry", () => {
     });
   });
 
+  describe("registerIfAbsent", () => {
+    it("should register when token is absent", () => {
+      const token = createServiceToken<{ value: string }>("absent");
+      registry.registerIfAbsent(token, () => ({ value: "first" }));
+      expect(registry.has(token)).toBe(true);
+      expect(registry.get(token).value).toBe("first");
+    });
+
+    it("should not overwrite an existing registration", () => {
+      const token = createServiceToken<{ value: string }>("existing");
+      registry.register(token, () => ({ value: "original" }));
+      registry.registerIfAbsent(token, () => ({ value: "duplicate" }));
+      expect(registry.get(token).value).toBe("original");
+    });
+  });
+
   describe("has", () => {
     it("should return false when service is not registered", () => {
       const token = createServiceToken<string>("missing");

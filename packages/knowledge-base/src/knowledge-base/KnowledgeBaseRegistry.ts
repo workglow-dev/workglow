@@ -33,22 +33,18 @@ export const KNOWLEDGE_BASE_REPOSITORY = createServiceToken<KnowledgeBaseReposit
 );
 
 // Register default factory for live KB map if not already registered
-if (!globalServiceRegistry.has(KNOWLEDGE_BASES)) {
-  globalServiceRegistry.register(
-    KNOWLEDGE_BASES,
-    (): Map<string, KnowledgeBase> => new Map(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  KNOWLEDGE_BASES,
+  (): Map<string, KnowledgeBase> => new Map(),
+  true
+);
 
 // Register default factory for KB repository if not already registered
-if (!globalServiceRegistry.has(KNOWLEDGE_BASE_REPOSITORY)) {
-  globalServiceRegistry.register(
-    KNOWLEDGE_BASE_REPOSITORY,
-    (): KnowledgeBaseRepository => new InMemoryKnowledgeBaseRepository(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  KNOWLEDGE_BASE_REPOSITORY,
+  (): KnowledgeBaseRepository => new InMemoryKnowledgeBaseRepository(),
+  true
+);
 
 /**
  * Gets the global knowledge base registry

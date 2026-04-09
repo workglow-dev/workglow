@@ -41,9 +41,7 @@ function createDefaultTelemetryProvider(): ITelemetryProvider {
 }
 
 // Register the default provider based on environment configuration.
-if (!globalServiceRegistry.has(TELEMETRY_PROVIDER)) {
-  globalServiceRegistry.register(TELEMETRY_PROVIDER, createDefaultTelemetryProvider, true);
-}
+globalServiceRegistry.registerIfAbsent(TELEMETRY_PROVIDER, createDefaultTelemetryProvider, true);
 
 /**
  * Returns the current global telemetry provider.
