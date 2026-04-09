@@ -204,15 +204,14 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
       ) {
         this.warnedEvents.delete(event);
       }
-      // Re-throw the first error after all listeners have been called
-      if (errors.length > 0) {
-        throw errors[0];
-      }
+      // Re-throw errors after all listeners have been called
       if (errors.length > 1) {
         throw new AggregateError(
           errors,
           `${errors.length} listener(s) threw on "${String(event)}"`
         );
+      } else if (errors.length === 1) {
+        throw errors[0];
       }
     }
   }
