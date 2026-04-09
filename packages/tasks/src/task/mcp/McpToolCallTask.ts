@@ -234,7 +234,7 @@ export class McpToolCallTask extends Task<
     return this.config?.outputSchema ?? fallbackOutputSchema;
   }
 
-  private _schemasDiscoveringPromise: Promise<void> | undefined = undefined;
+  private _schemasDiscoveringPromise: Promise<void> | undefined;
 
   async discoverSchemas(_signal?: AbortSignal, serverConfig?: McpServerConfig): Promise<void> {
     if (this.config.inputSchema && this.config.outputSchema) return;
@@ -249,13 +249,15 @@ export class McpToolCallTask extends Task<
           list_type: "tools",
         } as McpListTaskInput);
 
-      const tool = result.tools?.find((t) => t.name === this.config.tool_name);
-      if (tool) {
-        if (!this.config.inputSchema) {
-          this.config.inputSchema = tool.inputSchema as DataPortSchemaObject;
-        }
-        if (!this.config.outputSchema && tool.outputSchema) {
-          this.config.outputSchema = tool.outputSchema as DataPortSchemaObject;
+        const tool = result.tools?.find((t) => t.name === this.config.tool_name);
+        if (tool) {
+          if (!this.config.inputSchema) {
+            this.config.inputSchema = tool.inputSchema as DataPortSchemaObject;
+          }
+          if (!this.config.outputSchema && tool.outputSchema) {
+            this.config.outputSchema = tool.outputSchema as DataPortSchemaObject;
+          }
+          this.emitSchemaChange();
         }
       } finally {
         this._schemasDiscoveringPromise = undefined;

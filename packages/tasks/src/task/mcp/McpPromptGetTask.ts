@@ -238,7 +238,7 @@ export class McpPromptGetTask extends Task<
     return this.config?.outputSchema ?? fallbackOutputSchema;
   }
 
-  private _schemasDiscoveringPromise: Promise<void> | undefined = undefined;
+  private _schemasDiscoveringPromise: Promise<void> | undefined;
 
   async discoverSchemas(_signal?: AbortSignal, serverConfig?: McpServerConfig): Promise<void> {
     if (this.config.inputSchema) return;
