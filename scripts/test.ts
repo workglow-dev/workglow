@@ -42,14 +42,20 @@ const PROVIDER_HFT_FILES = [
   "HFT_ArrayInput",
   "HFT_Generic",
   "HFTransformersBinding",
+  "HFT_TextGenerationAbort",
   "DownloadModelAbort",
   "TextEmbeddingTask",
   "ZeroShotTasks",
   "VisionTasks",
-  "ToolCallingTask",
 ];
 
-const PROVIDER_LLAMACPP_FILES = ["LlamaCpp_Generic", "LlamaCppProviderIntegration"];
+const PROVIDER_LLAMACPP_FILES = [
+  "LlamaCpp_Generic",
+  "LlamaCppProviderIntegration",
+  "LlamaCpp_ChatWrapper",
+  "LlamaCppQueuedProviderIntegration",
+  "LlamaCpp_NativeToolCalling",
+];
 
 const SECTION_DIRS: Record<Section, string[]> = {
   graph: [
