@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import {
   createKnowledgeBase,
+  getGlobalKnowledgeBaseRepository,
   isSharedTableMode,
   registerKnowledgeBase,
-  getGlobalKnowledgeBaseRepository,
   ScopedTabularStorage,
   ScopedVectorStorage,
   SharedChunkIndexes,
@@ -19,11 +18,15 @@ import {
   SharedDocumentPrimaryKey,
   SharedDocumentStorageSchema,
 } from "@workglow/knowledge-base";
+import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { uuid4 } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 describe("ScopedTabularStorage", () => {
-  let sharedStorage: InstanceType<typeof InMemoryTabularStorage>;
+  let sharedStorage: InMemoryTabularStorage<
+    typeof SharedDocumentStorageSchema,
+    typeof SharedDocumentPrimaryKey
+  >;
   let scopeA: ScopedTabularStorage<any, any>;
   let scopeB: ScopedTabularStorage<any, any>;
 
@@ -244,7 +247,10 @@ describe("ScopedTabularStorage", () => {
 });
 
 describe("ScopedVectorStorage", () => {
-  let sharedStorage: InstanceType<typeof InMemoryVectorStorage>;
+  let sharedStorage: InMemoryVectorStorage<
+    typeof SharedChunkVectorStorageSchema,
+    typeof SharedChunkPrimaryKey
+  >;
   let scopeA: ScopedVectorStorage<any, any>;
   let scopeB: ScopedVectorStorage<any, any>;
 
@@ -261,7 +267,7 @@ describe("ScopedVectorStorage", () => {
   });
 
   afterEach(() => {
-    sharedStorage.destroy();
+    sharedStorage?.destroy?.();
   });
 
   test("getVectorDimensions delegates to inner", () => {

@@ -105,11 +105,7 @@ export function createPolicyEnforcer(
 
     async checkTask(task: ITask): Promise<readonly TaskEntitlement[]> {
       const entitlements = task.entitlements();
-      return resolveAsks(
-        entitlements,
-        (task.constructor as typeof Task).type,
-        task.id
-      );
+      return resolveAsks(entitlements, (task.constructor as typeof Task).type, task.id);
     },
   };
 }

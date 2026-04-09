@@ -32,8 +32,7 @@ export class ScopedTabularStorage<
   Entity = any,
   PrimaryKey = any,
   InsertType = any,
-> implements ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, InsertType>
-{
+> implements ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, InsertType> {
   protected readonly inner: AnyTabularStorage;
   protected readonly kbId: string;
   protected readonly events = new EventEmitter<TabularEventListeners<PrimaryKey, Entity>>();
@@ -104,10 +103,7 @@ export class ScopedTabularStorage<
     const pageSize = 1000;
     let offset = 0;
     while (true) {
-      const page = await this.inner.query(
-        { kb_id: this.kbId } as any,
-        { offset, limit: pageSize }
-      );
+      const page = await this.inner.query({ kb_id: this.kbId } as any, { offset, limit: pageSize });
       if (!page || page.length === 0) break;
       count += page.length;
       if (page.length < pageSize) break;

@@ -56,5 +56,7 @@ export function knowledgeBaseTableNames(kbId: string): {
  * Checks whether a KnowledgeBaseRecord uses shared-table mode.
  */
 export function isSharedTableMode(record: KnowledgeBaseRecord): boolean {
-  return record.document_table === SHARED_DOCUMENT_TABLE && record.chunk_table === SHARED_CHUNK_TABLE;
+  return (
+    record.document_table === SHARED_DOCUMENT_TABLE && record.chunk_table === SHARED_CHUNK_TABLE
+  );
 }

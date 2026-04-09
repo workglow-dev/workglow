@@ -19,13 +19,13 @@ import { ScopedTabularStorage } from "./ScopedTabularStorage";
  * post-filtering results by `kb_id`.
  */
 export class ScopedVectorStorage<
-    Metadata extends Record<string, unknown> | undefined,
-    Schema extends DataPortSchemaObject,
-    Entity = any,
-    PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]> = ReadonlyArray<
-      keyof Schema["properties"]
-    >,
-  >
+  Metadata extends Record<string, unknown> | undefined,
+  Schema extends DataPortSchemaObject,
+  Entity = any,
+  PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]> = ReadonlyArray<
+    keyof Schema["properties"]
+  >,
+>
   extends ScopedTabularStorage<Schema, PrimaryKeyNames, Entity>
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
@@ -47,19 +47,12 @@ export class ScopedVectorStorage<
     topK: number | undefined,
     overfetchLimit: number | undefined
   ): (Entity & { score: number })[] {
-    const filtered = results
-      .filter((r: any) => r.kb_id === this.kbId)
-      .slice(0, topK);
+    const filtered = results.filter((r: any) => r.kb_id === this.kbId).slice(0, topK);
 
     // Only warn when cross-KB filtering is likely the culprit: the inner search
     // returned exactly as many results as we requested (overfetch limit) and
     // filtering still left us short of topK.
-    if (
-      topK &&
-      overfetchLimit &&
-      results.length >= overfetchLimit &&
-      filtered.length < topK
-    ) {
+    if (topK && overfetchLimit && results.length >= overfetchLimit && filtered.length < topK) {
       console.warn(
         `ScopedVectorStorage: search returned ${filtered.length}/${topK} results after ` +
           `kb_id filtering. Consider increasing overFetchMultiplier (currently ${this.overFetchMultiplier}).`
