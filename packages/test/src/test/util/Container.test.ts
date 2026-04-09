@@ -96,6 +96,71 @@ describe("Container", () => {
     });
   });
 
+  describe("registerIfAbsent", () => {
+    it("should register when token is absent", () => {
+      container.registerIfAbsent("svc", () => ({ value: "first" }));
+      expect(container.has("svc")).toBe(true);
+      expect(container.get<{ value: string }>("svc").value).toBe("first");
+    });
+
+    it("should not overwrite an existing factory", () => {
+      container.register("svc", () => ({ value: "original" }));
+      container.registerIfAbsent("svc", () => ({ value: "duplicate" }));
+      expect(container.get<{ value: string }>("svc").value).toBe("original");
+    });
+
+    it("should not overwrite an existing instance", () => {
+      container.registerInstance("svc", { value: "instance" });
+      container.registerIfAbsent("svc", () => ({ value: "factory" }));
+      expect(container.get<{ value: string }>("svc").value).toBe("instance");
+    });
+  });
+
+  describe("circular dependency detection", () => {
+    it("should throw on reentrant get for the same singleton token", () => {
+      container.register("circular", () => {
+        return container.get("circular");
+      });
+      expect(() => container.get("circular")).toThrow(
+        "Circular dependency detected: circular -> circular"
+      );
+    });
+
+    it("should throw with full path on cross-token cycle (A -> B -> A)", () => {
+      container.register("a", () => container.get("b"));
+      container.register("b", () => container.get("a"));
+      expect(() => container.get("a")).toThrow(
+        "Circular dependency detected: a -> b -> a"
+      );
+    });
+
+    it("should clean up resolving state when a factory throws", () => {
+      let shouldThrow = true;
+      container.register(
+        "flaky",
+        () => {
+          if (shouldThrow) throw new Error("factory error");
+          return { value: "ok" };
+        },
+        false
+      );
+
+      expect(() => container.get("flaky")).toThrow("factory error");
+
+      // Subsequent call should not falsely trigger the circular dependency guard
+      shouldThrow = false;
+      expect(container.get<{ value: string }>("flaky").value).toBe("ok");
+    });
+
+    it("should allow non-circular cross-token resolution inside a factory", () => {
+      container.register("a", () => ({ dep: container.get<{ value: number }>("b"), name: "a" }));
+      container.register("b", () => ({ value: 42 }));
+      const a = container.get<{ dep: { value: number }; name: string }>("a");
+      expect(a.name).toBe("a");
+      expect(a.dep.value).toBe(42);
+    });
+  });
+
   describe("createChildContainer", () => {
     it("should inherit factory registrations from parent", () => {
       container.register("svc", () => ({ value: "parent" }));

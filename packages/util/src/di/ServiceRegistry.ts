@@ -48,6 +48,16 @@ export class ServiceRegistry {
   }
 
   /**
+   * Register a service factory only if the token is not already registered.
+   * @param token Service token
+   * @param factory Factory function to create the service
+   * @param singleton Whether the service should be a singleton
+   */
+  registerIfAbsent<T>(token: ServiceToken<T>, factory: () => T, singleton = true): void {
+    this.container.registerIfAbsent(token.id, factory, singleton);
+  }
+
+  /**
    * Register a service instance
    * @param token Service token
    * @param instance Service instance to register

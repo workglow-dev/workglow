@@ -23,6 +23,9 @@ export const SHARED_IN_MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabular
   "storage.tabularRepository.sharedInMemory"
 );
 
+const SYNC_TIMEOUT = 1000;
+const MAX_PENDING_MESSAGES = 1000;
+
 /**
  * Message types for BroadcastChannel communication
  */
@@ -60,6 +63,7 @@ export class SharedInMemoryTabularStorage<
   private inMemoryRepo: InMemoryTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>;
   private isInitialized = false;
   private syncInProgress = false;
+  private pendingMessages: BroadcastMessage[] = [];
 
   /**
    * Creates a new SharedInMemoryTabularStorage instance
@@ -146,7 +150,10 @@ export class SharedInMemoryTabularStorage<
    */
   private async handleBroadcastMessage(message: BroadcastMessage): Promise<void> {
     if (this.syncInProgress && message.type !== "SYNC_RESPONSE") {
-      // Ignore messages during sync to avoid race conditions
+      // Queue messages during sync to replay after sync completes
+      if (this.pendingMessages.length < MAX_PENDING_MESSAGES) {
+        this.pendingMessages.push(message);
+      }
       return;
     }
 
@@ -168,6 +175,7 @@ export class SharedInMemoryTabularStorage<
           await this.copyDataFromArray(message.data);
         }
         this.syncInProgress = false;
+        await this.drainPendingMessages();
         break;
 
       case "PUT":
@@ -198,6 +206,24 @@ export class SharedInMemoryTabularStorage<
   }
 
   /**
+   * Drains pending messages that were queued during sync.
+   * Uses a while loop to handle messages that may be re-queued during draining
+   * (e.g., if a replayed message triggers a new sync cycle).
+   */
+  private async drainPendingMessages(): Promise<void> {
+    while (!this.syncInProgress && this.pendingMessages.length > 0) {
+      const messages = this.pendingMessages;
+      this.pendingMessages = [];
+      for (const message of messages) {
+        await this.handleBroadcastMessage(message);
+        if (this.syncInProgress) {
+          break;
+        }
+      }
+    }
+  }
+
+  /**
    * Requests synchronization from other tabs
    */
   private syncFromOtherTabs(): void {
@@ -208,8 +234,13 @@ export class SharedInMemoryTabularStorage<
 
     // Set a timeout to stop waiting for sync response
     setTimeout(() => {
-      this.syncInProgress = false;
-    }, 1000);
+      if (this.syncInProgress) {
+        this.syncInProgress = false;
+        void this.drainPendingMessages().catch((error) => {
+          console.error("Failed to drain pending messages after sync timeout", error);
+        });
+      }
+    }, SYNC_TIMEOUT);
   }
 
   /**
@@ -251,7 +282,7 @@ export class SharedInMemoryTabularStorage<
    */
   public async put(value: InsertType): Promise<Entity> {
     const result = await this.inMemoryRepo.put(value);
-    this.broadcast({ type: "PUT", entity: value });
+    this.broadcast({ type: "PUT", entity: result });
     return result;
   }
 
@@ -263,7 +294,7 @@ export class SharedInMemoryTabularStorage<
    */
   public async putBulk(values: InsertType[]): Promise<Entity[]> {
     const result = await this.inMemoryRepo.putBulk(values);
-    this.broadcast({ type: "PUT_BULK", entities: values });
+    this.broadcast({ type: "PUT_BULK", entities: result });
     return result;
   }
 
