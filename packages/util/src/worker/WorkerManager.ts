@@ -221,6 +221,10 @@ export class WorkerManager {
           resolve(data as T | undefined);
         } else if (type === "error") {
           cleanup();
+          getLogger().warn(
+            `Worker ${workerName} reactive function ${functionName} error:`,
+            { error: data }
+          );
           resolve(undefined);
         }
       };
