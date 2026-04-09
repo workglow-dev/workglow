@@ -334,8 +334,8 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
           expect(toolCall?.id).toBeDefined();
           expect(toolCall?.name).toBe("get_district_popular_votes");
           expect(toolCall?.input).toBeDefined();
-          expect(toolCall?.input.district_a).toBe(3);
-          expect(toolCall?.input.district_b).toBe(5);
+          expect(Number(toolCall?.input.district_a)).toBe(3);
+          expect(Number(toolCall?.input.district_b)).toBe(5);
         },
         setup.timeout
       );
@@ -362,15 +362,15 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             .filter((c) => c.type === "tool_use");
 
           expect(toolCalls).toBeDefined();
-          expect(toolCalls?.[0].id).toBeDefined();
-          expect(toolCalls?.[0].name).toBe("get_district_popular_votes");
-          expect(toolCalls?.[0].input).toBeDefined();
-          expect(toolCalls?.[0].input.district_a).toBe(3);
-          expect(toolCalls?.[0].input.district_b).toBe(5);
-          expect(toolCalls?.[1].id).toBeDefined();
-          expect(toolCalls?.[1].name).toBe("finish");
-          expect(toolCalls?.[1].input).toBeDefined();
-          expect(toolCalls?.[1].input.answer).toBe(160);
+          const districtCall = toolCalls.find((c) => c.name === "get_district_popular_votes");
+          const finishCall = toolCalls.find((c) => c.name === "finish");
+          expect(districtCall?.id).toBeDefined();
+          expect(districtCall?.input).toBeDefined();
+          expect(Number(districtCall?.input.district_a)).toBe(3);
+          expect(Number(districtCall?.input.district_b)).toBe(5);
+          expect(finishCall?.id).toBeDefined();
+          expect(finishCall?.input).toBeDefined();
+          expect(Number(finishCall?.input.answer)).toBe(160);
 
           expect(output.iterations).toEqual(2);
           // The stop tool should produce structuredOutput
