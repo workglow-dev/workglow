@@ -6,11 +6,13 @@
 
 import {
   createServiceToken,
+  getLogger,
   globalServiceRegistry,
   registerInputCompactor,
   registerInputResolver,
   ServiceRegistry,
 } from "@workglow/util";
+import { validateSchema } from "@workglow/util/schema";
 import type { ITaskConstructor } from "./ITask";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,6 +38,23 @@ function registerTask(baseClass: AnyTaskConstructor): void {
     // throw new Error(`Task type ${baseClass.type} is already registered`);
   }
   taskConstructors.set(baseClass.type, baseClass);
+
+  // Validate schemas at registration time (soft — warn only, don't throw)
+  const schemas = [
+    { name: "inputSchema", schema: baseClass.inputSchema() },
+    { name: "outputSchema", schema: baseClass.outputSchema() },
+  ] as const;
+
+  for (const { name, schema } of schemas) {
+    const result = validateSchema(schema);
+    if (!result.valid) {
+      const messages = result.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
+      getLogger().warn(
+        `Task "${baseClass.type}" has invalid ${name}: ${messages}`,
+        { taskType: baseClass.type, schemaName: name, errors: result.errors }
+      );
+    }
+  }
 }
 
 /**

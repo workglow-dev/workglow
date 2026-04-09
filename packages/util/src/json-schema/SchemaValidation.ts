@@ -6,3 +6,247 @@
 
 export { compileSchema } from "@sroussey/json-schema-library";
 export type { SchemaNode } from "@sroussey/json-schema-library";
+
+import type { DataPortSchema } from "./DataPortSchema";
+import type { JsonSchema } from "./JsonSchema";
+
+// ========================================================================
+// Schema Validation Types
+// ========================================================================
+
+export interface SchemaValidationError {
+  readonly path: string;
+  readonly message: string;
+}
+
+export interface SchemaValidationResult {
+  readonly valid: boolean;
+  readonly errors: readonly SchemaValidationError[];
+}
+
+const VALID_RESULT: SchemaValidationResult = { valid: true, errors: [] };
+
+/**
+ * Pattern for format annotations used in dataflow compatibility checking.
+ * Format: /\w+(:\w+)?/ where first part is the "name" and optional second part narrows the type.
+ * Reused from SchemaUtils.ts areFormatStringsCompatible().
+ */
+const FORMAT_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*(?::[a-zA-Z][a-zA-Z0-9_-]*)?$/;
+
+const VALID_JSON_SCHEMA_TYPES = new Set([
+  "string",
+  "number",
+  "integer",
+  "boolean",
+  "object",
+  "array",
+  "null",
+]);
+
+// ========================================================================
+// Schema Structure Validation
+// ========================================================================
+
+/**
+ * Validates that a schema is a well-formed DataPortSchema.
+ *
+ * A DataPortSchema must be either a boolean or an object with `type: "object"`
+ * and a `properties` record where no property value is a boolean.
+ */
+export function validateDataPortSchema(schema: DataPortSchema): SchemaValidationResult {
+  if (typeof schema === "boolean") {
+    return VALID_RESULT;
+  }
+
+  const errors: SchemaValidationError[] = [];
+
+  if (typeof schema !== "object" || schema === null) {
+    return { valid: false, errors: [{ path: "", message: "Schema must be a boolean or object" }] };
+  }
+
+  if (schema.type !== "object") {
+    errors.push({
+      path: "/type",
+      message: `DataPortSchema must have type "object", got "${String(schema.type)}"`,
+    });
+  }
+
+  if (!schema.properties || typeof schema.properties !== "object") {
+    errors.push({
+      path: "/properties",
+      message: "DataPortSchema must have a properties object",
+    });
+  } else {
+    for (const [key, value] of Object.entries(schema.properties)) {
+      if (typeof value === "boolean") {
+        errors.push({
+          path: `/properties/${key}`,
+          message: `Property "${key}" must not be a boolean schema`,
+        });
+        continue;
+      }
+      collectJsonSchemaErrors(value as JsonSchema, `/properties/${key}`, errors);
+    }
+  }
+
+  return errors.length === 0 ? VALID_RESULT : { valid: false, errors };
+}
+
+/**
+ * Validates structural correctness of a JsonSchema value (property, items, etc.).
+ * Checks that `type` (if present) is a known JSON Schema type.
+ */
+function collectJsonSchemaErrors(
+  schema: JsonSchema,
+  path: string,
+  errors: SchemaValidationError[]
+): void {
+  if (typeof schema === "boolean" || schema === null || schema === undefined) {
+    return;
+  }
+
+  if (typeof schema !== "object") {
+    errors.push({ path, message: `Expected schema object, got ${typeof schema}` });
+    return;
+  }
+
+  // Validate type field
+  if (schema.type !== undefined) {
+    if (typeof schema.type === "string") {
+      if (!VALID_JSON_SCHEMA_TYPES.has(schema.type)) {
+        errors.push({
+          path: `${path}/type`,
+          message: `Unknown JSON Schema type "${schema.type}"`,
+        });
+      }
+    } else if (Array.isArray(schema.type)) {
+      for (const t of schema.type) {
+        if (!VALID_JSON_SCHEMA_TYPES.has(t as string)) {
+          errors.push({
+            path: `${path}/type`,
+            message: `Unknown JSON Schema type "${String(t)}" in type array`,
+          });
+        }
+      }
+    }
+  }
+
+  // Recurse into nested schemas
+  if (schema.properties && typeof schema.properties === "object") {
+    for (const [key, value] of Object.entries(schema.properties)) {
+      if (typeof value === "boolean") {
+        continue; // boolean schemas are valid in nested JSON Schema
+      }
+      collectJsonSchemaErrors(value as JsonSchema, `${path}/properties/${key}`, errors);
+    }
+  }
+
+  if (schema.items && typeof schema.items === "object" && !Array.isArray(schema.items)) {
+    collectJsonSchemaErrors(schema.items as JsonSchema, `${path}/items`, errors);
+  }
+
+  if (Array.isArray(schema.items)) {
+    for (let i = 0; i < schema.items.length; i++) {
+      collectJsonSchemaErrors(schema.items[i] as JsonSchema, `${path}/items/${i}`, errors);
+    }
+  }
+
+  for (const keyword of ["oneOf", "anyOf", "allOf"] as const) {
+    const arr = (schema as Record<string, unknown>)[keyword];
+    if (Array.isArray(arr)) {
+      for (let i = 0; i < arr.length; i++) {
+        collectJsonSchemaErrors(arr[i] as JsonSchema, `${path}/${keyword}/${i}`, errors);
+      }
+    }
+  }
+}
+
+// ========================================================================
+// Format Annotation Validation
+// ========================================================================
+
+/**
+ * Validates that all `format` annotations in a schema match the expected pattern.
+ *
+ * Format annotations use the pattern `/^[a-zA-Z][a-zA-Z0-9_-]*(:[a-zA-Z][a-zA-Z0-9_-]*)?$/`
+ * (e.g., `"model"`, `"model:EmbeddingTask"`, `"storage:tabular"`).
+ *
+ * Standard JSON Schema formats (e.g., `"date-time"`, `"uri"`, `"email"`) also pass
+ * since they match the pattern.
+ */
+export function validateFormatAnnotations(schema: DataPortSchema): SchemaValidationResult {
+  if (typeof schema === "boolean") {
+    return VALID_RESULT;
+  }
+
+  const errors: SchemaValidationError[] = [];
+  collectFormatErrors(schema as JsonSchema, "", errors);
+  return errors.length === 0 ? VALID_RESULT : { valid: false, errors };
+}
+
+function collectFormatErrors(
+  schema: JsonSchema,
+  path: string,
+  errors: SchemaValidationError[]
+): void {
+  if (typeof schema !== "object" || schema === null) {
+    return;
+  }
+
+  // Check format on this schema node
+  const format = (schema as Record<string, unknown>).format;
+  if (typeof format === "string" && !FORMAT_PATTERN.test(format)) {
+    errors.push({
+      path: `${path}/format`,
+      message: `Invalid format annotation "${format}" — must match pattern ${FORMAT_PATTERN.source}`,
+    });
+  }
+
+  // Recurse into properties
+  if (schema.properties && typeof schema.properties === "object") {
+    for (const [key, value] of Object.entries(schema.properties)) {
+      collectFormatErrors(value as JsonSchema, `${path}/properties/${key}`, errors);
+    }
+  }
+
+  // Recurse into items
+  if (schema.items && typeof schema.items === "object" && !Array.isArray(schema.items)) {
+    collectFormatErrors(schema.items as JsonSchema, `${path}/items`, errors);
+  }
+
+  if (Array.isArray(schema.items)) {
+    for (let i = 0; i < schema.items.length; i++) {
+      collectFormatErrors(schema.items[i] as JsonSchema, `${path}/items/${i}`, errors);
+    }
+  }
+
+  // Recurse into oneOf/anyOf/allOf
+  for (const keyword of ["oneOf", "anyOf", "allOf"] as const) {
+    const arr = (schema as Record<string, unknown>)[keyword];
+    if (Array.isArray(arr)) {
+      for (let i = 0; i < arr.length; i++) {
+        collectFormatErrors(arr[i] as JsonSchema, `${path}/${keyword}/${i}`, errors);
+      }
+    }
+  }
+}
+
+// ========================================================================
+// Combined Validation
+// ========================================================================
+
+/**
+ * Validates a DataPortSchema for both structural correctness and valid format annotations.
+ * Convenience function combining {@link validateDataPortSchema} and {@link validateFormatAnnotations}.
+ */
+export function validateSchema(schema: DataPortSchema): SchemaValidationResult {
+  if (typeof schema === "boolean") {
+    return VALID_RESULT;
+  }
+
+  const structureResult = validateDataPortSchema(schema);
+  const formatResult = validateFormatAnnotations(schema);
+
+  const allErrors = [...structureResult.errors, ...formatResult.errors];
+  return allErrors.length === 0 ? VALID_RESULT : { valid: false, errors: allErrors };
+}
