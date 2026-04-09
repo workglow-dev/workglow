@@ -447,6 +447,112 @@ describe("InputCompactor", () => {
     });
   });
 
+  describe("allOf schema support", () => {
+    beforeEach(() => {
+      registerInputCompactor("allof-compact", (value) => {
+        if (typeof value === "object" && value !== null && "id" in value) {
+          const id = (value as Record<string, unknown>).id;
+          return typeof id === "string" ? id : undefined;
+        }
+        return undefined;
+      });
+    });
+
+    afterEach(() => {
+      getInputCompactors().delete("allof-compact");
+    });
+
+    test("should compact object to string when schema uses allOf with string type", async () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          resource: {
+            allOf: [
+              {
+                oneOf: [
+                  { type: "string", format: "allof-compact" },
+                  { type: "object", properties: { id: { type: "string" } } },
+                ],
+              },
+              { format: "allof-compact" },
+            ],
+          },
+        },
+      };
+
+      const input = { resource: { id: "my-resource" } };
+      const compacted = await compactSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(compacted.resource).toBe("my-resource");
+    });
+  });
+
+  describe("cycle detection", () => {
+    test("should not stack overflow on circular schema references", async () => {
+      const objectSchema: Record<string, unknown> = {
+        type: "object",
+        properties: {},
+      };
+      // Create circular reference
+      (objectSchema.properties as Record<string, unknown>).self = objectSchema;
+
+      const schema: DataPortSchema = objectSchema as DataPortSchema;
+
+      const input = { self: { self: { self: {} } } };
+      const compacted = await compactSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      // Should complete without stack overflow
+      expect(compacted).toBeDefined();
+    });
+
+    test("should compact sibling properties sharing the same schema reference", async () => {
+      registerInputCompactor("sibling-compact", (value) => {
+        if (typeof value === "object" && value !== null && "ref" in value) {
+          const ref = (value as Record<string, unknown>).ref;
+          return typeof ref === "string" ? ref : undefined;
+        }
+        return undefined;
+      });
+
+      const sharedNestedSchema: DataPortSchema = {
+        type: "object",
+        properties: {
+          resource: {
+            oneOf: [
+              { type: "string", format: "sibling-compact" },
+              { type: "object", properties: { ref: { type: "string" } } },
+            ],
+          },
+        },
+      };
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          first: sharedNestedSchema,
+          second: sharedNestedSchema,
+        },
+      };
+
+      const input = {
+        first: { resource: { ref: "res-a" } },
+        second: { resource: { ref: "res-b" } },
+      };
+      const compacted = await compactSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(compacted.first).toEqual({ resource: "res-a" });
+      expect(compacted.second).toEqual({ resource: "res-b" });
+
+      getInputCompactors().delete("sibling-compact");
+    });
+  });
+
   describe("roundtrip", () => {
     test("compact(resolve(input)) should return the original string IDs", async () => {
       const schema: DataPortSchema = {

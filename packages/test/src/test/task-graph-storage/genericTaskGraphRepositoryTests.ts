@@ -14,8 +14,6 @@ import {
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { TestIOTask } from "../task/TestTasks";
 
-TaskRegistry.registerTask(TestIOTask);
-
 export function runGenericTaskGraphRepositoryTests(
   createRepository: () => Promise<TaskGraphRepository>
 ) {

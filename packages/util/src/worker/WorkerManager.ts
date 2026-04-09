@@ -93,16 +93,19 @@ export class WorkerManager {
     let init = this.lazyInitPromises.get(name);
     if (!init) {
       init = (async () => {
-        const f = this.lazyFactories.get(name)!;
-        this.lazyFactories.delete(name);
-        const worker = f();
-        this.attachWorkerInstance(name, worker);
+        try {
+          const f = this.lazyFactories.get(name)!;
+          this.lazyFactories.delete(name);
+          const worker = f();
+          this.attachWorkerInstance(name, worker);
+          await this.readyWorkers.get(name)!;
+        } finally {
+          this.lazyInitPromises.delete(name);
+        }
       })();
       this.lazyInitPromises.set(name, init);
     }
     await init;
-    await this.readyWorkers.get(name)!;
-    this.lazyInitPromises.delete(name);
   }
 
   getWorker(name: string): Worker {
@@ -123,7 +126,6 @@ export class WorkerManager {
     await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
-    await this.readyWorkers.get(workerName);
 
     const knownFunctions = this.workerFunctions.get(workerName);
     if (knownFunctions && !knownFunctions.has(functionName)) {
@@ -204,7 +206,6 @@ export class WorkerManager {
     await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) return undefined;
-    await this.readyWorkers.get(workerName);
 
     // Skip the roundtrip if the worker didn't register a reactive function for this name.
     const knownReactive = this.workerReactiveFunctions.get(workerName);
@@ -221,6 +222,10 @@ export class WorkerManager {
           resolve(data as T | undefined);
         } else if (type === "error") {
           cleanup();
+          getLogger().warn(
+            `Worker ${workerName} reactive function ${functionName} error:`,
+            { error: data }
+          );
           resolve(undefined);
         }
       };
@@ -259,7 +264,6 @@ export class WorkerManager {
     await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
-    await this.readyWorkers.get(workerName);
 
     // The worker falls back to regular functions for stream calls, so either counts.
     const knownStream = this.workerStreamFunctions.get(workerName);

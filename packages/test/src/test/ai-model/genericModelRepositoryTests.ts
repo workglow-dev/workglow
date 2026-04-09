@@ -92,4 +92,99 @@ export const runGenericModelRepositoryTests = (
     expect(models?.[0].provider_config?.model_path).toEqual("Xenova/LaMini-Flan-T5-783M");
     expect(models?.[0].provider_config?.dtype).toEqual("q8");
   });
+
+  it("rejects duplicate model_id", async () => {
+    const repo = getGlobalModelRepository();
+    const model = {
+      model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+      title: "LaMini-Flan-T5-783M",
+      description: "LaMini-Flan-T5-783M",
+      tasks: ["TextGenerationTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: { pipeline: "text2text-generation", model_path: "Xenova/LaMini-Flan-T5-783M" },
+      metadata: {},
+    };
+
+    await repo.addModel(model);
+    await expect(repo.addModel(model)).rejects.toThrow("already exists");
+  });
+
+  it("rejects model missing required fields", async () => {
+    const repo = getGlobalModelRepository();
+    const incomplete = {
+      model_id: "test:incomplete",
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: {},
+    } as any;
+
+    await expect(repo.addModel(incomplete)).rejects.toThrow("Invalid model record");
+  });
+
+  it("rejects model with wrong field types", async () => {
+    const repo = getGlobalModelRepository();
+    const badTypes = {
+      model_id: "test:bad-types",
+      title: "Test",
+      description: "Test",
+      tasks: "not-an-array",
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: {},
+      metadata: {},
+    } as any;
+
+    await expect(repo.addModel(badTypes)).rejects.toThrow("Invalid model record");
+  });
+
+  it("updateModel updates an existing model", async () => {
+    const repo = getGlobalModelRepository();
+    await repo.addModel({
+      model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+      title: "LaMini-Flan-T5-783M",
+      description: "LaMini-Flan-T5-783M",
+      tasks: ["TextGenerationTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: { pipeline: "text2text-generation", model_path: "Xenova/LaMini-Flan-T5-783M" },
+      metadata: {},
+    });
+
+    await repo.updateModel({
+      model_id: "onnx:Xenova/LaMini-Flan-T5-783M:q8",
+      title: "Updated Title",
+      description: "Updated Description",
+      tasks: ["TextGenerationTask", "TextRewriterTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: { pipeline: "text2text-generation", model_path: "Xenova/LaMini-Flan-T5-783M" },
+      metadata: {},
+    });
+
+    const updated = await repo.findByName("onnx:Xenova/LaMini-Flan-T5-783M:q8");
+    expect(updated).toBeDefined();
+    expect(updated?.title).toEqual("Updated Title");
+    expect(updated?.tasks?.length).toEqual(2);
+  });
+
+  it("updateModel rejects non-existent model", async () => {
+    const repo = getGlobalModelRepository();
+    const model = {
+      model_id: "onnx:does-not-exist",
+      title: "Test",
+      description: "Test",
+      tasks: ["TextGenerationTask"],
+      provider: HF_TRANSFORMERS_ONNX,
+      provider_config: { pipeline: "text2text-generation", model_path: "test" },
+      metadata: {},
+    };
+
+    await expect(repo.updateModel(model)).rejects.toThrow("not found");
+  });
+
+  it("updateModel validates schema", async () => {
+    const repo = getGlobalModelRepository();
+    const invalid = {
+      model_id: "test:invalid",
+      provider: HF_TRANSFORMERS_ONNX,
+    } as any;
+
+    await expect(repo.updateModel(invalid)).rejects.toThrow("Invalid model record");
+  });
 };

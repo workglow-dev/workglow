@@ -421,7 +421,7 @@ export function registerModelCommand(program: Command): void {
         process.exit(1);
       }
 
-      await repo.addModel(parsed as unknown as ModelRecord);
+      await repo.updateModel(parsed as unknown as ModelRecord);
       console.log(`Model "${targetId}" saved.`);
     });
 

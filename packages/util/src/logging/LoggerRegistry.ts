@@ -52,9 +52,7 @@ function createDefaultLogger(): ILogger {
 }
 
 // Register default logger: NullLogger unless LOGGER_LEVEL env var is set.
-if (!globalServiceRegistry.has(LOGGER)) {
-  globalServiceRegistry.register(LOGGER, createDefaultLogger, true);
-}
+globalServiceRegistry.registerIfAbsent(LOGGER, createDefaultLogger, true);
 
 /**
  * Returns the current global logger.

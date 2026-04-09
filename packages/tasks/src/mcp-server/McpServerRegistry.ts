@@ -25,21 +25,17 @@ export const MCP_SERVERS =
 export const MCP_SERVER_REPOSITORY =
   createServiceToken<McpServerRepository>("mcp-server.repository");
 
-if (!globalServiceRegistry.has(MCP_SERVERS)) {
-  globalServiceRegistry.register(
-    MCP_SERVERS,
-    (): Map<string, McpServerConnection> => new Map(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  MCP_SERVERS,
+  (): Map<string, McpServerConnection> => new Map(),
+  true
+);
 
-if (!globalServiceRegistry.has(MCP_SERVER_REPOSITORY)) {
-  globalServiceRegistry.register(
-    MCP_SERVER_REPOSITORY,
-    (): McpServerRepository => new InMemoryMcpServerRepository(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  MCP_SERVER_REPOSITORY,
+  (): McpServerRepository => new InMemoryMcpServerRepository(),
+  true
+);
 
 export function getGlobalMcpServers(): Map<string, McpServerConnection> {
   return globalServiceRegistry.get(MCP_SERVERS);

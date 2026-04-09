@@ -22,13 +22,11 @@ export const TABULAR_REPOSITORIES = createServiceToken<Map<string, AnyTabularSto
 );
 
 // Register default factory if not already registered
-if (!globalServiceRegistry.has(TABULAR_REPOSITORIES)) {
-  globalServiceRegistry.register(
-    TABULAR_REPOSITORIES,
-    (): Map<string, AnyTabularStorage> => new Map(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  TABULAR_REPOSITORIES,
+  (): Map<string, AnyTabularStorage> => new Map(),
+  true
+);
 
 /**
  * Gets the global tabular repository registry

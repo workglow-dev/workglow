@@ -2,6 +2,11 @@
   "name": "@workglow/task-graph",
   "type": "module",
   "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workglow-dev/workglow.git",
+    "directory": "packages/task-graph"
+  },
   "description": "Task graph management for Workglow, providing DAG construction, execution planning, and workflow orchestration.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
