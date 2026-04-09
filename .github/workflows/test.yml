@@ -406,7 +406,7 @@ jobs:
           path: coverage
           retention-days: 1
       - name: Report Coverage
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: davelosert/vitest-coverage-report-action@v2
       - name: Delete Vitest coverage fragments
         if: always()
