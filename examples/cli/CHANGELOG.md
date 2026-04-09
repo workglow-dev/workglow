@@ -1,5 +1,36 @@
 # @workglow/cli
 
+## 0.2.0
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### ai
+
+- add schema validation and duplicate prevention to ModelRepo… (#380)
+- ToolCallingTask and AgentTask
+
+#### cli
+
+- update ink to v7 and adopt new hooks (#372)
+- keyring (#367)
+
+#### knowledge-base
+
+- implement shared-table mode for knowledge bases
+
+### Chores
+
+- release 12 packages
+- format changes
+
+### Updated Dependencies
+
+- `ink`: ^7.0.0
+- `react`: ^19.2.5
+
 ## 0.1.3
 
 ### Features

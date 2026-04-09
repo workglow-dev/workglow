@@ -1,5 +1,15 @@
 # workglow
 
+## 0.2.0
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+
+### Chores
+
+- release 12 packages
+
 ## 0.1.3
 
 ### Features

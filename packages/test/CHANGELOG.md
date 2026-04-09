@@ -1,5 +1,88 @@
 # @workglow/test
 
+## 0.2.0
+
+### Features
+
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### util
+
+- add schema validation for DataPortSchema and format annot… (#385)
+
+#### ai
+
+- add schema validation and duplicate prevention to ModelRepo… (#380)
+- ToolCallingTask and AgentTask
+
+#### knowledge-base
+
+- implement shared-table mode for knowledge bases
+
+#### entitlements
+
+- add entitlement/permission system for tasks and workflows (#370)
+
+#### cli
+
+- keyring (#367)
+
+### Bug Fixes
+
+- improve error handling across EventEmitter, JobQueue, WorkerManager, and ConditionalTask (#386)
+- auto-connect passthrough tasks (e.g. DebugLogTask) to downstream… (#373)
+
+#### ai-provider
+
+- emit incremental tool call deltas instead of full a… (#392)
+
+#### util
+
+- target specific node pair in removeEdge instead of scannin… (#374)
+
+#### schema
+
+- add allOf support to schema helpers and cycle detection … (#388)
+
+#### di
+
+- add reentrancy guard and atomic registerIfAbsent to Container (#387)
+
+#### task-graph
+
+- prevent TaskRegistry from silently overwriting regis… (#377)
+- resolve race condition in GraphAsTask.executeStream() (#378)
+
+#### graph
+
+- count actual edges in indegreeOfNode instead of slot pres… (#375)
+
+#### tests
+
+- update ScopedStorage tests for type safety
+
+### Refactors
+
+#### ai-provider
+
+- improve tool call handling in Anthropic_ToolCalling
+
+### Tests
+
+#### ai-provider
+
+- refine structured output test for tool calls
+- enhance structured output test for tool calls
+
+### Chores
+
+- release 12 packages
+- format changes
+
+### Updated Dependencies
+
+- `vitest`: ^4.1.3
+
 ## 0.1.3
 
 ### Features

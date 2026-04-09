@@ -1,5 +1,64 @@
 # @workglow/task-graph
 
+## 0.2.0
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### util
+
+- add schema validation for DataPortSchema and format annot… (#385)
+
+#### knowledge-base
+
+- implement shared-table mode for knowledge bases
+
+#### entitlements
+
+- add entitlement/permission system for tasks and workflows (#370)
+
+#### cli
+
+- keyring (#367)
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+- improve error handling across EventEmitter, JobQueue, WorkerManager, and ConditionalTask (#386)
+- auto-connect passthrough tasks (e.g. DebugLogTask) to downstream… (#373)
+
+#### ai-provider
+
+- emit incremental tool call deltas instead of full a… (#392)
+
+#### schema
+
+- add allOf support to schema helpers and cycle detection … (#388)
+
+#### di
+
+- add reentrancy guard and atomic registerIfAbsent to Container (#387)
+
+#### task-graph
+
+- prevent TaskRegistry from silently overwriting regis… (#377)
+- use listen-first-then-check pattern for abort signal… (#391)
+- resolve race condition in GraphAsTask.executeStream() (#378)
+
+#### tests
+
+- update ScopedStorage tests for type safety
+
+### Chores
+
+- release 12 packages
+- format changes
+
 ## 0.1.3
 
 ### Features

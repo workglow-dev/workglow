@@ -1,5 +1,35 @@
 # @workglow/web
 
+## 0.2.0
+
+### Features
+
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### knowledge-base
+
+- implement shared-table mode for knowledge bases
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+#### task-graph
+
+- prevent TaskRegistry from silently overwriting regis… (#377)
+
+### Chores
+
+- release 12 packages
+- format changes
+
+### Updated Dependencies
+
+- `react`: ^19.2.5
+- `react-dom`: ^19.2.5
+
 ## 0.1.3
 
 ### Features

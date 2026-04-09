@@ -1,5 +1,47 @@
 # @workglow/util
 
+## 0.2.0
+
+### Features
+
+- add lifecycle management across core infrastructure (#384)
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### util
+
+- add schema validation for DataPortSchema and format annot… (#385)
+
+#### cli
+
+- keyring (#367)
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+- improve error handling across EventEmitter, JobQueue, WorkerManager, and ConditionalTask (#386)
+
+#### util
+
+- target specific node pair in removeEdge instead of scannin… (#374)
+- fold readyWorkers await into single-flight guard in Worker… (#382)
+
+#### di
+
+- add reentrancy guard and atomic registerIfAbsent to Container (#387)
+
+#### graph
+
+- count actual edges in indegreeOfNode instead of slot pres… (#375)
+
+### Chores
+
+- release 12 packages
+- format changes
+
 ## 0.1.3
 
 ### Features

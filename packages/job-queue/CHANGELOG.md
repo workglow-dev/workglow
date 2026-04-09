@@ -1,5 +1,25 @@
 # @workglow/job-queue
 
+## 0.2.0
+
+### Features
+
+- add pkg-pr-new for preview package publishing (#379)
+- Task constructor signature, ToolCallingTask and AgentTask (#353)
+
+#### ai
+
+- ToolCallingTask and AgentTask
+
+### Bug Fixes
+
+- improve error handling across EventEmitter, JobQueue, WorkerManager, and ConditionalTask (#386)
+- await async operations in CompositeLimiter methods (#376)
+
+### Chores
+
+- release 12 packages
+
 ## 0.1.3
 
 ### Features
