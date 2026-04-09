@@ -271,6 +271,116 @@ describe("InputResolver", () => {
     });
   });
 
+  describe("allOf schema support", () => {
+    test("should resolve format from allOf sub-schema", async () => {
+      registerInputResolver("allof-test", (_id, _format, _registry) => {
+        return "allof-resolved";
+      });
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          value: {
+            allOf: [{ type: "string", format: "allof-test" }, { minLength: 1 }],
+          },
+        },
+      };
+
+      const input = { value: "my-id" };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.value).toBe("allof-resolved");
+
+      getInputResolvers().delete("allof-test");
+    });
+
+    test("should recurse into object schema found via allOf", async () => {
+      registerInputResolver("allof-nested", (_id, _format, _registry) => {
+        return "nested-resolved";
+      });
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          config: {
+            allOf: [
+              {
+                type: "object",
+                properties: {
+                  key: { type: "string", format: "allof-nested" },
+                },
+              },
+              { required: ["key"] },
+            ],
+          },
+        },
+      };
+
+      const input = { config: { key: "some-id" } };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.config).toEqual({ key: "nested-resolved" });
+
+      getInputResolvers().delete("allof-nested");
+    });
+  });
+
+  describe("cycle detection", () => {
+    test("should not stack overflow on circular schema references", async () => {
+      const objectSchema: Record<string, unknown> = {
+        type: "object",
+        properties: {},
+      };
+      // Create a circular reference: a property whose schema points back to the parent
+      (objectSchema.properties as Record<string, unknown>).self = objectSchema;
+
+      const schema: DataPortSchema = objectSchema as DataPortSchema;
+
+      const input = { self: { self: { self: {} } } };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      // Should complete without stack overflow; inner values pass through unchanged
+      expect(resolved).toBeDefined();
+    });
+
+    test("should resolve sibling properties sharing the same schema reference", async () => {
+      registerInputResolver("sibling-test", (_id, _format, _registry) => {
+        return "sibling-resolved";
+      });
+
+      const sharedNestedSchema: DataPortSchema = {
+        type: "object",
+        properties: {
+          key: { type: "string", format: "sibling-test" },
+        },
+      };
+
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          first: sharedNestedSchema,
+          second: sharedNestedSchema,
+        },
+      };
+
+      const input = { first: { key: "id-a" }, second: { key: "id-b" } };
+      const resolved = await resolveSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(resolved.first).toEqual({ key: "sibling-resolved" });
+      expect(resolved.second).toEqual({ key: "sibling-resolved" });
+
+      getInputResolvers().delete("sibling-test");
+    });
+  });
+
   describe("mixed array resolution", () => {
     test("should resolve string elements in a mixed array, passing non-string elements through", async () => {
       registerInputResolver("skill", (id, _format, _registry) => {

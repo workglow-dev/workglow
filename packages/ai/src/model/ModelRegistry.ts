@@ -21,13 +21,11 @@ import type { ModelConfig } from "./ModelSchema";
 export const MODEL_REPOSITORY = createServiceToken<ModelRepository>("model.repository");
 
 // Register default factory if not already registered
-if (!globalServiceRegistry.has(MODEL_REPOSITORY)) {
-  globalServiceRegistry.register(
-    MODEL_REPOSITORY,
-    (): ModelRepository => new InMemoryModelRepository(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  MODEL_REPOSITORY,
+  (): ModelRepository => new InMemoryModelRepository(),
+  true
+);
 
 /**
  * Gets the global model repository instance

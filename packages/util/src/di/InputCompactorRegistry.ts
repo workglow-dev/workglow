@@ -29,13 +29,11 @@ export const INPUT_COMPACTORS =
   createServiceToken<Map<string, InputCompactorFn>>("task.input.compactors");
 
 // Register default factory if not already registered
-if (!globalServiceRegistry.has(INPUT_COMPACTORS)) {
-  globalServiceRegistry.register(
-    INPUT_COMPACTORS,
-    (): Map<string, InputCompactorFn> => new Map(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  INPUT_COMPACTORS,
+  (): Map<string, InputCompactorFn> => new Map(),
+  true
+);
 
 /**
  * Gets the global input compactor registry

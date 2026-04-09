@@ -30,13 +30,11 @@ export const INPUT_RESOLVERS =
   createServiceToken<Map<string, InputResolverFn>>("task.input.resolvers");
 
 // Register default factory if not already registered
-if (!globalServiceRegistry.has(INPUT_RESOLVERS)) {
-  globalServiceRegistry.register(
-    INPUT_RESOLVERS,
-    (): Map<string, InputResolverFn> => new Map(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  INPUT_RESOLVERS,
+  (): Map<string, InputResolverFn> => new Map(),
+  true
+);
 
 /**
  * Gets the global input resolver registry

@@ -13,13 +13,11 @@ import type { ICredentialStore } from "./ICredentialStore";
 import { InMemoryCredentialStore } from "./InMemoryCredentialStore";
 
 // Register default in-memory factory if not already registered
-if (!globalServiceRegistry.has(CREDENTIAL_STORE)) {
-  globalServiceRegistry.register(
-    CREDENTIAL_STORE,
-    (): ICredentialStore => new InMemoryCredentialStore(),
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  CREDENTIAL_STORE,
+  (): ICredentialStore => new InMemoryCredentialStore(),
+  true
+);
 
 /**
  * Gets the global credential store instance
