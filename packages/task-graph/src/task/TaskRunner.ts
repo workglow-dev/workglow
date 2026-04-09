@@ -489,10 +489,14 @@ export class TaskRunner<
 
     // If a parent signal is provided (e.g. set by context.own()), link it so
     // that aborting the parent also aborts this task.
-    if (config.signal?.aborted) {
-      this.abortController.abort();
-    } else if (config.signal) {
+    // Listen first, then check — addEventListener on an already-aborted signal
+    // does not fire, so checking .aborted after ensures we never miss an abort.
+    if (config.signal) {
       config.signal.addEventListener("abort", () => this.abortController!.abort(), { once: true });
+      if (config.signal.aborted) {
+        this.abortController.abort();
+        return;
+      }
     }
 
     const cache = config.outputCache ?? this.task.runConfig?.outputCache;
