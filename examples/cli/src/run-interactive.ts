@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TaskGraph } from "@workglow/task-graph";
 import type { ITask, IWorkflow, TaskGraphRunConfig, WorkflowRunConfig } from "@workglow/task-graph";
+import { IRunConfig, TaskGraph } from "@workglow/task-graph";
 import { detectCliTheme, setCliTheme } from "./terminal/detectTerminalTheme";
 import { renderTaskInstanceRun, renderWorkflowRun } from "./ui/render";
 
@@ -61,9 +61,12 @@ function withCliTask(task: ITask, options?: WithCliOptions): WithCliTaskHandle {
     abort: () => {
       task.abort();
     },
-    run: async (overrides?: Record<string, unknown>): Promise<unknown> => {
+    run: async (
+      overrides?: Record<string, unknown>,
+      runConfig?: Partial<IRunConfig>
+    ): Promise<unknown> => {
       if (!process.stdout.isTTY) {
-        return task.run(overrides);
+        return task.run(overrides, runConfig);
       }
 
       setCliTheme(await detectCliTheme());
@@ -72,7 +75,7 @@ function withCliTask(task: ITask, options?: WithCliOptions): WithCliTaskHandle {
 
       return renderTaskInstanceRun(
         {
-          run: (o) => task.run(o),
+          run: (o) => task.run(o, runConfig),
           events: task.events,
         },
         taskType,
