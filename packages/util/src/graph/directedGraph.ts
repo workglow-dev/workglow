@@ -53,11 +53,12 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
       const nodeIndex = this.getNodeIndex(cur[0]);
       this.adjacency[nodeIndex].forEach((hasAdj, index) => {
         if (hasAdj !== null) {
+          const edgeCount = hasAdj.length;
           const currentInDegree = nodeInDegrees.get(nodeIndices[index]);
           if (currentInDegree !== undefined) {
-            nodeInDegrees.set(nodeIndices[index], currentInDegree - 1);
-            if (currentInDegree - 1 === 0) {
-              toSearch.push([nodeIndices[index], currentInDegree - 1]);
+            nodeInDegrees.set(nodeIndices[index], currentInDegree - edgeCount);
+            if (currentInDegree - edgeCount === 0) {
+              toSearch.push([nodeIndices[index], currentInDegree - edgeCount]);
             }
           }
         }
@@ -86,7 +87,7 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
     }
 
     return this.adjacency.reduce<number>((carry, row) => {
-      return carry + (row[indexOfNode] == null ? 0 : 1);
+      return carry + (row[indexOfNode] == null ? 0 : row[indexOfNode].length);
     }, 0);
   }
 

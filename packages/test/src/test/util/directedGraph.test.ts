@@ -46,6 +46,32 @@ describe("Directed Graph", () => {
     expect(graph.indegreeOfNode("C")).toBe(2);
   });
 
+  it("can calculate the indegree of a node with multiple edges", () => {
+    interface NodeType {
+      name: string;
+    }
+    interface EdgeType {
+      label: string;
+    }
+    const graph = new DirectedGraph<NodeType, EdgeType, string, string>(
+      (n: NodeType) => n.name,
+      (e: EdgeType, n1: string, n2: string) => `${n1}-${n2}-${e.label}`
+    );
+
+    graph.insert({ name: "A" });
+    graph.insert({ name: "B" });
+    graph.insert({ name: "C" });
+
+    graph.addEdge("A", "B", { label: "e1" });
+    graph.addEdge("A", "B", { label: "e2" });
+    graph.addEdge("A", "B", { label: "e3" });
+    graph.addEdge("C", "B", { label: "e4" });
+
+    expect(graph.indegreeOfNode("A")).toBe(0);
+    expect(graph.indegreeOfNode("B")).toBe(4);
+    expect(graph.indegreeOfNode("C")).toBe(0);
+  });
+
   it("can determine if it is acyclical", () => {
     interface NodeType {
       name: string;
