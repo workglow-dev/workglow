@@ -425,8 +425,7 @@ export class Graph<Node, Edge = true, NodeId = unknown, EdgeId = unknown> {
       if (edgeList !== null) {
         for (let edgeIndex = 0; edgeIndex < edgeList.length; edgeIndex++) {
           if (
-            this.edgeIdentity(edgeList[edgeIndex], node1Identity, node2Identity) ===
-            edgeIdentity
+            this.edgeIdentity(edgeList[edgeIndex], node1Identity, node2Identity) === edgeIdentity
           ) {
             edgeList.splice(edgeIndex, 1);
             break;

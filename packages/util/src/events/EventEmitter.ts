@@ -198,10 +198,7 @@ export class EventEmitter<EventListenerTypes extends Record<string, (...args: an
       }
       // Remove once listeners we just called
       this.listeners[event] = listeners.filter((l) => !l.once);
-      if (
-        this.maxListeners > 0 &&
-        (this.listeners[event]?.length ?? 0) <= this.maxListeners
-      ) {
+      if (this.maxListeners > 0 && (this.listeners[event]?.length ?? 0) <= this.maxListeners) {
         this.warnedEvents.delete(event);
       }
       // Re-throw errors after all listeners have been called

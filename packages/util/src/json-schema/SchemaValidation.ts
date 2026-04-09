@@ -74,7 +74,11 @@ export function validateDataPortSchema(schema: DataPortSchema): SchemaValidation
     });
   }
 
-  if (!schema.properties || typeof schema.properties !== "object" || Array.isArray(schema.properties)) {
+  if (
+    !schema.properties ||
+    typeof schema.properties !== "object" ||
+    Array.isArray(schema.properties)
+  ) {
     errors.push({
       path: "/properties",
       message: "DataPortSchema must have a properties object",

@@ -2530,7 +2530,10 @@ declare module "@workglow/task-graph" {
     bulkProcess(input?: Partial<{ items: readonly number[] }>, config?: Partial<TaskConfig>): this;
     testIterator(input?: Partial<{ items: number[] }>, config?: Partial<TaskConfig>): this;
     processItem(input?: Partial<{ item: number }>, config?: Partial<TaskConfig>): this;
-    wildcardPassthrough(input?: Partial<Record<string, unknown>>, config?: Partial<TaskConfig>): this;
+    wildcardPassthrough(
+      input?: Partial<Record<string, unknown>>,
+      config?: Partial<TaskConfig>
+    ): this;
   }
 }
 

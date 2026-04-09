@@ -21,11 +21,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 installDevToolsFormatters();
 const tasks = [...registerBaseTasks()];
-[Workflow, ...tasks, ...registerCommonTasks(), ...registerAiTasks()].forEach(
-  (item) => {
-    (window as any)[item.name] = item;
-  }
-);
+[Workflow, ...tasks, ...registerCommonTasks(), ...registerAiTasks()].forEach((item) => {
+  (window as any)[item.name] = item;
+});
 
 const dark = isDarkMode();
 const grey = dark ? "#aaa" : "#333";

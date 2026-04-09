@@ -299,7 +299,7 @@ class TestStreamingToolCallTask extends Task<ToolCallInput, ToolCallOutput> {
     yield {
       type: "object-delta",
       port: "toolCalls",
-      objectDelta: [{ id: "tc2", name: "get_time", arguments: '{}' }],
+      objectDelta: [{ id: "tc2", name: "get_time", arguments: "{}" }],
     };
     yield { type: "finish", data: {} as ToolCallOutput };
   }

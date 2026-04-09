@@ -129,9 +129,7 @@ describe("Container", () => {
     it("should throw with full path on cross-token cycle (A -> B -> A)", () => {
       container.register("a", () => container.get("b"));
       container.register("b", () => container.get("a"));
-      expect(() => container.get("a")).toThrow(
-        "Circular dependency detected: a -> b -> a"
-      );
+      expect(() => container.get("a")).toThrow("Circular dependency detected: a -> b -> a");
     });
 
     it("should clean up resolving state when a factory throws", () => {

@@ -53,10 +53,11 @@ function registerTask(baseClass: AnyTaskConstructor): void {
     const result = validateSchema(schema);
     if (!result.valid) {
       const messages = result.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
-      getLogger().warn(
-        `Task "${baseClass.type}" has invalid ${name}: ${messages}`,
-        { taskType: baseClass.type, schemaName: name, errors: result.errors }
-      );
+      getLogger().warn(`Task "${baseClass.type}" has invalid ${name}: ${messages}`, {
+        taskType: baseClass.type,
+        schemaName: name,
+        errors: result.errors,
+      });
     }
   }
 }

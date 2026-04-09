@@ -71,8 +71,7 @@ function passwordReducer(
       return {
         ...state,
         previousValue: state.value,
-        value:
-          state.value.slice(0, state.cursorOffset) + state.value.slice(state.cursorOffset + 1),
+        value: state.value.slice(0, state.cursorOffset) + state.value.slice(state.cursorOffset + 1),
         cursorOffset: state.cursorOffset,
       };
     }

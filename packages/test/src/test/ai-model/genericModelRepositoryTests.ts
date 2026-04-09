@@ -101,7 +101,10 @@ export const runGenericModelRepositoryTests = (
       description: "LaMini-Flan-T5-783M",
       tasks: ["TextGenerationTask"],
       provider: HF_TRANSFORMERS_ONNX,
-      provider_config: { pipeline: "text2text-generation", model_path: "Xenova/LaMini-Flan-T5-783M" },
+      provider_config: {
+        pipeline: "text2text-generation",
+        model_path: "Xenova/LaMini-Flan-T5-783M",
+      },
       metadata: {},
     };
 
@@ -143,7 +146,10 @@ export const runGenericModelRepositoryTests = (
       description: "LaMini-Flan-T5-783M",
       tasks: ["TextGenerationTask"],
       provider: HF_TRANSFORMERS_ONNX,
-      provider_config: { pipeline: "text2text-generation", model_path: "Xenova/LaMini-Flan-T5-783M" },
+      provider_config: {
+        pipeline: "text2text-generation",
+        model_path: "Xenova/LaMini-Flan-T5-783M",
+      },
       metadata: {},
     });
 
@@ -153,7 +159,10 @@ export const runGenericModelRepositoryTests = (
       description: "Updated Description",
       tasks: ["TextGenerationTask", "TextRewriterTask"],
       provider: HF_TRANSFORMERS_ONNX,
-      provider_config: { pipeline: "text2text-generation", model_path: "Xenova/LaMini-Flan-T5-783M" },
+      provider_config: {
+        pipeline: "text2text-generation",
+        model_path: "Xenova/LaMini-Flan-T5-783M",
+      },
       metadata: {},
     });
 
