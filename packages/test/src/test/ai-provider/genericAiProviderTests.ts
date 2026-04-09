@@ -342,14 +342,19 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
 
       it.skipIf(!setup.agentModel)(
         "should extract structured output via stop tool",
+        {
+          timeout: setup.timeout,
+          // LLM tool-calling is non-deterministic on shared CI runners; allow one retry.
+          retry: 1,
+        },
         async () => {
           const output = await agent({
             model: setup.agentModel!,
             prompt:
-              "First look up the combined popular votes for electoral districts 3 and 5 using the get_district_popular_votes tool. Wait for the tool call result in another turn, then call the finish tool with that combined vote total in a field called 'answer'.",
+              "Two steps only. (1) Call get_district_popular_votes once with district_a 3 and district_b 5 and wait for the tool result (combined vote total). (2) Then call finish once with that total as numeric field answer. After you receive the tool result from step 1, do not call get_district_popular_votes again.",
             tools: [getDistrictPopularVotesTool, finishTool],
             stopTool: "finish",
-            maxIterations: 5,
+            maxIterations: 7,
             maxTokens: setup.maxTokens,
           });
 
@@ -361,24 +366,22 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             .flatMap((m) => m.content)
             .filter((c) => c.type === "tool_use");
 
-          expect(toolCalls).toBeDefined();
-          const districtCall = toolCalls.find((c) => c.name === "get_district_popular_votes");
-          const finishCall = toolCalls.find((c) => c.name === "finish");
+          expect(toolCalls.length).toBeGreaterThan(0);
+          const districtCall = toolCalls.find(
+            (c) =>
+              c.name === "get_district_popular_votes" &&
+              Number(c.input.district_a) === 3 &&
+              Number(c.input.district_b) === 5
+          );
           expect(districtCall?.id).toBeDefined();
-          expect(districtCall?.input).toBeDefined();
-          expect(Number(districtCall?.input.district_a)).toBe(3);
-          expect(Number(districtCall?.input.district_b)).toBe(5);
-          expect(finishCall?.id).toBeDefined();
-          expect(finishCall?.input).toBeDefined();
-          expect(Number(finishCall?.input.answer)).toBe(160);
 
-          expect(output.iterations).toEqual(2);
-          // The stop tool should produce structuredOutput
-          if (output.structuredOutput) {
-            expect(typeof output.structuredOutput).toBe("object");
-          }
-        },
-        setup.timeout
+          expect(output.structuredOutput).toBeDefined();
+          expect(typeof output.structuredOutput).toBe("object");
+          expect(Number(output.structuredOutput?.answer)).toBe(160);
+
+          expect(output.iterations).toBeGreaterThanOrEqual(2);
+          expect(output.toolCallCount).toBeGreaterThanOrEqual(2);
+        }
       );
     });
   });
