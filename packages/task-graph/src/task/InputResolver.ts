@@ -18,15 +18,20 @@ export interface InputResolverConfig {
 /**
  * Extracts the format string from a schema, handling oneOf/anyOf wrappers.
  */
-export function getSchemaFormat(schema: unknown): string | undefined {
+export function getSchemaFormat(
+  schema: unknown,
+  visited: WeakSet<object> = new WeakSet()
+): string | undefined {
   if (typeof schema !== "object" || schema === null) return undefined;
+  if (visited.has(schema)) return undefined;
+  visited.add(schema);
 
   const s = schema as Record<string, unknown>;
 
   // Direct format
   if (typeof s.format === "string") return s.format;
 
-  // Check oneOf/anyOf for format
+  // Check oneOf/anyOf/allOf for format
   const variants = (s.oneOf ?? s.anyOf) as unknown[] | undefined;
   if (Array.isArray(variants)) {
     for (const variant of variants) {
@@ -34,6 +39,14 @@ export function getSchemaFormat(schema: unknown): string | undefined {
         const v = variant as Record<string, unknown>;
         if (typeof v.format === "string") return v.format;
       }
+    }
+  }
+
+  const allOf = s.allOf as unknown[] | undefined;
+  if (Array.isArray(allOf)) {
+    for (const sub of allOf) {
+      const fmt = getSchemaFormat(sub, visited);
+      if (fmt !== undefined) return fmt;
     }
   }
 
@@ -46,9 +59,12 @@ export function getSchemaFormat(schema: unknown): string | undefined {
  * where the model can be either a string ID or an inline config object.
  */
 export function getObjectSchema(
-  schema: unknown
+  schema: unknown,
+  visited: WeakSet<object> = new WeakSet()
 ): (Record<string, unknown> & { properties: Record<string, unknown> }) | undefined {
   if (typeof schema !== "object" || schema === null) return undefined;
+  if (visited.has(schema)) return undefined;
+  visited.add(schema);
 
   const s = schema as Record<string, unknown>;
 
@@ -67,6 +83,15 @@ export function getObjectSchema(
           return v as Record<string, unknown> & { properties: Record<string, unknown> };
         }
       }
+    }
+  }
+
+  // Check allOf for object variant
+  const allOf = s.allOf as unknown[] | undefined;
+  if (Array.isArray(allOf)) {
+    for (const sub of allOf) {
+      const result = getObjectSchema(sub, visited);
+      if (result !== undefined) return result;
     }
   }
 
@@ -123,7 +148,8 @@ export function schemaHasFormatAnnotations(schema: DataPortSchema): boolean {
 export async function resolveSchemaInputs<T extends Record<string, unknown>>(
   input: T,
   schema: DataPortSchema,
-  config: InputResolverConfig
+  config: InputResolverConfig,
+  visited: Set<object> = new Set()
 ): Promise<T> {
   if (typeof schema === "boolean") return input;
 
@@ -172,12 +198,18 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
       !Array.isArray(value)
     ) {
       const objectSchema = getObjectSchema(propSchema);
-      if (objectSchema) {
-        resolved[key] = await resolveSchemaInputs(
-          value as Record<string, unknown>,
-          objectSchema as DataPortSchema,
-          config
-        );
+      if (objectSchema && !visited.has(objectSchema)) {
+        visited.add(objectSchema);
+        try {
+          resolved[key] = await resolveSchemaInputs(
+            value as Record<string, unknown>,
+            objectSchema as DataPortSchema,
+            config,
+            visited
+          );
+        } finally {
+          visited.delete(objectSchema);
+        }
       }
     }
   }
