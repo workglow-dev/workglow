@@ -141,6 +141,8 @@ export function getJobQueueFactory(): JobQueueFactory {
   return globalServiceRegistry.get(JOB_QUEUE_FACTORY);
 }
 
-if (!globalServiceRegistry.has(JOB_QUEUE_FACTORY)) {
-  registerJobQueueFactory(defaultJobQueueFactory);
-}
+globalServiceRegistry.registerIfAbsent(
+  JOB_QUEUE_FACTORY,
+  (): JobQueueFactory => defaultJobQueueFactory,
+  true
+);

@@ -66,13 +66,11 @@ export const TASK_CONSTRUCTORS =
   createServiceToken<Map<string, AnyTaskConstructor>>("task.constructors");
 
 // Register default factory backed by the global TaskRegistry
-if (!globalServiceRegistry.has(TASK_CONSTRUCTORS)) {
-  globalServiceRegistry.register(
-    TASK_CONSTRUCTORS,
-    (): Map<string, AnyTaskConstructor> => TaskRegistry.all,
-    true
-  );
-}
+globalServiceRegistry.registerIfAbsent(
+  TASK_CONSTRUCTORS,
+  (): Map<string, AnyTaskConstructor> => TaskRegistry.all,
+  true
+);
 
 /**
  * Gets the global task constructors map.

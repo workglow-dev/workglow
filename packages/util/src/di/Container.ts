@@ -11,6 +11,7 @@ export class Container {
   private services: Map<string, any> = new Map();
   private factories: Map<string, () => any> = new Map();
   private singletons: Set<string> = new Set();
+  private resolving: Set<string> = new Set();
 
   /**
    * Register a service factory
@@ -23,6 +24,20 @@ export class Container {
     if (singleton) {
       this.singletons.add(token);
     }
+  }
+
+  /**
+   * Register a service factory only if the token is not already registered.
+   * This is an atomic check-and-register to avoid TOCTOU races.
+   * @param token The identifier token for the service
+   * @param factory A factory function that creates the service
+   * @param singleton Whether the service should be a singleton (created once)
+   */
+  registerIfAbsent<T>(token: string, factory: () => T, singleton = true): void {
+    if (this.factories.has(token) || this.services.has(token)) {
+      return;
+    }
+    this.register(token, factory, singleton);
   }
 
   /**
@@ -50,13 +65,22 @@ export class Container {
       throw new Error(`Service not registered: ${String(token)}`);
     }
 
-    const instance = factory();
-
-    if (this.singletons.has(token)) {
-      this.services.set(token, instance);
+    if (this.resolving.has(token)) {
+      throw new Error(`Circular dependency detected while resolving: ${String(token)}`);
     }
 
-    return instance as T;
+    this.resolving.add(token);
+    try {
+      const instance = factory();
+
+      if (this.singletons.has(token)) {
+        this.services.set(token, instance);
+      }
+
+      return instance as T;
+    } finally {
+      this.resolving.delete(token);
+    }
   }
 
   /**
