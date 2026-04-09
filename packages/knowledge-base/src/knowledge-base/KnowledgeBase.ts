@@ -296,6 +296,14 @@ export class KnowledgeBase {
     this.chunkStorage.destroy();
   }
 
+  async [Symbol.asyncDispose](): Promise<void> {
+    this.destroy();
+  }
+
+  [Symbol.dispose](): void {
+    this.destroy();
+  }
+
   // ===========================================================================
   // Accessors
   // ===========================================================================

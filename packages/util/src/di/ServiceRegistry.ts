@@ -73,6 +73,13 @@ export class ServiceRegistry {
   has<T>(token: ServiceToken<T>): boolean {
     return this.container.has(token.id);
   }
+
+  /**
+   * Dispose all instantiated services and clear registrations.
+   */
+  async dispose(): Promise<void> {
+    await this.container.dispose();
+  }
 }
 
 /**

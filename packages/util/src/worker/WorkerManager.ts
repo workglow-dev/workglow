@@ -239,6 +239,37 @@ export class WorkerManager {
   }
 
   /**
+   * Terminate a single worker and clean up all associated state.
+   */
+  async terminateWorker(name: string): Promise<void> {
+    const worker = this.workers.get(name);
+    if (worker && "terminate" in worker && typeof worker.terminate === "function") {
+      await worker.terminate();
+    }
+    this.workers.delete(name);
+    this.readyWorkers.delete(name);
+    this.workerFunctions.delete(name);
+    this.workerStreamFunctions.delete(name);
+    this.workerReactiveFunctions.delete(name);
+    this.lazyFactories.delete(name);
+    this.lazyInitPromises.delete(name);
+  }
+
+  /**
+   * Terminate all workers and release resources.
+   */
+  async dispose(): Promise<void> {
+    const names = [...this.workers.keys(), ...this.lazyFactories.keys()];
+    for (const name of names) {
+      await this.terminateWorker(name);
+    }
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.dispose();
+  }
+
+  /**
    * Call a streaming function on a worker and return an AsyncGenerator that
    * yields each stream chunk sent by the worker. The worker sends `stream_chunk`
    * messages for each yielded event and a `complete` message when the generator

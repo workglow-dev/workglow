@@ -113,6 +113,18 @@ export async function registerKnowledgeBase(
 }
 
 /**
+ * Deregisters a knowledge base by ID.
+ * Removes from both the live Map and the persistent repository.
+ */
+export async function deregisterKnowledgeBase(id: string): Promise<void> {
+  const kbs = getGlobalKnowledgeBases();
+  kbs.delete(id);
+
+  const repo = getGlobalKnowledgeBaseRepository();
+  await repo.removeKnowledgeBase(id);
+}
+
+/**
  * Gets a knowledge base by ID from the global registry
  */
 export function getKnowledgeBase(id: string): KnowledgeBase | undefined {

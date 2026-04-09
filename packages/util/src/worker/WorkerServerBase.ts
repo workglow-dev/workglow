@@ -314,9 +314,9 @@ export class WorkerServerBase {
     }, 5000);
 
     // Safety cap: if the set grows too large, clear the oldest entries
-    if (this.completedRequests.size > 10000) {
+    if (this.completedRequests.size > 1000) {
       const iter = this.completedRequests.values();
-      for (let i = 0; i < 5000; i++) {
+      for (let i = 0; i < 500; i++) {
         const entry = iter.next();
         if (entry.done) break;
         this.completedRequests.delete(entry.value);
