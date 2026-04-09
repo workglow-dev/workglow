@@ -149,6 +149,51 @@ describe("SchemaValidation", () => {
       expect(result.valid).toBe(true);
     });
 
+    it("should reject an array passed as properties", () => {
+      const schema = {
+        type: "object",
+        properties: ["not", "a", "record"],
+      } as unknown as DataPortSchema;
+
+      const result = validateDataPortSchema(schema);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.path === "/properties")).toBe(true);
+    });
+
+    it("should report null property values as errors", () => {
+      const schema = {
+        type: "object",
+        properties: {
+          field: null,
+        },
+      } as unknown as DataPortSchema;
+
+      const result = validateDataPortSchema(schema);
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) => e.path === "/properties/field" && e.message.includes("Expected schema object")
+        )
+      ).toBe(true);
+    });
+
+    it("should report undefined property values as errors", () => {
+      const schema = {
+        type: "object",
+        properties: {
+          field: undefined,
+        },
+      } as unknown as DataPortSchema;
+
+      const result = validateDataPortSchema(schema);
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) => e.path === "/properties/field" && e.message.includes("Expected schema object")
+        )
+      ).toBe(true);
+    });
+
     it("should detect unknown types in deeply nested schemas", () => {
       const schema = {
         type: "object",
@@ -287,6 +332,18 @@ describe("SchemaValidation", () => {
 
       const result = validateFormatAnnotations(schema);
       expect(result.valid).toBe(true);
+    });
+
+    it("should reject null cast as schema", () => {
+      const result = validateFormatAnnotations(null as unknown as DataPortSchema);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].message).toContain("Schema must be a JSON Schema object or boolean");
+    });
+
+    it("should reject an array cast as schema", () => {
+      const result = validateFormatAnnotations([] as unknown as DataPortSchema);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].message).toContain("Schema must be a JSON Schema object or boolean");
     });
 
     it("should accept schemas with no format annotations", () => {

@@ -24,7 +24,10 @@ export interface SchemaValidationResult {
   readonly errors: readonly SchemaValidationError[];
 }
 
-const VALID_RESULT: SchemaValidationResult = { valid: true, errors: [] };
+const VALID_RESULT: SchemaValidationResult = Object.freeze({
+  valid: true,
+  errors: Object.freeze([] as SchemaValidationError[]),
+});
 
 /**
  * Pattern for format annotations used in dataflow compatibility checking.
@@ -71,7 +74,7 @@ export function validateDataPortSchema(schema: DataPortSchema): SchemaValidation
     });
   }
 
-  if (!schema.properties || typeof schema.properties !== "object") {
+  if (!schema.properties || typeof schema.properties !== "object" || Array.isArray(schema.properties)) {
     errors.push({
       path: "/properties",
       message: "DataPortSchema must have a properties object",
@@ -101,7 +104,12 @@ function collectJsonSchemaErrors(
   path: string,
   errors: SchemaValidationError[]
 ): void {
-  if (typeof schema === "boolean" || schema === null || schema === undefined) {
+  if (typeof schema === "boolean") {
+    return;
+  }
+
+  if (schema === null || schema === undefined) {
+    errors.push({ path, message: `Expected schema object, got ${typeof schema}` });
     return;
   }
 
@@ -177,6 +185,13 @@ function collectJsonSchemaErrors(
 export function validateFormatAnnotations(schema: DataPortSchema): SchemaValidationResult {
   if (typeof schema === "boolean") {
     return VALID_RESULT;
+  }
+
+  if (typeof schema !== "object" || schema === null || Array.isArray(schema)) {
+    return {
+      valid: false,
+      errors: [{ path: "", message: "Schema must be a JSON Schema object or boolean" }],
+    };
   }
 
   const errors: SchemaValidationError[] = [];
