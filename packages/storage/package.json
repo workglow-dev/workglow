@@ -2,6 +2,11 @@
   "name": "@workglow/storage",
   "type": "module",
   "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workglow-dev/workglow.git",
+    "directory": "packages/storage"
+  },
   "description": "Storage abstraction layer for Workglow, supporting IndexedDB, PostgreSQL, and Supabase with unified interfaces.",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
@@ -75,10 +80,6 @@
   },
   "exports": {
     ".": {
-      "react-native": {
-        "types": "./dist/browser.d.ts",
-        "import": "./dist/browser.js"
-      },
       "browser": {
         "types": "./dist/browser.d.ts",
         "import": "./dist/browser.js"
@@ -91,16 +92,12 @@
       "import": "./dist/node.js"
     },
     "./sqlite": {
-      "react-native": {
-        "types": "./dist/sqlite/node.d.ts",
-        "import": "./dist/sqlite/browser.js"
-      },
       "browser": {
-        "types": "./dist/sqlite/node.d.ts",
+        "types": "./dist/sqlite/browser.d.ts",
         "import": "./dist/sqlite/browser.js"
       },
       "bun": {
-        "types": "./dist/sqlite/node.d.ts",
+        "types": "./dist/sqlite/bun.d.ts",
         "import": "./dist/sqlite/bun.js"
       },
       "types": "./dist/sqlite/node.d.ts",
