@@ -23,6 +23,9 @@ export const SHARED_IN_MEMORY_TABULAR_REPOSITORY = createServiceToken<AnyTabular
   "storage.tabularRepository.sharedInMemory"
 );
 
+const SYNC_TIMEOUT = 1000;
+const MAX_PENDING_MESSAGES = 1000;
+
 /**
  * Message types for BroadcastChannel communication
  */
@@ -148,7 +151,9 @@ export class SharedInMemoryTabularStorage<
   private async handleBroadcastMessage(message: BroadcastMessage): Promise<void> {
     if (this.syncInProgress && message.type !== "SYNC_RESPONSE") {
       // Queue messages during sync to replay after sync completes
-      this.pendingMessages.push(message);
+      if (this.pendingMessages.length < MAX_PENDING_MESSAGES) {
+        this.pendingMessages.push(message);
+      }
       return;
     }
 
@@ -201,13 +206,20 @@ export class SharedInMemoryTabularStorage<
   }
 
   /**
-   * Drains pending messages that were queued during sync
+   * Drains pending messages that were queued during sync.
+   * Uses a while loop to handle messages that may be re-queued during draining
+   * (e.g., if a replayed message triggers a new sync cycle).
    */
   private async drainPendingMessages(): Promise<void> {
-    const messages = this.pendingMessages;
-    this.pendingMessages = [];
-    for (const message of messages) {
-      await this.handleBroadcastMessage(message);
+    while (!this.syncInProgress && this.pendingMessages.length > 0) {
+      const messages = this.pendingMessages;
+      this.pendingMessages = [];
+      for (const message of messages) {
+        await this.handleBroadcastMessage(message);
+        if (this.syncInProgress) {
+          break;
+        }
+      }
     }
   }
 
@@ -221,12 +233,14 @@ export class SharedInMemoryTabularStorage<
     this.channel.postMessage({ type: "SYNC_REQUEST" } as BroadcastMessage);
 
     // Set a timeout to stop waiting for sync response
-    setTimeout(async () => {
+    setTimeout(() => {
       if (this.syncInProgress) {
         this.syncInProgress = false;
-        await this.drainPendingMessages();
+        void this.drainPendingMessages().catch((error) => {
+          console.error("Failed to drain pending messages after sync timeout", error);
+        });
       }
-    }, 1000);
+    }, SYNC_TIMEOUT);
   }
 
   /**
