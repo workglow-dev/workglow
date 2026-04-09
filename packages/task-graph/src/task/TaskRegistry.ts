@@ -25,10 +25,11 @@ const taskConstructors = new Map<string, AnyTaskConstructor>();
 /**
  * Registers a task constructor with the registry.
  * This allows the task type to be instantiated dynamically based on its type identifier.
+ * Re-registering the exact same class is idempotent and does nothing.
  *
- * @param type - The unique identifier for the task type
- * @param constructor - The constructor function for the task
- * @throws Error if a task with the same type is already registered
+ * @param baseClass - The constructor function for the task to register
+ * @throws Error if a different constructor is already registered for the same task type.
+ *   Call {@link unregisterTask} first to replace an existing registration.
  */
 function registerTask(baseClass: AnyTaskConstructor): void {
   const existing = taskConstructors.get(baseClass.type);
