@@ -447,6 +447,69 @@ describe("InputCompactor", () => {
     });
   });
 
+  describe("allOf schema support", () => {
+    beforeEach(() => {
+      registerInputCompactor("allof-compact", (value) => {
+        if (typeof value === "object" && value !== null && "id" in value) {
+          const id = (value as Record<string, unknown>).id;
+          return typeof id === "string" ? id : undefined;
+        }
+        return undefined;
+      });
+    });
+
+    afterEach(() => {
+      getInputCompactors().delete("allof-compact");
+    });
+
+    test("should compact object to string when schema uses allOf with string type", async () => {
+      const schema: DataPortSchema = {
+        type: "object",
+        properties: {
+          resource: {
+            allOf: [
+              {
+                oneOf: [
+                  { type: "string", format: "allof-compact" },
+                  { type: "object", properties: { id: { type: "string" } } },
+                ],
+              },
+              { format: "allof-compact" },
+            ],
+          },
+        },
+      };
+
+      const input = { resource: { id: "my-resource" } };
+      const compacted = await compactSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      expect(compacted.resource).toBe("my-resource");
+    });
+  });
+
+  describe("cycle detection", () => {
+    test("should not stack overflow on circular schema references", async () => {
+      const objectSchema: Record<string, unknown> = {
+        type: "object",
+        properties: {},
+      };
+      // Create circular reference
+      (objectSchema.properties as Record<string, unknown>).self = objectSchema;
+
+      const schema: DataPortSchema = objectSchema as DataPortSchema;
+
+      const input = { self: { self: { self: {} } } };
+      const compacted = await compactSchemaInputs(input, schema, {
+        registry: globalServiceRegistry,
+      });
+
+      // Should complete without stack overflow
+      expect(compacted).toBeDefined();
+    });
+  });
+
   describe("roundtrip", () => {
     test("compact(resolve(input)) should return the original string IDs", async () => {
       const schema: DataPortSchema = {

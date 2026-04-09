@@ -33,6 +33,13 @@ function schemaAllowsString(schema: unknown): boolean {
     }
   }
 
+  const allOf = s.allOf as unknown[] | undefined;
+  if (Array.isArray(allOf)) {
+    for (const sub of allOf) {
+      if (schemaAllowsString(sub)) return true;
+    }
+  }
+
   return false;
 }
 
@@ -61,7 +68,8 @@ function schemaAllowsString(schema: unknown): boolean {
 export async function compactSchemaInputs<T extends Record<string, unknown>>(
   input: T,
   schema: DataPortSchema,
-  config: InputCompactorConfig
+  config: InputCompactorConfig,
+  visited: Set<object> = new Set()
 ): Promise<T> {
   if (typeof schema === "boolean") return input;
 
@@ -128,11 +136,13 @@ export async function compactSchemaInputs<T extends Record<string, unknown>>(
       !Array.isArray(value)
     ) {
       const objectSchema = getObjectSchema(propSchema);
-      if (objectSchema) {
+      if (objectSchema && !visited.has(objectSchema)) {
+        visited.add(objectSchema);
         compacted[key] = await compactSchemaInputs(
           value as Record<string, unknown>,
           objectSchema as DataPortSchema,
-          config
+          config,
+          visited
         );
       }
     }
