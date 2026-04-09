@@ -119,12 +119,37 @@ describe("Container", () => {
   describe("circular dependency detection", () => {
     it("should throw on reentrant get for the same singleton token", () => {
       container.register("circular", () => {
-        // Reentrantly resolve the same token
         return container.get("circular");
       });
       expect(() => container.get("circular")).toThrow(
-        "Circular dependency detected while resolving: circular"
+        "Circular dependency detected: circular -> circular"
       );
+    });
+
+    it("should throw with full path on cross-token cycle (A -> B -> A)", () => {
+      container.register("a", () => container.get("b"));
+      container.register("b", () => container.get("a"));
+      expect(() => container.get("a")).toThrow(
+        "Circular dependency detected: a -> b -> a"
+      );
+    });
+
+    it("should clean up resolving state when a factory throws", () => {
+      let shouldThrow = true;
+      container.register(
+        "flaky",
+        () => {
+          if (shouldThrow) throw new Error("factory error");
+          return { value: "ok" };
+        },
+        false
+      );
+
+      expect(() => container.get("flaky")).toThrow("factory error");
+
+      // Subsequent call should not falsely trigger the circular dependency guard
+      shouldThrow = false;
+      expect(container.get<{ value: string }>("flaky").value).toBe("ok");
     });
 
     it("should allow non-circular cross-token resolution inside a factory", () => {

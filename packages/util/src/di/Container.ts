@@ -11,7 +11,7 @@ export class Container {
   private services: Map<string, any> = new Map();
   private factories: Map<string, () => any> = new Map();
   private singletons: Set<string> = new Set();
-  private resolving: Set<string> = new Set();
+  private resolving: string[] = [];
 
   /**
    * Register a service factory
@@ -65,11 +65,12 @@ export class Container {
       throw new Error(`Service not registered: ${String(token)}`);
     }
 
-    if (this.resolving.has(token)) {
-      throw new Error(`Circular dependency detected while resolving: ${String(token)}`);
+    if (this.resolving.includes(token)) {
+      const cycle = [...this.resolving.slice(this.resolving.indexOf(token)), token];
+      throw new Error(`Circular dependency detected: ${cycle.join(" -> ")}`);
     }
 
-    this.resolving.add(token);
+    this.resolving.push(token);
     try {
       const instance = factory();
 
@@ -79,7 +80,7 @@ export class Container {
 
       return instance as T;
     } finally {
-      this.resolving.delete(token);
+      this.resolving.pop();
     }
   }
 
