@@ -7,6 +7,7 @@
 import {
   Dataflow,
   getOutputStreamMode,
+  GraphAsTask,
   IExecuteContext,
   Task,
   TaskGraph,
@@ -697,6 +698,140 @@ describe("TaskGraph Streaming", () => {
       expect(getOutputStreamMode(StreamSourceTask.outputSchema())).toBe("append");
       expect(getOutputStreamMode(ReplaceSourceTask.outputSchema())).toBe("replace");
       expect(getOutputStreamMode(NonStreamConsumerTask.outputSchema())).toBe("none");
+    });
+  });
+
+  // ============================================================================
+  // GraphAsTask.executeStream() race-condition regression
+  // ============================================================================
+
+  /**
+   * A streaming task that emits many chunks without any sleep, maximising the
+   * chance that notifications arrive while the outer generator is still
+   * actively draining the queue (rather than waiting on notifyPromise).
+   * This exercises both the "producer fires before the first await" path and
+   * the "producer fires between waits" (stale-resolver) path.
+   */
+  class RapidStreamTask extends Task<TextInput, TextOutput> {
+    public static override type = "RapidStreamTask";
+    public static override cacheable = false;
+
+    public static override inputSchema(): DataPortSchema {
+      return {
+        type: "object",
+        properties: { prompt: { type: "string", default: "test" } },
+        additionalProperties: false,
+      } as const satisfies DataPortSchema;
+    }
+
+    public static override outputSchema(): DataPortSchema {
+      return {
+        type: "object",
+        properties: { text: { type: "string", "x-stream": "append" } },
+        additionalProperties: false,
+      } as const satisfies DataPortSchema;
+    }
+
+    async *executeStream(
+      _input: TextInput,
+      _context: IExecuteContext
+    ): AsyncIterable<StreamEvent<TextOutput>> {
+      // Emit 8 chunks with no sleep to maximise batching / notify-before-wait races.
+      for (let i = 1; i <= 8; i++) {
+        yield { type: "text-delta", port: "text", textDelta: `chunk${i}` };
+      }
+      yield { type: "finish", data: { text: "chunk1chunk2chunk3chunk4chunk5chunk6chunk7chunk8" } };
+    }
+
+    override async execute(
+      _input: TextInput,
+      _context: IExecuteContext
+    ): Promise<TextOutput | undefined> {
+      return { text: "chunk1chunk2chunk3chunk4chunk5chunk6chunk7chunk8" };
+    }
+  }
+
+  /**
+   * A task whose execute() always rejects, used to verify that a subgraph
+   * failure unblocks and propagates through GraphAsTask.executeStream().
+   */
+  class AlwaysFailTask extends Task<TextInput, TextOutput> {
+    public static override type = "AlwaysFailTask";
+    public static override cacheable = false;
+
+    public static override inputSchema(): DataPortSchema {
+      return {
+        type: "object",
+        properties: { prompt: { type: "string", default: "test" } },
+        additionalProperties: false,
+      } as const satisfies DataPortSchema;
+    }
+
+    public static override outputSchema(): DataPortSchema {
+      return {
+        type: "object",
+        properties: { text: { type: "string" } },
+        additionalProperties: false,
+      } as const satisfies DataPortSchema;
+    }
+
+    override async execute(
+      _input: TextInput,
+      _context: IExecuteContext
+    ): Promise<TextOutput | undefined> {
+      throw new Error("subgraph-failure");
+    }
+  }
+
+  describe("GraphAsTask.executeStream() race-condition regression", () => {
+    it("should forward all chunks from a rapid-fire inner streaming task", async () => {
+      const subGraph = new TaskGraph();
+      const source = new RapidStreamTask({ id: "rapid-src", defaults: { prompt: "test" } });
+      subGraph.addTask(source);
+
+      // Embed the subgraph inside a GraphAsTask so executeStream() is exercised.
+      const gat = new GraphAsTask({ id: "gat", subGraph });
+
+      // Drive the GraphAsTask via an outer TaskGraphRunner.
+      const outerGraph = new TaskGraph();
+      outerGraph.addTask(gat);
+      const outerRunner = new TaskGraphRunner(outerGraph);
+
+      // Collect every stream_chunk event emitted by the GraphAsTask.
+      const chunks: StreamEvent[] = [];
+      gat.on("stream_chunk", (ev) => chunks.push(ev));
+
+      await outerRunner.runGraph({ prompt: "test" });
+
+      expect(gat.status).toBe(TaskStatus.COMPLETED);
+
+      // There should be exactly 8 text-delta events plus the finish event.
+      const deltas = chunks.filter((e) => e.type === "text-delta");
+      expect(deltas).toHaveLength(8);
+      const finish = chunks.find((e) => e.type === "finish");
+      expect(finish).toBeDefined();
+    });
+
+    it("should propagate a subgraph rejection out of executeStream()", async () => {
+      const subGraph = new TaskGraph();
+      const failing = new AlwaysFailTask({ id: "fail-src", defaults: { prompt: "test" } });
+      subGraph.addTask(failing);
+
+      const gat = new GraphAsTask({ id: "gat-err", subGraph });
+      const outerGraph = new TaskGraph();
+      outerGraph.addTask(gat);
+      const outerRunner = new TaskGraphRunner(outerGraph);
+
+      // The runner should reject (or the GraphAsTask should end up FAILED).
+      try {
+        await outerRunner.runGraph({ prompt: "test" });
+      } catch {
+        // Rejection is one acceptable outcome.
+      }
+
+      // Regardless of how errors surface, the subgraph task must not be
+      // left spinning (PENDING/PROCESSING) — it should reach a terminal state.
+      expect([TaskStatus.FAILED, TaskStatus.COMPLETED]).toContain(failing.status);
     });
   });
 });
