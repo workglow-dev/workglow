@@ -1,5 +1,8 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "tsconfig.json"
+  ],
   "tasks": {
     "build-clean": {
       "cache": false
@@ -8,6 +11,13 @@
       "dependsOn": [
         "build-clean",
         "^build-package"
+      ],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.json",
+        "tsconfig.json",
+        "package.json"
       ],
       "outputs": [
         "dist/**/*.js",
@@ -22,6 +32,12 @@
         "build-clean",
         "^build-js"
       ],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.json",
+        "package.json"
+      ],
       "outputs": [
         "dist/**/*.js",
         "dist/**/*.js.map"
@@ -31,6 +47,13 @@
       "dependsOn": [
         "build-clean",
         "^build-types"
+      ],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.json",
+        "tsconfig.json",
+        "package.json"
       ],
       "outputs": [
         "dist/**/*.d.ts",
@@ -44,6 +67,15 @@
         "build-package",
         "^build-package",
         "^build-example"
+      ],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.json",
+        "src/**/*.html",
+        "src/**/*.css",
+        "tsconfig.json",
+        "package.json"
       ],
       "outputs": [
         "dist/**/*.js",
