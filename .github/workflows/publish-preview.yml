@@ -1,0 +1,25 @@
+name: Publish Preview Packages
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "!**"
+  pull_request:
+
+permissions: {}
+
+jobs:
+  publish-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun i
+      - run: bun run build
+      - run: bunx pkg-pr-new publish --bun './packages/util' './packages/storage' './packages/job-queue' './packages/task-graph' './packages/knowledge-base' './packages/tasks' './packages/ai' './packages/ai-provider' './packages/workglow'
