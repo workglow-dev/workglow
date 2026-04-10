@@ -28,6 +28,33 @@ _\*stable is a relative term, and will be updated at some point as we go before 
 - **[Architecture](docs/developers/02_architecture.md)**
 - **[Extending the System](docs/developers/03_extending.md)**
 
+## Technical Deep Dives
+
+- **[Task Graph DAG Engine](docs/technical/01-task-graph-dag-engine.md)**
+- **[Dual Mode Execution](docs/technical/02-dual-mode-execution.md)**
+- **[Control Flow Tasks](docs/technical/03-control-flow-tasks.md)**
+- **[Dataflow and Streaming](docs/technical/04-dataflow-and-streaming.md)**
+- **[Job Queue System](docs/technical/05-job-queue-system.md)**
+- **[Composite Rate Limiting](docs/technical/06-composite-rate-limiting.md)**
+- **[Storage Abstraction](docs/technical/07-storage-abstraction.md)**
+- **[Knowledge Base and RAG](docs/technical/08-knowledge-base-and-rag.md)**
+- **[Schema and Input Resolution](docs/technical/09-schema-and-input-resolution.md)**
+- **[AI Task Framework](docs/technical/10-ai-task-framework.md)**
+- **[AI Provider System](docs/technical/11-ai-provider-system.md)**
+- **[Model Registry](docs/technical/12-model-registry.md)**
+- **[Worker System](docs/technical/13-worker-system.md)**
+- **[Entitlements System](docs/technical/14-entitlements-system.md)**
+- **[Credential Management](docs/technical/15-credential-management.md)**
+- **[Service Registry and DI](docs/technical/16-service-registry-di.md)**
+- **[Event System](docs/technical/17-event-system.md)**
+- **[Multi-Runtime Abstraction](docs/technical/18-multi-runtime-abstraction.md)**
+- **[Build System](docs/technical/19-build-system.md)**
+- **[Task Registry](docs/technical/20-task-registry.md)**
+- **[Graph Data Structures](docs/technical/21-graph-data-structures.md)**
+- **[MCP Integration](docs/technical/22-mcp-integration.md)**
+
+## Packages
+
 Packages:
 
 - **[packages/storage](packages/storage/README.md)**
