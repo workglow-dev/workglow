@@ -7,14 +7,30 @@
 import {
   CreateWorkflow,
   IExecuteContext,
-  TaskConfig,
   Task,
   TaskAbortedError,
+  TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
-import Papa from "papaparse";
 import { FetchUrlTask, FetchUrlTaskOutput } from "./FetchUrlTask";
+
+let _papaParse: typeof import("papaparse").parse | undefined;
+
+async function getPapaParse(): Promise<typeof import("papaparse").parse> {
+  if (!_papaParse) {
+    try {
+      const mod = await import("papaparse");
+      _papaParse = mod.parse;
+    } catch {
+      throw new Error(
+        "CSV parsing requires the optional 'papaparse' package. " +
+          "Install it with: npm install papaparse (or bun add papaparse)"
+      );
+    }
+  }
+  return _papaParse;
+}
 
 const inputSchema = {
   type: "object",
@@ -180,15 +196,19 @@ export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutp
   /**
    * Parse CSV content into array of objects
    */
-  protected parseCsvContent(content: string): Array<Record<string, string>> {
+  protected async parseCsvContent(content: string): Promise<Array<Record<string, string>>> {
     try {
-      const result = Papa.parse<Record<string, string>>(content, {
+      const parse = await getPapaParse();
+      const result = parse<Record<string, string>>(content, {
         header: true,
         skipEmptyLines: true,
-        transformHeader: (header) => header.trim(),
+        transformHeader: (header: string) => header.trim(),
       });
       return result.data;
     } catch (error) {
+      if (error instanceof Error && error.message.includes("optional 'papaparse'")) {
+        throw error;
+      }
       throw new Error(`Failed to parse CSV: ${error}`);
     }
   }
@@ -386,7 +406,7 @@ export class FileLoaderTask extends Task<FileLoaderTaskInput, FileLoaderTaskOutp
       if (!content) {
         throw new Error(`Failed to load CSV from ${url}`);
       }
-      const csvData = this.parseCsvContent(content);
+      const csvData = await this.parseCsvContent(content);
       return {
         text: undefined,
         json: undefined,
