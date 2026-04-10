@@ -132,7 +132,7 @@ export class ModelRepository {
 
   /**
    * Adds a new model to the repository.
-   * Validates against ModelRecordSchema and rejects duplicates.
+   * Validates against the schema returned by {@link getValidationSchema} and rejects duplicates.
    * @param model - The model instance to add
    * @throws if the model fails schema validation or a model with the same model_id already exists
    */
@@ -151,7 +151,7 @@ export class ModelRepository {
 
   /**
    * Updates an existing model in the repository.
-   * Validates against ModelRecordSchema and requires the model to already exist.
+   * Validates against the schema returned by {@link getValidationSchema} and requires the model to already exist.
    * @param model - The model instance with updated fields
    * @throws if the model fails schema validation or the model_id does not exist
    */
