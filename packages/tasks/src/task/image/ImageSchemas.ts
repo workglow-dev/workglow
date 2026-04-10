@@ -6,11 +6,7 @@
 
 import type { ImageBinary } from "@workglow/util/media";
 import type { JsonSchema } from "@workglow/util/schema";
-import {
-  FromSchema,
-  FromSchemaDefaultOptions,
-  FromSchemaOptions,
-} from "@workglow/util/schema";
+import { FromSchema, FromSchemaDefaultOptions, FromSchemaOptions } from "@workglow/util/schema";
 
 // Type-only value for use in deserialize patterns
 const ImageBinaryType = null as any as ImageBinary;

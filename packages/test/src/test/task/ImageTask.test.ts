@@ -28,12 +28,7 @@ import { describe, expect, test } from "vitest";
 import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
-function createTestImage(
-  w: number,
-  h: number,
-  channels: 1 | 3 | 4,
-  fill?: number[]
-): ImageBinary {
+function createTestImage(w: number, h: number, channels: 1 | 3 | 4, fill?: number[]): ImageBinary {
   const data = new Uint8ClampedArray(w * h * channels);
   if (fill) {
     for (let i = 0; i < w * h; i++) {

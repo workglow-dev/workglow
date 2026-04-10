@@ -106,8 +106,7 @@ export class ImageBlurTask<
         for (let y = 1; y < height; y++) {
           const addY = Math.min(y + radius, height - 1);
           const removeY = Math.max(y - radius - 1, 0);
-          sum +=
-            tmp[(addY * width + x) * channels + c] - tmp[(removeY * width + x) * channels + c];
+          sum += tmp[(addY * width + x) * channels + c] - tmp[(removeY * width + x) * channels + c];
           dst[(y * width + x) * channels + c] = (sum / kernelSize + 0.5) | 0;
         }
       }
