@@ -21,11 +21,12 @@ function normalizeMimeType(mimeType: string): "image/jpeg" | "image/png" | "imag
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]!);
+  const CHUNK = 8192;
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.byteLength; i += CHUNK) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
   }
-  return btoa(binary);
+  return btoa(chunks.join(""));
 }
 
 function rasterToImageData(image: ImageBinary): ImageData {

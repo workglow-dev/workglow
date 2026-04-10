@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import sharp from "sharp";
-
 import type { ImageBinary, ImageChannels } from "@workglow/util/media";
 import { parseDataUri } from "@workglow/util/media";
 
@@ -37,6 +35,15 @@ function expandGrayAlphaToRgba(src: Buffer, width: number, height: number): Uint
 }
 
 async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
+  let sharp: typeof import("sharp").default;
+  try {
+    sharp = (await import("sharp")).default;
+  } catch {
+    throw new Error(
+      "The Node/Bun image raster codec requires the optional 'sharp' package. " +
+        "Install it with: npm install sharp  (or bun add sharp)"
+    );
+  }
   const { base64 } = parseDataUri(dataUri);
   const buffer = Buffer.from(base64, "base64");
   const { data, info } = await sharp(buffer).raw().toBuffer({ resolveWithObject: true });
@@ -64,6 +71,15 @@ async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
 }
 
 async function encodeDataUri(image: ImageBinary, mimeType: string): Promise<string> {
+  let sharp: typeof import("sharp").default;
+  try {
+    sharp = (await import("sharp")).default;
+  } catch {
+    throw new Error(
+      "The Node/Bun image raster codec requires the optional 'sharp' package. " +
+        "Install it with: npm install sharp  (or bun add sharp)"
+    );
+  }
   const { data, width, height, channels } = image;
   const fmt = normalizeMimeType(mimeType);
   const base = sharp(Buffer.from(data), { raw: { width, height, channels } });

@@ -32,7 +32,12 @@ function parseDataUriMimeType(dataUri: string): string {
 export async function resolveImageInput(
   value: ImageBinary | string
 ): Promise<{ readonly raster: ImageBinary; readonly transport: ImageTransport }> {
-  if (isDataUriImage(value)) {
+  if (typeof value === "string") {
+    if (!isDataUriImage(value)) {
+      throw new Error(
+        `resolveImageInput: unsupported string value – expected a data URI (data:image/...;base64,...) but received: "${value.slice(0, 80)}${value.length > 80 ? "…" : ""}"`
+      );
+    }
     const mimeType = parseDataUriMimeType(value);
     const raster = await getImageRasterCodec().decodeDataUri(value);
     return { raster, transport: { kind: "dataUri", mimeType } };
