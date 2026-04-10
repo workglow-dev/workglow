@@ -83,6 +83,31 @@ export function assertWithinByteBudget(byteLength: number, limit: number): void 
 }
 
 /**
+ * Returns a safe preview of `value` for error messages.
+ *
+ * - Non-strings are coerced with `String()`.
+ * - `data:` URIs have everything after the first comma replaced with
+ *   `[REDACTED]` so that base64-encoded image bytes are never written to
+ *   logs or telemetry.
+ * - All other strings are truncated to 80 characters.
+ */
+function formatDataUriErrorPreview(value: unknown): string {
+  if (typeof value !== "string") {
+    return String(value);
+  }
+
+  if (value.startsWith("data:")) {
+    const commaIndex = value.indexOf(",");
+    if (commaIndex >= 0) {
+      return `${value.slice(0, commaIndex)},[REDACTED]`;
+    }
+    return `${value.slice(0, 80)}${value.length > 80 ? "…" : ""}`;
+  }
+
+  return `${value.slice(0, 80)}${value.length > 80 ? "…" : ""}`;
+}
+
+/**
  * Throws unless `value` is a string that starts with `data:`. Defense in depth
  * at the codec boundary — prevents the browser codec's `fetch(value)` from ever
  * reaching the network (`http:`, `file:`, etc.) even if an upstream validator
@@ -90,10 +115,8 @@ export function assertWithinByteBudget(byteLength: number, limit: number): void 
  */
 export function assertIsDataUri(value: string): void {
   if (typeof value !== "string" || !value.startsWith("data:")) {
-    const preview = typeof value === "string" ? value.slice(0, 80) : String(value);
-    throw new Error(
-      `Image raster codec: expected a data: URI but received "${preview}${preview.length >= 80 ? "…" : ""}"`
-    );
+    const preview = formatDataUriErrorPreview(value);
+    throw new Error(`Image raster codec: expected a data: URI but received "${preview}"`);
   }
 }
 

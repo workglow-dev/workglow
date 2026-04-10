@@ -66,8 +66,15 @@ async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
 
   const sharp = await getSharp();
   const { base64 } = parseDataUri(dataUri);
+
+  // Estimate decoded byte count from the base64 string length *before*
+  // allocating the buffer. Each 4 base64 characters decode to 3 bytes;
+  // ceiling gives a slight over-estimate (≥ real size), so oversized inputs
+  // are rejected without touching Buffer.from().
+  const estimatedBytes = Math.ceil(base64.length * 3 / 4);
+  assertWithinByteBudget(estimatedBytes, MAX_INPUT_BYTES_NODE);
+
   const buffer = Buffer.from(base64, "base64");
-  assertWithinByteBudget(buffer.byteLength, MAX_INPUT_BYTES_NODE);
 
   // `limitInputPixels` rejects header-declared pixel bombs before decompression.
   // `sequentialRead` lowers peak memory for large inputs.
