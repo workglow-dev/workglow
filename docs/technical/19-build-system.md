@@ -1,0 +1,580 @@
+<!--
+  @license
+  Copyright 2025 Steven Roussey <sroussey@gmail.com>
+  SPDX-License-Identifier: Apache-2.0
+-->
+
+# Build System
+
+## Overview
+
+Workglow uses **Turborepo** to orchestrate builds across a **Bun workspaces** monorepo. Each
+package compiles its TypeScript source into multiple JavaScript targets (browser, Node.js, Bun)
+using `bun build`, and generates type declarations using `tsgo` (the native TypeScript compiler).
+Turbo manages the dependency graph between packages so that upstream packages are always built
+before their dependents, and its caching layer avoids redundant rebuilds when source files have
+not changed.
+
+The build system is designed around three principles:
+
+1. **Per-target compilation** — each runtime gets a dedicated JavaScript bundle built with the
+   matching `bun build --target` flag, ensuring platform-specific code paths and polyfills are
+   resolved at compile time rather than runtime.
+2. **Parallel execution** — within each package, the three (or more) target builds and type
+   generation run concurrently via `concurrently`. Across packages, Turbo parallelizes independent
+   packages automatically.
+3. **Incremental type checking** — TypeScript uses `composite` projects with `incremental` builds
+   and `.tsbuildinfo` files, so only changed files are re-checked on subsequent builds.
+
+Key configuration files:
+
+| File | Purpose |
+|------|---------|
+| `turbo.json` | Turborepo task definitions, dependency ordering, output declarations |
+| `package.json` (root) | Workspace definitions, top-level build/test/watch scripts |
+| `packages/*/package.json` | Per-package build scripts and conditional exports |
+| `tsconfig.json` (root) | Base TypeScript configuration inherited by all packages |
+| `packages/*/tsconfig.json` | Per-package TypeScript configuration with entry point lists |
+
+---
+
+## Turborepo Configuration
+
+The `turbo.json` file at the repository root defines the task graph that Turbo uses to determine
+build order and caching behavior.
+
+### Task Definitions
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build-clean": {
+      "cache": false
+    },
+    "build-package": {
+      "dependsOn": ["build-clean", "^build-package"],
+      "outputs": [
+        "dist/**/*.js",
+        "dist/**/*.js.map",
+        "dist/**/*.d.ts",
+        "dist/**/*.d.ts.map",
+        "tsconfig.tsbuildinfo"
+      ]
+    },
+    "build-js": {
+      "dependsOn": ["build-clean", "^build-js"],
+      "outputs": [
+        "dist/**/*.js",
+        "dist/**/*.js.map"
+      ]
+    },
+    "build-types": {
+      "dependsOn": ["build-clean", "^build-types"],
+      "outputs": [
+        "dist/**/*.d.ts",
+        "dist/**/*.d.ts.map",
+        "tsconfig.tsbuildinfo"
+      ]
+    },
+    "build-example": {
+      "dependsOn": ["build-clean", "build-package", "^build-package", "^build-example"],
+      "outputs": [
+        "dist/**/*.js",
+        "dist/**/*.js.map"
+      ]
+    },
+    "dev": {
+      "persistent": true,
+      "cache": false
+    },
+    "watch": {
+      "persistent": true,
+      "cache": false
+    },
+    "watch-js": {
+      "persistent": true,
+      "cache": false
+    },
+    "watch-types": {
+      "persistent": true,
+      "cache": false
+    }
+  }
+}
+```
+
+### Task Dependency Graph
+
+Turbo uses two dependency operators:
+
+- **`dependsOn: ["task"]`** — the task in the same package must complete first.
+- **`dependsOn: ["^task"]`** — the same-named task in all **upstream** (dependency) packages must
+  complete first.
+
+For `build-package`, the combination `["build-clean", "^build-package"]` means:
+
+1. Run `build-clean` in the current package first (removes stale `dist/` and `.tsbuildinfo`).
+2. Wait for `build-package` to complete in all packages that the current package depends on
+   (following the dependency graph in `package.json`).
+3. Then run the current package's `build-package` script.
+
+This ensures that when `@workglow/task-graph` builds, its dependencies (`@workglow/util`,
+`@workglow/storage`, `@workglow/job-queue`) are already compiled and their type declarations
+are available for import resolution.
+
+The `build-example` task has an additional same-package dependency on `build-package`, ensuring
+that the library packages are fully built before any example that lives in the same workspace
+attempts to compile.
+
+### Caching and Outputs
+
+Turbo caches task results based on input file hashes and the declared `outputs`. When the inputs
+to a task have not changed since the last run, Turbo replays the cached outputs instead of
+re-executing the build. The `outputs` array tells Turbo which files to save and restore:
+
+- `dist/**/*.js` and `dist/**/*.js.map` — compiled JavaScript and source maps
+- `dist/**/*.d.ts` and `dist/**/*.d.ts.map` — TypeScript declaration files and declaration maps
+- `tsconfig.tsbuildinfo` — TypeScript incremental build info
+
+The `build-clean` and `watch*` tasks set `"cache": false` because clean operations should always
+run, and watch tasks are persistent processes that do not produce cacheable output.
+
+---
+
+## Build Tasks
+
+### `build-package` — Full Package Build
+
+The primary build task. Each package defines this in its `package.json` scripts. For most packages,
+it runs JS compilation and type generation in sequence or in parallel:
+
+**Standard package (`@workglow/task-graph`):**
+
+```json
+{
+  "build-package": "concurrently -c 'auto' -n 'browser,node,bun,types' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-types'"
+}
+```
+
+All four sub-tasks (three JS targets + types) run concurrently within the package.
+
+**Complex package (`@workglow/util`):**
+
+```json
+{
+  "build-package": "bun run build-js && bun run build-types"
+}
+```
+
+Here, `build-js` itself expands into many concurrent builds (browser, node, bun, worker, schema,
+graph, media, compress), and `build-types` runs after all JS builds complete. The sequential
+ordering (`&&`) ensures that type generation can reference the built artifacts.
+
+**Provider package (`@workglow/ai-provider`):**
+
+```json
+{
+  "build-package": "concurrently -c 'auto' -n 'code,browser,types' 'bun run build-code' 'bun run build-browser' 'bun run build-types'"
+}
+```
+
+The ai-provider package does not follow the standard browser/node/bun entry point pattern.
+Instead, it builds per-provider sub-paths (anthropic, openai, gemini, etc.) with `--root ./src`
+to preserve directory structure, plus a separate browser-specific build for providers that support
+browser environments (ollama, openai, tf-mediapipe).
+
+### `build-js` — JavaScript Only
+
+Compiles JavaScript without generating type declarations. Useful for rapid iteration when you
+only need the runtime artifacts. Turbo runs this across the dependency graph:
+
+```bash
+bun run build:js   # Root script: turbo run build-js
+```
+
+The per-package `build-js` scripts mirror `build-package` but omit the `build-types` step.
+
+### `build-types` — Type Declarations Only
+
+Generates `.d.ts` files without recompiling JavaScript. Each package runs:
+
+```json
+{
+  "build-types": "rm -f tsconfig.tsbuildinfo && tsgo"
+}
+```
+
+The `tsconfig.tsbuildinfo` file is deleted first to ensure a clean type generation pass. The
+`tsgo` command is the native TypeScript compiler that reads the package's `tsconfig.json`.
+
+Turbo runs this across the dependency graph:
+
+```bash
+bun run build:types   # Root script: turbo run build-types
+```
+
+---
+
+## Per-Package Multi-Target Builds
+
+### Standard Three-Target Pattern
+
+Most packages build three runtime targets from three entry points:
+
+```
+src/browser.ts  →  dist/browser.js   (--target=browser)
+src/node.ts     →  dist/node.js      (--target=node)
+src/bun.ts      →  dist/bun.js       (--target=bun)
+```
+
+Each build command follows the same template:
+
+```bash
+bun build --target=<TARGET> --sourcemap=external --packages=external --outdir ./dist ./src/<TARGET>.ts
+```
+
+Flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--target=browser\|node\|bun` | Tells Bun which platform APIs are available and how to resolve built-in modules |
+| `--sourcemap=external` | Generates `.js.map` files alongside output for debugging |
+| `--packages=external` | Leaves all `import` statements as-is (no bundling of dependencies) |
+| `--outdir ./dist` | Output directory |
+
+The `--packages=external` flag is critical — it prevents Bun from inlining dependency code into
+the output, which would defeat the purpose of the monorepo's package boundaries and make
+tree-shaking impossible for downstream consumers.
+
+### Extended Pattern (util)
+
+`@workglow/util` has additional entry points beyond the standard three. Each sub-path export
+gets its own build:
+
+```
+src/schema-entry.ts    →  dist/schema-entry.js    (--target=browser)
+src/graph-entry.ts     →  dist/graph-entry.js     (--target=browser)
+src/media-browser.ts   →  dist/media-browser.js   (--target=browser)
+src/media-node.ts      →  dist/media-node.js      (--target=node)
+src/compress-browser.ts → dist/compress-browser.js (--target=browser)
+src/compress-node.ts   →  dist/compress-node.js    (--target=node)
+src/worker-browser.ts  →  dist/worker-browser.js   (--target=browser)
+src/worker-node.ts     →  dist/worker-node.js      (--target=node)
+src/worker-bun.ts      →  dist/worker-bun.js       (--target=bun)
+```
+
+Platform-agnostic sub-paths (schema, graph) are built with `--target=browser` since browser-safe
+code runs everywhere. Platform-specific sub-paths (media, compress, worker) are built with the
+matching target for each variant.
+
+### Provider Pattern (ai-provider)
+
+`@workglow/ai-provider` uses `--root ./src` to build multiple entry points in a single invocation
+while preserving their subdirectory structure in the output:
+
+```bash
+bun build --sourcemap=external --packages=external --root ./src --outdir ./dist \
+  ./src/provider-anthropic/index.ts \
+  ./src/provider-anthropic/runtime.ts \
+  ./src/provider-gemini/index.ts \
+  ./src/provider-gemini/runtime.ts \
+  # ... more providers
+```
+
+This produces output like:
+
+```
+dist/
+  provider-anthropic/
+    index.js
+    runtime.js
+  provider-gemini/
+    index.js
+    runtime.js
+  ...
+```
+
+A separate browser build handles providers that have browser-specific implementations:
+
+```bash
+bun build --target=browser --sourcemap=external --packages=external --outdir ./dist \
+  ./src/provider-ollama/index.browser.ts \
+  ./src/provider-openai/index.browser.ts \
+  ./src/provider-tf-mediapipe/index.ts \
+  # ...
+```
+
+### Storage Pattern
+
+`@workglow/storage` extends the standard three-target pattern with additional sub-path builds for
+backend-specific modules:
+
+```
+src/sqlite/browser.ts  →  dist/sqlite/browser.js  (--target=browser)
+src/sqlite/node.ts     →  dist/sqlite/node.js     (--target=node)
+src/sqlite/bun.ts      →  dist/sqlite/bun.js      (--target=bun)
+src/postgres/browser.ts     →  dist/postgres/browser.js     (--target=browser)
+src/postgres/node-bun.ts    →  dist/postgres/node-bun.js    (--target=node)
+```
+
+Note that the output directories for sub-paths (`dist/sqlite/`, `dist/postgres/`) use
+`--outdir ./dist/sqlite` etc. to place them in nested directories matching the sub-path export
+structure.
+
+---
+
+## Type Generation
+
+Type declarations are generated by a separate `build-types` step using `tsgo`, the native
+TypeScript compiler. This is deliberately separate from the JavaScript compilation because:
+
+1. **`bun build` does not emit `.d.ts` files** — it only produces JavaScript.
+2. **Type checking benefits from incremental builds** — the `composite` and `incremental` settings
+   in `tsconfig.json` enable `.tsbuildinfo` caching.
+3. **Cross-package references need ordered compilation** — Turbo's `^build-types` dependency
+   ensures upstream types are available before downstream packages attempt to resolve them.
+
+The root `tsconfig.json` establishes the base configuration inherited by all packages:
+
+```json
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "bundler",
+    "composite": true,
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+    "incremental": true
+  }
+}
+```
+
+Key settings:
+
+- `emitDeclarationOnly: true` — only `.d.ts` files are emitted (JavaScript is handled by `bun build`)
+- `declarationMap: true` — generates `.d.ts.map` files so IDEs can navigate from declaration to source
+- `composite: true` + `incremental: true` — enables project references and build caching
+- `moduleResolution: "bundler"` — resolves imports the way modern bundlers do (supports conditional exports)
+
+Each package's `tsconfig.json` extends the root and specifies its entry points:
+
+```json
+{
+  "extends": "../../tsconfig.json",
+  "files": [
+    "./src/node.ts",
+    "./src/browser.ts",
+    "./src/bun.ts"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  }
+}
+```
+
+---
+
+## Conditional Exports
+
+The build system produces multiple artifacts per package, and the `"exports"` field in
+`package.json` tells runtimes and bundlers which artifact to load. The standard pattern:
+
+```json
+{
+  "exports": {
+    ".": {
+      "react-native": { "types": "./dist/browser.d.ts", "import": "./dist/browser.js" },
+      "browser":      { "types": "./dist/browser.d.ts", "import": "./dist/browser.js" },
+      "bun":          { "types": "./dist/bun.d.ts",     "import": "./dist/bun.js" },
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  }
+}
+```
+
+The condition evaluation order matters. Runtimes and bundlers match the first condition they
+support:
+
+1. **React Native** tooling matches `"react-native"` and gets the browser build.
+2. **Browser bundlers** (Vite, webpack, esbuild) match `"browser"`.
+3. **Bun** matches `"bun"`.
+4. **Node.js** and everything else falls through to the top-level `"import"` (Node build).
+
+Each condition block includes `"types"` so TypeScript resolves platform-appropriate type
+declarations. This is important because `.d.ts` files may differ across platforms — for example,
+the browser build exports `globalThis.Worker` while the Node build exports a `WorkerPolyfill`
+with a different constructor signature.
+
+---
+
+## Developer Workflow
+
+### Full Build
+
+```bash
+bun run build              # Build everything: packages + examples (turbo run build-package build-example)
+bun run build:packages     # Build packages only (turbo run build-package)
+bun run rebuild            # Force rebuild everything, bypassing Turbo cache (turbo run build-package build-example --force)
+```
+
+Use `bun run rebuild` when you need to bypass Turbo's cache for a clean build. For incremental builds during
+development, use the watch commands instead.
+
+### Watch Mode
+
+```bash
+bun run watch              # Full watch: builds once, then watches all packages (concurrency 15)
+bun run watch:js           # Watch JS only (no type watching)
+```
+
+Watch mode first runs a full `build-package` to establish a baseline, then starts `bun build --watch`
+processes for each target in each package. Turbo manages these as persistent tasks with
+`"persistent": true` and `"cache": false`.
+
+For watching a single package during focused development:
+
+```bash
+cd packages/task-graph && bun run watch
+```
+
+This starts concurrent watch processes for browser, node, bun, and types within that package.
+
+### Dev Mode
+
+```bash
+bun run dev                # Turbo dev mode
+```
+
+Runs `turbo run dev`, which starts any `dev` scripts defined in individual packages.
+
+### Clean
+
+```bash
+bun run clean
+```
+
+Removes `dist/`, `node_modules/`, `.turbo/`, and `.tsbuildinfo` across all packages and examples.
+This is a nuclear option — use it when the build cache is in an inconsistent state.
+
+### Formatting
+
+```bash
+bun run format             # ESLint fix + Prettier write
+```
+
+Runs ESLint with `--fix` and Prettier with `--write` across all source files in packages and
+examples.
+
+---
+
+## Command Reference
+
+### Root-Level Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run build` | Full build: all packages and examples via Turbo |
+| `bun run build:packages` | Build all packages (no examples) |
+| `bun run build:js` | Build JavaScript only (no type declarations) |
+| `bun run build:types` | Build type declarations only |
+| `bun run build:examples` | Build examples only (requires packages built first) |
+| `bun run build:release` | Build packages without `--force` (uses Turbo cache) |
+| `bun run watch` | Full watch mode (builds once, then watches with concurrency 15) |
+| `bun run watch:js` | Watch JavaScript only (stream UI) |
+| `bun run watch-types` | Watch type declarations only |
+| `bun run dev` | Turbo dev mode |
+| `bun run clean` | Remove all build artifacts, caches, and node_modules |
+| `bun run format` | ESLint fix + Prettier write |
+| `bun run test` | Run all tests via `bun scripts/test.ts` |
+
+### Per-Package Commands
+
+These are available within each package directory:
+
+| Command | Description |
+|---------|-------------|
+| `bun run build-package` | Full package build (JS + types) |
+| `bun run build-js` | Build all JS targets concurrently |
+| `bun run build-types` | Generate type declarations via tsgo |
+| `bun run build-clean` | Remove dist/ and tsbuildinfo |
+| `bun run build-browser` | Build browser target only |
+| `bun run build-node` | Build Node.js target only |
+| `bun run build-bun` | Build Bun target only |
+| `bun run watch` | Watch all targets (JS + types) |
+| `bun run watch-js` | Watch JS targets only |
+| `bun run watch-types` | Watch type declarations only |
+| `bun run test` | Run package-specific tests |
+
+### Test Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run test` | All tests (bun test + vitest) |
+| `bun run test:bun:unit` | Bun unit tests |
+| `bun run test:bun:integration` | Bun integration tests (graph, task, storage, queue, util, mcp) |
+| `bun run test:vitest:unit` | Vitest unit tests |
+| `bun run test:vitest:integration` | Vitest integration tests |
+| `bun scripts/test.ts <section> vitest` | Run tests for a specific section via vitest |
+| `bun scripts/test.ts <section> bun` | Run tests for a specific section via bun test |
+
+### Turbo Flags
+
+Commonly used flags when running Turbo commands directly:
+
+| Flag | Purpose |
+|------|---------|
+| `--force` | Bypass cache, rebuild everything |
+| `--filter=<package>` | Run only for a specific package and its dependencies |
+| `--concurrency N` | Limit parallel task execution |
+| `--ui=stream` | Use streaming output (useful for watch mode) |
+| `--dry-run` | Show what would run without executing |
+| `--graph` | Generate a visual dependency graph |
+
+Example: rebuild only `@workglow/task-graph` and its dependencies:
+
+```bash
+turbo run build-package --filter=@workglow/task-graph
+```
+
+---
+
+## Workspace Configuration
+
+The monorepo uses Bun workspaces defined in the root `package.json`:
+
+```json
+{
+  "workspaces": [
+    "./packages/*",
+    "./examples/*"
+  ]
+}
+```
+
+All packages under `packages/` and `examples/` are workspace members. Bun resolves
+`workspace:*` version specifiers to local packages, enabling instant linking without
+publishing to a registry.
+
+The root `package.json` also defines a `"catalog"` field that centralizes version pins for
+shared dependencies (AI SDKs, database drivers, etc.). Packages reference catalog versions
+with `"catalog:"` in their `peerDependencies`, ensuring consistent versions across the
+monorepo without duplicating version strings.
+
+The `"engines"` field enforces a minimum Bun version:
+
+```json
+{
+  "engines": { "bun": "^1.3.11" },
+  "packageManager": "bun@1.3.11"
+}
+```
+
+This ensures contributors use a compatible runtime and prevents accidental use of npm or yarn
+for package management.
