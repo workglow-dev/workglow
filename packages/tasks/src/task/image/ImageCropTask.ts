@@ -73,8 +73,8 @@ export class ImageCropTask<
       throw new RangeError("Crop origin is outside the source image bounds");
     }
 
-    const x = Math.max(0, Math.min(rawX, srcW - 1));
-    const y = Math.max(0, Math.min(rawY, srcH - 1));
+    const x = rawX;
+    const y = rawY;
     const w = Math.min(rawW, srcW - x);
     const h = Math.min(rawH, srcH - y);
 
