@@ -374,10 +374,16 @@ the `onExpiry` callback is invoked -- typically used to lock a
   Browser applications should use `InMemoryCredentialStore` or
   `EncryptedKvCredentialStore` backed by `IndexedDbKvStorage`.
 - The Web Crypto API (`crypto.subtle`) is available natively -- no polyfills needed.
-- Provider clients (Anthropic, OpenAI) set `dangerouslyAllowBrowser: true` when
-  they detect a browser context. This is safe in Workglow because credentials
-  flow through the credential store rather than being hardcoded, and the application
-  controls which credentials are available in the browser context.
+- Provider clients (Anthropic, OpenAI) set `dangerouslyAllowBrowser: true`
+  when they detect a browser or web worker context (see
+  `packages/ai-provider/src/provider-anthropic/common/Anthropic_Client.ts:48`
+  and `packages/ai-provider/src/provider-openai/common/OpenAI_Client.ts:49`).
+  This is **not** automatically safe: any API key loaded into a browser
+  context — even one decrypted from `EncryptedKvCredentialStore` at runtime —
+  is reachable from the page and should be treated as exposed to the end user.
+  Use browser-side provider calls only with short-lived, user-scoped keys, a
+  proxy that injects credentials server-side, or local providers (Ollama,
+  Transformers.js, MediaPipe) that do not require a secret at all.
 - Web Workers receive credentials via structured cloning, same as Node/Bun workers.
 
 ---
@@ -393,7 +399,11 @@ import { EncryptedKvCredentialStore, SqliteKvStorage } from "@workglow/storage";
 
 // 1. Create the encrypted backend
 const kv = new SqliteKvStorage("credentials.db");
-const encrypted = new EncryptedKvCredentialStore(kv, process.env.CREDENTIAL_PASSPHRASE!);
+const passphrase = process.env.CREDENTIAL_PASSPHRASE;
+if (!passphrase) {
+  throw new Error("CREDENTIAL_PASSPHRASE environment variable is required");
+}
+const encrypted = new EncryptedKvCredentialStore(kv, passphrase);
 
 // 2. Chain with environment fallback
 const store = new ChainedCredentialStore([

@@ -485,7 +485,8 @@ examples.
 | `bun run build:js` | Build JavaScript only (no type declarations) |
 | `bun run build:types` | Build type declarations only |
 | `bun run build:examples` | Build examples only (requires packages built first) |
-| `bun run build:release` | Build packages without `--force` (uses Turbo cache) |
+| `bun run build:release` | Build packages only (release build; same task graph as `build:packages`) |
+| `bun run rebuild` | Force rebuild everything, bypassing Turbo cache (`turbo run build-package build-example --force`) |
 | `bun run watch` | Full watch mode (builds once, then watches with concurrency 15) |
 | `bun run watch:js` | Watch JavaScript only (stream UI) |
 | `bun run watch-types` | Watch type declarations only |
@@ -530,12 +531,15 @@ Commonly used flags when running Turbo commands directly:
 
 | Flag | Purpose |
 |------|---------|
-| `--force` | Bypass cache, rebuild everything |
 | `--filter=<package>` | Run only for a specific package and its dependencies |
 | `--concurrency N` | Limit parallel task execution |
 | `--ui=stream` | Use streaming output (useful for watch mode) |
 | `--dry-run` | Show what would run without executing |
 | `--graph` | Generate a visual dependency graph |
+
+To bypass Turbo's cache and rebuild everything from scratch, use `bun run rebuild`
+rather than passing `--force` directly — it runs the full package and example
+task graph with caching disabled.
 
 Example: rebuild only `@workglow/task-graph` and its dependencies:
 
