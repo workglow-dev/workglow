@@ -16,7 +16,10 @@ export interface ImageTransport {
   readonly mimeType: string;
 }
 
-export function isDataUriImage(value: unknown): value is string {
+/** String that begins with `data:` (narrowed by {@link isDataUriImage}). */
+export type DataUriString = `data:${string}`;
+
+export function isDataUriImage(value: unknown): value is DataUriString {
   return typeof value === "string" && value.startsWith("data:");
 }
 

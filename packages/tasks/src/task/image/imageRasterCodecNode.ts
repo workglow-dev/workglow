@@ -34,15 +34,20 @@ function expandGrayAlphaToRgba(src: Buffer, width: number, height: number): Uint
   return dst;
 }
 
-async function getSharp(): Promise<typeof import("sharp").default> {
-  try {
-    return (await import("sharp")).default;
-  } catch {
-    throw new Error(
-      "The Node/Bun image raster codec requires the optional 'sharp' package. " +
-        "Install it with: npm install sharp  (or bun add sharp)"
-    );
+let _sharp: typeof import("sharp") | undefined;
+
+async function getSharp() {
+  if (!_sharp) {
+    try {
+      _sharp = (await import("sharp")).default;
+    } catch {
+      throw new Error(
+        "The Node/Bun image raster codec requires the optional 'sharp' package. " +
+          "Install it with: npm install sharp  (or bun add sharp)"
+      );
+    }
   }
+  return _sharp;
 }
 
 async function decodeDataUri(dataUri: string): Promise<ImageBinary> {

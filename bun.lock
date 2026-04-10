@@ -255,7 +255,6 @@
       "version": "0.2.1",
       "dependencies": {
         "papaparse": "^5.5.3",
-        "sharp": "^0.34.5",
       },
       "devDependencies": {
         "@modelcontextprotocol/sdk": "catalog:",
@@ -264,6 +263,9 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+      },
+      "optionalDependencies": {
+        "sharp": "^0.34.5",
       },
       "peerDependencies": {
         "@modelcontextprotocol/sdk": "catalog:",
