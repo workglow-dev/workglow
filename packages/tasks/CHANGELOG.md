@@ -1,5 +1,19 @@
 # @workglow/tasks
 
+## 0.2.2
+
+### Features
+
+#### tasks
+
+- enhance image processing capabilities (#402)
+
+### Refactors
+
+#### FetchUrlTask
+
+- enhance private URL handling
+
 ## 0.2.1
 
 ### Features

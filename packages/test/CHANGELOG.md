@@ -1,5 +1,13 @@
 # @workglow/test
 
+## 0.2.2
+
+### Features
+
+#### tasks
+
+- enhance image processing capabilities (#402)
+
 ## 0.2.1
 
 ### Features
