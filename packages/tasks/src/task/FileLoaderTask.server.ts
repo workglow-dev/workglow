@@ -7,8 +7,8 @@
 import {
   CreateWorkflow,
   IExecuteContext,
-  TaskConfig,
   TaskAbortedError,
+  TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { readFile } from "node:fs/promises";
@@ -97,7 +97,7 @@ export class FileLoaderTask extends BaseFileLoaderTask {
         throw new TaskAbortedError("Task aborted");
       }
       await context.updateProgress(50, "Parsing CSV content");
-      const csvData = this.parseCsvContent(fileContent);
+      const csvData = await this.parseCsvContent(fileContent);
       if (context.signal.aborted) {
         throw new TaskAbortedError("Task aborted");
       }

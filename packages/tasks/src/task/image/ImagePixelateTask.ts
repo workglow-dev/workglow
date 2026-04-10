@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
     blockSize: {
       type: "integer",
       title: "Block Size",
@@ -33,7 +34,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Pixelated image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Pixelated image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -65,42 +66,45 @@ export class ImagePixelateTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, blockSize = 8 } = input;
-    const { data: src, width, height, channels } = image;
-    const dst = new Uint8ClampedArray(src.length);
+    const { blockSize = 8 } = input;
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width, height, channels } = img;
+      const dst = new Uint8ClampedArray(src.length);
 
-    for (let by = 0; by < height; by += blockSize) {
-      const blockH = Math.min(blockSize, height - by);
-      for (let bx = 0; bx < width; bx += blockSize) {
-        const blockW = Math.min(blockSize, width - bx);
-        const blockArea = blockW * blockH;
+      for (let by = 0; by < height; by += blockSize) {
+        const blockH = Math.min(blockSize, height - by);
+        for (let bx = 0; bx < width; bx += blockSize) {
+          const blockW = Math.min(blockSize, width - bx);
+          const blockArea = blockW * blockH;
 
-        // Compute average color of the block
-        const sums = new Array<number>(channels).fill(0);
-        for (let y = by; y < by + blockH; y++) {
-          for (let x = bx; x < bx + blockW; x++) {
-            const idx = (y * width + x) * channels;
-            for (let c = 0; c < channels; c++) {
-              sums[c] += src[idx + c];
+          // Compute average color of the block
+          const sums = new Array<number>(channels).fill(0);
+          for (let y = by; y < by + blockH; y++) {
+            for (let x = bx; x < bx + blockW; x++) {
+              const idx = (y * width + x) * channels;
+              for (let c = 0; c < channels; c++) {
+                sums[c] += src[idx + c];
+              }
             }
           }
-        }
 
-        const avg = sums.map((s) => (s / blockArea + 0.5) | 0);
+          const avg = sums.map((s) => (s / blockArea + 0.5) | 0);
 
-        // Fill the block with the average color
-        for (let y = by; y < by + blockH; y++) {
-          for (let x = bx; x < bx + blockW; x++) {
-            const idx = (y * width + x) * channels;
-            for (let c = 0; c < channels; c++) {
-              dst[idx + c] = avg[c];
+          // Fill the block with the average color
+          for (let y = by; y < by + blockH; y++) {
+            for (let x = bx; x < bx + blockW; x++) {
+              const idx = (y * width + x) * channels;
+              for (let c = 0; c < channels; c++) {
+                dst[idx + c] = avg[c]!;
+              }
             }
           }
         }
       }
-    }
 
-    return { image: { data: dst, width, height, channels } } as Output;
+      return { data: dst, width, height, channels };
+    });
+    return { image } as Output;
   }
 }
 

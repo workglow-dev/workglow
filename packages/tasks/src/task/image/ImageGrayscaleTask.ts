@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -26,7 +27,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Grayscale image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Grayscale image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -58,21 +59,24 @@ export class ImageGrayscaleTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { data: src, width, height, channels } = input.image;
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width, height, channels } = img;
 
-    if (channels === 1) {
-      return { image: { data: new Uint8ClampedArray(src), width, height, channels: 1 } } as Output;
-    }
+      if (channels === 1) {
+        return { data: new Uint8ClampedArray(src), width, height, channels: 1 };
+      }
 
-    const pixelCount = width * height;
-    const dst = new Uint8ClampedArray(pixelCount);
+      const pixelCount = width * height;
+      const dst = new Uint8ClampedArray(pixelCount);
 
-    for (let i = 0; i < pixelCount; i++) {
-      const idx = i * channels;
-      dst[i] = (src[idx] * 77 + src[idx + 1] * 150 + src[idx + 2] * 29) >> 8;
-    }
+      for (let i = 0; i < pixelCount; i++) {
+        const idx = i * channels;
+        dst[i] = (src[idx] * 77 + src[idx + 1] * 150 + src[idx + 2] * 29) >> 8;
+      }
 
-    return { image: { data: dst, width, height, channels: 1 } } as Output;
+      return { data: dst, width, height, channels: 1 };
+    });
+    return { image } as Output;
   }
 }
 

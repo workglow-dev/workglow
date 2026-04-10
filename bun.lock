@@ -253,9 +253,6 @@
     "packages/tasks": {
       "name": "@workglow/tasks",
       "version": "0.2.1",
-      "dependencies": {
-        "papaparse": "^5.5.3",
-      },
       "devDependencies": {
         "@modelcontextprotocol/sdk": "catalog:",
         "@types/papaparse": "^5.5.2",
@@ -263,6 +260,10 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+      },
+      "optionalDependencies": {
+        "papaparse": "^5.5.3",
+        "sharp": "^0.34.5",
       },
       "peerDependencies": {
         "@modelcontextprotocol/sdk": "catalog:",
@@ -359,8 +360,8 @@
   "trustedDependencies": [
     "protobufjs",
     "better-sqlite3",
-    "onnxruntime-node",
     "sharp",
+    "onnxruntime-node",
     "node-llama-cpp",
   ],
   "catalog": {

@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
     levels: {
       type: "integer",
       title: "Levels",
@@ -34,7 +35,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Posterized image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Posterized image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -66,32 +67,35 @@ export class ImagePosterizeTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { data: src, width, height, channels } = input.image;
     const levels = input.levels ?? 4;
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width, height, channels } = img;
 
-    // Precompute 256-entry lookup table
-    const step = 255 / (levels - 1);
-    const lut = new Uint8ClampedArray(256);
-    for (let i = 0; i < 256; i++) {
-      lut[i] = Math.round(Math.round(i / step) * step);
-    }
-
-    const dst = new Uint8ClampedArray(src.length);
-
-    if (channels === 4) {
-      for (let i = 0; i < src.length; i += 4) {
-        dst[i] = lut[src[i]];
-        dst[i + 1] = lut[src[i + 1]];
-        dst[i + 2] = lut[src[i + 2]];
-        dst[i + 3] = src[i + 3]; // preserve alpha
+      // Precompute 256-entry lookup table
+      const step = 255 / (levels - 1);
+      const lut = new Uint8ClampedArray(256);
+      for (let i = 0; i < 256; i++) {
+        lut[i] = Math.round(Math.round(i / step) * step);
       }
-    } else {
-      for (let i = 0; i < src.length; i++) {
-        dst[i] = lut[src[i]];
-      }
-    }
 
-    return { image: { data: dst, width, height, channels } } as Output;
+      const dst = new Uint8ClampedArray(src.length);
+
+      if (channels === 4) {
+        for (let i = 0; i < src.length; i += 4) {
+          dst[i] = lut[src[i]!]!;
+          dst[i + 1] = lut[src[i + 1]!]!;
+          dst[i + 2] = lut[src[i + 2]!]!;
+          dst[i + 3] = src[i + 3]!; // preserve alpha
+        }
+      } else {
+        for (let i = 0; i < src.length; i++) {
+          dst[i] = lut[src[i]!]!;
+        }
+      }
+
+      return { data: dst, width, height, channels };
+    });
+    return { image } as Output;
   }
 }
 

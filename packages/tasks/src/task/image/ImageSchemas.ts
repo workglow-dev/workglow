@@ -66,6 +66,22 @@ export const ImageBinarySchema = (annotations: Record<string, unknown> = {}) =>
     ...annotations,
   }) as const;
 
+/** Accept {@link ImageBinary} or a `data:image/...;base64,...` URI; output matches the input form. */
+export const ImageBinaryOrDataUriSchema = (annotations: Record<string, unknown> = {}) =>
+  ({
+    oneOf: [
+      ImageBinarySchema(annotations),
+      {
+        type: "string",
+        format: "image:data-uri",
+        title: (annotations.title as string | undefined) ?? "Image",
+        description:
+          (annotations.description as string | undefined) ??
+          "Image as ImageBinary or data URI (data:image/png;base64,...)",
+      },
+    ],
+  }) as const;
+
 export const ColorSchema = (annotations: Record<string, unknown> = {}) =>
   ({
     type: "object",

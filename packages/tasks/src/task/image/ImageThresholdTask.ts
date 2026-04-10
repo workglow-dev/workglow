@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
     threshold: {
       type: "integer",
       title: "Threshold",
@@ -34,7 +35,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Thresholded binary image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Thresholded binary image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -66,23 +67,26 @@ export class ImageThresholdTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { data: src, width, height, channels } = input.image;
     const threshold = input.threshold ?? 128;
-    const pixelCount = width * height;
-    const dst = new Uint8ClampedArray(pixelCount);
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width, height, channels } = img;
+      const pixelCount = width * height;
+      const dst = new Uint8ClampedArray(pixelCount);
 
-    for (let i = 0; i < pixelCount; i++) {
-      const idx = i * channels;
-      let gray: number;
-      if (channels === 1) {
-        gray = src[idx];
-      } else {
-        gray = (src[idx] * 77 + src[idx + 1] * 150 + src[idx + 2] * 29) >> 8;
+      for (let i = 0; i < pixelCount; i++) {
+        const idx = i * channels;
+        let gray: number;
+        if (channels === 1) {
+          gray = src[idx]!;
+        } else {
+          gray = (src[idx]! * 77 + src[idx + 1]! * 150 + src[idx + 2]! * 29) >> 8;
+        }
+        dst[i] = gray >= threshold ? 255 : 0;
       }
-      dst[i] = gray >= threshold ? 255 : 0;
-    }
 
-    return { image: { data: dst, width, height, channels: 1 } } as Output;
+      return { data: dst, width, height, channels: 1 };
+    });
+    return { image } as Output;
   }
 }
 
