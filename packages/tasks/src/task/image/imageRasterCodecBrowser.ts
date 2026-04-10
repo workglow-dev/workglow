@@ -89,7 +89,7 @@ async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
   const response = await fetch(dataUri);
   const blob = await response.blob();
   const bmp = await createImageBitmap(blob);
-  const { canvas, ctx } = get2dContext(bmp.width, bmp.height);
+  const { ctx } = get2dContext(bmp.width, bmp.height);
   ctx.drawImage(bmp, 0, 0);
   const id = ctx.getImageData(0, 0, bmp.width, bmp.height);
   bmp.close();
