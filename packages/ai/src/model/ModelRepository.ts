@@ -7,29 +7,9 @@
 import { ITabularStorage } from "@workglow/storage";
 import { EventEmitter, EventParameters } from "@workglow/util";
 import { compileSchema } from "@workglow/util/schema";
-import type { SchemaNode } from "@workglow/util/schema";
+import type { DataPortSchemaObject, SchemaNode } from "@workglow/util/schema";
 
 import { ModelPrimaryKeyNames, ModelRecord, ModelRecordSchema } from "./ModelSchema";
-
-let compiledModelRecordSchema: SchemaNode | undefined;
-function getModelRecordSchemaNode(): SchemaNode {
-  if (!compiledModelRecordSchema) {
-    compiledModelRecordSchema = compileSchema(ModelRecordSchema);
-  }
-  return compiledModelRecordSchema;
-}
-
-function validateModelRecord(model: ModelRecord): void {
-  const schemaNode = getModelRecordSchemaNode();
-  const result = schemaNode.validate(model);
-  if (!result.valid) {
-    const errorMessages = result.errors.map((e) => {
-      const path = e.data?.pointer || "";
-      return `${e.message}${path ? ` (${path})` : ""}`;
-    });
-    throw new Error(`Invalid model record: ${errorMessages.join(", ")}`);
-  }
-}
 
 /**
  * Events that can be emitted by the ModelRepository
@@ -75,6 +55,36 @@ export class ModelRepository {
 
   /** Event emitter for repository events */
   protected events = new EventEmitter<ModelEventListeners>();
+
+  /** Cached compiled validation schema, lazily built on first validate call */
+  private compiledValidationSchema: SchemaNode | undefined;
+
+  /**
+   * Returns the JSON schema used to validate model records before persistence.
+   * Subclasses can override this to accept additional properties (for example,
+   * owner/project IDs in repositories scoped to a user's workspace).
+   */
+  protected getValidationSchema(): DataPortSchemaObject {
+    return ModelRecordSchema;
+  }
+
+  /**
+   * Validates a model record against {@link getValidationSchema}.
+   * @throws if the record fails schema validation
+   */
+  protected validateModelRecord(model: ModelRecord): void {
+    if (!this.compiledValidationSchema) {
+      this.compiledValidationSchema = compileSchema(this.getValidationSchema());
+    }
+    const result = this.compiledValidationSchema.validate(model);
+    if (!result.valid) {
+      const errorMessages = result.errors.map((e) => {
+        const path = e.data?.pointer || "";
+        return `${e.message}${path ? ` (${path})` : ""}`;
+      });
+      throw new Error(`Invalid model record: ${errorMessages.join(", ")}`);
+    }
+  }
 
   /**
    * Sets up the database for the repository.
@@ -122,12 +132,12 @@ export class ModelRepository {
 
   /**
    * Adds a new model to the repository.
-   * Validates against ModelRecordSchema and rejects duplicates.
+   * Validates against the schema returned by {@link getValidationSchema} and rejects duplicates.
    * @param model - The model instance to add
    * @throws if the model fails schema validation or a model with the same model_id already exists
    */
   async addModel(model: ModelRecord): Promise<ModelRecord> {
-    validateModelRecord(model);
+    this.validateModelRecord(model);
 
     const existing = await this.modelTabularRepository.get({ model_id: model.model_id });
     if (existing) {
@@ -141,12 +151,12 @@ export class ModelRepository {
 
   /**
    * Updates an existing model in the repository.
-   * Validates against ModelRecordSchema and requires the model to already exist.
+   * Validates against the schema returned by {@link getValidationSchema} and requires the model to already exist.
    * @param model - The model instance with updated fields
    * @throws if the model fails schema validation or the model_id does not exist
    */
   async updateModel(model: ModelRecord): Promise<ModelRecord> {
-    validateModelRecord(model);
+    this.validateModelRecord(model);
 
     const existing = await this.modelTabularRepository.get({ model_id: model.model_id });
     if (!existing) {
