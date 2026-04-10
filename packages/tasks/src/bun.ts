@@ -4,17 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import "./task/image/registerImageRasterCodec.node";
+
 export * from "./common";
-export * from "./util/McpAuthTypes";
+export * from "./task/FileLoaderTask.server";
 export * from "./util/McpAuthProvider";
+export * from "./util/McpAuthTypes";
 export * from "./util/McpClientUtil";
 export * from "./util/McpTaskDeps";
-export * from "./task/FileLoaderTask.server";
 
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil";
-import { registerMcpTaskDeps } from "./util/McpTaskDeps";
 import type { McpServerConfig } from "./util/McpTaskDeps";
+import { registerMcpTaskDeps } from "./util/McpTaskDeps";
 
 registerMcpTaskDeps({
   mcpClientFactory,

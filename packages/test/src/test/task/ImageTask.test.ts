@@ -5,27 +5,27 @@
  */
 
 import {
-  ImageResizeTask,
-  ImageCropTask,
-  ImageRotateTask,
-  ImageFlipTask,
-  ImageGrayscaleTask,
-  ImageBorderTask,
-  ImageTransparencyTask,
   ImageBlurTask,
-  ImageWatermarkTask,
-  ImagePixelateTask,
-  ImageInvertTask,
+  ImageBorderTask,
   ImageBrightnessTask,
   ImageContrastTask,
+  ImageCropTask,
+  ImageFlipTask,
+  ImageGrayscaleTask,
+  ImageInvertTask,
+  ImagePixelateTask,
+  ImagePosterizeTask,
+  ImageResizeTask,
+  ImageRotateTask,
   ImageSepiaTask,
   ImageThresholdTask,
-  ImagePosterizeTask,
   ImageTintTask,
+  ImageTransparencyTask,
+  ImageWatermarkTask,
 } from "@workglow/tasks";
+import { setLogger } from "@workglow/util";
 import type { ImageBinary } from "@workglow/util/media";
 import { describe, expect, test } from "vitest";
-import { setLogger } from "@workglow/util";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 function createTestImage(w: number, h: number, channels: 1 | 3 | 4, fill?: number[]): ImageBinary {
@@ -49,9 +49,31 @@ function getPixel(image: ImageBinary, x: number, y: number): number[] {
   return pixel;
 }
 
+/** Minimal valid 1×1 RGB PNG (sharp-generated), as data URI. */
+const PNG_1X1_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVR4nGPgEpEDAABoAD1UCKP3AAAAAElFTkSuQmCC";
+
 describe("ImageTask", () => {
   const logger = getTestingLogger();
   setLogger(logger);
+
+  describe("Image input / output transport", () => {
+    test("returns a data URI when input image is a data URI", async () => {
+      const task = new ImageInvertTask();
+      const result = await task.run({ image: PNG_1X1_DATA_URI });
+      expect(typeof result.image).toBe("string");
+      expect(result.image).toMatch(/^data:image\/png;base64,/);
+    });
+
+    test("returns ImageBinary when input image is ImageBinary", async () => {
+      const image = createTestImage(1, 1, 3, [0, 0, 0]);
+      const task = new ImageInvertTask();
+      const result = await task.run({ image });
+      expect(typeof result.image).toBe("object");
+      expect(result.image).toMatchObject({ width: 1, height: 1, channels: 3 });
+      expect(getPixel(result.image as ImageBinary, 0, 0)).toEqual([255, 255, 255]);
+    });
+  });
 
   describe("ImageResizeTask", () => {
     test("upscales a 2x2 image to 4x4", async () => {

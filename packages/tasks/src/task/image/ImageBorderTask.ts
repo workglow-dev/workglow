@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ColorSchema, ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ColorSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
     borderWidth: {
       type: "integer",
       title: "Border Width",
@@ -34,7 +35,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Image with border" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Image with border" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -66,41 +67,42 @@ export class ImageBorderTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, borderWidth: bw = 1, color } = input;
-    const { data: src, width: srcW, height: srcH, channels: srcCh } = image;
-    const outCh = 4;
-    const dstW = srcW + bw * 2;
-    const dstH = srcH + bw * 2;
-    const dst = new Uint8ClampedArray(dstW * dstH * outCh);
+    const { borderWidth: bw = 1, color } = input;
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width: srcW, height: srcH, channels: srcCh } = img;
+      const outCh = 4;
+      const dstW = srcW + bw * 2;
+      const dstH = srcH + bw * 2;
+      const dst = new Uint8ClampedArray(dstW * dstH * outCh);
 
-    const r = color.r;
-    const g = color.g;
-    const b = color.b;
-    const a = color.a ?? 255;
+      const r = color.r;
+      const g = color.g;
+      const b = color.b;
+      const a = color.a ?? 255;
 
-    // Fill entire image with border color
-    for (let i = 0; i < dst.length; i += outCh) {
-      dst[i] = r;
-      dst[i + 1] = g;
-      dst[i + 2] = b;
-      dst[i + 3] = a;
-    }
-
-    // Copy source image into center
-    for (let y = 0; y < srcH; y++) {
-      for (let x = 0; x < srcW; x++) {
-        const srcIdx = (y * srcW + x) * srcCh;
-        const dstIdx = ((y + bw) * dstW + (x + bw)) * outCh;
-        dst[dstIdx] = src[srcIdx];
-        dst[dstIdx + 1] = srcCh >= 3 ? src[srcIdx + 1] : src[srcIdx];
-        dst[dstIdx + 2] = srcCh >= 3 ? src[srcIdx + 2] : src[srcIdx];
-        dst[dstIdx + 3] = srcCh === 4 ? src[srcIdx + 3] : 255;
+      // Fill entire image with border color
+      for (let i = 0; i < dst.length; i += outCh) {
+        dst[i] = r;
+        dst[i + 1] = g;
+        dst[i + 2] = b;
+        dst[i + 3] = a;
       }
-    }
 
-    return {
-      image: { data: dst, width: dstW, height: dstH, channels: outCh },
-    } as Output;
+      // Copy source image into center
+      for (let y = 0; y < srcH; y++) {
+        for (let x = 0; x < srcW; x++) {
+          const srcIdx = (y * srcW + x) * srcCh;
+          const dstIdx = ((y + bw) * dstW + (x + bw)) * outCh;
+          dst[dstIdx] = src[srcIdx];
+          dst[dstIdx + 1] = srcCh >= 3 ? src[srcIdx + 1] : src[srcIdx];
+          dst[dstIdx + 2] = srcCh >= 3 ? src[srcIdx + 2] : src[srcIdx];
+          dst[dstIdx + 3] = srcCh === 4 ? src[srcIdx + 3] : 255;
+        }
+      }
+
+      return { data: dst, width: dstW, height: dstH, channels: outCh };
+    });
+    return { image } as Output;
   }
 }
 

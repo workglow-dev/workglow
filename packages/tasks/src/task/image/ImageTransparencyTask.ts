@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
     opacity: {
       type: "number",
       title: "Opacity",
@@ -33,7 +34,10 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Image with adjusted transparency" }),
+    image: ImageBinaryOrDataUriSchema({
+      title: "Image",
+      description: "Image with adjusted transparency",
+    }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -65,25 +69,26 @@ export class ImageTransparencyTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, opacity } = input;
-    const { data: src, width, height, channels: srcCh } = image;
-    const pixelCount = width * height;
-    const dst = new Uint8ClampedArray(pixelCount * 4);
-    const alphaScale = Math.round(opacity * 255);
+    const { opacity } = input;
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width, height, channels: srcCh } = img;
+      const pixelCount = width * height;
+      const dst = new Uint8ClampedArray(pixelCount * 4);
+      const alphaScale = Math.round(opacity * 255);
 
-    for (let i = 0; i < pixelCount; i++) {
-      const srcIdx = i * srcCh;
-      const dstIdx = i * 4;
-      dst[dstIdx] = src[srcIdx];
-      dst[dstIdx + 1] = srcCh >= 3 ? src[srcIdx + 1] : src[srcIdx];
-      dst[dstIdx + 2] = srcCh >= 3 ? src[srcIdx + 2] : src[srcIdx];
-      const srcAlpha = srcCh === 4 ? src[srcIdx + 3] : 255;
-      dst[dstIdx + 3] = (srcAlpha * alphaScale + 127) / 255;
-    }
+      for (let i = 0; i < pixelCount; i++) {
+        const srcIdx = i * srcCh;
+        const dstIdx = i * 4;
+        dst[dstIdx] = src[srcIdx];
+        dst[dstIdx + 1] = srcCh >= 3 ? src[srcIdx + 1] : src[srcIdx];
+        dst[dstIdx + 2] = srcCh >= 3 ? src[srcIdx + 2] : src[srcIdx];
+        const srcAlpha = srcCh === 4 ? src[srcIdx + 3] : 255;
+        dst[dstIdx + 3] = (srcAlpha * alphaScale + 127) / 255;
+      }
 
-    return {
-      image: { data: dst, width, height, channels: 4 },
-    } as Output;
+      return { data: dst, width, height, channels: 4 };
+    });
+    return { image } as Output;
   }
 }
 

@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -26,7 +27,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Inverted image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Inverted image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -58,23 +59,26 @@ export class ImageInvertTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { data: src, width, height, channels } = input.image;
-    const dst = new Uint8ClampedArray(src.length);
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width, height, channels } = img;
+      const dst = new Uint8ClampedArray(src.length);
 
-    if (channels === 4) {
-      for (let i = 0; i < src.length; i += 4) {
-        dst[i] = 255 - src[i];
-        dst[i + 1] = 255 - src[i + 1];
-        dst[i + 2] = 255 - src[i + 2];
-        dst[i + 3] = src[i + 3]; // preserve alpha
+      if (channels === 4) {
+        for (let i = 0; i < src.length; i += 4) {
+          dst[i] = 255 - src[i]!;
+          dst[i + 1] = 255 - src[i + 1]!;
+          dst[i + 2] = 255 - src[i + 2]!;
+          dst[i + 3] = src[i + 3]!; // preserve alpha
+        }
+      } else {
+        for (let i = 0; i < src.length; i++) {
+          dst[i] = 255 - src[i]!;
+        }
       }
-    } else {
-      for (let i = 0; i < src.length; i++) {
-        dst[i] = 255 - src[i];
-      }
-    }
 
-    return { image: { data: dst, width, height, channels } } as Output;
+      return { data: dst, width, height, channels };
+    });
+    return { image } as Output;
   }
 }
 

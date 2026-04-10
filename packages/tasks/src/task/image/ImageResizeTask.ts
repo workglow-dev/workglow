@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
     width: { type: "integer", title: "Width", description: "Target width in pixels", minimum: 1 },
     height: {
       type: "integer",
@@ -33,7 +34,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Resized image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Resized image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -65,25 +66,26 @@ export class ImageResizeTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, width: dstW, height: dstH } = input;
-    const { data: src, width: srcW, height: srcH, channels } = image;
-    const dst = new Uint8ClampedArray(dstW * dstH * channels);
+    const { width: dstW, height: dstH } = input;
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width: srcW, height: srcH, channels } = img;
+      const dst = new Uint8ClampedArray(dstW * dstH * channels);
 
-    for (let dy = 0; dy < dstH; dy++) {
-      const srcY = Math.min(Math.floor((dy * srcH) / dstH), srcH - 1);
-      for (let dx = 0; dx < dstW; dx++) {
-        const srcX = Math.min(Math.floor((dx * srcW) / dstW), srcW - 1);
-        const srcIdx = (srcY * srcW + srcX) * channels;
-        const dstIdx = (dy * dstW + dx) * channels;
-        for (let c = 0; c < channels; c++) {
-          dst[dstIdx + c] = src[srcIdx + c];
+      for (let dy = 0; dy < dstH; dy++) {
+        const srcY = Math.min(Math.floor((dy * srcH) / dstH), srcH - 1);
+        for (let dx = 0; dx < dstW; dx++) {
+          const srcX = Math.min(Math.floor((dx * srcW) / dstW), srcW - 1);
+          const srcIdx = (srcY * srcW + srcX) * channels;
+          const dstIdx = (dy * dstW + dx) * channels;
+          for (let c = 0; c < channels; c++) {
+            dst[dstIdx + c] = src[srcIdx + c];
+          }
         }
       }
-    }
 
-    return {
-      image: { data: dst, width: dstW, height: dstH, channels },
-    } as Output;
+      return { data: dst, width: dstW, height: dstH, channels };
+    });
+    return { image } as Output;
   }
 }
 

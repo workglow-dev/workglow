@@ -255,6 +255,7 @@
       "version": "0.2.1",
       "dependencies": {
         "papaparse": "^5.5.3",
+        "sharp": "^0.34.5",
       },
       "devDependencies": {
         "@modelcontextprotocol/sdk": "catalog:",
@@ -359,8 +360,8 @@
   "trustedDependencies": [
     "protobufjs",
     "better-sqlite3",
-    "onnxruntime-node",
     "sharp",
+    "onnxruntime-node",
     "node-llama-cpp",
   ],
   "catalog": {

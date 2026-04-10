@@ -12,12 +12,13 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ImageBinarySchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Source image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
     amount: {
       type: "number",
       title: "Amount",
@@ -34,7 +35,7 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    image: ImageBinarySchema({ title: "Image", description: "Brightness-adjusted image" }),
+    image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Brightness-adjusted image" }),
   },
   required: ["image"],
   additionalProperties: false,
@@ -66,24 +67,27 @@ export class ImageBrightnessTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { data: src, width, height, channels } = input.image;
     const amount = input.amount ?? 0;
-    const dst = new Uint8ClampedArray(src.length);
+    const image = await produceImageOutput(input.image, (img) => {
+      const { data: src, width, height, channels } = img;
+      const dst = new Uint8ClampedArray(src.length);
 
-    if (channels === 4) {
-      for (let i = 0; i < src.length; i += 4) {
-        dst[i] = src[i] + amount;
-        dst[i + 1] = src[i + 1] + amount;
-        dst[i + 2] = src[i + 2] + amount;
-        dst[i + 3] = src[i + 3]; // preserve alpha
+      if (channels === 4) {
+        for (let i = 0; i < src.length; i += 4) {
+          dst[i] = src[i]! + amount;
+          dst[i + 1] = src[i + 1]! + amount;
+          dst[i + 2] = src[i + 2]! + amount;
+          dst[i + 3] = src[i + 3]!; // preserve alpha
+        }
+      } else {
+        for (let i = 0; i < src.length; i++) {
+          dst[i] = src[i]! + amount;
+        }
       }
-    } else {
-      for (let i = 0; i < src.length; i++) {
-        dst[i] = src[i] + amount;
-      }
-    }
 
-    return { image: { data: dst, width, height, channels } } as Output;
+      return { data: dst, width, height, channels };
+    });
+    return { image } as Output;
   }
 }
 
