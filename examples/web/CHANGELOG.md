@@ -1,5 +1,15 @@
 # @workglow/web
 
+## 0.2.1
+
+### Chores
+
+- update dependencies
+
+### Updated Dependencies
+
+- `vite`: ^8.0.8
+
 ## 0.2.0
 
 ### Features

@@ -1,5 +1,26 @@
 # @workglow/test
 
+## 0.2.1
+
+### Features
+
+#### tasks
+
+- add image processing task library (#395)
+
+### Documentation
+
+- subsystem documentation series (#394)
+
+### Chores
+
+- formatting
+- update dependencies
+
+### Updated Dependencies
+
+- `vitest`: ^4.1.4
+
 ## 0.2.0
 
 ### Features

@@ -1,5 +1,13 @@
 # @workglow/cli
 
+## 0.2.1
+
+### Bug Fixes
+
+#### cli
+
+- update run function to accept additional runConfig parameter
+
 ## 0.2.0
 
 ### Features

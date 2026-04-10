@@ -1,5 +1,17 @@
 # @workglow/tasks
 
+## 0.2.1
+
+### Features
+
+#### tasks
+
+- add image processing task library (#395)
+
+### Chores
+
+- formatting
+
 ## 0.2.0
 
 ### Features
