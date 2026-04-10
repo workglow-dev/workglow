@@ -75,7 +75,7 @@ describe("RAG Workflow End-to-End", () => {
 
   it("should ingest markdown documents with NER enrichment", async () => {
     // Find markdown files in docs folder
-    const docsPath = join(process.cwd(), "docs", "background");
+    const docsPath = join(process.cwd(), "docs", "technical");
     const files = readdirSync(docsPath).filter((f) => f.endsWith(".md"));
 
     logger.info(`Found ${files.length} markdown files to process`);
