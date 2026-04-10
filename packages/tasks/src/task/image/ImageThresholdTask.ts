@@ -27,7 +27,7 @@ const inputSchema = {
       default: 128,
     },
   },
-  required: ["image", "threshold"],
+  required: ["image"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -67,7 +67,7 @@ export class ImageThresholdTask<
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     const { data: src, width, height, channels } = input.image;
-    const threshold = input.threshold;
+    const threshold = input.threshold ?? 128;
     const pixelCount = width * height;
     const dst = new Uint8ClampedArray(pixelCount);
 

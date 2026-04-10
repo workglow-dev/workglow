@@ -27,7 +27,7 @@ const inputSchema = {
       default: 4,
     },
   },
-  required: ["image", "levels"],
+  required: ["image"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -67,7 +67,7 @@ export class ImagePosterizeTask<
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     const { data: src, width, height, channels } = input.image;
-    const levels = input.levels;
+    const levels = input.levels ?? 4;
 
     // Precompute 256-entry lookup table
     const step = 255 / (levels - 1);

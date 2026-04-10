@@ -28,7 +28,7 @@ const inputSchema = {
       default: 0.5,
     },
   },
-  required: ["image", "color", "amount"],
+  required: ["image", "color"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -69,9 +69,8 @@ export class ImageTintTask<
   ): Promise<Output> {
     const { data: src, width, height, channels } = input.image;
     const { r: tr, g: tg, b: tb } = input.color;
-    const amount = input.amount;
+    const amount = input.amount ?? 0.5;
     const invAmount = 1 - amount;
-    const dst = new Uint8ClampedArray(src.length);
 
     // Precompute tint contribution
     const tintR = tr * amount;
@@ -80,17 +79,25 @@ export class ImageTintTask<
 
     const pixelCount = width * height;
 
+    // 1-channel (grayscale) input: expand to 3-channel RGB output to apply full color tint
+    if (channels === 1) {
+      const dst = new Uint8ClampedArray(pixelCount * 3);
+      for (let i = 0; i < pixelCount; i++) {
+        const gray = src[i];
+        dst[i * 3] = gray * invAmount + tintR;
+        dst[i * 3 + 1] = gray * invAmount + tintG;
+        dst[i * 3 + 2] = gray * invAmount + tintB;
+      }
+      return { image: { data: dst, width, height, channels: 3 } } as Output;
+    }
+
+    const dst = new Uint8ClampedArray(src.length);
+
     for (let i = 0; i < pixelCount; i++) {
       const idx = i * channels;
-      const r = channels === 1 ? src[idx] : src[idx];
-      const g = channels === 1 ? src[idx] : src[idx + 1];
-      const b = channels === 1 ? src[idx] : src[idx + 2];
-
-      dst[idx] = r * invAmount + tintR;
-      if (channels >= 3) {
-        dst[idx + 1] = g * invAmount + tintG;
-        dst[idx + 2] = b * invAmount + tintB;
-      }
+      dst[idx] = src[idx] * invAmount + tintR;
+      dst[idx + 1] = src[idx + 1] * invAmount + tintG;
+      dst[idx + 2] = src[idx + 2] * invAmount + tintB;
       if (channels === 4) {
         dst[idx + 3] = src[idx + 3]; // preserve alpha
       }

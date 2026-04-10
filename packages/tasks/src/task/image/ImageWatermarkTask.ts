@@ -41,7 +41,7 @@ const inputSchema = {
       default: "diagonal-lines",
     },
   },
-  required: ["image", "spacing", "opacity", "pattern"],
+  required: ["image"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -80,7 +80,7 @@ export class ImageWatermarkTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, spacing, opacity, pattern } = input;
+    const { image, spacing = 64, opacity = 0.3, pattern = "diagonal-lines" } = input;
     const { data: src, width, height, channels: srcCh } = image;
     const outCh = 4;
     const dst = new Uint8ClampedArray(width * height * outCh);

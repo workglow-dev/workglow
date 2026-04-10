@@ -27,7 +27,7 @@ const inputSchema = {
       default: 0,
     },
   },
-  required: ["image", "amount"],
+  required: ["image"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -67,7 +67,7 @@ export class ImageBrightnessTask<
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     const { data: src, width, height, channels } = input.image;
-    const amount = input.amount;
+    const amount = input.amount ?? 0;
     const dst = new Uint8ClampedArray(src.length);
 
     if (channels === 4) {

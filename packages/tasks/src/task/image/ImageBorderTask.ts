@@ -27,7 +27,7 @@ const inputSchema = {
     },
     color: ColorSchema({ title: "Color", description: "Border color" }),
   },
-  required: ["image", "borderWidth", "color"],
+  required: ["image", "color"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -66,7 +66,7 @@ export class ImageBorderTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, borderWidth: bw, color } = input;
+    const { image, borderWidth: bw = 1, color } = input;
     const { data: src, width: srcW, height: srcH, channels: srcCh } = image;
     const outCh = 4;
     const dstW = srcW + bw * 2;

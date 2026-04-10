@@ -26,7 +26,7 @@ const inputSchema = {
       default: 8,
     },
   },
-  required: ["image", "blockSize"],
+  required: ["image"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -65,7 +65,7 @@ export class ImagePixelateTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, blockSize } = input;
+    const { image, blockSize = 8 } = input;
     const { data: src, width, height, channels } = image;
     const dst = new Uint8ClampedArray(src.length);
 

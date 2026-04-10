@@ -65,8 +65,16 @@ export class ImageCropTask<
     const { image, x: rawX, y: rawY, width: rawW, height: rawH } = input;
     const { data: src, width: srcW, height: srcH, channels } = image;
 
-    const x = Math.max(0, Math.min(rawX, srcW));
-    const y = Math.max(0, Math.min(rawY, srcH));
+    if (srcW < 1 || srcH < 1) {
+      throw new RangeError("Cannot crop an empty image");
+    }
+
+    if (rawX < 0 || rawX >= srcW || rawY < 0 || rawY >= srcH) {
+      throw new RangeError("Crop origin is outside the source image bounds");
+    }
+
+    const x = Math.max(0, Math.min(rawX, srcW - 1));
+    const y = Math.max(0, Math.min(rawY, srcH - 1));
     const w = Math.min(rawW, srcW - x);
     const h = Math.min(rawH, srcH - y);
 

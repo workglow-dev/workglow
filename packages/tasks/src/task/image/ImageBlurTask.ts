@@ -27,7 +27,7 @@ const inputSchema = {
       default: 1,
     },
   },
-  required: ["image", "radius"],
+  required: ["image"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -66,7 +66,7 @@ export class ImageBlurTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { image, radius } = input;
+    const { image, radius = 1 } = input;
     const { data: src, width, height, channels } = image;
     const kernelSize = radius * 2 + 1;
 
