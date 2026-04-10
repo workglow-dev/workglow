@@ -190,7 +190,7 @@ Compiles JavaScript without generating type declarations. Useful for rapid itera
 only need the runtime artifacts. Turbo runs this across the dependency graph:
 
 ```bash
-bun run build:js   # Root script: turbo run build-js --force
+bun run build:js   # Root script: turbo run build-js
 ```
 
 The per-package `build-js` scripts mirror `build-package` but omit the `build-types` step.
@@ -211,7 +211,7 @@ The `tsconfig.tsbuildinfo` file is deleted first to ensure a clean type generati
 Turbo runs this across the dependency graph:
 
 ```bash
-bun run build:types   # Root script: turbo run build-types --force
+bun run build:types   # Root script: turbo run build-types
 ```
 
 ---
@@ -419,11 +419,12 @@ with a different constructor signature.
 ### Full Build
 
 ```bash
-bun run build              # Build everything: packages + examples (turbo run build-package build-example --force)
-bun run build:packages     # Build packages only (turbo run build-package --force)
+bun run build              # Build everything: packages + examples (turbo run build-package build-example)
+bun run build:packages     # Build packages only (turbo run build-package)
+bun run rebuild            # Force rebuild everything, bypassing Turbo cache (turbo run build-package build-example --force)
 ```
 
-The `--force` flag bypasses Turbo's cache, ensuring a clean build. For incremental builds during
+Use `bun run rebuild` when you need to bypass Turbo's cache for a clean build. For incremental builds during
 development, use the watch commands instead.
 
 ### Watch Mode
