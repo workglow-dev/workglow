@@ -46,8 +46,17 @@ const PRIVATE_IP_RANGES = [
 
 const PRIVATE_HOSTNAMES = new Set(["localhost", "metadata.google.internal", "metadata.internal"]);
 
-function isPrivateUrl(urlStr: string): boolean {
+function isAllowPrivateUrlsEnvSet(): boolean {
   if (globalThis?.process?.env?.WORKGLOW_ALLOW_PRIVATE_URLS === "true") {
+    return true;
+  }
+  // Vite exposes only VITE_* to the browser/worker bundle via import.meta.env (not process.env).
+  const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  return viteEnv?.VITE_WORKGLOW_ALLOW_PRIVATE_URLS === "true";
+}
+
+function isPrivateUrl(urlStr: string): boolean {
+  if (isAllowPrivateUrlsEnvSet()) {
     return false;
   }
   try {
