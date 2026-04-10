@@ -21,9 +21,17 @@ import { Entitlements } from "./TaskEntitlements";
 /**
  * Browser environment grants.
  * No filesystem access, no code execution, no stdio MCP.
+ *
+ * Network grants are intentionally narrow: `network:http` + `network:websocket`.
+ * The broader `network` grant is NOT issued because its hierarchical cover
+ * would silently permit `network:private`, undermining SSRF protection.
+ * Callers that legitimately need private/loopback access (e.g. a dev server
+ * on localhost) must augment the enforcer with a scoped `network:private`
+ * grant — see `workflow-builder/packages/app/src/lib/run-workflow.ts`.
  */
 export const BROWSER_GRANTS: readonly EntitlementGrant[] = [
-  { id: Entitlements.NETWORK },
+  { id: Entitlements.NETWORK_HTTP },
+  { id: Entitlements.NETWORK_WEBSOCKET },
   { id: Entitlements.AI },
   { id: Entitlements.MCP_TOOL_CALL },
   { id: Entitlements.MCP_RESOURCE_READ },

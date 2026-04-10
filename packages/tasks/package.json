@@ -50,6 +50,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependencies": {
+    "ipaddr.js": "^2.2.0"
+  },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
     "@workglow/task-graph": "workspace:*",
@@ -80,10 +83,13 @@
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
-    "@workglow/util": "workspace:*"
+    "@workglow/util": "workspace:*",
+    "ipaddr.js": "^2.2.0",
+    "undici": "^7.0.0"
   },
   "optionalDependencies": {
     "papaparse": "^5.5.3",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "undici": "^7.0.0"
   }
 }

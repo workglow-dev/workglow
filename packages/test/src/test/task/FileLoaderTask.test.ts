@@ -4,29 +4,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FileLoaderTask } from "@workglow/tasks";
+import { FileLoaderTask, registerSafeFetch, type SafeFetchFn } from "@workglow/tasks";
 import { setLogger } from "@workglow/util";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const mock = vi.fn;
 
-// Mock fetch for testing
-const mockFetch = mock((input: RequestInfo | URL, init?: RequestInit) =>
+// Mock fetch for testing — stubbed into SafeFetch so we bypass the real
+// server impl (DNS + undici) during unit tests.
+const mockFetch = mock((_url: string, _options: RequestInit & { allowPrivate?: boolean }) =>
   Promise.resolve(new Response("test", { status: 200 }))
 );
-
-const oldFetch = global.fetch;
+const mockSafeFetch: SafeFetchFn = (url, options) => mockFetch(url, options);
 
 describe("FileLoaderTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
   beforeAll(() => {
-    (global as any).fetch = mockFetch;
+    registerSafeFetch(mockSafeFetch);
   });
 
   afterAll(() => {
-    (global as any).fetch = oldFetch;
+    registerSafeFetch(async (url, options) => {
+      const { allowPrivate: _omit, ...init } = options;
+      return globalThis.fetch(url, init);
+    });
   });
 
   beforeEach(() => {

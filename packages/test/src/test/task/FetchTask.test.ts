@@ -23,6 +23,8 @@ import {
   FetchUrlTask,
   FetchUrlTaskInput,
   FetchUrlTaskOutput,
+  registerSafeFetch,
+  type SafeFetchFn,
 } from "@workglow/tasks";
 import { setLogger, sleep } from "@workglow/util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
@@ -40,22 +42,29 @@ const createMockResponse = (jsonData: any = {}): Response => {
   });
 };
 
-// Mock fetch for testing
-const mockFetch = mock((input: RequestInfo | URL, init?: RequestInit) =>
+// Mock fetch for testing — stubbed into SafeFetch so we bypass the real
+// server impl (DNS + undici) during unit tests. These tests cover retry,
+// progress, and response-type logic, not SSRF policy.
+const mockFetch = mock((_url: string, _options: RequestInit & { allowPrivate?: boolean }) =>
   Promise.resolve(createMockResponse({}))
 );
-
-const oldFetch = global.fetch;
+const mockSafeFetch: SafeFetchFn = (url, options) => mockFetch(url, options);
 
 describe("FetchUrlTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
   beforeAll(() => {
-    (global as any).fetch = mockFetch;
+    registerSafeFetch(mockSafeFetch);
   });
 
   afterAll(() => {
-    (global as any).fetch = oldFetch;
+    // Reinstall the default browser impl (tests will no longer see the
+    // registered server impl, but the rest of the suite runs in Node — any
+    // subsequent fetch call in other suites will go through globalThis.fetch).
+    registerSafeFetch(async (url, options) => {
+      const { allowPrivate: _omit, ...init } = options;
+      return globalThis.fetch(url, init);
+    });
   });
 
   beforeEach(async () => {
@@ -212,8 +221,8 @@ describe("FetchUrlTask", () => {
   });
 
   test("handles mixed success and failure responses", async () => {
-    mockFetch.mockImplementation((input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    mockFetch.mockImplementation((input: string) => {
+      const url = input;
       if (url.includes("/success")) {
         return Promise.resolve(createMockResponse({ data: "success" }));
       } else if (url.includes("/network-error")) {
