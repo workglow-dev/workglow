@@ -69,7 +69,6 @@ export class ImageBlurTask<
     const { image, radius } = input;
     const { data: src, width, height, channels } = image;
     const kernelSize = radius * 2 + 1;
-    const area = kernelSize * kernelSize;
 
     // Horizontal pass
     const tmp = new Uint8ClampedArray(src.length);
