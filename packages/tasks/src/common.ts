@@ -66,6 +66,24 @@ export * from "./task/vector/VectorNormalizeTask";
 export * from "./task/vector/VectorScaleTask";
 export * from "./task/vector/VectorSubtractTask";
 export * from "./task/vector/VectorSumTask";
+export * from "./task/image/ImageSchemas";
+export * from "./task/image/ImageResizeTask";
+export * from "./task/image/ImageCropTask";
+export * from "./task/image/ImageRotateTask";
+export * from "./task/image/ImageFlipTask";
+export * from "./task/image/ImageGrayscaleTask";
+export * from "./task/image/ImageBorderTask";
+export * from "./task/image/ImageTransparencyTask";
+export * from "./task/image/ImageBlurTask";
+export * from "./task/image/ImageWatermarkTask";
+export * from "./task/image/ImagePixelateTask";
+export * from "./task/image/ImageInvertTask";
+export * from "./task/image/ImageBrightnessTask";
+export * from "./task/image/ImageContrastTask";
+export * from "./task/image/ImageSepiaTask";
+export * from "./task/image/ImageThresholdTask";
+export * from "./task/image/ImagePosterizeTask";
+export * from "./task/image/ImageTintTask";
 
 import { TaskRegistry } from "@workglow/task-graph";
 import { DateFormatTask } from "./task/DateFormatTask";
@@ -119,6 +137,23 @@ import { VectorNormalizeTask } from "./task/vector/VectorNormalizeTask";
 import { VectorScaleTask } from "./task/vector/VectorScaleTask";
 import { VectorSubtractTask } from "./task/vector/VectorSubtractTask";
 import { VectorSumTask } from "./task/vector/VectorSumTask";
+import { ImageResizeTask } from "./task/image/ImageResizeTask";
+import { ImageCropTask } from "./task/image/ImageCropTask";
+import { ImageRotateTask } from "./task/image/ImageRotateTask";
+import { ImageFlipTask } from "./task/image/ImageFlipTask";
+import { ImageGrayscaleTask } from "./task/image/ImageGrayscaleTask";
+import { ImageBorderTask } from "./task/image/ImageBorderTask";
+import { ImageTransparencyTask } from "./task/image/ImageTransparencyTask";
+import { ImageBlurTask } from "./task/image/ImageBlurTask";
+import { ImageWatermarkTask } from "./task/image/ImageWatermarkTask";
+import { ImagePixelateTask } from "./task/image/ImagePixelateTask";
+import { ImageInvertTask } from "./task/image/ImageInvertTask";
+import { ImageBrightnessTask } from "./task/image/ImageBrightnessTask";
+import { ImageContrastTask } from "./task/image/ImageContrastTask";
+import { ImageSepiaTask } from "./task/image/ImageSepiaTask";
+import { ImageThresholdTask } from "./task/image/ImageThresholdTask";
+import { ImagePosterizeTask } from "./task/image/ImagePosterizeTask";
+import { ImageTintTask } from "./task/image/ImageTintTask";
 
 // Register all common tasks with the TaskRegistry.
 // Centralized registration ensures tasks are available for JSON deserialization
@@ -176,6 +211,23 @@ export let registerCommonTasks = () => {
     TemplateTask,
     DateFormatTask,
     RegexTask,
+    ImageResizeTask,
+    ImageCropTask,
+    ImageRotateTask,
+    ImageFlipTask,
+    ImageGrayscaleTask,
+    ImageBorderTask,
+    ImageTransparencyTask,
+    ImageBlurTask,
+    ImageWatermarkTask,
+    ImagePixelateTask,
+    ImageInvertTask,
+    ImageBrightnessTask,
+    ImageContrastTask,
+    ImageSepiaTask,
+    ImageThresholdTask,
+    ImagePosterizeTask,
+    ImageTintTask,
   ];
   tasks.map(TaskRegistry.registerTask);
   return tasks;
