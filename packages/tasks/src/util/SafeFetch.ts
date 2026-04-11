@@ -97,12 +97,7 @@ function isRedirectStatus(status: number): boolean {
  */
 async function defaultSafeFetch(url: string, options: SafeFetchOptions): Promise<Response> {
   const requestedRedirectMode = options.redirect ?? "follow";
-  const {
-    allowPrivate,
-    privateResourceScopes,
-    redirect: _redirect,
-    ...fetchOptions
-  } = options;
+  const { allowPrivate, privateResourceScopes, redirect: _redirect, ...fetchOptions } = options;
 
   let currentUrl = url;
   for (let hops = 0; hops <= MAX_REDIRECT_HOPS; hops += 1) {

@@ -6,11 +6,7 @@
 
 import "@workglow/ai"; // Trigger Workflow prototype extensions
 import { documentUpsert } from "@workglow/ai";
-import {
-  createKnowledgeBase,
-  KnowledgeBase,
-  StructuralParser,
-} from "@workglow/knowledge-base";
+import { createKnowledgeBase, KnowledgeBase, StructuralParser } from "@workglow/knowledge-base";
 import type { DocumentMetadata } from "@workglow/knowledge-base";
 import { setLogger, uuid4 } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

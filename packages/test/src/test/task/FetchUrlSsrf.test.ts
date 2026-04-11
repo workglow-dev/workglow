@@ -257,7 +257,9 @@ describe("urlMatchesScope", () => {
 
   test("normalizes trailing-dot host (defeats the metadata.google.internal. bypass)", () => {
     expect(urlMatchesScope("http://localhost./path", ["http://localhost/*"])).toBe(true);
-    expect(urlMatchesScope("http://metadata.google.internal./", ["http://metadata.google.internal/*"])).toBe(true);
+    expect(
+      urlMatchesScope("http://metadata.google.internal./", ["http://metadata.google.internal/*"])
+    ).toBe(true);
   });
 });
 
@@ -278,9 +280,7 @@ describe("SafeFetch redirect scope enforcement (plumbing via stub)", () => {
       options.privateResourceScopes !== undefined &&
       !urlMatchesScope(url, options.privateResourceScopes)
     ) {
-      return Promise.reject(
-        new PermanentJobError(`outside granted network:private scope: ${url}`)
-      );
+      return Promise.reject(new PermanentJobError(`outside granted network:private scope: ${url}`));
     }
     return Promise.resolve(ok());
   };

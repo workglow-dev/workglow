@@ -13,10 +13,8 @@ import {
 import { compactSchemaInputs, resolveSchemaInputs } from "@workglow/task-graph";
 import {
   getInputCompactors,
-  getInputResolvers,
   globalServiceRegistry,
   registerInputCompactor,
-  registerInputResolver,
   setLogger,
 } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
