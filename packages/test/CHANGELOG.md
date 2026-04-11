@@ -1,5 +1,15 @@
 # @workglow/test
 
+## 0.2.3
+
+### Features
+
+- add SSRF protection to FetchUrlTask with dynamic entitlements (#405)
+
+### Bug Fixes
+
+- add image codec security limits and validation helpers (#404)
+
 ## 0.2.2
 
 ### Features

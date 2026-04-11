@@ -1,5 +1,13 @@
 # @workglow/ai
 
+## 0.2.3
+
+### Features
+
+#### tasks
+
+- add DocumentUpsertTask for document persistence
+
 ## 0.2.2
 
 ## 0.2.1

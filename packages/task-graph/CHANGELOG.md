@@ -1,5 +1,15 @@
 # @workglow/task-graph
 
+## 0.2.3
+
+### Features
+
+- add SSRF protection to FetchUrlTask with dynamic entitlements (#405)
+
+#### tasks
+
+- add DocumentUpsertTask for document persistence
+
 ## 0.2.2
 
 ## 0.2.1
