@@ -200,7 +200,6 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
 
     prevDispatcher = dispatcher;
     currentUrl = new URL(location, currentUrl).toString();
-    // Update allowPrivate context for subsequent hops — opts is reused.
   }
 
   throw new PermanentJobError(`Refusing to fetch ${url}: too many redirects.`);
