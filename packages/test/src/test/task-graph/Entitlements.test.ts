@@ -255,6 +255,42 @@ describe("Entitlements", () => {
     it("bare wildcard matches empty string", () => {
       expect(resourcePatternMatches("*", "")).toBe(true);
     });
+
+    it("multi-wildcard URL pattern matches", () => {
+      expect(
+        resourcePatternMatches("https://localhost:*/*", "https://localhost:3000/foo")
+      ).toBe(true);
+    });
+
+    it("multi-wildcard URL pattern requires each wildcard segment", () => {
+      expect(resourcePatternMatches("https://localhost:*/*", "https://localhost:3000")).toBe(
+        false
+      );
+    });
+
+    it("multi-wildcard pattern matches with zero-length wildcards", () => {
+      expect(resourcePatternMatches("a*b*c", "abc")).toBe(true);
+    });
+
+    it("multi-wildcard pattern matches with content between segments", () => {
+      expect(resourcePatternMatches("a*b*c", "aXXbYYc")).toBe(true);
+    });
+
+    it("multi-wildcard pattern rejects out-of-order segments", () => {
+      expect(resourcePatternMatches("a*b*c", "acb")).toBe(false);
+    });
+
+    it("wrapped wildcards match single character", () => {
+      expect(resourcePatternMatches("*a*", "a")).toBe(true);
+    });
+
+    it("wrapped wildcards do not match when required segment is missing", () => {
+      expect(resourcePatternMatches("*a*", "")).toBe(false);
+    });
+
+    it("consecutive wildcards collapse", () => {
+      expect(resourcePatternMatches("**", "anything")).toBe(true);
+    });
   });
 
   // ======================================================================
@@ -309,6 +345,15 @@ describe("Entitlements", () => {
           { id: "ai:model", resources: ["claude-3-opus", "gpt-4o"] }
         )
       ).toBe(false);
+    });
+
+    it("multi-wildcard URL grant covers localhost request", () => {
+      expect(
+        grantCoversResources(
+          { id: "network:http", resources: ["https://localhost:*/*"] },
+          { id: "network:http", resources: ["https://localhost:3000/foo"] }
+        )
+      ).toBe(true);
     });
   });
 

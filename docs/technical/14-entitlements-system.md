@@ -170,8 +170,10 @@ entitlement, enabling targeted approval or task removal.
 
 ## Resource Scoping with Glob Patterns
 
-Entitlement grants support resource-level scoping using single-`*` glob
-patterns. The `resourcePatternMatches()` function implements pattern matching:
+Entitlement grants support resource-level scoping using glob patterns with any
+number of `*` wildcards. Each `*` matches zero or more characters of any kind,
+including path separators like `/`. The `resourcePatternMatches()` function
+implements pattern matching:
 
 ```ts
 function resourcePatternMatches(grantPattern: string, requiredResource: string): boolean;
@@ -184,18 +186,23 @@ Matching rules:
 - `"*.example.com"` matches anything ending with `".example.com"`.
 - `"pre*suf"` matches strings with the given prefix and suffix, with any content
   in between.
+- `"a*b*c"` matches strings containing `"a"`, then `"b"`, then `"c"` in order.
+- `"https://localhost:*/*"` matches any URL on localhost with a path segment.
 
 Examples:
 
-| Grant Pattern       | Required Resource       | Match?  |
-| ------------------- | ----------------------- | ------- |
-| `"/tmp/*"`          | `"/tmp/data.json"`      | Yes     |
-| `"/tmp/*"`          | `"/tmp/sub/file.txt"`   | Yes     |
-| `"claude-*"`        | `"claude-3-opus"`       | Yes     |
-| `"claude-*"`        | `"gpt-4o"`             | No      |
-| `"*.example.com"`   | `"api.example.com"`     | Yes     |
-| `"gpt-4o"`          | `"gpt-4o"`             | Yes     |
-| `"gpt-4o"`          | `"gpt-4o-mini"`        | No      |
+| Grant Pattern             | Required Resource              | Match? |
+| ------------------------- | ------------------------------ | ------ |
+| `"/tmp/*"`                | `"/tmp/data.json"`             | Yes    |
+| `"/tmp/*"`                | `"/tmp/sub/file.txt"`          | Yes    |
+| `"claude-*"`              | `"claude-3-opus"`              | Yes    |
+| `"claude-*"`              | `"gpt-4o"`                     | No     |
+| `"*.example.com"`         | `"api.example.com"`            | Yes    |
+| `"gpt-4o"`                | `"gpt-4o"`                     | Yes    |
+| `"gpt-4o"`                | `"gpt-4o-mini"`                | No     |
+| `"https://localhost:*/*"` | `"https://localhost:3000/foo"` | Yes    |
+| `"https://localhost:*/*"` | `"https://localhost:3000"`     | No     |
+| `"a*b*c"`                 | `"aXXbYYc"`                    | Yes    |
 
 ### Grant-to-Requirement Matching
 
