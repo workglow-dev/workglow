@@ -21,7 +21,7 @@
 import { PermanentJobError } from "@workglow/job-queue";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent, fetch as undiciFetch } from "undici";
-import { classifyIpLiteral, classifyUrl } from "./UrlClassifier";
+import { classifyIpLiteral, classifyUrl, urlMatchesScope } from "./UrlClassifier";
 import { registerSafeFetch, type SafeFetchFn, type SafeFetchOptions } from "./SafeFetch";
 
 const MAX_REDIRECT_HOPS = 20;
@@ -68,7 +68,7 @@ function isRedirectStatus(status: number): boolean {
 async function fetchOneHop(
   url: string,
   opts: SafeFetchOptions,
-  fetchInit: Omit<SafeFetchOptions, "allowPrivate" | "redirect">
+  fetchInit: Omit<SafeFetchOptions, "allowPrivate" | "privateResourceScopes" | "redirect">
 ): Promise<{ response: Response; dispatcher: Agent }> {
   const classification = classifyUrl(url);
   if (classification.kind === "invalid") {
@@ -78,6 +78,17 @@ async function fetchOneHop(
     throw new PermanentJobError(
       `Refusing to fetch private/internal URL ${url}: ${classification.reason}. ` +
         `Grant the 'network:private' entitlement to allow this request.`
+    );
+  }
+  if (
+    classification.kind === "private" &&
+    opts.privateResourceScopes !== undefined &&
+    !urlMatchesScope(url, opts.privateResourceScopes)
+  ) {
+    throw new PermanentJobError(
+      `Refusing to follow redirect to ${url}: outside granted network:private scope ` +
+        `[${opts.privateResourceScopes.join(", ")}]. A compromised upstream may be attempting ` +
+        `to escape the task's authorized private-host origin.`
     );
   }
 
@@ -137,7 +148,12 @@ async function fetchOneHop(
 export const serverSafeFetch: SafeFetchFn = async (url, options) => {
   const opts: SafeFetchOptions = options ?? {};
   const requestedRedirectMode = opts.redirect ?? "follow";
-  const { allowPrivate: _allowPrivate, redirect: _redirect, ...fetchInit } = opts;
+  const {
+    allowPrivate: _allowPrivate,
+    privateResourceScopes: _privateResourceScopes,
+    redirect: _redirect,
+    ...fetchInit
+  } = opts;
 
   let currentUrl = url;
   let prevDispatcher: Agent | undefined;

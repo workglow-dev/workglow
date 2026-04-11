@@ -23,13 +23,17 @@ import {
 import {
   classifyUrl,
   FetchUrlTask,
+  getSafeFetchImpl,
   registerSafeFetch,
+  resetSafeFetch,
   safeFetch,
+  urlMatchesScope,
   urlResourcePattern,
   type SafeFetchFn,
+  type SafeFetchOptions,
 } from "@workglow/tasks";
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 const ok = (): Response =>
@@ -197,6 +201,285 @@ describe("SafeFetch (registration layer)", () => {
   test("allows public URLs unconditionally", async () => {
     const response = await safeFetch("https://example.com/", {});
     expect(response.status).toBe(200);
+  });
+});
+
+describe("urlMatchesScope", () => {
+  test("matches URL against its own urlResourcePattern", () => {
+    const url = "http://localhost:3000/api/v1";
+    expect(urlMatchesScope(url, [urlResourcePattern(url)])).toBe(true);
+  });
+
+  test("matches deeper paths within the pattern origin", () => {
+    expect(urlMatchesScope("http://localhost:3000/a/b/c", ["http://localhost:3000/*"])).toBe(true);
+  });
+
+  test("rejects different hosts", () => {
+    expect(urlMatchesScope("http://192.168.1.1/admin", ["http://localhost:3000/*"])).toBe(false);
+  });
+
+  test("rejects different ports on the same host", () => {
+    expect(urlMatchesScope("http://localhost:4000/api", ["http://localhost:3000/*"])).toBe(false);
+  });
+
+  test("rejects different scheme", () => {
+    expect(urlMatchesScope("https://localhost:3000/api", ["http://localhost:3000/*"])).toBe(false);
+  });
+
+  test("canonicalizes host case", () => {
+    // new URL().toString() lowercases the hostname — matching must respect that.
+    expect(urlMatchesScope("http://LOCALHOST:3000/api", ["http://localhost:3000/*"])).toBe(true);
+  });
+
+  test("IPv6 loopback and localhost are distinct hosts", () => {
+    expect(urlMatchesScope("http://[::1]:3000/", ["http://localhost:3000/*"])).toBe(false);
+  });
+
+  test("rejects hostname-prefix confusion attacks", () => {
+    // `http://localhost:3000.attacker.com/` must not match `http://localhost:3000/*`.
+    expect(
+      urlMatchesScope("http://localhost:3000.attacker.com/", ["http://localhost:3000/*"])
+    ).toBe(false);
+  });
+
+  test("matches if any one pattern in the list matches", () => {
+    const patterns = ["http://localhost:3000/*", "http://127.0.0.1/*"];
+    expect(urlMatchesScope("http://127.0.0.1/admin", patterns)).toBe(true);
+  });
+
+  test("empty pattern list matches nothing", () => {
+    expect(urlMatchesScope("http://localhost:3000/api", [])).toBe(false);
+  });
+
+  test("unparseable URLs fail closed", () => {
+    expect(urlMatchesScope("not a url", ["http://localhost:3000/*"])).toBe(false);
+  });
+});
+
+describe("SafeFetch redirect scope enforcement (plumbing via stub)", () => {
+  // A stub that mirrors the real check: honors both allowPrivate and
+  // privateResourceScopes, so we can unit-test the option plumbing without
+  // exercising the real redirect loop.
+  const scopeAwareStub: SafeFetchFn = (url, options) => {
+    const c = classifyUrl(url);
+    if (c.kind === "invalid") {
+      return Promise.reject(new PermanentJobError(`invalid: ${c.reason}`));
+    }
+    if (c.kind === "private" && !options.allowPrivate) {
+      return Promise.reject(new PermanentJobError(`private: ${c.reason}`));
+    }
+    if (
+      c.kind === "private" &&
+      options.privateResourceScopes !== undefined &&
+      !urlMatchesScope(url, options.privateResourceScopes)
+    ) {
+      return Promise.reject(
+        new PermanentJobError(`outside granted network:private scope: ${url}`)
+      );
+    }
+    return Promise.resolve(ok());
+  };
+
+  let prevSafeFetch: SafeFetchFn;
+
+  beforeAll(() => {
+    prevSafeFetch = registerSafeFetch(scopeAwareStub);
+  });
+
+  afterAll(() => {
+    registerSafeFetch(prevSafeFetch);
+  });
+
+  test("allows private URL within the granted scope", async () => {
+    const response = await safeFetch("http://localhost:3000/api", {
+      allowPrivate: true,
+      privateResourceScopes: ["http://localhost:3000/*"],
+    });
+    expect(response.status).toBe(200);
+  });
+
+  test("rejects private URL outside the granted scope (different host)", async () => {
+    await expect(
+      safeFetch("http://192.168.1.1/admin", {
+        allowPrivate: true,
+        privateResourceScopes: ["http://localhost:3000/*"],
+      })
+    ).rejects.toThrow(/outside granted network:private scope/);
+  });
+
+  test("rejects private URL outside the granted scope (different port)", async () => {
+    await expect(
+      safeFetch("http://localhost:4000/admin", {
+        allowPrivate: true,
+        privateResourceScopes: ["http://localhost:3000/*"],
+      })
+    ).rejects.toThrow(/outside granted network:private scope/);
+  });
+
+  test("undefined privateResourceScopes preserves legacy boolean-only behavior", async () => {
+    // Direct callers of safeFetch outside FetchUrlTask should not be silently
+    // tightened by the new option.
+    const response = await safeFetch("http://192.168.1.1/admin", {
+      allowPrivate: true,
+    });
+    expect(response.status).toBe(200);
+  });
+});
+
+describe("SafeFetch redirect scope enforcement (real redirect loop)", () => {
+  // Exercise the real defaultSafeFetch redirect loop by resetting to the
+  // browser impl and mocking globalThis.fetch. This verifies that the scope
+  // check runs on each hop (not just the initial URL) and that redirect
+  // targets are re-canonicalized through new URL() normalization.
+
+  const redirect = (location: string, status = 302): Response =>
+    new Response(null, {
+      status,
+      headers: { location },
+    });
+
+  let prevSafeFetch: SafeFetchFn;
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let realFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    prevSafeFetch = getSafeFetchImpl();
+    resetSafeFetch();
+    realFetch = globalThis.fetch;
+    fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    registerSafeFetch(prevSafeFetch);
+  });
+
+  test("(a) in-scope redirect succeeds", async () => {
+    fetchMock
+      .mockResolvedValueOnce(redirect("http://localhost:3000/api/v2"))
+      .mockResolvedValueOnce(ok());
+    const response = await safeFetch("http://localhost:3000/api", {
+      allowPrivate: true,
+      privateResourceScopes: ["http://localhost:3000/*"],
+    });
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("(b) redirect to a different private host is rejected", async () => {
+    fetchMock.mockResolvedValueOnce(redirect("http://192.168.1.1/admin"));
+    await expect(
+      safeFetch("http://localhost:3000/api", {
+        allowPrivate: true,
+        privateResourceScopes: ["http://localhost:3000/*"],
+      })
+    ).rejects.toThrow(/outside granted network:private scope/);
+    // Only the initial hop was sent; the redirect target was blocked before fetch.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("(c) redirect to a different port on the same host is rejected", async () => {
+    fetchMock.mockResolvedValueOnce(redirect("http://localhost:4000/admin"));
+    await expect(
+      safeFetch("http://localhost:3000/api", {
+        allowPrivate: true,
+        privateResourceScopes: ["http://localhost:3000/*"],
+      })
+    ).rejects.toThrow(/outside granted network:private scope/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("(d) public -> private redirect is still rejected (allowPrivate=false)", async () => {
+    fetchMock.mockResolvedValueOnce(redirect("http://127.0.0.1/"));
+    await expect(
+      safeFetch("https://example.com/", {
+        allowPrivate: false,
+      })
+    ).rejects.toThrow(/private\/internal URL/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("(e) redirect from localhost:3000 to [::1]:3000 is rejected", async () => {
+    fetchMock.mockResolvedValueOnce(redirect("http://[::1]:3000/"));
+    await expect(
+      safeFetch("http://localhost:3000/api", {
+        allowPrivate: true,
+        privateResourceScopes: ["http://localhost:3000/*"],
+      })
+    ).rejects.toThrow(/outside granted network:private scope/);
+  });
+
+  test("(f) chained in-scope redirects all resolve", async () => {
+    fetchMock
+      .mockResolvedValueOnce(redirect("http://localhost:3000/api/v2"))
+      .mockResolvedValueOnce(redirect("http://localhost:3000/api/v3"))
+      .mockResolvedValueOnce(ok());
+    const response = await safeFetch("http://localhost:3000/api", {
+      allowPrivate: true,
+      privateResourceScopes: ["http://localhost:3000/*"],
+    });
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test("(g) uppercase-host redirect target is normalized and accepted", async () => {
+    fetchMock
+      .mockResolvedValueOnce(redirect("HTTP://LOCALHOST:3000/api/v2"))
+      .mockResolvedValueOnce(ok());
+    const response = await safeFetch("http://localhost:3000/api", {
+      allowPrivate: true,
+      privateResourceScopes: ["http://localhost:3000/*"],
+    });
+    expect(response.status).toBe(200);
+  });
+
+  test("(h) undefined privateResourceScopes preserves legacy behavior", async () => {
+    // Direct callers outside FetchUrlTask should keep the boolean-only semantics.
+    fetchMock
+      .mockResolvedValueOnce(redirect("http://192.168.1.1/admin"))
+      .mockResolvedValueOnce(ok());
+    const response = await safeFetch("http://localhost:3000/api", {
+      allowPrivate: true,
+    });
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("FetchUrlJob threads privateResourceScopes from declared entitlement scope", () => {
+  // Verifies that the FetchUrlJob execution path passes the same scope to
+  // safeFetch that FetchUrlTask.entitlements() declares — so the preflight
+  // and runtime checks cannot drift.
+  let prevSafeFetch: SafeFetchFn;
+  let capturedOptions: SafeFetchOptions | undefined;
+
+  beforeEach(() => {
+    capturedOptions = undefined;
+    prevSafeFetch = registerSafeFetch((_url, options) => {
+      capturedOptions = options;
+      return Promise.resolve(ok());
+    });
+  });
+
+  afterEach(() => {
+    registerSafeFetch(prevSafeFetch);
+  });
+
+  test("private URL input passes privateResourceScopes matching urlResourcePattern", async () => {
+    const url = "http://localhost:3000/api";
+    const task = new FetchUrlTask({ queue: false });
+    await task.run({ url });
+    expect(capturedOptions?.allowPrivate).toBe(true);
+    expect(capturedOptions?.privateResourceScopes).toEqual([urlResourcePattern(url)]);
+    expect(capturedOptions?.privateResourceScopes).toEqual(["http://localhost:3000/*"]);
+  });
+
+  test("public URL input does not pass privateResourceScopes", async () => {
+    const task = new FetchUrlTask({ queue: false });
+    await task.run({ url: "https://example.com/" });
+    expect(capturedOptions?.allowPrivate).toBe(false);
+    expect(capturedOptions?.privateResourceScopes).toBeUndefined();
   });
 });
 

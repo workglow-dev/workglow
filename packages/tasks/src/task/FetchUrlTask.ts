@@ -126,7 +126,10 @@ export type FetchUrlTaskOutput = FromSchema<typeof outputSchema>;
 
 async function fetchWithProgress(
   url: string,
-  options: RequestInit & { allowPrivate?: boolean } = {},
+  options: RequestInit & {
+    allowPrivate?: boolean;
+    privateResourceScopes?: readonly string[];
+  } = {},
   onProgress?: (progress: number) => Promise<void>
 ): Promise<Response> {
   if (!options.signal) {
@@ -213,10 +216,13 @@ export class FetchUrlJob<
     // the caller has opted out of enforcement. safeFetch still re-checks DNS
     // on the server path to defeat DNS rebinding regardless.
     //
-    // TODO: thread the entitlement grant decision through the execution
-    // context so allowPrivate can default to false even when enforceEntitlements
-    // is disabled (requires propagating an explicit derived flag into the job
-    // payload or IJobExecuteContext).
+    // privateResourceScopes mirrors the task's declared scope from
+    // entitlements() below — see urlResourcePattern(input.url) at the task
+    // level. Threading it here makes safeFetch re-enforce the same scope on
+    // every redirect hop, so a compromised upstream cannot walk across
+    // private hosts/ports via Location headers. Least-privilege: the task
+    // can only reach the private origin it was specifically authorized for.
+    const isPrivate = classification.kind === "private";
     const response = await fetchWithProgress(
       input.url!,
       {
@@ -224,7 +230,8 @@ export class FetchUrlJob<
         headers: input.headers,
         body: input.body,
         signal: context.signal,
-        allowPrivate: classification.kind === "private",
+        allowPrivate: isPrivate,
+        privateResourceScopes: isPrivate ? [urlResourcePattern(input.url!)] : undefined,
       },
       async (progress: number) => await context.updateProgress(progress)
     );

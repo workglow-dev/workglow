@@ -17,7 +17,7 @@
  */
 
 import { PermanentJobError } from "@workglow/job-queue";
-import { classifyUrl } from "./UrlClassifier";
+import { classifyUrl, urlMatchesScope } from "./UrlClassifier";
 
 // ========================================================================
 // Types
@@ -31,6 +31,22 @@ export interface SafeFetchOptions extends RequestInit {
    * time — defeating DNS rebinding.
    */
   readonly allowPrivate?: boolean;
+  /**
+   * When `allowPrivate` is true, additionally restrict private-host requests
+   * (including redirect targets) to URLs matching at least one of these glob
+   * patterns. Must match the patterns the task declared in its
+   * `network:private` entitlement scope (see `urlResourcePattern`). When
+   * `undefined`, no scope check is applied and the boolean `allowPrivate`
+   * governs alone — legacy behavior for direct callers outside the task
+   * layer.
+   *
+   * This closes the "compromised redirect escapes grant scope" SSRF gap:
+   * the task-graph enforcer approves a narrow private-host scope at
+   * preflight, and this field re-enforces that same scope on every redirect
+   * hop so a Location header cannot pivot to a different private host or
+   * port the task was never authorized to reach.
+   */
+  readonly privateResourceScopes?: readonly string[];
 }
 
 export type SafeFetchFn = (url: string, options: SafeFetchOptions) => Promise<Response>;
@@ -41,15 +57,27 @@ export type SafeFetchFn = (url: string, options: SafeFetchOptions) => Promise<Re
 
 const MAX_REDIRECT_HOPS = 20;
 
-function assertAllowedUrl(url: string, allowPrivate: boolean | undefined): void {
+function assertAllowedUrl(
+  url: string,
+  allowPrivate: boolean | undefined,
+  privateResourceScopes: readonly string[] | undefined
+): void {
   const classification = classifyUrl(url);
   if (classification.kind === "invalid") {
     throw new PermanentJobError(`Refusing to fetch invalid URL: ${classification.reason}`);
   }
-  if (classification.kind === "private" && !allowPrivate) {
+  if (classification.kind !== "private") return;
+  if (!allowPrivate) {
     throw new PermanentJobError(
       `Refusing to fetch private/internal URL ${url}: ${classification.reason}. ` +
         `Grant the 'network:private' entitlement to allow this request.`
+    );
+  }
+  if (privateResourceScopes !== undefined && !urlMatchesScope(url, privateResourceScopes)) {
+    throw new PermanentJobError(
+      `Refusing to follow redirect to ${url}: outside granted network:private scope ` +
+        `[${privateResourceScopes.join(", ")}]. A compromised upstream may be attempting ` +
+        `to escape the task's authorized private-host origin.`
     );
   }
 }
@@ -69,11 +97,16 @@ function isRedirectStatus(status: number): boolean {
  */
 async function defaultSafeFetch(url: string, options: SafeFetchOptions): Promise<Response> {
   const requestedRedirectMode = options.redirect ?? "follow";
-  const { allowPrivate, redirect: _redirect, ...fetchOptions } = options;
+  const {
+    allowPrivate,
+    privateResourceScopes,
+    redirect: _redirect,
+    ...fetchOptions
+  } = options;
 
   let currentUrl = url;
   for (let hops = 0; hops <= MAX_REDIRECT_HOPS; hops += 1) {
-    assertAllowedUrl(currentUrl, allowPrivate);
+    assertAllowedUrl(currentUrl, allowPrivate, privateResourceScopes);
 
     const response = await globalThis.fetch(currentUrl, {
       ...fetchOptions,
