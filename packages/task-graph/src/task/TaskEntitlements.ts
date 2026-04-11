@@ -135,34 +135,51 @@ export interface EntitlementGrant {
    * - undefined → broad grant, covers all resources for this entitlement
    * - string[] → scoped grant, only covers requirements whose resources are a subset
    *
-   * Supports glob-style trailing wildcards:
+   * Supports glob-style patterns with any number of `*` wildcards.
+   * Each `*` matches zero or more characters of any kind, including `/`.
    * - "/tmp/*" covers "/tmp/data.json" and "/tmp/subdir/file.txt"
-   * - "claude-*" covers "claude-3-opus", "claude-3-sonnet"
    * - "*.example.com" covers "api.example.com"
+   * - "file-*-v*.json" covers "file-data-v2.json"
    */
   readonly resources?: readonly string[];
 }
 
 /**
  * Check if a single grant resource pattern matches a single required resource.
- * Supports single-`*` glob matching:
+ * Supports glob-style patterns with any number of `*` wildcards; each `*`
+ * matches zero or more characters of any kind (including `/`).
  * - "prefix*" matches anything starting with "prefix"
  * - "*.example.com" matches anything ending with ".example.com"
- * - "pre*suf" matches anything with both the given prefix and suffix
+ * - "pre*suf" matches anything with the given prefix and suffix
+ * - "a*b*c" matches anything containing "a", then "b", then "c" in order
  * Without `*`, requires exact match.
  */
 export function resourcePatternMatches(grantPattern: string, requiredResource: string): boolean {
   if (grantPattern === requiredResource) return true;
-  const starIdx = grantPattern.indexOf("*");
-  if (starIdx === -1) return false;
+  if (!grantPattern.includes("*")) return false;
 
-  const prefix = grantPattern.slice(0, starIdx);
-  const suffix = grantPattern.slice(starIdx + 1);
+  const parts = grantPattern.split("*");
+  const first = parts[0];
+  const last = parts[parts.length - 1];
 
-  if (!requiredResource.startsWith(prefix)) return false;
-  if (!requiredResource.endsWith(suffix)) return false;
+  if (!requiredResource.startsWith(first)) return false;
+  if (!requiredResource.endsWith(last)) return false;
 
-  return requiredResource.length >= prefix.length + suffix.length;
+  let fixedLength = 0;
+  for (const p of parts) fixedLength += p.length;
+  if (requiredResource.length < fixedLength) return false;
+
+  let searchStart = first.length;
+  const searchEnd = requiredResource.length - last.length;
+  for (let i = 1; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (part.length === 0) continue; // consecutive wildcards collapse
+    const idx = requiredResource.indexOf(part, searchStart);
+    if (idx === -1 || idx + part.length > searchEnd) return false;
+    searchStart = idx + part.length;
+  }
+
+  return true;
 }
 
 /**
