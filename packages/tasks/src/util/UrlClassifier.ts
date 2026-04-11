@@ -11,6 +11,7 @@
  * checking + connection pinning happens in `SafeFetch.server.ts` on Node/Bun.
  */
 
+import { resourcePatternMatches } from "@workglow/task-graph";
 import ipaddr from "ipaddr.js";
 
 // ========================================================================
@@ -330,4 +331,30 @@ export function urlResourcePattern(urlStr: string): string {
       ? `${parsed.protocol}//${parsed.host}`
       : `${parsed.protocol}//${parsed.hostname}`;
   return `${origin}/*`;
+}
+
+/**
+ * Checks whether a (possibly post-redirect) URL falls within one of the
+ * scoped resource patterns granted to the task. The URL is canonicalized so
+ * minor syntactic differences (uppercase host, default port) cannot bypass the
+ * check. The hostname is additionally normalized via `normalizeHost` (strips
+ * trailing dots, lowercases) so that `example.internal.` and `example.internal`
+ * are treated identically. Returns true when at least one pattern matches the
+ * canonical URL via `resourcePatternMatches`. Returns false on URL parse errors
+ * (fail closed).
+ *
+ * Used by `safeFetch` to enforce the task's declared `network:private`
+ * resource scope on every redirect hop, preventing a compromised upstream
+ * from walking across private hosts/ports via Location headers.
+ */
+export function urlMatchesScope(url: string, patterns: readonly string[]): boolean {
+  let canonical: string;
+  try {
+    const parsed = new URL(url);
+    parsed.hostname = normalizeHost(parsed.hostname);
+    canonical = parsed.toString();
+  } catch {
+    return false;
+  }
+  return patterns.some((pat) => resourcePatternMatches(pat, canonical));
 }
