@@ -7,6 +7,8 @@
 // Load adaptive first so Workflow.prototype.add/subtract/multiply/divide/sum are registered
 import "./task/adaptive";
 
+export * from "./util/SafeFetch";
+export * from "./util/UrlClassifier";
 export * from "./mcp-server/getMcpServerConfig";
 export * from "./mcp-server/InMemoryMcpServerRepository";
 export * from "./mcp-server/McpServerRegistry";

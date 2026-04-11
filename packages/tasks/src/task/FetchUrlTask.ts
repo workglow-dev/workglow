@@ -23,6 +23,7 @@ import {
   getJobQueueFactory,
   getTaskQueueRegistry,
   JobTaskFailedError,
+  mergeEntitlements,
   Task,
   TaskConfigSchema,
   TaskConfigurationError,
@@ -30,54 +31,8 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
-
-const PRIVATE_IP_RANGES = [
-  /^127\./, // loopback
-  /^10\./, // Class A private
-  /^172\.(1[6-9]|2\d|3[01])\./, // Class B private
-  /^192\.168\./, // Class C private
-  /^169\.254\./, // link-local
-  /^0\./, // current network
-  /^fc00:/i, // IPv6 unique local
-  /^fe80:/i, // IPv6 link-local
-  /^::1$/, // IPv6 loopback
-  /^::$/, // IPv6 unspecified
-];
-
-const PRIVATE_HOSTNAMES = new Set(["localhost", "metadata.google.internal", "metadata.internal"]);
-
-function isAllowPrivateUrlsEnvSet(): boolean {
-  if (globalThis?.process?.env?.WORKGLOW_ALLOW_PRIVATE_URLS === "true") {
-    return true;
-  }
-  // Vite exposes only VITE_* to the browser/worker bundle via import.meta.env (not process.env).
-  const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
-  return viteEnv?.VITE_WORKGLOW_ALLOW_PRIVATE_URLS === "true";
-}
-
-function isPrivateUrl(urlStr: string): boolean {
-  if (isAllowPrivateUrlsEnvSet()) {
-    return false;
-  }
-  try {
-    const parsed = new URL(urlStr);
-    const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-
-    if (PRIVATE_HOSTNAMES.has(hostname) || hostname.endsWith(".local")) {
-      return true;
-    }
-
-    for (const range of PRIVATE_IP_RANGES) {
-      if (range.test(hostname)) {
-        return true;
-      }
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
+import { safeFetch } from "../util/SafeFetch";
+import { classifyUrl, urlResourcePattern } from "../util/UrlClassifier";
 
 const inputSchema = {
   type: "object",
@@ -171,14 +126,14 @@ export type FetchUrlTaskOutput = FromSchema<typeof outputSchema>;
 
 async function fetchWithProgress(
   url: string,
-  options: RequestInit = {},
+  options: RequestInit & { allowPrivate?: boolean } = {},
   onProgress?: (progress: number) => Promise<void>
 ): Promise<Response> {
   if (!options.signal) {
     throw new TaskConfigurationError("An AbortSignal must be provided.");
   }
 
-  const response = await globalThis.fetch(url, options);
+  const response = await safeFetch(url, options);
   if (!response.body) {
     throw new Error("ReadableStream not supported in this environment.");
   }
@@ -243,13 +198,25 @@ export class FetchUrlJob<
    * Executes the job using the provided function.
    */
   override async execute(input: Input, context: IJobExecuteContext): Promise<Output> {
-    if (isPrivateUrl(input.url!)) {
+    const classification = classifyUrl(input.url!);
+    if (classification.kind === "invalid") {
       throw new PermanentJobError(
-        `Requests to private/internal networks are not allowed: ${input.url}. ` +
-          `Set WORKGLOW_ALLOW_PRIVATE_URLS=true to override.`
+        `Refusing to fetch invalid URL ${input.url}: ${classification.reason ?? "malformed"}`
       );
     }
 
+    // allowPrivate is set to true only when the URL is classified as private:
+    // the graph runner (when enforceEntitlements: true) already verified the
+    // task was granted `network:private` before reaching this point. When
+    // enforceEntitlements is false (default), private URLs are only allowed
+    // because the task explicitly declares the network:private entitlement and
+    // the caller has opted out of enforcement. safeFetch still re-checks DNS
+    // on the server path to defeat DNS rebinding regardless.
+    //
+    // TODO: thread the entitlement grant decision through the execution
+    // context so allowPrivate can default to false even when enforceEntitlements
+    // is disabled (requires propagating an explicit derived flag into the job
+    // payload or IJobExecuteContext).
     const response = await fetchWithProgress(
       input.url!,
       {
@@ -257,6 +224,7 @@ export class FetchUrlJob<
         headers: input.headers,
         body: input.body,
         signal: context.signal,
+        allowPrivate: classification.kind === "private",
       },
       async (progress: number) => await context.updateProgress(progress)
     );
@@ -369,6 +337,7 @@ export class FetchUrlTask<
   public static override description =
     "Fetches data from a URL with progress tracking and automatic retry handling";
   public static override hasDynamicSchemas: boolean = true;
+  public static override hasDynamicEntitlements: boolean = true;
 
   public static override entitlements(): TaskEntitlements {
     return {
@@ -381,6 +350,46 @@ export class FetchUrlTask<
         },
       ],
     };
+  }
+
+  /**
+   * Dynamic entitlement check: when the configured URL targets a private or
+   * loopback host the task additionally requires `network:private`, scoped
+   * via the URL's origin so grants can be resource-limited (e.g. a dev-mode
+   * grant for `http://localhost:*`). The graph runner evaluates this before
+   * `execute()` runs, so a denied private URL never issues a network call.
+   *
+   * Root-task input may not yet be applied when entitlements are evaluated.
+   * If the URL is not available at this point, fail closed and require the
+   * private-network entitlement rather than under-declaring it.
+   */
+  public override entitlements(): TaskEntitlements {
+    const base = FetchUrlTask.entitlements();
+    const url = this.runInputData?.url;
+    if (typeof url !== "string" || url.length === 0) {
+      return mergeEntitlements(base, {
+        entitlements: [
+          {
+            id: Entitlements.NETWORK_PRIVATE,
+            reason:
+              "Runtime URL is not yet available during entitlement evaluation; private/internal destinations must be explicitly allowed",
+          },
+        ],
+      });
+    }
+    const classification = classifyUrl(url);
+    if (classification.kind !== "private") {
+      return base;
+    }
+    return mergeEntitlements(base, {
+      entitlements: [
+        {
+          id: Entitlements.NETWORK_PRIVATE,
+          reason: `URL targets private/internal host: ${classification.reason ?? classification.host ?? "unknown"}`,
+          resources: [urlResourcePattern(url)],
+        },
+      ],
+    });
   }
 
   public static override configSchema(): DataPortSchema {

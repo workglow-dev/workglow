@@ -1,0 +1,210 @@
+/**
+ * @license
+ * Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Server-side SafeFetch implementation.
+ *
+ * Combines:
+ *   1. Static URL classification (shared with the browser impl).
+ *   2. DNS pre-resolution of every A/AAAA record for the hostname.
+ *   3. Rejection if any resolved address is private/link-local/metadata
+ *      (unless `allowPrivate` is set).
+ *   4. Connection pinning via an undici Agent whose `connect.lookup` hook
+ *      returns the pre-resolved IP — this prevents a second DNS lookup at
+ *      connect time and defeats DNS rebinding (TOCTOU).
+ *
+ * Registered at module load from `packages/tasks/src/node.ts` and
+ * `packages/tasks/src/bun.ts` via `registerSafeFetch`.
+ */
+
+import { PermanentJobError } from "@workglow/job-queue";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { Agent, fetch as undiciFetch } from "undici";
+import { classifyIpLiteral, classifyUrl } from "./UrlClassifier";
+import {
+  registerSafeFetch,
+  type SafeFetchFn,
+  type SafeFetchOptions,
+} from "./SafeFetch";
+
+const MAX_REDIRECT_HOPS = 20;
+
+interface ResolvedAddress {
+  readonly address: string;
+  readonly family: 4 | 6;
+}
+
+/**
+ * Resolve the hostname to all A/AAAA records. Rejects with a PermanentJobError
+ * on any DNS failure (NXDOMAIN, SERVFAIL, etc.) so the caller doesn't fall
+ * back to letting the OS resolver re-run at connect time.
+ */
+async function resolveAll(hostname: string): Promise<readonly ResolvedAddress[]> {
+  try {
+    const addrs = await dnsLookup(hostname, { all: true, verbatim: true });
+    if (!Array.isArray(addrs) || addrs.length === 0) {
+      throw new PermanentJobError(`DNS lookup returned no addresses for '${hostname}'`);
+    }
+    return addrs.map((a) => ({ address: a.address, family: a.family as 4 | 6 }));
+  } catch (err) {
+    if (err instanceof PermanentJobError) throw err;
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new PermanentJobError(`DNS lookup failed for '${hostname}': ${msg}`);
+  }
+}
+
+function isLiteralHost(host: string): boolean {
+  // Literal IPv4 if it looks numeric/dotted, or IPv6 if it contains a colon.
+  if (host.includes(":")) return true;
+  return /^[0-9a-fA-FxX.]+$/.test(host);
+}
+
+function isRedirectStatus(status: number): boolean {
+  return (
+    status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+  );
+}
+
+/**
+ * Resolve a single hop: classify URL, DNS-resolve if needed, pin connection,
+ * execute the request with redirect:manual, and return the raw response.
+ * The caller is responsible for closing the dispatcher after the response is consumed.
+ */
+async function fetchOneHop(
+  url: string,
+  opts: SafeFetchOptions,
+  fetchInit: Omit<SafeFetchOptions, "allowPrivate" | "redirect">
+): Promise<{ response: Response; dispatcher: Agent }> {
+  const classification = classifyUrl(url);
+  if (classification.kind === "invalid") {
+    throw new PermanentJobError(`Refusing to fetch invalid URL: ${classification.reason}`);
+  }
+  if (classification.kind === "private" && !opts.allowPrivate) {
+    throw new PermanentJobError(
+      `Refusing to fetch private/internal URL ${url}: ${classification.reason}. ` +
+        `Grant the 'network:private' entitlement to allow this request.`
+    );
+  }
+
+  const parsed = new URL(url);
+  const host = classification.host ?? parsed.hostname.toLowerCase();
+
+  let pinned: ResolvedAddress;
+
+  if (isLiteralHost(host) && classification.literalIp !== undefined) {
+    pinned = {
+      address: classification.literalIp,
+      family: classification.literalIp.includes(":") ? 6 : 4,
+    };
+  } else {
+    const addrs = await resolveAll(host);
+    for (const addr of addrs) {
+      const ipClass = classifyIpLiteral(addr.address);
+      if (ipClass === undefined) {
+        throw new PermanentJobError(
+          `DNS resolved '${host}' to an unparseable address '${addr.address}'`
+        );
+      }
+      if (ipClass.kind === "private" && !opts.allowPrivate) {
+        throw new PermanentJobError(
+          `Refusing to fetch ${url}: hostname '${host}' resolved to private address ` +
+            `${addr.address} (${ipClass.reason}). This may indicate DNS rebinding. ` +
+            `Grant the 'network:private' entitlement to allow this request.`
+        );
+      }
+    }
+    pinned = addrs[0]!;
+  }
+
+  const pinnedAddress = pinned.address;
+  const pinnedFamily = pinned.family;
+  const dispatcher = new Agent({
+    connect: {
+      lookup: (_hostname, _lookupOptions, cb) => {
+        cb(null, pinnedAddress, pinnedFamily);
+      },
+    },
+  });
+
+  try {
+    const response = await undiciFetch(url, {
+      ...(fetchInit as Parameters<typeof undiciFetch>[1]),
+      dispatcher,
+      redirect: "manual",
+    });
+    return { response: response as unknown as Response, dispatcher };
+  } catch (err) {
+    await dispatcher.close().catch(() => {});
+    throw err;
+  }
+}
+
+export const serverSafeFetch: SafeFetchFn = async (url, options) => {
+  const opts: SafeFetchOptions = options ?? {};
+  const requestedRedirectMode = opts.redirect ?? "follow";
+  const { allowPrivate: _allowPrivate, redirect: _redirect, ...fetchInit } = opts;
+
+  let currentUrl = url;
+  let prevDispatcher: Agent | undefined;
+
+  for (let hops = 0; hops <= MAX_REDIRECT_HOPS; hops += 1) {
+    const { response, dispatcher } = await fetchOneHop(currentUrl, opts, fetchInit);
+
+    // Close the previous hop's dispatcher now that we have the next response.
+    if (prevDispatcher !== undefined) {
+      prevDispatcher.close().catch(() => {});
+    }
+
+    if (!isRedirectStatus(response.status)) {
+      // Final response — close the dispatcher once the body is consumed.
+      const body = response.body;
+      if (body !== null) {
+        // Pipe the response body through a passthrough TransformStream.
+        // The dispatcher is closed once the body is fully consumed or cancelled.
+        const { readable, writable } = new TransformStream();
+        body.pipeTo(writable).finally(() => {
+          dispatcher.close().catch(() => {});
+        });
+        return new Response(readable, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      }
+      // No body (e.g. HEAD response) — close dispatcher immediately.
+      dispatcher.close().catch(() => {});
+      return response;
+    }
+
+    if (requestedRedirectMode === "manual") {
+      // Caller wants the raw redirect response; they own the dispatcher now.
+      dispatcher.close().catch(() => {});
+      return response;
+    }
+
+    if (requestedRedirectMode === "error") {
+      dispatcher.close().catch(() => {});
+      throw new TypeError(
+        `Fetch for ${currentUrl} failed because redirect mode was set to 'error'.`
+      );
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      dispatcher.close().catch(() => {});
+      throw new PermanentJobError(
+        `Refusing to follow redirect from ${currentUrl}: missing Location header.`
+      );
+    }
+
+    prevDispatcher = dispatcher;
+    currentUrl = new URL(location, currentUrl).toString();
+  }
+
+  throw new PermanentJobError(`Refusing to fetch ${url}: too many redirects.`);
+};
+
+// Register at module load — the Node/Bun entrypoint re-exports this file
+// which triggers registration.
+registerSafeFetch(serverSafeFetch);
