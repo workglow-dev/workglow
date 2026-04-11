@@ -5,8 +5,8 @@
 import { setLogger } from "@workglow/util";
 import { DirectedGraph, NodeDoesntExistError } from "@workglow/util/graph";
 import { describe, expect, it } from "vitest";
-import { edgeIdentity, nodeIdentity } from "./graph.test";
 import { getTestingLogger } from "../../binding/TestingLogger";
+import { edgeIdentity, nodeIdentity } from "./graph.test";
 
 /***
  * Directed Graph test
@@ -228,6 +228,9 @@ describe("Directed Graph", () => {
     expect(graph.canReachFrom("A", "C")).toBe(true);
     expect(graph.canReachFrom("B", "D")).toBe(true);
     expect(graph.canReachFrom("C", "D")).toBe(false);
+
+    expect(graph.canReachFrom("A", "nonexistent" as unknown as string)).toBe(false);
+    expect(graph.canReachFrom("nonexistent" as unknown as string, "A")).toBe(false);
   });
 
   it("can return a subgraph based on walking from a start node", () => {

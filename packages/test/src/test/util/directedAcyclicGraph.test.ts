@@ -3,10 +3,15 @@
 // license: MIT
 
 import { setLogger } from "@workglow/util";
-import { CycleError, DirectedAcyclicGraph, DirectedGraph } from "@workglow/util/graph";
+import {
+  CycleError,
+  DirectedAcyclicGraph,
+  DirectedGraph,
+  NodeDoesntExistError,
+} from "@workglow/util/graph";
 import { describe, expect, it } from "vitest";
-import { edgeIdentity, nodeIdentity } from "./graph.test";
 import { getTestingLogger } from "../../binding/TestingLogger";
+import { edgeIdentity, nodeIdentity } from "./graph.test";
 
 /***
  * Directed Acyclic Graph test
@@ -61,6 +66,16 @@ describe("Directed Acyclic Graph", () => {
     expect(() => {
       graph.addEdge("C", "A");
     }).toThrow(CycleError);
+  });
+
+  it("addEdge to a missing node throws NodeDoesntExistError (not a TypeError from canReachFrom)", () => {
+    interface NodeType {
+      name: string;
+    }
+    const graph = new DirectedAcyclicGraph<NodeType>((n: NodeType) => n.name, edgeIdentity);
+    graph.insert({ name: "A" });
+    expect(() => graph.addEdge("A", "missing" as unknown as string)).toThrow(NodeDoesntExistError);
+    expect(() => graph.addEdge("missing" as unknown as string, "A")).toThrow(NodeDoesntExistError);
   });
 
   it("can get it's nodes topologically sorted", () => {

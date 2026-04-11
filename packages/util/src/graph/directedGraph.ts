@@ -3,8 +3,8 @@
 // license: MIT
 
 import { NodeDoesntExistError } from "./errors";
-import { Graph } from "./graph";
 import type { AdjacencyMatrix } from "./graph";
+import { Graph } from "./graph";
 
 /**
  * # DirectedGraph
@@ -130,6 +130,13 @@ export class DirectedGraph<Node, Edge = true, NodeId = unknown, EdgeId = unknown
     const nodeKeys = Array.from(this.nodes.keys());
     const startNodeIndex = this.getNodeIndex(startNode);
     const endNodeIndex = this.getNodeIndex(endNode);
+
+    // Missing endpoints: no path. Also avoids `adjacency[-1]` which is undefined
+    // and would throw when indexed (e.g. DAG.addEdge runs cycle check before
+    // Graph.addEdge validates that both nodes exist).
+    if (startNodeIndex < 0 || endNodeIndex < 0) {
+      return false;
+    }
 
     if (this.adjacency[startNodeIndex][endNodeIndex] != null) {
       return true;
