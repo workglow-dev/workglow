@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ISpan } from "@workglow/util";
 import {
   getLogger,
   getTelemetryProvider,
@@ -11,15 +12,14 @@ import {
   ServiceRegistry,
   SpanStatusCode,
 } from "@workglow/util";
-import type { ISpan } from "@workglow/util";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
-import { ensureTask } from "../task-graph/Conversions";
 import type { Taskish } from "../task-graph/Conversions";
+import { ensureTask } from "../task-graph/Conversions";
 import { resolveSchemaInputs, schemaHasFormatAnnotations } from "./InputResolver";
 import type { IRunConfig, ITask } from "./ITask";
 import { ITaskRunner } from "./ITaskRunner";
-import { getOutputStreamMode, getStreamingPorts, isTaskStreamable } from "./StreamTypes";
 import type { StreamEvent, StreamMode } from "./StreamTypes";
+import { getOutputStreamMode, getStreamingPorts, isTaskStreamable } from "./StreamTypes";
 import { Task } from "./Task";
 import {
   TaskAbortedError,
@@ -297,6 +297,12 @@ export class TaskRunner<
         registry: this.registry,
         signal: this.abortController?.signal,
       });
+    }
+    // Notify listeners that the entitlement landscape may have changed.
+    // For GraphAsTask this is also handled by the subGraph subscription, but
+    // non-GraphAsTask tasks with dynamic entitlements (e.g. AiTask) need it too.
+    if ((this.task.constructor as typeof Task).hasDynamicEntitlements) {
+      this.task.emit("entitlementChange", this.task.entitlements());
     }
     return i;
   }

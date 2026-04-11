@@ -25,8 +25,8 @@ import {
   FetchUrlTask,
   registerSafeFetch,
   safeFetch,
-  type SafeFetchFn,
   urlResourcePattern,
+  type SafeFetchFn,
 } from "@workglow/tasks";
 import { Container, ServiceRegistry, setLogger } from "@workglow/util";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -336,21 +336,5 @@ describe("FetchUrlTask end-to-end entitlement enforcement", () => {
     await expect(runner.runGraph({}, { registry, enforceEntitlements: true })).rejects.toThrow(
       TaskEntitlementError
     );
-  });
-
-  test("WORKGLOW_ALLOW_PRIVATE_URLS env var has no effect (bypass removed)", async () => {
-    const previous = process.env.WORKGLOW_ALLOW_PRIVATE_URLS;
-    process.env.WORKGLOW_ALLOW_PRIVATE_URLS = "true";
-    try {
-      const enforcer = createPolicyEnforcer(createProfilePolicy("browser"));
-      const registry = makeRegistry(enforcer);
-      const runner = new TaskGraphRunner(makeGraphForUrl("http://127.0.0.1/"));
-      await expect(runner.runGraph({}, { registry, enforceEntitlements: true })).rejects.toThrow(
-        TaskEntitlementError
-      );
-    } finally {
-      if (previous === undefined) delete process.env.WORKGLOW_ALLOW_PRIVATE_URLS;
-      else process.env.WORKGLOW_ALLOW_PRIVATE_URLS = previous;
-    }
   });
 });

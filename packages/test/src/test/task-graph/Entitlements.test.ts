@@ -257,15 +257,13 @@ describe("Entitlements", () => {
     });
 
     it("multi-wildcard URL pattern matches", () => {
-      expect(
-        resourcePatternMatches("https://localhost:*/*", "https://localhost:3000/foo")
-      ).toBe(true);
+      expect(resourcePatternMatches("https://localhost:*/*", "https://localhost:3000/foo")).toBe(
+        true
+      );
     });
 
     it("multi-wildcard URL pattern requires each wildcard segment", () => {
-      expect(resourcePatternMatches("https://localhost:*/*", "https://localhost:3000")).toBe(
-        false
-      );
+      expect(resourcePatternMatches("https://localhost:*/*", "https://localhost:3000")).toBe(false);
     });
 
     it("multi-wildcard pattern matches with zero-length wildcards", () => {

@@ -16,6 +16,7 @@ import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { IExecuteContext } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
+import type { TaskEventListener, TaskEvents } from "./TaskEvents";
 import type { TaskEntitlements } from "./TaskEntitlements";
 import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
 import type { TaskConfig, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
@@ -329,6 +330,97 @@ export class GraphAsTask<
     this._inputSchemaNode = undefined;
     this.events.emit("regenerate");
     this.emitEntitlementChange();
+  }
+
+  // ========================================================================
+  // SubGraph entitlement forwarding
+  // ========================================================================
+
+  /** Unsubscribe handle for the current subGraph entitlement subscription */
+  private _entitlementUnsub: (() => void) | undefined;
+
+  // ========================================================================
+  // SubGraph entitlement subscription
+  // ========================================================================
+
+  /**
+   * Subscribe to the subGraph's aggregated entitlement changes and forward
+   * them as an entitlementChange event on this task so that the parent
+   * TaskGraph / Workflow sees the update.
+   */
+  private _subscribeToSubGraphEntitlements(graph: TaskGraph): void {
+    this._entitlementUnsub?.();
+    this._entitlementUnsub = graph.subscribeToTaskEntitlements(() => {
+      this.emitEntitlementChange();
+    });
+  }
+
+  private _syncSubGraphEntitlementSubscription(
+    graph: TaskGraph | undefined = this._subGraph
+  ): void {
+    if ((this._events?.listenerCount("entitlementChange") ?? 0) === 0) {
+      this._entitlementUnsub?.();
+      this._entitlementUnsub = undefined;
+      return;
+    }
+
+    if (!graph || this._entitlementUnsub) {
+      return;
+    }
+
+    this._subscribeToSubGraphEntitlements(graph);
+  }
+
+  public override subscribe<Event extends TaskEvents>(
+    name: Event,
+    fn: TaskEventListener<Event>
+  ): () => void {
+    const unsub = super.subscribe(name, fn);
+    if (name !== "entitlementChange") {
+      return unsub;
+    }
+
+    this._syncSubGraphEntitlementSubscription();
+
+    return () => {
+      unsub();
+      this._syncSubGraphEntitlementSubscription();
+    };
+  }
+
+  public override on<Event extends TaskEvents>(name: Event, fn: TaskEventListener<Event>): void {
+    super.on(name, fn);
+    if (name === "entitlementChange") {
+      this._syncSubGraphEntitlementSubscription();
+    }
+  }
+
+  public override off<Event extends TaskEvents>(name: Event, fn: TaskEventListener<Event>): void {
+    super.off(name, fn);
+    if (name === "entitlementChange") {
+      this._syncSubGraphEntitlementSubscription();
+    }
+  }
+
+  public override once<Event extends TaskEvents>(name: Event, fn: TaskEventListener<Event>): void {
+    super.once(name, fn);
+    if (name === "entitlementChange") {
+      this._syncSubGraphEntitlementSubscription();
+    }
+  }
+
+  public override set subGraph(subGraph: TaskGraph) {
+    this._entitlementUnsub?.();
+    this._entitlementUnsub = undefined;
+    super.subGraph = subGraph;
+    this._syncSubGraphEntitlementSubscription(subGraph);
+  }
+
+  override get subGraph(): TaskGraph {
+    const graph = super.subGraph;
+    // The base getter may have lazily created a new graph — subscribe only when needed.
+    this._syncSubGraphEntitlementSubscription(graph);
+    return graph;
   }
 
   // ========================================================================
