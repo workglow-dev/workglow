@@ -451,11 +451,6 @@ export class TaskGraphRunner {
     const dataflows = this.graph.getTargetDataflows(node.id);
     for (const dataflow of dataflows) {
       const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow);
-      getLogger().debug("pushOutputFromNodeToEdges", {
-        dataflowId: dataflow.id,
-        compatibility,
-        resultsKeys: Object.keys(results),
-      });
       if (compatibility === "static") {
         dataflow.setPortData(results);
       } else if (compatibility === "runtime") {

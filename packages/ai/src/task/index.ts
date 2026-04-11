@@ -15,6 +15,7 @@ import { ChunkVectorUpsertTask } from "./ChunkVectorUpsertTask";
 import { ContextBuilderTask } from "./ContextBuilderTask";
 import { CountTokensTask } from "./CountTokensTask";
 import { DocumentEnricherTask } from "./DocumentEnricherTask";
+import { DocumentUpsertTask } from "./DocumentUpsertTask";
 import { DownloadModelTask } from "./DownloadModelTask";
 import { FaceDetectorTask } from "./FaceDetectorTask";
 import { FaceLandmarkerTask } from "./FaceLandmarkerTask";
@@ -62,6 +63,7 @@ export const registerAiTasks = () => {
     CountTokensTask,
     ContextBuilderTask,
     DocumentEnricherTask,
+    DocumentUpsertTask,
     ChunkRetrievalTask,
     ChunkVectorHybridSearchTask,
     ChunkVectorSearchTask,
@@ -123,6 +125,7 @@ export * from "./ChunkVectorUpsertTask";
 export * from "./ContextBuilderTask";
 export * from "./CountTokensTask";
 export * from "./DocumentEnricherTask";
+export * from "./DocumentUpsertTask";
 export * from "./DownloadModelTask";
 export * from "./FaceDetectorTask";
 export * from "./FaceLandmarkerTask";
