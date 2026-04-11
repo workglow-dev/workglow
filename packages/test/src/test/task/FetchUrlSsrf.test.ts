@@ -254,6 +254,11 @@ describe("urlMatchesScope", () => {
   test("unparseable URLs fail closed", () => {
     expect(urlMatchesScope("not a url", ["http://localhost:3000/*"])).toBe(false);
   });
+
+  test("normalizes trailing-dot host (defeats the metadata.google.internal. bypass)", () => {
+    expect(urlMatchesScope("http://localhost./path", ["http://localhost/*"])).toBe(true);
+    expect(urlMatchesScope("http://metadata.google.internal./", ["http://metadata.google.internal/*"])).toBe(true);
+  });
 });
 
 describe("SafeFetch redirect scope enforcement (plumbing via stub)", () => {

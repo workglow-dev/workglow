@@ -75,7 +75,7 @@ function assertAllowedUrl(
   }
   if (privateResourceScopes !== undefined && !urlMatchesScope(url, privateResourceScopes)) {
     throw new PermanentJobError(
-      `Refusing to follow redirect to ${url}: outside granted network:private scope ` +
+      `Refusing to fetch private/internal URL ${url}: outside granted network:private scope ` +
         `[${privateResourceScopes.join(", ")}]. A compromised upstream may be attempting ` +
         `to escape the task's authorized private-host origin.`
     );

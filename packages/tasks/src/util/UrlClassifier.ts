@@ -335,11 +335,13 @@ export function urlResourcePattern(urlStr: string): string {
 
 /**
  * Checks whether a (possibly post-redirect) URL falls within one of the
- * scoped resource patterns granted to the task. The URL is canonicalized via
- * `new URL(url).toString()` so minor syntactic differences (uppercase host,
- * default port, trailing-dot host) cannot bypass the check. Returns true when
- * at least one pattern matches the canonical URL via `resourcePatternMatches`.
- * Returns false on URL parse errors (fail closed).
+ * scoped resource patterns granted to the task. The URL is canonicalized so
+ * minor syntactic differences (uppercase host, default port) cannot bypass the
+ * check. The hostname is additionally normalized via `normalizeHost` (strips
+ * trailing dots, lowercases) so that `example.internal.` and `example.internal`
+ * are treated identically. Returns true when at least one pattern matches the
+ * canonical URL via `resourcePatternMatches`. Returns false on URL parse errors
+ * (fail closed).
  *
  * Used by `safeFetch` to enforce the task's declared `network:private`
  * resource scope on every redirect hop, preventing a compromised upstream
@@ -348,7 +350,9 @@ export function urlResourcePattern(urlStr: string): string {
 export function urlMatchesScope(url: string, patterns: readonly string[]): boolean {
   let canonical: string;
   try {
-    canonical = new URL(url).toString();
+    const parsed = new URL(url);
+    parsed.hostname = normalizeHost(parsed.hostname);
+    canonical = parsed.toString();
   } catch {
     return false;
   }
