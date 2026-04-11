@@ -1,5 +1,11 @@
 # @workglow/tasks
 
+## 0.2.4
+
+### Updated Dependencies
+
+- `undici`: ^8.0.2
+
 ## 0.2.3
 
 ### Features

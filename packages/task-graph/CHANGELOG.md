@@ -1,5 +1,14 @@
 # @workglow/task-graph
 
+## 0.2.4
+
+### Features
+
+#### task-graph
+
+- add subGraph entitlement subscription handling
+- support multiple wildcards in entitlement resource patterns (#406)
+
 ## 0.2.3
 
 ### Features

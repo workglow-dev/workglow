@@ -1,7 +1,7 @@
 {
   "name": "@workglow/tasks",
   "type": "module",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "repository": {
     "type": "git",
     "url": "https://github.com/workglow-dev/workglow.git",
@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "ipaddr.js": "^2.2.0",
-    "undici": "^7.0.0"
+    "undici": "^8.0.2"
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
@@ -84,9 +84,7 @@
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
     "@workglow/task-graph": "workspace:*",
-    "@workglow/util": "workspace:*",
-    "ipaddr.js": "^2.2.0",
-    "undici": "^7.0.0"
+    "@workglow/util": "workspace:*"
   },
   "optionalDependencies": {
     "papaparse": "^5.5.3",
