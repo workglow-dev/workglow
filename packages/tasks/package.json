@@ -51,7 +51,8 @@
     "access": "public"
   },
   "dependencies": {
-    "ipaddr.js": "^2.2.0"
+    "ipaddr.js": "^2.2.0",
+    "undici": "^7.0.0"
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
@@ -89,7 +90,6 @@
   },
   "optionalDependencies": {
     "papaparse": "^5.5.3",
-    "sharp": "^0.34.5",
-    "undici": "^7.0.0"
+    "sharp": "^0.34.5"
   }
 }

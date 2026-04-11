@@ -53,18 +53,13 @@ const mockSafeFetch: SafeFetchFn = (url, options) => mockFetch(url, options);
 describe("FetchUrlTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+  let prevSafeFetch: SafeFetchFn;
   beforeAll(() => {
-    registerSafeFetch(mockSafeFetch);
+    prevSafeFetch = registerSafeFetch(mockSafeFetch);
   });
 
   afterAll(() => {
-    // Reinstall the default browser impl (tests will no longer see the
-    // registered server impl, but the rest of the suite runs in Node — any
-    // subsequent fetch call in other suites will go through globalThis.fetch).
-    registerSafeFetch(async (url, options) => {
-      const { allowPrivate: _omit, ...init } = options;
-      return globalThis.fetch(url, init);
-    });
+    registerSafeFetch(prevSafeFetch);
   });
 
   beforeEach(async () => {

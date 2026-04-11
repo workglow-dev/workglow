@@ -171,18 +171,14 @@ describe("SafeFetch (registration layer)", () => {
     return Promise.resolve(ok());
   };
 
-  let originalImpl: SafeFetchFn;
+  let prevSafeFetch: SafeFetchFn;
 
   beforeAll(() => {
-    originalImpl = async (url, options) => {
-      const { allowPrivate: _omit, ...init } = options;
-      return globalThis.fetch(url, init);
-    };
-    registerSafeFetch(classifyingStub);
+    prevSafeFetch = registerSafeFetch(classifyingStub);
   });
 
   afterAll(() => {
-    registerSafeFetch(originalImpl);
+    registerSafeFetch(prevSafeFetch);
   });
 
   test("rejects invalid URLs", async () => {
@@ -239,12 +235,14 @@ describe("FetchUrlTask dynamic entitlements", () => {
     expect(ids).toContain(Entitlements.NETWORK_PRIVATE);
   });
 
-  test("returns only static entitlements when URL input is missing", () => {
+  test("requires network:private when URL input is missing (fail-closed)", () => {
     const task = new FetchUrlTask();
     const result = task.entitlements();
     const ids = result.entitlements.map((e) => e.id);
     expect(ids).toContain(Entitlements.NETWORK_HTTP);
-    expect(ids).not.toContain(Entitlements.NETWORK_PRIVATE);
+    // Fail-closed: require network:private when URL is not yet known at entitlement
+    // evaluation time, so a policy grant is needed before any private access can happen.
+    expect(ids).toContain(Entitlements.NETWORK_PRIVATE);
   });
 });
 
@@ -252,21 +250,17 @@ describe("FetchUrlTask end-to-end entitlement enforcement", () => {
   const logger = getTestingLogger();
   setLogger(logger);
 
-  let originalImpl: SafeFetchFn;
+  let prevSafeFetch: SafeFetchFn;
 
   beforeAll(() => {
-    originalImpl = async (url, options) => {
-      const { allowPrivate: _omit, ...init } = options;
-      return globalThis.fetch(url, init);
-    };
     // Stub safeFetch to always return success — we're testing the enforcer,
     // not the network layer.
-    registerSafeFetch(() => Promise.resolve(ok()));
+    prevSafeFetch = registerSafeFetch(() => Promise.resolve(ok()));
     TaskRegistry.registerTask(FetchUrlTask);
   });
 
   afterAll(() => {
-    registerSafeFetch(originalImpl);
+    registerSafeFetch(prevSafeFetch);
   });
 
   function makeRegistry(enforcer: IEntitlementEnforcer): ServiceRegistry {

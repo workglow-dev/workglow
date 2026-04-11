@@ -22,7 +22,13 @@ import { PermanentJobError } from "@workglow/job-queue";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent, fetch as undiciFetch } from "undici";
 import { classifyIpLiteral, classifyUrl } from "./UrlClassifier";
-import { registerSafeFetch, type SafeFetchFn, type SafeFetchOptions } from "./SafeFetch";
+import {
+  registerSafeFetch,
+  type SafeFetchFn,
+  type SafeFetchOptions,
+} from "./SafeFetch";
+
+const MAX_REDIRECT_HOPS = 20;
 
 interface ResolvedAddress {
   readonly address: string;
@@ -54,8 +60,22 @@ function isLiteralHost(host: string): boolean {
   return /^[0-9a-fA-FxX.]+$/.test(host);
 }
 
-export const serverSafeFetch: SafeFetchFn = async (url, options) => {
-  const opts: SafeFetchOptions = options ?? {};
+function isRedirectStatus(status: number): boolean {
+  return (
+    status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+  );
+}
+
+/**
+ * Resolve a single hop: classify URL, DNS-resolve if needed, pin connection,
+ * execute the request with redirect:manual, and return the raw response.
+ * The caller is responsible for closing the dispatcher after the response is consumed.
+ */
+async function fetchOneHop(
+  url: string,
+  opts: SafeFetchOptions,
+  fetchInit: Omit<SafeFetchOptions, "allowPrivate" | "redirect">
+): Promise<{ response: Response; dispatcher: Agent }> {
   const classification = classifyUrl(url);
   if (classification.kind === "invalid") {
     throw new PermanentJobError(`Refusing to fetch invalid URL: ${classification.reason}`);
@@ -73,14 +93,11 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
   let pinned: ResolvedAddress;
 
   if (isLiteralHost(host) && classification.literalIp !== undefined) {
-    // Host is already an IP literal — no DNS lookup needed. Classification
-    // already decided whether it's allowed.
     pinned = {
       address: classification.literalIp,
       family: classification.literalIp.includes(":") ? 6 : 4,
     };
   } else {
-    // Resolve DNS and reject on any private/rebinding result.
     const addrs = await resolveAll(host);
     for (const addr of addrs) {
       const ipClass = classifyIpLiteral(addr.address);
@@ -100,10 +117,6 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
     pinned = addrs[0]!;
   }
 
-  // Pin the TCP connection to the pre-resolved IP. Undici will call our
-  // `lookup` hook during connect and receive back the exact address we've
-  // already validated, so a concurrent DNS change cannot redirect the
-  // request between our check and the socket open.
   const pinnedAddress = pinned.address;
   const pinnedFamily = pinned.family;
   const dispatcher = new Agent({
@@ -114,19 +127,83 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
     },
   });
 
-  const { allowPrivate: _omit, ...fetchInit } = opts;
   try {
     const response = await undiciFetch(url, {
       ...(fetchInit as Parameters<typeof undiciFetch>[1]),
       dispatcher,
+      redirect: "manual",
     });
-    // Undici's Response is structurally compatible with the global Response.
-    return response as unknown as Response;
+    return { response: response as unknown as Response, dispatcher };
   } catch (err) {
-    // Make sure the dispatcher is closed promptly on failure.
     await dispatcher.close().catch(() => {});
     throw err;
   }
+}
+
+export const serverSafeFetch: SafeFetchFn = async (url, options) => {
+  const opts: SafeFetchOptions = options ?? {};
+  const requestedRedirectMode = opts.redirect ?? "follow";
+  const { allowPrivate: _allowPrivate, redirect: _redirect, ...fetchInit } = opts;
+
+  let currentUrl = url;
+  let prevDispatcher: Agent | undefined;
+
+  for (let hops = 0; hops <= MAX_REDIRECT_HOPS; hops += 1) {
+    const { response, dispatcher } = await fetchOneHop(currentUrl, opts, fetchInit);
+
+    // Close the previous hop's dispatcher now that we have the next response.
+    if (prevDispatcher !== undefined) {
+      prevDispatcher.close().catch(() => {});
+    }
+
+    if (!isRedirectStatus(response.status)) {
+      // Final response — close the dispatcher once the body is consumed.
+      const body = response.body;
+      if (body !== null) {
+        // Pipe the response body through a passthrough TransformStream.
+        // The dispatcher is closed once the body is fully consumed or cancelled.
+        const { readable, writable } = new TransformStream();
+        body.pipeTo(writable).finally(() => {
+          dispatcher.close().catch(() => {});
+        });
+        return new Response(readable, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      }
+      // No body (e.g. HEAD response) — close dispatcher immediately.
+      dispatcher.close().catch(() => {});
+      return response;
+    }
+
+    if (requestedRedirectMode === "manual") {
+      // Caller wants the raw redirect response; they own the dispatcher now.
+      dispatcher.close().catch(() => {});
+      return response;
+    }
+
+    if (requestedRedirectMode === "error") {
+      dispatcher.close().catch(() => {});
+      throw new TypeError(
+        `Fetch for ${currentUrl} failed because redirect mode was set to 'error'.`
+      );
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      dispatcher.close().catch(() => {});
+      throw new PermanentJobError(
+        `Refusing to follow redirect from ${currentUrl}: missing Location header.`
+      );
+    }
+
+    prevDispatcher = dispatcher;
+    currentUrl = new URL(location, currentUrl).toString();
+    // Update allowPrivate context for subsequent hops — opts is reused.
+  }
+
+  throw new PermanentJobError(`Refusing to fetch ${url}: too many redirects.`);
 };
 
 // Register at module load — the Node/Bun entrypoint re-exports this file

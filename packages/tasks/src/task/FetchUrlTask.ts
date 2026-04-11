@@ -205,11 +205,18 @@ export class FetchUrlJob<
       );
     }
 
-    // allowPrivate mirrors whether the instance has statically classified the
-    // URL as private; the graph runner has already verified the task was
-    // granted `network:private` (declared via the dynamic entitlements()
-    // override) before reaching this point. safeFetch additionally re-checks
-    // the DNS-resolved IP on the server path to defeat DNS rebinding.
+    // allowPrivate is set to true only when the URL is classified as private:
+    // the graph runner (when enforceEntitlements: true) already verified the
+    // task was granted `network:private` before reaching this point. When
+    // enforceEntitlements is false (default), private URLs are only allowed
+    // because the task explicitly declares the network:private entitlement and
+    // the caller has opted out of enforcement. safeFetch still re-checks DNS
+    // on the server path to defeat DNS rebinding regardless.
+    //
+    // TODO: thread the entitlement grant decision through the execution
+    // context so allowPrivate can default to false even when enforceEntitlements
+    // is disabled (requires propagating an explicit derived flag into the job
+    // payload or IJobExecuteContext).
     const response = await fetchWithProgress(
       input.url!,
       {
@@ -351,12 +358,24 @@ export class FetchUrlTask<
    * via the URL's origin so grants can be resource-limited (e.g. a dev-mode
    * grant for `http://localhost:*`). The graph runner evaluates this before
    * `execute()` runs, so a denied private URL never issues a network call.
+   *
+   * Root-task input may not yet be applied when entitlements are evaluated.
+   * If the URL is not available at this point, fail closed and require the
+   * private-network entitlement rather than under-declaring it.
    */
   public override entitlements(): TaskEntitlements {
     const base = FetchUrlTask.entitlements();
     const url = this.runInputData?.url;
     if (typeof url !== "string" || url.length === 0) {
-      return base;
+      return mergeEntitlements(base, {
+        entitlements: [
+          {
+            id: Entitlements.NETWORK_PRIVATE,
+            reason:
+              "Runtime URL is not yet available during entitlement evaluation; private/internal destinations must be explicitly allowed",
+          },
+        ],
+      });
     }
     const classification = classifyUrl(url);
     if (classification.kind !== "private") {

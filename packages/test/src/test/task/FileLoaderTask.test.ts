@@ -21,15 +21,13 @@ const mockSafeFetch: SafeFetchFn = (url, options) => mockFetch(url, options);
 describe("FileLoaderTask", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+  let prevSafeFetch: SafeFetchFn;
   beforeAll(() => {
-    registerSafeFetch(mockSafeFetch);
+    prevSafeFetch = registerSafeFetch(mockSafeFetch);
   });
 
   afterAll(() => {
-    registerSafeFetch(async (url, options) => {
-      const { allowPrivate: _omit, ...init } = options;
-      return globalThis.fetch(url, init);
-    });
+    registerSafeFetch(prevSafeFetch);
   });
 
   beforeEach(() => {

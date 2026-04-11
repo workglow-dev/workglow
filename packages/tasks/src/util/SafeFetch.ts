@@ -39,25 +39,74 @@ export type SafeFetchFn = (url: string, options: SafeFetchOptions) => Promise<Re
 // Default browser implementation
 // ========================================================================
 
-/**
- * Browser-safe default implementation. Classifies the URL statically and
- * delegates to `globalThis.fetch`. The browser controls DNS itself, so we
- * cannot defeat DNS rebinding from browser code — callers must rely on the
- * browser sandbox (CORS, same-origin) as the second layer.
- */
-async function defaultSafeFetch(url: string, options: SafeFetchOptions): Promise<Response> {
+const MAX_REDIRECT_HOPS = 20;
+
+function assertAllowedUrl(url: string, allowPrivate: boolean | undefined): void {
   const classification = classifyUrl(url);
   if (classification.kind === "invalid") {
     throw new PermanentJobError(`Refusing to fetch invalid URL: ${classification.reason}`);
   }
-  if (classification.kind === "private" && !options.allowPrivate) {
+  if (classification.kind === "private" && !allowPrivate) {
     throw new PermanentJobError(
       `Refusing to fetch private/internal URL ${url}: ${classification.reason}. ` +
         `Grant the 'network:private' entitlement to allow this request.`
     );
   }
-  const { allowPrivate: _omit, ...fetchOptions } = options;
-  return globalThis.fetch(url, fetchOptions);
+}
+
+function isRedirectStatus(status: number): boolean {
+  return (
+    status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+  );
+}
+
+/**
+ * Browser-safe default implementation. Classifies the URL statically and
+ * delegates to `globalThis.fetch`. Each redirect hop is validated before
+ * following so a public URL cannot redirect to a private host.
+ *
+ * The browser controls DNS itself, so we cannot defeat DNS rebinding from
+ * browser code — callers must rely on the browser sandbox (CORS,
+ * same-origin) as the second layer.
+ */
+async function defaultSafeFetch(url: string, options: SafeFetchOptions): Promise<Response> {
+  const requestedRedirectMode = options.redirect ?? "follow";
+  const { allowPrivate, redirect: _redirect, ...fetchOptions } = options;
+
+  let currentUrl = url;
+  for (let hops = 0; hops <= MAX_REDIRECT_HOPS; hops += 1) {
+    assertAllowedUrl(currentUrl, allowPrivate);
+
+    const response = await globalThis.fetch(currentUrl, {
+      ...fetchOptions,
+      redirect: "manual",
+    });
+
+    if (!isRedirectStatus(response.status)) {
+      return response;
+    }
+
+    if (requestedRedirectMode === "manual") {
+      return response;
+    }
+
+    if (requestedRedirectMode === "error") {
+      throw new TypeError(
+        `Fetch for ${currentUrl} failed because redirect mode was set to 'error'.`
+      );
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new PermanentJobError(
+        `Refusing to follow redirect from ${currentUrl}: missing Location header.`
+      );
+    }
+
+    currentUrl = new URL(location, currentUrl).toString();
+  }
+
+  throw new PermanentJobError(`Refusing to fetch ${url}: too many redirects.`);
 }
 
 // ========================================================================
@@ -70,9 +119,28 @@ let currentImpl: SafeFetchFn = defaultSafeFetch;
  * Register a platform-specific SafeFetch implementation. The Node/Bun
  * entrypoints call this at module load time to install the DNS-resolving,
  * connection-pinning implementation from `SafeFetch.server.ts`.
+ *
+ * Returns the previously registered implementation so callers can safely
+ * restore it after a temporary override.
  */
-export function registerSafeFetch(fn: SafeFetchFn): void {
+export function registerSafeFetch(fn: SafeFetchFn): SafeFetchFn {
+  const previousImpl = currentImpl;
   currentImpl = fn;
+  return previousImpl;
+}
+
+/**
+ * Returns the currently registered SafeFetch implementation.
+ */
+export function getSafeFetchImpl(): SafeFetchFn {
+  return currentImpl;
+}
+
+/**
+ * Restores the default browser-safe implementation.
+ */
+export function resetSafeFetch(): void {
+  currentImpl = defaultSafeFetch;
 }
 
 /**
