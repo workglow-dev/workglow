@@ -339,6 +339,15 @@ export class GraphAsTask<
   /** Unsubscribe handle for the current subGraph entitlement subscription */
   private _entitlementUnsub: (() => void) | undefined;
 
+  /**
+   * Guards against re-entry while the synchronous initial emit of
+   * `subscribeToTaskEntitlements` is unwinding. Without this, the initial
+   * emit's callback re-reads `this.subGraph`, which would re-trigger
+   * `_syncSubGraphEntitlementSubscription` before `_entitlementUnsub` has
+   * been assigned and loop forever.
+   */
+  private _subscribingEntitlements: boolean = false;
+
   // ========================================================================
   // SubGraph entitlement subscription
   // ========================================================================
@@ -350,14 +359,22 @@ export class GraphAsTask<
    */
   private _subscribeToSubGraphEntitlements(graph: TaskGraph): void {
     this._entitlementUnsub?.();
-    this._entitlementUnsub = graph.subscribeToTaskEntitlements(() => {
-      this.emitEntitlementChange();
-    });
+    this._entitlementUnsub = undefined;
+    this._subscribingEntitlements = true;
+    try {
+      this._entitlementUnsub = graph.subscribeToTaskEntitlements(() => {
+        this.emitEntitlementChange();
+      });
+    } finally {
+      this._subscribingEntitlements = false;
+    }
   }
 
   private _syncSubGraphEntitlementSubscription(
     graph: TaskGraph | undefined = this._subGraph
   ): void {
+    if (this._subscribingEntitlements) return;
+
     if ((this._events?.listenerCount("entitlementChange") ?? 0) === 0) {
       this._entitlementUnsub?.();
       this._entitlementUnsub = undefined;
