@@ -13,7 +13,7 @@ import {
 } from "@workglow/knowledge-base";
 import type { DocumentMetadata } from "@workglow/knowledge-base";
 import { setLogger, uuid4 } from "@workglow/util";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
 setLogger(getTestingLogger());
@@ -27,6 +27,10 @@ describe("DocumentUpsertTask", () => {
       vectorDimensions: 3,
       register: false,
     });
+  });
+
+  afterEach(() => {
+    kb.destroy();
   });
 
   async function makeTree(title: string) {
