@@ -36,6 +36,11 @@ const inputSchema = {
     },
     metadata: {
       ...DocumentMetadataSchema,
+      // Override the title requirement inherited from DocumentMetadataSchema.
+      // The task framework materializes absent optional object inputs as `{}`,
+      // which would otherwise fail `required: ["title"]` validation here.
+      // Title presence is enforced at runtime in execute() instead, so the
+      // `title` and `metadata.title` paths can each independently satisfy it.
       required: [],
       title: "Metadata",
       description:
