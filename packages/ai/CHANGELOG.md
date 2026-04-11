@@ -1,5 +1,17 @@
 # @workglow/ai
 
+## Unreleased
+
+### Features
+
+#### tasks
+
+- DocumentUpsertTask now accepts an optional `metadata` input that mirrors the open
+  `DocumentMetadataSchema`. Callers can pass full frontmatter (`sourceUri`, `createdAt`,
+  `author`, `tags`, custom fields) instead of being limited to `title`. The `title`
+  input remains optional and takes precedence over `metadata.title` when both are
+  present, so existing callers need no changes.
+
 ## 0.2.4
 
 ## 0.2.3
