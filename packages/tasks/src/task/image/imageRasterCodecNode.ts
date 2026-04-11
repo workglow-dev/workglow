@@ -71,7 +71,7 @@ async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
   // allocating the buffer. Each 4 base64 characters decode to 3 bytes;
   // ceiling gives a slight over-estimate (≥ real size), so oversized inputs
   // are rejected without touching Buffer.from().
-  const estimatedBytes = Math.ceil(base64.length * 3 / 4);
+  const estimatedBytes = Math.ceil((base64.length * 3) / 4);
   assertWithinByteBudget(estimatedBytes, MAX_INPUT_BYTES_NODE);
 
   const buffer = Buffer.from(base64, "base64");

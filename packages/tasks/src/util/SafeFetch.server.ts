@@ -22,11 +22,7 @@ import { PermanentJobError } from "@workglow/job-queue";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent, fetch as undiciFetch } from "undici";
 import { classifyIpLiteral, classifyUrl } from "./UrlClassifier";
-import {
-  registerSafeFetch,
-  type SafeFetchFn,
-  type SafeFetchOptions,
-} from "./SafeFetch";
+import { registerSafeFetch, type SafeFetchFn, type SafeFetchOptions } from "./SafeFetch";
 
 const MAX_REDIRECT_HOPS = 20;
 
@@ -61,9 +57,7 @@ function isLiteralHost(host: string): boolean {
 }
 
 function isRedirectStatus(status: number): boolean {
-  return (
-    status === 301 || status === 302 || status === 303 || status === 307 || status === 308
-  );
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
 }
 
 /**
