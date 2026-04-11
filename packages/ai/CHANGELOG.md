@@ -1,5 +1,20 @@
 # @workglow/ai
 
+## 0.2.5
+
+### Features
+
+#### ai
+
+- DocumentUpsertTask accepts optional metadata input
+
+### Documentation
+
+#### ai
+
+- note additive metadata input on DocumentUpsertTask
+- explain required: [] override on DocumentUpsertTask metadata port
+
 ## Unreleased
 
 ### Features

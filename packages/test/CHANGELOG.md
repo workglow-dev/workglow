@@ -1,5 +1,24 @@
 # @workglow/test
 
+## 0.2.5
+
+### Bug Fixes
+
+#### tasks
+
+- re-validate SSRF redirect targets against network:private grant scope (#407)
+
+### Tests
+
+#### ai
+
+- add afterEach kb cleanup to DocumentUpsertTask test
+- failing tests for DocumentUpsertTask metadata input
+
+### Chores
+
+- format
+
 ## 0.2.4
 
 ### Features

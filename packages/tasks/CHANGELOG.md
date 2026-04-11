@@ -1,5 +1,17 @@
 # @workglow/tasks
 
+## 0.2.5
+
+### Bug Fixes
+
+#### tasks
+
+- re-validate SSRF redirect targets against network:private grant scope (#407)
+
+### Chores
+
+- format
+
 ## 0.2.4
 
 ### Updated Dependencies

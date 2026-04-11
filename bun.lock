@@ -9,11 +9,11 @@
       },
       "devDependencies": {
         "@sqliteai/sqlite-vector": "^0.9.95",
-        "@types/bun": "^1.3.12",
+        "@types/bun": "^1.3.11",
         "@types/node": "^24.12.2",
         "@typescript-eslint/eslint-plugin": "^8.58.1",
         "@typescript-eslint/parser": "^8.58.1",
-        "@typescript/native-preview": "=7.0.0-dev.20260411.1",
+        "@typescript/native-preview": "=7.0.0-dev.20260409.1",
         "@vitest/coverage-v8": "^4.1.4",
         "@vitest/ui": "4.1.4",
         "bunset": "^1.0.10",
@@ -27,14 +27,14 @@
         "nyc": "^18.0.0",
         "pkg-pr-new": "^0.0.66",
         "prettier": "^3.8.2",
-        "turbo": "^2.9.6",
+        "turbo": "^2.9.5",
         "typescript": "6.0.2",
         "vitest": "^4.1.4",
       },
     },
     "examples/cli": {
       "name": "@workglow/cli",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "bin": "./dist/workglow.js",
       "dependencies": {
         "@anthropic-ai/sdk": "catalog:",
@@ -65,7 +65,7 @@
     },
     "examples/web": {
       "name": "@workglow/web",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "dependencies": {
         "@codemirror/lang-json": "^6.0.2",
         "@huggingface/transformers": "catalog:",
@@ -105,7 +105,7 @@
     },
     "packages/ai": {
       "name": "@workglow/ai",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@workglow/job-queue": "workspace:*",
         "@workglow/knowledge-base": "workspace:*",
@@ -123,7 +123,7 @@
     },
     "packages/ai-provider": {
       "name": "@workglow/ai-provider",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@anthropic-ai/sdk": "catalog:",
         "@google/generative-ai": "catalog:",
@@ -182,7 +182,7 @@
     },
     "packages/job-queue": {
       "name": "@workglow/job-queue",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
@@ -194,7 +194,7 @@
     },
     "packages/knowledge-base": {
       "name": "@workglow/knowledge-base",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@workglow/storage": "workspace:*",
         "@workglow/util": "workspace:*",
@@ -206,7 +206,7 @@
     },
     "packages/storage": {
       "name": "@workglow/storage",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@electric-sql/pglite": "catalog:",
         "@sqlite.org/sqlite-wasm": "catalog:",
@@ -238,7 +238,7 @@
     },
     "packages/task-graph": {
       "name": "@workglow/task-graph",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@workglow/job-queue": "workspace:*",
         "@workglow/storage": "workspace:*",
@@ -252,7 +252,7 @@
     },
     "packages/tasks": {
       "name": "@workglow/tasks",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "dependencies": {
         "ipaddr.js": "^2.2.0",
         "undici": "^8.0.2",
@@ -279,7 +279,7 @@
     },
     "packages/test": {
       "name": "@workglow/test",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@anthropic-ai/sdk": "catalog:",
         "@electric-sql/pglite": "catalog:",
@@ -306,7 +306,7 @@
     },
     "packages/util": {
       "name": "@workglow/util",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "dependencies": {
         "@sroussey/json-schema-library": "^11.0.0",
         "@sroussey/json-schema-to-ts": "3.1.4",
@@ -314,7 +314,7 @@
     },
     "packages/workglow": {
       "name": "workglow",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "dependencies": {
         "@workglow/ai": "workspace:*",
         "@workglow/ai-provider": "workspace:*",
@@ -369,7 +369,7 @@
     "node-llama-cpp",
   ],
   "catalog": {
-    "@anthropic-ai/sdk": "^0.88.0",
+    "@anthropic-ai/sdk": "^0.87.0",
     "@electric-sql/pglite": "^0.4.4",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/inference": "^4.13.15",
@@ -400,7 +400,7 @@
 
     "@alcalzone/ansi-tokenize": ["@alcalzone/ansi-tokenize@0.3.0", "", { "dependencies": { "ansi-styles": "^6.2.1", "is-fullwidth-code-point": "^5.0.0" } }, "sha512-p+CMKJ93HFmLkjXKlXiVGlMQEuRb6H0MokBSwUsX+S6BRX8eV5naFZpQJFfJHjRZY0Hmnqy1/r6UWl3x+19zYA=="],
 
-    "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.88.0", "", { "dependencies": { "json-schema-to-ts": "^3.1.1" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["zod"], "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-QQOtB5U9ZBJQj6y1ICmDZl14LWa4JCiJRoihI+0yuZ4OjbONrakP0yLwPv4DJFb3VYCtQM31bTOpCBMs2zghPw=="],
+    "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.87.0", "", { "dependencies": { "json-schema-to-ts": "^3.1.1" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["zod"], "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-ZvBWT5VkPTW6b8LIpugpuAkpcYPSLOXdWTcgQrpUqf4IeJ5ZrH5rT8sTsUDvxPCHAlRG3nF4VIWfjw6uLhJ18g=="],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.0", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.28.5", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw=="],
 
@@ -896,21 +896,21 @@
 
     "@typescript-eslint/visitor-keys": ["@typescript-eslint/visitor-keys@8.58.1", "", { "dependencies": { "@typescript-eslint/types": "8.58.1", "eslint-visitor-keys": "^5.0.0" } }, "sha512-y+vH7QE8ycjoa0bWciFg7OpFcipUuem1ujhrdLtq1gByKwfbC7bPeKsiny9e0urg93DqwGcHey+bGRKCnF1nZQ=="],
 
-    "@typescript/native-preview": ["@typescript/native-preview@7.0.0-dev.20260411.1", "", { "optionalDependencies": { "@typescript/native-preview-darwin-arm64": "7.0.0-dev.20260411.1", "@typescript/native-preview-darwin-x64": "7.0.0-dev.20260411.1", "@typescript/native-preview-linux-arm": "7.0.0-dev.20260411.1", "@typescript/native-preview-linux-arm64": "7.0.0-dev.20260411.1", "@typescript/native-preview-linux-x64": "7.0.0-dev.20260411.1", "@typescript/native-preview-win32-arm64": "7.0.0-dev.20260411.1", "@typescript/native-preview-win32-x64": "7.0.0-dev.20260411.1" }, "bin": { "tsgo": "bin/tsgo.js" } }, "sha512-cBk+dPa5x5r9wnh5lz3zSnj7YJM1s/tSCf5owex+OkjJLji3iJu7J9kTH1SvvxA5kmkY76qFYw3vFN9h8W3gBA=="],
+    "@typescript/native-preview": ["@typescript/native-preview@7.0.0-dev.20260409.1", "", { "optionalDependencies": { "@typescript/native-preview-darwin-arm64": "7.0.0-dev.20260409.1", "@typescript/native-preview-darwin-x64": "7.0.0-dev.20260409.1", "@typescript/native-preview-linux-arm": "7.0.0-dev.20260409.1", "@typescript/native-preview-linux-arm64": "7.0.0-dev.20260409.1", "@typescript/native-preview-linux-x64": "7.0.0-dev.20260409.1", "@typescript/native-preview-win32-arm64": "7.0.0-dev.20260409.1", "@typescript/native-preview-win32-x64": "7.0.0-dev.20260409.1" }, "bin": { "tsgo": "bin/tsgo.js" } }, "sha512-CV1HEMGo1xCySwUJbCQOF+mmrTue8KTJ1Od2kKWhcbOpu8fPBfaqIpbAM6tGLcNEykEjMMTYHc/VTLbMgxdScQ=="],
 
-    "@typescript/native-preview-darwin-arm64": ["@typescript/native-preview-darwin-arm64@7.0.0-dev.20260411.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-qdSDz0o4l4cEZhAn92ayzf7cKiMLrzSp9Xdk5mfaXpiahvxT39fNj5jiwDnRO+kHkHMMIYYL1nQbslSadargyg=="],
+    "@typescript/native-preview-darwin-arm64": ["@typescript/native-preview-darwin-arm64@7.0.0-dev.20260409.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-GcRRnaoeZVrbC47woQ/2t3vPoQcTSjsWPEAQGtwNSdw7Z9TKxG4ES22ghJIQXd3ncTRCMJ+XELnnuqxVutkJ9w=="],
 
-    "@typescript/native-preview-darwin-x64": ["@typescript/native-preview-darwin-x64@7.0.0-dev.20260411.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-2Nea85rMeBZe2UV6V8vBVJ3mSFHn4XZ+ceXGFpnfsU2nay0l1ncoYw91JA/yPwM5ui3+pxAYwl8PWLCxlZCB3Q=="],
+    "@typescript/native-preview-darwin-x64": ["@typescript/native-preview-darwin-x64@7.0.0-dev.20260409.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-7s8DXAa0Xpu/8PEjYIc4I36Ju7eVpoz9k3E+3WQdOF8pIPWYohiOj+zi68m9XYQck+rnkjUFo26ThVKqVetoMA=="],
 
-    "@typescript/native-preview-linux-arm": ["@typescript/native-preview-linux-arm@7.0.0-dev.20260411.1", "", { "os": "linux", "cpu": "arm" }, "sha512-8/LqqQDp73kvT7aWh3sAFglGaSxtjxHIhEgqZ7XWG7+1aHHJeL1bcmRnk7JyP3BE5SPzs3bQhFC6Cvj6WQwTqQ=="],
+    "@typescript/native-preview-linux-arm": ["@typescript/native-preview-linux-arm@7.0.0-dev.20260409.1", "", { "os": "linux", "cpu": "arm" }, "sha512-fOa07JBUXQpEPq+024g346inYZ2xp63ELuoRq6J0jwDWQ/ftCCuvdQNMncwFhsm1qlMdKT3S68NrnSxX16hiaw=="],
 
-    "@typescript/native-preview-linux-arm64": ["@typescript/native-preview-linux-arm64@7.0.0-dev.20260411.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-5QRz/eMIb1JtojvB0oeBbIc6ZNqZiiMUSRDsyp1qMJacdrs+1fbQ8MYFft5ceJe94mcolGHnbcozwPg8hf5fDg=="],
+    "@typescript/native-preview-linux-arm64": ["@typescript/native-preview-linux-arm64@7.0.0-dev.20260409.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-cGTzTUqRGlIDwdtkDy6qTrvrqpe27W4CdgnFn0FpxpiWnaIi3wqjlzQ1grtqrqainw/yuPy5hn/I86sQgN6nvA=="],
 
-    "@typescript/native-preview-linux-x64": ["@typescript/native-preview-linux-x64@7.0.0-dev.20260411.1", "", { "os": "linux", "cpu": "x64" }, "sha512-H5NWP+ot/L+Tn9ds4W/t4Xx/CuxZF4iHDdRx2hCr/O0l8pBBq8C/MBJ/eUgVZXO4lD+8J6eQ7nOlGtJ0SS8Sbg=="],
+    "@typescript/native-preview-linux-x64": ["@typescript/native-preview-linux-x64@7.0.0-dev.20260409.1", "", { "os": "linux", "cpu": "x64" }, "sha512-lQrbc/BJKBxQrR1ttBDU5sYY1Hb2moFQgHL20T6nbapNqGpK4pzy64p+NK39O93D4omiCSk04pkchBCVrMPSAg=="],
 
-    "@typescript/native-preview-win32-arm64": ["@typescript/native-preview-win32-arm64@7.0.0-dev.20260411.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-/Zc1rotE/NS72xNc4UjaEKCBanBsQ/0/fS2sYLcN9yd6p6AYFYzmTWfbGy5qvv1ckXOI0dkOolLzK8nYbrJzbA=="],
+    "@typescript/native-preview-win32-arm64": ["@typescript/native-preview-win32-arm64@7.0.0-dev.20260409.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-kmCafMo1xZlYx+9WnfpeZJ2tnB/CcJdR8QPX7j9vqcpe51D7b7Intmr921dD48KGpVh5YgjQ1MEFE5mjGqGMaA=="],
 
-    "@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20260411.1", "", { "os": "win32", "cpu": "x64" }, "sha512-PhFL0w2Uz9jKdTtm7uy2PPl3nJiacX24jxzDD0R0eBHOY/49L3V5iD7eyBACPSzyWp0/dD7pPdKSnRbS3nVRng=="],
+    "@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20260409.1", "", { "os": "win32", "cpu": "x64" }, "sha512-WRd+JpQipTsE15QgYr3w7J0f1NKvGcq2QEgmcq8hB0WZA1X2WhQopNu+MpPQ3tdDD42VjMhm8ZoB8HpuOoXK5w=="],
 
     "@uiw/codemirror-extensions-basic-setup": ["@uiw/codemirror-extensions-basic-setup@4.25.9", "", { "dependencies": { "@codemirror/autocomplete": "^6.0.0", "@codemirror/commands": "^6.0.0", "@codemirror/language": "^6.0.0", "@codemirror/lint": "^6.0.0", "@codemirror/search": "^6.0.0", "@codemirror/state": "^6.0.0", "@codemirror/view": "^6.0.0" } }, "sha512-QFAqr+pu6lDmNpAlecODcF49TlsrZ0bj15zPzfhiqSDl+Um3EsDLFLppixC7kFLn+rdDM2LTvVjn5CPvefpRgw=="],
 

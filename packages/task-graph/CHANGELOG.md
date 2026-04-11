@@ -1,5 +1,13 @@
 # @workglow/task-graph
 
+## 0.2.5
+
+### Bug Fixes
+
+#### task-graph
+
+- prevent infinite recursion in subGraph entitlement subscription (#408)
+
 ## 0.2.4
 
 ### Features
