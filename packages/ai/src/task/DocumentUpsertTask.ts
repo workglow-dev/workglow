@@ -5,9 +5,10 @@
  */
 
 import { Document, KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
-import type { DocumentNode } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
+import { DocumentMetadataSchema } from "@workglow/knowledge-base";
+import type { DocumentMetadata, DocumentNode } from "@workglow/knowledge-base";
 import type { TaskConfig } from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
@@ -29,10 +30,21 @@ const inputSchema = {
     title: {
       type: "string",
       title: "Title",
-      description: "Human-readable title stored in the document metadata",
+      description:
+        "Optional human-readable title. If provided, overrides metadata.title. " +
+        "Either this or metadata.title must be supplied.",
+    },
+    metadata: {
+      ...DocumentMetadataSchema,
+      required: [],
+      title: "Metadata",
+      description:
+        "Optional document metadata. May contain `title` (unless the top-level " +
+        "`title` input is also provided), `sourceUri`, `createdAt`, and any " +
+        "additional caller-defined fields (the schema is open).",
     },
   },
-  required: ["knowledgeBase", "doc_id", "documentTree", "title"],
+  required: ["knowledgeBase", "doc_id", "documentTree"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -85,12 +97,25 @@ export class DocumentUpsertTask extends Task<
     input: DocumentUpsertTaskInput,
     context: IExecuteContext
   ): Promise<DocumentUpsertTaskOutput> {
-    const { knowledgeBase, doc_id, documentTree, title } = input;
+    const { knowledgeBase, doc_id, documentTree, title, metadata } = input;
     const kb = knowledgeBase as KnowledgeBase;
+
+    // Merge: explicit `title` wins over `metadata.title`. Open `metadata` shape
+    // (additionalProperties: true) means any extra frontmatter fields the caller
+    // passed are persisted on the Document record unchanged.
+    const merged: DocumentMetadata = {
+      ...((metadata ?? {}) as DocumentMetadata),
+      ...(title !== undefined ? { title } : {}),
+    };
+    if (!merged.title) {
+      throw new Error(
+        "DocumentUpsertTask: title is required — provide it via the 'title' input or 'metadata.title'"
+      );
+    }
 
     await context.updateProgress(1, "Upserting document");
 
-    const document = new Document(documentTree as DocumentNode, { title }, [], doc_id);
+    const document = new Document(documentTree as DocumentNode, merged, [], doc_id);
     const stored = await kb.upsertDocument(document);
 
     return {
