@@ -6,18 +6,16 @@
 
 import type { ImageBinary } from "@workglow/util/media";
 
+import {
+  MAX_INPUT_BYTES_BROWSER,
+  REJECTED_DECODE_MIME_TYPES,
+  assertIsDataUri,
+  assertWithinByteBudget,
+  assertWithinPixelBudget,
+  extractDataUriMimeType,
+  normalizeOutputMimeType,
+} from "./imageCodecLimits";
 import type { ImageRasterCodec } from "./imageRasterCodecRegistry";
-
-function normalizeMimeType(mimeType: string): "image/jpeg" | "image/png" | "image/webp" {
-  const m = mimeType.toLowerCase();
-  if (m.includes("jpeg") || m.includes("jpg")) {
-    return "image/jpeg";
-  }
-  if (m.includes("webp")) {
-    return "image/webp";
-  }
-  return "image/png";
-}
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -87,23 +85,50 @@ function get2dContext(
 }
 
 async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
+  // Defense in depth: without this assertion, `fetch(dataUri)` below would
+  // happily reach the network for `http:`, `file:`, etc. — turning any future
+  // upstream-validation removal into SSRF.
+  assertIsDataUri(dataUri);
+
+  const declaredMime = extractDataUriMimeType(dataUri);
+  if (declaredMime && REJECTED_DECODE_MIME_TYPES.has(declaredMime)) {
+    throw new Error(
+      `Image raster codec: refusing to rasterize "${declaredMime}". ` +
+        `Vector and animated formats lose information when converted to pixels. ` +
+        `Convert to PNG, JPEG, or WebP before passing to the codec.`
+    );
+  }
+
   const response = await fetch(dataUri);
   const blob = await response.blob();
+  // Compressed-size pre-check is the primary browser defense against decoder
+  // bombs: `createImageBitmap` decompresses eagerly, so by the time we can
+  // read `bmp.width`/`bmp.height` the expensive allocation has already
+  // happened. The subsequent pixel-budget check only avoids the canvas +
+  // ImageData allocations (another ~2 * w*h*4 bytes).
+  assertWithinByteBudget(blob.size, MAX_INPUT_BYTES_BROWSER);
+
   const bmp = await createImageBitmap(blob);
-  const { ctx } = get2dContext(bmp.width, bmp.height);
-  ctx.drawImage(bmp, 0, 0);
-  const id = ctx.getImageData(0, 0, bmp.width, bmp.height);
-  bmp.close();
-  return {
-    data: new Uint8ClampedArray(id.data),
-    width: id.width,
-    height: id.height,
-    channels: 4,
-  };
+  try {
+    assertWithinPixelBudget(bmp.width, bmp.height);
+    const { ctx } = get2dContext(bmp.width, bmp.height);
+    ctx.drawImage(bmp, 0, 0);
+    const id = ctx.getImageData(0, 0, bmp.width, bmp.height);
+    return {
+      data: new Uint8ClampedArray(id.data),
+      width: id.width,
+      height: id.height,
+      channels: 4,
+    };
+  } finally {
+    // Always close the bitmap, even on rejection, to avoid leaking a
+    // decompressed allocation on every oversized input.
+    bmp.close();
+  }
 }
 
 async function encodeDataUri(image: ImageBinary, mimeType: string): Promise<string> {
-  const fmt = normalizeMimeType(mimeType);
+  const fmt = normalizeOutputMimeType(mimeType);
   const { canvas, ctx } = get2dContext(image.width, image.height);
   ctx.putImageData(rasterToImageData(image), 0, 0);
 

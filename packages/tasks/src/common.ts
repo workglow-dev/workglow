@@ -30,6 +30,7 @@ export * from "./task/image/ImageGrayscaleTask";
 export * from "./task/image/ImageInvertTask";
 export * from "./task/image/ImagePixelateTask";
 export * from "./task/image/ImagePosterizeTask";
+export * from "./task/image/imageCodecLimits";
 export * from "./task/image/imageRasterCodecRegistry";
 export * from "./task/image/ImageResizeTask";
 export * from "./task/image/ImageRotateTask";
