@@ -733,7 +733,8 @@ export class ElectronBackend implements IBrowserContext {
     const objectId = resolveResult.object.objectId;
     const result = (await this.cdp("Runtime.callFunctionOn", {
       objectId,
-      functionDeclaration: `function() { return this.getAttribute(${JSON.stringify(name)}); }`,
+      functionDeclaration: "function(attrName) { return this.getAttribute(attrName); }",
+      arguments: [{ value: name }],
       returnByValue: true,
     })) as { result: { value: string | null } };
     return result.result.value;
