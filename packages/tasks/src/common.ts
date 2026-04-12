@@ -7,6 +7,9 @@
 // Load adaptive first so Workflow.prototype.add/subtract/multiply/divide/sum are registered
 import "./task/adaptive";
 
+export * from "./task/browser/IBrowserContext";
+export * from "./task/browser/BrowserSessionRegistry";
+export * from "./util/BrowserTaskDeps";
 export * from "./util/SafeFetch";
 export * from "./util/UrlClassifier";
 export * from "./mcp-server/getMcpServerConfig";
