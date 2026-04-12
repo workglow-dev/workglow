@@ -233,7 +233,7 @@ function serializeAXTree(node: AccessibilityNode, indent = 0): string {
   const spaces = "  ".repeat(indent);
   let line = `${spaces}- ${node.role}`;
   if (node.name) {
-    line += ` "${node.name.replace(/"/g, '\\"')}"`;
+    line += ` "${node.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
   if (node.level !== undefined) line += ` [level=${node.level}]`;
   if (node.checked !== undefined) line += ` [checked=${node.checked}]`;
