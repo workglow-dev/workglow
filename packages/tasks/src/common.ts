@@ -9,6 +9,8 @@ import "./task/adaptive";
 
 export * from "./task/browser/IBrowserContext";
 export * from "./task/browser/BrowserSessionRegistry";
+export * from "./task/browser/tasks/BrowserSessionTask";
+export * from "./task/browser/tasks/BrowserCloseTask";
 export * from "./util/BrowserTaskDeps";
 export * from "./util/SafeFetch";
 export * from "./util/UrlClassifier";
