@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getChildren, hasChildren } from "@workglow/knowledge-base";
+import { DocumentRootNode, getChildren, hasChildren } from "@workglow/knowledge-base";
 
 import type { DocumentNode, Entity, NodeEnrichment } from "@workglow/knowledge-base";
 import type { TaskConfig } from "@workglow/task-graph";
@@ -87,7 +87,9 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type DocumentEnricherTaskInput = FromSchema<typeof inputSchema>;
+export type DocumentEnricherTaskInput = Omit<FromSchema<typeof inputSchema>, "documentTree"> & {
+  documentTree: DocumentRootNode;
+};
 export type DocumentEnricherTaskOutput = FromSchema<typeof outputSchema>;
 export type DocumentEnricherTaskConfig = TaskConfig<DocumentEnricherTaskInput>;
 

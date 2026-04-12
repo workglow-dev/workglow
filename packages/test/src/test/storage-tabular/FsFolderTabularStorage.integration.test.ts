@@ -70,7 +70,7 @@ describe("FsFolderTabularStorage", () => {
   describe("search functionality", () => {
     test("should throw error when attempting to search", async () => {
       try {
-        const repo = new FsFolderTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
+        new FsFolderTabularStorage<typeof SearchSchema, typeof SearchPrimaryKeyNames>(
           testDir,
           SearchSchema,
           SearchPrimaryKeyNames,

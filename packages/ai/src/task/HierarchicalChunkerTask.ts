@@ -6,6 +6,7 @@
 
 import {
   ChunkRecordSchema,
+  DocumentRootNode,
   estimateTokens,
   getChildren,
   hasChildren,
@@ -102,7 +103,9 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type HierarchicalChunkerTaskInput = FromSchema<typeof inputSchema>;
+export type HierarchicalChunkerTaskInput = Omit<FromSchema<typeof inputSchema>, "documentTree"> & {
+  documentTree: DocumentRootNode;
+};
 export type HierarchicalChunkerTaskOutput = FromSchema<typeof outputSchema>;
 export type HierarchicalChunkerTaskConfig = TaskConfig<HierarchicalChunkerTaskInput>;
 
