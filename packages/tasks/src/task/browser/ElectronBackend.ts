@@ -611,8 +611,6 @@ export class ElectronBackend implements IBrowserContext {
       name: label,
     })) as { nodes: CDPAXNode[] };
 
-    let backendNodeId: number | undefined;
-
     // Try to find the associated input via the label's "for" attribute
     if (labelResult.nodes?.[0]?.backendDOMNodeId != null) {
       const labelNodeId = labelResult.nodes[0].backendDOMNodeId;
@@ -668,25 +666,23 @@ export class ElectronBackend implements IBrowserContext {
       return;
     }
 
-    if (backendNodeId == null) {
-      // Direct JS fallback
-      const script = `(function() {
-        const labels = Array.from(document.querySelectorAll('label'));
-        const label = labels.find(l => l.textContent.trim() === ${JSON.stringify(label)});
-        if (!label) return false;
-        const forAttr = label.htmlFor;
-        let input = forAttr ? document.getElementById(forAttr) : label.querySelector('input, textarea, select');
-        if (!input) return false;
-        input.focus();
-        input.value = ${JSON.stringify(value)};
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        return true;
-      })()`;
-      const filled = await this.wc.executeJavaScript(script);
-      if (!filled) {
-        throw new Error(`ElectronBackend: no input found for label "${label}"`);
-      }
+    // Direct JS fallback
+    const script = `(function() {
+      const labels = Array.from(document.querySelectorAll('label'));
+      const label = labels.find(l => l.textContent.trim() === ${JSON.stringify(label)});
+      if (!label) return false;
+      const forAttr = label.htmlFor;
+      let input = forAttr ? document.getElementById(forAttr) : label.querySelector('input, textarea, select');
+      if (!input) return false;
+      input.focus();
+      input.value = ${JSON.stringify(value)};
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`;
+    const filled = await this.wc.executeJavaScript(script);
+    if (!filled) {
+      throw new Error(`ElectronBackend: no input found for label "${label}"`);
     }
   }
 
