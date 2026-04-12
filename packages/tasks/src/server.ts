@@ -4,12 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import path from "node:path";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { PlaywrightBackend } from "./task/browser/PlaywrightBackend";
 import { registerBrowserDeps } from "./util/BrowserTaskDeps";
 import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil";
 import type { McpServerConfig } from "./util/McpTaskDeps";
 import { registerMcpTaskDeps } from "./util/McpTaskDeps";
+
+const SAFE_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+
+function safeName(value: string, label: string): string {
+  if (!SAFE_NAME_RE.test(value)) {
+    throw new Error(`Invalid ${label}: must contain only alphanumeric characters, hyphens, and underscores`);
+  }
+  return value;
+}
 
 export function registerMcpTaskDepsServer(): void {
   registerMcpTaskDeps({
@@ -34,22 +44,29 @@ export function registerBrowserDepsServer(): void {
     profileStorage: {
       async save(projectId, profileName, state) {
         const fs = await import("node:fs/promises");
-        const path = await import("node:path");
-        const dir = path.join(process.cwd(), ".workglow", "browser-profiles", projectId);
+        const dir = path.join(
+          process.cwd(),
+          ".workglow",
+          "browser-profiles",
+          safeName(projectId, "projectId")
+        );
         await fs.mkdir(dir, { recursive: true });
-        await fs.writeFile(path.join(dir, `${profileName}.json`), state, "utf-8");
+        await fs.writeFile(
+          path.join(dir, `${safeName(profileName, "profileName")}.json`),
+          state,
+          "utf-8"
+        );
       },
       async load(projectId, profileName) {
         const fs = await import("node:fs/promises");
-        const path = await import("node:path");
         try {
           return await fs.readFile(
             path.join(
               process.cwd(),
               ".workglow",
               "browser-profiles",
-              projectId,
-              `${profileName}.json`
+              safeName(projectId, "projectId"),
+              `${safeName(profileName, "profileName")}.json`
             ),
             "utf-8"
           );
@@ -59,15 +76,14 @@ export function registerBrowserDepsServer(): void {
       },
       async delete(projectId, profileName) {
         const fs = await import("node:fs/promises");
-        const path = await import("node:path");
         try {
           await fs.unlink(
             path.join(
               process.cwd(),
               ".workglow",
               "browser-profiles",
-              projectId,
-              `${profileName}.json`
+              safeName(projectId, "projectId"),
+              `${safeName(profileName, "profileName")}.json`
             )
           );
         } catch {

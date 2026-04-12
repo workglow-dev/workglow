@@ -450,8 +450,8 @@ export class ElectronBackend implements IBrowserContext {
   // ---------------------------------------------------------------------------
 
   async snapshot(_options: SnapshotOptions = {}): Promise<AccessibilityTree> {
-    // Reset ref tracking per snapshot for stable references
-    this._refCounter.count = 0;
+    // Clear old snapshot refs but keep the monotonic counter to avoid
+    // collisions with refs created by querySelector between snapshots.
     this._refMap.clear();
 
     const result = (await this.cdp("Accessibility.getFullAXTree")) as { nodes: CDPAXNode[] };
@@ -605,68 +605,52 @@ export class ElectronBackend implements IBrowserContext {
   }
 
   async fillByLabel(label: string, value: string, _options: WaitOptions = {}): Promise<void> {
-    // Find the label element by name in the AX tree
+    // Try CDP path first: find the label via AX tree, resolve its associated input,
+    // then use CDP DOM.focus + Input.insertText (no JS injection needed).
     const labelResult = (await this.cdp("Accessibility.queryAXTree", {
       role: "label",
       name: label,
     })) as { nodes: CDPAXNode[] };
 
-    // Try to find the associated input via the label's "for" attribute
     if (labelResult.nodes?.[0]?.backendDOMNodeId != null) {
       const labelNodeId = labelResult.nodes[0].backendDOMNodeId;
       const resolveResult = (await this.cdp("DOM.resolveNode", { backendNodeId: labelNodeId })) as {
         object: { objectId: string };
       };
-      const objectId = resolveResult.object.objectId;
 
-      // Get the "for" attribute and look up the associated input
-      const forResult = (await this.cdp("Runtime.callFunctionOn", {
-        objectId,
+      // Find the associated input element via the label's for/htmlFor or as a child
+      const inputResult = (await this.cdp("Runtime.callFunctionOn", {
+        objectId: resolveResult.object.objectId,
         functionDeclaration: `function() {
           const forAttr = this.htmlFor || this.getAttribute('for');
           if (forAttr) {
-            const el = document.getElementById(forAttr);
-            return el ? el.getAttribute('data-electron-ref') : null;
+            return document.getElementById(forAttr);
           }
-          // Try first child input
-          const input = this.querySelector('input, textarea, select');
-          return input ? { type: 'found' } : null;
+          return this.querySelector('input, textarea, select');
         }`,
-        returnByValue: true,
-      })) as { result: { value: unknown } };
+        returnByValue: false,
+      })) as { result: { objectId?: string; subtype?: string } };
 
-      // Fall back: use executeJavaScript to find and fill
-      const script = `(function() {
-        const labels = Array.from(document.querySelectorAll('label'));
-        const label = labels.find(l => l.textContent.trim() === ${JSON.stringify(label)});
-        if (!label) return false;
-        const forAttr = label.htmlFor;
-        let input = forAttr ? document.getElementById(forAttr) : label.querySelector('input, textarea, select');
-        if (!input) return false;
-        input.focus();
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-          Object.getPrototypeOf(input), 'value'
-        )?.set;
-        if (nativeInputValueSetter) {
-          nativeInputValueSetter.call(input, ${JSON.stringify(value)});
-        } else {
-          input.value = ${JSON.stringify(value)};
-        }
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        return true;
-      })()`;
+      if (inputResult.result.objectId && inputResult.result.subtype !== "null") {
+        // Get the backendNodeId for the input element
+        const inputNodeResult = (await this.cdp("DOM.requestNode", {
+          objectId: inputResult.result.objectId,
+        })) as { nodeId: number };
 
-      // forResult is used for potential backendNodeId extraction (unused in fallback path)
-      void forResult;
-      const filled = await this.wc.executeJavaScript(script);
-      if (!filled) {
-        throw new Error(`ElectronBackend: no input found for label "${label}"`);
+        const describeResult = (await this.cdp("DOM.describeNode", {
+          nodeId: inputNodeResult.nodeId,
+        })) as { node: { backendNodeId: number } };
+
+        // Focus and fill via CDP — clean, no JS injection
+        await this.cdp("DOM.focus", { backendNodeId: describeResult.node.backendNodeId });
+        await this.cdp("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 2 });
+        await this.cdp("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2 });
+        await this.cdp("Input.insertText", { text: value });
+        return;
       }
-      return;
     }
 
-    // Direct JS fallback
+    // JS fallback: find label by text content, resolve its input, set value with events
     const script = `(function() {
       const labels = Array.from(document.querySelectorAll('label'));
       const label = labels.find(l => l.textContent.trim() === ${JSON.stringify(label)});
@@ -675,7 +659,14 @@ export class ElectronBackend implements IBrowserContext {
       let input = forAttr ? document.getElementById(forAttr) : label.querySelector('input, textarea, select');
       if (!input) return false;
       input.focus();
-      input.value = ${JSON.stringify(value)};
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        Object.getPrototypeOf(input), 'value'
+      )?.set;
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(input, ${JSON.stringify(value)});
+      } else {
+        input.value = ${JSON.stringify(value)};
+      }
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
       return true;
@@ -740,9 +731,17 @@ export class ElectronBackend implements IBrowserContext {
   // CSS selectors
   // ---------------------------------------------------------------------------
 
+  private async getDocumentRootNodeId(): Promise<number> {
+    const doc = (await this.cdp("DOM.getDocument", { depth: 0 })) as {
+      root: { nodeId: number };
+    };
+    return doc.root.nodeId;
+  }
+
   async querySelector(selector: string): Promise<ElementRef | null> {
+    const rootNodeId = await this.getDocumentRootNodeId();
     const result = (await this.cdp("DOM.querySelector", {
-      nodeId: 1, // document root
+      nodeId: rootNodeId,
       selector,
     })) as { nodeId: number };
 
@@ -759,8 +758,9 @@ export class ElectronBackend implements IBrowserContext {
   }
 
   async querySelectorAll(selector: string): Promise<readonly ElementRef[]> {
+    const rootNodeId = await this.getDocumentRootNodeId();
     const result = (await this.cdp("DOM.querySelectorAll", {
-      nodeId: 1, // document root
+      nodeId: rootNodeId,
       selector,
     })) as { nodeIds: number[] };
 
@@ -863,24 +863,34 @@ export class ElectronBackend implements IBrowserContext {
     });
   }
 
-  async download(trigger: () => Promise<void>, _options: DownloadOptions = {}): Promise<DownloadResult> {
+  async download(trigger: () => Promise<void>, options: DownloadOptions = {}): Promise<DownloadResult> {
+    const os = await import("node:os");
+    const downloadDir = os.tmpdir();
+    const timeout = options.timeout ?? 30_000;
+
     // Set up download behavior via CDP
     await this.cdp("Browser.setDownloadBehavior", {
       behavior: "allow",
-      downloadPath: "/tmp",
+      downloadPath: downloadDir,
     });
 
     let downloadPath = "";
     let suggestedFilename = "";
 
-    // Listen for download completion
-    const downloadPromise = new Promise<void>((resolve, _reject) => {
-      const handler = (_event: unknown, _state: unknown, item: AnyWebContents) => {
+    // Listen for download completion.
+    // Electron's will-download signature: (event, item, webContents)
+    const downloadPromise = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error("ElectronBackend: download timed out"));
+      }, timeout);
+
+      const handler = (_event: unknown, item: AnyWebContents, _webContents: unknown) => {
         // item is a DownloadItem
         suggestedFilename = item.getFilename ? item.getFilename() : "download";
         item.once?.("done", (_e: unknown, state: string) => {
+          clearTimeout(timer);
           if (state === "completed") {
-            downloadPath = item.getSavePath ? item.getSavePath() : "/tmp/" + suggestedFilename;
+            downloadPath = item.getSavePath ? item.getSavePath() : downloadDir + "/" + suggestedFilename;
           }
           resolve();
         });
@@ -905,41 +915,32 @@ export class ElectronBackend implements IBrowserContext {
   onDialog(handler: (info: DialogInfo) => DialogAction | Promise<DialogAction>): void {
     this._dialogHandler = handler;
 
-    // Electron surfaces dialogs via different events. Wire them up.
-    const wc = this.wc;
-    wc.on("ipc-message", () => {
-      // No-op placeholder; actual dialog interception is via DevTools Protocol
-    });
-
-    // Override window.alert, confirm, prompt via CDP
+    // Use CDP Page.javascriptDialogOpening to intercept alert/confirm/prompt dialogs.
+    // This requires Page domain to be enabled.
     void this.cdp("Page.enable").then(() => {
-      this.wc.on(
-        "dialog-message" as string,
-        async (
-          _event: unknown,
-          dialogType: string,
-          message: string,
-          defaultPrompt: string,
-          callback: (accept: boolean, text?: string) => void
-        ) => {
+      this.wc.debugger.on(
+        "message",
+        async (_event: unknown, method: string, params: Record<string, unknown>) => {
+          if (method !== "Page.javascriptDialogOpening") return;
+
           const info: DialogInfo = {
-            type: dialogType as DialogInfo["type"],
-            message,
-            defaultValue: defaultPrompt || undefined,
+            type: params.type as DialogInfo["type"],
+            message: params.message as string,
+            defaultValue: (params.defaultPrompt as string) || undefined,
           };
+
           if (this._dialogHandler) {
             const action = await this._dialogHandler(info);
-            if (action.accept) {
-              const promptText =
-                "promptText" in action
-                  ? (action as { accept: true; promptText?: string }).promptText
-                  : undefined;
-              callback(true, promptText);
-            } else {
-              callback(false);
-            }
+            const accept = action.accept;
+            const promptText = accept && "promptText" in action
+              ? (action as { accept: true; promptText?: string }).promptText
+              : undefined;
+            await this.cdp("Page.handleJavaScriptDialog", {
+              accept,
+              ...(promptText !== undefined && { promptText }),
+            });
           } else {
-            callback(false);
+            await this.cdp("Page.handleJavaScriptDialog", { accept: false });
           }
         }
       );

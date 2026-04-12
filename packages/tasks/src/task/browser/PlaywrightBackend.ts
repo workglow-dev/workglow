@@ -44,16 +44,12 @@ type AnyBrowser = any;
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let playwrightModule: Record<string, any> | null = null;
+let playwrightModule: typeof import("playwright");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getPlaywright(): Promise<Record<string, any>> {
   if (!playwrightModule) {
-    // Dynamic import keeps playwright as a true optional dependency.
-    // The `Function` cast avoids a static "cannot find module" TS error
-    // when playwright is not installed in the current environment.
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    playwrightModule = await (new Function('m', 'return import(m)'))("playwright") as Record<string, any>;
+    playwrightModule = await import("playwright");
   }
   return playwrightModule;
 }
@@ -93,15 +89,17 @@ function parseAriaLine(line: string): ParsedAriaLine | null {
 
   // Extract attributes like [level=1] [checked=true]
   const attrs: Record<string, string> = {};
-  rest = rest.replace(/\[([^\]]+)\]/g, (_m, attr: string) => {
-    const eqIdx = attr.indexOf("=");
-    if (eqIdx !== -1) {
-      attrs[attr.slice(0, eqIdx).trim()] = attr.slice(eqIdx + 1).trim();
-    } else {
-      attrs[attr.trim()] = "true";
-    }
-    return "";
-  }).trim();
+  rest = rest
+    .replace(/\[([^\]]+)\]/g, (_m, attr: string) => {
+      const eqIdx = attr.indexOf("=");
+      if (eqIdx !== -1) {
+        attrs[attr.slice(0, eqIdx).trim()] = attr.slice(eqIdx + 1).trim();
+      } else {
+        attrs[attr.trim()] = "true";
+      }
+      return "";
+    })
+    .trim();
 
   // Extract role and optional quoted name
   // e.g. `button "Sign In"` or `list` or `heading "Welcome"`
@@ -128,7 +126,11 @@ interface MutableAccessibilityNode {
   children?: MutableAccessibilityNode[];
 }
 
-function parseAriaYaml(yaml: string, refCounter: { count: number }, refMap: Map<string, string>): AccessibilityNode {
+function parseAriaYaml(
+  yaml: string,
+  refCounter: { count: number },
+  refMap: Map<string, string>
+): AccessibilityNode {
   const lines = yaml.split("\n");
 
   // Stack of {node, indent} for building the tree
@@ -238,7 +240,8 @@ export class PlaywrightBackend implements IBrowserContext {
   private _refCounter = { count: 0 };
 
   // Dialog handler
-  private _dialogHandler: ((info: DialogInfo) => DialogAction | Promise<DialogAction>) | null = null;
+  private _dialogHandler: ((info: DialogInfo) => DialogAction | Promise<DialogAction>) | null =
+    null;
 
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -276,7 +279,9 @@ export class PlaywrightBackend implements IBrowserContext {
         const action = await this._dialogHandler(info);
         if (action.accept) {
           await dialog.accept(
-            "promptText" in action ? (action as { accept: true; promptText?: string }).promptText : undefined
+            "promptText" in action
+              ? (action as { accept: true; promptText?: string }).promptText
+              : undefined
           );
         } else {
           await dialog.dismiss();
@@ -598,7 +603,10 @@ export class PlaywrightBackend implements IBrowserContext {
     await locator.setInputFiles(paths);
   }
 
-  async download(trigger: () => Promise<void>, options: DownloadOptions = {}): Promise<DownloadResult> {
+  async download(
+    trigger: () => Promise<void>,
+    options: DownloadOptions = {}
+  ): Promise<DownloadResult> {
     const { timeout } = options;
     const [download] = await Promise.all([
       this.page.waitForEvent("download", ...(timeout !== undefined ? [{ timeout }] : [])),
@@ -699,7 +707,10 @@ export class PlaywrightBackend implements IBrowserContext {
 
   async waitForIdle(options: WaitOptions = {}): Promise<void> {
     const { timeout } = options;
-    await this.page.waitForLoadState("networkidle", ...(timeout !== undefined ? [{ timeout }] : []));
+    await this.page.waitForLoadState(
+      "networkidle",
+      ...(timeout !== undefined ? [{ timeout }] : [])
+    );
   }
 
   // ---------------------------------------------------------------------------

@@ -4,7 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IExecuteContext, Task, TaskConfig, TaskConfigSchema } from "@workglow/task-graph";
+import {
+  Entitlements,
+  IExecuteContext,
+  Task,
+  TaskConfig,
+  TaskConfigSchema,
+  TaskEntitlements,
+} from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { BrowserSessionRegistry } from "../BrowserSessionRegistry";
 
@@ -70,6 +77,14 @@ export class BrowserUploadTask extends Task<
   public static override title = "Browser Upload";
   public static override description = "Uploads one or more files to a file input element in the browser";
   static override readonly cacheable = false;
+
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.FILESYSTEM_READ, reason: "Reads local files for upload to browser" },
+      ],
+    };
+  }
 
   public static override configSchema(): DataPortSchema {
     return browserUploadTaskConfigSchema;
