@@ -86,12 +86,17 @@ export class BrowserPressKeyTask extends Task<
     return outputSchema;
   }
 
+  private buildKeyChord(key: string): string {
+    const modifiers = this.config.modifiers?.filter(Boolean) ?? [];
+    return modifiers.length > 0 ? `${modifiers.join("+")}+${key}` : key;
+  }
+
   override async execute(
     input: BrowserPressKeyTaskInput,
     _executeContext: IExecuteContext
   ): Promise<BrowserPressKeyTaskOutput> {
     const ctx = BrowserSessionRegistry.get(input.sessionId);
-    await ctx.pressKey(input.key, this.config.modifiers as any);
+    await ctx.pressKey(this.buildKeyChord(input.key));
     return { sessionId: input.sessionId };
   }
 }

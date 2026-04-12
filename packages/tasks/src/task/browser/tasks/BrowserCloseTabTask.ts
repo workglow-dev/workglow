@@ -81,8 +81,11 @@ export class BrowserCloseTabTask extends Task<
     input: BrowserCloseTabTaskInput,
     _executeContext: IExecuteContext
   ): Promise<BrowserCloseTabTaskOutput> {
+    if (!this.config.tabId) {
+      throw new Error("BrowserCloseTabTask requires config.tabId");
+    }
     const ctx = BrowserSessionRegistry.get(input.sessionId);
-    await ctx.closeTab(this.config.tabId as string);
+    await ctx.closeTab(this.config.tabId);
     return { sessionId: input.sessionId };
   }
 }

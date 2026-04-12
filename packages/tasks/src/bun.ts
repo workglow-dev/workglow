@@ -20,6 +20,11 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil";
 import type { McpServerConfig } from "./util/McpTaskDeps";
 import { registerMcpTaskDeps } from "./util/McpTaskDeps";
+import { registerBrowserDeps } from "./util/BrowserTaskDeps";
+import { PlaywrightBackend } from "./task/browser/PlaywrightBackend";
+import { TaskRegistry } from "@workglow/task-graph";
+import { registerCommonTasks as registerCommonTasksFn } from "./common";
+import { FileLoaderTask } from "./task/FileLoaderTask.server";
 
 registerMcpTaskDeps({
   mcpClientFactory,
@@ -33,9 +38,6 @@ registerMcpTaskDeps({
       })
     ),
 });
-
-import { registerBrowserDeps } from "./util/BrowserTaskDeps";
-import { PlaywrightBackend } from "./task/browser/PlaywrightBackend";
 
 registerBrowserDeps({
   createContext: (_options) => new PlaywrightBackend(),
@@ -86,10 +88,6 @@ registerBrowserDeps({
     },
   },
 });
-
-import { TaskRegistry } from "@workglow/task-graph";
-import { registerCommonTasks as registerCommonTasksFn } from "./common";
-import { FileLoaderTask } from "./task/FileLoaderTask.server";
 
 export const registerCommonTasks = () => {
   const tasks = registerCommonTasksFn();

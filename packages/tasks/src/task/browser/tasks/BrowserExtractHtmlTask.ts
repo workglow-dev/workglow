@@ -94,13 +94,19 @@ export class BrowserExtractHtmlTask extends Task<
   ): Promise<BrowserExtractHtmlTaskOutput> {
     const ctx = BrowserSessionRegistry.get(input.sessionId);
     let ref = this.config.ref;
-    if (!ref && this.config.selector) {
-      const found = await ctx.querySelector(this.config.selector);
-      if (found) {
-        ref = found;
+    if (!ref) {
+      if (!this.config.selector) {
+        throw new Error("BrowserExtractHtmlTask requires either config.ref or config.selector");
       }
+      const found = await ctx.querySelector(this.config.selector);
+      if (!found) {
+        throw new Error(
+          `BrowserExtractHtmlTask could not find an element matching selector: ${this.config.selector}`
+        );
+      }
+      ref = found;
     }
-    const html = await ctx.innerHTML(ref as string);
+    const html = await ctx.innerHTML(ref);
     return { sessionId: input.sessionId, html };
   }
 }

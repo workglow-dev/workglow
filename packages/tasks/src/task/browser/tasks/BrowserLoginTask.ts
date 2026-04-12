@@ -127,13 +127,12 @@ export class BrowserLoginTask extends Task<
     const mode = this.config.mode ?? "manual";
 
     await ctx.navigate(input.url);
-    executeContext.updateProgress(20, "Navigated to login page");
+    await executeContext.updateProgress(20, "Navigated to login page");
 
     switch (mode) {
       case "manual":
-        executeContext.updateProgress(50, "Waiting for manual login...");
+        await executeContext.updateProgress(50, "Waiting for manual login...");
         // Placeholder for future HumanInputTask integration
-        console.log("BrowserLoginTask: manual login mode — waiting for user to complete login");
         break;
       case "credential":
         throw new Error("Credential-based login mode is not yet implemented");

@@ -87,7 +87,15 @@ export class BrowserExtractTextTask extends Task<
     _executeContext: IExecuteContext
   ): Promise<BrowserExtractTextTaskOutput> {
     const ctx = BrowserSessionRegistry.get(input.sessionId);
-    const text = await ctx.textContent(this.config.ref as string);
+    let ref = this.config.ref;
+    if (!ref) {
+      const bodyRef = await ctx.querySelector("body");
+      if (!bodyRef) {
+        throw new Error("BrowserExtractTextTask: could not find body element");
+      }
+      ref = bodyRef;
+    }
+    const text = await ctx.textContent(ref);
     return { sessionId: input.sessionId, text: text ?? "" };
   }
 }

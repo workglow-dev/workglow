@@ -212,12 +212,12 @@ function parseAriaYaml(yaml: string, refCounter: { count: number }, refMap: Map<
  * These strings are stored in the refMap and interpreted by resolveRef().
  */
 function buildLocatorString(role: string, name: string): string {
-  if (name) {
-    return `getByRole:${role}:${name}`;
-  }
-  // Roles that are typically text nodes
+  // Roles that are typically text nodes — check before the generic name check
   if (role === "text" || role === "StaticText") {
     return `getByText:${name}`;
+  }
+  if (name) {
+    return `getByRole:${role}:${name}`;
   }
   return `getByRole:${role}:`;
 }
