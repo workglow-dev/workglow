@@ -7,34 +7,7 @@
 // Load adaptive first so Workflow.prototype.add/subtract/multiply/divide/sum are registered
 import "./task/adaptive";
 
-export * from "./task/browser/IBrowserContext";
-export * from "./task/browser/BrowserSessionRegistry";
-export * from "./task/browser/tasks/BrowserSessionTask";
-export * from "./task/browser/tasks/BrowserCloseTask";
-export * from "./task/browser/tasks/BrowserNavigateTask";
-export * from "./task/browser/tasks/BrowserBackTask";
-export * from "./task/browser/tasks/BrowserForwardTask";
-export * from "./task/browser/tasks/BrowserReloadTask";
-export * from "./task/browser/tasks/BrowserSnapshotTask";
-export * from "./task/browser/tasks/BrowserScreenshotTask";
-export * from "./task/browser/tasks/BrowserClickTask";
-export * from "./task/browser/tasks/BrowserFillTask";
-export * from "./task/browser/tasks/BrowserSelectTask";
-export * from "./task/browser/tasks/BrowserHoverTask";
-export * from "./task/browser/tasks/BrowserExtractTextTask";
-export * from "./task/browser/tasks/BrowserExtractHtmlTask";
-export * from "./task/browser/tasks/BrowserAttributeTask";
-export * from "./task/browser/tasks/BrowserQuerySelectorTask";
-export * from "./task/browser/tasks/BrowserEvaluateTask";
-export * from "./task/browser/tasks/BrowserPressKeyTask";
-export * from "./task/browser/tasks/BrowserTypeTask";
-export * from "./task/browser/tasks/BrowserScrollTask";
-export * from "./task/browser/tasks/BrowserUploadTask";
-export * from "./task/browser/tasks/BrowserWaitTask";
-export * from "./task/browser/tasks/BrowserNewTabTask";
-export * from "./task/browser/tasks/BrowserSwitchTabTask";
-export * from "./task/browser/tasks/BrowserCloseTabTask";
-export * from "./task/browser/tasks/BrowserLoginTask";
+export * from "./task/browser";
 export * from "./util/BrowserTaskDeps";
 export * from "./util/SafeFetch";
 export * from "./util/UrlClassifier";
@@ -121,6 +94,7 @@ export * from "./task/vector/VectorSubtractTask";
 export * from "./task/vector/VectorSumTask";
 
 import { TaskRegistry } from "@workglow/task-graph";
+import { registerBrowserTasks } from "./task/browser/register";
 import { DateFormatTask } from "./task/DateFormatTask";
 import { DebugLogTask } from "./task/DebugLogTask";
 import { DelayTask } from "./task/DelayTask";
@@ -265,5 +239,6 @@ export let registerCommonTasks = () => {
     ImageTintTask,
   ];
   tasks.map(TaskRegistry.registerTask);
+  registerBrowserTasks();
   return tasks;
 };

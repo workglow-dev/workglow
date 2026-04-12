@@ -34,6 +34,59 @@ registerMcpTaskDeps({
     ),
 });
 
+import { registerBrowserDeps } from "./util/BrowserTaskDeps";
+import { PlaywrightBackend } from "./task/browser/PlaywrightBackend";
+
+registerBrowserDeps({
+  createContext: (_options) => new PlaywrightBackend(),
+  availableBackends: ["local", "cloud"],
+  defaultBackend: "local",
+  profileStorage: {
+    async save(projectId, profileName, state) {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const dir = path.join(process.cwd(), ".workglow", "browser-profiles", projectId);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, `${profileName}.json`), state, "utf-8");
+    },
+    async load(projectId, profileName) {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      try {
+        return await fs.readFile(
+          path.join(
+            process.cwd(),
+            ".workglow",
+            "browser-profiles",
+            projectId,
+            `${profileName}.json`
+          ),
+          "utf-8"
+        );
+      } catch {
+        return null;
+      }
+    },
+    async delete(projectId, profileName) {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      try {
+        await fs.unlink(
+          path.join(
+            process.cwd(),
+            ".workglow",
+            "browser-profiles",
+            projectId,
+            `${profileName}.json`
+          )
+        );
+      } catch {
+        /* ignore */
+      }
+    },
+  },
+});
+
 import { TaskRegistry } from "@workglow/task-graph";
 import { registerCommonTasks as registerCommonTasksFn } from "./common";
 import { FileLoaderTask } from "./task/FileLoaderTask.server";
