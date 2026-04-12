@@ -8,6 +8,7 @@ import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
+  TypedArrayConstructor,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
 import { cosineSimilarity } from "@workglow/util/schema";
@@ -53,39 +54,40 @@ function textRelevance(text: string, query: string): number {
  * Supports all vector types including quantized formats.
  *
  * @template Metadata - The metadata type for the document chunk
- * @template Vector - The vector type for the document chunk
+ * @template VectorCtor - Constructor for stored vectors (default {@link typeof Float32Array})
  */
 export class InMemoryVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Metadata extends Record<string, unknown> = Record<string, unknown>,
-  Vector extends TypedArray = Float32Array,
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
   extends InMemoryTabularStorage<Schema, PrimaryKeyNames, Entity>
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
-  private VectorType: new (_array: number[]) => TypedArray;
   private vectorPropertyName: keyof Entity;
   private metadataPropertyName: keyof Entity | undefined;
 
   /**
    * Creates a new in-memory document chunk vector repository
+   * @param schema - The schema definition for the entity
+   * @param primaryKeyNames - Array of property names that form the primary key
+   * @param indexes - Array of columns or column arrays to make searchable
    * @param dimensions - The number of dimensions of the vector
-   * @param VectorType - The type of vector to use (defaults to Float32Array)
+   * @param vectorCtor - TypedArray constructor
    */
   constructor(
     schema: Schema,
     primaryKeyNames: PrimaryKeyNames,
     indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
     dimensions: number,
-    VectorType: new (array: number[]) => TypedArray = Float32Array
+    _vectorCtor: VectorCtor = Float32Array as VectorCtor
   ) {
     super(schema, primaryKeyNames, indexes);
 
     this.vectorDimensions = dimensions;
-    this.VectorType = VectorType;
 
     // Cache vector and metadata property names from schema
     const vectorProp = getVectorProperty(schema);

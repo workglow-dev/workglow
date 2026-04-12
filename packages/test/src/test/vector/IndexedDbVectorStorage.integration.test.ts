@@ -5,9 +5,10 @@
  */
 
 import "fake-indexeddb/auto";
+
 import { IndexedDbVectorStorage } from "@workglow/storage";
-import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { setLogger, uuid4 } from "@workglow/util";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -40,7 +41,7 @@ describe("IndexedDbVectorStorage", () => {
     typeof VectorSchema,
     typeof VectorPrimaryKey,
     Record<string, unknown>,
-    Float32Array,
+    typeof Float32Array,
     VectorEntity
   >;
 

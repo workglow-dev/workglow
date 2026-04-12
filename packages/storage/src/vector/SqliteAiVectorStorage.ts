@@ -5,16 +5,17 @@
  */
 
 import { Sqlite } from "@workglow/storage/sqlite";
-import { cosineSimilarity } from "@workglow/util/schema";
 import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
+  TypedArrayConstructor,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
+import { cosineSimilarity } from "@workglow/util/schema";
 import { SqliteTabularStorage } from "../tabular/SqliteTabularStorage";
-import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 
 /**
  * Maps TypedArray constructor types to their sqlite-vector encoding function names
@@ -31,14 +32,14 @@ const VECTOR_TYPE_MAP: Record<string, string> = {
 /**
  * Gets the sqlite-vector encoding function suffix for a given TypedArray type
  */
-function getVectorTypeSuffix(VectorType: { new (array: number[]): TypedArray }): string {
-  return VECTOR_TYPE_MAP[VectorType.name] || "f32";
+function getVectorTypeSuffix(vectorCtor: TypedArrayConstructor): string {
+  return VECTOR_TYPE_MAP[vectorCtor.name] || "f32";
 }
 
 /**
  * Gets the sqlite-vector type string for vector_init options
  */
-function getVectorTypeOption(VectorType: { new (array: number[]): TypedArray }): string {
+function getVectorTypeOption(vectorCtor: TypedArrayConstructor): string {
   const typeMap: Record<string, string> = {
     Float32Array: "FLOAT32",
     Float64Array: "FLOAT32",
@@ -46,7 +47,7 @@ function getVectorTypeOption(VectorType: { new (array: number[]): TypedArray }):
     Uint8Array: "UINT8",
     Int16Array: "FLOAT16",
   };
-  return typeMap[VectorType.name] || "FLOAT32";
+  return typeMap[vectorCtor.name] || "FLOAT32";
 }
 
 /**
@@ -83,13 +84,13 @@ function escapeIdentifier(name: string): string {
  *
  * @template Schema - The schema for the vector storage
  * @template PrimaryKeyNames - The primary key names
- * @template Vector - The vector type (default Float32Array)
+ * @template VectorCtor - Constructor for stored vectors (default {@link typeof Float32Array})
  * @template Metadata - The metadata type
  */
 export class SqliteAiVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
-  Vector extends TypedArray = Float32Array,
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Metadata extends Record<string, unknown> | undefined = Record<string, unknown>,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
@@ -97,7 +98,7 @@ export class SqliteAiVectorStorage<
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
-  private VectorType: new (array: number[]) => TypedArray;
+  private readonly vectorCtor: VectorCtor;
   private vectorPropertyName: keyof Entity;
   private metadataPropertyName: keyof Entity | undefined;
   private vectorTypeSuffix: string;
@@ -111,7 +112,7 @@ export class SqliteAiVectorStorage<
    * @param primaryKeyNames - Array of property names forming the primary key
    * @param indexes - Array of columns to index
    * @param dimensions - The number of dimensions of the vector
-   * @param VectorType - The type of vector to use (defaults to Float32Array)
+   * @param vectorCtor - TypedArray constructor for stored vectors (e.g. {@link Float32Array})
    */
   constructor(
     dbOrPath: string | Sqlite.Database,
@@ -120,13 +121,13 @@ export class SqliteAiVectorStorage<
     primaryKeyNames: PrimaryKeyNames,
     indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
     dimensions: number,
-    VectorType: new (array: number[]) => TypedArray = Float32Array
+    vectorCtor: VectorCtor = Float32Array as VectorCtor
   ) {
     super(dbOrPath, table, schema, primaryKeyNames, indexes);
 
     this.vectorDimensions = dimensions;
-    this.VectorType = VectorType;
-    this.vectorTypeSuffix = getVectorTypeSuffix(VectorType);
+    this.vectorCtor = vectorCtor;
+    this.vectorTypeSuffix = getVectorTypeSuffix(vectorCtor);
 
     // Cache vector and metadata property names from schema
     const vectorProp = getVectorProperty(schema);
@@ -170,7 +171,7 @@ export class SqliteAiVectorStorage<
     // Initialize the vector column for sqlite-vector indexing (only if extension is available)
     if (this.extensionLoaded) {
       const vectorCol = String(this.vectorPropertyName);
-      const vectorType = getVectorTypeOption(this.VectorType);
+      const vectorType = getVectorTypeOption(this.vectorCtor);
       try {
         this.database
           .prepare("SELECT vector_init(?, ?, ?)")
@@ -210,20 +211,20 @@ export class SqliteAiVectorStorage<
               (raw as Buffer).byteLength
             );
 
-      if (this.VectorType === Float32Array || this.VectorType.name === "Float32Array") {
+      if (this.vectorCtor.name === "Float32Array" || this.vectorCtor === Float32Array) {
         return new Float32Array(view.buffer, view.byteOffset, this.vectorDimensions) as TypedArray;
       }
       // For other types, read as float32 and convert
       const f32 = new Float32Array(view.buffer, view.byteOffset, this.vectorDimensions);
-      return new this.VectorType(Array.from(f32));
+      return new this.vectorCtor(Array.from(f32));
     }
     if (typeof raw === "string") {
       // JSON string fallback
       const array = JSON.parse(raw);
-      return new this.VectorType(array);
+      return new this.vectorCtor(array);
     }
     if (Array.isArray(raw)) {
-      return new this.VectorType(raw);
+      return new this.vectorCtor(raw);
     }
     throw new Error(`Cannot decode vector from type: ${typeof raw}`);
   }
