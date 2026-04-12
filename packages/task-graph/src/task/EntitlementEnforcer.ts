@@ -5,13 +5,13 @@
  */
 
 import { createServiceToken } from "@workglow/util";
-import type { EntitlementGrant, TaskEntitlement, TaskEntitlements } from "./TaskEntitlements";
 import type { EntitlementPolicy } from "./EntitlementPolicy";
-import { EMPTY_POLICY, evaluatePolicy } from "./EntitlementPolicy";
+import { evaluatePolicy } from "./EntitlementPolicy";
 import type { IEntitlementResolver } from "./EntitlementResolver";
 import { PERMISSIVE_RESOLVER } from "./EntitlementResolver";
 import type { ITask } from "./ITask";
 import type { Task } from "./Task";
+import type { EntitlementGrant, TaskEntitlement, TaskEntitlements } from "./TaskEntitlements";
 
 // ========================================================================
 // Enforcer Interface

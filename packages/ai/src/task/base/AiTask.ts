@@ -292,7 +292,7 @@ export class AiTask<
       // from different ServiceRegistry / ModelRepository instances.
       const taskModels: ModelConfig[] = (await modelRepo.findModelsByTask(this.type)) ?? [];
 
-      for (const [key, propSchema] of modelTaskProperties) {
+      for (const [key] of modelTaskProperties) {
         const requestedModel = input[key];
 
         if (typeof requestedModel === "string") {

@@ -5,11 +5,11 @@
  */
 
 import type { ITask } from "../task/ITask";
+import { Task } from "../task/Task";
 import type { TaskIdType } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import type { TaskGraph } from "./TaskGraph";
 import { Workflow } from "./Workflow";
-import { Task } from "../task/Task";
 
 /**
  * Options controlling the generated workflow code.
@@ -216,8 +216,8 @@ function generateRegularTask(task: ITask, chainIndent: string, lines: string[]):
 function generateLoopTask(
   task: ITask,
   loopInfo: { method: string; endMethod: string },
-  incomingDataflows: Map<TaskIdType, ReturnType<TaskGraph["getDataflows"]>>,
-  taskOrder: TaskIdType[],
+  _incomingDataflows: Map<TaskIdType, ReturnType<TaskGraph["getDataflows"]>>,
+  _taskOrder: TaskIdType[],
   indent: string,
   depth: number,
   lines: string[]

@@ -426,7 +426,11 @@ kb.destroy();
 Knowledge bases can be registered globally by name, allowing tasks to reference them by string ID:
 
 ```typescript
-import { registerKnowledgeBase, getKnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
+import {
+  registerKnowledgeBase,
+  getKnowledgeBase,
+  TypeKnowledgeBase,
+} from "@workglow/knowledge-base";
 
 // Register
 registerKnowledgeBase("my-kb", kb);
@@ -503,7 +507,8 @@ const sharedChunkStorage = new InMemoryVectorStorage(
   SharedChunkVectorStorageSchema,
   ChunkVectorPrimaryKey,
   SharedChunkIndexes,
-  1024 // vector dimensions
+  1024, // vector dimensions
+  Float32Array
 );
 ```
 
@@ -514,11 +519,7 @@ For SQL backends (SQLite, PostgreSQL), replace `InMemoryTabularStorage` / `InMem
 For each knowledge base, create scoped wrappers that filter to that KB's data:
 
 ```typescript
-import {
-  ScopedTabularStorage,
-  ScopedVectorStorage,
-  KnowledgeBase,
-} from "@workglow/knowledge-base";
+import { ScopedTabularStorage, ScopedVectorStorage, KnowledgeBase } from "@workglow/knowledge-base";
 
 // KB 1
 const scopedDocs1 = new ScopedTabularStorage(sharedDocStorage, "kb-1");
@@ -559,25 +560,26 @@ if (isSharedTableMode(record)) {
 
 The shared schemas augment the standard schemas with a `kb_id` column:
 
-| Schema                          | Base Schema                | Added Column |
-| ------------------------------- | -------------------------- | ------------ |
-| `SharedDocumentStorageSchema`   | `DocumentStorageSchema`    | `kb_id: string` |
-| `SharedChunkVectorStorageSchema`| `ChunkVectorStorageSchema` | `kb_id: string` |
+| Schema                           | Base Schema                | Added Column    |
+| -------------------------------- | -------------------------- | --------------- |
+| `SharedDocumentStorageSchema`    | `DocumentStorageSchema`    | `kb_id: string` |
+| `SharedChunkVectorStorageSchema` | `ChunkVectorStorageSchema` | `kb_id: string` |
 
 Default shared table names: `SHARED_DOCUMENT_TABLE = "shared_documents"`, `SHARED_CHUNK_TABLE = "shared_chunks"`.
 
 Pre-defined index arrays for efficient queries:
+
 - `SharedDocumentIndexes` — `[["kb_id"]]`
 - `SharedChunkIndexes` — `[["kb_id"], ["kb_id", "doc_id"]]`
 
 ### When to Use Shared Tables
 
-| Scenario | Recommendation |
-| --- | --- |
-| Few knowledge bases, each large | Default (per-KB tables) — simpler, no `kb_id` overhead |
-| Many knowledge bases (e.g., per-user, per-tenant) | Shared tables — avoids table proliferation |
-| Need cross-KB queries | Shared tables — query the shared storage directly |
-| Using managed databases with table limits | Shared tables |
+| Scenario                                          | Recommendation                                         |
+| ------------------------------------------------- | ------------------------------------------------------ |
+| Few knowledge bases, each large                   | Default (per-KB tables) — simpler, no `kb_id` overhead |
+| Many knowledge bases (e.g., per-user, per-tenant) | Shared tables — avoids table proliferation             |
+| Need cross-KB queries                             | Shared tables — query the shared storage directly      |
+| Using managed databases with table limits         | Shared tables                                          |
 
 ## Data Flow
 
@@ -780,9 +782,13 @@ interface CreateKnowledgeBaseOptions {
 ### ScopedTabularStorage
 
 ```typescript
-class ScopedTabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, InsertType>
-  implements ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, InsertType>
-{
+class ScopedTabularStorage<
+  Schema,
+  PrimaryKeyNames,
+  Entity,
+  PrimaryKey,
+  InsertType,
+> implements ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey, InsertType> {
   constructor(inner: AnyTabularStorage, kbId: string);
 
   // All ITabularStorage methods are implemented.

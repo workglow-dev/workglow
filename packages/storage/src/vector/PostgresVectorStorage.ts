@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cosineSimilarity } from "@workglow/util/schema";
+import type { Pool } from "@workglow/storage/postgres";
 import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
-import type { Pool } from "@workglow/storage/postgres";
+import { cosineSimilarity } from "@workglow/util/schema";
 import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
 import { StorageValidationError } from "../tabular/StorageError";
-import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 
 /**
  * PostgreSQL vector repository implementation using pgvector extension.

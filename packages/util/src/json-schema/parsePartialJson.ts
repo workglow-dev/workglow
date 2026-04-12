@@ -13,7 +13,8 @@
  *
  * Strategy:
  * 1. Try JSON.parse directly (handles complete JSON)
- * 2. If that fails, attempt to close open delimiters and re-parse
+ * 2. If that fails, scan the object while tracking brackets/strings, then
+ *    strip trailing incomplete tokens and close any still-open delimiters
  *
  * @param text - The (possibly incomplete) JSON string
  * @returns The parsed partial object, or undefined if text is too incomplete
@@ -63,8 +64,6 @@ function repairJson(text: string): string | undefined {
   const stack: string[] = [];
   let inString = false;
   let escaped = false;
-  // Track position of last structurally complete point
-  let lastSafeEnd = 0;
 
   while (i < len) {
     const ch = text[i];
@@ -88,7 +87,6 @@ function repairJson(text: string): string | undefined {
         inString = false;
         result += ch;
         i++;
-        lastSafeEnd = result.length;
         continue;
       }
       result += ch;
@@ -118,7 +116,6 @@ function repairJson(text: string): string | undefined {
           stack.pop();
           result += ch;
           i++;
-          lastSafeEnd = result.length;
         } else {
           // Mismatched brace, truncate here
           return closeStack(result, stack);
@@ -129,7 +126,6 @@ function repairJson(text: string): string | undefined {
           stack.pop();
           result += ch;
           i++;
-          lastSafeEnd = result.length;
         } else {
           return closeStack(result, stack);
         }
@@ -228,9 +224,5 @@ function cleanTrailing(text: string): string {
  * Closes all open delimiters in the stack.
  */
 function closeStack(text: string, stack: string[]): string {
-  let result = text;
-  for (let i = stack.length - 1; i >= 0; i--) {
-    result += stack[i];
-  }
-  return result;
+  return text + [...stack].reverse().join("");
 }
