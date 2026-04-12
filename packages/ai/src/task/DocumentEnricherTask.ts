@@ -7,8 +7,8 @@
 import { getChildren, hasChildren } from "@workglow/knowledge-base";
 
 import type { DocumentNode, Entity, NodeEnrichment } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import type { TaskConfig } from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ModelConfig } from "../model/ModelSchema";
 import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
@@ -24,6 +24,8 @@ const inputSchema = {
       description: "The document ID",
     },
     documentTree: {
+      type: "object",
+      additionalProperties: true,
       title: "Document Tree",
       description: "The hierarchical document tree to enrich",
     },

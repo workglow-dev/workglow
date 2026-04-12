@@ -99,6 +99,7 @@ describe("End-to-End RAG Pipeline", () => {
   });
 
   afterAll(async () => {
+    kb.destroy();
     await getTaskQueueRegistry().stopQueues();
     await getTaskQueueRegistry().clearQueues();
     await setTaskQueueRegistry(null);

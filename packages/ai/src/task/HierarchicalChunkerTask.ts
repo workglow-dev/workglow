@@ -12,10 +12,10 @@ import {
 } from "@workglow/knowledge-base";
 
 import type { ChunkRecord, DocumentNode, TokenBudget } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import type { TaskConfig } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import { uuid4 } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { CountTokensTask } from "./CountTokensTask";
 import { TypeModel } from "./base/AiTaskSchemas";
 
@@ -33,6 +33,8 @@ const inputSchema = {
       description: "The ID of the document",
     },
     documentTree: {
+      type: "object",
+      additionalProperties: true,
       title: "Document Tree",
       description: "The hierarchical document tree to chunk",
     },

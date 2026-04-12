@@ -349,7 +349,6 @@ describe("FetchUrlTask", () => {
       )
     );
 
-    const beforeTest = Date.now();
     const error = await fetchUrl({
       url: "https://api.example.com/rate-limited-invalid",
     }).catch((e) => e);
