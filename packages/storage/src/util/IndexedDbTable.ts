@@ -72,33 +72,6 @@ async function saveSchemaMetadata(
 }
 
 /**
- * Retrieves stored metadata about the database schema
- */
-async function loadSchemaMetadata(
-  db: IDBDatabase,
-  tableName: string
-): Promise<SchemaSnapshot | null> {
-  return new Promise((resolve) => {
-    try {
-      if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
-        resolve(null);
-        return;
-      }
-
-      const transaction = db.transaction(METADATA_STORE_NAME, "readonly");
-      const store = transaction.objectStore(METADATA_STORE_NAME);
-      const request = store.get(tableName);
-
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => resolve(null);
-      transaction.onerror = () => resolve(null);
-    } catch (err) {
-      resolve(null);
-    }
-  });
-}
-
-/**
  * Opens an IndexedDB database with proper error handling
  */
 async function openIndexedDbTable(
@@ -254,30 +227,6 @@ async function readAllData(store: IDBObjectStore): Promise<any[]> {
 }
 
 /**
- * Writes data back to a store
- */
-async function writeAllData(store: IDBObjectStore, data: any[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let completed = 0;
-    const total = data.length;
-
-    if (total === 0) {
-      resolve();
-      return;
-    }
-
-    const transaction = store.transaction;
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-
-    for (const record of data) {
-      const request = store.put(record);
-      request.onerror = () => reject(request.error);
-    }
-  });
-}
-
-/**
  * Performs a non-destructive migration by adding/removing indexes
  */
 async function performIncrementalMigration(
@@ -297,7 +246,6 @@ async function performIncrementalMigration(
   );
 
   return openIndexedDbTable(tableName, newVersion, (event: IDBVersionChangeEvent) => {
-    const db = (event.target as IDBOpenDBRequest).result;
     const transaction = (event.target as IDBOpenDBRequest).transaction!;
     const store = transaction.objectStore(tableName);
 
@@ -404,7 +352,6 @@ async function performDestructiveMigration(
 
   const newDb = await openIndexedDbTable(tableName, newVersion, (event: IDBVersionChangeEvent) => {
     const db = (event.target as IDBOpenDBRequest).result;
-    const transaction = (event.target as IDBOpenDBRequest).transaction!;
 
     // Delete old object store if it exists
     if (db.objectStoreNames.contains(tableName)) {
@@ -596,9 +543,6 @@ export async function ensureIndexedDbTable(
         }
       );
     }
-
-    // Load stored metadata
-    const metadata = await loadSchemaMetadata(db, tableName);
 
     // Check if table structure matches expected
     if (!db.objectStoreNames.contains(tableName)) {

@@ -12,7 +12,6 @@ import {
   TaskFailedError,
   TaskGraph,
   TaskInput,
-  TaskOutput,
   TaskStatus,
   Workflow,
 } from "@workglow/task-graph";

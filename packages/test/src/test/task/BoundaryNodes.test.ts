@@ -8,13 +8,13 @@ import {
   computeGraphInputSchema,
   computeGraphOutputSchema,
   Dataflow,
-  GraphAsTask,
   TaskGraph,
   TaskRegistry,
 } from "@workglow/task-graph";
-import type { TaskGraphJson, JsonTaskItem } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
 
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 import {
   DoubleToResultTask,
   GraphAsTask_TaskA,
@@ -22,8 +22,6 @@ import {
   GraphAsTask_TaskC,
   TestGraphAsTask,
 } from "./TestTasks";
-import { setLogger } from "@workglow/util";
-import { getTestingLogger } from "../../binding/TestingLogger";
 
 // Register test tasks
 TaskRegistry.registerTask(DoubleToResultTask);
@@ -229,7 +227,6 @@ describe("Boundary Nodes", () => {
       graph.addTask(task1);
 
       const items = graph.toDependencyJSON({ withBoundaryNodes: true });
-      const inputTaskId = items[0].id;
 
       // task1 should have a dependency on InputTask for "value"
       const task1Item = items.find((item) => item.id === "task1");

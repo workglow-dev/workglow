@@ -11,9 +11,8 @@ import type {
   TextSummaryTaskOutput,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util/worker";
-import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 import { getClient, getMaxTokens, getModelName } from "./Anthropic_Client";
+import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 
 export const Anthropic_TextSummary: AiProviderRunFn<
   TextSummaryTaskInput,

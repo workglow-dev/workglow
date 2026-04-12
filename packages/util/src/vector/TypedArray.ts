@@ -38,6 +38,15 @@ export type TypedArray =
   | Int16Array
   | Uint16Array;
 
+export type TypedArrayConstructor =
+  | typeof Float16Array
+  | typeof Float32Array
+  | typeof Float64Array
+  | typeof Int8Array
+  | typeof Uint8Array
+  | typeof Int16Array
+  | typeof Uint16Array;
+
 export type TypedArrayString =
   | "TypedArray"
   | "TypedArray:Float16Array"

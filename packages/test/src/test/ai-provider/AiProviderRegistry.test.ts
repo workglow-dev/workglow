@@ -119,13 +119,6 @@ describe("AiProviderRegistry", () => {
     test("should create a job wrapper and queue it", async () => {
       const mockRunFn = mock(() => Promise.resolve({ result: "success" }));
       aiProviderRegistry.registerRunFn(TEST_PROVIDER, "text-generation", mockRunFn);
-      const mockTask = {
-        config: {
-          runnerId: undefined as string | undefined,
-          queue: undefined as string | undefined,
-          currentJobId: undefined as string | undefined,
-        },
-      };
       const wrappedFn = aiProviderRegistry.getDirectRunFn(TEST_PROVIDER, "text-generation");
       const result = await wrappedFn(
         { text: "test input" },

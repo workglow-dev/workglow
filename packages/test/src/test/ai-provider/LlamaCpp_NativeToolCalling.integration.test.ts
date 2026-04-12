@@ -12,7 +12,7 @@
  */
 
 import { getLlama, LlamaChat, resolveModelFile } from "node-llama-cpp";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, it } from "vitest";
 
 const models = [
   { label: "FunctionGemma 270M", url: "hf:unsloth/functiongemma-270m-it-GGUF:Q8_0" },

@@ -5,18 +5,20 @@
  */
 
 import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
-import type { TypedArray } from "@workglow/util/schema";
-import { ChunkVectorPrimaryKey, ChunkVectorStorageSchema } from "../chunk/ChunkVectorStorageSchema";
+import type { TypedArrayConstructor } from "@workglow/util/schema";
 import type { ChunkVectorStorage } from "../chunk/ChunkVectorStorageSchema";
-import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentStorageSchema";
+import { ChunkVectorPrimaryKey, ChunkVectorStorageSchema } from "../chunk/ChunkVectorStorageSchema";
 import type { DocumentTabularStorage } from "../document/DocumentStorageSchema";
+import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentStorageSchema";
 import { KnowledgeBase } from "./KnowledgeBase";
 import { registerKnowledgeBase } from "./KnowledgeBaseRegistry";
 
-export interface CreateKnowledgeBaseOptions {
+export interface CreateKnowledgeBaseOptions<
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
+> {
   readonly name: string;
   readonly vectorDimensions: number;
-  readonly vectorType?: { new (array: number[]): TypedArray };
+  readonly vectorCtor?: VectorCtor;
   readonly register?: boolean;
   readonly title?: string;
   readonly description?: string;
@@ -33,17 +35,19 @@ export interface CreateKnowledgeBaseOptions {
  * });
  * ```
  */
-export async function createKnowledgeBase(
-  options: CreateKnowledgeBaseOptions
-): Promise<KnowledgeBase> {
+export async function createKnowledgeBase<
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
+>(options: CreateKnowledgeBaseOptions<VectorCtor>): Promise<KnowledgeBase> {
   const {
     name,
     vectorDimensions,
-    vectorType = Float32Array,
+    vectorCtor: vectorCtorOption,
     register: shouldRegister = true,
     title,
     description,
   } = options;
+
+  const vectorCtor = (vectorCtorOption ?? Float32Array) as VectorCtor;
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     throw new Error("createKnowledgeBase: 'name' must be a non-empty string");
@@ -59,13 +63,12 @@ export async function createKnowledgeBase(
   const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
   await tabularStorage.setupDatabase();
 
-  const vectorStorage = new InMemoryVectorStorage(
-    ChunkVectorStorageSchema,
-    ChunkVectorPrimaryKey,
-    [],
-    vectorDimensions,
-    vectorType
-  );
+  const vectorStorage = new InMemoryVectorStorage<
+    typeof ChunkVectorStorageSchema,
+    typeof ChunkVectorPrimaryKey,
+    Record<string, unknown>,
+    VectorCtor
+  >(ChunkVectorStorageSchema, ChunkVectorPrimaryKey, [], vectorDimensions, vectorCtor);
   await vectorStorage.setupDatabase();
 
   const kb = new KnowledgeBase(

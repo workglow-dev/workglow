@@ -14,15 +14,17 @@ import {
   knowledgeBaseTableNames,
   registerKnowledgeBase,
 } from "@workglow/knowledge-base";
-import { Sqlite } from "@workglow/storage/sqlite";
 import { SqliteAiVectorStorage, SqliteTabularStorage } from "@workglow/storage";
-import type { TypedArray } from "@workglow/util/schema";
+import { Sqlite } from "@workglow/storage/sqlite";
+import type { TypedArrayConstructor } from "@workglow/util/schema";
 
-export interface CreateSqliteKnowledgeBaseOptions {
+export interface CreateSqliteKnowledgeBaseOptions<
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
+> {
   readonly name: string;
   readonly db: string | Sqlite.Database;
   readonly vectorDimensions: number;
-  readonly vectorType?: { new (array: number[]): TypedArray };
+  readonly vectorType?: VectorCtor;
   readonly register?: boolean;
   readonly title?: string;
   readonly description?: string;
@@ -48,20 +50,22 @@ export interface CreateSqliteKnowledgeBaseOptions {
  * });
  * ```
  */
-export async function createSqliteKnowledgeBase(
-  options: CreateSqliteKnowledgeBaseOptions
-): Promise<KnowledgeBase> {
+export async function createSqliteKnowledgeBase<
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
+>(options: CreateSqliteKnowledgeBaseOptions<VectorCtor>): Promise<KnowledgeBase> {
   await Sqlite.init();
 
   const {
     name,
     db,
     vectorDimensions,
-    vectorType = Float32Array,
+    vectorType,
     register: shouldRegister = true,
     title,
     description,
   } = options;
+
+  const vectorCtor = (vectorType ?? Float32Array) as VectorCtor;
 
   const tableNames = knowledgeBaseTableNames(name);
 
@@ -76,7 +80,7 @@ export async function createSqliteKnowledgeBase(
   const vectorStorage = new SqliteAiVectorStorage<
     typeof ChunkVectorStorageSchema,
     typeof ChunkVectorPrimaryKey,
-    Float32Array,
+    VectorCtor,
     Record<string, unknown>,
     ChunkVectorEntity
   >(
@@ -86,7 +90,7 @@ export async function createSqliteKnowledgeBase(
     ChunkVectorPrimaryKey,
     [],
     vectorDimensions,
-    vectorType
+    vectorCtor
   );
   await vectorStorage.setupDatabase();
 

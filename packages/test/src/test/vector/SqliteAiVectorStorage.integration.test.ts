@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Sqlite } from "@workglow/storage/sqlite";
 import { SqliteAiVectorStorage } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
 import { setLogger } from "@workglow/util";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -53,7 +53,7 @@ describe.skipIf(!sqliteVectorAvailable)("SqliteAiVectorStorage", async () => {
   let storage: SqliteAiVectorStorage<
     typeof VectorSchema,
     typeof VectorPrimaryKey,
-    Float32Array,
+    typeof Float32Array,
     Record<string, unknown>,
     VectorEntity
   >;

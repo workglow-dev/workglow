@@ -19,6 +19,7 @@ import {
 } from "@workglow/task-graph";
 import { setLogger, sleep } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
+import { getTestingLogger } from "../../binding/TestingLogger";
 import {
   FailingTask,
   FAILURE_MESSAGE,
@@ -26,7 +27,6 @@ import {
   TestDoubleTask,
   TestSquareTask,
 } from "../task/TestTasks";
-import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("TaskSubGraphRunner", () => {
   let logger = getTestingLogger();
@@ -74,6 +74,7 @@ describe("TaskSubGraphRunner", () => {
         error = err as TaskFailedError;
       }
 
+      expect(result).toBeUndefined();
       expect(error).toBeInstanceOf(TaskFailedError);
       expect(error?.name).toBe(TaskFailedError.name);
       expect(failingTask.status).toBe(TaskStatus.FAILED);
@@ -225,6 +226,7 @@ describe("TaskSubGraphRunner", () => {
       } catch (err) {
         error = err as Error;
       }
+      expect(error).toBeDefined();
       expect(abortingTask1.status).toBe(TaskStatus.ABORTING);
       expect(abortingTask2.status).toBe(TaskStatus.PENDING);
       expect(abortingTask1.error).toBeInstanceOf(TaskAbortedError);

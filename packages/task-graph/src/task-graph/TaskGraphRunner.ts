@@ -20,7 +20,7 @@ import { ConditionalTask } from "../task/ConditionalTask";
 import type { IEntitlementEnforcer } from "../task/EntitlementEnforcer";
 import { ENTITLEMENT_ENFORCER } from "../task/EntitlementEnforcer";
 import { ITask } from "../task/ITask";
-import type { StreamEvent } from "../task/StreamTypes";
+import type { StreamEvent, StreamMode } from "../task/StreamTypes";
 import {
   edgeNeedsAccumulation,
   getOutputStreamMode,
@@ -887,7 +887,7 @@ export class TaskGraphRunner {
    * unfiltered streams for DATAFLOW_ALL_PORTS edges. Within each port group,
    * uses tee() for fan-out to multiple consumers.
    */
-  protected pushStreamToEdges(task: ITask, streamMode: string): void {
+  protected pushStreamToEdges(task: ITask, _streamMode: StreamMode): void {
     const targetDataflows = this.graph.getTargetDataflows(task.id);
     if (targetDataflows.length === 0) return;
 
