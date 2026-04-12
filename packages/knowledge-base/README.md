@@ -295,7 +295,7 @@ const kb = await createKnowledgeBase({
   name: "my-kb", // Identifier
   vectorDimensions: 384, // Must match your embedding model
   backend: "in-memory", // Currently only "in-memory"
-  vectorType: Float32Array, // Default: Float32Array
+  vectorCtor: Float32Array, // Default: Float32Array
   register: true, // Register globally (default: true)
 });
 ```
@@ -773,8 +773,7 @@ function createKnowledgeBase(options: CreateKnowledgeBaseOptions): Promise<Knowl
 interface CreateKnowledgeBaseOptions {
   readonly name: string;
   readonly vectorDimensions: number;
-  readonly backend?: "in-memory";
-  readonly vectorType?: { new (array: number[]): TypedArray };
+  readonly vectorCtor?: TypedArrayConstructor;
   readonly register?: boolean; // Default: true
 }
 ```
