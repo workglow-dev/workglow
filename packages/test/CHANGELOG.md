@@ -1,5 +1,17 @@
 # @workglow/test
 
+## 0.2.6
+
+### Refactors
+
+- reorganize imports and clean up unused code across multiple… (#410)
+
+### Tests
+
+#### graph
+
+- add NodeDoesntExistError handling in DirectedAcyclicGraph and enhance DirectedGraph tests
+
 ## 0.2.5
 
 ### Bug Fixes

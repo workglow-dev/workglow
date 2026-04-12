@@ -1,5 +1,11 @@
 # @workglow/knowledge-base
 
+## 0.2.6
+
+### Refactors
+
+- reorganize imports and clean up unused code across multiple… (#410)
+
 ## 0.2.5
 
 ## 0.2.4
