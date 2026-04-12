@@ -43,7 +43,6 @@ type AnyBrowser = any;
 // Lazy Playwright loader
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let playwrightModule: typeof import("playwright");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -4,6 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./IBrowserContext";
 export * from "./BrowserSessionRegistry";
+export * from "./IBrowserContext";
 export * from "./tasks";
