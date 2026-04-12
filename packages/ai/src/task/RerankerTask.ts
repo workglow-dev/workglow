@@ -130,7 +130,6 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Re
   public static override title = "Reranker";
   public static override description = "Rerank retrieved chunks to improve relevance";
   public static override cacheable = true;
-  private resolvedCrossEncoderModel?: string | null;
 
   public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;

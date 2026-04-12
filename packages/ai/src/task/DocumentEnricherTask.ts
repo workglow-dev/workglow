@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getChildren, hasChildren } from "@workglow/knowledge-base";
+import { DocumentRootNode, getChildren, hasChildren } from "@workglow/knowledge-base";
 
 import type { DocumentNode, Entity, NodeEnrichment } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import type { TaskConfig } from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { ModelConfig } from "../model/ModelSchema";
 import { TextNamedEntityRecognitionTask } from "./TextNamedEntityRecognitionTask";
@@ -24,6 +24,8 @@ const inputSchema = {
       description: "The document ID",
     },
     documentTree: {
+      type: "object",
+      additionalProperties: true,
       title: "Document Tree",
       description: "The hierarchical document tree to enrich",
     },
@@ -85,7 +87,9 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type DocumentEnricherTaskInput = FromSchema<typeof inputSchema>;
+export type DocumentEnricherTaskInput = Omit<FromSchema<typeof inputSchema>, "documentTree"> & {
+  documentTree: DocumentRootNode;
+};
 export type DocumentEnricherTaskOutput = FromSchema<typeof outputSchema>;
 export type DocumentEnricherTaskConfig = TaskConfig<DocumentEnricherTaskInput>;
 

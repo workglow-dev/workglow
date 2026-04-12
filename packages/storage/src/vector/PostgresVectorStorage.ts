@@ -4,18 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cosineSimilarity } from "@workglow/util/schema";
+import type { Pool } from "@workglow/storage/postgres";
 import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
+  TypedArrayConstructor,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
-import type { Pool } from "@workglow/storage/postgres";
+import { cosineSimilarity } from "@workglow/util/schema";
 import { PostgresTabularStorage } from "../tabular/PostgresTabularStorage";
 import { StorageValidationError } from "../tabular/StorageError";
-import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 
 /**
  * PostgreSQL vector repository implementation using pgvector extension.
@@ -27,7 +28,7 @@ import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from ".
  * - CREATE EXTENSION vector;
  *
  * @template Metadata - The metadata type
- * @template Vector - The vector type
+ * @template VectorCtor - Constructor for stored vectors (default {@link typeof Float32Array})
  */
 /**
  * Regex for validating metadata filter keys to prevent SQL injection.
@@ -39,14 +40,14 @@ export class PostgresVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Metadata extends Record<string, unknown> = Record<string, unknown>,
-  Vector extends TypedArray = Float32Array,
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
   extends PostgresTabularStorage<Schema, PrimaryKeyNames, Entity>
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
-  private VectorType: new (array: number[]) => TypedArray;
+  private readonly vectorCtor: VectorCtor;
   private vectorPropertyName: keyof Entity;
   private metadataPropertyName: keyof Entity | undefined;
 
@@ -58,7 +59,7 @@ export class PostgresVectorStorage<
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable
    * @param dimensions - The number of dimensions of the vector
-   * @param VectorType - The type of vector to use (defaults to Float32Array)
+   * @param vectorCtor - TypedArray constructor used when hydrating vectors from SQL text (e.g. {@link Float32Array})
    */
   constructor(
     db: Pool,
@@ -67,12 +68,12 @@ export class PostgresVectorStorage<
     primaryKeyNames: PrimaryKeyNames,
     indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
     dimensions: number,
-    VectorType: new (array: number[]) => TypedArray = Float32Array
+    vectorCtor: VectorCtor = Float32Array as VectorCtor
   ) {
     super(db, table, schema, primaryKeyNames, indexes);
 
     this.vectorDimensions = dimensions;
-    this.VectorType = VectorType;
+    this.vectorCtor = vectorCtor;
 
     // Cache vector and metadata property names from schema
     const vectorProp = getVectorProperty(schema);
@@ -140,7 +141,7 @@ export class PostgresVectorStorage<
       const results: Array<Entity & { score: number }> = [];
       for (const row of result.rows) {
         const vectorResult = await this.db.query(
-          `SELECT ${vectorCol}::text FROM "${this.table}" WHERE ${this.getPrimaryKeyWhereClause(row)}`,
+          `SELECT ${vectorCol}::text FROM "${this.table}" WHERE ${this.getPrimaryKeyWhereClause()}`,
           this.getPrimaryKeyValues(row)
         );
         const vectorStr = vectorResult.rows[0]?.[vectorCol] || "[]";
@@ -148,7 +149,7 @@ export class PostgresVectorStorage<
 
         results.push({
           ...row,
-          [this.vectorPropertyName]: new this.VectorType(vectorArray),
+          [this.vectorPropertyName]: new this.vectorCtor(vectorArray),
           score: parseFloat(row.score),
         } as Entity & { score: number });
       }
@@ -226,7 +227,7 @@ export class PostgresVectorStorage<
       const results: Array<Entity & { score: number }> = [];
       for (const row of result.rows) {
         const vectorResult = await this.db.query(
-          `SELECT ${vectorCol}::text FROM "${this.table}" WHERE ${this.getPrimaryKeyWhereClause(row)}`,
+          `SELECT ${vectorCol}::text FROM "${this.table}" WHERE ${this.getPrimaryKeyWhereClause()}`,
           this.getPrimaryKeyValues(row)
         );
         const vectorStr = vectorResult.rows[0]?.[vectorCol] || "[]";
@@ -234,7 +235,7 @@ export class PostgresVectorStorage<
 
         results.push({
           ...row,
-          [this.vectorPropertyName]: new this.VectorType(vectorArray),
+          [this.vectorPropertyName]: new this.vectorCtor(vectorArray),
           score: parseFloat(row.score),
         } as Entity & { score: number });
       }
@@ -330,7 +331,7 @@ export class PostgresVectorStorage<
     return topResults;
   }
 
-  private getPrimaryKeyWhereClause(row: any): string {
+  private getPrimaryKeyWhereClause(): string {
     const conditions = this.primaryKeyNames.map((key, idx) => `${String(key)} = $${idx + 1}`);
     return conditions.join(" AND ");
   }

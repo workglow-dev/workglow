@@ -9,12 +9,13 @@ import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
+  TypedArrayConstructor,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
 import { cosineSimilarity } from "@workglow/util/schema";
 import { SqliteTabularStorage } from "../tabular/SqliteTabularStorage";
-import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
+import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
 
 /**
  * Check if metadata matches filter
@@ -32,15 +33,16 @@ function matchesFilter<Metadata>(metadata: Metadata, filter: Partial<Metadata>):
  * SQLite vector repository implementation using tabular storage underneath.
  * Stores vectors as JSON-encoded arrays with metadata.
  *
- * @template Vector - The vector type for the vector
- * @template Metadata - The metadata type for the vector
  * @template Schema - The schema for the vector
  * @template PrimaryKeyNames - The primary key names for the vector
+ * @template VectorCtor - Constructor for stored vectors (default {@link typeof Float32Array})
+ * @template Metadata - The metadata type for the vector
+ * @template Entity - The entity type for the vector
  */
 export class SqliteVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
-  Vector extends TypedArray = Float32Array,
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Metadata extends Record<string, unknown> | undefined = Record<string, unknown>,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
@@ -48,7 +50,7 @@ export class SqliteVectorStorage<
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
-  private VectorType: new (array: number[]) => TypedArray;
+  private readonly vectorCtor: VectorCtor;
   private vectorPropertyName: keyof Entity;
   private metadataPropertyName: keyof Entity | undefined;
 
@@ -56,8 +58,11 @@ export class SqliteVectorStorage<
    * Creates a new SQLite vector repository
    * @param dbOrPath - Either a Database instance or a path to the SQLite database file
    * @param table - The name of the table to use for storage (defaults to 'vectors')
+   * @param schema - The schema for the entity
+   * @param primaryKeyNames - Array of property names forming the primary key
+   * @param indexes - Array of columns to index
    * @param dimensions - The number of dimensions of the vector
-   * @param VectorType - The type of vector to use (defaults to Float32Array)
+   * @param vectorCtor - TypedArray constructor used when deserializing JSON vectors (e.g. {@link Float32Array})
    */
   constructor(
     dbOrPath: string | Sqlite.Database,
@@ -66,12 +71,12 @@ export class SqliteVectorStorage<
     primaryKeyNames: PrimaryKeyNames,
     indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
     dimensions: number,
-    VectorType: new (array: number[]) => TypedArray = Float32Array
+    vectorCtor: VectorCtor = Float32Array as VectorCtor
   ) {
     super(dbOrPath, table, schema, primaryKeyNames, indexes);
 
     this.vectorDimensions = dimensions;
-    this.VectorType = VectorType;
+    this.vectorCtor = vectorCtor;
 
     // Cache vector and metadata property names from schema
     const vectorProp = getVectorProperty(schema);
@@ -93,7 +98,7 @@ export class SqliteVectorStorage<
   private deserializeVector(vectorJson: string): TypedArray {
     const array = JSON.parse(vectorJson);
     // Default to Float32Array for typical use case (embeddings)
-    return new this.VectorType(array);
+    return new this.vectorCtor(array);
   }
 
   async similaritySearch(query: TypedArray, options: VectorSearchOptions<Metadata> = {}) {

@@ -41,13 +41,12 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 import { registerHuggingfaceLocalModels } from "../../samples/ONNXModelSamples";
 
 describe("RAG Workflow End-to-End", () => {
-  let kb: KnowledgeBase;
   const kbName = "rag-test-kb";
   const embeddingModel = "onnx:Xenova/all-MiniLM-L6-v2:q8";
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
   const qaModel = "onnx:onnx-community/ModernBERT-finetuned-squad-ONNX";
-
+  let kb: KnowledgeBase;
   const logger = getTestingLogger();
   setLogger(logger);
 
@@ -68,6 +67,7 @@ describe("RAG Workflow End-to-End", () => {
   });
 
   afterAll(async () => {
+    kb.destroy();
     await getTaskQueueRegistry().stopQueues();
     await getTaskQueueRegistry().clearQueues();
     await setTaskQueueRegistry(null);

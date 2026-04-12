@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DataPortSchemaNonBoolean, TypedArray, VectorFromSchema } from "@workglow/util/schema";
-import type { DataPortSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
+import { DataPortSchemaNonBoolean, TypedArray, VectorFromSchema } from "@workglow/util/schema";
 
 import {
   GraphAsTask,
@@ -15,7 +15,6 @@ import {
   GraphResultArray,
   JsonTaskItem,
   PROPERTY_ARRAY,
-  TaskConfig,
   TaskGraph,
   TaskGraphItemJson,
   TaskInput,

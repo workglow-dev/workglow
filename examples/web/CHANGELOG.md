@@ -1,5 +1,15 @@
 # @workglow/web
 
+## 0.2.6
+
+### Chores
+
+- update dependencies in package.json and bun.lock
+
+### Updated Dependencies
+
+- `react-resizable-panels`: ^4.10.0
+
 ## 0.2.5
 
 ## 0.2.4

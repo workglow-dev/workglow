@@ -5,13 +5,13 @@
  */
 
 import { Sqlite } from "@workglow/storage/sqlite";
+import { createServiceToken, uuid4 } from "@workglow/util";
 import {
   DataPortSchemaObject,
   FromSchema,
   JsonSchema,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
-import { createServiceToken, uuid4 } from "@workglow/util";
 import { BaseSqlTabularStorage } from "./BaseSqlTabularStorage";
 import { ClientProvidedKeysOption, KeyGenerationStrategy } from "./BaseTabularStorage";
 import {
@@ -28,9 +28,6 @@ import {
   TabularSubscribeOptions,
   ValueOptionType,
 } from "./ITabularStorage";
-
-// Define local type for SQL operations
-type ExcludeDateKeyOptionType = Exclude<string | number | bigint, Date>;
 
 export const SQLITE_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.sqlite"

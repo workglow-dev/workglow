@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DocumentNode, StructuralParser } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
+import { DocumentRootNode, StructuralParser } from "@workglow/knowledge-base";
 import type { TaskConfig } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import { uuid4 } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
   type: "object",
@@ -54,8 +54,10 @@ const outputSchema = {
       description: "Generated or provided document ID",
     },
     documentTree: {
+      type: "object",
       title: "Document Tree",
       description: "Parsed hierarchical document tree",
+      additionalProperties: true,
     },
     nodeCount: {
       type: "number",
@@ -68,7 +70,9 @@ const outputSchema = {
 } as const satisfies DataPortSchema;
 
 export type StructuralParserTaskInput = FromSchema<typeof inputSchema>;
-export type StructuralParserTaskOutput = FromSchema<typeof outputSchema>;
+export type StructuralParserTaskOutput = Omit<FromSchema<typeof outputSchema>, "documentTree"> & {
+  documentTree: DocumentRootNode;
+};
 export type StructuralParserTaskConfig = TaskConfig<StructuralParserTaskInput>;
 
 /**
@@ -100,11 +104,12 @@ export class StructuralParserTask extends Task<
   ): Promise<StructuralParserTaskOutput> {
     const { text, title, format = "auto", sourceUri, doc_id: providedDocId } = input;
 
-    // Generate or use provided doc_id
-    const doc_id = providedDocId || uuid4();
+    // Use explicit doc_id when provided, otherwise derive a stable ID from sourceUri,
+    // falling back to a generated UUID only when neither input is available.
+    const doc_id = providedDocId || sourceUri || uuid4();
 
     // Parse based on format
-    let documentTree: DocumentNode;
+    let documentTree: DocumentRootNode;
     if (format === "markdown") {
       documentTree = await StructuralParser.parseMarkdown(doc_id, text, title);
     } else if (format === "text") {

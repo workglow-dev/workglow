@@ -8,14 +8,14 @@ import { ConditionalTask, Dataflow, TaskGraph, TaskStatus } from "@workglow/task
 import type { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";
 
+import { setLogger } from "@workglow/util";
+import { getTestingLogger } from "../../binding/TestingLogger";
 import {
   DoubleToDoubledTask as DoubleTask,
   HalveTask,
   ProcessValueTask,
   TrackingTask,
 } from "./TestTasks";
-import { setLogger } from "@workglow/util";
-import { getTestingLogger } from "../../binding/TestingLogger";
 
 // ============================================================================
 // Basic Tests
@@ -773,7 +773,7 @@ describe("ConditionalTask", () => {
         graph.addDataflow(new Dataflow(conditional.id, "toProcess", processTask.id, "*"));
         graph.addDataflow(new Dataflow(conditional.id, "toSkip", skipTask.id, "input"));
 
-        const results = await graph.run({ shouldProcess: true, value: 42 });
+        await graph.run({ shouldProcess: true, value: 42 });
 
         expect(processTask.status).toBe(TaskStatus.COMPLETED);
         expect(skipTask.status).toBe(TaskStatus.DISABLED);

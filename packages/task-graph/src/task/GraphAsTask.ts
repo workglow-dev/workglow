@@ -13,11 +13,11 @@ import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy, PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
 import type { CreateLoopWorkflow } from "../task-graph/Workflow";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
-import type { IExecuteContext } from "./ITask";
+import type { IExecuteContext, IRunConfig } from "./ITask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { Task } from "./Task";
-import type { TaskEventListener, TaskEvents } from "./TaskEvents";
 import type { TaskEntitlements } from "./TaskEntitlements";
+import type { TaskEventListener, TaskEvents } from "./TaskEvents";
 import type { JsonTaskItem, TaskGraphItemJson, TaskGraphJsonOptions } from "./TaskJSON";
 import type { TaskConfig, TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 import { TaskConfigSchema } from "./TaskTypes";
@@ -65,9 +65,13 @@ export class GraphAsTask<
   // Constructor
   // ========================================================================
 
-  constructor(config: Partial<Config> = {}) {
+  /**
+   * @param config Task configuration; `subGraph` is applied to this instance and stripped before validating config.
+   * @param runConfig Runtime configuration (forwarded to {@link Task}).
+   */
+  constructor(config: Partial<Config> = {}, runConfig: Partial<IRunConfig> = {}) {
     const { subGraph, ...rest } = config;
-    super(rest as Partial<Config>);
+    super(rest as Partial<Config>, runConfig);
     if (subGraph) {
       this.subGraph = subGraph;
     }

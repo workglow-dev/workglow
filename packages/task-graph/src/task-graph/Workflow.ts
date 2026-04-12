@@ -122,7 +122,7 @@ export function parallel<I extends DataPorts = DataPorts, O extends DataPorts = 
   const config = {
     compoundMerge: mergeFn,
   };
-  const name = `‖${args.map((arg) => "𝑓").join("‖")}‖`;
+  const name = `‖${args.map((_arg) => "𝑓").join("‖")}‖`;
   class ParallelTask extends GraphAsTask<I, O> {
     public static override type = name;
   }
@@ -263,9 +263,9 @@ export function hasVectorLikeInput(input: unknown): boolean {
  */
 export type CreateAdaptiveWorkflow<
   IS extends DataPorts,
-  OS extends DataPorts,
+  _OS extends DataPorts,
   IV extends DataPorts,
-  OV extends DataPorts,
+  _OV extends DataPorts,
   CS extends TaskConfig<IS> = TaskConfig<IS>,
   CV extends TaskConfig<IV> = TaskConfig<IV>,
 > = (

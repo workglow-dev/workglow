@@ -58,11 +58,11 @@ export class TopologicalScheduler implements ITaskGraphScheduler {
     }
   }
 
-  onTaskCompleted(taskId: unknown): void {
+  onTaskCompleted(_taskId: unknown): void {
     // Topological scheduler doesn't need to track individual task completion
   }
 
-  onTaskStreaming(taskId: unknown): void {
+  onTaskStreaming(_taskId: unknown): void {
     // Topological scheduler doesn't support streaming-aware scheduling
   }
 

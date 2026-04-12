@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util/schema";
 import type { EventEmitter, ServiceRegistry } from "@workglow/util";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ITaskGraph } from "../task-graph/ITaskGraph";
 import { IWorkflow } from "../task-graph/IWorkflow";
 import type { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
 import type { StreamEvent } from "./StreamTypes";
-import { TaskError } from "./TaskError";
 import type { TaskEntitlements } from "./TaskEntitlements";
+import { TaskError } from "./TaskError";
 import type {
   TaskEventListener,
   TaskEventListeners,
@@ -45,7 +45,7 @@ export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
 
 /**
  * Configuration for running a task (runtime concerns, not serialized with the task).
- * Passed to task.run() or set on the task instance via the constructor's third argument.
+ * Passed to task.run() or set on the task instance via the constructor's second argument.
  */
 export interface IRunConfig {
   /**

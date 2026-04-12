@@ -5,9 +5,8 @@
  */
 
 import {
-  setHftCacheDir,
   registerHuggingFaceTransformersWorker,
-  loadTransformersSDK,
+  setHftCacheDir,
 } from "@workglow/ai-provider/hf-transformers/runtime";
 
 if (process.env.WORKGLOW_MODEL_CACHE) {

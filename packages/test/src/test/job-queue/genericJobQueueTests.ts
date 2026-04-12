@@ -17,6 +17,7 @@ import {
   RetryableJobError,
 } from "@workglow/job-queue";
 import { IQueueStorage } from "@workglow/storage";
+import type { ISpan, ITelemetryProvider } from "@workglow/util";
 import {
   BaseError,
   NoopTelemetryProvider,
@@ -25,7 +26,6 @@ import {
   sleep,
   uuid4,
 } from "@workglow/util";
-import type { ISpan, ITelemetryProvider } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 class RecordingSpan implements ISpan {
@@ -858,6 +858,8 @@ export function runGenericJobQueueTests(
       } catch (err) {
         error = err as Error;
       }
+
+      expect(error).toBeDefined();
 
       // Wait for retries to complete
       await sleep(10);

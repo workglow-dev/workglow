@@ -4,20 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createServiceToken } from "@workglow/util";
 import type {
   DataPortSchemaObject,
   FromSchema,
   TypedArray,
+  TypedArrayConstructor,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
 import { cosineSimilarity } from "@workglow/util/schema";
-import { createServiceToken } from "@workglow/util";
-import { IndexedDbTabularStorage } from "../tabular/IndexedDbTabularStorage";
 import type { ClientProvidedKeysOption } from "../tabular/BaseTabularStorage";
-import type { AnyVectorStorage } from "./IVectorStorage";
+import { IndexedDbTabularStorage } from "../tabular/IndexedDbTabularStorage";
 import type { MigrationOptions } from "../util/IndexedDbTable";
+import type {
+  AnyVectorStorage,
+  HybridSearchOptions,
+  IVectorStorage,
+  VectorSearchOptions,
+} from "./IVectorStorage";
 import { getMetadataProperty, getVectorProperty } from "./IVectorStorage";
-import type { HybridSearchOptions, IVectorStorage, VectorSearchOptions } from "./IVectorStorage";
 
 export const IDB_VECTOR_REPOSITORY = createServiceToken<AnyVectorStorage>(
   "storage.vectorRepository.indexedDb"
@@ -64,21 +69,20 @@ function textRelevance(text: string, query: string): number {
  * @template Schema - The schema definition for the entity
  * @template PrimaryKeyNames - The primary key names
  * @template Metadata - The metadata type for the vector
- * @template Vector - The vector type
+ * @template VectorCtor - Constructor for stored vectors (default {@link typeof Float32Array})
  * @template Entity - The entity type
  */
 export class IndexedDbVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Metadata extends Record<string, unknown> = Record<string, unknown>,
-  Vector extends TypedArray = Float32Array,
+  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
   extends IndexedDbTabularStorage<Schema, PrimaryKeyNames, Entity>
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
-  private VectorType: new (array: number[]) => TypedArray;
   private vectorPropertyName: keyof Entity;
   private metadataPropertyName: keyof Entity | undefined;
 
@@ -89,7 +93,7 @@ export class IndexedDbVectorStorage<
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable
    * @param dimensions - The number of dimensions of the vector
-   * @param VectorType - The type of vector to use (defaults to Float32Array)
+   * @param _vectorCtor - TypedArray constructor; drives `VectorCtor` inference (IndexedDB stores typed arrays natively)
    * @param migrationOptions - Options for handling database schema migrations
    * @param clientProvidedKeys - How to handle client-provided values for auto-generated keys
    */
@@ -99,14 +103,13 @@ export class IndexedDbVectorStorage<
     primaryKeyNames: PrimaryKeyNames,
     indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
     dimensions: number,
-    VectorType: new (array: number[]) => TypedArray = Float32Array,
+    _vectorCtor: VectorCtor = Float32Array as VectorCtor,
     migrationOptions: MigrationOptions = {},
     clientProvidedKeys: ClientProvidedKeysOption = "if-missing"
   ) {
     super(table, schema, primaryKeyNames, indexes, migrationOptions, clientProvidedKeys);
 
     this.vectorDimensions = dimensions;
-    this.VectorType = VectorType;
 
     // Cache vector and metadata property names from schema
     const vectorProp = getVectorProperty(schema);
