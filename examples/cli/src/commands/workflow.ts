@@ -8,6 +8,7 @@ import { computeGraphInputSchema, createGraphFromGraphJSON } from "@workglow/tas
 import type { TaskGraphJson } from "@workglow/task-graph";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
+import { registerCliBrowserDeps } from "../browser";
 import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
 import { createWorkflowRepository } from "../storage";
@@ -344,6 +345,8 @@ export function registerWorkflowCommand(program: Command): void {
         const { ensureCredentialStoreUnlocked } = await import("../keyring");
         await ensureCredentialStoreUnlocked();
       }
+
+      await registerCliBrowserDeps(config);
 
       try {
         const { withCli } = await import("../run-interactive");
