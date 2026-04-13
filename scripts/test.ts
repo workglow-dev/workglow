@@ -35,6 +35,7 @@ const KNOWN_SECTIONS = [
   "provider-api",
   "mcp",
   "rag",
+  "resource",
 ] as const;
 type Section = (typeof KNOWN_SECTIONS)[number];
 
@@ -80,6 +81,7 @@ const SECTION_DIRS: Record<Section, string[]> = {
   "provider-api": [join(TEST_BASE, "ai-provider")],
   mcp: [join(TEST_BASE, "mcp")],
   rag: [join(TEST_BASE, "rag")],
+  resource: [join(TEST_BASE, "resource")],
 };
 
 function showHelp(): void {
