@@ -54,6 +54,15 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
 
   protected readonly backendName = "BunWebViewBackend";
 
+  /**
+   * @param defaultChromePath Optional default Chrome binary path. Used when
+   *   `connect()` is called without `chromePath` in options (e.g., via
+   *   BrowserSessionTask which doesn't expose chromePath in its config).
+   */
+  constructor(private readonly defaultChromePath?: string) {
+    super();
+  }
+
   // ---------------------------------------------------------------------------
   // CDP helper
   // ---------------------------------------------------------------------------
@@ -84,7 +93,7 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
       );
     }
 
-    const { headless = true, chromePath } = options;
+    const { headless = true, chromePath = this.defaultChromePath } = options;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const webViewOptions: Record<string, any> = {
@@ -104,7 +113,15 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
       this._wv!.onNavigated = () => {
         clearTimeout(timeout);
         this._wv!.onNavigated = null;
+        this._wv!.onNavigationFailed = null;
         resolve();
+      };
+
+      this._wv!.onNavigationFailed = (error: unknown) => {
+        clearTimeout(timeout);
+        this._wv!.onNavigated = null;
+        this._wv!.onNavigationFailed = null;
+        reject(new Error(`BunWebViewBackend: initial navigation failed — ${error}`));
       };
     });
 
@@ -228,11 +245,11 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
   // ---------------------------------------------------------------------------
 
   override async pressKey(key: string, _options: WaitOptions = {}): Promise<void> {
-    this.wv.press(key);
+    await this.wv.press(key);
   }
 
   override async type(text: string, _options: WaitOptions = {}): Promise<void> {
-    this.wv.type(text);
+    await this.wv.type(text);
   }
 
   // ---------------------------------------------------------------------------

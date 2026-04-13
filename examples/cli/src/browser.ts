@@ -31,8 +31,7 @@ export async function registerCliBrowserDeps(config: CliConfig): Promise<void> {
     const { BunWebViewBackend } = await import("@workglow/tasks");
     registerBrowserDeps({
       createContext: (_options) => {
-        const bwv = new BunWebViewBackend();
-        return bwv;
+        return new BunWebViewBackend(chromePath);
       },
       availableBackends: ["local"],
       defaultBackend: "local",
