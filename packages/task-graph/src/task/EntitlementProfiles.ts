@@ -42,20 +42,28 @@ export const BROWSER_GRANTS: readonly EntitlementGrant[] = [
 
 /**
  * Desktop environment grants (e.g., Electron with Node.js main process).
- * Adds filesystem, code execution, and stdio MCP on top of browser grants.
+ * Adds filesystem, code execution, stdio MCP, and browser control on top of browser grants.
  */
 export const DESKTOP_GRANTS: readonly EntitlementGrant[] = [
   ...BROWSER_GRANTS,
   { id: Entitlements.FILESYSTEM },
   { id: Entitlements.CODE_EXECUTION },
   { id: Entitlements.MCP_STDIO },
+  { id: Entitlements.BROWSER },
+  { id: Entitlements.BROWSER_LOCAL },
+  { id: Entitlements.BROWSER_NAVIGATE },
+  { id: Entitlements.BROWSER_EVALUATE },
+  { id: Entitlements.BROWSER_CREDENTIAL },
 ];
 
 /**
  * Server environment grants (e.g., cloud deployment).
- * Same as desktop for now; can add resource scoping later.
+ * Same as desktop plus BROWSER_CLOUD since server can proxy to cloud providers.
  */
-export const SERVER_GRANTS: readonly EntitlementGrant[] = [...DESKTOP_GRANTS];
+export const SERVER_GRANTS: readonly EntitlementGrant[] = [
+  ...DESKTOP_GRANTS,
+  { id: Entitlements.BROWSER_CLOUD },
+];
 
 // ========================================================================
 // Policy Factory
