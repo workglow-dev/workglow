@@ -21,7 +21,7 @@ function safeName(value: string, label: string): string {
 export async function registerCliBrowserDeps(config: CliConfig): Promise<void> {
   const backend = config.browser?.backend ?? "bun-webview";
   const chromePath = config.browser?.["chrome-path"];
-  const headless = config.browser?.headless;
+  // const headless = config.browser?.headless;
 
   const { registerBrowserDeps } = await import("@workglow/tasks");
 

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { sleep } from "@workglow/util";
+import { CDPBrowserBackend } from "./CDPBrowserBackend";
 import type {
   BrowserConnectOptions,
   ConsoleMessage,
@@ -20,7 +22,6 @@ import type {
   TabInfo,
   WaitOptions,
 } from "./IBrowserContext";
-import { CDPBrowserBackend, sleep } from "./CDPBrowserBackend";
 
 // ---------------------------------------------------------------------------
 // Electron types (not imported at module level — lazy optional dependency)
@@ -48,7 +49,10 @@ async function getElectron(): Promise<Record<string, any>> {
     // The `Function` cast avoids a static "cannot find module" TS error
     // when electron types are not installed in the current environment.
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    electronModule = await (new Function("m", "return import(m)"))("electron") as Record<string, any>;
+    electronModule = (await new Function("m", "return import(m)")("electron")) as Record<
+      string,
+      any
+    >;
   }
   return electronModule;
 }

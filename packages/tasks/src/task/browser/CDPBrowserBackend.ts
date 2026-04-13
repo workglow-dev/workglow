@@ -211,15 +211,13 @@ function serializeAXTree(node: AccessibilityNode, indent = 0): string {
 // Utilities
 // ---------------------------------------------------------------------------
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
  * Convert modifier key names to CDP modifier bitmask.
  * Alt=1, Control=2, Meta=4, Shift=8
  */
-function buildModifiersMask(modifiers?: ReadonlyArray<"Alt" | "Control" | "Meta" | "Shift">): number {
+function buildModifiersMask(
+  modifiers?: ReadonlyArray<"Alt" | "Control" | "Meta" | "Shift">
+): number {
   if (!modifiers) return 0;
   let mask = 0;
   for (const mod of modifiers) {

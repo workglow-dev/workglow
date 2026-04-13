@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { sleep } from "@workglow/util";
+import { CDPBrowserBackend } from "./CDPBrowserBackend";
 import type {
   BrowserConnectOptions,
   ConsoleMessage,
@@ -20,7 +22,6 @@ import type {
   TabInfo,
   WaitOptions,
 } from "./IBrowserContext";
-import { CDPBrowserBackend, sleep } from "./CDPBrowserBackend";
 
 // ---------------------------------------------------------------------------
 // Bun.WebView type (not imported — accessed via globalThis at runtime)
@@ -354,9 +355,7 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
     const deadline = Date.now() + timeout;
 
     while (Date.now() < deadline) {
-      const found = await this.wv.evaluate(
-        `!!document.querySelector(${JSON.stringify(selector)})`
-      );
+      const found = await this.wv.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`);
       if (found) {
         const ref = await this.querySelector(selector);
         if (ref) return ref;
