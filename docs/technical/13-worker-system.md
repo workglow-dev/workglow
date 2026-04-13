@@ -25,9 +25,9 @@ Key design goals:
   regular, stream, and reactive -- in its `ready` message. The manager uses
   these registries to fail fast when a function is not available, avoiding an
   unnecessary roundtrip.
-- **Structured cloning with asymmetric transfer.** Data flowing *to* a worker is
+- **Structured cloning with asymmetric transfer.** Data flowing _to_ a worker is
   always cloned (never transferred) so the main thread retains its references.
-  Data flowing *back from* a worker uses transferable objects (zero-copy) for
+  Data flowing _back from_ a worker uses transferable objects (zero-copy) for
   TypedArrays, ArrayBuffers, OffscreenCanvas, ImageBitmap, and other
   transferable types.
 - **Platform transparency.** The same WorkerManager API works unchanged across
@@ -63,11 +63,20 @@ manager.registerWorker("my-worker", new Worker("./my-worker.js"));
 
 // Lazy registration -- worker is constructed on first use
 manager.registerWorker("my-worker", () => new Worker("./my-worker.js"));
+
+// Lazy registration with idle eviction after 15 minutes
+manager.registerWorker("my-worker", () => new Worker("./my-worker.js"), {
+  idleTimeoutMs: 15 * 60 * 1000,
+});
 ```
 
 Registering the same name twice throws an error. Lazy registration is the
 recommended approach for AI provider workers because many providers may be
 registered at startup but only a subset will be used in a given session.
+
+Only factory-backed registrations can be recreated after termination, so idle
+eviction applies only to the lazy `() => Worker` path. Passing
+`{ idleTimeoutMs: 0 }` disables idle termination.
 
 ### Lazy Initialization and Single-Flight
 
@@ -86,6 +95,28 @@ manager calls `ensureWorkerReady()`. This method:
 This guarantees that no matter how many concurrent calls arrive before the worker
 is ready, the factory is invoked exactly once.
 
+If startup fails (for example, the worker never sends `ready` before the
+10-second timeout), the manager cleans up the partially attached runtime state
+but retains the factory. A later call can therefore retry with a fresh worker
+instead of getting stuck behind a permanently rejected initialization promise.
+
+### Idle Termination and Recreation
+
+For factory-backed registrations, `WorkerManager` can terminate an idle worker
+after a configurable quiet period. The manager keeps the original factory,
+tracks in-flight regular/stream/reactive calls, and only schedules termination
+when the active-call count returns to zero.
+
+When the idle timer fires, the manager:
+
+1. clears the runtime-only state for the attached worker,
+2. calls `worker.terminate()` best-effort, and
+3. keeps the factory + idle policy so the next call can recreate the worker.
+
+This is especially useful for AI provider workers that load large local runtime
+graphs (ONNX, WebGPU, MediaPipe, native bindings) but may sit unused for long
+periods.
+
 ### Ready Handshake
 
 After a worker instance is attached, the manager listens for a `ready` message
@@ -103,10 +134,10 @@ of function names:
 
 These are stored in three internal `Map<string, Set<string>>` registries:
 
-| Registry               | Purpose                                      |
-| ---------------------- | -------------------------------------------- |
-| `workerFunctions`      | Names of regular (one-shot) functions         |
-| `workerStreamFunctions`| Names of async-generator stream functions     |
+| Registry                  | Purpose                                         |
+| ------------------------- | ----------------------------------------------- |
+| `workerFunctions`         | Names of regular (one-shot) functions           |
+| `workerStreamFunctions`   | Names of async-generator stream functions       |
 | `workerReactiveFunctions` | Names of lightweight reactive preview functions |
 
 Subsequent calls to the manager check the appropriate registry and throw (or
@@ -119,9 +150,9 @@ present, without sending a message to the worker.
 
 ```ts
 const result = await manager.callWorkerFunction<Output>(
-  "anthropic",           // worker name
-  "TextGenerationTask",  // function name
-  [input, model],        // arguments array
+  "anthropic", // worker name
+  "TextGenerationTask", // function name
+  [input, model], // arguments array
   {
     signal: abortController.signal,
     onProgress: (pct, msg) => console.log(`${pct}%: ${msg}`),
@@ -194,20 +225,20 @@ string, and type-specific fields.
 
 ### Main Thread to Worker
 
-| `type`  | Fields                                          | Description              |
-| ------- | ----------------------------------------------- | ------------------------ |
-| `call`  | `id`, `functionName`, `args`, `stream?`, `reactive?` | Invoke a function   |
-| `abort` | `id`                                            | Cancel an in-flight call |
+| `type`  | Fields                                               | Description              |
+| ------- | ---------------------------------------------------- | ------------------------ |
+| `call`  | `id`, `functionName`, `args`, `stream?`, `reactive?` | Invoke a function        |
+| `abort` | `id`                                                 | Cancel an in-flight call |
 
 ### Worker to Main Thread
 
-| `type`         | Fields              | Description                              |
-| -------------- | ------------------- | ---------------------------------------- |
-| `ready`        | `functions`, `streamFunctions`, `reactiveFunctions` | Handshake on startup |
-| `complete`     | `id`, `data`        | Final result of a call                   |
-| `error`        | `id`, `data`        | Error with `{ message, name }`           |
-| `progress`     | `id`, `data`        | Progress update `{ progress, message, details }` |
-| `stream_chunk` | `id`, `data`        | One chunk from a streaming call          |
+| `type`         | Fields                                              | Description                                      |
+| -------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `ready`        | `functions`, `streamFunctions`, `reactiveFunctions` | Handshake on startup                             |
+| `complete`     | `id`, `data`                                        | Final result of a call                           |
+| `error`        | `id`, `data`                                        | Error with `{ message, name }`                   |
+| `progress`     | `id`, `data`                                        | Progress update `{ progress, message, details }` |
+| `stream_chunk` | `id`, `data`                                        | One chunk from a streaming call                  |
 
 ## WorkerServer
 
@@ -362,8 +393,9 @@ AI provider packages integrate with the worker system through a standard pattern
    `WorkerManager`:
 
    ```ts
-   manager.registerWorker("anthropic", () =>
-     new Worker(new URL("./anthropic-worker.js", import.meta.url))
+   manager.registerWorker(
+     "anthropic",
+     () => new Worker(new URL("./anthropic-worker.js", import.meta.url))
    );
    ```
 
@@ -397,30 +429,30 @@ AI provider packages integrate with the worker system through a standard pattern
 
 ### WorkerManager
 
-| Method | Signature | Description |
-| ------ | --------- | ----------- |
-| `registerWorker` | `(name: string, workerOrFactory: Worker \| (() => Worker)) => void` | Register a worker by name. Throws if the name is already registered. |
-| `getWorker` | `(name: string) => Worker` | Get the raw Worker instance. Throws if not found. |
-| `callWorkerFunction` | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal; onProgress?: Function }) => Promise<T>` | Call a regular function on a worker. |
-| `callWorkerStreamFunction` | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal }) => AsyncGenerator<T>` | Call a streaming function. Returns an async generator of stream chunks. |
-| `callWorkerReactiveFunction` | `<T>(workerName: string, functionName: string, args: any[]) => Promise<T \| undefined>` | Call a reactive function. Returns `undefined` if not registered or on error. |
+| Method                       | Signature                                                                                                                             | Description                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `registerWorker`             | `(name: string, workerOrFactory: Worker \| (() => Worker)) => void`                                                                   | Register a worker by name. Throws if the name is already registered.         |
+| `getWorker`                  | `(name: string) => Worker`                                                                                                            | Get the raw Worker instance. Throws if not found.                            |
+| `callWorkerFunction`         | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal; onProgress?: Function }) => Promise<T>` | Call a regular function on a worker.                                         |
+| `callWorkerStreamFunction`   | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal }) => AsyncGenerator<T>`                 | Call a streaming function. Returns an async generator of stream chunks.      |
+| `callWorkerReactiveFunction` | `<T>(workerName: string, functionName: string, args: any[]) => Promise<T \| undefined>`                                               | Call a reactive function. Returns `undefined` if not registered or on error. |
 
 ### WorkerServerBase
 
-| Method | Signature | Description |
-| ------ | --------- | ----------- |
-| `registerFunction` | `(name: string, fn: (...args: any[]) => Promise<any>) => void` | Register a regular function. `fn` receives `(input, model, postProgress, signal)`. |
-| `registerStreamFunction` | `(name: string, fn: (...args: any[]) => AsyncIterable<any>) => void` | Register a streaming function. `fn` receives `(input, model, signal)`. |
-| `registerReactiveFunction` | `(name: string, fn: (input, output, model) => Promise<any>) => void` | Register a reactive preview function. |
-| `sendReady` | `() => void` | Send the ready handshake to the main thread. Must be called after all functions are registered. |
-| `handleMessage` | `(event: { type: string; data: any }) => Promise<void>` | Dispatch an incoming message. Called automatically by platform subclasses. |
+| Method                     | Signature                                                            | Description                                                                                     |
+| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `registerFunction`         | `(name: string, fn: (...args: any[]) => Promise<any>) => void`       | Register a regular function. `fn` receives `(input, model, postProgress, signal)`.              |
+| `registerStreamFunction`   | `(name: string, fn: (...args: any[]) => AsyncIterable<any>) => void` | Register a streaming function. `fn` receives `(input, model, signal)`.                          |
+| `registerReactiveFunction` | `(name: string, fn: (input, output, model) => Promise<any>) => void` | Register a reactive preview function.                                                           |
+| `sendReady`                | `() => void`                                                         | Send the ready handshake to the main thread. Must be called after all functions are registered. |
+| `handleMessage`            | `(event: { type: string; data: any }) => Promise<void>`              | Dispatch an incoming message. Called automatically by platform subclasses.                      |
 
 ### Service Tokens
 
-| Token | Type | Description |
-| ----- | ---- | ----------- |
-| `WORKER_MANAGER` | `WorkerManager` | Singleton manager on the main thread. |
-| `WORKER_SERVER` | `WorkerServerBase` | Platform-specific server inside a worker. |
+| Token            | Type               | Description                               |
+| ---------------- | ------------------ | ----------------------------------------- |
+| `WORKER_MANAGER` | `WorkerManager`    | Singleton manager on the main thread.     |
+| `WORKER_SERVER`  | `WorkerServerBase` | Platform-specific server inside a worker. |
 
 ### Worker Entry Point
 

@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AiJob,
-  AiProvider,
-  AiProviderRegistry,
-  QueuedAiProvider,
-  getAiProviderRegistry,
-  setAiProviderRegistry,
-} from "@workglow/ai";
 import type {
   AiProviderRegisterContext,
   AiProviderRegisterOptions,
   AiProviderRunFn,
+} from "@workglow/ai";
+import {
+  AiJob,
+  AiProvider,
+  AiProviderRegistry,
+  getAiProviderRegistry,
+  QueuedAiProvider,
+  setAiProviderRegistry,
 } from "@workglow/ai";
 import {
   getTaskQueueRegistry,
@@ -23,6 +23,7 @@ import {
   TaskQueueRegistry,
 } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
+import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util/worker";
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 
@@ -233,6 +234,57 @@ describe("AiProvider", () => {
     test("should throw when worker is omitted for worker-backed registration", async () => {
       const provider = new StaticTaskTypesProvider();
       await expect(provider.register({})).rejects.toThrow(/worker is required/);
+    });
+
+    test("should pass the configured worker idle timeout to WorkerManager", async () => {
+      const provider = new StaticTaskTypesProvider();
+      const workerFactory = () => ({}) as Worker;
+      const originalWorkerManager = globalServiceRegistry.get(WORKER_MANAGER);
+      const mockWorkerManager = {
+        registerWorker: vi.fn(),
+      };
+
+      globalServiceRegistry.registerInstance(WORKER_MANAGER, mockWorkerManager as any);
+
+      try {
+        await provider.register({
+          worker: workerFactory,
+          workerIdleTimeoutMs: 1234,
+        });
+      } finally {
+        globalServiceRegistry.registerInstance(WORKER_MANAGER, originalWorkerManager);
+      }
+
+      expect(mockWorkerManager.registerWorker).toHaveBeenCalledWith(
+        "static-task-types-provider",
+        workerFactory,
+        { idleTimeoutMs: 1234 }
+      );
+    });
+
+    test("should default factory-backed AI workers to a 15 minute idle timeout", async () => {
+      const provider = new StaticTaskTypesProvider();
+      const workerFactory = () => ({}) as Worker;
+      const originalWorkerManager = globalServiceRegistry.get(WORKER_MANAGER);
+      const mockWorkerManager = {
+        registerWorker: vi.fn(),
+      };
+
+      globalServiceRegistry.registerInstance(WORKER_MANAGER, mockWorkerManager as any);
+
+      try {
+        await provider.register({
+          worker: workerFactory,
+        });
+      } finally {
+        globalServiceRegistry.registerInstance(WORKER_MANAGER, originalWorkerManager);
+      }
+
+      expect(mockWorkerManager.registerWorker).toHaveBeenCalledWith(
+        "static-task-types-provider",
+        workerFactory,
+        { idleTimeoutMs: 15 * 60 * 1000 }
+      );
     });
   });
 

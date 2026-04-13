@@ -14,26 +14,40 @@ export class WorkerManager {
   private workerFunctions: Map<string, Set<string>> = new Map();
   private workerStreamFunctions: Map<string, Set<string>> = new Map();
   private workerReactiveFunctions: Map<string, Set<string>> = new Map();
-  /** Pending lazy factories (worker not yet constructed). */
-  private lazyFactories: Map<string, () => Worker> = new Map();
+  /** Persistent factories for workers that can be recreated after termination. */
+  private workerFactories: Map<string, () => Worker> = new Map();
+  /** Idle timeout configuration per registered worker. */
+  private idleTimeouts: Map<string, number> = new Map();
   /** Single-flight init promise per name (lazy path). */
   private lazyInitPromises: Map<string, Promise<void>> = new Map();
+  /** In-flight call count per worker name. */
+  private activeCallCounts: Map<string, number> = new Map();
+  /** Scheduled idle termination timer per worker name. */
+  private idleTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  /** In-flight termination promise per worker name. */
+  private terminationPromises: Map<string, Promise<void>> = new Map();
 
-  registerWorker(name: string, workerOrFactory: Worker | (() => Worker)): void {
+  registerWorker(
+    name: string,
+    workerOrFactory: Worker | (() => Worker),
+    options?: { idleTimeoutMs?: number }
+  ): void {
     if (this.workers.has(name)) {
       throw new Error(`Worker ${name} is already registered.`);
     }
-    if (this.lazyFactories.has(name)) {
+    if (this.workerFactories.has(name)) {
       throw new Error(`Worker ${name} is already registered.`);
     }
+    this.idleTimeouts.set(name, options?.idleTimeoutMs ?? 0);
     if (typeof workerOrFactory === "function") {
-      this.lazyFactories.set(name, workerOrFactory);
+      this.workerFactories.set(name, workerOrFactory);
     } else {
       this.attachWorkerInstance(name, workerOrFactory);
     }
   }
 
   private attachWorkerInstance(name: string, worker: Worker): void {
+    this.clearIdleTimer(name);
     this.workers.set(name, worker);
     worker.addEventListener("error", (event) => {
       console.error("Worker Error:", event.message, "at", event.filename, "line:", event.lineno);
@@ -82,23 +96,28 @@ export class WorkerManager {
    * registered eagerly.
    */
   private async ensureWorkerReady(name: string): Promise<void> {
+    await this.terminationPromises.get(name);
+
     if (this.workers.has(name)) {
       await this.readyWorkers.get(name)!;
       return;
     }
-    const factory = this.lazyFactories.get(name);
+    const factory = this.workerFactories.get(name);
     if (!factory) {
       throw new Error(`Worker ${name} not found.`);
     }
     let init = this.lazyInitPromises.get(name);
     if (!init) {
       init = (async () => {
+        let worker: Worker | undefined;
         try {
-          const f = this.lazyFactories.get(name)!;
-          this.lazyFactories.delete(name);
-          const worker = f();
+          const f = this.workerFactories.get(name)!;
+          worker = f();
           this.attachWorkerInstance(name, worker);
           await this.readyWorkers.get(name)!;
+        } catch (error) {
+          await this.cleanupFailedInitialization(name, worker);
+          throw error;
         } finally {
           this.lazyInitPromises.delete(name);
         }
@@ -114,6 +133,105 @@ export class WorkerManager {
     return worker;
   }
 
+  private beginWorkerActivity(name: string): void {
+    this.clearIdleTimer(name);
+    this.activeCallCounts.set(name, (this.activeCallCounts.get(name) ?? 0) + 1);
+  }
+
+  private endWorkerActivity(name: string): void {
+    const nextCount = (this.activeCallCounts.get(name) ?? 0) - 1;
+    if (nextCount > 0) {
+      this.activeCallCounts.set(name, nextCount);
+      return;
+    }
+    this.activeCallCounts.delete(name);
+    this.scheduleIdleTermination(name);
+  }
+
+  private clearIdleTimer(name: string): void {
+    const timer = this.idleTimers.get(name);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.idleTimers.delete(name);
+    }
+  }
+
+  private scheduleIdleTermination(name: string): void {
+    this.clearIdleTimer(name);
+
+    const idleTimeoutMs = this.idleTimeouts.get(name) ?? 0;
+    if (idleTimeoutMs <= 0 || !this.workerFactories.has(name) || !this.workers.has(name)) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      this.idleTimers.delete(name);
+      if ((this.activeCallCounts.get(name) ?? 0) > 0 || !this.workers.has(name)) {
+        return;
+      }
+      void this.terminateWorkerInstance(name).catch((error) => {
+        getLogger().warn(`Worker ${name} idle termination failed.`, { error });
+      });
+    }, idleTimeoutMs);
+
+    this.idleTimers.set(name, timer);
+  }
+
+  private async cleanupFailedInitialization(
+    name: string,
+    worker: Worker | undefined
+  ): Promise<void> {
+    this.clearIdleTimer(name);
+    if (worker !== undefined && this.workers.get(name) === worker) {
+      this.workers.delete(name);
+    }
+    this.readyWorkers.delete(name);
+    this.workerFunctions.delete(name);
+    this.workerStreamFunctions.delete(name);
+    this.workerReactiveFunctions.delete(name);
+    this.activeCallCounts.delete(name);
+    if (worker && "terminate" in worker && typeof worker.terminate === "function") {
+      try {
+        await worker.terminate();
+      } catch {
+        // Best-effort cleanup after failed startup.
+      }
+    }
+  }
+
+  private async terminateWorkerInstance(name: string): Promise<void> {
+    const existing = this.terminationPromises.get(name);
+    if (existing) {
+      await existing;
+      return;
+    }
+
+    const termination = (async () => {
+      this.clearIdleTimer(name);
+      const worker = this.workers.get(name);
+      this.workers.delete(name);
+      this.readyWorkers.delete(name);
+      this.workerFunctions.delete(name);
+      this.workerStreamFunctions.delete(name);
+      this.workerReactiveFunctions.delete(name);
+      this.activeCallCounts.delete(name);
+      try {
+        if (worker && "terminate" in worker && typeof worker.terminate === "function") {
+          await worker.terminate();
+        }
+      } catch {
+        // Best-effort termination; runtime state is already cleaned up above.
+      }
+    })();
+
+    this.terminationPromises.set(name, termination);
+    try {
+      await termination;
+    } finally {
+      this.terminationPromises.delete(name);
+    }
+  }
+
   async callWorkerFunction<T>(
     workerName: string,
     functionName: string,
@@ -126,66 +244,71 @@ export class WorkerManager {
     await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
+    this.beginWorkerActivity(workerName);
 
-    const knownFunctions = this.workerFunctions.get(workerName);
-    if (knownFunctions && !knownFunctions.has(functionName)) {
-      throw new Error(`Function "${functionName}" is not registered on worker "${workerName}".`);
-    }
-
-    return new Promise((resolve, reject) => {
-      const requestId = crypto.randomUUID();
-
-      const handleMessage = (event: MessageEvent) => {
-        const { id, type, data } = event.data;
-        if (id !== requestId) return;
-        if (type === "progress" && options?.onProgress) {
-          options.onProgress(data.progress, data.message, data.details);
-          getLogger().debug(
-            `Worker ${workerName} function ${functionName} progress: ${data.progress}, `,
-            { data }
-          );
-        } else if (type === "complete") {
-          cleanup();
-          getLogger().debug(`Worker ${workerName} function ${functionName} complete.`, { data });
-          resolve(data);
-        } else if (type === "error") {
-          cleanup();
-          getLogger().debug(`Worker ${workerName} function ${functionName} error.`, { data });
-          const err =
-            typeof data === "object" && data !== null
-              ? Object.assign(new Error(data.message ?? String(data)), {
-                  name: data.name ?? "Error",
-                })
-              : new Error(String(data));
-          reject(err);
-        }
-      };
-
-      const handleAbort = () => {
-        worker.postMessage({ id: requestId, type: "abort" });
-        getLogger().info(`Worker ${workerName} function ${functionName} aborted.`);
-      };
-
-      const cleanup = () => {
-        worker.removeEventListener("message", handleMessage);
-        options?.signal?.removeEventListener("abort", handleAbort);
-      };
-
-      worker.addEventListener("message", handleMessage);
-
-      if (options?.signal) {
-        options.signal.addEventListener("abort", handleAbort, { once: true });
+    try {
+      const knownFunctions = this.workerFunctions.get(workerName);
+      if (knownFunctions && !knownFunctions.has(functionName)) {
+        throw new Error(`Function "${functionName}" is not registered on worker "${workerName}".`);
       }
 
-      // Note: We intentionally do NOT transfer TypedArrays from the main thread to the worker.
-      // Transferring detaches the buffers on the main thread, which breaks downstream tasks
-      // that still need those TypedArrays (e.g., the embedding vectors flowing through the
-      // task graph). Workers send results back with transferables (zero-copy), but the
-      // main thread always clones data going to workers to preserve its own references.
-      const message = { id: requestId, type: "call", functionName, args };
-      worker.postMessage(message);
-      getLogger().info(`Worker ${workerName} function ${functionName} called.`);
-    });
+      return await new Promise<T>((resolve, reject) => {
+        const requestId = crypto.randomUUID();
+
+        const handleMessage = (event: MessageEvent) => {
+          const { id, type, data } = event.data;
+          if (id !== requestId) return;
+          if (type === "progress" && options?.onProgress) {
+            options.onProgress(data.progress, data.message, data.details);
+            getLogger().debug(
+              `Worker ${workerName} function ${functionName} progress: ${data.progress}, `,
+              { data }
+            );
+          } else if (type === "complete") {
+            cleanup();
+            getLogger().debug(`Worker ${workerName} function ${functionName} complete.`, { data });
+            resolve(data);
+          } else if (type === "error") {
+            cleanup();
+            getLogger().debug(`Worker ${workerName} function ${functionName} error.`, { data });
+            const err =
+              typeof data === "object" && data !== null
+                ? Object.assign(new Error(data.message ?? String(data)), {
+                    name: data.name ?? "Error",
+                  })
+                : new Error(String(data));
+            reject(err);
+          }
+        };
+
+        const handleAbort = () => {
+          worker.postMessage({ id: requestId, type: "abort" });
+          getLogger().info(`Worker ${workerName} function ${functionName} aborted.`);
+        };
+
+        const cleanup = () => {
+          worker.removeEventListener("message", handleMessage);
+          options?.signal?.removeEventListener("abort", handleAbort);
+        };
+
+        worker.addEventListener("message", handleMessage);
+
+        if (options?.signal) {
+          options.signal.addEventListener("abort", handleAbort, { once: true });
+        }
+
+        // Note: We intentionally do NOT transfer TypedArrays from the main thread to the worker.
+        // Transferring detaches the buffers on the main thread, which breaks downstream tasks
+        // that still need those TypedArrays (e.g., the embedding vectors flowing through the
+        // task graph). Workers send results back with transferables (zero-copy), but the
+        // main thread always clones data going to workers to preserve its own references.
+        const message = { id: requestId, type: "call", functionName, args };
+        worker.postMessage(message);
+        getLogger().info(`Worker ${workerName} function ${functionName} called.`);
+      });
+    } finally {
+      this.endWorkerActivity(workerName);
+    }
   }
 
   /**
@@ -206,68 +329,62 @@ export class WorkerManager {
     await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) return undefined;
+    this.beginWorkerActivity(workerName);
 
-    // Skip the roundtrip if the worker didn't register a reactive function for this name.
-    const knownReactive = this.workerReactiveFunctions.get(workerName);
-    if (knownReactive && !knownReactive.has(functionName)) return undefined;
+    try {
+      // Skip the roundtrip if the worker didn't register a reactive function for this name.
+      const knownReactive = this.workerReactiveFunctions.get(workerName);
+      if (knownReactive && !knownReactive.has(functionName)) return undefined;
 
-    return new Promise((resolve) => {
-      const requestId = crypto.randomUUID();
+      return await new Promise((resolve) => {
+        const requestId = crypto.randomUUID();
 
-      const handleMessage = (event: MessageEvent) => {
-        const { id, type, data } = event.data;
-        if (id !== requestId) return;
-        if (type === "complete") {
-          cleanup();
-          resolve(data as T | undefined);
-        } else if (type === "error") {
-          cleanup();
-          getLogger().warn(`Worker ${workerName} reactive function ${functionName} error:`, {
-            error: data,
-          });
-          resolve(undefined);
-        }
-      };
+        const handleMessage = (event: MessageEvent) => {
+          const { id, type, data } = event.data;
+          if (id !== requestId) return;
+          if (type === "complete") {
+            cleanup();
+            resolve(data as T | undefined);
+          } else if (type === "error") {
+            cleanup();
+            getLogger().warn(`Worker ${workerName} reactive function ${functionName} error:`, {
+              error: data,
+            });
+            resolve(undefined);
+          }
+        };
 
-      const cleanup = () => {
-        worker.removeEventListener("message", handleMessage);
-      };
+        const cleanup = () => {
+          worker.removeEventListener("message", handleMessage);
+        };
 
-      worker.addEventListener("message", handleMessage);
+        worker.addEventListener("message", handleMessage);
 
-      const message = { id: requestId, type: "call", functionName, args, reactive: true };
-      // Note: No transferables — same reasoning as callWorkerFunction above.
-      worker.postMessage(message);
-      getLogger().info(`Worker ${workerName} reactive function ${functionName} called.`);
-    });
+        const message = { id: requestId, type: "call", functionName, args, reactive: true };
+        // Note: No transferables — same reasoning as callWorkerFunction above.
+        worker.postMessage(message);
+        getLogger().info(`Worker ${workerName} reactive function ${functionName} called.`);
+      });
+    } finally {
+      this.endWorkerActivity(workerName);
+    }
   }
 
   /**
    * Terminate a single worker and clean up all associated state.
    */
   async terminateWorker(name: string): Promise<void> {
-    const worker = this.workers.get(name);
-    this.workers.delete(name);
-    this.readyWorkers.delete(name);
-    this.workerFunctions.delete(name);
-    this.workerStreamFunctions.delete(name);
-    this.workerReactiveFunctions.delete(name);
-    this.lazyFactories.delete(name);
+    await this.terminateWorkerInstance(name);
+    this.workerFactories.delete(name);
+    this.idleTimeouts.delete(name);
     this.lazyInitPromises.delete(name);
-    try {
-      if (worker && "terminate" in worker && typeof worker.terminate === "function") {
-        await worker.terminate();
-      }
-    } catch {
-      // Best-effort termination; state is already cleaned up above.
-    }
   }
 
   /**
    * Terminate all workers and release resources.
    */
   async dispose(): Promise<void> {
-    const names = [...this.workers.keys(), ...this.lazyFactories.keys()];
+    const names = [...new Set([...this.workers.keys(), ...this.workerFactories.keys()])];
     for (const name of names) {
       await this.terminateWorker(name);
     }
@@ -298,104 +415,114 @@ export class WorkerManager {
     await this.ensureWorkerReady(workerName);
     const worker = this.workers.get(workerName);
     if (!worker) throw new Error(`Worker ${workerName} not found.`);
+    this.beginWorkerActivity(workerName);
 
-    // The worker falls back to regular functions for stream calls, so either counts.
-    const knownStream = this.workerStreamFunctions.get(workerName);
-    const knownFns = this.workerFunctions.get(workerName);
-    if (knownStream && knownFns && !knownStream.has(functionName) && !knownFns.has(functionName)) {
-      throw new Error(`Function "${functionName}" is not registered on worker "${workerName}".`);
-    }
-
-    const requestId = crypto.randomUUID();
-
-    // Push-queue pattern: messages push items, async generator pulls them
-    type QueueItem =
-      | { kind: "event"; data: T }
-      | { kind: "done" }
-      | { kind: "error"; error: Error };
-
-    const queue: QueueItem[] = [];
-    let waiting: ((value: void) => void) | null = null;
-
-    const notify = () => {
-      if (waiting) {
-        const resolve = waiting;
-        waiting = null;
-        resolve();
-      }
-    };
-
-    const handleMessage = (event: MessageEvent) => {
-      const { id, type, data } = event.data;
-      if (id !== requestId) return;
-
-      if (type === "stream_chunk") {
-        queue.push({ kind: "event", data });
-        notify();
-      } else if (type === "complete") {
-        queue.push({ kind: "done" });
-        notify();
-      } else if (type === "error") {
-        queue.push({ kind: "error", error: new Error(data) });
-        notify();
-      }
-    };
-
-    const handleAbort = () => {
-      worker.postMessage({ id: requestId, type: "abort" });
-      getLogger().info(`Worker ${workerName} stream function ${functionName} aborted.`);
-    };
-
-    const cleanup = () => {
-      worker.removeEventListener("message", handleMessage);
-      options?.signal?.removeEventListener("abort", handleAbort);
-    };
-
-    worker.addEventListener("message", handleMessage);
-
-    if (options?.signal) {
-      if (options.signal.aborted) {
-        cleanup();
-        throw new Error("Operation aborted");
-      }
-      options.signal.addEventListener("abort", handleAbort, { once: true });
-    }
-
-    // Send call message with stream flag
-    // Note: No transferables — same reasoning as callWorkerFunction above.
-    const message = { id: requestId, type: "call", functionName, args, stream: true };
-    worker.postMessage(message);
-    getLogger().info(`Worker ${workerName} stream function ${functionName} called.`);
-
-    let completedNormally = false;
     try {
-      while (true) {
-        while (queue.length > 0) {
-          const item = queue.shift()!;
-          if (item.kind === "event") {
-            yield item.data;
-          } else if (item.kind === "done") {
-            completedNormally = true;
-            return;
-          } else if (item.kind === "error") {
-            completedNormally = true;
-            throw item.error;
-          }
-        }
-
-        // Wait for the next message to arrive
-        await new Promise<void>((resolve) => {
-          waiting = resolve;
-        });
+      // The worker falls back to regular functions for stream calls, so either counts.
+      const knownStream = this.workerStreamFunctions.get(workerName);
+      const knownFns = this.workerFunctions.get(workerName);
+      if (
+        knownStream &&
+        knownFns &&
+        !knownStream.has(functionName) &&
+        !knownFns.has(functionName)
+      ) {
+        throw new Error(`Function "${functionName}" is not registered on worker "${workerName}".`);
       }
-    } finally {
-      // If the consumer stopped iterating early (break/return), notify
-      // the worker to abort so it doesn't continue generating tokens.
-      if (!completedNormally) {
+
+      const requestId = crypto.randomUUID();
+
+      // Push-queue pattern: messages push items, async generator pulls them
+      type QueueItem =
+        | { kind: "event"; data: T }
+        | { kind: "done" }
+        | { kind: "error"; error: Error };
+
+      const queue: QueueItem[] = [];
+      let waiting: ((value: void) => void) | null = null;
+
+      const notify = () => {
+        if (waiting) {
+          const resolve = waiting;
+          waiting = null;
+          resolve();
+        }
+      };
+
+      const handleMessage = (event: MessageEvent) => {
+        const { id, type, data } = event.data;
+        if (id !== requestId) return;
+
+        if (type === "stream_chunk") {
+          queue.push({ kind: "event", data });
+          notify();
+        } else if (type === "complete") {
+          queue.push({ kind: "done" });
+          notify();
+        } else if (type === "error") {
+          queue.push({ kind: "error", error: new Error(data) });
+          notify();
+        }
+      };
+
+      const handleAbort = () => {
         worker.postMessage({ id: requestId, type: "abort" });
         getLogger().info(`Worker ${workerName} stream function ${functionName} aborted.`);
+      };
+
+      const cleanup = () => {
+        worker.removeEventListener("message", handleMessage);
+        options?.signal?.removeEventListener("abort", handleAbort);
+      };
+
+      worker.addEventListener("message", handleMessage);
+
+      if (options?.signal) {
+        if (options.signal.aborted) {
+          cleanup();
+          throw new Error("Operation aborted");
+        }
+        options.signal.addEventListener("abort", handleAbort, { once: true });
       }
-      cleanup();
+
+      // Send call message with stream flag
+      // Note: No transferables — same reasoning as callWorkerFunction above.
+      const message = { id: requestId, type: "call", functionName, args, stream: true };
+      worker.postMessage(message);
+      getLogger().info(`Worker ${workerName} stream function ${functionName} called.`);
+
+      let completedNormally = false;
+      try {
+        while (true) {
+          while (queue.length > 0) {
+            const item = queue.shift()!;
+            if (item.kind === "event") {
+              yield item.data;
+            } else if (item.kind === "done") {
+              completedNormally = true;
+              return;
+            } else if (item.kind === "error") {
+              completedNormally = true;
+              throw item.error;
+            }
+          }
+
+          // Wait for the next message to arrive
+          await new Promise<void>((resolve) => {
+            waiting = resolve;
+          });
+        }
+      } finally {
+        // If the consumer stopped iterating early (break/return), notify
+        // the worker to abort so it doesn't continue generating tokens.
+        if (!completedNormally) {
+          worker.postMessage({ id: requestId, type: "abort" });
+          getLogger().info(`Worker ${workerName} stream function ${functionName} aborted.`);
+        }
+        cleanup();
+      }
+    } finally {
+      this.endWorkerActivity(workerName);
     }
   }
 }
