@@ -31,6 +31,7 @@ export class GraphAsTaskRunner<
       parentSignal: this.abortController?.signal,
       outputCache: this.outputCache,
       registry: this.registry,
+      resourceScope: this.resourceScope,
     });
     unsubscribe();
     return results;
@@ -45,6 +46,7 @@ export class GraphAsTaskRunner<
   protected async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
     return this.task.subGraph!.runReactive<Output>(this.task.runInputData, {
       registry: this.registry,
+      resourceScope: this.resourceScope,
     });
   }
 

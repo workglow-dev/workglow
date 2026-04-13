@@ -76,7 +76,7 @@ describe("ResourceScope threading", () => {
     const innerTask = inner.toTask();
 
     graph.addTask(innerTask);
-    await graph.run({}, { resourceScope: scope });
+    await graph.run({ name: "inner-resource" }, { resourceScope: scope });
     expect(scope.has("test:inner-resource")).toBe(true);
   });
 

@@ -147,6 +147,7 @@ export class TaskGraph implements ITaskGraph {
       registry: config?.registry,
       timeout: config?.timeout,
       maxTasks: config?.maxTasks,
+      resourceScope: config?.resourceScope,
     });
   }
 

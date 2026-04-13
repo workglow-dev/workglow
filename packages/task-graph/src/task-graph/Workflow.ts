@@ -611,6 +611,7 @@ export class Workflow<
         parentSignal: this._abortController.signal,
         outputCache: this._outputCache,
         registry: config?.registry ?? this._registry,
+        resourceScope: config?.resourceScope,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
         output,
