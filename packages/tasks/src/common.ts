@@ -7,10 +7,6 @@
 // Load adaptive first so Workflow.prototype.add/subtract/multiply/divide/sum are registered
 import "./task/adaptive";
 
-export * from "./task/browser";
-export * from "./util/BrowserTaskDeps";
-export * from "./util/SafeFetch";
-export * from "./util/UrlClassifier";
 export * from "./mcp-server/getMcpServerConfig";
 export * from "./mcp-server/InMemoryMcpServerRepository";
 export * from "./mcp-server/McpServerRegistry";
@@ -18,6 +14,7 @@ export * from "./mcp-server/McpServerRepository";
 export * from "./mcp-server/McpServerSchema";
 export * from "./task/adaptive";
 export * from "./task/ArrayTask";
+export * from "./task/browser-control";
 export * from "./task/DateFormatTask";
 export * from "./task/DebugLogTask";
 export * from "./task/DelayTask";
@@ -27,6 +24,7 @@ export * from "./task/HumanInputTask";
 export * from "./task/image/ImageBlurTask";
 export * from "./task/image/ImageBorderTask";
 export * from "./task/image/ImageBrightnessTask";
+export * from "./task/image/imageCodecLimits";
 export * from "./task/image/ImageContrastTask";
 export * from "./task/image/ImageCropTask";
 export * from "./task/image/ImageFlipTask";
@@ -34,7 +32,6 @@ export * from "./task/image/ImageGrayscaleTask";
 export * from "./task/image/ImageInvertTask";
 export * from "./task/image/ImagePixelateTask";
 export * from "./task/image/ImagePosterizeTask";
-export * from "./task/image/imageCodecLimits";
 export * from "./task/image/imageRasterCodecRegistry";
 export * from "./task/image/ImageResizeTask";
 export * from "./task/image/ImageRotateTask";
@@ -92,9 +89,12 @@ export * from "./task/vector/VectorNormalizeTask";
 export * from "./task/vector/VectorScaleTask";
 export * from "./task/vector/VectorSubtractTask";
 export * from "./task/vector/VectorSumTask";
+export * from "./util/BrowserTaskDeps";
+export * from "./util/SafeFetch";
+export * from "./util/UrlClassifier";
 
 import { TaskRegistry } from "@workglow/task-graph";
-import { registerBrowserTasks } from "./task/browser/register";
+import { registerBrowserTasks } from "./task/browser-control/register";
 import { DateFormatTask } from "./task/DateFormatTask";
 import { DebugLogTask } from "./task/DebugLogTask";
 import { DelayTask } from "./task/DelayTask";

@@ -8,9 +8,9 @@ import "./task/image/registerImageRasterCodec.node";
 import "./util/SafeFetch.server";
 
 export * from "./common";
-export * from "./task/browser/ElectronBackend";
-export * from "./task/browser/PlaywrightBackend";
 export * from "./task/FileLoaderTask.server";
+export * from "./task/browser-control/ElectronBackend";
+export * from "./task/browser-control/PlaywrightBackend";
 export * from "./util/McpAuthProvider";
 export * from "./util/McpAuthTypes";
 export * from "./util/McpClientUtil";
@@ -20,8 +20,8 @@ import { TaskRegistry } from "@workglow/task-graph";
 import { registerCommonTasks as registerCommonTasksFn } from "./common";
 import { registerMcpTaskDepsServer } from "./server";
 import { FileLoaderTask } from "./task/FileLoaderTask.server";
-import { ElectronBackend } from "./task/browser/ElectronBackend";
-import { PlaywrightBackend } from "./task/browser/PlaywrightBackend";
+import { ElectronBackend } from "./task/browser-control/ElectronBackend";
+import { PlaywrightBackend } from "./task/browser-control/PlaywrightBackend";
 import { registerBrowserDeps } from "./util/BrowserTaskDeps";
 
 registerMcpTaskDepsServer();

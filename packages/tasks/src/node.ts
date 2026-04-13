@@ -10,7 +10,7 @@ import "./task/image/registerImageRasterCodec.node";
 import "./util/SafeFetch.server";
 
 export * from "./common";
-export * from "./task/browser/PlaywrightBackend";
+export * from "./task/browser-control/PlaywrightBackend";
 export * from "./task/FileLoaderTask.server";
 export * from "./util/McpAuthProvider";
 export * from "./util/McpAuthTypes";

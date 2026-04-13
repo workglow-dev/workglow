@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import path from "node:path";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { PlaywrightBackend } from "./task/browser/PlaywrightBackend";
+import path from "node:path";
+import { PlaywrightBackend } from "./task/browser-control/PlaywrightBackend";
 import { registerBrowserDeps } from "./util/BrowserTaskDeps";
 import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil";
 import type { McpServerConfig } from "./util/McpTaskDeps";
