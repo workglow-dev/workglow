@@ -152,7 +152,7 @@ export class BrowserSessionTask extends Task<
 
   override async execute(
     _input: BrowserSessionTaskInput,
-    _executeContext: IExecuteContext
+    executeContext: IExecuteContext
   ): Promise<BrowserSessionTaskOutput> {
     const deps = getBrowserDeps();
 
@@ -175,6 +175,11 @@ export class BrowserSessionTask extends Task<
     await ctx.connect(options);
 
     const sessionId = BrowserSessionRegistry.register(ctx);
+
+    executeContext.resourceScope?.register(`browser:${sessionId}`, async () => {
+      await ctx.disconnect();
+      BrowserSessionRegistry.unregister(sessionId);
+    });
 
     return { sessionId };
   }
