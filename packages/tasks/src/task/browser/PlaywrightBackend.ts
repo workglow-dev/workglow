@@ -228,11 +228,20 @@ function buildLocatorString(role: string, name: string): string {
 // ---------------------------------------------------------------------------
 
 export class PlaywrightBackend implements IBrowserContext {
+  /**
+   * When set, `connect()` reuses this browser for local mode instead of launching a new process.
+   * Used by integration tests to avoid per-test launch/teardown flakiness. The caller must not
+   * close the browser until all backends that reference it have disconnected.
+   */
+  constructor(private readonly sharedLocalBrowser?: AnyBrowser) {}
+
   // Internal Playwright state
   private _browser: AnyBrowser | null = null;
   private _context: AnyBrowserContext | null = null;
   private _page: AnyPage | null = null;
   private _connected = false;
+  /** True when this backend launched Chromium locally (owns full process tree). */
+  private _launchedLocalChromium = false;
 
   // Ref management
   private _refMap = new Map<string, string>();
@@ -252,6 +261,12 @@ export class PlaywrightBackend implements IBrowserContext {
 
     if (backend === "cloud" || cdpUrl) {
       // Cloud / CDP mode
+      if (this.sharedLocalBrowser) {
+        throw new Error(
+          "PlaywrightBackend: sharedLocalBrowser is only supported for local backend"
+        );
+      }
+      this._launchedLocalChromium = false;
       if (!cdpUrl) {
         throw new Error("PlaywrightBackend: cdpUrl is required for cloud backend");
       }
@@ -262,7 +277,17 @@ export class PlaywrightBackend implements IBrowserContext {
       this._page = pages.length > 0 ? pages[0] : await this._context.newPage();
     } else {
       // Local mode
-      this._browser = await pw.chromium.launch({ headless });
+      if (this.sharedLocalBrowser) {
+        this._browser = this.sharedLocalBrowser;
+        this._launchedLocalChromium = false;
+      } else {
+        this._launchedLocalChromium = true;
+        this._browser = await pw.chromium.launch({
+          headless,
+          // Reduces hangs / crashes when /dev/shm is small (common in containers).
+          args: ["--disable-dev-shm-usage"],
+        });
+      }
       this._context = await this._browser.newContext();
       this._page = await this._context.newPage();
     }
@@ -296,14 +321,38 @@ export class PlaywrightBackend implements IBrowserContext {
 
   async disconnect(): Promise<void> {
     this._connected = false;
+    const page = this._page;
+    const context = this._context;
+    const browser = this._browser;
+    const launchedLocal = this._launchedLocalChromium;
+    const sharedLocal = this.sharedLocalBrowser !== undefined;
+    this._page = null;
+    this._context = null;
+    this._browser = null;
+    this._launchedLocalChromium = false;
+
     try {
-      if (this._browser) {
-        await this._browser.close();
+      if (launchedLocal || sharedLocal) {
+        // Tear down in reverse order so the browser process does not stall waiting on pages.
+        if (page) {
+          try {
+            await page.close({ runBeforeUnload: false });
+          } catch {
+            // ignore
+          }
+        }
+        if (context) {
+          try {
+            await context.close();
+          } catch {
+            // ignore
+          }
+        }
+      }
+      if (browser && !sharedLocal) {
+        await browser.close();
       }
     } finally {
-      this._browser = null;
-      this._context = null;
-      this._page = null;
       this._refMap.clear();
       this._refCounter.count = 0;
     }
@@ -386,23 +435,23 @@ export class PlaywrightBackend implements IBrowserContext {
   // ---------------------------------------------------------------------------
 
   async navigate(url: string, options: NavigateOptions = {}): Promise<void> {
-    const { waitUntil = "load", timeout } = options;
-    await this.page.goto(url, { waitUntil, ...(timeout !== undefined ? { timeout } : {}) });
+    const { waitUntil = "load", timeout = 30_000 } = options;
+    await this.page.goto(url, { waitUntil, timeout });
   }
 
   async goBack(options: NavigateOptions = {}): Promise<void> {
-    const { waitUntil = "load", timeout } = options;
-    await this.page.goBack({ waitUntil, ...(timeout !== undefined ? { timeout } : {}) });
+    const { waitUntil = "load", timeout = 30_000 } = options;
+    await this.page.goBack({ waitUntil, timeout });
   }
 
   async goForward(options: NavigateOptions = {}): Promise<void> {
-    const { waitUntil = "load", timeout } = options;
-    await this.page.goForward({ waitUntil, ...(timeout !== undefined ? { timeout } : {}) });
+    const { waitUntil = "load", timeout = 30_000 } = options;
+    await this.page.goForward({ waitUntil, timeout });
   }
 
   async reload(options: NavigateOptions = {}): Promise<void> {
-    const { waitUntil = "load", timeout } = options;
-    await this.page.reload({ waitUntil, ...(timeout !== undefined ? { timeout } : {}) });
+    const { waitUntil = "load", timeout = 30_000 } = options;
+    await this.page.reload({ waitUntil, timeout });
   }
 
   async currentUrl(): Promise<string> {

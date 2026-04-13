@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { AccessibilityNode, IBrowserContext } from "@workglow/tasks";
 import {
   BrowserBackTask,
@@ -19,6 +18,7 @@ import {
   BrowserSnapshotTask,
   registerBrowserDeps,
 } from "@workglow/tasks";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Accessibility tree helpers
@@ -39,9 +39,7 @@ function findByRole(
   role: string,
   name?: string
 ): AccessibilityNode | undefined {
-  return collectNodes(root).find(
-    (n) => n.role === role && (!name || n.name === name)
-  );
+  return collectNodes(root).find((n) => n.role === role && (!name || n.name === name));
 }
 
 // ---------------------------------------------------------------------------
@@ -61,15 +59,38 @@ const TEST_PAGE_HTML = [
 
 const TEST_PAGE_URL = `data:text/html,${encodeURIComponent(TEST_PAGE_HTML)}`;
 
+export interface GenericBrowserTaskTestOptions {
+  /** When set, passed to Vitest hook APIs so slow backends (e.g. Playwright) stay stable. */
+  readonly hookTimeout?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Generic browser task test suite
 // ---------------------------------------------------------------------------
 
 export function runGenericBrowserTaskTests(
-  createContext: () => IBrowserContext
+  createContext: () => IBrowserContext,
+  options?: GenericBrowserTaskTestOptions
 ): void {
+  const hookTimeout = options?.hookTimeout;
+
+  function scopedAfterEach(fn: () => void | Promise<void>): void {
+    if (hookTimeout !== undefined) {
+      afterEach(fn, hookTimeout);
+    } else {
+      afterEach(fn);
+    }
+  }
+
+  function scopedBeforeEach(fn: () => void | Promise<void>): void {
+    if (hookTimeout !== undefined) {
+      beforeEach(fn, hookTimeout);
+    } else {
+      beforeEach(fn);
+    }
+  }
+
   function setup(): void {
-    BrowserSessionRegistry.clear();
     registerBrowserDeps({
       createContext,
       availableBackends: ["local"],
@@ -82,7 +103,13 @@ export function runGenericBrowserTaskTests(
     });
   }
 
-  afterEach(async () => {
+  scopedAfterEach(async () => {
+    await BrowserSessionRegistry.disconnectAll();
+  });
+
+  // Ensure no leaked sessions before each test (e.g. prior hook failure). Avoids calling
+  // clear() while live Playwright processes are still registered.
+  scopedBeforeEach(async () => {
     await BrowserSessionRegistry.disconnectAll();
   });
 
@@ -91,7 +118,7 @@ export function runGenericBrowserTaskTests(
   // -----------------------------------------------------------------------
 
   describe("BrowserSessionTask", () => {
-    beforeEach(() => setup());
+    scopedBeforeEach(() => setup());
 
     test("creates a session and returns sessionId", async () => {
       const task = new BrowserSessionTask({ headless: true });
@@ -118,7 +145,7 @@ export function runGenericBrowserTaskTests(
   describe("BrowserNavigateTask", () => {
     let sessionId: string;
 
-    beforeEach(async () => {
+    scopedBeforeEach(async () => {
       setup();
       const sessionTask = new BrowserSessionTask({ headless: true });
       const result = await sessionTask.run({});
@@ -137,7 +164,7 @@ export function runGenericBrowserTaskTests(
   describe("BrowserBackTask", () => {
     let sessionId: string;
 
-    beforeEach(async () => {
+    scopedBeforeEach(async () => {
       setup();
       const sessionTask = new BrowserSessionTask({ headless: true });
       const result = await sessionTask.run({});
@@ -155,7 +182,7 @@ export function runGenericBrowserTaskTests(
   describe("BrowserForwardTask", () => {
     let sessionId: string;
 
-    beforeEach(async () => {
+    scopedBeforeEach(async () => {
       setup();
       const sessionTask = new BrowserSessionTask({ headless: true });
       const result = await sessionTask.run({});
@@ -173,7 +200,7 @@ export function runGenericBrowserTaskTests(
   describe("BrowserReloadTask", () => {
     let sessionId: string;
 
-    beforeEach(async () => {
+    scopedBeforeEach(async () => {
       setup();
       const sessionTask = new BrowserSessionTask({ headless: true });
       const result = await sessionTask.run({});
@@ -194,7 +221,7 @@ export function runGenericBrowserTaskTests(
   describe("Snapshot", () => {
     let sessionId: string;
 
-    beforeEach(async () => {
+    scopedBeforeEach(async () => {
       setup();
       const sessionTask = new BrowserSessionTask({ headless: true });
       const result = await sessionTask.run({});
@@ -285,7 +312,7 @@ export function runGenericBrowserTaskTests(
   describe("BrowserClickTask", () => {
     let sessionId: string;
 
-    beforeEach(async () => {
+    scopedBeforeEach(async () => {
       setup();
       const sessionTask = new BrowserSessionTask({ headless: true });
       const result = await sessionTask.run({});
@@ -326,7 +353,7 @@ export function runGenericBrowserTaskTests(
   describe("BrowserFillTask", () => {
     let sessionId: string;
 
-    beforeEach(async () => {
+    scopedBeforeEach(async () => {
       setup();
       const sessionTask = new BrowserSessionTask({ headless: true });
       const result = await sessionTask.run({});
