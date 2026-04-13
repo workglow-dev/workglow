@@ -5,6 +5,7 @@
  */
 
 import { EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
+import type { ResourceScope } from "@workglow/util";
 import { DirectedAcyclicGraph } from "@workglow/util/graph";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
@@ -65,6 +66,11 @@ export interface TaskGraphRunConfig {
    * entitlements are denied. Default: false.
    */
   enforceEntitlements?: boolean;
+  /**
+   * Resource scope for collecting heavyweight resource disposers during graph execution.
+   * Threaded to all tasks via IExecuteContext. The caller controls disposal.
+   */
+  resourceScope?: ResourceScope;
 }
 
 export interface TaskGraphRunReactiveConfig extends Omit<

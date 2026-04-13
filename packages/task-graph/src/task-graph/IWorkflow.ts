@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ServiceRegistry } from "@workglow/util";
+import type { ServiceRegistry, ResourceScope } from "@workglow/util";
 import { TaskInput, TaskOutput } from "../task/TaskTypes";
 import { TaskGraph } from "./TaskGraph";
 import { GraphResult, PROPERTY_ARRAY } from "./TaskGraphRunner";
@@ -12,6 +12,8 @@ import { GraphResult, PROPERTY_ARRAY } from "./TaskGraphRunner";
 export interface WorkflowRunConfig {
   /** Optional service registry to use for this workflow run */
   readonly registry?: ServiceRegistry;
+  /** Resource scope for collecting heavyweight resource disposers. */
+  readonly resourceScope?: ResourceScope;
 }
 
 export interface IWorkflow<

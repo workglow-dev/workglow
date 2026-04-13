@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { EventEmitter, ServiceRegistry } from "@workglow/util";
+import type { EventEmitter, ServiceRegistry, ResourceScope } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ITaskGraph } from "../task-graph/ITaskGraph";
@@ -39,6 +39,8 @@ export interface IExecuteContext {
    * from these streams and re-yield events for immediate downstream delivery.
    */
   inputStreams?: Map<string, ReadableStream<StreamEvent>>;
+  /** Resource scope for registering heavyweight resource disposers. */
+  resourceScope?: ResourceScope;
 }
 
 export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
@@ -97,6 +99,13 @@ export interface IRunConfig {
    * Set automatically by context.own() to propagate cancellation from parent to child tasks.
    */
   signal?: AbortSignal;
+
+  /**
+   * Resource scope for collecting heavyweight resource disposers.
+   * When provided, tasks can register cleanup functions via context.resourceScope.
+   * The caller controls when to invoke them.
+   */
+  resourceScope?: ResourceScope;
 
   /**
    * When true, check entitlements via the registered IEntitlementEnforcer
