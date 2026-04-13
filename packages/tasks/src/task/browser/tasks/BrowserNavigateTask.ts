@@ -87,7 +87,8 @@ export class BrowserNavigateTask extends Task<
   static override readonly type = "BrowserNavigateTask";
   static override readonly category = "Browser";
   public static override title = "Browser Navigate";
-  public static override description = "Navigates the browser to a URL and returns the page title and URL";
+  public static override description =
+    "Navigates the browser to a URL and returns the page title and URL";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {
@@ -104,7 +105,9 @@ export class BrowserNavigateTask extends Task<
 
   public static override entitlements(): TaskEntitlements {
     return {
-      entitlements: [{ id: Entitlements.BROWSER_NAVIGATE, reason: "Navigates to a URL in the browser" }],
+      entitlements: [
+        { id: Entitlements.BROWSER_CONTROL_NAVIGATE, reason: "Navigates to a URL in the browser" },
+      ],
     };
   }
 

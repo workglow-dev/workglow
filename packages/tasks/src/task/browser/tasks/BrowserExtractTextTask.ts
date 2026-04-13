@@ -15,7 +15,8 @@ const browserExtractTextTaskConfigSchema = {
     ref: {
       type: "string",
       title: "Element Ref",
-      description: "The element reference to extract text from (extracts from full page if not provided)",
+      description:
+        "The element reference to extract text from (extracts from full page if not provided)",
     },
   },
   additionalProperties: false,
@@ -67,7 +68,8 @@ export class BrowserExtractTextTask extends Task<
   static override readonly type = "BrowserExtractTextTask";
   static override readonly category = "Browser";
   public static override title = "Browser Extract Text";
-  public static override description = "Extracts text content from a specific element or the full page";
+  public static override description =
+    "Extracts text content from a specific element or the full page";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

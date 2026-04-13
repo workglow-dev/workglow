@@ -84,7 +84,8 @@ export class BrowserLoginTask extends Task<
   static override readonly type = "BrowserLoginTask";
   static override readonly category = "Browser";
   public static override title = "Browser Login";
-  public static override description = "Logs into a website using manual, credential, or AI-driven login strategies";
+  public static override description =
+    "Logs into a website using manual, credential, or AI-driven login strategies";
   static override readonly cacheable = false;
 
   public static override hasDynamicEntitlements = true;
@@ -103,7 +104,9 @@ export class BrowserLoginTask extends Task<
 
   public static override entitlements(): TaskEntitlements {
     return {
-      entitlements: [{ id: Entitlements.BROWSER_NAVIGATE, reason: "Navigates to the login page URL" }],
+      entitlements: [
+        { id: Entitlements.BROWSER_CONTROL_NAVIGATE, reason: "Navigates to the login page URL" },
+      ],
     };
   }
 
@@ -112,7 +115,10 @@ export class BrowserLoginTask extends Task<
     if (this.config.mode === "credential") {
       return mergeEntitlements(base, {
         entitlements: [
-          { id: Entitlements.BROWSER_CREDENTIAL, reason: "Accesses stored credentials for login" },
+          {
+            id: Entitlements.BROWSER_CONTROL_CREDENTIAL,
+            reason: "Accesses stored credentials for login",
+          },
         ],
       });
     }

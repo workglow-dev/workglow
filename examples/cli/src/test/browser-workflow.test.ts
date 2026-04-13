@@ -90,47 +90,43 @@ describe.skipIf(!chromeAvailable)("Browser workflow end-to-end", () => {
     await rm(tmpDir, { recursive: true, force: true });
   }, 30_000);
 
-  test(
-    "BrowserSession -> BrowserNavigate -> BrowserSnapshot pipeline",
-    async () => {
-      // Build the task graph
-      const graph = new TaskGraph();
+  test("BrowserSession -> BrowserNavigate -> BrowserSnapshot pipeline", async () => {
+    // Build the task graph
+    const graph = new TaskGraph();
 
-      const session = new BrowserSessionTask({ id: "session" });
-      const navigate = new BrowserNavigateTask({
-        id: "navigate",
-        defaults: { url: TEST_PAGE_URL },
-      });
-      const snapshot = new BrowserSnapshotTask({ id: "snapshot" });
+    const session = new BrowserSessionTask({ id: "session" });
+    const navigate = new BrowserNavigateTask({
+      id: "navigate",
+      defaults: { url: TEST_PAGE_URL },
+    });
+    const snapshot = new BrowserSnapshotTask({ id: "snapshot" });
 
-      graph.addTask(session);
-      graph.addTask(navigate);
-      graph.addTask(snapshot);
+    graph.addTask(session);
+    graph.addTask(navigate);
+    graph.addTask(snapshot);
 
-      // Wire dataflows: session.sessionId -> navigate.sessionId
-      graph.addDataflow(new Dataflow("session", "sessionId", "navigate", "sessionId"));
-      // Wire dataflows: navigate.sessionId -> snapshot.sessionId
-      graph.addDataflow(new Dataflow("navigate", "sessionId", "snapshot", "sessionId"));
+    // Wire dataflows: session.sessionId -> navigate.sessionId
+    graph.addDataflow(new Dataflow("session", "sessionId", "navigate", "sessionId"));
+    // Wire dataflows: navigate.sessionId -> snapshot.sessionId
+    graph.addDataflow(new Dataflow("navigate", "sessionId", "snapshot", "sessionId"));
 
-      // Run the graph
-      const results = await graph.run();
+    // Run the graph
+    const results = await graph.run();
 
-      // Find the snapshot result
-      const snapshotResult = results.find((r) => r.id === "snapshot");
-      expect(snapshotResult).toBeDefined();
+    // Find the snapshot result
+    const snapshotResult = results.find((r) => r.id === "snapshot");
+    expect(snapshotResult).toBeDefined();
 
-      const data = snapshotResult!.data as { sessionId: string; tree: { yaml: string } };
+    const data = snapshotResult!.data as { sessionId: string; tree: { yaml: string } };
 
-      // Assert sessionId is a string
-      expect(typeof data.sessionId).toBe("string");
-      expect(data.sessionId.length).toBeGreaterThan(0);
+    // Assert sessionId is a string
+    expect(typeof data.sessionId).toBe("string");
+    expect(data.sessionId.length).toBeGreaterThan(0);
 
-      // Assert the accessibility tree yaml contains expected elements
-      expect(data.tree).toBeDefined();
-      expect(typeof data.tree.yaml).toBe("string");
-      expect(data.tree.yaml.toLowerCase()).toContain("heading");
-      expect(data.tree.yaml.toLowerCase()).toContain("button");
-    },
-    60_000
-  );
+    // Assert the accessibility tree yaml contains expected elements
+    expect(data.tree).toBeDefined();
+    expect(typeof data.tree.yaml).toBe("string");
+    expect(data.tree.yaml.toLowerCase()).toContain("heading");
+    expect(data.tree.yaml.toLowerCase()).toContain("button");
+  }, 60_000);
 });

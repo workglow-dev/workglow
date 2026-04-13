@@ -71,7 +71,8 @@ export class BrowserPressKeyTask extends Task<
   static override readonly type = "BrowserPressKeyTask";
   static override readonly category = "Browser";
   public static override title = "Browser Press Key";
-  public static override description = "Presses a keyboard key in the browser, optionally with modifiers";
+  public static override description =
+    "Presses a keyboard key in the browser, optionally with modifiers";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

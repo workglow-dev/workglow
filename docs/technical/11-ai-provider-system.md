@@ -36,14 +36,14 @@ Main Thread                              Worker Thread
 
 Source files:
 
-| File | Purpose |
-|------|---------|
-| `packages/ai/src/provider/AiProvider.ts` | `AiProvider` abstract base class |
-| `packages/ai/src/provider/QueuedAiProvider.ts` | `QueuedAiProvider` with job queue support |
-| `packages/ai/src/provider/AiProviderRegistry.ts` | Singleton registry and function type definitions |
-| `packages/ai/src/execution/IAiExecutionStrategy.ts` | Strategy interface |
-| `packages/ai/src/execution/DirectExecutionStrategy.ts` | Non-queued strategy |
-| `packages/ai/src/execution/QueuedExecutionStrategy.ts` | Queue-based strategy |
+| File                                                   | Purpose                                          |
+| ------------------------------------------------------ | ------------------------------------------------ |
+| `packages/ai/src/provider/AiProvider.ts`               | `AiProvider` abstract base class                 |
+| `packages/ai/src/provider/QueuedAiProvider.ts`         | `QueuedAiProvider` with job queue support        |
+| `packages/ai/src/provider/AiProviderRegistry.ts`       | Singleton registry and function type definitions |
+| `packages/ai/src/execution/IAiExecutionStrategy.ts`    | Strategy interface                               |
+| `packages/ai/src/execution/DirectExecutionStrategy.ts` | Non-queued strategy                              |
+| `packages/ai/src/execution/QueuedExecutionStrategy.ts` | Queue-based strategy                             |
 
 ---
 
@@ -129,8 +129,11 @@ The provider imports run functions directly and registers them on the main threa
 cloud API providers where the "heavy" dependency is just an HTTP SDK:
 
 ```typescript
-import { ANTHROPIC_TASKS, ANTHROPIC_STREAM_TASKS, ANTHROPIC_REACTIVE_TASKS }
-  from "./common/Anthropic_JobRunFns";
+import {
+  ANTHROPIC_TASKS,
+  ANTHROPIC_STREAM_TASKS,
+  ANTHROPIC_REACTIVE_TASKS,
+} from "./common/Anthropic_JobRunFns";
 import { AnthropicQueuedProvider } from "./AnthropicQueuedProvider";
 
 await new AnthropicQueuedProvider(
@@ -162,8 +165,9 @@ import { HFT_TASKS, HFT_STREAM_TASKS } from "./common/HFT_JobRunFns";
 import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
 
 const workerServer = globalServiceRegistry.get(WORKER_SERVER);
-new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS)
-  .registerOnWorkerServer(workerServer);
+new HuggingFaceTransformersProvider(HFT_TASKS, HFT_STREAM_TASKS).registerOnWorkerServer(
+  workerServer
+);
 workerServer.sendReady();
 ```
 
@@ -232,7 +236,7 @@ class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider {
     if (device && GPU_DEVICES.has(device)) {
       return this.queuedStrategy!; // WebGPU/Metal -> serialized
     }
-    return this.cpuStrategy!;       // WASM/CPU -> higher concurrency
+    return this.cpuStrategy!; // WASM/CPU -> higher concurrency
   }
 }
 ```
@@ -250,7 +254,7 @@ The registry maintains three two-level `Map` structures, keyed by task type then
 
 ```typescript
 class AiProviderRegistry {
-  runFnRegistry: Map<string, Map<string, AiProviderRunFn>>;       // taskType -> provider -> fn
+  runFnRegistry: Map<string, Map<string, AiProviderRunFn>>; // taskType -> provider -> fn
   streamFnRegistry: Map<string, Map<string, AiProviderStreamFn>>;
   reactiveRunFnRegistry: Map<string, Map<string, AiProviderReactiveRunFn>>;
   private providers: Map<string, AiProvider>;
@@ -325,11 +329,11 @@ The complete lifecycle of a provider from registration to execution:
    await provider.dispose()
 ```
 
-| Hook | When Called | Purpose |
-|------|------------|---------|
-| `onInitialize(context)` | Start of `register()` | Provider-specific setup (e.g., WASM backend config) |
-| `afterRegister(options)` | End of `register()` | Post-registration setup (e.g., queue creation) |
-| `dispose()` | Manual teardown | Resource cleanup (e.g., clearing pipeline caches) |
+| Hook                     | When Called           | Purpose                                             |
+| ------------------------ | --------------------- | --------------------------------------------------- |
+| `onInitialize(context)`  | Start of `register()` | Provider-specific setup (e.g., WASM backend config) |
+| `afterRegister(options)` | End of `register()`   | Post-registration setup (e.g., queue creation)      |
+| `dispose()`              | Manual teardown       | Resource cleanup (e.g., clearing pipeline caches)   |
 
 If `afterRegister()` throws, the provider is cleaned up from the registry via
 `unregisterProvider()` to avoid an inconsistent state.
@@ -379,15 +383,15 @@ Unlike other packages that build per-runtime targets (`browser.ts`, `node.ts`, `
 with optional peer dependencies:
 
 ```typescript
-import "@workglow/ai-provider/anthropic";       // Claude (requires @anthropic-ai/sdk)
-import "@workglow/ai-provider/openai";           // OpenAI (requires openai)
-import "@workglow/ai-provider/gemini";           // Google Gemini (requires @google/generative-ai)
-import "@workglow/ai-provider/ollama";           // Ollama (requires ollama)
-import "@workglow/ai-provider/hf-transformers";  // HuggingFace Transformers.js
-import "@workglow/ai-provider/hf-inference";     // HuggingFace Inference API
-import "@workglow/ai-provider/llamacpp";         // node-llama-cpp
-import "@workglow/ai-provider/tf-mediapipe";     // TensorFlow MediaPipe (browser)
-import "@workglow/ai-provider/chrome";           // Chrome Built-in AI
+import "@workglow/ai-provider/anthropic"; // Claude (requires @anthropic-ai/sdk)
+import "@workglow/ai-provider/openai"; // OpenAI (requires openai)
+import "@workglow/ai-provider/gemini"; // Google Gemini (requires @google/generative-ai)
+import "@workglow/ai-provider/ollama"; // Ollama (requires ollama)
+import "@workglow/ai-provider/hf-transformers"; // HuggingFace Transformers.js
+import "@workglow/ai-provider/hf-inference"; // HuggingFace Inference API
+import "@workglow/ai-provider/llamacpp"; // node-llama-cpp
+import "@workglow/ai-provider/tf-mediapipe"; // TensorFlow MediaPipe (browser)
+import "@workglow/ai-provider/chrome"; // Chrome Built-in AI
 ```
 
 Each sub-path also has a `/runtime` variant (e.g., `@workglow/ai-provider/anthropic/runtime`) that
@@ -400,17 +404,17 @@ Some providers (Ollama, OpenAI) also have browser-specific conditional exports i
 
 ## Available Providers
 
-| Provider | Class | `name` | Local | Browser | Key Task Types |
-|----------|-------|--------|:-----:|:-------:|----------------|
-| Anthropic | `AnthropicProvider` | `"ANTHROPIC"` | No | Yes | Text generation, summarization, rewriting, structured output, tool calling |
-| OpenAI | `OpenAiProvider` | `"OPENAI"` | No | Yes | Text generation, embeddings, structured output, tool calling |
-| Google Gemini | `GoogleGeminiProvider` | `"GOOGLE_GEMINI"` | No | Yes | Text generation, embeddings, structured output, tool calling |
-| Ollama | `OllamaProvider` | `"OLLAMA"` | Yes | Yes | Text generation, embeddings, rewriting, summarization, tool calling |
-| HF Transformers | `HuggingFaceTransformersProvider` | `"HF_TRANSFORMERS_ONNX"` | Yes | Yes | Embeddings, classification, NER, translation, image segmentation, object detection |
-| HF Inference | `HfInferenceProvider` | `"HF_INFERENCE"` | No | Yes | Text generation, embeddings, rewriting, summarization, tool calling |
-| LlamaCpp | `LlamaCppProvider` | `"LOCAL_LLAMACPP"` | Yes | No | Text generation, embeddings, token counting, tool calling |
-| MediaPipe | `TensorFlowMediaPipeProvider` | `"TENSORFLOW_MEDIAPIPE"` | Yes | Yes | Text/image embeddings, classification, segmentation, pose/face/hand landmarks |
-| Chrome Built-in AI | `WebBrowserProvider` | `"WEB_BROWSER"` | Yes | Yes | Text generation, summarization, translation, language detection, rewriting |
+| Provider           | Class                             | `name`                   | Local | Browser | Key Task Types                                                                     |
+| ------------------ | --------------------------------- | ------------------------ | :---: | :-----: | ---------------------------------------------------------------------------------- |
+| Anthropic          | `AnthropicProvider`               | `"ANTHROPIC"`            |  No   |   Yes   | Text generation, summarization, rewriting, structured output, tool calling         |
+| OpenAI             | `OpenAiProvider`                  | `"OPENAI"`               |  No   |   Yes   | Text generation, embeddings, structured output, tool calling                       |
+| Google Gemini      | `GoogleGeminiProvider`            | `"GOOGLE_GEMINI"`        |  No   |   Yes   | Text generation, embeddings, structured output, tool calling                       |
+| Ollama             | `OllamaProvider`                  | `"OLLAMA"`               |  Yes  |   Yes   | Text generation, embeddings, rewriting, summarization, tool calling                |
+| HF Transformers    | `HuggingFaceTransformersProvider` | `"HF_TRANSFORMERS_ONNX"` |  Yes  |   Yes   | Embeddings, classification, NER, translation, image segmentation, object detection |
+| HF Inference       | `HfInferenceProvider`             | `"HF_INFERENCE"`         |  No   |   Yes   | Text generation, embeddings, rewriting, summarization, tool calling                |
+| LlamaCpp           | `LlamaCppProvider`                | `"LOCAL_LLAMACPP"`       |  Yes  |   No    | Text generation, embeddings, token counting, tool calling                          |
+| MediaPipe          | `TensorFlowMediaPipeProvider`     | `"TENSORFLOW_MEDIAPIPE"` |  Yes  |   Yes   | Text/image embeddings, classification, segmentation, pose/face/hand landmarks      |
+| Chrome Built-in AI | `WebBrowserProvider`              | `"WEB_BROWSER"`          |  Yes  |   Yes   | Text generation, summarization, translation, language detection, rewriting         |
 
 ---
 
@@ -493,57 +497,57 @@ Add the provider to `package.json` `exports` and the build scripts.
 
 ### AiProvider (abstract)
 
-| Member | Type | Description |
-|--------|------|-------------|
-| `name` | `string` (abstract) | Unique provider identifier |
-| `displayName` | `string` (abstract) | Human-readable label |
-| `isLocal` | `boolean` (abstract) | Whether models run locally |
-| `supportsBrowser` | `boolean` (abstract) | Whether usable in browsers |
-| `taskTypes` | `readonly string[]` (abstract) | Supported task type names |
-| `register(options?)` | `Promise<void>` | Register on the main thread |
-| `registerOnWorkerServer(server)` | `void` | Register on a Web Worker |
-| `dispose()` | `Promise<void>` | Cleanup resources |
-| `getRunFn(taskType)` | `AiProviderRunFn \| undefined` | Get run function for task type |
-| `getStreamFn(taskType)` | `AiProviderStreamFn \| undefined` | Get stream function |
-| `getReactiveRunFn(taskType)` | `AiProviderReactiveRunFn \| undefined` | Get reactive function |
+| Member                           | Type                                   | Description                    |
+| -------------------------------- | -------------------------------------- | ------------------------------ |
+| `name`                           | `string` (abstract)                    | Unique provider identifier     |
+| `displayName`                    | `string` (abstract)                    | Human-readable label           |
+| `isLocal`                        | `boolean` (abstract)                   | Whether models run locally     |
+| `supportsBrowser`                | `boolean` (abstract)                   | Whether usable in browsers     |
+| `taskTypes`                      | `readonly string[]` (abstract)         | Supported task type names      |
+| `register(options?)`             | `Promise<void>`                        | Register on the main thread    |
+| `registerOnWorkerServer(server)` | `void`                                 | Register on a Web Worker       |
+| `dispose()`                      | `Promise<void>`                        | Cleanup resources              |
+| `getRunFn(taskType)`             | `AiProviderRunFn \| undefined`         | Get run function for task type |
+| `getStreamFn(taskType)`          | `AiProviderStreamFn \| undefined`      | Get stream function            |
+| `getReactiveRunFn(taskType)`     | `AiProviderReactiveRunFn \| undefined` | Get reactive function          |
 
 ### QueuedAiProvider (abstract)
 
-| Member | Type | Description |
-|--------|------|-------------|
-| `queuedStrategy` | `QueuedExecutionStrategy` (protected) | The queue strategy instance |
-| `getStrategyForModel(model)` | `IAiExecutionStrategy` (protected) | Override for model-aware routing |
-| `createQueuedStrategy(name, concurrency, options)` | `QueuedExecutionStrategy` (protected) | Helper for extra queues |
+| Member                                             | Type                                  | Description                      |
+| -------------------------------------------------- | ------------------------------------- | -------------------------------- |
+| `queuedStrategy`                                   | `QueuedExecutionStrategy` (protected) | The queue strategy instance      |
+| `getStrategyForModel(model)`                       | `IAiExecutionStrategy` (protected)    | Override for model-aware routing |
+| `createQueuedStrategy(name, concurrency, options)` | `QueuedExecutionStrategy` (protected) | Helper for extra queues          |
 
 ### AiProviderRegistry
 
-| Method | Description |
-|--------|-------------|
-| `registerProvider(provider)` | Register a provider instance |
-| `unregisterProvider(name)` | Remove a provider and all its functions |
-| `getProvider(name)` | Get a provider by name |
-| `getProviders()` | Get all providers as a Map |
-| `getInstalledProviderIds()` | Sorted list of provider names |
-| `getProviderIdsForTask(taskType)` | Providers supporting a task type |
-| `registerRunFn(provider, taskType, fn)` | Register a direct run function |
-| `registerStreamFn(provider, taskType, fn)` | Register a stream function |
-| `registerReactiveRunFn(provider, taskType, fn)` | Register a reactive function |
-| `registerAsWorkerRunFn(provider, taskType)` | Register a worker-proxied run function |
-| `registerAsWorkerStreamFn(provider, taskType)` | Register a worker-proxied stream function |
+| Method                                              | Description                                 |
+| --------------------------------------------------- | ------------------------------------------- |
+| `registerProvider(provider)`                        | Register a provider instance                |
+| `unregisterProvider(name)`                          | Remove a provider and all its functions     |
+| `getProvider(name)`                                 | Get a provider by name                      |
+| `getProviders()`                                    | Get all providers as a Map                  |
+| `getInstalledProviderIds()`                         | Sorted list of provider names               |
+| `getProviderIdsForTask(taskType)`                   | Providers supporting a task type            |
+| `registerRunFn(provider, taskType, fn)`             | Register a direct run function              |
+| `registerStreamFn(provider, taskType, fn)`          | Register a stream function                  |
+| `registerReactiveRunFn(provider, taskType, fn)`     | Register a reactive function                |
+| `registerAsWorkerRunFn(provider, taskType)`         | Register a worker-proxied run function      |
+| `registerAsWorkerStreamFn(provider, taskType)`      | Register a worker-proxied stream function   |
 | `registerAsWorkerReactiveRunFn(provider, taskType)` | Register a worker-proxied reactive function |
-| `getDirectRunFn(provider, taskType)` | Get run function (throws if missing) |
-| `getStreamFn(provider, taskType)` | Get stream function (returns undefined) |
-| `getReactiveRunFn(provider, taskType)` | Get reactive function (returns undefined) |
-| `registerStrategyResolver(provider, resolver)` | Register a strategy resolver |
-| `getStrategy(model)` | Resolve execution strategy for a model |
+| `getDirectRunFn(provider, taskType)`                | Get run function (throws if missing)        |
+| `getStreamFn(provider, taskType)`                   | Get stream function (returns undefined)     |
+| `getReactiveRunFn(provider, taskType)`              | Get reactive function (returns undefined)   |
+| `registerStrategyResolver(provider, resolver)`      | Register a strategy resolver                |
+| `getStrategy(model)`                                | Resolve execution strategy for a model      |
 
 ### AiProviderRegisterOptions
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `worker` | `Worker \| (() => Worker)` | Web Worker for worker-backed mode |
-| `queue.concurrency` | `number \| Record<string, number>` | Job queue concurrency |
-| `queue.autoCreate` | `boolean` | Whether to auto-create the queue (default: `true`) |
+| Field               | Type                               | Description                                        |
+| ------------------- | ---------------------------------- | -------------------------------------------------- |
+| `worker`            | `Worker \| (() => Worker)`         | Web Worker for worker-backed mode                  |
+| `queue.concurrency` | `number \| Record<string, number>` | Job queue concurrency                              |
+| `queue.autoCreate`  | `boolean`                          | Whether to auto-create the queue (default: `true`) |
 
 ### getAiProviderRegistry() / setAiProviderRegistry(pr)
 

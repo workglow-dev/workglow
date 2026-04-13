@@ -73,7 +73,8 @@ export class BrowserExtractHtmlTask extends Task<
   static override readonly type = "BrowserExtractHtmlTask";
   static override readonly category = "Browser";
   public static override title = "Browser Extract HTML";
-  public static override description = "Extracts HTML content from a specific element by ref or CSS selector";
+  public static override description =
+    "Extracts HTML content from a specific element by ref or CSS selector";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

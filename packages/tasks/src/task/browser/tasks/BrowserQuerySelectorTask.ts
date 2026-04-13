@@ -56,7 +56,8 @@ export class BrowserQuerySelectorTask extends Task<
   static override readonly type = "BrowserQuerySelectorTask";
   static override readonly category = "Browser";
   public static override title = "Browser Query Selector";
-  public static override description = "Queries all elements matching a CSS selector and returns their refs";
+  public static override description =
+    "Queries all elements matching a CSS selector and returns their refs";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

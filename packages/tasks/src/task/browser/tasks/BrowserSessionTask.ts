@@ -103,7 +103,9 @@ export class BrowserSessionTask extends Task<
 
   public static override entitlements(): TaskEntitlements {
     return {
-      entitlements: [{ id: Entitlements.BROWSER, reason: "Creates and manages a browser session" }],
+      entitlements: [
+        { id: Entitlements.BROWSER_CONTROL, reason: "Creates and manages a browser session" },
+      ],
     };
   }
 
@@ -113,14 +115,17 @@ export class BrowserSessionTask extends Task<
     if (backend === "local" || backend === "electron-native") {
       return mergeEntitlements(base, {
         entitlements: [
-          { id: Entitlements.BROWSER_LOCAL, reason: "Launches a local browser process" },
+          { id: Entitlements.BROWSER_CONTROL_LOCAL, reason: "Launches a local browser process" },
         ],
       });
     }
     if (backend === "cloud") {
       return mergeEntitlements(base, {
         entitlements: [
-          { id: Entitlements.BROWSER_CLOUD, reason: "Connects to a remote cloud browser service" },
+          {
+            id: Entitlements.BROWSER_CONTROL_CLOUD,
+            reason: "Connects to a remote cloud browser service",
+          },
         ],
       });
     }
@@ -130,12 +135,15 @@ export class BrowserSessionTask extends Task<
       mergeEntitlements(
         {
           entitlements: [
-            { id: Entitlements.BROWSER_LOCAL, reason: "Launches a local browser process" },
+            { id: Entitlements.BROWSER_CONTROL_LOCAL, reason: "Launches a local browser process" },
           ],
         },
         {
           entitlements: [
-            { id: Entitlements.BROWSER_CLOUD, reason: "Connects to a remote cloud browser service" },
+            {
+              id: Entitlements.BROWSER_CONTROL_CLOUD,
+              reason: "Connects to a remote cloud browser service",
+            },
           ],
         }
       )

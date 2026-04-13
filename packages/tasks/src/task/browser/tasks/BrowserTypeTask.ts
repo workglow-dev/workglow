@@ -60,7 +60,8 @@ export class BrowserTypeTask extends Task<
   static override readonly type = "BrowserTypeTask";
   static override readonly category = "Browser";
   public static override title = "Browser Type";
-  public static override description = "Types text into the currently focused element in the browser";
+  public static override description =
+    "Types text into the currently focused element in the browser";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

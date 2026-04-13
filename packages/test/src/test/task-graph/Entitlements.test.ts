@@ -607,7 +607,7 @@ describe("Entitlements", () => {
     it("server profile extends desktop with browser:cloud", () => {
       const serverGrants = getProfileGrants("server");
       const desktopGrants = getProfileGrants("desktop");
-      expect(serverGrants).toEqual([...desktopGrants, { id: Entitlements.BROWSER_CLOUD }]);
+      expect(serverGrants).toEqual([...desktopGrants, { id: Entitlements.BROWSER_CONTROL_CLOUD }]);
     });
   });
 

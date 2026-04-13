@@ -75,7 +75,8 @@ export class BrowserUploadTask extends Task<
   static override readonly type = "BrowserUploadTask";
   static override readonly category = "Browser";
   public static override title = "Browser Upload";
-  public static override description = "Uploads one or more files to a file input element in the browser";
+  public static override description =
+    "Uploads one or more files to a file input element in the browser";
   static override readonly cacheable = false;
 
   public static override entitlements(): TaskEntitlements {

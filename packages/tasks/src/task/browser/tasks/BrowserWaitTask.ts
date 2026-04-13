@@ -77,7 +77,8 @@ export class BrowserWaitTask extends Task<
   static override readonly type = "BrowserWaitTask";
   static override readonly category = "Browser";
   public static override title = "Browser Wait";
-  public static override description = "Waits for a navigation, selector, or network idle state in the browser";
+  public static override description =
+    "Waits for a navigation, selector, or network idle state in the browser";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

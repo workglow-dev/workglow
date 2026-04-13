@@ -81,7 +81,8 @@ export class BrowserClickTask extends Task<
   static override readonly type = "BrowserClickTask";
   static override readonly category = "Browser";
   public static override title = "Browser Click";
-  public static override description = "Clicks an element in the browser by ref or by ARIA role and name";
+  public static override description =
+    "Clicks an element in the browser by ref or by ARIA role and name";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

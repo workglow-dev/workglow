@@ -61,7 +61,8 @@ export class BrowserEvaluateTask extends Task<
   static override readonly type = "BrowserEvaluateTask";
   static override readonly category = "Browser";
   public static override title = "Browser Evaluate";
-  public static override description = "Evaluates a JavaScript expression in the browser page context";
+  public static override description =
+    "Evaluates a JavaScript expression in the browser page context";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {
@@ -79,7 +80,10 @@ export class BrowserEvaluateTask extends Task<
   public static override entitlements(): TaskEntitlements {
     return {
       entitlements: [
-        { id: Entitlements.BROWSER_EVALUATE, reason: "Evaluates arbitrary JavaScript in the browser context" },
+        {
+          id: Entitlements.BROWSER_CONTROL_EVALUATE,
+          reason: "Evaluates arbitrary JavaScript in the browser context",
+        },
       ],
     };
   }

@@ -50,7 +50,8 @@ export class BrowserForwardTask extends Task<
   static override readonly type = "BrowserForwardTask";
   static override readonly category = "Browser";
   public static override title = "Browser Forward";
-  public static override description = "Navigates forward in the browser history and returns the current URL";
+  public static override description =
+    "Navigates forward in the browser history and returns the current URL";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

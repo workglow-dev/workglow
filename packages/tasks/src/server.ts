@@ -16,7 +16,9 @@ const SAFE_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 
 function safeName(value: string, label: string): string {
   if (!SAFE_NAME_RE.test(value)) {
-    throw new Error(`Invalid ${label}: must contain only alphanumeric characters, hyphens, and underscores`);
+    throw new Error(
+      `Invalid ${label}: must contain only alphanumeric characters, hyphens, and underscores`
+    );
   }
   return value;
 }

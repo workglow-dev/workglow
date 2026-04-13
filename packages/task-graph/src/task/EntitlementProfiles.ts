@@ -49,20 +49,20 @@ export const DESKTOP_GRANTS: readonly EntitlementGrant[] = [
   { id: Entitlements.FILESYSTEM },
   { id: Entitlements.CODE_EXECUTION },
   { id: Entitlements.MCP_STDIO },
-  { id: Entitlements.BROWSER },
-  { id: Entitlements.BROWSER_LOCAL },
-  { id: Entitlements.BROWSER_NAVIGATE },
-  { id: Entitlements.BROWSER_EVALUATE },
-  { id: Entitlements.BROWSER_CREDENTIAL },
+  { id: Entitlements.BROWSER_CONTROL },
+  { id: Entitlements.BROWSER_CONTROL_LOCAL },
+  { id: Entitlements.BROWSER_CONTROL_NAVIGATE },
+  { id: Entitlements.BROWSER_CONTROL_EVALUATE },
+  { id: Entitlements.BROWSER_CONTROL_CREDENTIAL },
 ];
 
 /**
  * Server environment grants (e.g., cloud deployment).
- * Same as desktop plus BROWSER_CLOUD since server can proxy to cloud providers.
+ * Same as desktop plus BROWSER_CONTROL_CLOUD since server can proxy to cloud providers.
  */
 export const SERVER_GRANTS: readonly EntitlementGrant[] = [
   ...DESKTOP_GRANTS,
-  { id: Entitlements.BROWSER_CLOUD },
+  { id: Entitlements.BROWSER_CONTROL_CLOUD },
 ];
 
 // ========================================================================

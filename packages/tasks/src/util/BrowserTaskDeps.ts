@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IBrowserContext, BrowserConnectOptions, BrowserBackendType } from "../task/browser/IBrowserContext";
 import { createServiceToken, globalServiceRegistry } from "@workglow/util";
+import type {
+  BrowserBackendType,
+  BrowserConnectOptions,
+  IBrowserContext,
+} from "../task/browser/IBrowserContext";
 
 export interface IBrowserProfileStorage {
   save(projectId: string, profileName: string, state: string): Promise<void>;
@@ -20,17 +24,18 @@ export interface BrowserTaskDeps {
   readonly profileStorage: IBrowserProfileStorage;
 }
 
-export const BROWSER_TASK_DEPS = createServiceToken<BrowserTaskDeps>("@workglow/tasks/browser");
+export const BROWSER_CONTROL_TASK_DEPS =
+  createServiceToken<BrowserTaskDeps>("@workglow/tasks/browser");
 
 export function registerBrowserDeps(deps: BrowserTaskDeps): void {
-  globalServiceRegistry.registerInstance(BROWSER_TASK_DEPS, deps);
+  globalServiceRegistry.registerInstance(BROWSER_CONTROL_TASK_DEPS, deps);
 }
 
 export function getBrowserDeps(): BrowserTaskDeps {
-  if (!globalServiceRegistry.has(BROWSER_TASK_DEPS)) {
+  if (!globalServiceRegistry.has(BROWSER_CONTROL_TASK_DEPS)) {
     throw new Error(
       "Browser task dependencies not registered. Import @workglow/tasks from a platform entry (browser, node, or bun) before using browser tasks."
     );
   }
-  return globalServiceRegistry.get(BROWSER_TASK_DEPS);
+  return globalServiceRegistry.get(BROWSER_CONTROL_TASK_DEPS);
 }

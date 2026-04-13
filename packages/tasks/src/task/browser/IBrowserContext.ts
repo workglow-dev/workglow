@@ -342,9 +342,7 @@ export interface IBrowserContext {
    * Register a handler that will be called whenever a dialog appears.
    * The handler must return a DialogAction synchronously or as a Promise.
    */
-  onDialog(
-    handler: (info: DialogInfo) => DialogAction | Promise<DialogAction>
-  ): void;
+  onDialog(handler: (info: DialogInfo) => DialogAction | Promise<DialogAction>): void;
 
   // -- Tabs -----------------------------------------------------------------
 

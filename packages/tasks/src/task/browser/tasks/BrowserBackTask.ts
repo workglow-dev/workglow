@@ -46,7 +46,8 @@ export class BrowserBackTask extends Task<BrowserBackTaskInput, BrowserBackTaskO
   static override readonly type = "BrowserBackTask";
   static override readonly category = "Browser";
   public static override title = "Browser Back";
-  public static override description = "Navigates back in the browser history and returns the current URL";
+  public static override description =
+    "Navigates back in the browser history and returns the current URL";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {

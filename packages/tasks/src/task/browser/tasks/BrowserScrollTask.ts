@@ -76,7 +76,8 @@ export class BrowserScrollTask extends Task<
   static override readonly type = "BrowserScrollTask";
   static override readonly category = "Browser";
   public static override title = "Browser Scroll";
-  public static override description = "Scrolls the page or a specific element by the given pixel deltas";
+  public static override description =
+    "Scrolls the page or a specific element by the given pixel deltas";
   static override readonly cacheable = false;
 
   public static override configSchema(): DataPortSchema {
