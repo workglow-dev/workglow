@@ -267,7 +267,7 @@
       },
       "optionalDependencies": {
         "papaparse": "^5.5.3",
-        "playwright": "^1.59.1",
+        "playwright": "catalog:",
         "sharp": "^0.34.5",
       },
       "peerDependencies": {
@@ -388,6 +388,7 @@
     "ollama": "^0.6.3",
     "openai": "^6.34.0",
     "pg": "^8.20.0",
+    "playwright": "^1.59.1",
     "tiktoken": "^1.0.22",
   },
   "packages": {

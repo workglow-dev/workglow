@@ -43,6 +43,7 @@
     "openai": "catalog:",
     "pg": "catalog:",
     "vitest": "^4.1.4",
-    "@modelcontextprotocol/sdk": "catalog:"
+    "@modelcontextprotocol/sdk": "catalog:",
+    "playwright": "catalog:"
   }
 }
