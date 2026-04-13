@@ -119,6 +119,7 @@ export interface BrowserConnectOptions {
   readonly profileName?: string;
   readonly headless?: boolean;
   readonly cdpUrl?: string;
+  readonly chromePath?: string;
 }
 
 // ---------------------------------------------------------------------------
