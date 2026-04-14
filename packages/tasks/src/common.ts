@@ -39,6 +39,7 @@ export * from "./task/image/ImageSchemas";
 export * from "./task/image/ImageSepiaTask";
 export * from "./task/image/imageTaskIo";
 export * from "./task/image/imageTaskTransport";
+export * from "./task/image/ImageTextTask";
 export * from "./task/image/ImageThresholdTask";
 export * from "./task/image/ImageTintTask";
 export * from "./task/image/ImageTransparencyTask";
@@ -114,6 +115,7 @@ import { ImagePosterizeTask } from "./task/image/ImagePosterizeTask";
 import { ImageResizeTask } from "./task/image/ImageResizeTask";
 import { ImageRotateTask } from "./task/image/ImageRotateTask";
 import { ImageSepiaTask } from "./task/image/ImageSepiaTask";
+import { ImageTextTask } from "./task/image/ImageTextTask";
 import { ImageThresholdTask } from "./task/image/ImageThresholdTask";
 import { ImageTintTask } from "./task/image/ImageTintTask";
 import { ImageTransparencyTask } from "./task/image/ImageTransparencyTask";
@@ -237,6 +239,7 @@ export let registerCommonTasks = () => {
     ImageThresholdTask,
     ImagePosterizeTask,
     ImageTintTask,
+    ImageTextTask,
   ];
   tasks.map(TaskRegistry.registerTask);
   registerBrowserTasks();

@@ -18,6 +18,7 @@ import {
   ImageResizeTask,
   ImageRotateTask,
   ImageSepiaTask,
+  ImageTextTask,
   ImageThresholdTask,
   ImageTintTask,
   ImageTransparencyTask,
@@ -47,6 +48,65 @@ function getPixel(image: ImageBinary, x: number, y: number): number[] {
     pixel.push(image.data[idx + c]);
   }
   return pixel;
+}
+
+function getAlpha(image: ImageBinary, x: number, y: number): number {
+  const idx = (y * image.width + x) * image.channels;
+  return image.data[idx + 3] ?? 0;
+}
+
+function countTextishPixels(image: ImageBinary, alphaThreshold = 8): number {
+  let n = 0;
+  const ch = image.channels;
+  for (let i = ch - 1; i < image.data.length; i += ch) {
+    if ((image.data[i] ?? 0) > alphaThreshold) n++;
+  }
+  return n;
+}
+
+function getAlphaBounds(
+  image: ImageBinary,
+  alphaThreshold = 8
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  const { width, height, data, channels } = image;
+  if (channels !== 4) return null;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const a = data[(y * width + x) * 4 + 3] ?? 0;
+      if (a > alphaThreshold) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+function getPixelWithHighestAlphaInBounds(
+  image: ImageBinary,
+  b: { minX: number; minY: number; maxX: number; maxY: number }
+): number[] {
+  let bestA = -1;
+  let bestX = b.minX;
+  let bestY = b.minY;
+  for (let y = b.minY; y <= b.maxY; y++) {
+    for (let x = b.minX; x <= b.maxX; x++) {
+      const a = getAlpha(image, x, y);
+      if (a > bestA) {
+        bestA = a;
+        bestX = x;
+        bestY = y;
+      }
+    }
+  }
+  return getPixel(image, bestX, bestY);
 }
 
 /** Minimal valid 1×1 RGB PNG (sharp-generated), as data URI. */
@@ -479,6 +539,108 @@ describe("ImageTask", () => {
         amount: 0.5,
       })) as { image: ImageBinary };
       expect(result.image.data[3]).toBe(42);
+    });
+  });
+
+  describe("ImageTextTask", () => {
+    const base = {
+      text: "A",
+      font: "sans-serif",
+      fontSize: 36,
+      bold: false,
+      italic: false,
+      color: { r: 20, g: 20, b: 20, a: 255 },
+      width: 160,
+      height: 160,
+    } as const;
+
+    test("outputs RGBA image with requested dimensions", async () => {
+      const task = new ImageTextTask();
+      const result = (await task.run({ ...base, position: "middle-center" })) as {
+        image: ImageBinary;
+      };
+      expect(result.image.width).toBe(160);
+      expect(result.image.height).toBe(160);
+      expect(result.image.channels).toBe(4);
+    });
+
+    test("keeps a corner transparent when text is anchored bottom-right", async () => {
+      const task = new ImageTextTask();
+      const result = (await task.run({ ...base, position: "bottom-right" })) as {
+        image: ImageBinary;
+      };
+      expect(getAlpha(result.image, 0, 0)).toBeLessThan(12);
+    });
+
+    test("top-left anchor places ink nearer the upper-left than bottom-right anchor", async () => {
+      const task = new ImageTextTask();
+      const tl = (await task.run({ ...base, position: "top-left" })) as { image: ImageBinary };
+      const br = (await task.run({ ...base, position: "bottom-right" })) as { image: ImageBinary };
+      const b1 = getAlphaBounds(tl.image);
+      const b2 = getAlphaBounds(br.image);
+      expect(b1).not.toBeNull();
+      expect(b2).not.toBeNull();
+      const c1x = (b1!.minX + b1!.maxX) / 2;
+      const c1y = (b1!.minY + b1!.maxY) / 2;
+      const c2x = (b2!.minX + b2!.maxX) / 2;
+      const c2y = (b2!.minY + b2!.maxY) / 2;
+      expect(c1x + c1y).toBeLessThan(c2x + c2y);
+    });
+
+    test("uses text color in rendered pixels", async () => {
+      const task = new ImageTextTask();
+      const result = (await task.run({
+        ...base,
+        color: { r: 200, g: 10, b: 30, a: 255 },
+        position: "middle-center",
+      })) as { image: ImageBinary };
+      const b = getAlphaBounds(result.image);
+      expect(b).not.toBeNull();
+      const px = getPixelWithHighestAlphaInBounds(result.image, b!);
+      expect(px[0]).toBeGreaterThan(170);
+      expect(px[1]).toBeLessThan(80);
+      expect(px[2]).toBeLessThan(80);
+    });
+
+    test("larger font size paints more pixels than a smaller one", async () => {
+      const task = new ImageTextTask();
+      const small = (await task.run({ ...base, fontSize: 14, position: "middle-center" })) as {
+        image: ImageBinary;
+      };
+      const large = (await task.run({ ...base, fontSize: 42, position: "middle-center" })) as {
+        image: ImageBinary;
+      };
+      expect(countTextishPixels(large.image)).toBeGreaterThan(countTextishPixels(small.image));
+    });
+
+    test("renders onto an existing background image", async () => {
+      const task = new ImageTextTask();
+      const background = createTestImage(160, 160, 3, [40, 80, 120]);
+      const result = (await task.run({
+        ...base,
+        image: background,
+        position: "bottom-right",
+      })) as { image: ImageBinary };
+
+      expect(result.image.width).toBe(160);
+      expect(result.image.height).toBe(160);
+      expect(result.image.channels).toBe(4);
+      expect(getPixel(result.image, 0, 0)).toEqual([40, 80, 120, 255]);
+    });
+
+    test("preserves data-uri output when background input is a data uri", async () => {
+      const task = new ImageTextTask();
+      const result = await task.run({
+        ...base,
+        image: PNG_1X1_DATA_URI,
+        width: 1,
+        height: 1,
+        fontSize: 1,
+        position: "top-left",
+      });
+
+      expect(typeof result.image).toBe("string");
+      expect(result.image).toMatch(/^data:image\/png;base64,/);
     });
   });
 });

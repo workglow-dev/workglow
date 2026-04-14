@@ -5,6 +5,7 @@
  */
 
 import "./task/image/registerImageRasterCodec.browser";
+import "./task/image/registerImageTextRenderer.browser";
 
 export * from "./common";
 export * from "./task/FileLoaderTask";

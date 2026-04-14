@@ -5,6 +5,7 @@
  */
 
 import "./task/image/registerImageRasterCodec.node";
+import "./task/image/registerImageTextRenderer.node";
 // Install the DNS-resolving, connection-pinning SafeFetch implementation.
 // This side-effect import must happen before FetchUrlTask is used.
 import "./util/SafeFetch.server";

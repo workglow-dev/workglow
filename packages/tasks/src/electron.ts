@@ -5,6 +5,7 @@
  */
 
 import "./task/image/registerImageRasterCodec.node";
+import "./task/image/registerImageTextRenderer.node";
 import "./util/SafeFetch.server";
 
 export * from "./common";
