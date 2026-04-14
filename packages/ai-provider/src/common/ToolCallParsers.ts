@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ToolCalls } from "@workglow/ai";
+import type { ToolCallingTaskInput, ToolCalls } from "@workglow/ai";
 
 // ============================================================================
 // Types
@@ -57,6 +57,25 @@ export function stripModelArtifacts(text: string): string {
     .replace(/<think>(?:[^<]|<(?!\/think>))*<\/think>/g, "")
     .replace(/<\|[a-z_]+\|>/g, "")
     .trim();
+}
+
+/**
+ * Extract text from a content block that may be a string, array of content
+ * blocks, or other structure.
+ */
+export function extractMessageText(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return String(content ?? "");
+  }
+  return content
+    .filter(
+      (block) => block && typeof block === "object" && (block as { type?: unknown }).type === "text"
+    )
+    .map((block) => String((block as { text?: unknown }).text ?? ""))
+    .join("");
 }
 
 // ============================================================================
@@ -183,6 +202,59 @@ export function coerceArgValue(value: string): unknown {
   if (value === "false") return false;
   if (value !== "" && !isNaN(Number(value))) return Number(value);
   return value;
+}
+
+// ============================================================================
+// Tool choice utilities
+// ============================================================================
+
+export function toolChoiceForcesToolCall(toolChoice: ToolCallingTaskInput["toolChoice"]): boolean {
+  return (
+    toolChoice === "required" ||
+    (toolChoice !== undefined && toolChoice !== "auto" && toolChoice !== "none")
+  );
+}
+
+export function forcedToolSelection(input: ToolCallingTaskInput): string | undefined {
+  if (
+    typeof input.toolChoice === "string" &&
+    input.toolChoice !== "auto" &&
+    input.toolChoice !== "none"
+  ) {
+    if (input.toolChoice !== "required") {
+      return input.toolChoice;
+    }
+  }
+  if (input.toolChoice === "required" && input.tools.length === 1) {
+    return input.tools[0]?.name;
+  }
+  return undefined;
+}
+
+export function resolveParsedToolName(name: string, input: ToolCallingTaskInput): string {
+  if (input.tools.some((tool) => tool.name === name)) {
+    return name;
+  }
+  return forcedToolSelection(input) ?? name;
+}
+
+/**
+ * Convert a low-level parser result to the workglow `ToolCalls` type.
+ * When `input` is provided, tool names are resolved against the available
+ * tools list (and forced selection is applied for unrecognized names).
+ */
+export function adaptParserResult(
+  result: ToolCallParserResult,
+  input?: ToolCallingTaskInput
+): { text: string; toolCalls: ToolCalls } {
+  return {
+    text: stripModelArtifacts(result.content),
+    toolCalls: result.tool_calls.map((call, index) => ({
+      id: call.id ?? `call_${index}`,
+      name: input ? resolveParsedToolName(call.name, input) : call.name,
+      input: call.arguments,
+    })),
+  };
 }
 
 // ============================================================================
