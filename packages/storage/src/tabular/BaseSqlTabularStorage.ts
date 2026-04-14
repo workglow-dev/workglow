@@ -48,6 +48,12 @@ export abstract class BaseSqlTabularStorage<
    *                    while each array creates a compound index with columns in the specified order.
    * @param clientProvidedKeys - How to handle client-provided values for auto-generated keys
    */
+  /** Caches for computed column definition strings, keyed by delimiter */
+  private readonly _pkColsCache = new Map<string, string>();
+  private readonly _valColsCache = new Map<string, string>();
+  private readonly _pkColListCache = new Map<string, string>();
+  private readonly _valColListCache = new Map<string, string>();
+
   constructor(
     protected readonly table: string = "tabular_store",
     schema: Schema,
@@ -70,13 +76,17 @@ export abstract class BaseSqlTabularStorage<
    * @returns SQL string containing primary key column definitions
    */
   protected constructPrimaryKeyColumns($delimiter: string = ""): string {
-    const cols = Object.entries<JsonSchema>(this.primaryKeySchema.properties)
-      .map(([key, typeDef]) => {
-        const sqlType = this.mapTypeToSQL(typeDef);
-        return `${$delimiter}${key}${$delimiter} ${sqlType} NOT NULL`;
-      })
-      .join(", ");
-    return cols;
+    let cached = this._pkColsCache.get($delimiter);
+    if (cached === undefined) {
+      cached = Object.entries<JsonSchema>(this.primaryKeySchema.properties)
+        .map(([key, typeDef]) => {
+          const sqlType = this.mapTypeToSQL(typeDef);
+          return `${$delimiter}${key}${$delimiter} ${sqlType} NOT NULL`;
+        })
+        .join(", ");
+      this._pkColsCache.set($delimiter, cached);
+    }
+    return cached;
   }
 
   /**
@@ -84,21 +94,21 @@ export abstract class BaseSqlTabularStorage<
    * @returns SQL string containing value column definitions
    */
   protected constructValueColumns($delimiter: string = ""): string {
-    const requiredSet = new Set(this.valueSchema.required ?? []);
-    const cols = Object.entries<JsonSchema>(this.valueSchema.properties)
-      .map(([key, typeDef]) => {
-        const sqlType = this.mapTypeToSQL(typeDef);
-        // Check if the property is nullable based on schema definition or if it's not required
-        const isRequired = requiredSet.has(key);
-        const nullable = !isRequired || this.isNullable(typeDef);
-        return `${$delimiter}${key}${$delimiter} ${sqlType}${nullable ? " NULL" : " NOT NULL"}`;
-      })
-      .join(", ");
-    if (cols.length > 0) {
-      return `, ${cols}`;
-    } else {
-      return "";
+    let cached = this._valColsCache.get($delimiter);
+    if (cached === undefined) {
+      const requiredSet = new Set(this.valueSchema.required ?? []);
+      const cols = Object.entries<JsonSchema>(this.valueSchema.properties)
+        .map(([key, typeDef]) => {
+          const sqlType = this.mapTypeToSQL(typeDef);
+          const isRequired = requiredSet.has(key);
+          const nullable = !isRequired || this.isNullable(typeDef);
+          return `${$delimiter}${key}${$delimiter} ${sqlType}${nullable ? " NULL" : " NOT NULL"}`;
+        })
+        .join(", ");
+      cached = cols.length > 0 ? `, ${cols}` : "";
+      this._valColsCache.set($delimiter, cached);
     }
+    return cached;
   }
 
   /**
@@ -137,7 +147,12 @@ export abstract class BaseSqlTabularStorage<
    * @returns Formatted string of primary key column names
    */
   protected primaryKeyColumnList($delimiter: string = ""): string {
-    return $delimiter + this.primaryKeyColumns().join(`${$delimiter}, ${$delimiter}`) + $delimiter;
+    let cached = this._pkColListCache.get($delimiter);
+    if (cached === undefined) {
+      cached = $delimiter + this.primaryKeyColumns().join(`${$delimiter}, ${$delimiter}`) + $delimiter;
+      this._pkColListCache.set($delimiter, cached);
+    }
+    return cached;
   }
 
   /**
@@ -145,7 +160,12 @@ export abstract class BaseSqlTabularStorage<
    * @returns Formatted string of value column names
    */
   protected valueColumnList($delimiter: string = ""): string {
-    return $delimiter + this.valueColumns().join(`${$delimiter}, ${$delimiter}`) + $delimiter;
+    let cached = this._valColListCache.get($delimiter);
+    if (cached === undefined) {
+      cached = $delimiter + this.valueColumns().join(`${$delimiter}, ${$delimiter}`) + $delimiter;
+      this._valColListCache.set($delimiter, cached);
+    }
+    return cached;
   }
 
   /**

@@ -20,7 +20,8 @@ export const POSTGRES_QUEUE_STORAGE = createServiceToken<IQueueStorage<any, any>
   "jobqueue.storage.postgres"
 );
 
-// TODO: prepared statements
+/** Regex for safe SQL identifiers: starts with a letter, then alphanumeric/underscores */
+const SAFE_IDENTIFIER = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
 /**
  * PostgreSQL implementation of a job queue.
@@ -41,6 +42,16 @@ export class PostgresQueueStorage<Input, Output> implements IQueueStorage<Input,
   ) {
     this.prefixes = options?.prefixes ?? [];
     this.prefixValues = options?.prefixValues ?? {};
+
+    // Validate prefix column names to prevent SQL injection in DDL statements
+    for (const prefix of this.prefixes) {
+      if (!SAFE_IDENTIFIER.test(prefix.name)) {
+        throw new Error(
+          `Prefix column name must start with a letter and contain only letters, digits, and underscores, got: ${prefix.name}`
+        );
+      }
+    }
+
     // Generate table name based on prefix configuration to avoid column conflicts
     if (this.prefixes.length > 0) {
       const prefixNames = this.prefixes.map((p) => p.name).join("_");
@@ -103,9 +114,13 @@ export class PostgresQueueStorage<Input, Output> implements IQueueStorage<Input,
   public async setupDatabase(): Promise<void> {
     let sql: string;
     try {
-      sql = `CREATE TYPE job_status AS ENUM (${Object.values(JobStatus)
-        .map((v) => `'${v}'`)
-        .join(",")})`;
+      const enumValues = Object.values(JobStatus);
+      for (const v of enumValues) {
+        if (!SAFE_IDENTIFIER.test(v)) {
+          throw new Error(`Invalid JobStatus enum value: ${v}`);
+        }
+      }
+      sql = `CREATE TYPE job_status AS ENUM (${enumValues.map((v) => `'${v}'`).join(",")})`;
       await this.db.query(sql);
     } catch (e: any) {
       // Ignore error if type already exists (code 42710)

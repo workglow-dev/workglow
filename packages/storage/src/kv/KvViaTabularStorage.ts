@@ -16,6 +16,9 @@ import { KvStorage } from "./KvStorage";
  * @template Value - The type of the value being stored
  * @template Combined - Combined type of Key & Value
  */
+/** Schema types that are stored as-is without JSON serialization */
+const PRIMITIVE_SCHEMA_TYPES = new Set(["number", "boolean", "string", "blob"]);
+
 export abstract class KvViaTabularStorage<
   Key extends string = string,
   Value extends any = any,
@@ -25,6 +28,21 @@ export abstract class KvViaTabularStorage<
     typeof DefaultKeyValueSchema,
     typeof DefaultKeyValueKey
   >;
+
+  /** Whether values need JSON serialization (cached from schema) */
+  private get needsJsonSerialization(): boolean {
+    if (this._needsJsonSerialization === undefined) {
+      const schemaType =
+        typeof this.valueSchema === "object" &&
+        this.valueSchema !== null &&
+        "type" in this.valueSchema
+          ? this.valueSchema.type
+          : undefined;
+      this._needsJsonSerialization = !PRIMITIVE_SCHEMA_TYPES.has(schemaType as string);
+    }
+    return this._needsJsonSerialization;
+  }
+  private _needsJsonSerialization: boolean | undefined;
 
   /**
    * Sets up the database for the repository.
@@ -40,16 +58,7 @@ export abstract class KvViaTabularStorage<
    * @param value - The value to store
    */
   public async put(key: Key, value: Value): Promise<void> {
-    // Handle objects that need to be JSON-stringified, TODO(str): should put in the type
-    const schemaType =
-      typeof this.valueSchema === "object" &&
-      this.valueSchema !== null &&
-      "type" in this.valueSchema
-        ? this.valueSchema.type
-        : undefined;
-    const shouldStringify = !["number", "boolean", "string", "blob"].includes(schemaType as string);
-
-    if (shouldStringify) {
+    if (this.needsJsonSerialization) {
       value = JSON.stringify(value) as Value;
     }
     await this.tabularRepository.put({ key, value });
@@ -60,21 +69,9 @@ export abstract class KvViaTabularStorage<
    * @param items - Array of key-value pairs to store
    */
   public async putBulk(items: Array<{ key: Key; value: Value }>): Promise<void> {
-    // Handle objects that need to be JSON-stringified, TODO(str): should put in the type
-    const schemaType =
-      typeof this.valueSchema === "object" &&
-      this.valueSchema !== null &&
-      "type" in this.valueSchema
-        ? this.valueSchema.type
-        : undefined;
-    const shouldStringify = !["number", "boolean", "string", "blob"].includes(schemaType as string);
-
-    const entities = items.map(({ key, value }) => {
-      if (shouldStringify) {
-        value = JSON.stringify(value) as Value;
-      }
-      return { key, value };
-    });
+    const entities = this.needsJsonSerialization
+      ? items.map(({ key, value }) => ({ key, value: JSON.stringify(value) as Value }))
+      : items;
 
     await this.tabularRepository.putBulk(entities);
   }
@@ -88,27 +85,16 @@ export abstract class KvViaTabularStorage<
    */
   public async get(key: Key): Promise<Value | undefined> {
     const result = await this.tabularRepository.get({ key });
-    if (result) {
-      const schemaType =
-        typeof this.valueSchema === "object" &&
-        this.valueSchema !== null &&
-        "type" in this.valueSchema
-          ? this.valueSchema.type
-          : undefined;
-      const shouldParse = !["number", "boolean", "string", "blob"].includes(schemaType as string);
+    if (!result) return undefined;
 
-      if (shouldParse) {
-        try {
-          return JSON.parse(result.value as unknown as string) as Value;
-        } catch (e) {
-          return result.value as unknown as Value;
-        }
-      } else {
+    if (this.needsJsonSerialization) {
+      try {
+        return JSON.parse(result.value as unknown as string) as Value;
+      } catch (e) {
         return result.value as unknown as Value;
       }
-    } else {
-      return undefined;
     }
+    return result.value as unknown as Value;
   }
 
   /**
@@ -131,15 +117,7 @@ export abstract class KvViaTabularStorage<
           ({
             key: value.key,
             value: (() => {
-              const schemaType =
-                typeof this.valueSchema === "object" &&
-                this.valueSchema !== null &&
-                "type" in this.valueSchema
-                  ? this.valueSchema.type
-                  : undefined;
-              const shouldParse = !["number", "boolean", "string"].includes(schemaType as string);
-
-              if (shouldParse && typeof value.value === "string") {
+              if (this.needsJsonSerialization && typeof value.value === "string") {
                 try {
                   return JSON.parse(value.value);
                 } catch (e) {
