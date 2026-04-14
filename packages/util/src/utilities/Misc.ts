@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export function forceArray<T = any>(input: T | T[]): T[] {
+export function forceArray<T = unknown>(input: T | T[]): T[] {
   if (Array.isArray(input)) return input;
   return [input];
 }
