@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderWithWorker } from "../common/registerProvider";
 import { GoogleGeminiQueuedProvider } from "./GoogleGeminiQueuedProvider";
 
 export async function registerGemini(
@@ -12,5 +13,5 @@ export async function registerGemini(
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new GoogleGeminiQueuedProvider().register(options);
+  await registerProviderWithWorker(new GoogleGeminiQueuedProvider(), "Google Gemini", options);
 }

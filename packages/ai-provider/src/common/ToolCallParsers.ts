@@ -5,6 +5,7 @@
  */
 
 import type { ToolCallingTaskInput, ToolCalls } from "@workglow/ai";
+import { getLogger } from "@workglow/util/worker";
 
 // ============================================================================
 // Types
@@ -93,7 +94,11 @@ export function makeToolCall(
 export function tryParseJson(text: string): unknown | undefined {
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (e) {
+    getLogger().debug("ToolCallParsers tryParseJson failed", {
+      error: (e as Error).message,
+      textPrefix: text.slice(0, 120),
+    });
     return undefined;
   }
 }
@@ -1046,6 +1051,17 @@ export const parseQwen35Xml: ParserFn = (text) => {
 // Model family detection
 // ============================================================================
 
+/**
+ * Model-family-specific parser chains.
+ *
+ * Each chain is ordered by likelihood: the parser matching the model's native
+ * tool-call format comes first, followed by fallbacks for common alternative
+ * formats the model may produce (most often Hermes `<tool_call>` tags or
+ * Llama-style bare JSON).
+ *
+ * Multiple keys may map to the same chain when model names vary across
+ * providers (e.g. `cohere` / `command`, `chatglm` / `glm`).
+ */
 const MODEL_PARSERS: Record<string, ReadonlyArray<ParserFn>> = {
   llama: [parseLlama, parseHermes],
   mistral: [parseMistral, parseHermes],
@@ -1079,23 +1095,48 @@ const MODEL_PARSERS: Record<string, ReadonlyArray<ParserFn>> = {
 
 /**
  * Default parser chain used when the model family cannot be determined.
- * Ordered by specificity (most distinctive markers first).
+ *
+ * Ordering rationale — parsers that rely on highly distinctive, unlikely-to-
+ * false-positive markers come first; generic / loose formats come last:
+ *
+ *  1. **Unique delimiters** — Phi (`<|tool_calls|>`), Mistral (`[TOOL_CALLS]`),
+ *     DeepSeek (`<|tool▁calls|>`), InternLM (`<|action_start|>`),
+ *     Granite (`<|tool_call_start|>`), FunctionGemma (`<start_function_call>`).
+ *     Each uses a distinctive tag or token that won't appear in normal text.
+ *
+ *  2. **Structured tags** — Qwen35 XML (`<tool_call>` with XML children),
+ *     Hermes (`<tool_call>` with JSON body), Cohere (`Action:` blocks).
+ *     Hermes is widely adopted but its `<tool_call>` tag is shared by several
+ *     model families, so it sits after the more unique delimiters.
+ *
+ *  3. **Specialized formats** — Functionary (`>>>func_name`),
+ *     Gorilla (`<<function>>` calls), NexusRaven (`Call:`),
+ *     FireFunction (`<function=>`), PhiFunctools (`functools[...]`),
+ *     Liquid (pythonic `func_name(args)`).
+ *
+ *  4. **Loose / generic** — Llama (bare JSON objects), Gemma (key=value args),
+ *     XLAM (JSON arrays). These match broad patterns and are tried last to
+ *     avoid false positives when a more specific parser should have matched.
  */
 const DEFAULT_PARSER_CHAIN: ReadonlyArray<ParserFn> = [
+  // 1. Unique delimiters
   parsePhi,
   parseMistral,
   parseDeepSeek,
   parseInternLM,
   parseGranite,
+  // 2. Structured tags
   parseQwen35Xml,
   parseHermes,
   parseCohere,
+  // 3. Specialized formats
   parseFunctionary,
   parseGorilla,
   parseNexusRaven,
   parseFireFunction,
   parsePhiFunctools,
   parseLiquid,
+  // 4. Loose / generic
   parseLlama,
   parseGemma,
   parseXLAM,
@@ -1150,7 +1191,9 @@ export function parseToolCalls(
     return { tool_calls: [], content: text ?? "", parser: "none" };
   }
 
+  const log = getLogger();
   let parsersToTry: ReadonlyArray<ParserFn>;
+  let source: string;
 
   if (parser) {
     const key = parser.toLowerCase();
@@ -1161,16 +1204,35 @@ export function parseToolCalls(
       );
     }
     parsersToTry = found;
+    source = `explicit parser "${key}"`;
   } else {
     const family = detectModelFamily(tokenizer ?? model ?? null);
-    parsersToTry = family ? MODEL_PARSERS[family]! : DEFAULT_PARSER_CHAIN;
+    if (family) {
+      parsersToTry = MODEL_PARSERS[family]!;
+      source = `model family "${family}"`;
+    } else {
+      parsersToTry = DEFAULT_PARSER_CHAIN;
+      source = "default chain (unknown model)";
+    }
   }
+
+  log.debug("ToolCallParsers parseToolCalls", { source, parserCount: parsersToTry.length });
 
   for (const parserFn of parsersToTry) {
     const result = parserFn(text);
-    if (result) return result;
+    if (result) {
+      log.debug("ToolCallParsers parseToolCalls matched", {
+        parser: result.parser,
+        toolCallCount: result.tool_calls.length,
+      });
+      return result;
+    }
   }
 
+  log.debug("ToolCallParsers parseToolCalls no parser matched", {
+    source,
+    textPrefix: text.slice(0, 120),
+  });
   return { tool_calls: [], content: text, parser: "none" };
 }
 

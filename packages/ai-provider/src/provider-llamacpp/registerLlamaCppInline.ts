@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderInline } from "../common/registerProvider";
 import {
   LLAMACPP_REACTIVE_TASKS,
   LLAMACPP_STREAM_TASKS,
@@ -13,9 +14,9 @@ import {
 import { LlamaCppQueuedProvider } from "./LlamaCppQueuedProvider";
 
 export async function registerLlamaCppInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new LlamaCppQueuedProvider(
-    LLAMACPP_TASKS,
-    LLAMACPP_STREAM_TASKS,
-    LLAMACPP_REACTIVE_TASKS
-  ).register(options ?? {});
+  await registerProviderInline(
+    new LlamaCppQueuedProvider(LLAMACPP_TASKS, LLAMACPP_STREAM_TASKS, LLAMACPP_REACTIVE_TASKS),
+    "LlamaCpp",
+    options
+  );
 }

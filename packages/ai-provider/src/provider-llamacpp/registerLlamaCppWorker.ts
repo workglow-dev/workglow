@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util/worker";
+import { registerProviderWorker } from "../common/registerProvider";
 import {
   LLAMACPP_REACTIVE_TASKS,
   LLAMACPP_STREAM_TASKS,
@@ -13,12 +13,13 @@ import {
 import { LlamaCppProvider } from "./LlamaCppProvider";
 
 export async function registerLlamaCppWorker(): Promise<void> {
-  const workerServer = globalServiceRegistry.get(WORKER_SERVER);
-  new LlamaCppProvider(
-    LLAMACPP_TASKS,
-    LLAMACPP_STREAM_TASKS,
-    LLAMACPP_REACTIVE_TASKS
-  ).registerOnWorkerServer(workerServer);
-  workerServer.sendReady();
-  getLogger().info("LlamaCpp worker job run functions registered");
+  await registerProviderWorker(
+    (ws) =>
+      new LlamaCppProvider(
+        LLAMACPP_TASKS,
+        LLAMACPP_STREAM_TASKS,
+        LLAMACPP_REACTIVE_TASKS
+      ).registerOnWorkerServer(ws),
+    "LlamaCpp"
+  );
 }

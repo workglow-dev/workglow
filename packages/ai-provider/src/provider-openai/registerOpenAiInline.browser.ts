@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderInline } from "../common/registerProvider";
 import {
   OPENAI_REACTIVE_TASKS,
   OPENAI_STREAM_TASKS,
@@ -13,7 +14,9 @@ import {
 import { OpenAiQueuedProvider } from "./OpenAiQueuedProvider";
 
 export async function registerOpenAiInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new OpenAiQueuedProvider(OPENAI_TASKS, OPENAI_STREAM_TASKS, OPENAI_REACTIVE_TASKS).register(
-    options ?? {}
+  await registerProviderInline(
+    new OpenAiQueuedProvider(OPENAI_TASKS, OPENAI_STREAM_TASKS, OPENAI_REACTIVE_TASKS),
+    "OpenAI",
+    options
   );
 }

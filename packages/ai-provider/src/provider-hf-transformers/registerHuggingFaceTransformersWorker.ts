@@ -10,7 +10,7 @@
  * `HFT_JobRunFns` / full task implementations.
  */
 
-import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util/worker";
+import { registerProviderWorker } from "../common/registerProvider";
 import { HFT_REACTIVE_TASKS, HFT_STREAM_TASKS, HFT_TASKS } from "./common/HFT_JobRunFns";
 import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
 import { loadTransformersSDK } from "./common/HFT_Pipeline";
@@ -22,12 +22,13 @@ export async function registerHuggingFaceTransformersWorker(): Promise<void> {
 
   const { env } = sdk;
   env.backends!.onnx!.wasm!.proxy = true;
-  const workerServer = globalServiceRegistry.get(WORKER_SERVER);
-  new HuggingFaceTransformersProvider(
-    HFT_TASKS,
-    HFT_STREAM_TASKS,
-    HFT_REACTIVE_TASKS
-  ).registerOnWorkerServer(workerServer);
-  workerServer.sendReady();
-  getLogger().info("HuggingFaceTransformers worker job run functions registered");
+  await registerProviderWorker(
+    (ws) =>
+      new HuggingFaceTransformersProvider(
+        HFT_TASKS,
+        HFT_STREAM_TASKS,
+        HFT_REACTIVE_TASKS
+      ).registerOnWorkerServer(ws),
+    "HuggingFaceTransformers"
+  );
 }

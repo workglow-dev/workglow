@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util/worker";
+import { registerProviderWorker } from "../common/registerProvider";
 import {
   ANTHROPIC_REACTIVE_TASKS,
   ANTHROPIC_STREAM_TASKS,
@@ -13,12 +13,13 @@ import {
 import { AnthropicProvider } from "./AnthropicProvider";
 
 export async function registerAnthropicWorker(): Promise<void> {
-  const workerServer = globalServiceRegistry.get(WORKER_SERVER);
-  new AnthropicProvider(
-    ANTHROPIC_TASKS,
-    ANTHROPIC_STREAM_TASKS,
-    ANTHROPIC_REACTIVE_TASKS
-  ).registerOnWorkerServer(workerServer);
-  workerServer.sendReady();
-  getLogger().info("Anthropic worker job run functions registered");
+  await registerProviderWorker(
+    (ws) =>
+      new AnthropicProvider(
+        ANTHROPIC_TASKS,
+        ANTHROPIC_STREAM_TASKS,
+        ANTHROPIC_REACTIVE_TASKS
+      ).registerOnWorkerServer(ws),
+    "Anthropic"
+  );
 }

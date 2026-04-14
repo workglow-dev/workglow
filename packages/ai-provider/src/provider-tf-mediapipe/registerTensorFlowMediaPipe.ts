@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderWithWorker } from "../common/registerProvider";
 import { TensorFlowMediaPipeQueuedProvider } from "./TensorFlowMediaPipeQueuedProvider";
 
 export async function registerTensorFlowMediaPipe(
@@ -12,5 +13,9 @@ export async function registerTensorFlowMediaPipe(
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new TensorFlowMediaPipeQueuedProvider().register(options);
+  await registerProviderWithWorker(
+    new TensorFlowMediaPipeQueuedProvider(),
+    "TensorFlow MediaPipe",
+    options
+  );
 }
