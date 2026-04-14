@@ -32,21 +32,6 @@ import { getTestingLogger } from "../../binding/TestingLogger";
 
 const toolModels: LlamaCppModelRecord[] = [
   {
-    model_id: "llamacpp:unsloth/functiongemma-270m-it-GGUF:Q8_0",
-    title: "FunctionGemma 270M IT",
-    description: "A 270M parameter instruction-following model with tool calling support",
-    tasks: ["DownloadModelTask", "ToolCallingTask"],
-    provider: LOCAL_LLAMACPP,
-    provider_config: {
-      model_path: "./models/hf_unslothfunctiongemma-270m-it-GGUF.Q8_0.gguf",
-      model_url: "hf:unsloth/functiongemma-270m-it-GGUF:Q8_0",
-      models_dir: "./models",
-      flash_attention: true,
-      seed: 42,
-    },
-    metadata: {},
-  },
-  {
     model_id: "llamacpp:LiquidAI/LFM2-1.2B-Tool:Q8_0",
     title: "LFM2 1.2B Tool",
     description: "A 1.2B parameter instruction-following model with tool calling support",

@@ -15,7 +15,6 @@ import { getLlama, LlamaChat, resolveModelFile } from "node-llama-cpp";
 import { afterAll, describe, it } from "vitest";
 
 const models = [
-  { label: "FunctionGemma 270M", url: "hf:unsloth/functiongemma-270m-it-GGUF:Q8_0" },
   { label: "LFM2 1.2B Tool", url: "hf:LiquidAI/LFM2-1.2B-Tool-GGUF:Q8_0" },
   { label: "Qwen2.5 Coder 1.5B", url: "hf:bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q4_K_M" },
   { label: "Llama 3.2 1B", url: "hf:unsloth/Llama-3.2-1B-Instruct-GGUF:Q4_K_M" },

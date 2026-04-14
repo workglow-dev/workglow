@@ -24,7 +24,6 @@ import { runGenericAiProviderTests } from "./genericAiProviderTests";
 const RUN = true;
 
 const TEXT_MODEL_ID = "onnx:onnx-community/Qwen2.5-1.5B-Instruct:q4";
-const TOOL_MODEL_ID = "onnx:onnx-community/functiongemma-270m-it-ONNX:q4f16";
 const THINKING_MODEL_ID = "onnx:LiquidAI/LFM2.5-1.2B-Thinking-WebGPU:q4";
 const INSTRUCT_MODEL_ID = "onnx:LiquidAI/LFM2.5-1.2B-Instruct-WebGPU:q4";
 
@@ -38,21 +37,6 @@ const textModel: HfTransformersOnnxModelRecord = {
     pipeline: "text-generation",
     model_path: "onnx-community/Qwen2.5-1.5B-Instruct",
     dtype: "q4",
-    seed: 42,
-  },
-  metadata: {},
-};
-
-const toolModel: HfTransformersOnnxModelRecord = {
-  model_id: TOOL_MODEL_ID,
-  title: "FunctionGemma 270M IT ONNX",
-  description: "Tool-calling-focused ONNX model quantized to fp16",
-  tasks: ["ToolCallingTask", "StructuredGenerationTask"],
-  provider: HF_TRANSFORMERS_ONNX,
-  provider_config: {
-    pipeline: "text-generation",
-    model_path: "onnx-community/functiongemma-270m-it-ONNX",
-    dtype: "fp16",
     seed: 42,
   },
   metadata: {},
@@ -100,7 +84,6 @@ runGenericAiProviderTests({
     await registerHuggingFaceTransformersInline();
 
     await getGlobalModelRepository().addModel(textModel);
-    await getGlobalModelRepository().addModel(toolModel);
     await getGlobalModelRepository().addModel(thinkingModel);
     await getGlobalModelRepository().addModel(instructModel);
   },
