@@ -15,10 +15,11 @@ import type {
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
+import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
 import {
-  extractToolCallsFromText,
+  extractMessageText,
   toolChoiceForcesToolCall,
-} from "./LlamaCpp_ToolParser";
+} from "../../common/ToolCallParsers";
 import {
   getLlamaCppSdk,
   getOrCreateTextContext,
@@ -46,15 +47,6 @@ function buildSystemPrompt(input: ToolCallingTaskInput): string | undefined {
 // Message → ChatHistoryItem[] conversion
 // ============================================================================
 
-function extractTextFromContent(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return String(content ?? "");
-  return content
-    .filter((block: any) => block?.type === "text")
-    .map((block: any) => String(block.text ?? ""))
-    .join("");
-}
-
 /**
  * Convert workglow messages to node-llama-cpp's `ChatHistoryItem[]`.
  *
@@ -81,7 +73,7 @@ function convertMessagesToChatHistory(
 
   for (const msg of messages) {
     if (msg.role === "user") {
-      const text = extractTextFromContent(msg.content);
+      const text = extractMessageText(msg.content);
       history.push({ type: "user", text });
       continue;
     }
@@ -243,7 +235,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   });
 
   const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
+    typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
   const chatHistory = convertMessagesToChatHistory(input.messages, promptText, systemPrompt);
   const functions = buildChatModelFunctions(input.tools);
 
@@ -372,7 +364,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
   });
 
   const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
+    typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
   const chatHistory = convertMessagesToChatHistory(input.messages, promptText, systemPrompt);
   const functions = buildChatModelFunctions(input.tools);
 

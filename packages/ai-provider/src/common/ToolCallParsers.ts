@@ -1218,7 +1218,7 @@ export function getAvailableParsers(): ReadonlyArray<string> {
  */
 export function getGenerationPrefix(
   family: string | null,
-  forcedToolName: string | undefined
+  _forcedToolName: string | undefined
 ): string | undefined {
   if (!family) return undefined;
 

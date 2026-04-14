@@ -6,12 +6,12 @@
 
 import type { ToolCallingTaskInput, ToolCalls } from "@workglow/ai";
 import {
+  adaptParserResult,
   parseHermes,
   parseLlama,
   parseLiquid,
   parseQwen35Xml,
 } from "../../common/ToolCallParsers";
-import type { ToolCallParserResult } from "../../common/ToolCallParsers";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 
 // ============================================================================
@@ -28,47 +28,6 @@ export function getModelTextCandidates(model: LlamaCppModelConfig): string[] {
   ]
     .filter((value): value is string => typeof value === "string" && value.length > 0)
     .map((value) => value.toLowerCase());
-}
-
-// ============================================================================
-// Tool choice utilities
-// ============================================================================
-
-export function toolChoiceForcesToolCall(toolChoice: ToolCallingTaskInput["toolChoice"]): boolean {
-  return (
-    toolChoice === "required" ||
-    (toolChoice !== undefined && toolChoice !== "auto" && toolChoice !== "none")
-  );
-}
-
-function forcedToolChoiceName(toolChoice: ToolCallingTaskInput["toolChoice"]): string | undefined {
-  if (
-    typeof toolChoice !== "string" ||
-    toolChoice === "auto" ||
-    toolChoice === "none" ||
-    toolChoice === "required"
-  ) {
-    return undefined;
-  }
-  return toolChoice;
-}
-
-export function forcedToolSelection(input: ToolCallingTaskInput): string | undefined {
-  const explicitToolName = forcedToolChoiceName(input.toolChoice);
-  if (explicitToolName !== undefined) {
-    return explicitToolName;
-  }
-  if (input.toolChoice === "required" && input.tools.length === 1) {
-    return input.tools[0]?.name;
-  }
-  return undefined;
-}
-
-export function resolveParsedToolName(name: string, input: ToolCallingTaskInput): string {
-  if (input.tools.some((tool) => tool.name === name)) {
-    return name;
-  }
-  return forcedToolSelection(input) ?? name;
 }
 
 /**
@@ -111,41 +70,33 @@ export function detectQwenToolCallingVariation(
 // Tool call extraction using shared parsers
 // ============================================================================
 
-function adaptParserResult(result: ToolCallParserResult, input: ToolCallingTaskInput): ToolCalls {
-  return result.tool_calls.map((call, index) => ({
-    id: call.id ?? `call_${index}`,
-    name: resolveParsedToolName(call.name, input),
-    input: call.arguments,
-  }));
-}
-
 export function extractToolCallsFromText(
   text: string,
   input: ToolCallingTaskInput,
-  model: LlamaCppModelConfig
+  _model: LlamaCppModelConfig
 ): ToolCalls {
   // Try Liquid/LFM format: <|tool_call_start|>[func(args)]<|tool_call_end|> or [func(args)]
   const liquidResult = parseLiquid(text);
   if (liquidResult && liquidResult.tool_calls.length > 0) {
-    return adaptParserResult(liquidResult, input);
+    return adaptParserResult(liquidResult, input).toolCalls;
   }
 
   // Try Hermes/JSON format: <tool_call>{"name":...}</tool_call>
   const hermesResult = parseHermes(text);
   if (hermesResult && hermesResult.tool_calls.length > 0) {
-    return adaptParserResult(hermesResult, input);
+    return adaptParserResult(hermesResult, input).toolCalls;
   }
 
   // Try Qwen 3.5 XML format: <tool_call><function=name><parameter=...></tool_call>
   const qwen35Result = parseQwen35Xml(text);
   if (qwen35Result && qwen35Result.tool_calls.length > 0) {
-    return adaptParserResult(qwen35Result, input);
+    return adaptParserResult(qwen35Result, input).toolCalls;
   }
 
   // Try Llama/bare JSON format: {"name": "func", "parameters"|"arguments": {...}}
   const llamaResult = parseLlama(text);
   if (llamaResult && llamaResult.tool_calls.length > 0) {
-    return adaptParserResult(llamaResult, input);
+    return adaptParserResult(llamaResult, input).toolCalls;
   }
 
   return [];
