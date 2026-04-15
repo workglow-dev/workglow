@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
+import { DocumentNode, KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
 import type { TaskConfig } from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
@@ -54,7 +54,9 @@ const outputSchema = {
 } as const satisfies DataPortSchema;
 
 export type KbToDocumentsTaskInput = FromSchema<typeof inputSchema>;
-export type KbToDocumentsTaskOutput = FromSchema<typeof outputSchema>;
+export type KbToDocumentsTaskOutput = Omit<FromSchema<typeof outputSchema>, "documentTree"> & {
+  documentTree: DocumentNode[];
+};
 export type KbToDocumentsTaskConfig = TaskConfig<KbToDocumentsTaskInput>;
 
 /**
@@ -94,7 +96,7 @@ export class KbToDocumentsTask extends Task<
     const allDocIds = await kb.listDocuments();
 
     const doc_id: string[] = [];
-    const documentTree: object[] = [];
+    const documentTree: DocumentNode[] = [];
     const title: string[] = [];
 
     for (const id of allDocIds) {
@@ -111,7 +113,7 @@ export class KbToDocumentsTask extends Task<
       }
 
       doc_id.push(id);
-      documentTree.push(doc.root as object);
+      documentTree.push(doc.root);
       title.push(doc.metadata.title);
     }
 
@@ -119,10 +121,7 @@ export class KbToDocumentsTask extends Task<
   }
 }
 
-export const kbToDocuments = (
-  input: KbToDocumentsTaskInput,
-  config?: KbToDocumentsTaskConfig
-) => {
+export const kbToDocuments = (input: KbToDocumentsTaskInput, config?: KbToDocumentsTaskConfig) => {
   return new KbToDocumentsTask(config).run(input);
 };
 
