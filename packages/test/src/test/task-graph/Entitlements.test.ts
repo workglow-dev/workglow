@@ -10,17 +10,17 @@ import {
   createPolicyEnforcer,
   createProfileEnforcer,
   createScopedEnforcer,
+  DENY_ALL_RESOLVER,
   EMPTY_ENTITLEMENTS,
   ENTITLEMENT_ENFORCER,
-  Entitlements,
   entitlementCovers,
+  Entitlements,
   evaluatePolicy,
   getProfileGrants,
   grantCoversResources,
   mergeEntitlementPair,
   mergeEntitlements,
   PERMISSIVE_RESOLVER,
-  DENY_ALL_RESOLVER,
   resourcePatternMatches,
   Task,
   TaskEntitlementError,
@@ -604,10 +604,10 @@ describe("Entitlements", () => {
       expect(denied).toHaveLength(0);
     });
 
-    it("server profile has same grants as desktop", () => {
+    it("server profile extends desktop with browser:cloud", () => {
       const serverGrants = getProfileGrants("server");
       const desktopGrants = getProfileGrants("desktop");
-      expect(serverGrants).toEqual(desktopGrants);
+      expect(serverGrants).toEqual([...desktopGrants, { id: Entitlements.BROWSER_CONTROL_CLOUD }]);
     });
   });
 

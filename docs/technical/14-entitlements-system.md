@@ -59,7 +59,7 @@ function entitlementCovers(granted: EntitlementId, required: EntitlementId): boo
 
 This means a grant of `"network"` matches a requirement of `"network:http"`
 because `"network:http".startsWith("network:")` is true. But a grant of
-`"network:http"` does *not* cover a requirement of `"network"` -- children
+`"network:http"` does _not_ cover a requirement of `"network"` -- children
 cannot satisfy parent requirements.
 
 ## Well-Known Entitlements
@@ -86,41 +86,41 @@ also use custom IDs beyond these.
 
 ### Code Execution
 
-| Constant            | ID                            | Description                    |
-| ------------------- | ----------------------------- | ------------------------------ |
-| `CODE_EXECUTION`    | `"code-execution"`            | All code execution             |
-| `CODE_EXECUTION_JS` | `"code-execution:javascript"` | JavaScript code execution      |
+| Constant            | ID                            | Description               |
+| ------------------- | ----------------------------- | ------------------------- |
+| `CODE_EXECUTION`    | `"code-execution"`            | All code execution        |
+| `CODE_EXECUTION_JS` | `"code-execution:javascript"` | JavaScript code execution |
 
 ### Credentials
 
-| Constant     | ID             | Description                         |
-| ------------ | -------------- | ----------------------------------- |
-| `CREDENTIAL` | `"credential"` | Access to the credential store      |
+| Constant     | ID             | Description                    |
+| ------------ | -------------- | ------------------------------ |
+| `CREDENTIAL` | `"credential"` | Access to the credential store |
 
 ### AI
 
-| Constant       | ID               | Description                      |
-| -------------- | ---------------- | -------------------------------- |
-| `AI_MODEL`     | `"ai:model"`     | Use of specific AI models        |
-| `AI_INFERENCE` | `"ai:inference"` | Running AI model inference       |
+| Constant       | ID               | Description                |
+| -------------- | ---------------- | -------------------------- |
+| `AI_MODEL`     | `"ai:model"`     | Use of specific AI models  |
+| `AI_INFERENCE` | `"ai:inference"` | Running AI model inference |
 
 ### MCP (Model Context Protocol)
 
-| Constant            | ID                    | Description               |
-| ------------------- | --------------------- | ------------------------- |
-| `MCP`               | `"mcp"`               | All MCP operations        |
-| `MCP_TOOL_CALL`     | `"mcp:tool-call"`     | Calling MCP tools         |
-| `MCP_RESOURCE_READ` | `"mcp:resource-read"` | Reading MCP resources     |
-| `MCP_PROMPT_GET`    | `"mcp:prompt-get"`    | Getting MCP prompts       |
-| `MCP_STDIO`         | `"mcp:stdio"`         | MCP via stdio transport   |
+| Constant            | ID                    | Description             |
+| ------------------- | --------------------- | ----------------------- |
+| `MCP`               | `"mcp"`               | All MCP operations      |
+| `MCP_TOOL_CALL`     | `"mcp:tool-call"`     | Calling MCP tools       |
+| `MCP_RESOURCE_READ` | `"mcp:resource-read"` | Reading MCP resources   |
+| `MCP_PROMPT_GET`    | `"mcp:prompt-get"`    | Getting MCP prompts     |
+| `MCP_STDIO`         | `"mcp:stdio"`         | MCP via stdio transport |
 
 ### Storage
 
-| Constant        | ID               | Description               |
-| --------------- | ---------------- | ------------------------- |
-| `STORAGE`       | `"storage"`      | All storage operations    |
-| `STORAGE_READ`  | `"storage:read"` | Reading from storage      |
-| `STORAGE_WRITE` | `"storage:write"`| Writing to storage        |
+| Constant        | ID                | Description            |
+| --------------- | ----------------- | ---------------------- |
+| `STORAGE`       | `"storage"`       | All storage operations |
+| `STORAGE_READ`  | `"storage:read"`  | Reading from storage   |
+| `STORAGE_WRITE` | `"storage:write"` | Writing to storage     |
 
 ## TaskEntitlement Type
 
@@ -136,11 +136,11 @@ interface TaskEntitlement {
 }
 ```
 
-| Field       | Type                    | Description |
-| ----------- | ----------------------- | ----------- |
-| `id`        | `string`                | Hierarchical identifier (e.g., `"network:http"`) |
-| `reason`    | `string \| undefined`   | Human-readable explanation of why the entitlement is needed |
-| `optional`  | `boolean \| undefined`  | If `true`, the task can degrade gracefully without this permission |
+| Field       | Type                    | Description                                                                                                                                |
+| ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`        | `string`                | Hierarchical identifier (e.g., `"network:http"`)                                                                                           |
+| `reason`    | `string \| undefined`   | Human-readable explanation of why the entitlement is needed                                                                                |
+| `optional`  | `boolean \| undefined`  | If `true`, the task can degrade gracefully without this permission                                                                         |
 | `resources` | `string[] \| undefined` | Specific resources this entitlement applies to (URL patterns, model IDs, server names). When `undefined`, the entitlement applies broadly. |
 
 Multiple entitlements are grouped in the `TaskEntitlements` container:
@@ -165,7 +165,7 @@ interface TrackedTaskEntitlement extends TaskEntitlement {
 }
 ```
 
-This allows UIs and policy engines to show *which tasks* in a graph require each
+This allows UIs and policy engines to show _which tasks_ in a graph require each
 entitlement, enabling targeted approval or task removal.
 
 ## Resource Scoping with Glob Patterns
@@ -353,7 +353,7 @@ interface IEntitlementEnforcer {
 }
 ```
 
-The `check()` method returns an array of *denied* (non-optional) entitlements.
+The `check()` method returns an array of _denied_ (non-optional) entitlements.
 An empty array means all entitlements are granted.
 
 ### Built-In Enforcers
@@ -450,15 +450,18 @@ The `computeGraphEntitlements()` function aggregates entitlements across all
 tasks in a `TaskGraph`:
 
 ```ts
-function computeGraphEntitlements(graph: TaskGraph, options?: GraphEntitlementOptions): TaskEntitlements;
+function computeGraphEntitlements(
+  graph: TaskGraph,
+  options?: GraphEntitlementOptions
+): TaskEntitlements;
 ```
 
 Options:
 
-| Option                | Type              | Default | Description |
-| --------------------- | ----------------- | ------- | ----------- |
-| `trackOrigins`        | `boolean`         | `false` | Annotate each entitlement with source task IDs |
-| `conditionalBranches` | `"all" \| "active"` | `"all"` | Which conditional branches to include |
+| Option                | Type                | Default | Description                                    |
+| --------------------- | ------------------- | ------- | ---------------------------------------------- |
+| `trackOrigins`        | `boolean`           | `false` | Annotate each entitlement with source task IDs |
+| `conditionalBranches` | `"all" \| "active"` | `"all"` | Which conditional branches to include          |
 
 When `conditionalBranches` is `"all"` (the default), entitlements from every
 branch of a `ConditionalTask` are included -- this is conservative and suitable
@@ -476,7 +479,7 @@ for (const e of allEntitlements.entitlements) {
 // Check against enforcer
 const denied = enforcer.check(allEntitlements);
 if (denied.length > 0) {
-  throw new Error(`Denied entitlements: ${denied.map(e => e.id).join(", ")}`);
+  throw new Error(`Denied entitlements: ${denied.map((e) => e.id).join(", ")}`);
 }
 ```
 
@@ -522,39 +525,39 @@ without needing to instantiate task classes.
 
 ### Types
 
-| Type | Description |
-| ---- | ----------- |
-| `EntitlementId` | `string` -- hierarchical entitlement identifier |
-| `TaskEntitlement` | Single entitlement declaration with `id`, `reason`, `optional`, `resources` |
-| `TaskEntitlements` | Container with `entitlements: readonly TaskEntitlement[]` |
-| `TrackedTaskEntitlement` | `TaskEntitlement` plus `sourceTaskIds` for origin tracking |
-| `TrackedTaskEntitlements` | Container with `entitlements: readonly TrackedTaskEntitlement[]` |
-| `EntitlementGrant` | Grant declaration with `id` and optional `resources` (glob patterns) |
-| `EntitlementProfile` | `"browser" \| "desktop" \| "server"` |
-| `IEntitlementEnforcer` | Interface with `check(required): readonly TaskEntitlement[]` |
+| Type                      | Description                                                                 |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `EntitlementId`           | `string` -- hierarchical entitlement identifier                             |
+| `TaskEntitlement`         | Single entitlement declaration with `id`, `reason`, `optional`, `resources` |
+| `TaskEntitlements`        | Container with `entitlements: readonly TaskEntitlement[]`                   |
+| `TrackedTaskEntitlement`  | `TaskEntitlement` plus `sourceTaskIds` for origin tracking                  |
+| `TrackedTaskEntitlements` | Container with `entitlements: readonly TrackedTaskEntitlement[]`            |
+| `EntitlementGrant`        | Grant declaration with `id` and optional `resources` (glob patterns)        |
+| `EntitlementProfile`      | `"browser" \| "desktop" \| "server"`                                        |
+| `IEntitlementEnforcer`    | Interface with `check(required): readonly TaskEntitlement[]`                |
 
 ### Functions
 
-| Function | Signature | Description |
-| -------- | --------- | ----------- |
-| `entitlementCovers` | `(granted: string, required: string) => boolean` | Check if a granted ID covers a required ID in the hierarchy |
-| `resourcePatternMatches` | `(grantPattern: string, requiredResource: string) => boolean` | Check if a glob pattern matches a resource string |
-| `grantCoversResources` | `(grant: EntitlementGrant, required: TaskEntitlement) => boolean` | Check if a grant covers the resource requirements of an entitlement |
-| `mergeEntitlements` | `(a: TaskEntitlements, b: TaskEntitlements) => TaskEntitlements` | Merge two entitlement sets into their union |
-| `createGrantListEnforcer` | `(grants: readonly string[]) => IEntitlementEnforcer` | Create an enforcer from a list of broad grant IDs |
-| `createScopedEnforcer` | `(grants: readonly EntitlementGrant[]) => IEntitlementEnforcer` | Create an enforcer with resource-level scoping |
-| `createProfileEnforcer` | `(profile: EntitlementProfile) => IEntitlementEnforcer` | Create an enforcer for a standard runtime profile |
-| `getProfileGrants` | `(profile: EntitlementProfile) => readonly EntitlementGrant[]` | Get the grant list for a profile |
-| `computeGraphEntitlements` | `(graph: TaskGraph, options?) => TaskEntitlements` | Aggregate entitlements across all tasks in a graph |
+| Function                   | Signature                                                         | Description                                                         |
+| -------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `entitlementCovers`        | `(granted: string, required: string) => boolean`                  | Check if a granted ID covers a required ID in the hierarchy         |
+| `resourcePatternMatches`   | `(grantPattern: string, requiredResource: string) => boolean`     | Check if a glob pattern matches a resource string                   |
+| `grantCoversResources`     | `(grant: EntitlementGrant, required: TaskEntitlement) => boolean` | Check if a grant covers the resource requirements of an entitlement |
+| `mergeEntitlements`        | `(a: TaskEntitlements, b: TaskEntitlements) => TaskEntitlements`  | Merge two entitlement sets into their union                         |
+| `createGrantListEnforcer`  | `(grants: readonly string[]) => IEntitlementEnforcer`             | Create an enforcer from a list of broad grant IDs                   |
+| `createScopedEnforcer`     | `(grants: readonly EntitlementGrant[]) => IEntitlementEnforcer`   | Create an enforcer with resource-level scoping                      |
+| `createProfileEnforcer`    | `(profile: EntitlementProfile) => IEntitlementEnforcer`           | Create an enforcer for a standard runtime profile                   |
+| `getProfileGrants`         | `(profile: EntitlementProfile) => readonly EntitlementGrant[]`    | Get the grant list for a profile                                    |
+| `computeGraphEntitlements` | `(graph: TaskGraph, options?) => TaskEntitlements`                | Aggregate entitlements across all tasks in a graph                  |
 
 ### Constants
 
-| Constant | Description |
-| -------- | ----------- |
-| `Entitlements` | Object containing all well-known entitlement ID constants |
-| `EMPTY_ENTITLEMENTS` | Frozen singleton with an empty entitlements array |
-| `PERMISSIVE_ENFORCER` | Enforcer that grants everything |
-| `ENTITLEMENT_ENFORCER` | Service token for registering a custom enforcer |
-| `BROWSER_GRANTS` | Grant array for browser environments |
-| `DESKTOP_GRANTS` | Grant array for desktop environments |
-| `SERVER_GRANTS` | Grant array for server environments |
+| Constant               | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `Entitlements`         | Object containing all well-known entitlement ID constants |
+| `EMPTY_ENTITLEMENTS`   | Frozen singleton with an empty entitlements array         |
+| `PERMISSIVE_ENFORCER`  | Enforcer that grants everything                           |
+| `ENTITLEMENT_ENFORCER` | Service token for registering a custom enforcer           |
+| `BROWSER_GRANTS`       | Grant array for browser environments                      |
+| `DESKTOP_GRANTS`       | Grant array for desktop environments                      |
+| `SERVER_GRANTS`        | Grant array for server environments                       |

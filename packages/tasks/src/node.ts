@@ -11,33 +11,20 @@ import "./task/image/registerImageTextRenderer.node";
 import "./util/SafeFetch.server";
 
 export * from "./common";
+export * from "./task/browser-control/PlaywrightBackend";
 export * from "./task/FileLoaderTask.server";
 export * from "./util/McpAuthProvider";
 export * from "./util/McpAuthTypes";
 export * from "./util/McpClientUtil";
 export * from "./util/McpTaskDeps";
 
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { mcpClientFactory, mcpServerConfigSchema } from "./util/McpClientUtil";
-import type { McpServerConfig } from "./util/McpTaskDeps";
-import { registerMcpTaskDeps } from "./util/McpTaskDeps";
-
-registerMcpTaskDeps({
-  mcpClientFactory,
-  mcpServerConfigSchema,
-  createStdioTransport: (config: McpServerConfig) =>
-    Promise.resolve(
-      new StdioClientTransport({
-        command: config.command!,
-        args: config.args,
-        env: config.env,
-      })
-    ),
-});
-
 import { TaskRegistry } from "@workglow/task-graph";
 import { registerCommonTasks as registerCommonTasksFn } from "./common";
+import { registerBrowserDepsServer, registerMcpTaskDepsServer } from "./server";
 import { FileLoaderTask } from "./task/FileLoaderTask.server";
+
+registerMcpTaskDepsServer();
+registerBrowserDepsServer();
 
 export const registerCommonTasks = () => {
   const tasks = registerCommonTasksFn();

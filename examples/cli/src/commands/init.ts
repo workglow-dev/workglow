@@ -22,6 +22,10 @@ export function registerInitCommand(program: Command): void {
           mcps: DEFAULT_CONFIG.directories.mcps,
           cache: DEFAULT_CONFIG.directories.cache,
         },
+        browser: {
+          backend: "bun-webview",
+          headless: true,
+        },
       });
 
       await writeFile(CONFIG_PATH, tomlContent, "utf-8");

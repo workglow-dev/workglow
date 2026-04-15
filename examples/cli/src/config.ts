@@ -17,6 +17,11 @@ export interface CliConfig {
     readonly mcps: string;
     readonly cache: string;
   };
+  readonly browser?: {
+    readonly backend?: "bun-webview" | "playwright";
+    readonly "chrome-path"?: string;
+    readonly headless?: boolean;
+  };
 }
 
 const DEFAULT_BASE = join(homedir(), ".workglow");
@@ -44,15 +49,12 @@ export async function loadConfig(): Promise<CliConfig> {
   try {
     const raw = await readFile(CONFIG_PATH, "utf-8");
     const parsed = parse(raw) as {
-      directories?: {
-        models?: string;
-        workflows?: string;
-        agents?: string;
-        cache?: string;
-      };
+      directories?: Record<string, string | undefined>;
+      browser?: Record<string, unknown>;
     };
 
-    const dirs = parsed.directories as Record<string, string | undefined> | undefined;
+    const dirs = parsed.directories;
+    const browser = parsed.browser as CliConfig["browser"] | undefined;
     return {
       directories: {
         models: resolvePath(dirs?.models ?? DEFAULT_CONFIG.directories.models),
@@ -61,6 +63,7 @@ export async function loadConfig(): Promise<CliConfig> {
         mcps: resolvePath(dirs?.mcps ?? DEFAULT_CONFIG.directories.mcps),
         cache: resolvePath(dirs?.cache ?? DEFAULT_CONFIG.directories.cache),
       },
+      browser,
     };
   } catch {
     return DEFAULT_CONFIG;

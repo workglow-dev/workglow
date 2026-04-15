@@ -100,6 +100,14 @@ export const Entitlements = {
   STORAGE: "storage",
   STORAGE_READ: "storage:read",
   STORAGE_WRITE: "storage:write",
+
+  // Browser automation
+  BROWSER_CONTROL: "browser",
+  BROWSER_CONTROL_LOCAL: "browser:local",
+  BROWSER_CONTROL_CLOUD: "browser:cloud",
+  BROWSER_CONTROL_NAVIGATE: "browser:navigate",
+  BROWSER_CONTROL_EVALUATE: "browser:evaluate",
+  BROWSER_CONTROL_CREDENTIAL: "browser:credential",
 } as const;
 
 // ========================================================================
