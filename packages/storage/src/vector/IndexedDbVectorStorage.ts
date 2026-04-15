@@ -76,7 +76,6 @@ export class IndexedDbVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Metadata extends Record<string, unknown> = Record<string, unknown>,
-  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
   extends IndexedDbTabularStorage<Schema, PrimaryKeyNames, Entity>
@@ -93,7 +92,7 @@ export class IndexedDbVectorStorage<
    * @param primaryKeyNames - Array of property names that form the primary key
    * @param indexes - Array of columns or column arrays to make searchable
    * @param dimensions - The number of dimensions of the vector
-   * @param _vectorCtor - TypedArray constructor; drives `VectorCtor` inference (IndexedDB stores typed arrays natively)
+   * @param _vectorCtor - TypedArray constructor (unused, IndexedDB stores typed arrays natively)
    * @param migrationOptions - Options for handling database schema migrations
    * @param clientProvidedKeys - How to handle client-provided values for auto-generated keys
    */
@@ -101,9 +100,9 @@ export class IndexedDbVectorStorage<
     table: string = "vectors",
     schema: Schema,
     primaryKeyNames: PrimaryKeyNames,
-    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    indexes: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[] = [],
     dimensions: number,
-    _vectorCtor: VectorCtor = Float32Array as VectorCtor,
+    _vectorCtor: TypedArrayConstructor = Float32Array,
     migrationOptions: MigrationOptions = {},
     clientProvidedKeys: ClientProvidedKeysOption = "if-missing"
   ) {

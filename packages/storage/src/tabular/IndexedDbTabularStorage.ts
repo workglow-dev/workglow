@@ -85,7 +85,7 @@ export class IndexedDbTabularStorage<
     public table: string = "tabular_store",
     schema: Schema,
     primaryKeyNames: PrimaryKeyNames,
-    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    indexes: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[] = [],
     migrationOptions: MigrationOptions & {
       readonly useBroadcastChannel?: boolean;
       readonly backupPollingIntervalMs?: number;

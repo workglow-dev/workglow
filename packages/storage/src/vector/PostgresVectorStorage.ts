@@ -40,14 +40,13 @@ export class PostgresVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
   Metadata extends Record<string, unknown> = Record<string, unknown>,
-  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
   extends PostgresTabularStorage<Schema, PrimaryKeyNames, Entity>
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
-  private readonly vectorCtor: VectorCtor;
+  private readonly vectorCtor: TypedArrayConstructor;
   private vectorPropertyName: keyof Entity;
   private metadataPropertyName: keyof Entity | undefined;
 
@@ -66,9 +65,9 @@ export class PostgresVectorStorage<
     table: string,
     schema: Schema,
     primaryKeyNames: PrimaryKeyNames,
-    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    indexes: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[] = [],
     dimensions: number,
-    vectorCtor: VectorCtor = Float32Array as VectorCtor
+    vectorCtor: TypedArrayConstructor = Float32Array
   ) {
     super(db, table, schema, primaryKeyNames, indexes);
 

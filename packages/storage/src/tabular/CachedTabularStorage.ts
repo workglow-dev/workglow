@@ -65,7 +65,7 @@ export class CachedTabularStorage<
     cache?: ITabularStorage<Schema, PrimaryKeyNames, Entity, PrimaryKey>,
     schema?: Schema,
     primaryKeyNames?: PrimaryKeyNames,
-    indexes?: readonly (keyof Entity | readonly (keyof Entity)[])[],
+    indexes?: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[],
     clientProvidedKeys: ClientProvidedKeysOption = "if-missing"
   ) {
     // Extract schema and primaryKeyNames from durable repository if not provided

@@ -76,7 +76,7 @@ export class SqliteTabularStorage<
     table: string = "tabular_store",
     schema: Schema,
     primaryKeyNames: PrimaryKeyNames,
-    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    indexes: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[] = [],
     clientProvidedKeys: ClientProvidedKeysOption = "if-missing"
   ) {
     super(table, schema, primaryKeyNames, indexes, clientProvidedKeys);

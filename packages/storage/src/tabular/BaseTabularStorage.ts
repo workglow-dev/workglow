@@ -88,7 +88,7 @@ export abstract class BaseTabularStorage<
   constructor(
     protected schema: Schema,
     protected primaryKeyNames: PrimaryKeyNames,
-    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    indexes: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[] = [],
     clientProvidedKeys: ClientProvidedKeysOption = "if-missing"
   ) {
     this.clientProvidedKeys = clientProvidedKeys;
