@@ -21,12 +21,16 @@ export const BrowserSessionRegistry = {
 
   /**
    * Retrieve a registered browser context by session ID.
-   * Throws if the session does not exist.
+   * Throws if the session does not exist or has been disconnected.
    */
   get(sessionId: string): IBrowserContext {
     const context = sessions.get(sessionId);
     if (!context) {
       throw new Error(`BrowserSessionRegistry: no session found for id "${sessionId}"`);
+    }
+    if (!context.isConnected()) {
+      sessions.delete(sessionId);
+      throw new Error(`BrowserSessionRegistry: session "${sessionId}" is no longer connected`);
     }
     return context;
   },

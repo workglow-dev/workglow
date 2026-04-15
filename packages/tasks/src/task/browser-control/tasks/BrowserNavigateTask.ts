@@ -115,6 +115,10 @@ export class BrowserNavigateTask extends Task<
     input: BrowserNavigateTaskInput,
     _executeContext: IExecuteContext
   ): Promise<BrowserNavigateTaskOutput> {
+    const parsed = new URL(input.url, "https://placeholder");
+    if (parsed.protocol === "javascript:") {
+      throw new Error("BrowserNavigateTask: javascript: URLs are not allowed");
+    }
     const ctx = BrowserSessionRegistry.get(input.sessionId);
     const waitUntil = this.config.waitUntil ?? "load";
     await ctx.navigate(input.url, { waitUntil });

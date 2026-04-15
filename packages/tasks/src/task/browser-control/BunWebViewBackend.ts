@@ -109,7 +109,7 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("BunWebViewBackend: initial navigation timed out"));
-      }, 10_000);
+      }, 30_000);
 
       this._wv!.onNavigated = () => {
         clearTimeout(timeout);
@@ -271,33 +271,39 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
   onDialog(handler: (info: DialogInfo) => DialogAction | Promise<DialogAction>): void {
     this._dialogHandler = handler;
 
-    void this.cdp("Page.enable").then(() => {
-      this.wv.addEventListener(
-        "Page.javascriptDialogOpening",
-        async (params: Record<string, unknown>) => {
-          const info: DialogInfo = {
-            type: params.type as DialogInfo["type"],
-            message: params.message as string,
-            defaultValue: (params.defaultPrompt as string) || undefined,
-          };
+    void this.cdp("Page.enable")
+      .then(() => {
+        this.wv.addEventListener(
+          "Page.javascriptDialogOpening",
+          async (params: Record<string, unknown>) => {
+            const info: DialogInfo = {
+              type: params.type as DialogInfo["type"],
+              message: params.message as string,
+              defaultValue: (params.defaultPrompt as string) || undefined,
+            };
 
-          if (this._dialogHandler) {
-            const action = await this._dialogHandler(info);
-            const accept = action.accept;
-            const promptText =
-              accept && "promptText" in action
-                ? (action as { accept: true; promptText?: string }).promptText
-                : undefined;
-            await this.cdp("Page.handleJavaScriptDialog", {
-              accept,
-              ...(promptText !== undefined && { promptText }),
-            });
-          } else {
-            await this.cdp("Page.handleJavaScriptDialog", { accept: false });
+            if (this._dialogHandler) {
+              const action = await this._dialogHandler(info);
+              const accept = action.accept;
+              const promptText =
+                accept && "promptText" in action
+                  ? (action as { accept: true; promptText?: string }).promptText
+                  : undefined;
+              await this.cdp("Page.handleJavaScriptDialog", {
+                accept,
+                ...(promptText !== undefined && { promptText }),
+              });
+            } else {
+              await this.cdp("Page.handleJavaScriptDialog", { accept: false });
+            }
           }
-        }
-      );
-    });
+        );
+      })
+      .catch(() => {
+        // Page.enable failed — dialog handler will not be wired up.
+        // This is non-fatal: the session still works, but dialogs won't be
+        // handled automatically and may block page execution.
+      });
   }
 
   // ---------------------------------------------------------------------------
@@ -338,13 +344,23 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
     const timeout = options.timeout ?? 30_000;
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
+        this.wv.onNavigated = null;
+        this.wv.onNavigationFailed = null;
         reject(new Error("BunWebViewBackend: waitForNavigation timed out"));
       }, timeout);
 
       this.wv.onNavigated = () => {
         clearTimeout(timer);
         this.wv.onNavigated = null;
+        this.wv.onNavigationFailed = null;
         resolve();
+      };
+
+      this.wv.onNavigationFailed = (error: unknown) => {
+        clearTimeout(timer);
+        this.wv.onNavigated = null;
+        this.wv.onNavigationFailed = null;
+        reject(new Error(`BunWebViewBackend: navigation failed — ${error}`));
       };
     });
   }

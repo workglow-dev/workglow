@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { filterValidToolCalls } from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -13,13 +12,11 @@ import type {
   ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
+import { filterValidToolCalls } from "@workglow/ai/worker";
 import type { StreamEvent } from "@workglow/task-graph";
+import { getLogger } from "@workglow/util/worker";
+import { extractMessageText, toolChoiceForcesToolCall } from "../../common/ToolCallParsers";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
-import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
-import {
-  extractMessageText,
-  toolChoiceForcesToolCall,
-} from "../../common/ToolCallParsers";
 import {
   getLlamaCppSdk,
   getOrCreateTextContext,
@@ -27,7 +24,7 @@ import {
   llamaCppSeedPromptSpread,
   loadSdk,
 } from "./LlamaCpp_Runtime";
-import { getLogger } from "@workglow/util/worker";
+import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
 
 // ============================================================================
 // System prompt
@@ -254,7 +251,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
 
     // Fallback: parse tool calls from text if native parsing found nothing
     if (toolCalls.length === 0 && input.tools.length > 0 && input.toolChoice !== "none") {
-      toolCalls.push(...extractToolCallsFromText(text, input, model));
+      toolCalls.push(...extractToolCallsFromText(text, input));
     }
 
     update_progress(100, "Tool calling complete");
@@ -388,7 +385,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   // Fallback: parse tool calls from text if native parsing found nothing
   if (toolCalls.length === 0 && input.tools.length > 0 && input.toolChoice !== "none") {
-    toolCalls.push(...extractToolCallsFromText(accumulatedText, input, model));
+    toolCalls.push(...extractToolCallsFromText(accumulatedText, input));
   }
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
 

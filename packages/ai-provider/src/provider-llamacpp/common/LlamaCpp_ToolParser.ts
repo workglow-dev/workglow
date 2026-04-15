@@ -8,8 +8,8 @@ import type { ToolCallingTaskInput, ToolCalls } from "@workglow/ai";
 import {
   adaptParserResult,
   parseHermes,
-  parseLlama,
   parseLiquid,
+  parseLlama,
   parseQwen35Xml,
 } from "../../common/ToolCallParsers";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
@@ -70,11 +70,7 @@ export function detectQwenToolCallingVariation(
 // Tool call extraction using shared parsers
 // ============================================================================
 
-export function extractToolCallsFromText(
-  text: string,
-  input: ToolCallingTaskInput,
-  _model: LlamaCppModelConfig
-): ToolCalls {
+export function extractToolCallsFromText(text: string, input: ToolCallingTaskInput): ToolCalls {
   // Try Liquid/LFM format: <|tool_call_start|>[func(args)]<|tool_call_end|> or [func(args)]
   const liquidResult = parseLiquid(text);
   if (liquidResult && liquidResult.tool_calls.length > 0) {

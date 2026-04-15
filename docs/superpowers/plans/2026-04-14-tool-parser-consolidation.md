@@ -15,6 +15,7 @@
 ### Task 1: Delete dead `HFT_ToolParser.ts`
 
 **Files:**
+
 - Delete: `packages/ai-provider/src/provider-hf-transformers/common/HFT_ToolParser.ts`
 
 - [ ] **Step 1: Verify no imports exist**
@@ -48,17 +49,20 @@ common/ToolCallParsers.ts."
 ### Task 2: Remove FunctionGemma from `ToolCallParsers.ts`
 
 **Files:**
+
 - Modify: `packages/ai-provider/src/common/ToolCallParsers.ts`
 
 - [ ] **Step 1: Remove FunctionGemma helper functions**
 
 Delete these functions entirely (lines 188-245):
+
 - `parseFunctionGemmaArgumentValue` (lines 193-218)
 - `parseFunctionGemmaLooseObject` (lines 224-245)
 
 - [ ] **Step 2: Remove FunctionGemma parser internals**
 
 Delete these functions entirely (lines 787-864):
+
 - `parseFunctionGemmaArgs` (lines 792-824)
 - `parseFunctionGemma` (lines 832-864)
 
@@ -107,29 +111,29 @@ export function getGenerationPrefix(
 In `parseToolCallsFromText` (around line 1320), delete the two FunctionGemma blocks (lines 1324-1344):
 
 ```typescript
-  // DELETE: lines 1324-1335 (FunctionGemma first-try block)
-  // Try FunctionGemma first
-  const functionGemmaResult = parseFunctionGemma(responseText);
-  if (functionGemmaResult && functionGemmaResult.tool_calls.length > 0) {
-    return {
-      text: functionGemmaResult.content,
-      toolCalls: functionGemmaResult.tool_calls.map((call, index) => ({
-        id: call.id ?? `call_${index}`,
-        name: call.name,
-        input: call.arguments,
-      })),
-    };
-  }
+// DELETE: lines 1324-1335 (FunctionGemma first-try block)
+// Try FunctionGemma first
+const functionGemmaResult = parseFunctionGemma(responseText);
+if (functionGemmaResult && functionGemmaResult.tool_calls.length > 0) {
+  return {
+    text: functionGemmaResult.content,
+    toolCalls: functionGemmaResult.tool_calls.map((call, index) => ({
+      id: call.id ?? `call_${index}`,
+      name: call.name,
+      input: call.arguments,
+    })),
+  };
+}
 
-  // DELETE: lines 1337-1344 (FunctionGemma loose-object fallback)
-  // FunctionGemma loose-object fallback (no tool name context available)
-  const looseObject = parseFunctionGemmaLooseObject(responseText);
-  if (looseObject) {
-    return {
-      text: "",
-      toolCalls: [{ id: "call_0", name: "", input: looseObject }],
-    };
-  }
+// DELETE: lines 1337-1344 (FunctionGemma loose-object fallback)
+// FunctionGemma loose-object fallback (no tool name context available)
+const looseObject = parseFunctionGemmaLooseObject(responseText);
+if (looseObject) {
+  return {
+    text: "",
+    toolCalls: [{ id: "call_0", name: "", input: looseObject }],
+  };
+}
 ```
 
 Update the JSDoc for `parseToolCallsFromText` to remove the FunctionGemma reference. Change:
@@ -181,6 +185,7 @@ and parseToolCallsFromText."
 ### Task 3: Remove FunctionGemma from `LlamaCpp_ToolParser.ts`
 
 **Files:**
+
 - Modify: `packages/ai-provider/src/provider-llamacpp/common/LlamaCpp_ToolParser.ts`
 
 - [ ] **Step 1: Remove FunctionGemma imports**
@@ -196,6 +201,7 @@ At the top of the file (lines 9-10), remove the FunctionGemma imports:
 - [ ] **Step 2: Remove FunctionGemma detection and prompt building**
 
 Delete all FunctionGemma-related code (lines 77-287):
+
 - The section header comment `// FunctionGemma detection & prompt building` (line 77)
 - `detectFunctionGemmaModel` (lines 80-82)
 - `functionGemmaDeclarationSchema` (lines 84-114)
@@ -246,21 +252,21 @@ export function truncateAtTurnBoundary(text: string): string {
 In `extractToolCallsFromText` (around line 365), delete the FunctionGemma block (lines 370-383):
 
 ```typescript
-  // DELETE this entire block:
-  // FunctionGemma models: try dedicated parser first
-  if (detectFunctionGemmaModel(model)) {
-    const functionGemmaResult = parseFunctionGemma(text);
-    if (functionGemmaResult && functionGemmaResult.tool_calls.length > 0) {
-      return adaptParserResult(functionGemmaResult, input);
-    }
-
-    // FunctionGemma loose-object fallback (requires forced tool name)
-    const forcedToolName = forcedToolSelection(input);
-    const looseObject = forcedToolName ? parseFunctionGemmaLooseObject(text) : undefined;
-    if (forcedToolName && looseObject) {
-      return [{ id: "call_0", name: forcedToolName, input: looseObject }];
-    }
+// DELETE this entire block:
+// FunctionGemma models: try dedicated parser first
+if (detectFunctionGemmaModel(model)) {
+  const functionGemmaResult = parseFunctionGemma(text);
+  if (functionGemmaResult && functionGemmaResult.tool_calls.length > 0) {
+    return adaptParserResult(functionGemmaResult, input);
   }
+
+  // FunctionGemma loose-object fallback (requires forced tool name)
+  const forcedToolName = forcedToolSelection(input);
+  const looseObject = forcedToolName ? parseFunctionGemmaLooseObject(text) : undefined;
+  if (forcedToolName && looseObject) {
+    return [{ id: "call_0", name: forcedToolName, input: looseObject }];
+  }
+}
 ```
 
 - [ ] **Step 6: Remove unused imports**
@@ -295,6 +301,7 @@ contains only LlamaCpp-specific parser orchestration."
 ### Task 4: Remove FunctionGemma raw completion path from `LlamaCpp_ToolCalling.ts`
 
 **Files:**
+
 - Modify: `packages/ai-provider/src/provider-llamacpp/common/LlamaCpp_ToolCalling.ts`
 
 - [ ] **Step 1: Update imports**
@@ -311,10 +318,7 @@ import {
   truncateAtTurnBoundary,
 } from "./LlamaCpp_ToolParser";
 // TO:
-import {
-  extractToolCallsFromText,
-  toolChoiceForcesToolCall,
-} from "./LlamaCpp_ToolParser";
+import { extractToolCallsFromText, toolChoiceForcesToolCall } from "./LlamaCpp_ToolParser";
 ```
 
 - [ ] **Step 2: Remove `llamaCppRawCompletionOptions`**
@@ -340,63 +344,66 @@ function llamaCppRawCompletionOptions(
 In the non-streaming function (starting around line 247):
 
 Remove `LlamaCompletion` from the SDK destructuring (line 261):
+
 ```typescript
 // CHANGE:
-  const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
+const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
 // TO:
-  const { LlamaChat } = getLlamaCppSdk();
+const { LlamaChat } = getLlamaCppSdk();
 ```
 
 Delete the entire FunctionGemma raw completion block (lines 264-290):
+
 ```typescript
-  // DELETE this entire block:
-  // ---- FunctionGemma raw completion path (unchanged) ----
-  const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
+// DELETE this entire block:
+// ---- FunctionGemma raw completion path (unchanged) ----
+const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
 
-  getLogger().debug("LlamaCpp_ToolCalling", { rawPrompt, systemPrompt });
+getLogger().debug("LlamaCpp_ToolCalling", { rawPrompt, systemPrompt });
 
-  if (rawPrompt !== undefined) {
-    const completion = new LlamaCompletion({ contextSequence: sequence });
-    try {
-      const rawText = await completion.generateCompletion(rawPrompt, {
-        signal,
-        ...llamaCppRawCompletionOptions(input, model),
-      });
+if (rawPrompt !== undefined) {
+  const completion = new LlamaCompletion({ contextSequence: sequence });
+  try {
+    const rawText = await completion.generateCompletion(rawPrompt, {
+      signal,
+      ...llamaCppRawCompletionOptions(input, model),
+    });
 
-      const text = truncateAtTurnBoundary(rawText);
-      getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { rawText, text });
-      const toolCalls = filterValidToolCalls(
-        extractToolCallsFromText(text, input, model),
-        input.tools
-      );
-      getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { toolCalls });
-      update_progress(100, "Tool calling complete");
-      return { text, toolCalls };
-    } finally {
-      completion.dispose({ disposeSequence: false });
-      sequence.dispose();
-    }
+    const text = truncateAtTurnBoundary(rawText);
+    getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { rawText, text });
+    const toolCalls = filterValidToolCalls(extractToolCallsFromText(text, input), input.tools);
+    getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { toolCalls });
+    update_progress(100, "Tool calling complete");
+    return { text, toolCalls };
+  } finally {
+    completion.dispose({ disposeSequence: false });
+    sequence.dispose();
   }
+}
 ```
 
 Replace the `supportsNativeFunctions` conditional with direct function building (around line 301):
+
 ```typescript
 // CHANGE:
-  const functions = supportsNativeFunctions(input, model)
-    ? buildChatModelFunctions(input.tools)
-    : undefined;
+const functions = supportsNativeFunctions(input, model)
+  ? buildChatModelFunctions(input.tools)
+  : undefined;
 // TO:
-  const functions = buildChatModelFunctions(input.tools);
+const functions = buildChatModelFunctions(input.tools);
 ```
 
 Update the `generateResponse` call to always pass functions (around line 308). Change:
+
 ```typescript
       ...(functions && {
         functions,
         ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
       }),
 ```
+
 To:
+
 ```typescript
       functions,
       ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
@@ -407,14 +414,16 @@ To:
 In the streaming function (starting around line 413):
 
 Remove `LlamaCompletion` from the SDK destructuring (line 425):
+
 ```typescript
 // CHANGE:
-  const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
+const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
 // TO:
-  const { LlamaChat } = getLlamaCppSdk();
+const { LlamaChat } = getLlamaCppSdk();
 ```
 
 Delete the entire FunctionGemma raw completion block (lines 428-463):
+
 ```typescript
   // DELETE this entire block:
   // ---- FunctionGemma raw completion path ----
@@ -439,7 +448,7 @@ Delete the entire FunctionGemma raw completion block (lines 428-463):
 
     const text = truncateAtTurnBoundary(rawText);
     const validToolCalls = filterValidToolCalls(
-      extractToolCallsFromText(text, input, model),
+      extractToolCallsFromText(text, input),
       input.tools
     );
 
@@ -456,16 +465,18 @@ Delete the entire FunctionGemma raw completion block (lines 428-463):
 ```
 
 Replace the `supportsNativeFunctions` conditional with direct function building (around line 474):
+
 ```typescript
 // CHANGE:
-  const functions = supportsNativeFunctions(input, model)
-    ? buildChatModelFunctions(input.tools)
-    : undefined;
+const functions = supportsNativeFunctions(input, model)
+  ? buildChatModelFunctions(input.tools)
+  : undefined;
 // TO:
-  const functions = buildChatModelFunctions(input.tools);
+const functions = buildChatModelFunctions(input.tools);
 ```
 
 Update the `generateResponse` call to always pass functions (around line 480). Same change as the non-streaming path:
+
 ```typescript
 // CHANGE:
         ...(functions && {
@@ -497,6 +508,7 @@ supportsNativeFunctions conditional. LlamaChat is now the only path."
 ### Task 5: Remove FunctionGemma from tests
 
 **Files:**
+
 - Modify: `packages/test/src/test/ai-provider/LlamaCpp_Generic.integration.test.ts`
 - Modify: `packages/test/src/test/ai-provider/LlamaCpp_ChatWrapper.integration.test.ts`
 - Modify: `packages/test/src/test/ai-provider/LlamaCpp_NativeToolCalling.integration.test.ts`
@@ -505,6 +517,7 @@ supportsNativeFunctions conditional. LlamaChat is now the only path."
 - [ ] **Step 1: Clean up `LlamaCpp_Generic.integration.test.ts`**
 
 Delete the `functionGemmaToolModel` definition (lines 41-63):
+
 ```typescript
 // DELETE entirely:
 const functionGemmaToolModel: LlamaCppModelRecord = {
@@ -514,6 +527,7 @@ const functionGemmaToolModel: LlamaCppModelRecord = {
 ```
 
 Remove `functionGemmaToolModel` from the `toolModelId` comment (line 130):
+
 ```typescript
 // CHANGE:
 const toolModelId = qwen25CoderToolModel.model_id; // or qwen25CoderToolModel.model_id or lfm2ToolModel.model_id or functionGemmaToolModel.model_id or llmModel.model_id or llama3d21bToolModel.model_id
@@ -522,14 +536,16 @@ const toolModelId = qwen25CoderToolModel.model_id; // or lfm2ToolModel.model_id 
 ```
 
 Delete the `addModel` call for `functionGemmaToolModel` (line 143):
+
 ```typescript
 // DELETE this line:
-    await getGlobalModelRepository().addModel(functionGemmaToolModel);
+await getGlobalModelRepository().addModel(functionGemmaToolModel);
 ```
 
 - [ ] **Step 2: Clean up `LlamaCpp_ChatWrapper.integration.test.ts`**
 
 Delete the FunctionGemma entry from the `toolModels` array (lines 34-48):
+
 ```typescript
 // DELETE this object from the array:
   {
@@ -552,6 +568,7 @@ Delete the FunctionGemma entry from the `toolModels` array (lines 34-48):
 - [ ] **Step 3: Clean up `LlamaCpp_NativeToolCalling.integration.test.ts`**
 
 Delete the FunctionGemma entry from the `models` array (line 18):
+
 ```typescript
 // DELETE this line:
   { label: "FunctionGemma 270M", url: "hf:unsloth/functiongemma-270m-it-GGUF:Q8_0" },
@@ -560,12 +577,14 @@ Delete the FunctionGemma entry from the `models` array (line 18):
 - [ ] **Step 4: Clean up `HFT_Generic.integration.test.ts`**
 
 Delete the `TOOL_MODEL_ID` constant (line 27):
+
 ```typescript
 // DELETE:
 const TOOL_MODEL_ID = "onnx:onnx-community/functiongemma-270m-it-ONNX:q4f16";
 ```
 
 Delete the `toolModel` definition (lines 46-59):
+
 ```typescript
 // DELETE entirely:
 const toolModel: HfTransformersOnnxModelRecord = {
@@ -576,9 +595,10 @@ const toolModel: HfTransformersOnnxModelRecord = {
 ```
 
 Delete the `addModel` call for `toolModel` (line 103):
+
 ```typescript
 // DELETE this line:
-    await getGlobalModelRepository().addModel(toolModel);
+await getGlobalModelRepository().addModel(toolModel);
 ```
 
 - [ ] **Step 5: Verify tests compile**
@@ -598,11 +618,13 @@ git commit -m "test(ai-provider): remove FunctionGemma model definitions from te
 ### Task 6: Move shared utilities to `ToolCallParsers.ts`
 
 **Files:**
+
 - Modify: `packages/ai-provider/src/common/ToolCallParsers.ts`
 
 - [ ] **Step 1: Add `ToolCallingTaskInput` import**
 
 Update the import at the top of `ToolCallParsers.ts` (line 7):
+
 ```typescript
 // CHANGE:
 import type { ToolCalls } from "@workglow/ai";
@@ -720,6 +742,7 @@ resolveParsedToolName, and adaptParserResult into the shared library."
 ### Task 7: Update `HFT_ToolCalling.ts` to use shared utilities
 
 **Files:**
+
 - Modify: `packages/ai-provider/src/provider-hf-transformers/common/HFT_ToolCalling.ts`
 
 - [ ] **Step 1: Update imports from `ToolCallParsers.ts`**
@@ -850,6 +873,7 @@ ToolCallParsers.ts instead of maintaining local copies."
 ### Task 8: Update `LlamaCpp_ToolParser.ts` and `LlamaCpp_ToolCalling.ts` to use shared utilities
 
 **Files:**
+
 - Modify: `packages/ai-provider/src/provider-llamacpp/common/LlamaCpp_ToolParser.ts`
 - Modify: `packages/ai-provider/src/provider-llamacpp/common/LlamaCpp_ToolCalling.ts`
 
@@ -879,6 +903,7 @@ import {
 ```
 
 Remove the local `adaptParserResult` function (around line 357):
+
 ```typescript
 // DELETE entirely:
 function adaptParserResult(result: ToolCallParserResult, input: ToolCallingTaskInput): ToolCalls {
@@ -891,6 +916,7 @@ function adaptParserResult(result: ToolCallParserResult, input: ToolCallingTaskI
 ```
 
 Remove the local tool choice utilities (lines 39-74) — these are now in the shared library:
+
 ```typescript
 // DELETE: toolChoiceForcesToolCall (lines 39-44)
 // DELETE: forcedToolChoiceName (lines 46-56)
@@ -904,10 +930,7 @@ Update the import from `LlamaCpp_ToolParser` (around lines 18-24, already modifi
 
 ```typescript
 // CHANGE (from Task 4 state):
-import {
-  extractToolCallsFromText,
-  toolChoiceForcesToolCall,
-} from "./LlamaCpp_ToolParser";
+import { extractToolCallsFromText, toolChoiceForcesToolCall } from "./LlamaCpp_ToolParser";
 // TO:
 import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
 ```
@@ -915,10 +938,7 @@ import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
 Add `toolChoiceForcesToolCall` and `extractMessageText` to a new import from the shared library. Add after the existing imports:
 
 ```typescript
-import {
-  extractMessageText,
-  toolChoiceForcesToolCall,
-} from "../../common/ToolCallParsers";
+import { extractMessageText, toolChoiceForcesToolCall } from "../../common/ToolCallParsers";
 ```
 
 - [ ] **Step 3: Remove local `extractTextFromContent` from `LlamaCpp_ToolCalling.ts`**
@@ -940,23 +960,25 @@ function extractTextFromContent(content: unknown): string {
 Update the two call sites that use `extractTextFromContent` to use `extractMessageText` instead:
 
 Line ~299 (non-streaming):
+
 ```typescript
 // CHANGE:
-  const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
+const promptText =
+  typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
 // TO:
-  const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
+const promptText =
+  typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
 ```
 
 Line ~472 (streaming):
+
 ```typescript
 // CHANGE:
-  const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
+const promptText =
+  typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
 // TO:
-  const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
+const promptText =
+  typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
 ```
 
 - [ ] **Step 4: Update `extractToolCallsFromText` in `LlamaCpp_ToolParser.ts`**
@@ -964,11 +986,7 @@ Line ~472 (streaming):
 The `adaptParserResult` call site now uses the shared version which returns `{ text, toolCalls }` instead of just `ToolCalls`. Update `extractToolCallsFromText` to use `.toolCalls` from the shared result:
 
 ```typescript
-export function extractToolCallsFromText(
-  text: string,
-  input: ToolCallingTaskInput,
-  model: LlamaCppModelConfig
-): ToolCalls {
+export function extractToolCallsFromText(text: string, input: ToolCallingTaskInput): ToolCalls {
   // Try Liquid/LFM format
   const liquidResult = parseLiquid(text);
   if (liquidResult && liquidResult.tool_calls.length > 0) {
@@ -1004,6 +1022,7 @@ After the changes, check if `ToolCalls` is still used directly. `extractToolCall
 Actually, review the imports — after removing `forcedToolSelection`, `resolveParsedToolName` locally, we no longer need `ToolCallingTaskInput` imported locally if it's only used by the shared functions. But `extractToolCallsFromText` still takes `input: ToolCallingTaskInput` as a parameter, so keep the import.
 
 Final import block for `LlamaCpp_ToolParser.ts`:
+
 ```typescript
 import type { ToolCallingTaskInput, ToolCalls } from "@workglow/ai";
 import {

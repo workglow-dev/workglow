@@ -29,6 +29,7 @@ Delete `provider-hf-transformers/common/HFT_ToolParser.ts`. It has zero imports 
 ### 2. Remove FunctionGemma support
 
 **From `common/ToolCallParsers.ts`:**
+
 - Remove `parseFunctionGemma`, `parseFunctionGemmaArgs`, `parseFunctionGemmaArgumentValue`, `parseFunctionGemmaLooseObject`
 - Remove `functiongemma` key from `MODEL_PARSERS`
 - Update `gemma` parser chain from `[parseFunctionGemma, parseGemma, parseHermes]` to `[parseGemma, parseHermes]`
@@ -37,6 +38,7 @@ Delete `provider-hf-transformers/common/HFT_ToolParser.ts`. It has zero imports 
 - Remove FunctionGemma branches from `parseToolCallsFromText`
 
 **From `provider-llamacpp/common/LlamaCpp_ToolParser.ts`:**
+
 - Remove all FunctionGemma detection, declaration schema, developer prompt, conversation prompt, value serialization, raw prompt building (~200 lines: `detectFunctionGemmaModel`, `functionGemmaDeclarationSchema`, `buildFunctionGemmaDeclarations`, `buildFunctionGemmaDeveloperPrompt`, `extractMessageText`, `serializeFunctionGemmaValue`, `serializeFunctionGemmaToolCall`, `buildFunctionGemmaConversationPrompt`, `buildFunctionGemmaRawPrompt`)
 - Remove `buildRawCompletionPrompt` (always returned `undefined` without FunctionGemma detection)
 - Remove `supportsNativeFunctions` (always returned `true` without FunctionGemma detection)
@@ -45,6 +47,7 @@ Delete `provider-hf-transformers/common/HFT_ToolParser.ts`. It has zero imports 
 - Remove `parseFunctionGemma`, `parseFunctionGemmaLooseObject` imports
 
 **From `provider-llamacpp/common/LlamaCpp_ToolCalling.ts`:**
+
 - Remove the entire raw completion code path in both `LlamaCpp_ToolCalling` (non-streaming) and `LlamaCpp_ToolCalling_Stream` (streaming): the `if (rawPrompt !== undefined)` branches with `LlamaCompletion`
 - Remove `llamaCppRawCompletionOptions` function (only used by raw path)
 - Remove `LlamaCompletion` from `getLlamaCppSdk()` destructuring
@@ -52,6 +55,7 @@ Delete `provider-hf-transformers/common/HFT_ToolParser.ts`. It has zero imports 
 - Always pass `functions` to `LlamaChat.generateResponse` (previously gated by `supportsNativeFunctions`)
 
 **From tests:**
+
 - `LlamaCpp_Generic.integration.test.ts`: remove `functionGemmaToolModel` definition, its `addModel()` call, and the comment referencing it
 - `LlamaCpp_ChatWrapper.integration.test.ts`: remove the FunctionGemma entry from the `toolModels` array
 - `LlamaCpp_NativeToolCalling.integration.test.ts`: remove the FunctionGemma entry from the `models` array
@@ -61,13 +65,13 @@ Delete `provider-hf-transformers/common/HFT_ToolParser.ts`. It has zero imports 
 
 Extract duplicated functions from provider-specific files into the shared library:
 
-| Function | Source files | Notes |
-|---|---|---|
-| `extractMessageText(content: unknown): string` | `HFT_ToolCalling.ts`, `LlamaCpp_ToolCalling.ts` (as `extractTextFromContent`) | Identical logic. Single export from `ToolCallParsers.ts`. |
-| `forcedToolSelection(input: ToolCallingTaskInput): string \| undefined` | `HFT_ToolCalling.ts`, `LlamaCpp_ToolParser.ts` | Identical logic. |
-| `toolChoiceForcesToolCall(toolChoice): boolean` | `LlamaCpp_ToolParser.ts` | Generic, not LlamaCpp-specific. |
-| `resolveParsedToolName(name, input): string` | `LlamaCpp_ToolParser.ts` | Generic, not LlamaCpp-specific. |
-| `adaptParserResult(result, input?): { text, toolCalls }` | `HFT_ToolCalling.ts`, `LlamaCpp_ToolParser.ts` | Unify into one version that converts `ToolCallParserResult` to `{ text: string, toolCalls: ToolCalls }`, optionally resolving tool names via `resolveParsedToolName` when `input` is provided. |
+| Function                                                                | Source files                                                                  | Notes                                                                                                                                                                                          |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `extractMessageText(content: unknown): string`                          | `HFT_ToolCalling.ts`, `LlamaCpp_ToolCalling.ts` (as `extractTextFromContent`) | Identical logic. Single export from `ToolCallParsers.ts`.                                                                                                                                      |
+| `forcedToolSelection(input: ToolCallingTaskInput): string \| undefined` | `HFT_ToolCalling.ts`, `LlamaCpp_ToolParser.ts`                                | Identical logic.                                                                                                                                                                               |
+| `toolChoiceForcesToolCall(toolChoice): boolean`                         | `LlamaCpp_ToolParser.ts`                                                      | Generic, not LlamaCpp-specific.                                                                                                                                                                |
+| `resolveParsedToolName(name, input): string`                            | `LlamaCpp_ToolParser.ts`                                                      | Generic, not LlamaCpp-specific.                                                                                                                                                                |
+| `adaptParserResult(result, input?): { text, toolCalls }`                | `HFT_ToolCalling.ts`, `LlamaCpp_ToolParser.ts`                                | Unify into one version that converts `ToolCallParserResult` to `{ text: string, toolCalls: ToolCalls }`, optionally resolving tool names via `resolveParsedToolName` when `input` is provided. |
 
 Both `HFT_ToolCalling.ts` and `LlamaCpp_ToolCalling.ts` then import these from `ToolCallParsers.ts` and delete their local copies.
 
@@ -78,7 +82,7 @@ After removing FunctionGemma and moving shared utilities out, this file retains 
 - `getModelTextCandidates(model)` — extracts identifiable text from LlamaCpp model config
 - `detectQwenToolCallingVariation(model)` — detects Qwen 3 vs 3.5 format from model config
 - `hasToolCallMarkers(text)` — quick presence check for tool-call markup
-- `extractToolCallsFromText(text, input, model)` — orchestrates the parser chain for LlamaCpp, using shared parsers and `adaptParserResult` from `ToolCallParsers.ts`
+- `extractToolCallsFromText(text, input)` — orchestrates the parser chain for LlamaCpp, using shared parsers and `adaptParserResult` from `ToolCallParsers.ts`
 
 Estimated ~80 lines after cleanup.
 

@@ -129,6 +129,10 @@ export class BrowserLoginTask extends Task<
     input: BrowserLoginTaskInput,
     executeContext: IExecuteContext
   ): Promise<BrowserLoginTaskOutput> {
+    const parsed = new URL(input.url, "https://placeholder");
+    if (parsed.protocol === "javascript:") {
+      throw new Error("BrowserLoginTask: javascript: URLs are not allowed");
+    }
     const ctx = BrowserSessionRegistry.get(input.sessionId);
     const mode = this.config.mode ?? "manual";
 

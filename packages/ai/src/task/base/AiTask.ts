@@ -130,8 +130,8 @@ export class AiTask<
         const resourceKey = `ai:${model.provider}:${modelPath}`;
         executeContext.resourceScope.register(resourceKey, async () => {
           await unloadFn(
-            { model } as any,
-            model as any,
+            { model },
+            model,
             () => {},
             AbortSignal.timeout(30_000)
           );

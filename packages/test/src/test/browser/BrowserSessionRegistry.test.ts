@@ -15,6 +15,7 @@ describe("BrowserSessionRegistry", () => {
 
   test("register and get a session", () => {
     const ctx = new MockBrowserContext();
+    ctx.connected = true;
     const id = BrowserSessionRegistry.register(ctx);
 
     expect(typeof id).toBe("string");
@@ -28,8 +29,20 @@ describe("BrowserSessionRegistry", () => {
     );
   });
 
+  test("get throws and auto-prunes disconnected session", () => {
+    const ctx = new MockBrowserContext();
+    ctx.connected = true;
+    const id = BrowserSessionRegistry.register(ctx);
+
+    ctx.connected = false;
+
+    expect(() => BrowserSessionRegistry.get(id)).toThrow("no longer connected");
+    expect(BrowserSessionRegistry.has(id)).toBe(false);
+  });
+
   test("unregister removes session", () => {
     const ctx = new MockBrowserContext();
+    ctx.connected = true;
     const id = BrowserSessionRegistry.register(ctx);
 
     expect(BrowserSessionRegistry.has(id)).toBe(true);
