@@ -5,12 +5,11 @@
  */
 
 import type { ITabularStorage } from "@workglow/storage";
-import type { EventParameters } from "@workglow/util";
 import { EventEmitter } from "@workglow/util";
-import type { FromSchema } from "@workglow/util/schema";
+import type { EventParameters } from "@workglow/util";
 
-import type { KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
 import { KnowledgeBasePrimaryKeyNames, KnowledgeBaseRecordSchema } from "./KnowledgeBaseSchema";
+import type { KnowledgeBaseRecord } from "./KnowledgeBaseSchema";
 
 /**
  * Events that can be emitted by the KnowledgeBaseRepository
@@ -35,21 +34,19 @@ export type KnowledgeBaseEventParameters<Event extends KnowledgeBaseEvents> = Ev
 /**
  * Repository for persisting KnowledgeBase metadata to tabular storage.
  * Follows the same pattern as ModelRepository.
- *
- * @typeParam S - Schema type (defaults to base KnowledgeBaseRecordSchema). Pass a wider
- *   schema to get correctly-typed method signatures throughout the subclass.
- * @typeParam PK - Primary key names tuple (defaults to ["kb_id"]).
  */
-export class KnowledgeBaseRepository<
-  S extends typeof KnowledgeBaseRecordSchema = typeof KnowledgeBaseRecordSchema,
-  PK extends typeof KnowledgeBasePrimaryKeyNames = typeof KnowledgeBasePrimaryKeyNames,
-> {
+export class KnowledgeBaseRepository {
   /**
    * Storage for KnowledgeBase records
    */
-  protected readonly storage: ITabularStorage<S, PK>;
+  protected readonly storage: ITabularStorage<
+    typeof KnowledgeBaseRecordSchema,
+    typeof KnowledgeBasePrimaryKeyNames
+  >;
 
-  constructor(storage: ITabularStorage<S, PK>) {
+  constructor(
+    storage: ITabularStorage<typeof KnowledgeBaseRecordSchema, typeof KnowledgeBasePrimaryKeyNames>
+  ) {
     this.storage = storage;
   }
 
@@ -95,9 +92,9 @@ export class KnowledgeBaseRepository<
   /**
    * Adds a new knowledge base record to the repository
    */
-  async addKnowledgeBase(record: FromSchema<S>): Promise<FromSchema<S>> {
-    await this.storage.put(record as any);
-    this.events.emit("knowledge_base_added", record as unknown as KnowledgeBaseRecord);
+  async addKnowledgeBase(record: KnowledgeBaseRecord): Promise<KnowledgeBaseRecord> {
+    await this.storage.put(record);
+    this.events.emit("knowledge_base_added", record);
     return record;
   }
 
@@ -105,30 +102,30 @@ export class KnowledgeBaseRepository<
    * Removes a knowledge base record from the repository
    */
   async removeKnowledgeBase(kb_id: string): Promise<void> {
-    const record = await this.storage.get({ kb_id } as any);
+    const record = await this.storage.get({ kb_id });
     if (!record) {
       throw new Error(`KnowledgeBase with id "${kb_id}" not found`);
     }
-    await this.storage.delete({ kb_id } as any);
-    this.events.emit("knowledge_base_removed", record as unknown as KnowledgeBaseRecord);
+    await this.storage.delete({ kb_id });
+    this.events.emit("knowledge_base_removed", record);
   }
 
   /**
    * Retrieves a knowledge base record by ID
    */
-  async getKnowledgeBase(kb_id: string): Promise<FromSchema<S> | undefined> {
+  async getKnowledgeBase(kb_id: string): Promise<KnowledgeBaseRecord | undefined> {
     if (typeof kb_id !== "string") return undefined;
-    const record = await this.storage.get({ kb_id } as any);
+    const record = await this.storage.get({ kb_id });
     return record ?? undefined;
   }
 
   /**
    * Enumerates all knowledge base records
    */
-  async enumerateAll(): Promise<FromSchema<S>[]> {
+  async enumerateAll(): Promise<KnowledgeBaseRecord[]> {
     const records = await this.storage.getAll();
     if (!records || records.length === 0) return [];
-    return records as FromSchema<S>[];
+    return records;
   }
 
   /**
