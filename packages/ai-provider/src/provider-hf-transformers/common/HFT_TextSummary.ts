@@ -30,11 +30,16 @@ export const HFT_TextSummary: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateSummary: SummarizationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
-  const streamer = createTextStreamer(generateSummary.tokenizer, onProgress, TextStreamer, signal);
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
+  const streamer = createTextStreamer(generateSummary.tokenizer, onProgress, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const result = await generateSummary(input.text, {
     streamer,
+    stopping_criteria: [stopping_criteria],
   } as any);
 
   let summaryText = "";
@@ -61,18 +66,18 @@ export const HFT_TextSummary_Stream: AiProviderStreamFn<
     {},
     signal
   );
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextSummaryTaskOutput>>();
-  const streamer = createStreamingTextStreamer(
-    generateSummary.tokenizer,
-    queue,
-    TextStreamer,
-    signal
-  );
+  const streamer = createStreamingTextStreamer(generateSummary.tokenizer, queue, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const pipelinePromise = generateSummary(input.text, {
     streamer,
+    stopping_criteria: [stopping_criteria],
   } as any).then(
     () => queue.done(),
     (err: Error) => queue.error(err)

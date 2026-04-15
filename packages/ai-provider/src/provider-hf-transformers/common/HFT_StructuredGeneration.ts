@@ -76,7 +76,7 @@ export const HFT_StructuredGeneration: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const prompt = buildStructuredGenerationPrompt(input);
 
@@ -87,13 +87,18 @@ export const HFT_StructuredGeneration: AiProviderRunFn<
     add_generation_prompt: true,
   }) as string;
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   let results = await generateText(formattedPrompt, {
     max_new_tokens: input.maxTokens ?? 1024,
     temperature: input.temperature ?? undefined,
     return_full_text: false,
     streamer,
+    stopping_criteria: [stopping_criteria],
   });
 
   if (!Array.isArray(results)) {
@@ -119,7 +124,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
 ): AsyncIterable<StreamEvent<StructuredGenerationTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const prompt = buildStructuredGenerationPrompt(input);
 
@@ -131,7 +136,11 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
   }) as string;
 
   const queue = createStreamEventQueue<StreamEvent<StructuredGenerationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   let fullText = "";
   // Incrementally maintain cleaned text to avoid O(n²) full-string regex on every token.
@@ -195,6 +204,7 @@ export const HFT_StructuredGeneration_Stream: AiProviderStreamFn<
     temperature: input.temperature ?? undefined,
     return_full_text: false,
     streamer,
+    stopping_criteria: [stopping_criteria],
   }).then(
     () => queue.done(),
     (err: Error) => queue.error(err)

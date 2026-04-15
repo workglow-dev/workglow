@@ -19,11 +19,11 @@ export const HFT_ImageToText: AiProviderRunFn<
 > = async (input, model, onProgress, signal) => {
   const captioner: ImageToTextPipeline = await getPipeline(model!, onProgress, {}, signal);
 
-  const result: any = await captioner(input.image as string, {
+  const result = await captioner(input.image as string, {
     max_new_tokens: input.maxTokens,
   });
 
-  const text = Array.isArray(result) ? result[0]?.generated_text : result?.generated_text;
+  const text = Array.isArray(result[0]) ? result[0][0]?.generated_text : result[0]?.generated_text;
 
   return {
     text: text || "",

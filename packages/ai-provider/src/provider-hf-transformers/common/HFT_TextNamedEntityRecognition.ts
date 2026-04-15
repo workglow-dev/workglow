@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  TokenClassificationOutput,
-  TokenClassificationPipeline,
-} from "@huggingface/transformers";
+import type { TokenClassificationPipeline } from "@huggingface/transformers";
 import type {
   AiProviderRunFn,
   TextNamedEntityRecognitionTaskInput,
@@ -31,14 +28,8 @@ export const HFT_TextNamedEntityRecognition: AiProviderRunFn<
     ignore_labels: input.blockList as string[] | undefined,
   });
 
-  let entities: TokenClassificationOutput = [];
-  if (!Array.isArray(results)) {
-    entities = [results];
-  } else {
-    entities = results as TokenClassificationOutput;
-  }
   return {
-    entities: entities.map((entity) => ({
+    entities: results.map((entity) => ({
       entity: entity.entity,
       score: entity.score,
       word: entity.word,

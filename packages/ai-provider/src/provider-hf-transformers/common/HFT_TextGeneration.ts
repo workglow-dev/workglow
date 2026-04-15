@@ -40,14 +40,18 @@ export const HFT_TextGeneration: AiProviderRunFn<
   logger.time(timerLabel, { model: model?.provider_config.model_path });
 
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   logger.debug("HFT TextGeneration: pipeline ready, generating text", {
     model: model?.provider_config.model_path,
     promptLength: input.prompt?.length,
   });
 
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const messages: Message[] = [{ role: "user", content: input.prompt }];
 
@@ -55,6 +59,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
     streamer,
     do_sample: false,
     max_new_tokens: input.maxTokens ?? 4 * 1024,
+    stopping_criteria: [stopping_criteria],
   });
 
   if (!Array.isArray(results)) {
@@ -74,13 +79,18 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextGenerationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const pipelinePromise = generateText(input.prompt, {
     streamer,
+    stopping_criteria: [stopping_criteria],
   }).then(
     () => queue.done(),
     (err: Error) => queue.error(err)

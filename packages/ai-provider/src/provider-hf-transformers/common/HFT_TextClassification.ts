@@ -5,7 +5,6 @@
  */
 
 import type {
-  TextClassificationOutput,
   TextClassificationPipeline,
   ZeroShotClassificationPipeline,
 } from "@huggingface/transformers";
@@ -57,9 +56,8 @@ export const HFT_TextClassification: AiProviderRunFn<
     top_k: input.maxCategories || undefined,
   });
 
-  const items = Array.isArray(result[0]) ? result[0] : (result as TextClassificationOutput);
   return {
-    categories: items.map((category) => ({
+    categories: result.map((category) => ({
       label: category.label,
       score: category.score,
     })),

@@ -5,11 +5,6 @@
  */
 
 import type { Tensor, TextGenerationPipeline } from "@huggingface/transformers";
-import {
-  buildToolDescription,
-  filterValidToolCalls,
-  toTextFlatMessages,
-} from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -17,15 +12,12 @@ import type {
   ToolCallingTaskOutput,
   ToolDefinition,
 } from "@workglow/ai";
-import type { StreamEvent } from "@workglow/task-graph";
-import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
-import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
 import {
-  createStreamEventQueue,
-  createStreamingTextStreamer,
-  createTextStreamer,
-} from "./HFT_Streaming";
-import { createToolCallMarkupFilter } from "./HFT_ToolMarkup";
+  buildToolDescription,
+  filterValidToolCalls,
+  toTextFlatMessages,
+} from "@workglow/ai/worker";
+import type { StreamEvent } from "@workglow/task-graph";
 import {
   adaptParserResult,
   extractMessageText,
@@ -34,6 +26,14 @@ import {
   getGenerationPrefix,
   parseToolCalls,
 } from "../../common/ToolCallParsers";
+import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
+import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
+import {
+  createStreamEventQueue,
+  createStreamingTextStreamer,
+  createTextStreamer,
+} from "./HFT_Streaming";
+import { createToolCallMarkupFilter } from "./HFT_ToolMarkup";
 
 // ============================================================================
 // Model detection
@@ -319,21 +319,26 @@ export const HFT_ToolCalling: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const hfTokenizer = generateText.tokenizer;
   const hfModel = generateText.model;
 
-  const streamer = createTextStreamer(hfTokenizer, onProgress, TextStreamer, signal);
+  const streamer = createTextStreamer(hfTokenizer, onProgress, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
   const modelFamily = detectModelFamilyFromConfig(model!);
   const { prompt, responsePrefix } = buildPromptAndPrefix(hfTokenizer, input, modelFamily);
 
-  const inputs = hfTokenizer(prompt, { return_tensors: "pt" }) as { input_ids: Tensor };
+  const inputs = hfTokenizer(prompt);
 
   const output = (await hfModel.generate({
     ...inputs,
     max_new_tokens: input.maxTokens ?? 1024,
     streamer,
+    stopping_criteria: [stopping_criteria],
   })) as Tensor;
   const promptLen = inputs.input_ids.dims[1];
   const seqLen = output.dims[1];
@@ -359,7 +364,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
   const modelFamily = detectModelFamilyFromConfig(model!);
   const { prompt, responsePrefix } = buildPromptAndPrefix(
     generateText.tokenizer,
@@ -371,12 +376,11 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   // the outer queue receives filtered text-delta events (markup stripped).
   const innerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
   const outerQueue = createStreamEventQueue<StreamEvent<ToolCallingTaskOutput>>();
-  const streamer = createStreamingTextStreamer(
-    generateText.tokenizer,
-    innerQueue,
-    TextStreamer,
-    signal
-  );
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, innerQueue, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   let fullText = "";
   const filter = createToolCallMarkupFilter((text) => {
@@ -415,6 +419,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
     temperature: input.temperature ?? undefined,
     return_full_text: false,
     streamer,
+    stopping_criteria: [stopping_criteria],
   }).then(
     () => innerQueue.done(),
     (err: Error) => innerQueue.error(err)

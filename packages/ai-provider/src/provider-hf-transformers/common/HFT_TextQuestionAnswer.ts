@@ -40,23 +40,20 @@ export const HFT_TextQuestionAnswer: AiProviderRunFn<
     signal
   );
 
-  const { TextStreamer } = await loadTransformersSDK();
-  const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress, TextStreamer, signal);
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
+  const streamer = createTextStreamer(generateAnswer.tokenizer, onProgress, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const result = await generateAnswer(input.question, input.context, {
     streamer,
+    stopping_criteria: [stopping_criteria],
   } as any);
 
-  let answerText = "";
-  if (Array.isArray(result)) {
-    answerText = (result[0] as DocumentQuestionAnsweringOutput[number])?.answer || "";
-  } else {
-    answerText = (result as DocumentQuestionAnsweringOutput[number])?.answer || "";
-  }
-
-  return {
-    text: answerText,
-  };
+  const answerText = (result as DocumentQuestionAnsweringOutput[number])?.answer || "";
+  return { text: answerText };
 };
 
 export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
@@ -75,15 +72,14 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
     {},
     signal
   );
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextQuestionAnswerTaskOutput>>();
-  const streamer = createStreamingTextStreamer(
-    generateAnswer.tokenizer,
-    queue,
-    TextStreamer,
-    signal
-  );
+  const streamer = createStreamingTextStreamer(generateAnswer.tokenizer, queue, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   let pipelineResult:
     | DocumentQuestionAnsweringOutput[number]
@@ -91,6 +87,7 @@ export const HFT_TextQuestionAnswer_Stream: AiProviderStreamFn<
     | undefined;
   const pipelinePromise = generateAnswer(input.question, input.context, {
     streamer,
+    stopping_criteria: [stopping_criteria],
   } as any).then(
     (result) => {
       pipelineResult = result;
