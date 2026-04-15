@@ -1,5 +1,13 @@
 # @workglow/cli
 
+## 0.2.7
+
+### Features
+
+#### browser-control
+
+- add browser automation framework with multiple backends
+
 ## 0.2.6
 
 ### Refactors

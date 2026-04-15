@@ -1,5 +1,23 @@
 # @workglow/ai-provider
 
+## 0.2.7
+
+### Features
+
+#### ai
+
+- add model dimensions detail to ModelInfo system
+
+### Refactors
+
+#### ai-provider
+
+- consolidate tool parsers, remove FunctionGemma, and add shared provider utilities
+
+### Chores
+
+- format
+
 ## 0.2.6
 
 ### Refactors

@@ -1,5 +1,17 @@
 # @workglow/task-graph
 
+## 0.2.7
+
+### Features
+
+#### browser-control
+
+- add browser automation framework with multiple backends
+
+#### util
+
+- add ResourceScope for heavyweight resource lifecycle management
+
 ## 0.2.6
 
 ### Refactors

@@ -1,5 +1,23 @@
 # @workglow/storage
 
+## 0.2.7
+
+### Features
+
+#### storage
+
+- enhance KvViaTabularStorage with JSON serialization handling
+
+### Refactors
+
+#### storage
+
+- simplify vector and tabular constructor type handling
+
+### Chores
+
+- format
+
 ## 0.2.6
 
 ### Refactors

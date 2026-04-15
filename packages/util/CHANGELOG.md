@@ -1,5 +1,17 @@
 # @workglow/util
 
+## 0.2.7
+
+### Features
+
+#### util
+
+- add ResourceScope for heavyweight resource lifecycle management
+
+#### storage
+
+- enhance KvViaTabularStorage with JSON serialization handling
+
 ## 0.2.6
 
 ### Refactors

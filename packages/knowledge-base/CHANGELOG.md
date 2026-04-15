@@ -1,5 +1,13 @@
 # @workglow/knowledge-base
 
+## 0.2.7
+
+### Features
+
+#### ai
+
+- add KbToDocumentsTask and relax vector dimension check
+
 ## 0.2.6
 
 ### Refactors

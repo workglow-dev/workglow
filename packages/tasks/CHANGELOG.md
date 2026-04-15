@@ -1,5 +1,21 @@
 # @workglow/tasks
 
+## 0.2.7
+
+### Features
+
+#### browser-control
+
+- add browser automation framework with multiple backends
+
+#### tasks
+
+- add ImageTextTask for rendering text onto images
+
+### Updated Dependencies
+
+- `undici`: ^8.1.0
+
 ## 0.2.6
 
 ### Refactors

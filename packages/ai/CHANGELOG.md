@@ -1,5 +1,28 @@
 # @workglow/ai
 
+## 0.2.7
+
+### Features
+
+#### util
+
+- add ResourceScope for heavyweight resource lifecycle management
+
+#### ai
+
+- add KbToDocumentsTask and relax vector dimension check
+- add model dimensions detail to ModelInfo system
+
+### Refactors
+
+#### ai-provider
+
+- consolidate tool parsers, remove FunctionGemma, and add shared provider utilities
+
+### Chores
+
+- format
+
 ## 0.2.6
 
 ### Refactors

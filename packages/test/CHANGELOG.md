@@ -1,5 +1,36 @@
 # @workglow/test
 
+## 0.2.7
+
+### Features
+
+#### browser-control
+
+- add browser automation framework with multiple backends
+
+#### util
+
+- add ResourceScope for heavyweight resource lifecycle management
+
+#### ai
+
+- add KbToDocumentsTask and relax vector dimension check
+
+#### tasks
+
+- add ImageTextTask for rendering text onto images
+
+### Refactors
+
+#### ai-provider
+
+- consolidate tool parsers, remove FunctionGemma, and add shared provider utilities
+
+### Chores
+
+- format
+- update dependencies
+
 ## 0.2.6
 
 ### Refactors
