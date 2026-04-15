@@ -38,30 +38,6 @@ const llmModel: LlamaCppModelRecord = {
   metadata: {},
 };
 
-const functionGemmaToolModel: LlamaCppModelRecord = {
-  model_id: "llamacpp:unsloth/functiongemma-270m-it-GGUF:Q8_0",
-  title: "FunctionGemma 270M IT",
-  description:
-    "A 270M parameter instruction-following model with tool calling support, quantized Q8_0",
-  tasks: [
-    "DownloadModelTask",
-    "TextGenerationTask",
-    "TextRewriterTask",
-    "TextSummaryTask",
-    "ToolCallingTask",
-    "StructuredGenerationTask",
-  ],
-  provider: LOCAL_LLAMACPP,
-  provider_config: {
-    model_path: "./models/hf_unslothfunctiongemma-270m-it-GGUF.Q8_0.gguf",
-    model_url: "hf:unsloth/functiongemma-270m-it-GGUF:Q8_0",
-    models_dir: "./models",
-    flash_attention: true,
-    seed: 42,
-  },
-  metadata: {},
-};
-
 const lfm2ToolModel: LlamaCppModelRecord = {
   model_id: "llamacpp:LiquidAI/LFM2-1.2B-Tool:Q8_0",
   title: "LFM2 1.2B Tool",
@@ -127,7 +103,7 @@ const llama3d21bToolModel: LlamaCppModelRecord = {
   metadata: {},
 };
 
-const toolModelId = qwen25CoderToolModel.model_id; // or qwen25CoderToolModel.model_id or lfm2ToolModel.model_id or functionGemmaToolModel.model_id or llmModel.model_id or llama3d21bToolModel.model_id
+const toolModelId = qwen25CoderToolModel.model_id; // or lfm2ToolModel.model_id or llmModel.model_id or llama3d21bToolModel.model_id
 const llmModelId = llmModel.model_id;
 
 runGenericAiProviderTests({
@@ -140,7 +116,6 @@ runGenericAiProviderTests({
     await registerLlamaCppInline();
 
     await getGlobalModelRepository().addModel(llmModel);
-    await getGlobalModelRepository().addModel(functionGemmaToolModel);
     await getGlobalModelRepository().addModel(lfm2ToolModel);
     await getGlobalModelRepository().addModel(qwen25CoderToolModel);
     await getGlobalModelRepository().addModel(llama3d21bToolModel);

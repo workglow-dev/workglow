@@ -5,10 +5,11 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderInline } from "../common/registerProvider";
 import { clearHftInlinePipelineCache } from "./common/HFT_InlineLifecycle";
 import { HFT_REACTIVE_TASKS, HFT_STREAM_TASKS, HFT_TASKS } from "./common/HFT_JobRunFns";
-import { HuggingFaceTransformersQueuedProvider } from "./HuggingFaceTransformersQueuedProvider";
 import { loadTransformersSDK } from "./common/HFT_Pipeline";
+import { HuggingFaceTransformersQueuedProvider } from "./HuggingFaceTransformersQueuedProvider";
 
 /**
  * Register HuggingFace Transformers ONNX on the **main thread** with inline execution
@@ -32,5 +33,5 @@ export async function registerHuggingFaceTransformersInline(
     await clearHftInlinePipelineCache();
     await baseDispose();
   };
-  await provider.register(options ?? {});
+  await registerProviderInline(provider, "HuggingFaceTransformers", options);
 }

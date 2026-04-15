@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderWithWorker } from "../common/registerProvider";
 import { OpenAiQueuedProvider } from "./OpenAiQueuedProvider";
 
 export async function registerOpenAi(
@@ -12,5 +13,5 @@ export async function registerOpenAi(
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new OpenAiQueuedProvider().register(options);
+  await registerProviderWithWorker(new OpenAiQueuedProvider(), "OpenAI", options);
 }

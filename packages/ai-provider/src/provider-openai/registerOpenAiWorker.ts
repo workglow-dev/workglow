@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger, globalServiceRegistry, WORKER_SERVER } from "@workglow/util/worker";
+import { registerProviderWorker } from "../common/registerProvider";
 import {
   OPENAI_REACTIVE_TASKS,
   OPENAI_STREAM_TASKS,
@@ -13,12 +13,13 @@ import {
 import { OpenAiProvider } from "./OpenAiProvider";
 
 export async function registerOpenAiWorker(): Promise<void> {
-  const workerServer = globalServiceRegistry.get(WORKER_SERVER);
-  new OpenAiProvider(
-    OPENAI_TASKS,
-    OPENAI_STREAM_TASKS,
-    OPENAI_REACTIVE_TASKS
-  ).registerOnWorkerServer(workerServer);
-  workerServer.sendReady();
-  getLogger().info("OpenAI worker job run functions registered");
+  await registerProviderWorker(
+    (ws) =>
+      new OpenAiProvider(
+        OPENAI_TASKS,
+        OPENAI_STREAM_TASKS,
+        OPENAI_REACTIVE_TASKS
+      ).registerOnWorkerServer(ws),
+    "OpenAI"
+  );
 }

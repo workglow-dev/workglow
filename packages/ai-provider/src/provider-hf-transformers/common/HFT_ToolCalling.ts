@@ -15,7 +15,6 @@ import type {
   AiProviderStreamFn,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
-  ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
@@ -28,10 +27,12 @@ import {
 } from "./HFT_Streaming";
 import { createToolCallMarkupFilter } from "./HFT_ToolMarkup";
 import {
+  adaptParserResult,
+  extractMessageText,
+  forcedToolSelection,
   getAvailableParsers,
   getGenerationPrefix,
   parseToolCalls,
-  stripModelArtifacts,
 } from "../../common/ToolCallParsers";
 
 // ============================================================================
@@ -64,40 +65,6 @@ function detectModelFamilyFromConfig(model: HfTransformersOnnxModelConfig): stri
 // ============================================================================
 // Tool call result adaptation
 // ============================================================================
-
-/**
- * Convert a parser result (using `arguments` field) to the workglow `ToolCalls`
- * type (using `input` field).
- */
-function adaptParserResult(result: ReturnType<typeof parseToolCalls>): {
-  text: string;
-  toolCalls: ToolCalls;
-} {
-  return {
-    text: stripModelArtifacts(result.content),
-    toolCalls: result.tool_calls.map((call, index) => ({
-      id: call.id ?? `call_${index}`,
-      name: call.name,
-      input: call.arguments as Record<string, unknown>,
-    })),
-  };
-}
-
-function forcedToolSelection(input: ToolCallingTaskInput): string | undefined {
-  if (
-    typeof input.toolChoice === "string" &&
-    input.toolChoice !== "auto" &&
-    input.toolChoice !== "none"
-  ) {
-    if (input.toolChoice !== "required") {
-      return input.toolChoice;
-    }
-  }
-  if (input.toolChoice === "required" && input.tools.length === 1) {
-    return input.tools[0]?.name;
-  }
-  return undefined;
-}
 
 function normalizeParsedToolCalls(
   input: ToolCallingTaskInput,
@@ -165,25 +132,6 @@ function resolveHFTToolsAndMessages(
 // ============================================================================
 // HFT message building
 // ============================================================================
-
-/**
- * Extract text from a content block that may be a string, array of content
- * blocks, or other structure.
- */
-function extractMessageText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!Array.isArray(content)) {
-    return String(content ?? "");
-  }
-  return content
-    .filter(
-      (block) => block && typeof block === "object" && (block as { type?: unknown }).type === "text"
-    )
-    .map((block) => String((block as { text?: unknown }).text ?? ""))
-    .join("");
-}
 
 /**
  * Try to parse a string as JSON; return the raw string if it's not valid JSON.

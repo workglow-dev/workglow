@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderInline } from "../common/registerProvider";
 import {
   GEMINI_REACTIVE_TASKS,
   GEMINI_STREAM_TASKS,
@@ -13,9 +14,9 @@ import {
 import { GoogleGeminiQueuedProvider } from "./GoogleGeminiQueuedProvider";
 
 export async function registerGeminiInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new GoogleGeminiQueuedProvider(
-    GEMINI_TASKS,
-    GEMINI_STREAM_TASKS,
-    GEMINI_REACTIVE_TASKS
-  ).register(options ?? {});
+  await registerProviderInline(
+    new GoogleGeminiQueuedProvider(GEMINI_TASKS, GEMINI_STREAM_TASKS, GEMINI_REACTIVE_TASKS),
+    "Google Gemini",
+    options
+  );
 }

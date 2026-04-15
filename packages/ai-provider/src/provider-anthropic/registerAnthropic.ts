@@ -5,6 +5,7 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderWithWorker } from "../common/registerProvider";
 import { AnthropicQueuedProvider } from "./AnthropicQueuedProvider";
 
 export async function registerAnthropic(
@@ -12,5 +13,5 @@ export async function registerAnthropic(
     worker: Worker | (() => Worker);
   }
 ): Promise<void> {
-  await new AnthropicQueuedProvider().register(options);
+  await registerProviderWithWorker(new AnthropicQueuedProvider(), "Anthropic", options);
 }

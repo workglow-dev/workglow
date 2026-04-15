@@ -5,17 +5,18 @@
  */
 
 import type { AiProviderRegisterOptions } from "@workglow/ai";
+import { registerProviderInline } from "../common/registerProvider";
+import { AnthropicQueuedProvider } from "./AnthropicQueuedProvider";
 import {
   ANTHROPIC_REACTIVE_TASKS,
   ANTHROPIC_STREAM_TASKS,
   ANTHROPIC_TASKS,
 } from "./common/Anthropic_JobRunFns";
-import { AnthropicQueuedProvider } from "./AnthropicQueuedProvider";
 
 export async function registerAnthropicInline(options?: AiProviderRegisterOptions): Promise<void> {
-  await new AnthropicQueuedProvider(
-    ANTHROPIC_TASKS,
-    ANTHROPIC_STREAM_TASKS,
-    ANTHROPIC_REACTIVE_TASKS
-  ).register(options ?? {});
+  await registerProviderInline(
+    new AnthropicQueuedProvider(ANTHROPIC_TASKS, ANTHROPIC_STREAM_TASKS, ANTHROPIC_REACTIVE_TASKS),
+    "Anthropic",
+    options
+  );
 }

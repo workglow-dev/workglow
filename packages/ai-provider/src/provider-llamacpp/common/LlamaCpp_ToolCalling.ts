@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { filterValidToolCalls } from "@workglow/ai/worker";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -13,15 +12,11 @@ import type {
   ToolCalls,
   ToolDefinition,
 } from "@workglow/ai";
+import { filterValidToolCalls } from "@workglow/ai/worker";
 import type { StreamEvent } from "@workglow/task-graph";
+import { getLogger } from "@workglow/util/worker";
+import { extractMessageText, toolChoiceForcesToolCall } from "../../common/ToolCallParsers";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
-import {
-  buildRawCompletionPrompt,
-  extractToolCallsFromText,
-  supportsNativeFunctions,
-  toolChoiceForcesToolCall,
-  truncateAtTurnBoundary,
-} from "./LlamaCpp_ToolParser";
 import {
   getLlamaCppSdk,
   getOrCreateTextContext,
@@ -29,7 +24,7 @@ import {
   llamaCppSeedPromptSpread,
   loadSdk,
 } from "./LlamaCpp_Runtime";
-import { getLogger } from "@workglow/util/worker";
+import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
 
 // ============================================================================
 // System prompt
@@ -48,15 +43,6 @@ function buildSystemPrompt(input: ToolCallingTaskInput): string | undefined {
 // ============================================================================
 // Message → ChatHistoryItem[] conversion
 // ============================================================================
-
-function extractTextFromContent(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return String(content ?? "");
-  return content
-    .filter((block: any) => block?.type === "text")
-    .map((block: any) => String(block.text ?? ""))
-    .join("");
-}
 
 /**
  * Convert workglow messages to node-llama-cpp's `ChatHistoryItem[]`.
@@ -84,7 +70,7 @@ function convertMessagesToChatHistory(
 
   for (const msg of messages) {
     if (msg.role === "user") {
-      const text = extractTextFromContent(msg.content);
+      const text = extractMessageText(msg.content);
       history.push({ type: "user", text });
       continue;
     }
@@ -182,28 +168,6 @@ function buildChatModelFunctions(
 // ============================================================================
 
 /**
- * Sampling options for {@link LlamaCompletion.generateCompletion} (FunctionGemma raw path).
- * Includes `responsePrefix` which is only supported on the raw completion path.
- */
-function llamaCppRawCompletionOptions(
-  input: ToolCallingTaskInput,
-  model: LlamaCppModelConfig
-): Record<string, unknown> {
-  const opts: Record<string, unknown> = {
-    ...llamaCppSeedPromptSpread(model.provider_config),
-  };
-  if (input.maxTokens !== undefined) {
-    opts.maxTokens = input.maxTokens;
-  }
-  if (input.temperature !== undefined) {
-    opts.temperature = input.temperature;
-  } else if (toolChoiceForcesToolCall(input.toolChoice)) {
-    opts.temperature = 0.2;
-  }
-  return opts;
-}
-
-/**
  * Sampling options for {@link LlamaChat.generateResponse}.
  * Does NOT include `responsePrefix` (not supported by LlamaChat).
  */
@@ -258,36 +222,8 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
 
   update_progress(10, "Running tool calling");
   const sequence = context.getSequence();
-  const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
+  const { LlamaChat } = getLlamaCppSdk();
   const systemPrompt = buildSystemPrompt(input);
-
-  // ---- FunctionGemma raw completion path (unchanged) ----
-  const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
-
-  getLogger().debug("LlamaCpp_ToolCalling", { rawPrompt, systemPrompt });
-
-  if (rawPrompt !== undefined) {
-    const completion = new LlamaCompletion({ contextSequence: sequence });
-    try {
-      const rawText = await completion.generateCompletion(rawPrompt, {
-        signal,
-        ...llamaCppRawCompletionOptions(input, model),
-      });
-
-      const text = truncateAtTurnBoundary(rawText);
-      getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { rawText, text });
-      const toolCalls = filterValidToolCalls(
-        extractToolCallsFromText(text, input, model),
-        input.tools
-      );
-      getLogger().debug("LlamaCpp_ToolCalling LlamaCompletion", { toolCalls });
-      update_progress(100, "Tool calling complete");
-      return { text, toolCalls };
-    } finally {
-      completion.dispose({ disposeSequence: false });
-      sequence.dispose();
-    }
-  }
 
   // ---- Native function calling path via LlamaChat ----
   const llamaChat = new LlamaChat({
@@ -296,11 +232,9 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   });
 
   const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
+    typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
   const chatHistory = convertMessagesToChatHistory(input.messages, promptText, systemPrompt);
-  const functions = supportsNativeFunctions(input, model)
-    ? buildChatModelFunctions(input.tools)
-    : undefined;
+  const functions = buildChatModelFunctions(input.tools);
 
   getLogger().debug("LlamaCpp_ToolCalling LlamaChat", { chatHistory, functions });
 
@@ -308,10 +242,8 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
     const res = await llamaChat.generateResponse(chatHistory, {
       signal,
       ...llamaCppChatGenerateOptions(input, model),
-      ...(functions && {
-        functions,
-        ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
-      }),
+      functions,
+      ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
     });
 
     const text = res.response;
@@ -319,7 +251,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
 
     // Fallback: parse tool calls from text if native parsing found nothing
     if (toolCalls.length === 0 && input.tools.length > 0 && input.toolChoice !== "none") {
-      toolCalls.push(...extractToolCallsFromText(text, input, model));
+      toolCalls.push(...extractToolCallsFromText(text, input));
     }
 
     update_progress(100, "Tool calling complete");
@@ -338,9 +270,6 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
  * Drives an async generation call that pushes text chunks via `onTextChunk`,
  * yielding `text-delta` events as they arrive. Returns accumulated text and
  * the generation result (if any) once complete.
- *
- * Both the raw-completion and LlamaChat streaming paths delegate here via
- * `yield*` to avoid duplicating the queue / notification / drain loop.
  */
 async function* streamTextChunks<T>(
   startGeneration: (onTextChunk: (chunk: string) => void) => Promise<T>,
@@ -422,45 +351,8 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
   const context = await getOrCreateTextContext(model);
 
   const sequence = context.getSequence();
-  const { LlamaChat, LlamaCompletion } = getLlamaCppSdk();
+  const { LlamaChat } = getLlamaCppSdk();
   const systemPrompt = buildSystemPrompt(input);
-
-  // ---- FunctionGemma raw completion path ----
-  const rawPrompt = buildRawCompletionPrompt(input, model, systemPrompt);
-
-  if (rawPrompt !== undefined) {
-    const completion = new LlamaCompletion({ contextSequence: sequence });
-
-    const { text: rawText } = yield* streamTextChunks(
-      (onTextChunk) =>
-        completion.generateCompletion(rawPrompt, {
-          signal,
-          ...llamaCppRawCompletionOptions(input, model),
-          onTextChunk,
-        }),
-      signal,
-      () => {
-        completion.dispose({ disposeSequence: false });
-        sequence.dispose();
-      }
-    );
-
-    const text = truncateAtTurnBoundary(rawText);
-    const validToolCalls = filterValidToolCalls(
-      extractToolCallsFromText(text, input, model),
-      input.tools
-    );
-
-    if (validToolCalls.length > 0) {
-      yield { type: "object-delta", port: "toolCalls", objectDelta: [...validToolCalls] };
-    }
-
-    yield {
-      type: "finish",
-      data: { text, toolCalls: validToolCalls } as ToolCallingTaskOutput,
-    };
-    return;
-  }
 
   // ---- Native function calling path via LlamaChat ----
   const llamaChat = new LlamaChat({
@@ -469,21 +361,17 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
   });
 
   const promptText =
-    typeof input.prompt === "string" ? input.prompt : extractTextFromContent(input.prompt);
+    typeof input.prompt === "string" ? input.prompt : extractMessageText(input.prompt);
   const chatHistory = convertMessagesToChatHistory(input.messages, promptText, systemPrompt);
-  const functions = supportsNativeFunctions(input, model)
-    ? buildChatModelFunctions(input.tools)
-    : undefined;
+  const functions = buildChatModelFunctions(input.tools);
 
   const { text: accumulatedText, result: chatResponse } = yield* streamTextChunks(
     (onTextChunk) =>
       llamaChat.generateResponse(chatHistory, {
         signal,
         ...llamaCppChatGenerateOptions(input, model),
-        ...(functions && {
-          functions,
-          ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
-        }),
+        functions,
+        ...(toolChoiceForcesToolCall(input.toolChoice) && { documentFunctionParams: true }),
         onTextChunk,
       }),
     signal,
@@ -497,7 +385,7 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
 
   // Fallback: parse tool calls from text if native parsing found nothing
   if (toolCalls.length === 0 && input.tools.length > 0 && input.toolChoice !== "none") {
-    toolCalls.push(...extractToolCallsFromText(accumulatedText, input, model));
+    toolCalls.push(...extractToolCallsFromText(accumulatedText, input));
   }
   const validToolCalls = filterValidToolCalls(toolCalls, input.tools);
 

@@ -5,21 +5,22 @@
  */
 
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
-import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util/worker";
 import type { WorkerServerBase as WorkerServer } from "@workglow/util/worker";
+import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util/worker";
 import type { ModelConfig } from "../model/ModelSchema";
-import { getAiProviderRegistry } from "./AiProviderRegistry";
 import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
 } from "./AiProviderRegistry";
+import { getAiProviderRegistry } from "./AiProviderRegistry";
 
 /**
  * Job queue concurrency: one limit for the primary ({@link QueuedAiProvider} hardware) queue,
  * or per-slot limits. Hugging Face Transformers ONNX uses `gpu` and `cpu` for its two queues.
  */
 export type AiProviderQueueConcurrency = number | Record<string, number>;
+export const DEFAULT_AI_PROVIDER_WORKER_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
 /**
  * Resolves the primary (e.g. WebGPU) queue limit for {@link QueuedAiProvider}.
@@ -51,6 +52,11 @@ export interface AiProviderRegisterOptions {
    * `() => Worker` to defer instantiation until the first job (lazy worker).
    */
   worker?: Worker | (() => Worker);
+  /**
+   * Idle timeout for factory-backed worker registrations. `0` disables idle termination.
+   * Defaults to 15 minutes for AI providers when `worker` is a factory.
+   */
+  workerIdleTimeoutMs?: number;
   /** Job queue configuration */
   queue?: {
     /**
@@ -232,7 +238,13 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
 
     if (!isInline && options.worker) {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
-      workerManager.registerWorker(this.name, options.worker);
+      if (typeof options.worker === "function") {
+        workerManager.registerWorker(this.name, options.worker, {
+          idleTimeoutMs: options.workerIdleTimeoutMs ?? DEFAULT_AI_PROVIDER_WORKER_IDLE_TIMEOUT_MS,
+        });
+      } else {
+        workerManager.registerWorker(this.name, options.worker);
+      }
       for (const taskType of this.taskTypes) {
         registry.registerAsWorkerRunFn(this.name, taskType);
         registry.registerAsWorkerStreamFn(this.name, taskType);

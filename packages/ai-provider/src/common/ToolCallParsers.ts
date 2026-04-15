@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ToolCalls } from "@workglow/ai";
+import type { ToolCallingTaskInput, ToolCalls } from "@workglow/ai";
+import { getLogger } from "@workglow/util/worker";
 
 // ============================================================================
 // Types
@@ -59,6 +60,25 @@ export function stripModelArtifacts(text: string): string {
     .trim();
 }
 
+/**
+ * Extract text from a content block that may be a string, array of content
+ * blocks, or other structure.
+ */
+export function extractMessageText(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return String(content ?? "");
+  }
+  return content
+    .filter(
+      (block) => block && typeof block === "object" && (block as { type?: unknown }).type === "text"
+    )
+    .map((block) => String((block as { text?: unknown }).text ?? ""))
+    .join("");
+}
+
 // ============================================================================
 // Shared helpers
 // ============================================================================
@@ -74,7 +94,11 @@ export function makeToolCall(
 export function tryParseJson(text: string): unknown | undefined {
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (e) {
+    getLogger().debug("ToolCallParsers tryParseJson failed", {
+      error: (e as Error).message,
+      textPrefix: text.slice(0, 120),
+    });
     return undefined;
   }
 }
@@ -185,63 +209,57 @@ export function coerceArgValue(value: string): unknown {
   return value;
 }
 
-/**
- * Richer value coercion for FunctionGemma-style arguments.
- * Superset of {@link coerceArgValue}: also handles JSON-quoted strings,
- * objects, and arrays.
- */
-export function parseFunctionGemmaArgumentValue(rawValue: string): unknown {
-  const trimmed = rawValue.trim();
-  if (trimmed.length === 0) return "";
-  if (trimmed === "true") return true;
-  if (trimmed === "false") return false;
-  if (trimmed === "null") return null;
+// ============================================================================
+// Tool choice utilities
+// ============================================================================
 
-  const numeric = Number(trimmed);
-  if (!Number.isNaN(numeric) && /^-?\d+(?:\.\d+)?$/.test(trimmed)) {
-    return numeric;
-  }
+export function toolChoiceForcesToolCall(toolChoice: ToolCallingTaskInput["toolChoice"]): boolean {
+  return (
+    toolChoice === "required" ||
+    (toolChoice !== undefined && toolChoice !== "auto" && toolChoice !== "none")
+  );
+}
 
+export function forcedToolSelection(input: ToolCallingTaskInput): string | undefined {
   if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    typeof input.toolChoice === "string" &&
+    input.toolChoice !== "auto" &&
+    input.toolChoice !== "none"
   ) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      // Fall through to raw string.
+    if (input.toolChoice !== "required") {
+      return input.toolChoice;
     }
   }
+  if (input.toolChoice === "required" && input.tools.length === 1) {
+    return input.tools[0]?.name;
+  }
+  return undefined;
+}
 
-  return trimmed;
+export function resolveParsedToolName(name: string, input: ToolCallingTaskInput): string {
+  if (input.tools.some((tool) => tool.name === name)) {
+    return name;
+  }
+  return forcedToolSelection(input) ?? name;
 }
 
 /**
- * Parse a loose `{key: value, ...}` object that may not be valid JSON.
- * Used as a FunctionGemma fallback when models emit partial syntax.
+ * Convert a low-level parser result to the workglow `ToolCalls` type.
+ * When `input` is provided, tool names are resolved against the available
+ * tools list (and forced selection is applied for unrecognized names).
  */
-export function parseFunctionGemmaLooseObject(text: string): Record<string, unknown> | undefined {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-    return undefined;
-  }
-
-  const inner = trimmed.slice(1, -1).trim();
-  if (inner.length === 0) {
-    return {};
-  }
-
-  const result: Record<string, unknown> = {};
-  const pairs = inner.matchAll(/([A-Za-z0-9_]+)\s*:\s*('[^']*'|"[^"]*"|[^,}]+)/g);
-
-  for (const [_, rawKey, rawValue] of pairs) {
-    const key = rawKey.trim();
-    const valueText = rawValue.trim().replace(/^'([^']*)'$/, '"$1"');
-    result[key] = parseFunctionGemmaArgumentValue(valueText);
-  }
-
-  return Object.keys(result).length > 0 ? result : undefined;
+export function adaptParserResult(
+  result: ToolCallParserResult,
+  input?: ToolCallingTaskInput
+): { text: string; toolCalls: ToolCalls } {
+  return {
+    text: stripModelArtifacts(result.content),
+    toolCalls: result.tool_calls.map((call, index) => ({
+      id: call.id ?? `call_${index}`,
+      name: input ? resolveParsedToolName(call.name, input) : call.name,
+      input: call.arguments,
+    })),
+  };
 }
 
 // ============================================================================
@@ -785,85 +803,6 @@ export const parseGemma: ParserFn = (text) => {
 };
 
 /**
- * Parse FunctionGemma-style arguments from the captured string between braces.
- * Handles both `<escape>` delimited and plain `key:value` formats, with a
- * JSON fallback for more complex values.
- */
-function parseFunctionGemmaArgs(argsStr: string): Record<string, unknown> {
-  const args: Record<string, unknown> = {};
-  if (!argsStr.trim()) return args;
-
-  // Try <escape>-delimited format first: key:<escape>value<escape>
-  const escapeRegex =
-    /(?<![A-Za-z0-9_])([A-Za-z0-9_]+)\s*:\s*<escape>((?:[^<]|<(?!escape>))*)<escape>/g;
-  let escapeMatch: RegExpExecArray | null;
-  while ((escapeMatch = escapeRegex.exec(argsStr)) !== null) {
-    args[escapeMatch[1]] = coerceArgValue(escapeMatch[2]);
-  }
-  if (Object.keys(args).length > 0) return args;
-
-  // Try plain key:value format (no escape tags): key:value separated by commas
-  // Also handles cases where the model generates only a single <escape> tag
-  const plainRegex =
-    /(?<![A-Za-z0-9_])(?=([A-Za-z0-9_]+))\1\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}]+))/g;
-  let plainMatch: RegExpExecArray | null;
-  while ((plainMatch = plainRegex.exec(argsStr)) !== null) {
-    const key = plainMatch[1].trim();
-    const value = (plainMatch[2] ?? plainMatch[3] ?? plainMatch[4] ?? "")
-      .replace(/<escape>/g, "")
-      .trim();
-    args[key] = parseFunctionGemmaArgumentValue(value);
-  }
-  if (Object.keys(args).length > 0) return args;
-
-  // Fallback: try JSON.parse on {argsStr}
-  const jsonResult = tryParseJson(`{${argsStr}}`) as Record<string, unknown> | undefined;
-  if (jsonResult && typeof jsonResult === "object") return jsonResult;
-
-  return args;
-}
-
-/**
- * FunctionGemma (Google, specialized 270M model)
- *
- * Format: `<start_function_call>call:func_name{key:<escape>value<escape>}<end_function_call>`
- * Also handles variants without `<end_function_call>` (e.g., `<end_of_turn>`).
- */
-export const parseFunctionGemma: ParserFn = (text) => {
-  // Match with explicit end tag. Allow:
-  // - Optional <start_function_call> wrapper
-  // - `call:name{args}` or just `:name{args}` (model may omit `call` prefix)
-  // - Optional whitespace/newlines between name and `{`
-  const regex =
-    /(?:<start_function_call>\s*)?call:(?=([\w.]+))\1\s*\{([^}]*)\}(?:\s*<end_function_call>)?/g;
-  const calls: ToolCall[] = [];
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text)) !== null) {
-    calls.push(makeToolCall(match[1].trim(), parseFunctionGemmaArgs(match[2])));
-  }
-
-  // Fallback: handle missing `call` prefix (`:name{args}` at start of text)
-  if (calls.length === 0) {
-    const fallbackRegex = /^:([A-Za-z_]\w*)\s*\{([^}]*)\}$/;
-    const fallbackMatch = text.trim().match(fallbackRegex);
-    if (fallbackMatch) {
-      calls.push(makeToolCall(fallbackMatch[1].trim(), parseFunctionGemmaArgs(fallbackMatch[2])));
-    }
-  }
-
-  if (calls.length === 0) return null;
-
-  const content = text
-    .replace(
-      /(?:<start_function_call>\s*)?(?:call)?:(?=([\w.]+))\1\s*\{[^}]*\}(?:\s*<end_function_call>)?/g,
-      ""
-    )
-    .trim();
-  return { tool_calls: calls, content, parser: "functiongemma" };
-};
-
-/**
  * Parse Liquid/LFM-style Pythonic function call arguments.
  * Handles both `key=val, key2=val2` and `params=JSON` patterns.
  * When a single `params` argument contains a JSON object, spreads it.
@@ -1112,6 +1051,17 @@ export const parseQwen35Xml: ParserFn = (text) => {
 // Model family detection
 // ============================================================================
 
+/**
+ * Model-family-specific parser chains.
+ *
+ * Each chain is ordered by likelihood: the parser matching the model's native
+ * tool-call format comes first, followed by fallbacks for common alternative
+ * formats the model may produce (most often Hermes `<tool_call>` tags or
+ * Llama-style bare JSON).
+ *
+ * Multiple keys may map to the same chain when model names vary across
+ * providers (e.g. `cohere` / `command`, `chatglm` / `glm`).
+ */
 const MODEL_PARSERS: Record<string, ReadonlyArray<ParserFn>> = {
   llama: [parseLlama, parseHermes],
   mistral: [parseMistral, parseHermes],
@@ -1128,8 +1078,7 @@ const MODEL_PARSERS: Record<string, ReadonlyArray<ParserFn>> = {
   internlm: [parseInternLM, parseHermes],
   chatglm: [parseChatGLM],
   glm: [parseChatGLM],
-  functiongemma: [parseFunctionGemma, parseGemma, parseHermes],
-  gemma: [parseFunctionGemma, parseGemma, parseHermes],
+  gemma: [parseGemma, parseHermes],
   functionary: [parseFunctionary],
   gorilla: [parseGorilla],
   nexusraven: [parseNexusRaven],
@@ -1146,24 +1095,48 @@ const MODEL_PARSERS: Record<string, ReadonlyArray<ParserFn>> = {
 
 /**
  * Default parser chain used when the model family cannot be determined.
- * Ordered by specificity (most distinctive markers first).
+ *
+ * Ordering rationale — parsers that rely on highly distinctive, unlikely-to-
+ * false-positive markers come first; generic / loose formats come last:
+ *
+ *  1. **Unique delimiters** — Phi (`<|tool_calls|>`), Mistral (`[TOOL_CALLS]`),
+ *     DeepSeek (`<|tool▁calls|>`), InternLM (`<|action_start|>`),
+ *     Granite (`<|tool_call_start|>`), FunctionGemma (`<start_function_call>`).
+ *     Each uses a distinctive tag or token that won't appear in normal text.
+ *
+ *  2. **Structured tags** — Qwen35 XML (`<tool_call>` with XML children),
+ *     Hermes (`<tool_call>` with JSON body), Cohere (`Action:` blocks).
+ *     Hermes is widely adopted but its `<tool_call>` tag is shared by several
+ *     model families, so it sits after the more unique delimiters.
+ *
+ *  3. **Specialized formats** — Functionary (`>>>func_name`),
+ *     Gorilla (`<<function>>` calls), NexusRaven (`Call:`),
+ *     FireFunction (`<function=>`), PhiFunctools (`functools[...]`),
+ *     Liquid (pythonic `func_name(args)`).
+ *
+ *  4. **Loose / generic** — Llama (bare JSON objects), Gemma (key=value args),
+ *     XLAM (JSON arrays). These match broad patterns and are tried last to
+ *     avoid false positives when a more specific parser should have matched.
  */
 const DEFAULT_PARSER_CHAIN: ReadonlyArray<ParserFn> = [
+  // 1. Unique delimiters
   parsePhi,
   parseMistral,
   parseDeepSeek,
   parseInternLM,
   parseGranite,
-  parseFunctionGemma,
+  // 2. Structured tags
   parseQwen35Xml,
   parseHermes,
   parseCohere,
+  // 3. Specialized formats
   parseFunctionary,
   parseGorilla,
   parseNexusRaven,
   parseFireFunction,
   parsePhiFunctools,
   parseLiquid,
+  // 4. Loose / generic
   parseLlama,
   parseGemma,
   parseXLAM,
@@ -1218,7 +1191,9 @@ export function parseToolCalls(
     return { tool_calls: [], content: text ?? "", parser: "none" };
   }
 
+  const log = getLogger();
   let parsersToTry: ReadonlyArray<ParserFn>;
+  let source: string;
 
   if (parser) {
     const key = parser.toLowerCase();
@@ -1229,16 +1204,35 @@ export function parseToolCalls(
       );
     }
     parsersToTry = found;
+    source = `explicit parser "${key}"`;
   } else {
     const family = detectModelFamily(tokenizer ?? model ?? null);
-    parsersToTry = family ? MODEL_PARSERS[family]! : DEFAULT_PARSER_CHAIN;
+    if (family) {
+      parsersToTry = MODEL_PARSERS[family]!;
+      source = `model family "${family}"`;
+    } else {
+      parsersToTry = DEFAULT_PARSER_CHAIN;
+      source = "default chain (unknown model)";
+    }
   }
+
+  log.debug("ToolCallParsers parseToolCalls", { source, parserCount: parsersToTry.length });
 
   for (const parserFn of parsersToTry) {
     const result = parserFn(text);
-    if (result) return result;
+    if (result) {
+      log.debug("ToolCallParsers parseToolCalls matched", {
+        parser: result.parser,
+        toolCallCount: result.tool_calls.length,
+      });
+      return result;
+    }
   }
 
+  log.debug("ToolCallParsers parseToolCalls no parser matched", {
+    source,
+    textPrefix: text.slice(0, 120),
+  });
   return { tool_calls: [], content: text, parser: "none" };
 }
 
@@ -1286,15 +1280,11 @@ export function getAvailableParsers(): ReadonlyArray<string> {
  */
 export function getGenerationPrefix(
   family: string | null,
-  forcedToolName: string | undefined
+  _forcedToolName: string | undefined
 ): string | undefined {
   if (!family) return undefined;
 
   switch (family) {
-    case "functiongemma":
-      return forcedToolName
-        ? `<start_function_call>call:${forcedToolName}{`
-        : "<start_function_call>call:";
     default:
       return undefined;
   }
@@ -1309,10 +1299,9 @@ export function getGenerationPrefix(
  * type directly (with `input` field instead of `arguments`).
  *
  * Tries, in order:
- * 1. FunctionGemma `call:func{...}` syntax
- * 2. `<tool_call>JSON</tool_call>` tags (Qwen/Hermes)
- * 3. Bare JSON objects with `name` + `arguments`/`parameters` keys
- * 4. `{"function": {"name": ..., "arguments": ...}}` format
+ * 1. `<tool_call>JSON</tool_call>` tags (Qwen/Hermes)
+ * 2. Bare JSON objects with `name` + `arguments`/`parameters` keys
+ * 3. `{"function": {"name": ..., "arguments": ...}}` format
  *
  * Returns both the cleaned text (with tool-call markup removed) and the parsed
  * ToolCall array.
@@ -1321,28 +1310,6 @@ export function parseToolCallsFromText(responseText: string): {
   text: string;
   toolCalls: ToolCalls;
 } {
-  // Try FunctionGemma first
-  const functionGemmaResult = parseFunctionGemma(responseText);
-  if (functionGemmaResult && functionGemmaResult.tool_calls.length > 0) {
-    return {
-      text: functionGemmaResult.content,
-      toolCalls: functionGemmaResult.tool_calls.map((call, index) => ({
-        id: call.id ?? `call_${index}`,
-        name: call.name,
-        input: call.arguments,
-      })),
-    };
-  }
-
-  // FunctionGemma loose-object fallback (no tool name context available)
-  const looseObject = parseFunctionGemmaLooseObject(responseText);
-  if (looseObject) {
-    return {
-      text: "",
-      toolCalls: [{ id: "call_0", name: "", input: looseObject }],
-    };
-  }
-
   // Try Hermes/Qwen tag-based format
   const hermesResult = parseHermes(responseText);
   if (hermesResult && hermesResult.tool_calls.length > 0) {
