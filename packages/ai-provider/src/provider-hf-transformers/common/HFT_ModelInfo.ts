@@ -18,8 +18,10 @@ export const HFT_ModelInfo: AiProviderRunFn<
 > = async (input, model) => {
   // Handle dimensions detail — resolve native_dimensions and mrl
   if (input.detail === "dimensions") {
+    if (!model) throw new Error("Model config is required for ModelInfoTask.");
     const pc = model.provider_config as Record<string, unknown>;
-    let native_dimensions = typeof pc.native_dimensions === "number" ? pc.native_dimensions : undefined;
+    let native_dimensions =
+      typeof pc.native_dimensions === "number" ? pc.native_dimensions : undefined;
     const mrl = typeof pc.mrl === "boolean" ? pc.mrl : false;
 
     // Step 2: If not in provider_config, try fetching config.json from HF hub

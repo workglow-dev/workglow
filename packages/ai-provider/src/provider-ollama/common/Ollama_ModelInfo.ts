@@ -23,8 +23,10 @@ export function createOllamaModelInfo(
 ): AiProviderRunFn<ModelInfoTaskInput, ModelInfoTaskOutput, OllamaModelConfig> {
   return async (input, model) => {
     if (input.detail === "dimensions") {
+      if (!model) throw new Error("Model config is required for ModelInfoTask.");
       const pc = model.provider_config as Record<string, unknown>;
-      let native_dimensions = typeof pc.native_dimensions === "number" ? pc.native_dimensions : undefined;
+      let native_dimensions =
+        typeof pc.native_dimensions === "number" ? pc.native_dimensions : undefined;
       let mrl = typeof pc.mrl === "boolean" ? pc.mrl : undefined;
 
       // Step 2: Try Ollama show API for embedding size
