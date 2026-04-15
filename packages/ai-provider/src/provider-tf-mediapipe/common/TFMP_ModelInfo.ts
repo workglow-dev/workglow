@@ -20,17 +20,25 @@ export const TFMP_ModelInfo: AiProviderRunFn<
 > = async (input, model) => {
   if (input.detail === "dimensions") {
     const pc = model?.provider_config as Record<string, unknown>;
-    let native_dimensions = typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
+    let native_dimensions =
+      typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
     const mrl = typeof pc?.mrl === "boolean" ? pc.mrl : false;
     if (native_dimensions === undefined) {
       const modelPath = (pc?.model_path as string) ?? "";
       const known = TFMP_EMBEDDING_DIMENSIONS[modelPath];
-      if (known) { native_dimensions = known.native_dimensions; }
+      if (known) {
+        native_dimensions = known.native_dimensions;
+      }
     }
     return {
       model: input.model,
-      is_local: true, is_remote: false, supports_browser: true, supports_node: false,
-      is_cached: false, is_loaded: false, file_sizes: null,
+      is_local: true,
+      is_remote: false,
+      supports_browser: true,
+      supports_node: false,
+      is_cached: false,
+      is_loaded: false,
+      file_sizes: null,
       ...(native_dimensions !== undefined ? { native_dimensions } : {}),
       ...(mrl ? { mrl } : {}),
     };

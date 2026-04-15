@@ -6,12 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { ResourceScope } from "@workglow/util";
-import {
-  IExecuteContext,
-  Task,
-  TaskGraph,
-  Workflow,
-} from "@workglow/task-graph";
+import { IExecuteContext, Task, TaskGraph, Workflow } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 
 // A task that registers a disposer on the resource scope
@@ -112,10 +107,7 @@ describe("ResourceScope browser pattern", () => {
           properties: { sessionId: { type: "string" } },
         } as const satisfies DataPortSchema;
       }
-      override async execute(
-        _input: {},
-        context: IExecuteContext
-      ): Promise<{ sessionId: string }> {
+      override async execute(_input: {}, context: IExecuteContext): Promise<{ sessionId: string }> {
         const sessionId = "sess-123";
         context.resourceScope?.register(`browser:${sessionId}`, async () => {
           disconnected.push(sessionId);

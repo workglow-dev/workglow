@@ -20,7 +20,8 @@ export const Gemini_ModelInfo: AiProviderRunFn<
 > = async (input, model) => {
   if (input.detail === "dimensions") {
     const pc = model?.provider_config as Record<string, unknown>;
-    let native_dimensions = typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
+    let native_dimensions =
+      typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
     let mrl = typeof pc?.mrl === "boolean" ? pc.mrl : undefined;
     if (native_dimensions === undefined) {
       const modelName = (pc?.model_name as string) ?? "";
@@ -32,8 +33,13 @@ export const Gemini_ModelInfo: AiProviderRunFn<
     }
     return {
       model: input.model,
-      is_local: false, is_remote: true, supports_browser: true, supports_node: true,
-      is_cached: false, is_loaded: false, file_sizes: null,
+      is_local: false,
+      is_remote: true,
+      supports_browser: true,
+      supports_node: true,
+      is_cached: false,
+      is_loaded: false,
+      file_sizes: null,
       ...(native_dimensions !== undefined ? { native_dimensions } : {}),
       ...(mrl !== undefined ? { mrl } : {}),
     };

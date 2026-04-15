@@ -149,7 +149,8 @@ export abstract class BaseSqlTabularStorage<
   protected primaryKeyColumnList($delimiter: string = ""): string {
     let cached = this._pkColListCache.get($delimiter);
     if (cached === undefined) {
-      cached = $delimiter + this.primaryKeyColumns().join(`${$delimiter}, ${$delimiter}`) + $delimiter;
+      cached =
+        $delimiter + this.primaryKeyColumns().join(`${$delimiter}, ${$delimiter}`) + $delimiter;
       this._pkColListCache.set($delimiter, cached);
     }
     return cached;

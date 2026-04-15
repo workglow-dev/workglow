@@ -14,12 +14,18 @@ export const HFI_ModelInfo: AiProviderRunFn<
 > = async (input, model) => {
   if (input.detail === "dimensions") {
     const pc = model?.provider_config as Record<string, unknown>;
-    const native_dimensions = typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
+    const native_dimensions =
+      typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
     const mrl = typeof pc?.mrl === "boolean" ? pc.mrl : false;
     return {
       model: input.model,
-      is_local: false, is_remote: true, supports_browser: true, supports_node: true,
-      is_cached: false, is_loaded: false, file_sizes: null,
+      is_local: false,
+      is_remote: true,
+      supports_browser: true,
+      supports_node: true,
+      is_cached: false,
+      is_loaded: false,
+      file_sizes: null,
       ...(native_dimensions !== undefined ? { native_dimensions } : {}),
       ...(mrl ? { mrl } : {}),
     };

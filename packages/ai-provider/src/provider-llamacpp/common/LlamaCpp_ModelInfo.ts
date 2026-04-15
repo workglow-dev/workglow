@@ -22,12 +22,18 @@ export const LlamaCpp_ModelInfo: AiProviderRunFn<
 
   if (input.detail === "dimensions") {
     const pc = model.provider_config as Record<string, unknown>;
-    const native_dimensions = typeof pc.native_dimensions === "number" ? pc.native_dimensions : undefined;
+    const native_dimensions =
+      typeof pc.native_dimensions === "number" ? pc.native_dimensions : undefined;
     const mrl = typeof pc.mrl === "boolean" ? pc.mrl : false;
     return {
       model: input.model,
-      is_local: true, is_remote: false, supports_browser: false, supports_node: true,
-      is_cached: false, is_loaded: false, file_sizes: null,
+      is_local: true,
+      is_remote: false,
+      supports_browser: false,
+      supports_node: true,
+      is_cached: false,
+      is_loaded: false,
+      file_sizes: null,
       ...(native_dimensions !== undefined ? { native_dimensions } : {}),
       ...(mrl ? { mrl } : {}),
     };

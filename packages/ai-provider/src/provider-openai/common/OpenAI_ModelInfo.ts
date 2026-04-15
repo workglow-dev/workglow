@@ -21,7 +21,8 @@ export const OpenAI_ModelInfo: AiProviderRunFn<
 > = async (input, model) => {
   if (input.detail === "dimensions") {
     const pc = model?.provider_config as Record<string, unknown>;
-    let native_dimensions = typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
+    let native_dimensions =
+      typeof pc?.native_dimensions === "number" ? pc.native_dimensions : undefined;
     let mrl = typeof pc?.mrl === "boolean" ? pc.mrl : undefined;
 
     // Lookup table fallback
