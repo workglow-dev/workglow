@@ -13,12 +13,10 @@ import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentS
 import { KnowledgeBase } from "./KnowledgeBase";
 import { registerKnowledgeBase } from "./KnowledgeBaseRegistry";
 
-export interface CreateKnowledgeBaseOptions<
-  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
-> {
+export interface CreateKnowledgeBaseOptions {
   readonly name: string;
   readonly vectorDimensions: number;
-  readonly vectorCtor?: VectorCtor;
+  readonly vectorCtor?: TypedArrayConstructor;
   readonly register?: boolean;
   readonly title?: string;
   readonly description?: string;
@@ -35,9 +33,9 @@ export interface CreateKnowledgeBaseOptions<
  * });
  * ```
  */
-export async function createKnowledgeBase<
-  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
->(options: CreateKnowledgeBaseOptions<VectorCtor>): Promise<KnowledgeBase> {
+export async function createKnowledgeBase(
+  options: CreateKnowledgeBaseOptions
+): Promise<KnowledgeBase> {
   const {
     name,
     vectorDimensions,
@@ -47,7 +45,7 @@ export async function createKnowledgeBase<
     description,
   } = options;
 
-  const vectorCtor = (vectorCtorOption ?? Float32Array) as VectorCtor;
+  const vectorCtor = vectorCtorOption ?? Float32Array;
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     throw new Error("createKnowledgeBase: 'name' must be a non-empty string");
@@ -63,12 +61,13 @@ export async function createKnowledgeBase<
   const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
   await tabularStorage.setupDatabase();
 
-  const vectorStorage = new InMemoryVectorStorage<
-    typeof ChunkVectorStorageSchema,
-    typeof ChunkVectorPrimaryKey,
-    Record<string, unknown>,
-    VectorCtor
-  >(ChunkVectorStorageSchema, ChunkVectorPrimaryKey, [], vectorDimensions, vectorCtor);
+  const vectorStorage = new InMemoryVectorStorage(
+    ChunkVectorStorageSchema,
+    ChunkVectorPrimaryKey,
+    [],
+    vectorDimensions,
+    vectorCtor
+  );
   await vectorStorage.setupDatabase();
 
   const kb = new KnowledgeBase(

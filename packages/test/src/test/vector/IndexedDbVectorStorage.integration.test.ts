@@ -41,7 +41,6 @@ describe("IndexedDbVectorStorage", () => {
     typeof VectorSchema,
     typeof VectorPrimaryKey,
     Record<string, unknown>,
-    typeof Float32Array,
     VectorEntity
   >;
 

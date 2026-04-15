@@ -188,9 +188,10 @@ export class KnowledgeBase {
    * Upsert a single chunk vector entity
    */
   async upsertChunk(chunk: InsertChunkVectorEntity): Promise<ChunkVectorEntity> {
-    if (chunk.vector.length !== this.getVectorDimensions()) {
+    const expected = this.getVectorDimensions();
+    if (expected > 0 && chunk.vector.length !== expected) {
       throw new Error(
-        `Vector dimension mismatch: expected ${this.getVectorDimensions()}, got ${chunk.vector.length}.`
+        `Vector dimension mismatch: expected ${expected}, got ${chunk.vector.length}.`
       );
     }
     return this.chunkStorage.put(chunk);
@@ -201,11 +202,13 @@ export class KnowledgeBase {
    */
   async upsertChunksBulk(chunks: InsertChunkVectorEntity[]): Promise<ChunkVectorEntity[]> {
     const expected = this.getVectorDimensions();
-    for (const chunk of chunks) {
-      if (chunk.vector.length !== expected) {
-        throw new Error(
-          `Vector dimension mismatch: expected ${expected}, got ${chunk.vector.length}.`
-        );
+    if (expected > 0) {
+      for (const chunk of chunks) {
+        if (chunk.vector.length !== expected) {
+          throw new Error(
+            `Vector dimension mismatch: expected ${expected}, got ${chunk.vector.length}.`
+          );
+        }
       }
     }
     return this.chunkStorage.putBulk(chunks);

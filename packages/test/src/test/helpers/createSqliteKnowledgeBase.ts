@@ -18,13 +18,11 @@ import { SqliteAiVectorStorage, SqliteTabularStorage } from "@workglow/storage";
 import { Sqlite } from "@workglow/storage/sqlite";
 import type { TypedArrayConstructor } from "@workglow/util/schema";
 
-export interface CreateSqliteKnowledgeBaseOptions<
-  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
-> {
+export interface CreateSqliteKnowledgeBaseOptions {
   readonly name: string;
   readonly db: string | Sqlite.Database;
   readonly vectorDimensions: number;
-  readonly vectorType?: VectorCtor;
+  readonly vectorType?: TypedArrayConstructor;
   readonly register?: boolean;
   readonly title?: string;
   readonly description?: string;
@@ -50,9 +48,9 @@ export interface CreateSqliteKnowledgeBaseOptions<
  * });
  * ```
  */
-export async function createSqliteKnowledgeBase<
-  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
->(options: CreateSqliteKnowledgeBaseOptions<VectorCtor>): Promise<KnowledgeBase> {
+export async function createSqliteKnowledgeBase(
+  options: CreateSqliteKnowledgeBaseOptions
+): Promise<KnowledgeBase> {
   await Sqlite.init();
 
   const {
@@ -65,7 +63,7 @@ export async function createSqliteKnowledgeBase<
     description,
   } = options;
 
-  const vectorCtor = (vectorType ?? Float32Array) as VectorCtor;
+  const vectorCtor = vectorType ?? Float32Array;
 
   const tableNames = knowledgeBaseTableNames(name);
 
@@ -80,7 +78,6 @@ export async function createSqliteKnowledgeBase<
   const vectorStorage = new SqliteAiVectorStorage<
     typeof ChunkVectorStorageSchema,
     typeof ChunkVectorPrimaryKey,
-    VectorCtor,
     Record<string, unknown>,
     ChunkVectorEntity
   >(
