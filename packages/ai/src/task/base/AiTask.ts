@@ -119,6 +119,26 @@ export class AiTask<
     const strategy = getAiProviderRegistry().getStrategy(model);
 
     const output = await strategy.execute(jobInput, executeContext, this.runConfig.runnerId);
+
+    // Register a disposer so the caller can unload the model when done.
+    if (executeContext.resourceScope) {
+      const registry = getAiProviderRegistry();
+      const provider = registry.getProvider(model.provider);
+      const unloadFn = provider?.getRunFn("UnloadModelTask");
+      if (unloadFn) {
+        const modelPath = model.provider_config?.model_path ?? model.model;
+        const resourceKey = `ai:${model.provider}:${modelPath}`;
+        executeContext.resourceScope.register(resourceKey, async () => {
+          await unloadFn(
+            { model },
+            model,
+            () => {},
+            AbortSignal.timeout(30_000)
+          );
+        });
+      }
+    }
+
     return output as Output;
   }
 

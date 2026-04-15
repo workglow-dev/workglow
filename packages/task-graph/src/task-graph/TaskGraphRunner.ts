@@ -11,6 +11,7 @@ import {
   getLogger,
   getTelemetryProvider,
   globalServiceRegistry,
+  ResourceScope,
   ServiceRegistry,
   SpanStatusCode,
   uuid4,
@@ -109,6 +110,10 @@ export class TaskGraphRunner {
    * Service registry for this graph run
    */
   protected registry: ServiceRegistry = globalServiceRegistry;
+  /**
+   * Resource scope for this graph run
+   */
+  protected resourceScope?: ResourceScope;
   /**
    * AbortController for cancelling graph execution
    */
@@ -738,6 +743,7 @@ export class TaskGraphRunner {
       updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
         await this.handleProgress(task, progress, message, ...args),
       registry: this.registry,
+      resourceScope: this.resourceScope,
     });
 
     await this.pushOutputFromNodeToEdges(task, results);
@@ -819,6 +825,7 @@ export class TaskGraphRunner {
         updateProgress: async (task: ITask, progress: number, message?: string, ...args: any[]) =>
           await this.handleProgress(task, progress, message, ...args),
         registry: this.registry,
+        resourceScope: this.resourceScope,
       });
 
       await this.pushOutputFromNodeToEdges(task, results);
@@ -971,6 +978,9 @@ export class TaskGraphRunner {
     } else if (this.registry === undefined) {
       // Create a child container that inherits from global but allows overrides
       this.registry = new ServiceRegistry(globalServiceRegistry.container.createChildContainer());
+    }
+    if (config?.resourceScope !== undefined) {
+      this.resourceScope = config.resourceScope;
     }
 
     this.accumulateLeafOutputs = config?.accumulateLeafOutputs !== false;

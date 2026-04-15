@@ -274,6 +274,7 @@ export class IteratorTaskRunner<
         parentSignal: this.abortController?.signal,
         outputCache: this.outputCache,
         registry: this.registry,
+        resourceScope: this.resourceScope,
       });
 
       if (results.length === 0) {

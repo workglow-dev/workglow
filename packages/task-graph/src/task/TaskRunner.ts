@@ -9,6 +9,7 @@ import {
   getLogger,
   getTelemetryProvider,
   globalServiceRegistry,
+  ResourceScope,
   ServiceRegistry,
   SpanStatusCode,
 } from "@workglow/util";
@@ -71,6 +72,11 @@ export class TaskRunner<
    * The service registry for the task
    */
   protected registry: ServiceRegistry = globalServiceRegistry;
+
+  /**
+   * Resource scope for this task run
+   */
+  protected resourceScope?: ResourceScope;
 
   /**
    * Input streams for pass-through streaming tasks.
@@ -296,6 +302,7 @@ export class TaskRunner<
       Object.assign(i.runConfig, {
         registry: this.registry,
         signal: this.abortController?.signal,
+        resourceScope: this.resourceScope,
       });
     }
     // Notify listeners that the entitlement landscape may have changed.
@@ -316,6 +323,7 @@ export class TaskRunner<
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
       registry: this.registry,
+      resourceScope: this.resourceScope,
     });
     return await this.executeTaskReactive(input, result || ({} as Output));
   }
@@ -376,6 +384,7 @@ export class TaskRunner<
       updateProgress: this.handleProgress.bind(this),
       own: this.own,
       registry: this.registry,
+      resourceScope: this.resourceScope,
       inputStreams: this.inputStreams,
     });
 
@@ -532,6 +541,10 @@ export class TaskRunner<
 
     if (config.registry) {
       this.registry = config.registry;
+    }
+
+    if (config.resourceScope) {
+      this.resourceScope = config.resourceScope;
     }
 
     // If a parent signal is provided (e.g. set by context.own()), link it so

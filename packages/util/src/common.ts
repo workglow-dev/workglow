@@ -16,3 +16,4 @@ export * from "./worker/WorkerManager";
 export * from "./credentials";
 export * from "./crypto/WebCrypto";
 export * from "./telemetry";
+export * from "./resource/ResourceScope";
