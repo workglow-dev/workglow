@@ -90,7 +90,6 @@ function escapeIdentifier(name: string): string {
 export class SqliteAiVectorStorage<
   Schema extends DataPortSchemaObject,
   PrimaryKeyNames extends ReadonlyArray<keyof Schema["properties"]>,
-  VectorCtor extends TypedArrayConstructor = typeof Float32Array,
   Metadata extends Record<string, unknown> | undefined = Record<string, unknown>,
   Entity = FromSchema<Schema, TypedArraySchemaOptions>,
 >
@@ -98,7 +97,7 @@ export class SqliteAiVectorStorage<
   implements IVectorStorage<Metadata, Schema, Entity, PrimaryKeyNames>
 {
   private vectorDimensions: number;
-  private readonly vectorCtor: VectorCtor;
+  private readonly vectorCtor: TypedArrayConstructor;
   private vectorPropertyName: keyof Entity;
   private metadataPropertyName: keyof Entity | undefined;
   private vectorTypeSuffix: string;
@@ -119,9 +118,9 @@ export class SqliteAiVectorStorage<
     table: string = "vectors",
     schema: Schema,
     primaryKeyNames: PrimaryKeyNames,
-    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    indexes: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[] = [],
     dimensions: number,
-    vectorCtor: VectorCtor = Float32Array as VectorCtor
+    vectorCtor: TypedArrayConstructor = Float32Array
   ) {
     super(dbOrPath, table, schema, primaryKeyNames, indexes);
 

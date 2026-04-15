@@ -70,7 +70,7 @@ export class FsFolderTabularStorage<
     folderPath: string,
     schema: Schema,
     primaryKeyNames: PrimaryKeyNames,
-    indexes: readonly (keyof Entity | readonly (keyof Entity)[])[] = [],
+    indexes: readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[] = [],
     clientProvidedKeys: ClientProvidedKeysOption = "if-missing"
   ) {
     super(schema, primaryKeyNames, indexes, clientProvidedKeys);

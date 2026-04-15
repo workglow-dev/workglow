@@ -120,7 +120,7 @@ export class HuggingFaceTabularStorage<
     super(
       schema,
       primaryKeyNames,
-      (options?.indexes ?? []) as readonly (keyof Entity | readonly (keyof Entity)[])[],
+      (options?.indexes ?? []) as readonly (keyof NoInfer<Entity> | readonly (keyof NoInfer<Entity>)[])[],
       "never" // HF datasets don't support client-provided keys
     );
     this.dataset = dataset;

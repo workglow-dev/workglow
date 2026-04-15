@@ -53,7 +53,6 @@ describe.skipIf(!sqliteVectorAvailable)("SqliteAiVectorStorage", async () => {
   let storage: SqliteAiVectorStorage<
     typeof VectorSchema,
     typeof VectorPrimaryKey,
-    typeof Float32Array,
     Record<string, unknown>,
     VectorEntity
   >;
