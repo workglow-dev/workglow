@@ -21,7 +21,7 @@ const ModelInfoInputSchema = {
     model: modelSchema,
     detail: {
       type: "string",
-      enum: ["cached_status", "files", "files_with_metadata"],
+      enum: ["cached_status", "files", "files_with_metadata", "dimensions"],
       default: "files_with_metadata",
     },
   },
@@ -45,6 +45,16 @@ const ModelInfoOutputSchema = {
       items: { type: "string" },
       description:
         "Available quantization variants (e.g. fp32, fp16, q8). Only present for models with quantization options.",
+    },
+    native_dimensions: {
+      type: "integer",
+      description:
+        "Native output vector dimensions. Only present when detail is 'dimensions' and the provider can determine them.",
+    },
+    mrl: {
+      type: "boolean",
+      description:
+        "Whether the model supports Matryoshka Representation Learning. Only present when detail is 'dimensions'.",
     },
   },
   required: [

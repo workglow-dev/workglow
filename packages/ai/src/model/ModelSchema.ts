@@ -25,6 +25,14 @@ export const ModelConfigSchema = {
       type: "object",
       properties: {
         credential_key: { type: "string", format: "credential", "x-ui-hidden": true },
+        native_dimensions: {
+          type: "integer",
+          description: "Native output vector dimensions for embedding models",
+        },
+        mrl: {
+          type: "boolean",
+          description: "Whether the model supports Matryoshka Representation Learning",
+        },
       },
       additionalProperties: true,
       default: {},
