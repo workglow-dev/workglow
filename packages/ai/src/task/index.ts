@@ -23,6 +23,7 @@ import { GestureRecognizerTask } from "./GestureRecognizerTask";
 import { HandLandmarkerTask } from "./HandLandmarkerTask";
 import { HierarchicalChunkerTask } from "./HierarchicalChunkerTask";
 import { HierarchyJoinTask } from "./HierarchyJoinTask";
+import { KbToDocumentsTask } from "./KbToDocumentsTask";
 import { ImageClassificationTask } from "./ImageClassificationTask";
 import { ImageEmbeddingTask } from "./ImageEmbeddingTask";
 import { ImageSegmentationTask } from "./ImageSegmentationTask";
@@ -75,6 +76,7 @@ export const registerAiTasks = () => {
     HandLandmarkerTask,
     HierarchicalChunkerTask,
     HierarchyJoinTask,
+    KbToDocumentsTask,
     ImageClassificationTask,
     ImageEmbeddingTask,
     ImageSegmentationTask,
@@ -133,6 +135,7 @@ export * from "./GestureRecognizerTask";
 export * from "./HandLandmarkerTask";
 export * from "./HierarchicalChunkerTask";
 export * from "./HierarchyJoinTask";
+export * from "./KbToDocumentsTask";
 export * from "./ImageClassificationTask";
 export * from "./ImageEmbeddingTask";
 export * from "./ImageSegmentationTask";

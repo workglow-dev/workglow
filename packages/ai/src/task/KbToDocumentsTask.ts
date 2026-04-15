@@ -1,0 +1,139 @@
+/**
+ * @license
+ * Copyright 2026 Steven Roussey
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
+import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
+import type { TaskConfig } from "@workglow/task-graph";
+import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+const inputSchema = {
+  type: "object",
+  properties: {
+    knowledgeBase: TypeKnowledgeBase({
+      title: "Knowledge Base",
+      description: "The knowledge base instance to list documents from",
+    }),
+    onlyStale: {
+      type: "boolean",
+      title: "Only Stale",
+      description: "If true, only return documents that have no chunks (need embedding)",
+      default: true,
+    },
+  },
+  required: ["knowledgeBase"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+const outputSchema = {
+  type: "object",
+  properties: {
+    doc_id: {
+      type: "array",
+      items: { type: "string" },
+      title: "Document IDs",
+      description: "Array of document IDs",
+    },
+    documentTree: {
+      type: "array",
+      items: { type: "object", additionalProperties: true },
+      title: "Document Trees",
+      description: "Array of document root nodes (parallel to doc_id)",
+    },
+    title: {
+      type: "array",
+      items: { type: "string" },
+      title: "Titles",
+      description: "Array of document titles (parallel to doc_id)",
+    },
+  },
+  required: ["doc_id", "documentTree", "title"],
+  additionalProperties: false,
+} as const satisfies DataPortSchema;
+
+export type KbToDocumentsTaskInput = FromSchema<typeof inputSchema>;
+export type KbToDocumentsTaskOutput = FromSchema<typeof outputSchema>;
+export type KbToDocumentsTaskConfig = TaskConfig<KbToDocumentsTaskInput>;
+
+/**
+ * Task that lists documents from a knowledge base, optionally filtering to only
+ * those that need embedding (have no chunks). Returns parallel arrays of doc IDs,
+ * document trees, and titles for use in downstream embedding pipelines.
+ */
+export class KbToDocumentsTask extends Task<
+  KbToDocumentsTaskInput,
+  KbToDocumentsTaskOutput,
+  KbToDocumentsTaskConfig
+> {
+  public static override type = "KbToDocumentsTask";
+  public static override category = "Vector Store";
+  public static override title = "Knowledge Base to Documents";
+  public static override description =
+    "List documents from a knowledge base, optionally filtering to only those that need embedding";
+  public static override cacheable = false; // Depends on external state
+
+  public static override inputSchema(): DataPortSchema {
+    return inputSchema as DataPortSchema;
+  }
+
+  public static override outputSchema(): DataPortSchema {
+    return outputSchema as DataPortSchema;
+  }
+
+  override async execute(
+    input: KbToDocumentsTaskInput,
+    context: IExecuteContext
+  ): Promise<KbToDocumentsTaskOutput> {
+    const { knowledgeBase, onlyStale = true } = input;
+    const kb = knowledgeBase as KnowledgeBase;
+
+    await context.updateProgress(1, "Listing documents");
+
+    const allDocIds = await kb.listDocuments();
+
+    const doc_id: string[] = [];
+    const documentTree: object[] = [];
+    const title: string[] = [];
+
+    for (const id of allDocIds) {
+      if (onlyStale) {
+        const chunks = await kb.getChunksForDocument(id);
+        if (chunks.length > 0) {
+          continue;
+        }
+      }
+
+      const doc = await kb.getDocument(id);
+      if (!doc) {
+        continue;
+      }
+
+      doc_id.push(id);
+      documentTree.push(doc.root as object);
+      title.push(doc.metadata.title);
+    }
+
+    return { doc_id, documentTree, title };
+  }
+}
+
+export const kbToDocuments = (
+  input: KbToDocumentsTaskInput,
+  config?: KbToDocumentsTaskConfig
+) => {
+  return new KbToDocumentsTask(config).run(input);
+};
+
+declare module "@workglow/task-graph" {
+  interface Workflow {
+    kbToDocuments: CreateWorkflow<
+      KbToDocumentsTaskInput,
+      KbToDocumentsTaskOutput,
+      KbToDocumentsTaskConfig
+    >;
+  }
+}
+
+Workflow.prototype.kbToDocuments = CreateWorkflow(KbToDocumentsTask);
