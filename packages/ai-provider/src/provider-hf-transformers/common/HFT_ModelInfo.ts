@@ -16,6 +16,43 @@ export const HFT_ModelInfo: AiProviderRunFn<
   ModelInfoTaskOutput,
   HfTransformersOnnxModelConfig
 > = async (input, model) => {
+  // Handle dimensions detail — resolve native_dimensions and mrl
+  if (input.detail === "dimensions") {
+    const pc = model.provider_config as Record<string, unknown>;
+    let native_dimensions = typeof pc.native_dimensions === "number" ? pc.native_dimensions : undefined;
+    const mrl = typeof pc.mrl === "boolean" ? pc.mrl : false;
+
+    // Step 2: If not in provider_config, try fetching config.json from HF hub
+    if (native_dimensions === undefined && typeof pc.model_path === "string") {
+      try {
+        const response = await fetch(
+          `https://huggingface.co/${pc.model_path}/resolve/${(pc.revision as string) ?? "main"}/config.json`
+        );
+        if (response.ok) {
+          const config = await response.json();
+          if (typeof config.hidden_size === "number") {
+            native_dimensions = config.hidden_size;
+          }
+        }
+      } catch {
+        // Network error — fall through to undefined
+      }
+    }
+
+    return {
+      model: input.model,
+      is_local: true,
+      is_remote: false,
+      supports_browser: true,
+      supports_node: true,
+      is_cached: false,
+      is_loaded: false,
+      file_sizes: null,
+      ...(native_dimensions !== undefined ? { native_dimensions } : {}),
+      ...(mrl ? { mrl } : {}),
+    };
+  }
+
   const logger = getLogger();
   const { ModelRegistry } = await loadTransformersSDK();
   const timerLabel = `hft:ModelInfo:${model?.provider_config.model_path}`;
