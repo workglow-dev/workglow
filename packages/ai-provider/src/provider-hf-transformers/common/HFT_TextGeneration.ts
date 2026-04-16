@@ -18,7 +18,8 @@ import type {
 import type { StreamEvent } from "@workglow/task-graph";
 import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
-import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
+import { getPipeline, getHftSession, setHftSession, loadTransformersSDK } from "./HFT_Pipeline";
+import type { HftProgressiveSession } from "./HFT_Pipeline";
 import {
   createStreamEventQueue,
   createStreamingTextStreamer,
@@ -34,7 +35,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   HfTransformersOnnxModelConfig
-> = async (input, model, onProgress, signal) => {
+> = async (input, model, onProgress, signal, _outputSchema, sessionId) => {
   const logger = getLogger();
   const timerLabel = `hft:TextGeneration:${model?.provider_config.model_path}`;
   logger.time(timerLabel, { model: model?.provider_config.model_path });
@@ -53,6 +54,27 @@ export const HFT_TextGeneration: AiProviderRunFn<
     signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
   }
 
+  // Session cache: progressive caching for text generation
+  const modelPath = model!.provider_config.model_path;
+  let session = sessionId ? getHftSession(sessionId) : undefined;
+  let past_key_values: any = undefined;
+
+  if (sessionId && !session) {
+    const sdk = await loadTransformersSDK();
+    const cache = new sdk.DynamicCache();
+    const newSession: HftProgressiveSession = {
+      mode: "progressive",
+      cache,
+      modelPath,
+    };
+    setHftSession(sessionId, newSession);
+    session = newSession;
+  }
+
+  if (session?.mode === "progressive") {
+    past_key_values = session.cache;
+  }
+
   const messages: Message[] = [{ role: "user", content: input.prompt }];
 
   let results = await generateText(messages, {
@@ -60,6 +82,7 @@ export const HFT_TextGeneration: AiProviderRunFn<
     do_sample: false,
     max_new_tokens: input.maxTokens ?? 4 * 1024,
     stopping_criteria: [stopping_criteria],
+    ...(past_key_values ? { past_key_values } : {}),
   });
 
   if (!Array.isArray(results)) {
@@ -76,7 +99,13 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   HfTransformersOnnxModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+> = async function* (
+  input,
+  model,
+  signal,
+  _outputSchema,
+  sessionId
+): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
   const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
@@ -88,9 +117,31 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
     signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
   }
 
+  // Session cache: progressive caching for text generation (streaming)
+  const modelPath = model!.provider_config.model_path;
+  let session = sessionId ? getHftSession(sessionId) : undefined;
+  let past_key_values: any = undefined;
+
+  if (sessionId && !session) {
+    const sdk = await loadTransformersSDK();
+    const cache = new sdk.DynamicCache();
+    const newSession: HftProgressiveSession = {
+      mode: "progressive",
+      cache,
+      modelPath,
+    };
+    setHftSession(sessionId, newSession);
+    session = newSession;
+  }
+
+  if (session?.mode === "progressive") {
+    past_key_values = session.cache;
+  }
+
   const pipelinePromise = generateText(input.prompt, {
     streamer,
     stopping_criteria: [stopping_criteria],
+    ...(past_key_values ? { past_key_values } : {}),
   }).then(
     () => queue.done(),
     (err: Error) => queue.error(err)

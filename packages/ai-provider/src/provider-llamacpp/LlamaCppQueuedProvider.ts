@@ -6,8 +6,10 @@
 
 import { QueuedAiProvider } from "@workglow/ai";
 import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { ModelConfig } from "@workglow/ai";
 import { LOCAL_LLAMACPP } from "./common/LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
+import { deleteLlamaCppSession } from "./common/LlamaCpp_Runtime";
 
 /** Main-thread registration (inline or worker-backed); creates the default job queue. */
 export class LlamaCppQueuedProvider extends QueuedAiProvider<LlamaCppModelConfig> {
@@ -35,5 +37,13 @@ export class LlamaCppQueuedProvider extends QueuedAiProvider<LlamaCppModelConfig
     reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, LlamaCppModelConfig>>
   ) {
     super(tasks, streamTasks, reactiveTasks);
+  }
+
+  override createSession(_model: ModelConfig): string {
+    return crypto.randomUUID();
+  }
+
+  override async disposeSession(sessionId: string): Promise<void> {
+    deleteLlamaCppSession(sessionId);
   }
 }

@@ -19,7 +19,7 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   AnthropicModelConfig
-> = async (input, model, update_progress, signal) => {
+> = async (input, model, update_progress, signal, _outputSchema, sessionId) => {
   const logger = getLogger();
   const timerLabel = `anthropic:TextGeneration:${model?.provider_config?.model_name}`;
   logger.time(timerLabel, { model: model?.provider_config?.model_name });
@@ -28,16 +28,28 @@ export const Anthropic_TextGeneration: AiProviderRunFn<
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const response = await client.messages.create(
-    {
-      model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
-      max_tokens: getMaxTokens(input, model),
-      temperature: input.temperature,
-      top_p: input.topP,
-    },
-    { signal }
-  );
+  const params: any = {
+    model: modelName,
+    messages: [{ role: "user", content: input.prompt }],
+    max_tokens: getMaxTokens(input, model),
+    temperature: input.temperature,
+    top_p: input.topP,
+  };
+
+  // Cache annotation placeholder: TextGenerationTaskInput does not currently
+  // include a systemPrompt field, so params.system is never set. When system
+  // prompt support is added to TextGeneration, this block will activate.
+  if (sessionId && params.system) {
+    params.system = [
+      {
+        type: "text",
+        text: params.system,
+        cache_control: { type: "ephemeral" },
+      },
+    ];
+  }
+
+  const response = await client.messages.create(params, { signal });
 
   const text = response.content[0]?.type === "text" ? response.content[0].text : "";
 
@@ -50,20 +62,36 @@ export const Anthropic_TextGeneration_Stream: AiProviderStreamFn<
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
   AnthropicModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
+> = async function* (
+  input,
+  model,
+  signal,
+  _outputSchema,
+  sessionId
+): AsyncIterable<StreamEvent<TextGenerationTaskOutput>> {
   const client = await getClient(model);
   const modelName = getModelName(model);
 
-  const stream = client.messages.stream(
-    {
-      model: modelName,
-      messages: [{ role: "user", content: input.prompt }],
-      max_tokens: getMaxTokens(input, model),
-      temperature: input.temperature,
-      top_p: input.topP,
-    },
-    { signal }
-  );
+  const params: any = {
+    model: modelName,
+    messages: [{ role: "user", content: input.prompt }],
+    max_tokens: getMaxTokens(input, model),
+    temperature: input.temperature,
+    top_p: input.topP,
+  };
+
+  // Cache annotation placeholder: see comment in run function above.
+  if (sessionId && params.system) {
+    params.system = [
+      {
+        type: "text",
+        text: params.system,
+        cache_control: { type: "ephemeral" },
+      },
+    ];
+  }
+
+  const stream = client.messages.stream(params, { signal });
 
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {

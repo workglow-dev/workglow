@@ -27,7 +27,8 @@ import {
   parseToolCalls,
 } from "../../common/ToolCallParsers";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
-import { getPipeline, loadTransformersSDK } from "./HFT_Pipeline";
+import { getPipeline, getHftSession, setHftSession, loadTransformersSDK } from "./HFT_Pipeline";
+import type { HftPrefixRewindSession } from "./HFT_Pipeline";
 import {
   createStreamEventQueue,
   createStreamingTextStreamer,
@@ -317,7 +318,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   HfTransformersOnnxModelConfig
-> = async (input, model, onProgress, signal) => {
+> = async (input, model, onProgress, signal, _outputSchema, sessionId) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
   const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
@@ -334,11 +335,47 @@ export const HFT_ToolCalling: AiProviderRunFn<
 
   const inputs = hfTokenizer(prompt);
 
+  // Session cache: prefix-rewind for tool calling
+  const modelPath = model!.provider_config.model_path;
+  let session = sessionId ? getHftSession(sessionId) : undefined;
+  let past_key_values: any = undefined;
+
+  if (sessionId && !session) {
+    // First call with this session: encode the prefix and cache it
+    const { DynamicCache } = await loadTransformersSDK();
+    const cache = new DynamicCache();
+    await hfModel.generate({
+      ...inputs,
+      max_new_tokens: 0,
+      past_key_values: cache,
+    });
+    // Snapshot the prefix entries so we can create fresh caches on each rewind
+    const baseEntries: Record<string, any> = {};
+    for (const key of Object.keys(cache)) {
+      baseEntries[key] = cache[key];
+    }
+    const newSession: HftPrefixRewindSession = {
+      mode: "prefix-rewind",
+      baseEntries,
+      baseSeqLength: cache.get_seq_length(),
+      modelPath,
+    };
+    setHftSession(sessionId, newSession);
+    session = newSession;
+  }
+
+  if (session?.mode === "prefix-rewind") {
+    // Create a fresh DynamicCache from the prefix snapshot for this call
+    const { DynamicCache } = await loadTransformersSDK();
+    past_key_values = new DynamicCache(session.baseEntries);
+  }
+
   const output = (await hfModel.generate({
     ...inputs,
     max_new_tokens: input.maxTokens ?? 1024,
     streamer,
     stopping_criteria: [stopping_criteria],
+    ...(past_key_values ? { past_key_values } : {}),
   })) as Tensor;
   const promptLen = inputs.input_ids.dims[1];
   const seqLen = output.dims[1];
@@ -361,7 +398,13 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   HfTransformersOnnxModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+> = async function* (
+  input,
+  model,
+  signal,
+  _outputSchema,
+  sessionId
+): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
   const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
@@ -380,6 +423,43 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
   const stopping_criteria = new InterruptableStoppingCriteria();
   if (signal) {
     signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
+
+  // Session cache: prefix-rewind for tool calling (streaming)
+  const modelPath = model!.provider_config.model_path;
+  let session = sessionId ? getHftSession(sessionId) : undefined;
+  let past_key_values: any = undefined;
+
+  if (sessionId && !session) {
+    const { DynamicCache } = await loadTransformersSDK();
+    const hfModel = generateText.model;
+    const hfTokenizer = generateText.tokenizer;
+    const cache = new DynamicCache();
+    const tokenized = hfTokenizer(prompt);
+    await hfModel.generate({
+      ...tokenized,
+      max_new_tokens: 0,
+      past_key_values: cache,
+    });
+    // Snapshot the prefix entries so we can create fresh caches on each rewind
+    const baseEntries: Record<string, any> = {};
+    for (const key of Object.keys(cache)) {
+      baseEntries[key] = cache[key];
+    }
+    const newSession: HftPrefixRewindSession = {
+      mode: "prefix-rewind",
+      baseEntries,
+      baseSeqLength: cache.get_seq_length(),
+      modelPath,
+    };
+    setHftSession(sessionId, newSession);
+    session = newSession;
+  }
+
+  if (session?.mode === "prefix-rewind") {
+    // Create a fresh DynamicCache from the prefix snapshot for this call
+    const { DynamicCache } = await loadTransformersSDK();
+    past_key_values = new DynamicCache(session.baseEntries);
   }
 
   let fullText = "";
@@ -420,6 +500,7 @@ export const HFT_ToolCalling_Stream: AiProviderStreamFn<
     return_full_text: false,
     streamer,
     stopping_criteria: [stopping_criteria],
+    ...(past_key_values ? { past_key_values } : {}),
   }).then(
     () => innerQueue.done(),
     (err: Error) => innerQueue.error(err)

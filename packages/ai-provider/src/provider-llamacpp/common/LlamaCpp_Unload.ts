@@ -11,6 +11,7 @@ import type {
 } from "@workglow/ai";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import {
+  disposeLlamaCppSessionsForModel,
   getActualModelPath,
   llamaCppEmbeddingContexts,
   llamaCppModels,
@@ -25,6 +26,9 @@ export const LlamaCpp_Unload: AiProviderRunFn<
   if (!model) throw new Error("Model config is required for UnloadModelTask.");
 
   const modelPath = getActualModelPath(model);
+
+  // Dispose any sessions tied to this model before releasing contexts
+  disposeLlamaCppSessionsForModel(modelPath);
 
   const ctx = llamaCppTextContexts.get(modelPath);
   if (ctx) {

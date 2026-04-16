@@ -47,6 +47,8 @@ export interface AiJobInput<Input extends TaskInput = TaskInput> {
   outputSchema?: JsonSchema;
   /** Timeout in milliseconds for the provider API call. Defaults to 120s. */
   timeoutMs?: number;
+  /** Opaque session token for multi-turn conversation caching (KV cache for local models, prompt caching for API providers). */
+  sessionId?: string;
 }
 
 /**
@@ -221,7 +223,8 @@ export class AiJob<
           model,
           context.updateProgress,
           combinedSignal,
-          input.outputSchema
+          input.outputSchema,
+          input.sessionId
         );
       };
       const runFnPromise = runFn();
@@ -277,7 +280,8 @@ export class AiJob<
         input.taskInput,
         model,
         combinedSignal,
-        input.outputSchema
+        input.outputSchema,
+        input.sessionId
       )) {
         if (event.type === "finish") {
           lastFinishData = event.data;

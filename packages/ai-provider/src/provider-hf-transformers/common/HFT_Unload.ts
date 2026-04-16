@@ -11,7 +11,12 @@ import type {
 } from "@workglow/ai";
 import { HTF_CACHE_NAME } from "./HFT_Constants";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
-import { getPipelineCacheKey, loadTransformersSDK, removeCachedPipeline } from "./HFT_Pipeline";
+import {
+  disposeHftSessionsForModel,
+  getPipelineCacheKey,
+  loadTransformersSDK,
+  removeCachedPipeline,
+} from "./HFT_Pipeline";
 
 function hasBrowserCacheStorage(): boolean {
   return (
@@ -80,6 +85,9 @@ export const HFT_Unload: AiProviderRunFn<
   }
 
   const model_path = model!.provider_config.model_path;
+
+  // Dispose all sessions tied to this model
+  disposeHftSessionsForModel(model_path);
   if (hasBrowserCacheStorage()) {
     await deleteModelCacheFromBrowser(model_path);
   } else {

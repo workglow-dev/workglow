@@ -6,9 +6,12 @@
 
 import { CreateWorkflow, getTaskConstructors, Workflow } from "@workglow/task-graph";
 
-import type { TaskConfig } from "@workglow/task-graph";
+import type { IExecuteContext, StreamEvent, TaskConfig } from "@workglow/task-graph";
+import { makeFingerprint, ServiceRegistry } from "@workglow/util";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
-import { ServiceRegistry } from "@workglow/util";
+import type { AiJobInput } from "../job/AiJob";
+import type { ModelConfig } from "../model/ModelSchema";
+import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 import type { ToolDefinition } from "./ToolCallingUtils";
@@ -261,6 +264,7 @@ export type ToolCallingTaskInput = Omit<FromSchema<typeof ToolCallingInputSchema
     readonly role: "user" | "assistant" | "tool";
     readonly content: unknown;
   }>;
+  readonly sessionId?: string;
 };
 
 export type ToolCallingTaskOutput = FromSchema<typeof ToolCallingOutputSchema>;
@@ -285,6 +289,61 @@ export class ToolCallingTask extends StreamingAiTask<
   }
   public static override outputSchema(): DataPortSchema {
     return ToolCallingOutputSchema as DataPortSchema;
+  }
+
+  /** Session ID computed during getJobInput, used to register cleanup. */
+  private _computedSessionId: string | undefined;
+
+  /**
+   * Override to auto-compute a prefix-rewind session ID from tools + systemPrompt
+   * + runnerId when no explicit sessionId is provided. The runnerId scopes the
+   * cache to the current graph run so it's cleaned up via ResourceScope.
+   */
+  protected override async getJobInput(
+    input: ToolCallingTaskInput
+  ): Promise<AiJobInput<ToolCallingTaskInput>> {
+    const jobInput = await super.getJobInput(input);
+
+    if (!jobInput.sessionId && input.tools && input.tools.length > 0) {
+      jobInput.sessionId = await makeFingerprint({
+        tools: input.tools,
+        systemPrompt: input.systemPrompt,
+        runnerId: this.runConfig.runnerId,
+      });
+      this._computedSessionId = jobInput.sessionId;
+    }
+
+    return jobInput;
+  }
+
+  private registerSessionDispose(input: ToolCallingTaskInput, context: IExecuteContext): void {
+    const sessionId = this._computedSessionId;
+    if (!sessionId || !context.resourceScope) return;
+
+    const model = input.model as ModelConfig;
+    if (!model || typeof model !== "object") return;
+
+    const providerName = model.provider;
+    context.resourceScope.register(`ai:session:${sessionId}`, async () => {
+      await getAiProviderRegistry().disposeSession(providerName, sessionId);
+    });
+  }
+
+  override async execute(
+    input: ToolCallingTaskInput,
+    executeContext: IExecuteContext
+  ): Promise<ToolCallingTaskOutput | undefined> {
+    const result = await super.execute(input, executeContext);
+    this.registerSessionDispose(input, executeContext);
+    return result;
+  }
+
+  override async *executeStream(
+    input: ToolCallingTaskInput,
+    context: IExecuteContext
+  ): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+    yield* super.executeStream(input, context);
+    this.registerSessionDispose(input, context);
   }
 }
 

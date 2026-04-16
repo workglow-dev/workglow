@@ -324,6 +324,25 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   async dispose(): Promise<void> {}
 
   /**
+   * Create a session for the given model configuration.
+   * Returns an opaque session ID that can be passed to run/stream functions
+   * to reuse provider-side resources (e.g., a loaded pipeline or KV cache).
+   *
+   * The base implementation returns a random UUID; provider subclasses
+   * (e.g., HF Transformers, llama-cpp) override this to allocate real resources.
+   */
+  createSession(_model: ModelConfig): string {
+    return crypto.randomUUID();
+  }
+
+  /**
+   * Dispose of a previously created session.
+   * Provider subclasses override this to release resources tied to the session.
+   * The base implementation is a no-op.
+   */
+  async disposeSession(_sessionId: string): Promise<void> {}
+
+  /**
    * Called at the end of {@link register} after registry wiring.
    * {@link QueuedAiProvider} overrides this to create the default job queue; the base
    * implementation is a no-op so worker-only provider classes stay free of queue/storage.
