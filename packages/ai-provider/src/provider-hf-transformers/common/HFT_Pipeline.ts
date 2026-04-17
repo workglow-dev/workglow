@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { PretrainedModelOptions, ProgressInfo } from "@huggingface/transformers";
+import type { DynamicCache, PretrainedModelOptions, ProgressInfo } from "@huggingface/transformers";
 import { getLogger } from "@workglow/util/worker";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 
@@ -178,6 +178,73 @@ function abortableFetch(url: string, options?: RequestInit): Promise<Response> {
 }
 
 const pipelines = new Map<string, any>();
+
+// ============================================================================
+// Session cache for multi-turn conversations
+// ============================================================================
+
+interface HftSessionBase {
+  readonly modelPath: string;
+}
+
+export interface HftPrefixRewindSession extends HftSessionBase {
+  readonly mode: "prefix-rewind";
+  /** Snapshot of prefix KV entries. On each call, a fresh DynamicCache is
+   *  created from these entries so generation doesn't pollute the base prefix.
+   *  Safe for WASM/CPU tensors; WebGPU would need cloning since update()
+   *  disposes replaced GPU tensors. */
+  readonly baseEntries: Record<string, any>;
+  readonly baseSeqLength: number;
+}
+
+export interface HftProgressiveSession extends HftSessionBase {
+  readonly mode: "progressive";
+  /** Live DynamicCache that grows with the conversation. */
+  readonly cache: DynamicCache;
+}
+
+export type HftSessionState = HftPrefixRewindSession | HftProgressiveSession;
+
+const hftSessions = new Map<string, HftSessionState>();
+
+export function getHftSession(sessionId: string): HftSessionState | undefined {
+  return hftSessions.get(sessionId);
+}
+
+export function setHftSession(sessionId: string, state: HftSessionState): void {
+  hftSessions.set(sessionId, state);
+}
+
+function disposeSessionResources(session: HftSessionState): void {
+  if (session.mode === "progressive") {
+    if (session.cache?.dispose) {
+      session.cache.dispose();
+    }
+  } else {
+    for (const tensor of Object.values(session.baseEntries)) {
+      if (tensor?.location === "gpu-buffer" && typeof tensor.dispose === "function") {
+        tensor.dispose();
+      }
+    }
+  }
+}
+
+export function deleteHftSession(sessionId: string): boolean {
+  const session = hftSessions.get(sessionId);
+  if (session) {
+    disposeSessionResources(session);
+  }
+  return hftSessions.delete(sessionId);
+}
+
+export function disposeHftSessionsForModel(modelPath: string): void {
+  for (const [id, state] of hftSessions) {
+    if (state.modelPath === modelPath) {
+      disposeSessionResources(state);
+      hftSessions.delete(id);
+    }
+  }
+}
 
 /** In-flight pipeline loads by cache key. Ensures only one load per model at a time to avoid corrupt ONNX files (Protobuf parsing failed). */
 const pipelineLoadPromises = new Map<string, Promise<any>>();

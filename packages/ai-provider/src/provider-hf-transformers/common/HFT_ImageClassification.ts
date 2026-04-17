@@ -36,7 +36,7 @@ export const HFT_ImageClassification: AiProviderRunFn<
       {},
       signal
     );
-    const result: any = await zeroShotClassifier(
+    const result = await zeroShotClassifier(
       input.image as string,
       input.categories! as string[],
       {}
@@ -45,7 +45,7 @@ export const HFT_ImageClassification: AiProviderRunFn<
     const results = Array.isArray(result) ? result : [result];
 
     return {
-      categories: results.map((r: any) => ({
+      categories: results.map((r) => ({
         label: r.label,
         score: r.score,
       })),
@@ -53,7 +53,7 @@ export const HFT_ImageClassification: AiProviderRunFn<
   }
 
   const classifier: ImageClassificationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const result: any = await classifier(input.image as string, {
+  const result = await classifier(input.image as string, {
     top_k: input.maxCategories,
   });
 

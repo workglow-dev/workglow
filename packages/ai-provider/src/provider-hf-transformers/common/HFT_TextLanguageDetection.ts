@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  TextClassificationOutput,
-  TextClassificationPipeline,
-} from "@huggingface/transformers";
+import type { TextClassificationPipeline } from "@huggingface/transformers";
 import type {
   AiProviderRunFn,
   TextLanguageDetectionTaskInput,
@@ -31,17 +28,8 @@ export const HFT_TextLanguageDetection: AiProviderRunFn<
     top_k: input.maxLanguages || undefined,
   });
 
-  if (Array.isArray(result[0])) {
-    return {
-      languages: result[0].map((category) => ({
-        language: category.label,
-        score: category.score,
-      })),
-    };
-  }
-
   return {
-    languages: (result as TextClassificationOutput).map((category) => ({
+    languages: result.map((category) => ({
       language: category.label,
       score: category.score,
     })),

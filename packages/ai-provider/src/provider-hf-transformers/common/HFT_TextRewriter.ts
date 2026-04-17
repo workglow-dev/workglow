@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TextGenerationOutput, TextGenerationPipeline } from "@huggingface/transformers";
+import type { TextGenerationPipeline } from "@huggingface/transformers";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
@@ -31,21 +31,26 @@ export const HFT_TextRewriter: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const generateText: TextGenerationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
-  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer, signal);
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
+  const streamer = createTextStreamer(generateText.tokenizer, onProgress, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   // This lib doesn't support this kind of rewriting with a separate prompt vs text
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
 
   let results = await generateText(promptedText, {
     streamer,
+    stopping_criteria: [stopping_criteria],
   });
 
   if (!Array.isArray(results)) {
     results = [results];
   }
 
-  const text = extractGeneratedText((results[0] as TextGenerationOutput[number])?.generated_text);
+  const text = extractGeneratedText(results[0]?.generated_text);
 
   if (text === promptedText) {
     throw new Error("Rewriter failed to generate new text");
@@ -63,15 +68,20 @@ export const HFT_TextRewriter_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextRewriterTaskOutput>> {
   const noopProgress = () => {};
   const generateText: TextGenerationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextRewriterTaskOutput>>();
-  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer, signal);
+  const streamer = createStreamingTextStreamer(generateText.tokenizer, queue, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const promptedText = (input.prompt ? input.prompt + "\n" : "") + input.text;
 
   const pipelinePromise = generateText(promptedText, {
     streamer,
+    stopping_criteria: [stopping_criteria],
   }).then(
     () => queue.done(),
     (err: Error) => queue.error(err)

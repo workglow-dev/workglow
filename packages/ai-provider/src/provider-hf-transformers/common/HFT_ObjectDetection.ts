@@ -35,14 +35,12 @@ export const HFT_ObjectDetection: AiProviderRunFn<
       {},
       signal
     );
-    const result: any = await zeroShotDetector(input.image as string, Array.from(input.labels!), {
+    const result = await zeroShotDetector(input.image as string, Array.from(input.labels!), {
       threshold: input.threshold,
     });
 
-    const detections = Array.isArray(result) ? result : [result];
-
     return {
-      detections: detections.map((d: any) => ({
+      detections: result.map((d: any) => ({
         label: d.label,
         score: d.score,
         box: d.box,
@@ -51,14 +49,12 @@ export const HFT_ObjectDetection: AiProviderRunFn<
   }
 
   const detector: ObjectDetectionPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const result: any = await detector(input.image as string, {
+  const detections = await detector(input.image as string, {
     threshold: input.threshold,
   });
 
-  const detections = Array.isArray(result) ? result : [result];
-
   return {
-    detections: detections.map((d: any) => ({
+    detections: detections.map((d) => ({
       label: d.label,
       score: d.score,
       box: d.box,

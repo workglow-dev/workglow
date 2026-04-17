@@ -212,7 +212,7 @@ export const LlamaCpp_ToolCalling: AiProviderRunFn<
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   LlamaCppModelConfig
-> = async (input, model, update_progress, signal) => {
+> = async (input, model, update_progress, signal, _outputSchema, sessionId) => {
   if (!model) throw new Error("Model config is required for ToolCallingTask.");
 
   await loadSdk();
@@ -343,7 +343,13 @@ export const LlamaCpp_ToolCalling_Stream: AiProviderStreamFn<
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   LlamaCppModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+> = async function* (
+  input,
+  model,
+  signal,
+  _outputSchema,
+  sessionId
+): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
   if (!model) throw new Error("Model config is required for ToolCallingTask.");
 
   await loadSdk();

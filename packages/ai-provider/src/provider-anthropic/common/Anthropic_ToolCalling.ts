@@ -106,7 +106,7 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   AnthropicModelConfig
-> = async (input, model, update_progress, signal) => {
+> = async (input, model, update_progress, signal, _outputSchema, sessionId) => {
   update_progress(0, "Starting Anthropic tool calling");
   const client = await getClient(model);
   const modelName = getModelName(model);
@@ -137,6 +137,26 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
     params.tool_choice = toolChoice;
   }
 
+  if (sessionId) {
+    // Add cache_control breakpoints for Anthropic prompt caching
+    if (params.system) {
+      params.system = [
+        {
+          type: "text",
+          text: params.system,
+          cache_control: { type: "ephemeral" },
+        },
+      ];
+    }
+    if (params.tools && params.tools.length > 0) {
+      const lastIdx = params.tools.length - 1;
+      params.tools[lastIdx] = {
+        ...params.tools[lastIdx],
+        cache_control: { type: "ephemeral" },
+      };
+    }
+  }
+
   const response = await client.messages.create(params, { signal });
 
   const text = response.content
@@ -163,7 +183,13 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   AnthropicModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
+> = async function* (
+  input,
+  model,
+  signal,
+  _outputSchema,
+  sessionId
+): AsyncIterable<StreamEvent<ToolCallingTaskOutput>> {
   const client = await getClient(model);
   const modelName = getModelName(model);
 
@@ -191,6 +217,26 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
   if (toolChoice !== undefined) {
     params.tools = tools;
     params.tool_choice = toolChoice;
+  }
+
+  if (sessionId) {
+    // Add cache_control breakpoints for Anthropic prompt caching
+    if (params.system) {
+      params.system = [
+        {
+          type: "text",
+          text: params.system,
+          cache_control: { type: "ephemeral" },
+        },
+      ];
+    }
+    if (params.tools && params.tools.length > 0) {
+      const lastIdx = params.tools.length - 1;
+      params.tools[lastIdx] = {
+        ...params.tools[lastIdx],
+        cache_control: { type: "ephemeral" },
+      };
+    }
   }
 
   const stream = client.messages.stream(params, { signal });

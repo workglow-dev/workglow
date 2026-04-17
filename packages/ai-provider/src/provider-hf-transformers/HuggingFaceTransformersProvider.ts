@@ -9,9 +9,11 @@ import type {
   AiProviderReactiveRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
+  ModelConfig,
 } from "@workglow/ai/worker";
 import { HF_TRANSFORMERS_ONNX } from "./common/HFT_Constants";
 import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
+import { deleteHftSession } from "./common/HFT_Pipeline";
 
 /**
  * AI provider for HuggingFace Transformers ONNX models.
@@ -59,5 +61,13 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
     reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>>
   ) {
     super(tasks, streamTasks, reactiveTasks);
+  }
+
+  override createSession(_model: ModelConfig): string {
+    return crypto.randomUUID();
+  }
+
+  override async disposeSession(sessionId: string): Promise<void> {
+    deleteHftSession(sessionId);
   }
 }

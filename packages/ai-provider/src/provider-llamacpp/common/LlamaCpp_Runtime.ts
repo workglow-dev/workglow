@@ -42,6 +42,54 @@ export const llamaCppEmbeddingContexts = new Map<string, LlamaEmbeddingContext>(
 /** Maps model_url (or model_path when used as URI) to the actual downloaded filesystem path. */
 export const resolvedPaths = new Map<string, string>();
 
+// ============================================================================
+// Session cache for multi-turn conversations
+// ============================================================================
+
+export interface LlamaCppSessionState {
+  mode: "prefix-rewind" | "progressive";
+  sequence: any; // LlamaContextSequence
+  session: any; // LlamaChatSession (for progressive mode)
+  modelKey: string;
+}
+
+export const llamaCppSessions = new Map<string, LlamaCppSessionState>();
+
+export function getLlamaCppSession(sessionId: string): LlamaCppSessionState | undefined {
+  return llamaCppSessions.get(sessionId);
+}
+
+export function setLlamaCppSession(sessionId: string, state: LlamaCppSessionState): void {
+  llamaCppSessions.set(sessionId, state);
+}
+
+export function deleteLlamaCppSession(sessionId: string): boolean {
+  const session = llamaCppSessions.get(sessionId);
+  if (session) {
+    try {
+      session.session?.dispose?.({ disposeSequence: false });
+    } catch {}
+    try {
+      session.sequence?.dispose?.();
+    } catch {}
+  }
+  return llamaCppSessions.delete(sessionId);
+}
+
+export function disposeLlamaCppSessionsForModel(modelKey: string): void {
+  for (const [id, state] of llamaCppSessions) {
+    if (state.modelKey === modelKey) {
+      try {
+        state.session?.dispose?.({ disposeSequence: false });
+      } catch {}
+      try {
+        state.sequence?.dispose?.();
+      } catch {}
+      llamaCppSessions.delete(id);
+    }
+  }
+}
+
 export async function getLlamaInstance(): Promise<LlamaInstance> {
   if (!llamaInstance) {
     const { getLlama } = await loadSdk();
@@ -206,6 +254,11 @@ export async function* streamFromSession<T extends Record<string, unknown>>(
 }
 
 export async function disposeLlamaCppResources(): Promise<void> {
+  // Dispose all sessions before contexts/models they reference
+  for (const [id] of llamaCppSessions) {
+    deleteLlamaCppSession(id);
+  }
+
   const disposeAll = async (map: Map<string, { dispose(): Promise<void> }>) => {
     for (const resource of map.values()) {
       await resource.dispose().catch(() => {});

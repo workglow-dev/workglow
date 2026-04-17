@@ -13,6 +13,10 @@ export const ONNX_QUANTIZATION_SUFFIX_MAPPING = {
   q4: "_q4",
   q4f16: "_q4f16",
   bnb4: "_bnb4",
+  q2: "_q2",
+  q2f16: "_q2f16",
+  q1: "_q1",
+  q1f16: "_q1f16",
 } as const;
 
 export type OnnxQuantization = keyof typeof ONNX_QUANTIZATION_SUFFIX_MAPPING;

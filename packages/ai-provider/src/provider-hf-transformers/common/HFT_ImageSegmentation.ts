@@ -23,7 +23,7 @@ export const HFT_ImageSegmentation: AiProviderRunFn<
 > = async (input, model, onProgress, signal) => {
   const segmenter: ImageSegmentationPipeline = await getPipeline(model!, onProgress, {}, signal);
 
-  const result = await segmenter(input.image as any, {
+  const result = await segmenter(input.image as string, {
     threshold: input.threshold,
     mask_threshold: input.maskThreshold,
   });

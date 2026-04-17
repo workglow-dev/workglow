@@ -16,6 +16,7 @@ import type {
 } from "@workglow/ai";
 import { HF_TRANSFORMERS_ONNX, HF_TRANSFORMERS_ONNX_CPU } from "./common/HFT_Constants";
 import type { HfTransformersOnnxModelConfig } from "./common/HFT_ModelSchema";
+import { deleteHftSession } from "./common/HFT_Pipeline";
 
 const GPU_DEVICES = new Set(["webgpu", "gpu", "metal"]);
 
@@ -102,6 +103,14 @@ export class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider<HfTr
     reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>>
   ) {
     super(tasks, streamTasks, reactiveTasks);
+  }
+
+  override createSession(_model: ModelConfig): string {
+    return crypto.randomUUID();
+  }
+
+  override async disposeSession(sessionId: string): Promise<void> {
+    deleteHftSession(sessionId);
   }
 
   protected override async afterRegister(options: AiProviderRegisterOptions): Promise<void> {

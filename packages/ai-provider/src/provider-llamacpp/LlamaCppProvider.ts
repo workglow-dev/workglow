@@ -10,8 +10,10 @@ import type {
   AiProviderRunFn,
   AiProviderStreamFn,
 } from "@workglow/ai/worker";
+import type { ModelConfig } from "@workglow/ai/worker";
 import { LOCAL_LLAMACPP } from "./common/LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
+import { deleteLlamaCppSession } from "./common/LlamaCpp_Runtime";
 
 /**
  * AI provider for running GGUF models locally via node-llama-cpp.
@@ -50,5 +52,13 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
     reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, LlamaCppModelConfig>>
   ) {
     super(tasks, streamTasks, reactiveTasks);
+  }
+
+  override createSession(_model: ModelConfig): string {
+    return crypto.randomUUID();
+  }
+
+  override async disposeSession(sessionId: string): Promise<void> {
+    deleteLlamaCppSession(sessionId);
   }
 }

@@ -28,7 +28,8 @@ export type AiProviderRunFn<
   model: Model | undefined,
   update_progress: (progress: number, message?: string, details?: any) => void,
   signal: AbortSignal,
-  outputSchema?: JsonSchema
+  outputSchema?: JsonSchema,
+  sessionId?: string
 ) => Promise<Output>;
 
 /**
@@ -56,7 +57,8 @@ export type AiProviderStreamFn<
   input: Input,
   model: Model | undefined,
   signal: AbortSignal,
-  outputSchema?: JsonSchema
+  outputSchema?: JsonSchema,
+  sessionId?: string
 ) => AsyncIterable<StreamEvent<Output>>;
 
 /**
@@ -147,6 +149,35 @@ export class AiProviderRegistry {
   }
 
   /**
+   * Creates a session on the named provider.
+   * @param providerName - The provider to create a session on
+   * @param model - The model configuration for the session
+   * @returns An opaque session ID
+   * @throws If the provider is not registered
+   */
+  createSession(providerName: string, model: ModelConfig): string {
+    const provider = this.providers.get(providerName);
+    if (!provider) {
+      throw new Error(
+        `No provider found for "${providerName}". Register the provider before creating sessions.`
+      );
+    }
+    return provider.createSession(model);
+  }
+
+  /**
+   * Disposes a session on the named provider. Silently ignores unknown providers.
+   * @param providerName - The provider that owns the session
+   * @param sessionId - The session ID to dispose
+   */
+  async disposeSession(providerName: string, sessionId: string): Promise<void> {
+    const provider = this.providers.get(providerName);
+    if (provider) {
+      await provider.disposeSession(sessionId);
+    }
+  }
+
+  /**
    * Stable-sorted provider ids that have a direct run function registered for `taskType`.
    * Use this when the UI or validation should only offer providers that can execute a task
    * (e.g. {@link ModelSearchTask}).
@@ -183,13 +214,14 @@ export class AiProviderRegistry {
       model: ModelConfig | undefined,
       update_progress: (progress: number, message?: string, details?: any) => void,
       signal?: AbortSignal,
-      outputSchema?: JsonSchema
+      outputSchema?: JsonSchema,
+      sessionId?: string
     ) => {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
       const result = await workerManager.callWorkerFunction<Output>(
         modelProvider,
         taskType,
-        [input, model, outputSchema],
+        [input, model, outputSchema, sessionId],
         {
           signal: signal,
           onProgress: update_progress,
@@ -231,13 +263,14 @@ export class AiProviderRegistry {
       input: Input,
       model: ModelConfig | undefined,
       signal: AbortSignal,
-      outputSchema?: JsonSchema
+      outputSchema?: JsonSchema,
+      sessionId?: string
     ) {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
       yield* workerManager.callWorkerStreamFunction<StreamEvent<Output>>(
         modelProvider,
         taskType,
-        [input, model, outputSchema],
+        [input, model, outputSchema, sessionId],
         { signal }
       );
     };

@@ -30,13 +30,18 @@ export const HFT_TextTranslation: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const translate: TranslationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
-  const streamer = createTextStreamer(translate.tokenizer, onProgress, TextStreamer, signal);
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
+  const streamer = createTextStreamer(translate.tokenizer, onProgress, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const result = await translate(input.text, {
     src_lang: input.source_lang,
     tgt_lang: input.target_lang,
     streamer,
+    stopping_criteria: [stopping_criteria],
   } as any);
 
   const translatedText = Array.isArray(result)
@@ -56,15 +61,20 @@ export const HFT_TextTranslation_Stream: AiProviderStreamFn<
 > = async function* (input, model, signal): AsyncIterable<StreamEvent<TextTranslationTaskOutput>> {
   const noopProgress = () => {};
   const translate: TranslationPipeline = await getPipeline(model!, noopProgress, {}, signal);
-  const { TextStreamer } = await loadTransformersSDK();
+  const { TextStreamer, InterruptableStoppingCriteria } = await loadTransformersSDK();
 
   const queue = createStreamEventQueue<StreamEvent<TextTranslationTaskOutput>>();
-  const streamer = createStreamingTextStreamer(translate.tokenizer, queue, TextStreamer, signal);
+  const streamer = createStreamingTextStreamer(translate.tokenizer, queue, TextStreamer);
+  const stopping_criteria = new InterruptableStoppingCriteria();
+  if (signal) {
+    signal.addEventListener("abort", () => stopping_criteria.interrupt(), { once: true });
+  }
 
   const pipelinePromise = translate(input.text, {
     src_lang: input.source_lang,
     tgt_lang: input.target_lang,
     streamer,
+    stopping_criteria: [stopping_criteria],
   } as any).then(
     () => queue.done(),
     (err: Error) => queue.error(err)

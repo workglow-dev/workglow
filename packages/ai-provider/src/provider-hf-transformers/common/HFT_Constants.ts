@@ -20,7 +20,11 @@ export type QuantizationDataType =
   | "uint8"
   | "q4"
   | "bnb4"
-  | "q4f16"; // fp16 model with int4 block weight quantization
+  | "q4f16"
+  | "q2"
+  | "q2f16"
+  | "q1"
+  | "q1f16";
 
 export const QuantizationDataType = {
   auto: "auto",
@@ -32,6 +36,10 @@ export const QuantizationDataType = {
   q4: "q4",
   bnb4: "bnb4",
   q4f16: "q4f16",
+  q2: "q2",
+  q2f16: "q2f16",
+  q1: "q1",
+  q1f16: "q1f16",
 } as const satisfies Record<QuantizationDataType, QuantizationDataType>;
 
 type TextPipelineUseCase =

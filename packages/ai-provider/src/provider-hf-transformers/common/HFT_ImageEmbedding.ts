@@ -40,14 +40,14 @@ export const HFT_ImageEmbedding: AiProviderRunFn<
   if (Array.isArray(input.image)) {
     const vectors: TypedArray[] = [];
     for (const image of input.image) {
-      const result: any = await embedder(image as string);
+      const result = await embedder(image as string);
       vectors.push(result.data as TypedArray);
     }
     logger.timeEnd(timerLabel, { count: vectors.length });
     return { vector: vectors } as ImageEmbeddingTaskOutput;
   }
 
-  const result: any = await embedder(input.image as string);
+  const result = await embedder(input.image as string);
 
   logger.timeEnd(timerLabel, { dimensions: result?.data?.length });
   return {

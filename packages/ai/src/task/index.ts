@@ -5,7 +5,6 @@
  */
 
 import { TaskRegistry } from "@workglow/task-graph";
-import { AgentTask } from "./AgentTask";
 import { BackgroundRemovalTask } from "./BackgroundRemovalTask";
 import { ChunkRetrievalTask } from "./ChunkRetrievalTask";
 import { ChunkToVectorTask } from "./ChunkToVectorTask";
@@ -58,7 +57,6 @@ import { VectorSimilarityTask } from "./VectorSimilarityTask";
 // and prevents tree-shaking issues.
 export const registerAiTasks = () => {
   const tasks = [
-    AgentTask,
     BackgroundRemovalTask,
     ChunkToVectorTask,
     CountTokensTask,
@@ -110,9 +108,6 @@ export const registerAiTasks = () => {
   return tasks;
 };
 
-export * from "./AgentTask";
-export * from "./AgentTypes";
-export * from "./AgentUtils";
 export * from "./MessageConversion";
 export * from "./ToolCallingUtils";
 export * from "./BackgroundRemovalTask";
