@@ -1,5 +1,23 @@
 # @workglow/ai-provider
 
+## 0.2.8
+
+### Features
+
+#### ai
+
+- session caching for multi-turn AI tasks
+
+#### ai-provider
+
+- interruptable text generation streaming
+
+### Refactors
+
+#### ai-provider
+
+- update tokenizer call in HFT_ToolCalling to return tensors
+
 ## 0.2.7
 
 ### Features

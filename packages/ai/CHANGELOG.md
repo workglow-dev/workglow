@@ -1,5 +1,13 @@
 # @workglow/ai
 
+## 0.2.8
+
+### Features
+
+#### ai
+
+- session caching for multi-turn AI tasks
+
 ## 0.2.7
 
 ### Features

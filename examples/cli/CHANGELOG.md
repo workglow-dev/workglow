@@ -1,5 +1,15 @@
 # @workglow/cli
 
+## 0.2.8
+
+### Chores
+
+- update deps
+
+### Updated Dependencies
+
+- `ink`: ^7.0.1
+
 ## 0.2.7
 
 ### Features
