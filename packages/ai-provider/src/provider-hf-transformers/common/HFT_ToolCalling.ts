@@ -27,8 +27,8 @@ import {
   parseToolCalls,
 } from "../../common/ToolCallParsers";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
-import { getPipeline, getHftSession, setHftSession, loadTransformersSDK } from "./HFT_Pipeline";
 import type { HftPrefixRewindSession } from "./HFT_Pipeline";
+import { getHftSession, getPipeline, loadTransformersSDK, setHftSession } from "./HFT_Pipeline";
 import {
   createStreamEventQueue,
   createStreamingTextStreamer,
@@ -333,7 +333,7 @@ export const HFT_ToolCalling: AiProviderRunFn<
   const modelFamily = detectModelFamilyFromConfig(model!);
   const { prompt, responsePrefix } = buildPromptAndPrefix(hfTokenizer, input, modelFamily);
 
-  const inputs = hfTokenizer(prompt);
+  const inputs = hfTokenizer(prompt, { return_tensor: true });
 
   // Session cache: prefix-rewind for tool calling
   const modelPath = model!.provider_config.model_path;
