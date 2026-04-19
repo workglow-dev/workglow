@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/tasks";
+import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/util";
 import { getCliHumanInteractionEnqueue } from "../cliHumanBridge";
 
 function notHostedError(): Error {

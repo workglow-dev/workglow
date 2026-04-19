@@ -18,9 +18,10 @@ import {
   resolveInput,
   validateInput,
 } from "../input";
+import { promptEditableInput } from "../input/prompt";
 import { ensureCredentialStoreUnlocked } from "../keyring";
 
-const CredentialSchema = CredentialPutInputSchema as unknown as DataPortSchemaObject;
+const CredentialSchema = CredentialPutInputSchema as DataPortSchemaObject;
 
 export function registerCredentialCommand(program: Command): void {
   const credential = program.command("credential").description("Manage encrypted credentials");
@@ -70,7 +71,6 @@ export function registerCredentialCommand(program: Command): void {
         }
 
         if (process.stdin.isTTY) {
-          const { promptEditableInput } = await import("../input/prompt");
           input = await promptEditableInput(input, CredentialSchema, {
             initialFocusedFieldKey: usedPositionalKey ? "value" : undefined,
           });

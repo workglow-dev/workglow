@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IHumanRequest, IHumanResponse } from "@workglow/tasks";
+import type { IHumanRequest, IHumanResponse } from "@workglow/util";
 
 export type CliHumanInteractionEnqueue = (
   request: IHumanRequest,

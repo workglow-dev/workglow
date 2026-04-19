@@ -1,0 +1,48 @@
+/**
+ * @license
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { Box, Text } from "ink";
+import React from "react";
+import { TaskStatusProgressRow } from "../components/TaskStatusProgressRow";
+import { useTaskStreamText } from "./useTaskStreamText";
+import type { TaskRowProps } from "./pickRenderer";
+
+const MAX_LINES = 8;
+
+function tailLines(text: string, n: number): string {
+  const lines = text.split("\n");
+  if (lines.length <= n) return text;
+  return lines.slice(lines.length - n).join("\n");
+}
+
+export function StreamingTextRow({ task, line }: TaskRowProps): React.ReactElement {
+  const streamText = useTaskStreamText(task);
+  const isActive = line.status === "PROCESSING";
+  const showPanel = isActive && streamText.length > 0;
+
+  return (
+    <Box flexDirection="column">
+      <TaskStatusProgressRow
+        type={line.type}
+        status={line.status}
+        message={line.message}
+        barProgress={line.progress ?? 0}
+      />
+      {showPanel && (
+        <Box
+          flexDirection="column"
+          marginTop={0}
+          marginLeft={2}
+          borderStyle="round"
+          borderColor="gray"
+          paddingX={1}
+        >
+          <Text dimColor>{tailLines(streamText, MAX_LINES)}</Text>
+        </Box>
+      )}
+    </Box>
+  );
+}

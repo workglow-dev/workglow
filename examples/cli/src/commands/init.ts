@@ -7,7 +7,9 @@
 import type { Command } from "commander";
 import { mkdir, writeFile } from "fs/promises";
 import { stringify } from "smol-toml";
-import { CONFIG_PATH, DEFAULT_CONFIG } from "../config";
+import { CONFIG_PATH, DEFAULT_CONFIG, loadConfig } from "../config";
+import { ensureChatSample } from "../samples/chatSample";
+import { createWorkflowRepository } from "../storage";
 
 export function registerInitCommand(program: Command): void {
   program
@@ -36,6 +38,12 @@ export function registerInitCommand(program: Command): void {
         await mkdir(dir, { recursive: true });
         console.log(`Created ${dir}`);
       }
+
+      const config = await loadConfig();
+      const workflowRepo = createWorkflowRepository(config);
+      await workflowRepo.setupDatabase();
+      await ensureChatSample(workflowRepo);
+      console.log(`Seeded sample workflow: chat`);
 
       console.log("Workglow initialized.");
     });

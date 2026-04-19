@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TaskGraph } from "@workglow/task-graph";
+import type { IRunConfig, ITask } from "@workglow/task-graph";
 import { Box, Static, Text } from "ink";
 import path from "node:path";
 import React, { useEffect, useRef, useState } from "react";
@@ -28,13 +28,10 @@ import {
 } from "./taskGraphCliSubscriptions";
 
 interface TaskRunAppProps {
-  readonly task: {
-    run(overrides?: Record<string, unknown>): Promise<unknown>;
-    events: {
-      on(event: string, fn: (...args: any[]) => void): void;
-    };
-  };
+  readonly task: ITask;
   readonly taskType: string;
+  readonly overrides?: Record<string, unknown>;
+  readonly runConfig?: Partial<IRunConfig>;
   readonly onComplete: (result: unknown) => void;
   readonly onError: (error: Error) => void;
 }
@@ -75,6 +72,8 @@ const DOWNLOAD_PROGRESS_BAR_WIDTH = 10;
 export function TaskRunApp({
   task,
   taskType,
+  overrides,
+  runConfig,
   onComplete,
   onError,
 }: TaskRunAppProps): React.ReactElement {
@@ -105,8 +104,7 @@ export function TaskRunApp({
 
     const flushTaskDisplay = (): void => {
       const fileList = mapTaskFiles(task);
-      const t = task as unknown as { progress?: number };
-      const prog = typeof t.progress === "number" ? t.progress : progressRef.current.prog;
+      const prog = typeof task.progress === "number" ? task.progress : progressRef.current.prog;
       const msg = progressRef.current.msg;
       if (fileList.length > 0) {
         setDownloadFiles((prev) => (fileListsEqual(prev, fileList) ? prev : fileList));
@@ -149,10 +147,7 @@ export function TaskRunApp({
       });
     });
 
-    const stopPollTask = startTaskInstancePoll(
-      () => task as unknown as { status?: string },
-      setStatus
-    );
+    const stopPollTask = startTaskInstancePoll(() => task, setStatus);
 
     let unsubSubgraph: (() => void) | undefined;
     let stopSubPoll: (() => void) | undefined;
@@ -160,22 +155,15 @@ export function TaskRunApp({
     /** Attach once when `hasChildren()` becomes true (may happen after `run()` starts). */
     const tryAttachSubgraph = (): void => {
       if (unsubSubgraph) return;
-      const compound = task as unknown as { hasChildren?: () => boolean; subGraph?: TaskGraph };
-      if (
-        typeof compound.hasChildren !== "function" ||
-        !compound.hasChildren() ||
-        !compound.subGraph
-      ) {
-        return;
-      }
+      if (!task.hasChildren() || !task.subGraph) return;
       unsubSubgraph = subscribeTaskGraphForCli(
-        compound.subGraph,
+        task.subGraph,
         setSubTaskInfos,
         undefined,
         setSubOverallProgress,
         setSubIterationSlots
       );
-      stopSubPoll = startGraphTaskPoll(compound.subGraph, setSubTaskInfos);
+      stopSubPoll = startGraphTaskPoll(task.subGraph, setSubTaskInfos);
     };
 
     tryAttachSubgraph();
@@ -186,7 +174,7 @@ export function TaskRunApp({
     const displayInterval = setInterval(flushTaskDisplay, 200);
 
     task
-      .run()
+      .run(overrides, runConfig)
       .then((result) => onComplete(result))
       .catch((err) => onError(err));
 
@@ -200,14 +188,8 @@ export function TaskRunApp({
   }, []);
 
   const subOrder =
-    typeof (task as unknown as { hasChildren?: () => boolean }).hasChildren === "function" &&
-    (task as unknown as { hasChildren: () => boolean }).hasChildren() &&
-    (task as unknown as { subGraph?: TaskGraph }).subGraph
-      ? new Map(
-          (task as unknown as { subGraph: TaskGraph }).subGraph
-            .getTasks()
-            .map((t, i) => [String(t.id), i])
-        )
+    task.hasChildren() && task.subGraph
+      ? new Map(task.subGraph.getTasks().map((t, i) => [String(t.id), i]))
       : new Map<string, number>();
   const orderedSubTasks = sortCliTaskLinesForDisplay(Array.from(subTaskInfos.values()), subOrder);
   /** One child with the same type as the parent is usually the same logical work (e.g. job mirror); hide to avoid duplicate rows. */

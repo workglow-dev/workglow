@@ -4,23 +4,52 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { computeGraphInputSchema, createGraphFromGraphJSON } from "@workglow/task-graph";
-import type { TaskGraphJson } from "@workglow/task-graph";
+import type { TaskGraph, TaskGraphJson } from "@workglow/task-graph";
+import {
+  computeGraphInputSchema,
+  createGraphFromGraphJSON,
+  scanGraphForCredentials,
+} from "@workglow/task-graph";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
 import { registerCliBrowserDeps } from "../browser";
-import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
-import { createWorkflowRepository } from "../storage";
-import { formatError, formatTable, outputResult } from "../util";
+import { editStringInExternalEditor } from "../editInEditor";
 import {
-  parseDynamicFlags,
   generateSchemaHelpText,
-  resolveInput,
-  resolveConfig,
-  validateInput,
+  parseDynamicFlags,
   readJsonInput,
+  resolveConfig,
+  resolveInput,
+  validateInput,
 } from "../input";
+import { promptEditableInput, promptMissingInput } from "../input/prompt";
+import { deepMerge } from "../input/resolve-input";
+import { ensureCredentialStoreUnlocked } from "../keyring";
+import { withCli } from "../run-interactive";
+import { createWorkflowRepository } from "../storage";
+import { renderSelectPrompt } from "../ui/render";
+import { formatError, formatTable, outputResult } from "../util";
+
+/**
+ * Collects `task.defaults` from all root (no-incoming-edge) tasks in the graph
+ * and returns a single merged object. Later overrides from CLI flags and JSON
+ * input still win because this is merged *before* resolveInput's output.
+ */
+function collectRootTaskDefaults(graph: TaskGraph): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  const tasks = graph.getTasks();
+  for (const task of tasks) {
+    if (graph.getSourceDataflows(task.id).length > 0) continue;
+    const d = task.defaults;
+    if (!d) continue;
+    for (const [key, value] of Object.entries(d)) {
+      if (value === undefined) continue;
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
 
 export function registerWorkflowCommand(program: Command): void {
   const workflow = program.command("workflow").description("Manage and run workflows");
@@ -76,7 +105,6 @@ export function registerWorkflowCommand(program: Command): void {
           console.log("No workflows found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: String(e.key),
           value: String(e.key),
@@ -120,7 +148,6 @@ export function registerWorkflowCommand(program: Command): void {
           console.log("No workflows to remove.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: String(e.key),
           value: String(e.key),
@@ -184,7 +211,6 @@ export function registerWorkflowCommand(program: Command): void {
           console.log("No workflows found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: String(e.key),
           value: String(e.key),
@@ -255,6 +281,10 @@ export function registerWorkflowCommand(program: Command): void {
     .option("--config-json <json>", "Config as JSON string")
     .option("--config-json-file <path>", "Config from JSON file")
     .option("--output-json-file <path>", "Write output to file")
+    .option(
+      "-i, --interactive",
+      "Always show the full input form, even when defaults cover all required fields"
+    )
     .option("--dry-run", "Validate input without executing")
     .option("--help", "Show help including schema-derived flags")
     .action(async (id: string | undefined, opts: Record<string, string | boolean | undefined>) => {
@@ -278,7 +308,6 @@ export function registerWorkflowCommand(program: Command): void {
           console.log("No workflows found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: String(e.key),
           value: String(e.key),
@@ -319,9 +348,16 @@ export function registerWorkflowCommand(program: Command): void {
         configJsonFile: opts.configJsonFile as string | undefined,
       });
 
+      // Merge root-task defaults (e.g. sample workflows that pre-fill model config)
+      // so the interactive prompt treats those fields as already satisfied.
+      input = deepMerge(collectRootTaskDefaults(graph), input);
+
       if (process.stdin.isTTY) {
-        const { promptMissingInput } = await import("../input/prompt");
-        input = await promptMissingInput(input, schema);
+        if (opts.interactive) {
+          input = await promptEditableInput(input, schema);
+        } else {
+          input = await promptMissingInput(input, schema);
+        }
       }
 
       const validation = validateInput(input, schema);
@@ -339,17 +375,14 @@ export function registerWorkflowCommand(program: Command): void {
       }
 
       // Unlock encrypted credential store if the graph needs credentials
-      const { scanGraphForCredentials } = await import("@workglow/task-graph");
       const scanResult = scanGraphForCredentials(graph);
       if (scanResult.needsCredentials) {
-        const { ensureCredentialStoreUnlocked } = await import("../keyring");
         await ensureCredentialStoreUnlocked();
       }
 
       await registerCliBrowserDeps(config);
 
       try {
-        const { withCli } = await import("../run-interactive");
         const result = await withCli(graph, { suppressResultOutput: true }).run(input, runConfig);
         await outputResult(result, opts.outputJsonFile as string | undefined);
       } catch (err) {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IHumanRequest, IHumanResponse } from "@workglow/tasks";
+import type { IHumanRequest, IHumanResponse } from "@workglow/util";
 import { Box, Text, useInput } from "ink";
 import React, { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { setCliHumanInteractionEnqueue } from "../cliHumanBridge";

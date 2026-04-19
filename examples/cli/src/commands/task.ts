@@ -4,42 +4,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ITask, ITaskConstructor } from "@workglow/task-graph";
 import { TaskRegistry } from "@workglow/task-graph";
-import type { ITask } from "@workglow/task-graph";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
-import { formatError, formatTable, outputResult } from "../util";
 import {
-  parseDynamicFlags,
-  parseConfigFlags,
-  generateSchemaHelpText,
   generateConfigHelpText,
-  resolveInput,
+  generateSchemaHelpText,
+  parseConfigFlags,
+  parseDynamicFlags,
   resolveConfig,
+  resolveInput,
   validateInput,
 } from "../input";
+import { promptMissingInput } from "../input/prompt";
+import { deepMerge } from "../input/resolve-input";
+import { withCli } from "../run-interactive";
+import { renderSelectPrompt } from "../ui/render";
+import { formatError, formatTable, outputResult } from "../util";
 
-type TaskConstructor = {
-  readonly type: string;
-  readonly category?: string;
-  readonly title?: string;
-  readonly description?: string;
-  inputSchema(): unknown;
-  configSchema?(): unknown;
-  new (
-    input: Record<string, unknown>,
-    config: Record<string, unknown>
-  ): {
-    run(overrides?: Record<string, unknown>): Promise<unknown>;
-    events: {
-      on(event: string, fn: (...args: any[]) => void): void;
-    };
-  };
-};
+type AnyTaskConstructor = ITaskConstructor<any, any, any>;
 
-function resolveTaskType(name: string): TaskConstructor | undefined {
+function resolveTaskType(name: string): AnyTaskConstructor | undefined {
   // Exact match first
-  const exact = TaskRegistry.all.get(name) as TaskConstructor | undefined;
+  const exact = TaskRegistry.all.get(name) as AnyTaskConstructor | undefined;
   if (exact) return exact;
 
   // Case-insensitive match, with or without "Task" suffix
@@ -48,7 +36,7 @@ function resolveTaskType(name: string): TaskConstructor | undefined {
 
   for (const [key, ctor] of TaskRegistry.all) {
     if (candidates.includes(key.toLowerCase())) {
-      return ctor as TaskConstructor;
+      return ctor as AnyTaskConstructor;
     }
   }
   return undefined;
@@ -63,7 +51,7 @@ export function registerTaskCommand(program: Command): void {
     .action(async () => {
       const rows: Record<string, string>[] = [];
       for (const [, ctor] of TaskRegistry.all) {
-        const category = (ctor as TaskConstructor).category ?? "";
+        const category = ctor.category ?? "";
         // Filter out Flow Control tasks (ConditionalTask, MapTask, etc.)
         if (category === "Flow Control") continue;
 
@@ -71,7 +59,7 @@ export function registerTaskCommand(program: Command): void {
         rows.push({
           type: typeName,
           category,
-          description: (ctor as TaskConstructor).description ?? "",
+          description: ctor.description ?? "",
         });
       }
 
@@ -97,7 +85,7 @@ export function registerTaskCommand(program: Command): void {
         }
         const options: Array<{ label: string; value: string }> = [];
         for (const [, ctor] of TaskRegistry.all) {
-          const c = ctor as TaskConstructor;
+          const c = ctor as ITaskConstructor<any, any, any>;
           if (c.category === "Flow Control") continue;
           const typeName = c.type.endsWith("Task") ? c.type.slice(0, -4) : c.type;
           options.push({
@@ -110,7 +98,6 @@ export function registerTaskCommand(program: Command): void {
           return;
         }
         options.sort((a, b) => a.label.localeCompare(b.label));
-        const { renderSelectPrompt } = await import("../ui/render");
         const selected = await renderSelectPrompt(options, "Select task type:");
         if (!selected) return;
         targetType = selected;
@@ -193,11 +180,9 @@ export function registerTaskCommand(program: Command): void {
         configJson: opts.configJson as string | undefined,
         configJsonFile: opts.configJsonFile as string | undefined,
       });
-      const { deepMerge } = await import("../input/resolve-input");
       const taskConfig = deepMerge(configFromJson, configFlags);
 
       if (process.stdin.isTTY) {
-        const { promptMissingInput } = await import("../input/prompt");
         input = await promptMissingInput(input, schema);
       }
 
@@ -216,9 +201,8 @@ export function registerTaskCommand(program: Command): void {
       }
 
       try {
-        const { withCli } = await import("../run-interactive");
-        const instance = new Ctor(input, taskConfig) as ITask;
-        const result = await withCli(instance, { suppressResultOutput: true }).run();
+        const instance = new Ctor(taskConfig) as ITask;
+        const result = await withCli(instance, { suppressResultOutput: true }).run(input);
         await outputResult(result, opts.outputJsonFile as string | undefined);
       } catch (err) {
         console.error(`Error: ${formatError(err)}`);
