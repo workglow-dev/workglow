@@ -388,10 +388,13 @@ const results = await kb.hybridSearch(queryVector, {
 });
 ```
 
-Subclasses (e.g. a scoped KB that isolates by tenant) override `similaritySearch`
-and `hybridSearch` to inject filter predicates. For text-based search that handles
-embedding internally, install an `onSearch` callback via
-`createKnowledgeBase({ onSearch })` and call `kb.search(queryText, options)`.
+`kb.hybridSearch()` requires backend support for `hybridSearch`; if the backend
+does not implement it, the call throws rather than returning an empty array.
+Subclasses (e.g. a scoped KB that isolates by tenant) override
+`similaritySearch` and `hybridSearch` to inject filter predicates. For
+text-based search that handles embedding internally, install an `onSearch`
+callback via `createKnowledgeBase({ onSearch })` and call
+`kb.search(queryText, options)`.
 
 Note: `ISearchOptions.filter` passed to `kb.search()` is typed as
 `Readonly<Record<string, unknown>>` — intentionally looser than
