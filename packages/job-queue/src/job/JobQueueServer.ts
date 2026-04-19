@@ -76,7 +76,7 @@ export class JobQueueServer<
   public readonly queueName: string;
   protected readonly storage: IQueueStorage<Input, Output>;
   protected readonly jobClass: JobClass<Input, Output>;
-  protected readonly limiter: ILimiter;
+  public readonly limiter: ILimiter;
   protected readonly workerCount: number;
   protected readonly pollIntervalMs: number;
   protected readonly deleteAfterCompletionMs?: number;

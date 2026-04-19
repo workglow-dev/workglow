@@ -22,6 +22,7 @@ export {
   streamFromSession,
 } from "./LlamaCpp_Runtime";
 
+import { LlamaCpp_Chat, LlamaCpp_Chat_Stream } from "./LlamaCpp_Chat";
 import { LlamaCpp_CountTokens, LlamaCpp_CountTokens_Reactive } from "./LlamaCpp_CountTokens";
 import { LlamaCpp_Download } from "./LlamaCpp_Download";
 import { LlamaCpp_ModelInfo } from "./LlamaCpp_ModelInfo";
@@ -41,6 +42,7 @@ export const LLAMACPP_TASKS: Record<string, AiProviderRunFn<any, any, LlamaCppMo
   UnloadModelTask: LlamaCpp_Unload,
   ModelInfoTask: LlamaCpp_ModelInfo,
   CountTokensTask: LlamaCpp_CountTokens,
+  AiChatTask: LlamaCpp_Chat,
   TextGenerationTask: LlamaCpp_TextGeneration,
   TextEmbeddingTask: LlamaCpp_TextEmbedding,
   TextRewriterTask: LlamaCpp_TextRewriter,
@@ -54,6 +56,7 @@ export const LLAMACPP_STREAM_TASKS: Record<
   string,
   AiProviderStreamFn<any, any, LlamaCppModelConfig>
 > = {
+  AiChatTask: LlamaCpp_Chat_Stream,
   TextGenerationTask: LlamaCpp_TextGeneration_Stream,
   TextRewriterTask: LlamaCpp_TextRewriter_Stream,
   TextSummaryTask: LlamaCpp_TextSummary_Stream,

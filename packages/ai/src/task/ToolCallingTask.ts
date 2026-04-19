@@ -7,6 +7,8 @@
 import { CreateWorkflow, getTaskConstructors, Workflow } from "@workglow/task-graph";
 
 import type { IExecuteContext, StreamEvent, TaskConfig } from "@workglow/task-graph";
+import { ChatMessageSchema } from "./ChatMessage";
+import type { ChatMessage } from "./ChatMessage";
 import { makeFingerprint, ServiceRegistry } from "@workglow/util";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import type { AiJobInput } from "../job/AiJob";
@@ -176,15 +178,7 @@ export const ToolCallingInputSchema = {
       title: "Messages",
       description:
         "Full conversation history for multi-turn interactions. When provided, used instead of prompt to construct the messages array sent to the provider.",
-      items: {
-        type: "object",
-        properties: {
-          role: { type: "string", enum: ["user", "assistant", "tool"] },
-          content: {},
-        },
-        required: ["role", "content"],
-        additionalProperties: true,
-      },
+      items: ChatMessageSchema,
     },
     tools: {
       type: "array",
@@ -258,12 +252,12 @@ export const ToolCallingOutputSchema = {
  * `messages` field typed explicitly (the loose `content: {}` in the
  * schema prevents `FromSchema` from producing a useful type).
  */
-export type ToolCallingTaskInput = Omit<FromSchema<typeof ToolCallingInputSchema>, "tools"> & {
+export type ToolCallingTaskInput = Omit<
+  FromSchema<typeof ToolCallingInputSchema>,
+  "tools" | "messages"
+> & {
   readonly tools: ToolDefinition[];
-  readonly messages?: ReadonlyArray<{
-    readonly role: "user" | "assistant" | "tool";
-    readonly content: unknown;
-  }>;
+  readonly messages?: ReadonlyArray<ChatMessage>;
   readonly sessionId?: string;
 };
 

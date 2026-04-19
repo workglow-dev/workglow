@@ -12,14 +12,9 @@ import {
   TaskStatus,
   Workflow,
 } from "@workglow/task-graph";
-import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/tasks";
-import {
-  HUMAN_CONNECTOR,
-  HumanApprovalTask,
-  HumanInputTask,
-  McpElicitationConnector,
-} from "@workglow/tasks";
-import { Container, ServiceRegistry } from "@workglow/util";
+import { HumanApprovalTask, HumanInputTask, McpElicitationConnector } from "@workglow/tasks";
+import { Container, HUMAN_CONNECTOR, ServiceRegistry } from "@workglow/util";
+import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -175,7 +170,7 @@ describe("HumanInputTask — elicit", () => {
   test("throws when no IHumanConnector is registered", async () => {
     const emptyRegistry = new ServiceRegistry(new Container());
     const task = new HumanInputTask();
-    await expect(task.run({}, { registry: emptyRegistry })).rejects.toThrow(TaskConfigurationError);
+    await expect(task.run({}, { registry: emptyRegistry })).rejects.toThrow(Error);
   });
 
   test("multi-turn mode: loops until done=true", async () => {

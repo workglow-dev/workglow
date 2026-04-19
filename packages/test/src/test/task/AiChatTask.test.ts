@@ -1,0 +1,438 @@
+/**
+ * @license
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type { AiProviderStreamFn, ModelConfig } from "@workglow/ai";
+import { AiChatTask, AiProvider, getAiProviderRegistry, registerAiTasks } from "@workglow/ai";
+import type { IExecuteContext, StreamEvent } from "@workglow/task-graph";
+import { TaskRegistry } from "@workglow/task-graph";
+import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/util";
+import { Container, HUMAN_CONNECTOR, ServiceRegistry } from "@workglow/util";
+import { describe, expect, it } from "vitest";
+
+describe("AiChatTask — schema and registration", () => {
+  it("has required static properties", () => {
+    expect(AiChatTask.type).toBe("AiChatTask");
+    expect(AiChatTask.category).toBe("AI Chat");
+    expect(AiChatTask.cacheable).toBe(false);
+  });
+
+  it("declares input schema with required model and prompt", () => {
+    const schema = AiChatTask.inputSchema() as any;
+    expect(schema.type).toBe("object");
+    expect(schema.required).toContain("model");
+    expect(schema.required).toContain("prompt");
+    expect(schema.properties.maxIterations).toBeDefined();
+  });
+
+  it("declares output schema with text streaming", () => {
+    const schema = AiChatTask.outputSchema() as any;
+    expect(schema.properties.text["x-stream"]).toBe("append");
+    expect(schema.properties.messages["x-stream"]).toBe("object");
+    expect(schema.properties.iterations).toBeDefined();
+  });
+
+  it("registers via registerAiTasks()", () => {
+    registerAiTasks();
+    expect(TaskRegistry.all.get("AiChatTask")).toBe(AiChatTask);
+  });
+});
+
+// ========================================================================
+// Chat-loop tests
+// ========================================================================
+
+function mkContext(connector?: IHumanConnector): IExecuteContext {
+  const controller = new AbortController();
+  const registry = new ServiceRegistry(new Container());
+  if (connector) {
+    registry.registerInstance(HUMAN_CONNECTOR, connector);
+  }
+  return {
+    signal: controller.signal,
+    updateProgress: async () => {},
+    own: <T>(i: T) => i,
+    registry,
+    resourceScope: {
+      register: (_key: string, _fn: () => Promise<void>) => {},
+      dispose: async () => {},
+    } as any,
+  } as unknown as IExecuteContext;
+}
+
+function mkModel(): ModelConfig {
+  return {
+    provider: "fake-chat",
+    model: "fake-model",
+  } as unknown as ModelConfig;
+}
+
+class FakeConnector implements IHumanConnector {
+  public sent: IHumanRequest[] = [];
+  constructor(private readonly scripted: IHumanResponse[]) {}
+  async send(request: IHumanRequest, _signal: AbortSignal): Promise<IHumanResponse> {
+    this.sent.push(request);
+    const next = this.scripted.shift();
+    if (!next) throw new Error("FakeConnector: no more scripted responses");
+    return { ...next, requestId: request.requestId };
+  }
+}
+
+/** Concrete AiProvider for tests — abstract members filled with minimal stubs. */
+class FakeChatProvider extends AiProvider {
+  override readonly name = "fake-chat";
+  override readonly displayName = "Fake Chat";
+  override readonly isLocal = true;
+  override readonly supportsBrowser = false;
+  override readonly taskTypes = ["AiChatTask"] as const;
+}
+
+function registerFakeChatProvider(stream: AiProviderStreamFn<any, any, ModelConfig>): () => void {
+  const registry = getAiProviderRegistry();
+  const provider = new FakeChatProvider();
+  registry.registerProvider(provider);
+  registry.registerStreamFn("fake-chat", "AiChatTask", stream);
+  return () => registry.unregisterProvider("fake-chat");
+}
+
+describe("AiChatTask — execute()", () => {
+  it("consumes the stream and returns final accumulated output", async () => {
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* () {
+      yield { type: "text-delta", port: "text", textDelta: "ok" };
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      const connector = new FakeConnector([
+        { action: "decline", content: undefined, done: true, requestId: "" },
+      ]);
+
+      const input = {
+        model: mkModel(),
+        prompt: "hi",
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 10,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input });
+
+      const result = await task.execute(input as any, mkContext(connector));
+      expect(result).toBeDefined();
+      expect(result!.text).toBe("ok");
+      expect(result!.iterations).toBe(1);
+      expect(result!.messages.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      unregister();
+    }
+  });
+});
+
+describe("AiChatTask — connector resolution", () => {
+  it("throws a helpful error when HUMAN_CONNECTOR is not registered", async () => {
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* () {
+      yield { type: "text-delta", port: "text", textDelta: "ok" };
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "hi",
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 10,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input } as any);
+
+      await expect(
+        (async () => {
+          for await (const _ of task.executeStream(input as any, mkContext())) {
+            // drain
+          }
+        })()
+      ).rejects.toThrow(/HUMAN_CONNECTOR not registered/);
+    } finally {
+      unregister();
+    }
+  });
+});
+
+describe("AiChatTask — chat loop", () => {
+  it("runs one turn then stops on decline", async () => {
+    const calls: number[] = [];
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* () {
+      calls.push(1);
+      yield { type: "text-delta", port: "text", textDelta: "Hello" };
+      yield { type: "text-delta", port: "text", textDelta: " there" };
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      const connector = new FakeConnector([
+        { action: "decline", content: undefined, done: true, requestId: "" },
+      ]);
+
+      const input = {
+        model: mkModel(),
+        prompt: "hi",
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 10,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input });
+
+      const events: StreamEvent<any>[] = [];
+      for await (const ev of task.executeStream(input as any, mkContext(connector))) {
+        events.push(ev);
+      }
+
+      const textDeltas = events.filter((e) => e.type === "text-delta").map((e: any) => e.textDelta);
+      expect(textDeltas.join("")).toBe("Hello there");
+      const finish = events.find((e) => e.type === "finish") as any;
+      expect(finish.data.iterations).toBe(1);
+      expect(calls.length).toBe(1);
+      expect(connector.sent.length).toBe(1);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("runs two turns when connector accepts a follow-up", async () => {
+    let callIdx = 0;
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* () {
+      callIdx++;
+      yield { type: "text-delta", port: "text", textDelta: `Turn ${callIdx}` };
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      const connector = new FakeConnector([
+        {
+          action: "accept",
+          content: { content: [{ type: "text", text: "more" }] },
+          done: false,
+          requestId: "",
+        },
+        { action: "cancel", content: undefined, done: true, requestId: "" },
+      ]);
+
+      const input = {
+        model: mkModel(),
+        prompt: "hi",
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 10,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input });
+
+      const events: StreamEvent<any>[] = [];
+      for await (const ev of task.executeStream(input as any, mkContext(connector))) {
+        events.push(ev);
+      }
+      const finish = events.find((e) => e.type === "finish") as any;
+      const finalOutput = finish.data as import("@workglow/ai").AiChatTaskOutput;
+      expect(finalOutput.iterations).toBe(2);
+      expect(finalOutput.text).toBe("Turn 2"); // last turn only, not "Turn 1Turn 2"
+      expect(finalOutput.messages.length).toBeGreaterThan(2);
+      expect(callIdx).toBe(2);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("maxIterations cap terminates the loop after exactly N turns", async () => {
+    let callIdx = 0;
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* () {
+      callIdx++;
+      yield { type: "text-delta", port: "text", textDelta: `T${callIdx}` };
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      // Connector always accepts with done:false so the loop never stops naturally.
+      const connector = new FakeConnector(
+        Array.from({ length: 10 }, () => ({
+          action: "accept" as const,
+          content: { content: [{ type: "text" as const, text: "continue" }] },
+          done: false,
+          requestId: "",
+        }))
+      );
+
+      const input = {
+        model: mkModel(),
+        prompt: "hi",
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 3,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input });
+
+      const events: StreamEvent<any>[] = [];
+      for await (const ev of task.executeStream(input as any, mkContext(connector))) {
+        events.push(ev);
+      }
+
+      const finish = events.find((e) => e.type === "finish") as any;
+      expect(finish).toBeDefined();
+      expect(finish.data.iterations).toBe(3);
+      expect(callIdx).toBe(3);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("aborts mid-turn when context.signal fires", async () => {
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* (
+      _in,
+      _m,
+      signal: AbortSignal
+    ) {
+      yield { type: "text-delta", port: "text", textDelta: "start" };
+      // Simulate an in-flight provider call that checks the signal.
+      await new Promise<void>((_resolve, reject) => {
+        const onAbort = () => {
+          signal.removeEventListener("abort", onAbort);
+          reject(new Error("aborted"));
+        };
+        signal.addEventListener("abort", onAbort);
+      });
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      const controller = new AbortController();
+      const connector = new FakeConnector([]);
+      const registry = new ServiceRegistry(new Container());
+      registry.registerInstance(HUMAN_CONNECTOR, connector);
+      const context: IExecuteContext = {
+        signal: controller.signal,
+        updateProgress: async () => {},
+        own: <T>(i: T) => i,
+        registry,
+        resourceScope: {
+          register: (_key: string, _fn: () => Promise<void>) => {},
+          dispose: async () => {},
+        } as any,
+      } as unknown as IExecuteContext;
+
+      const input = {
+        model: mkModel(),
+        prompt: "hi",
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 10,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input });
+
+      // Trigger abort after a tick so we enter the stream first.
+      setTimeout(() => controller.abort(), 10);
+
+      await expect(
+        (async () => {
+          for await (const _ of task.executeStream(input as any, context)) {
+            // drain
+          }
+        })()
+      ).rejects.toThrow(/aborted/);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("propagates connector errors out of executeStream", async () => {
+    class ThrowingConnector implements IHumanConnector {
+      async send(): Promise<IHumanResponse> {
+        throw new Error("boom");
+      }
+    }
+
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* () {
+      yield { type: "text-delta", port: "text", textDelta: "ok" };
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "hi",
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 10,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input });
+
+      await expect(
+        (async () => {
+          for await (const _ of task.executeStream(input as any, mkContext(new ThrowingConnector()))) {
+            // drain
+          }
+        })()
+      ).rejects.toThrow(/boom/);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("accepts ContentBlock[] as prompt and preserves block shape in history", async () => {
+    const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* () {
+      yield { type: "text-delta", port: "text", textDelta: "response" };
+      yield { type: "finish", data: {} as any };
+    };
+    const unregister = registerFakeChatProvider(stream);
+    try {
+      const blocks = [
+        { type: "text" as const, text: "Hello" },
+        { type: "image" as const, mimeType: "image/png", data: "base64data" },
+      ];
+
+      const connector = new FakeConnector([
+        { action: "decline", content: undefined, done: true, requestId: "" },
+      ]);
+
+      const input = {
+        model: mkModel(),
+        prompt: blocks,
+        systemPrompt: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        maxIterations: 10,
+        messages: undefined,
+      };
+
+      const task = new AiChatTask({ defaults: input });
+
+      const result = await task.execute(input as any, mkContext(connector));
+      expect(result).toBeDefined();
+      // No systemPrompt, so index 0 is the initial user message.
+      const userMsg = result!.messages[0];
+      expect(userMsg.role).toBe("user");
+      expect(userMsg.content).toEqual(blocks);
+    } finally {
+      unregister();
+    }
+  });
+});

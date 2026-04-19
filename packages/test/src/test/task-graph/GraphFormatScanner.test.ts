@@ -145,30 +145,79 @@ describe("GraphFormatScanner", () => {
       expect(result.needsCredentials).toBe(false);
     });
 
-    it("detects a flat credential format in input schema", () => {
+    it("returns needsCredentials=false when the credential property is declared but unset", () => {
+      // Schema carries `format: "credential"` but no value is set — typical of
+      // local models where the provider_config.credential_key field exists in
+      // the schema but isn't populated.
       const result = scanGraphForCredentials(makeGraph(new FlatCredentialTask({})));
+      expect(result.needsCredentials).toBe(false);
+    });
+
+    it("detects a flat credential format when the value is set", () => {
+      const result = scanGraphForCredentials(
+        makeGraph(new FlatCredentialTask({ defaults: { api_key: "my-key" } as any }))
+      );
       expect(result.needsCredentials).toBe(true);
       expect(result.credentialFormats.has("credential")).toBe(true);
     });
 
-    it("detects a credential format in a nested object property", () => {
-      const result = scanGraphForCredentials(makeGraph(new NestedCredentialTask({})));
+    it("does not detect an empty-string credential value", () => {
+      const result = scanGraphForCredentials(
+        makeGraph(new FlatCredentialTask({ defaults: { api_key: "" } as any }))
+      );
+      expect(result.needsCredentials).toBe(false);
+    });
+
+    it("detects a credential format in a nested object property when the value is set", () => {
+      const result = scanGraphForCredentials(
+        makeGraph(
+          new NestedCredentialTask({
+            defaults: { provider_config: { credential_key: "my-key" } } as any,
+          })
+        )
+      );
       expect(result.needsCredentials).toBe(true);
     });
 
-    it("detects a credential format inside a oneOf wrapper", () => {
-      const result = scanGraphForCredentials(makeGraph(new OneOfCredentialTask({})));
+    it("ignores a declared-but-unset nested credential (the local-model case)", () => {
+      const result = scanGraphForCredentials(
+        makeGraph(
+          new NestedCredentialTask({
+            defaults: { provider_config: { endpoint: "https://example.invalid" } } as any,
+          })
+        )
+      );
+      expect(result.needsCredentials).toBe(false);
+    });
+
+    it("detects a credential format inside a oneOf wrapper when the value is set", () => {
+      const result = scanGraphForCredentials(
+        makeGraph(new OneOfCredentialTask({ defaults: { auth: "token" } as any }))
+      );
       expect(result.needsCredentials).toBe(true);
     });
 
-    it("detects a credential format inside an anyOf nested object", () => {
-      const result = scanGraphForCredentials(makeGraph(new AnyOfNestedCredentialTask({})));
+    it("detects a credential format inside an anyOf nested object when the value is set", () => {
+      const result = scanGraphForCredentials(
+        makeGraph(
+          new AnyOfNestedCredentialTask({
+            defaults: { config: { secret: "shhh" } } as any,
+          })
+        )
+      );
       expect(result.needsCredentials).toBe(true);
     });
 
-    it("detects a credential format in config schema (not just input schema)", () => {
+    it("detects a credential format in config schema when the value is set", () => {
+      const result = scanGraphForCredentials(
+        makeGraph(new ConfigCredentialTask({ api_key: "my-key" } as any))
+      );
+      expect(result.needsCredentials).toBe(true);
+    });
+
+    it("ignores a declared-but-unset credential in config schema", () => {
       const result = scanGraphForCredentials(makeGraph(new ConfigCredentialTask({})));
-      expect(result.needsCredentials).toBe(true);
+      expect(result.needsCredentials).toBe(false);
     });
 
     it("returns false when non-credential task is mixed with no-credential task", () => {
@@ -176,9 +225,12 @@ describe("GraphFormatScanner", () => {
       expect(result.needsCredentials).toBe(false);
     });
 
-    it("returns true when at least one task in a multi-task graph needs credentials", () => {
+    it("returns true when at least one task in a multi-task graph has a set credential", () => {
       const result = scanGraphForCredentials(
-        makeGraph(new NoCredentialTask({}), new FlatCredentialTask({}))
+        makeGraph(
+          new NoCredentialTask({}),
+          new FlatCredentialTask({ defaults: { api_key: "my-key" } as any })
+        )
       );
       expect(result.needsCredentials).toBe(true);
     });

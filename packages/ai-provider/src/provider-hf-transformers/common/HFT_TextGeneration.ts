@@ -138,8 +138,15 @@ export const HFT_TextGeneration_Stream: AiProviderStreamFn<
     past_key_values = session.cache;
   }
 
-  const pipelinePromise = generateText(input.prompt, {
+  // Use the chat-template format for instruction-tuned models (matches the
+  // non-streaming HFT_TextGeneration path). Passing a raw prompt string
+  // skips the chat template and most instruct models produce no output.
+  const messages: Message[] = [{ role: "user", content: input.prompt }];
+
+  const pipelinePromise = generateText(messages, {
     streamer,
+    do_sample: false,
+    max_new_tokens: input.maxTokens ?? 4 * 1024,
     stopping_criteria: [stopping_criteria],
     ...(past_key_values ? { past_key_values } : {}),
   }).then(

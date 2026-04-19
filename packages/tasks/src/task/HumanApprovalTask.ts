@@ -13,10 +13,9 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { uuid4 } from "@workglow/util";
+import { uuid4, resolveHumanConnector } from "@workglow/util";
+import type { HumanResponseAction, IHumanRequest } from "@workglow/util";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
-import type { HumanResponseAction, IHumanRequest } from "./HumanInputTask";
-import { resolveHumanConnector } from "./HumanInputTask";
 
 // ========================================================================
 // Schemas

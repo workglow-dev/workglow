@@ -48,23 +48,23 @@ describe("toOpenAIMessages", () => {
   test("should convert multi-turn messages with user and assistant", () => {
     const input = makeInput({
       messages: [
-        { role: "user", content: "Hi" },
-        { role: "assistant", content: "Hello! How can I help?" },
-        { role: "user", content: "Do something" },
+        { role: "user", content: [{ type: "text", text: "Hi" }] },
+        { role: "assistant", content: [{ type: "text", text: "Hello! How can I help?" }] },
+        { role: "user", content: [{ type: "text", text: "Do something" }] },
       ],
     });
     const msgs = toOpenAIMessages(input);
 
     expect(msgs).toHaveLength(3);
-    expect(msgs[0]).toEqual({ role: "user", content: "Hi" });
+    expect(msgs[0]).toEqual({ role: "user", content: [{ type: "text", text: "Hi" }] });
     expect(msgs[1]).toEqual({ role: "assistant", content: "Hello! How can I help?" });
-    expect(msgs[2]).toEqual({ role: "user", content: "Do something" });
+    expect(msgs[2]).toEqual({ role: "user", content: [{ type: "text", text: "Do something" }] });
   });
 
   test("should convert assistant message with tool_use blocks", () => {
     const input = makeInput({
       messages: [
-        { role: "user", content: "Search for cats" },
+        { role: "user", content: [{ type: "text", text: "Search for cats" }] },
         {
           role: "assistant",
           content: [
@@ -90,12 +90,22 @@ describe("toOpenAIMessages", () => {
   test("should convert tool result messages into per-result entries", () => {
     const input = makeInput({
       messages: [
-        { role: "user", content: "Go" },
+        { role: "user", content: [{ type: "text", text: "Go" }] },
         {
           role: "tool",
           content: [
-            { type: "tool_result", tool_use_id: "tc_1", content: '{"result": "found"}' },
-            { type: "tool_result", tool_use_id: "tc_2", content: '{"result": "also found"}' },
+            {
+              type: "tool_result",
+              tool_use_id: "tc_1",
+              content: [{ type: "text" as const, text: '{"result": "found"}' }],
+              is_error: undefined,
+            },
+            {
+              type: "tool_result",
+              tool_use_id: "tc_2",
+              content: [{ type: "text" as const, text: '{"result": "also found"}' }],
+              is_error: undefined,
+            },
           ],
         },
       ],
@@ -103,7 +113,11 @@ describe("toOpenAIMessages", () => {
     const msgs = toOpenAIMessages(input);
 
     expect(msgs).toHaveLength(3);
-    expect(msgs[1]).toEqual({ role: "tool", content: '{"result": "found"}', tool_call_id: "tc_1" });
+    expect(msgs[1]).toEqual({
+      role: "tool",
+      content: '{"result": "found"}',
+      tool_call_id: "tc_1",
+    });
     expect(msgs[2]).toEqual({
       role: "tool",
       content: '{"result": "also found"}',
@@ -114,22 +128,13 @@ describe("toOpenAIMessages", () => {
   test("should set content to null for empty assistant text", () => {
     const input = makeInput({
       messages: [
-        { role: "user", content: "Go" },
-        { role: "assistant", content: "" },
+        { role: "user", content: [{ type: "text", text: "Go" }] },
+        { role: "assistant", content: [{ type: "text", text: "" }] },
       ],
     });
     const msgs = toOpenAIMessages(input);
 
     expect(msgs[1].content).toBeNull();
-  });
-
-  test("should JSON.stringify non-string user content", () => {
-    const input = makeInput({
-      messages: [{ role: "user", content: { complex: true } }],
-    });
-    const msgs = toOpenAIMessages(input);
-
-    expect(msgs[0].content).toBe('{"complex":true}');
   });
 
   test("should convert user message with image content blocks to OpenAI format", () => {
@@ -154,26 +159,6 @@ describe("toOpenAIMessages", () => {
     expect(parts[0]).toEqual({ type: "text", text: "What is this?" });
     expect(parts[1].type).toBe("image_url");
     expect(parts[1].image_url.url).toContain("data:image/png;base64,base64data");
-  });
-
-  test("should convert user message with audio content blocks to OpenAI format", () => {
-    const input = makeInput({
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Transcribe this" },
-            { type: "audio", mimeType: "audio/wav", data: "audiodata" },
-          ],
-        },
-      ],
-    });
-    const msgs = toOpenAIMessages(input);
-
-    expect(msgs).toHaveLength(1);
-    const parts = msgs[0].content as any[];
-    expect(parts).toHaveLength(2);
-    expect(parts[1].type).toBe("input_audio");
   });
 
   test("should join string array prompt with newlines when no messages", () => {
@@ -258,7 +243,7 @@ describe("toTextFlatMessages", () => {
   test("should extract text from assistant array content and drop tool_use blocks", () => {
     const input = makeInput({
       messages: [
-        { role: "user", content: "Search" },
+        { role: "user", content: [{ type: "text", text: "Search" }] },
         {
           role: "assistant",
           content: [
@@ -277,9 +262,9 @@ describe("toTextFlatMessages", () => {
   test("should skip assistant messages with empty content", () => {
     const input = makeInput({
       messages: [
-        { role: "user", content: "Go" },
-        { role: "assistant", content: "" },
-        { role: "user", content: "Continue" },
+        { role: "user", content: [{ type: "text", text: "Go" }] },
+        { role: "assistant", content: [{ type: "text", text: "" }] },
+        { role: "user", content: [{ type: "text", text: "Continue" }] },
       ],
     });
     const msgs = toTextFlatMessages(input);
@@ -292,12 +277,12 @@ describe("toTextFlatMessages", () => {
   test("should skip assistant messages with only tool_use blocks (no text)", () => {
     const input = makeInput({
       messages: [
-        { role: "user", content: "Go" },
+        { role: "user", content: [{ type: "text", text: "Go" }] },
         {
           role: "assistant",
           content: [{ type: "tool_use", id: "tc_1", name: "search", input: {} }],
         },
-        { role: "user", content: "Continue" },
+        { role: "user", content: [{ type: "text", text: "Continue" }] },
       ],
     });
     const msgs = toTextFlatMessages(input);
@@ -312,7 +297,14 @@ describe("toTextFlatMessages", () => {
       messages: [
         {
           role: "tool",
-          content: [{ type: "tool_result", tool_use_id: "tc_1", content: "result data" }],
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "tc_1",
+              content: [{ type: "text" as const, text: "result data" }],
+              is_error: undefined,
+            },
+          ],
         },
       ],
     });
@@ -320,15 +312,6 @@ describe("toTextFlatMessages", () => {
 
     expect(msgs).toHaveLength(1);
     expect(msgs[0]).toEqual({ role: "tool", content: "result data" });
-  });
-
-  test("should JSON.stringify non-string user content", () => {
-    const input = makeInput({
-      messages: [{ role: "user", content: [1, 2, 3] }],
-    });
-    const msgs = toTextFlatMessages(input);
-
-    expect(msgs[0].content).toBe("[1,2,3]");
   });
 
   test("should join string array prompt with newlines when no messages", () => {
@@ -364,5 +347,23 @@ describe("toTextFlatMessages", () => {
 
     expect(msgs).toHaveLength(1);
     expect(msgs[0].content).toBe("");
+  });
+
+  test("should extract only text blocks from user message content, dropping image blocks", () => {
+    const input = makeInput({
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Look at this" },
+            { type: "image", mimeType: "image/png", data: "base64data" },
+          ],
+        },
+      ],
+    });
+    const msgs = toTextFlatMessages(input);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toEqual({ role: "user", content: "Look at this" });
   });
 });

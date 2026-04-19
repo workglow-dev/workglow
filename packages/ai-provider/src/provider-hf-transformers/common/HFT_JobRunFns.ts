@@ -9,6 +9,7 @@ import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { HFT_ModelSearch } from "./HFT_ModelSearch";
 
 import { HFT_BackgroundRemoval } from "./HFT_BackgroundRemoval";
+import { HFT_Chat, HFT_Chat_Stream } from "./HFT_Chat";
 import { HFT_CountTokens, HFT_CountTokens_Reactive } from "./HFT_CountTokens";
 import { HFT_Download } from "./HFT_Download";
 import { HFT_ImageClassification } from "./HFT_ImageClassification";
@@ -40,6 +41,7 @@ import { HFT_Unload } from "./HFT_Unload";
  * actual run function implementations are needed (inline mode, worker server).
  */
 export const HFT_TASKS = {
+  AiChatTask: HFT_Chat,
   DownloadModelTask: HFT_Download,
   UnloadModelTask: HFT_Unload,
   ModelInfoTask: HFT_ModelInfo,
@@ -72,6 +74,7 @@ export const HFT_STREAM_TASKS: Record<
   string,
   AiProviderStreamFn<any, any, HfTransformersOnnxModelConfig>
 > = {
+  AiChatTask: HFT_Chat_Stream,
   TextGenerationTask: HFT_TextGeneration_Stream,
   TextRewriterTask: HFT_TextRewriter_Stream,
   TextSummaryTask: HFT_TextSummary_Stream,

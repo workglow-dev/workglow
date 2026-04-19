@@ -31,6 +31,7 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
   readonly supportsBrowser = true;
 
   readonly taskTypes = [
+    "AiChatTask",
     "DownloadModelTask",
     "UnloadModelTask",
     "ModelInfoTask",
@@ -52,6 +53,7 @@ export class HuggingFaceTransformersProvider extends AiProvider<HfTransformersOn
     "ImageClassificationTask",
     "ObjectDetectionTask",
     "ToolCallingTask",
+    "StructuredGenerationTask",
     "ModelSearchTask",
   ] as const;
 

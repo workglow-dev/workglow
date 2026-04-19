@@ -7,6 +7,7 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  ChatMessage,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolCalls,
@@ -51,8 +52,8 @@ function buildSystemPrompt(input: ToolCallingTaskInput): string | undefined {
  * history items. They get merged into the preceding `model` response's
  * `ChatModelFunctionCall.result` fields, matched by `tool_use_id`.
  */
-function convertMessagesToChatHistory(
-  messages: ToolCallingTaskInput["messages"],
+export function convertMessagesToChatHistory(
+  messages: ReadonlyArray<ChatMessage> | undefined,
   prompt: string | undefined,
   systemPrompt: string | undefined
 ): any[] {
@@ -75,10 +76,10 @@ function convertMessagesToChatHistory(
       continue;
     }
 
-    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+    if (msg.role === "assistant") {
       const response: any[] = [];
 
-      for (const block of msg.content as any[]) {
+      for (const block of msg.content) {
         if (block.type === "text" && block.text) {
           response.push(block.text);
         } else if (block.type === "tool_use") {
@@ -99,7 +100,7 @@ function convertMessagesToChatHistory(
       continue;
     }
 
-    if (msg.role === "tool" && Array.isArray(msg.content)) {
+    if (msg.role === "tool") {
       // Find the most recent "model" response to merge results into
       let lastModel: any | undefined;
       for (let i = history.length - 1; i >= 0; i--) {
@@ -110,9 +111,9 @@ function convertMessagesToChatHistory(
       }
       if (!lastModel) continue;
 
-      for (const block of msg.content as any[]) {
+      for (const block of msg.content) {
+        if (block.type !== "tool_result") continue;
         const toolUseId = block.tool_use_id;
-        if (!toolUseId) continue;
 
         // Find the matching functionCall in the model response
         const fnCall = lastModel.response.find(
@@ -124,8 +125,12 @@ function convertMessagesToChatHistory(
             item.result === undefined
         );
         if (fnCall) {
-          fnCall.result =
-            typeof block.content === "string" ? block.content : JSON.stringify(block.content);
+          // Flatten nested text blocks from tool_result content into a string
+          let resultText = "";
+          for (const inner of block.content) {
+            if (inner.type === "text") resultText += inner.text;
+          }
+          fnCall.result = resultText || JSON.stringify(block.content);
         }
       }
       continue;

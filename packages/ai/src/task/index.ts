@@ -5,6 +5,7 @@
  */
 
 import { TaskRegistry } from "@workglow/task-graph";
+import { AiChatTask } from "./AiChatTask";
 import { BackgroundRemovalTask } from "./BackgroundRemovalTask";
 import { ChunkRetrievalTask } from "./ChunkRetrievalTask";
 import { ChunkToVectorTask } from "./ChunkToVectorTask";
@@ -57,6 +58,7 @@ import { VectorSimilarityTask } from "./VectorSimilarityTask";
 // and prevents tree-shaking issues.
 export const registerAiTasks = () => {
   const tasks = [
+    AiChatTask,
     BackgroundRemovalTask,
     ChunkToVectorTask,
     CountTokensTask,
@@ -108,8 +110,8 @@ export const registerAiTasks = () => {
   return tasks;
 };
 
-export * from "./MessageConversion";
-export * from "./ToolCallingUtils";
+export * from "./AiChatTask";
+export * from "./ChatMessage";
 export * from "./BackgroundRemovalTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";
@@ -135,6 +137,7 @@ export * from "./ImageClassificationTask";
 export * from "./ImageEmbeddingTask";
 export * from "./ImageSegmentationTask";
 export * from "./ImageToTextTask";
+export * from "./MessageConversion";
 export * from "./ModelInfoTask";
 export * from "./ModelSearchTask";
 export * from "./ObjectDetectionTask";
@@ -155,6 +158,7 @@ export * from "./TextRewriterTask";
 export * from "./TextSummaryTask";
 export * from "./TextTranslationTask";
 export * from "./ToolCallingTask";
+export * from "./ToolCallingUtils";
 export * from "./TopicSegmenterTask";
 export * from "./UnloadModelTask";
 export * from "./VectorQuantizeTask";

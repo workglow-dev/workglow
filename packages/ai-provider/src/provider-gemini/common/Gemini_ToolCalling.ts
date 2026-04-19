@@ -9,6 +9,7 @@ import { buildToolDescription, filterValidToolCalls } from "@workglow/ai/worker"
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  ChatMessage,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolCalls,
@@ -19,42 +20,39 @@ import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { getApiKey, getModelName, loadGeminiSDK } from "./Gemini_Client";
 import { sanitizeSchemaForGemini } from "./Gemini_Schema";
 
-function buildGeminiContents(input: ToolCallingTaskInput): any[] {
-  const inputMessages = input.messages;
-  if (!inputMessages || inputMessages.length === 0) {
-    return [{ role: "user", parts: [{ text: input.prompt }] }];
+export function buildGeminiContents(
+  messages: ReadonlyArray<ChatMessage> | undefined,
+  prompt: unknown
+): any[] {
+  if (!messages || messages.length === 0) {
+    return [{ role: "user", parts: [{ text: prompt }] }];
   }
 
+  // Index tool_use ids → names from any prior assistant turn (Gemini wants
+  // the function name on the functionResponse, not just the id).
   const toolUseNames = new Map<string, string>();
-  for (const msg of inputMessages) {
-    if (msg.role === "assistant" && Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if (block.type === "tool_use") {
-          toolUseNames.set(block.id, block.name);
-        }
+  for (const msg of messages) {
+    if (msg.role !== "assistant") continue;
+    for (const block of msg.content) {
+      if (block.type === "tool_use") {
+        toolUseNames.set(block.id, block.name);
       }
     }
   }
 
   const contents: any[] = [];
-  for (const msg of inputMessages) {
+  for (const msg of messages) {
     if (msg.role === "user") {
-      if (typeof msg.content === "string") {
-        contents.push({ role: "user", parts: [{ text: msg.content }] });
-      } else if (Array.isArray(msg.content)) {
-        const parts: any[] = [];
-        for (const block of msg.content) {
-          if (block.type === "text") {
-            parts.push({ text: block.text });
-          } else if (block.type === "image" || block.type === "audio") {
-            parts.push({ inlineData: { mimeType: block.mimeType, data: block.data } });
-          }
+      const parts: any[] = [];
+      for (const block of msg.content) {
+        if (block.type === "text") {
+          parts.push({ text: block.text });
+        } else if (block.type === "image") {
+          parts.push({ inlineData: { mimeType: block.mimeType, data: block.data } });
         }
-        contents.push({ role: "user", parts });
-      } else {
-        contents.push({ role: "user", parts: [{ text: msg.content }] });
       }
-    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      contents.push({ role: "user", parts });
+    } else if (msg.role === "assistant") {
       const parts: any[] = [];
       for (const block of msg.content) {
         if (block.type === "text" && block.text) {
@@ -63,34 +61,25 @@ function buildGeminiContents(input: ToolCallingTaskInput): any[] {
           parts.push({ functionCall: { name: block.name, args: block.input } });
         }
       }
-      if (parts.length > 0) {
-        contents.push({ role: "model", parts });
-      }
-    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
-      const parts = msg.content.map((block: any) => {
+      if (parts.length > 0) contents.push({ role: "model", parts });
+    } else if (msg.role === "tool") {
+      const parts: any[] = [];
+      for (const block of msg.content) {
+        if (block.type !== "tool_result") continue;
         const name = toolUseNames.get(block.tool_use_id) ?? "unknown";
+        const textContent = block.content
+          .filter((b) => b.type === "text")
+          .map((b) => (b as { type: "text"; text: string }).text)
+          .join("");
         let response: Record<string, unknown>;
-        if (typeof block.content === "string") {
-          try {
-            response = JSON.parse(block.content);
-          } catch {
-            response = { result: block.content };
-          }
-        } else if (Array.isArray(block.content)) {
-          const textParts = (block.content as Array<Record<string, unknown>>)
-            .filter((b) => b.type === "text")
-            .map((b) => b.text as string);
-          try {
-            response = JSON.parse(textParts.join(""));
-          } catch {
-            response = { result: textParts.join("") };
-          }
-        } else {
-          response = {};
+        try {
+          response = JSON.parse(textContent);
+        } catch {
+          response = { result: textContent };
         }
-        return { functionResponse: { name, response } };
-      });
-      contents.push({ role: "user", parts });
+        parts.push({ functionResponse: { name, response } });
+      }
+      if (parts.length > 0) contents.push({ role: "user", parts });
     }
   }
   return contents;
@@ -146,7 +135,7 @@ export const Gemini_ToolCalling: AiProviderRunFn<
     },
   });
 
-  const contents = buildGeminiContents(input);
+  const contents = buildGeminiContents(input.messages, input.prompt);
 
   const result = await genModel.generateContent({ contents });
 
@@ -201,7 +190,7 @@ export const Gemini_ToolCalling_Stream: AiProviderStreamFn<
     },
   });
 
-  const contents = buildGeminiContents(input);
+  const contents = buildGeminiContents(input.messages, input.prompt);
 
   const result = await genModel.generateContentStream({ contents }, { signal });
 
