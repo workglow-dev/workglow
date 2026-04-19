@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { modelSearch, ModelRecordSchema } from "@workglow/ai";
 import type { ModelRecord, ModelSearchResultItem } from "@workglow/ai";
+import { ModelRecordSchema, modelSearch } from "@workglow/ai";
 import { AnthropicModelRecordSchema } from "@workglow/ai-provider/anthropic";
 import { GeminiModelRecordSchema } from "@workglow/ai-provider/gemini";
 import { HfInferenceModelRecordSchema } from "@workglow/ai-provider/hf-inference";
@@ -18,8 +18,8 @@ import { OllamaModelRecordSchema } from "@workglow/ai-provider/ollama";
 import { OpenAiModelRecordSchema } from "@workglow/ai-provider/openai";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
 import type { Command } from "commander";
-import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
+import { editStringInExternalEditor } from "../editInEditor";
 import {
   applySchemaDefaults,
   generateSchemaHelpText,
@@ -27,18 +27,20 @@ import {
   resolveInput,
   validateInput,
 } from "../input";
+import { promptEditableInput, promptMissingInput } from "../input/prompt";
 import { createModelRepository } from "../storage";
 import type { SearchSelectItem } from "../ui/render";
+import { renderSearchSelect, renderSelectPrompt } from "../ui/render";
 import { formatError, formatTable } from "../util";
 
 const PROVIDER_SCHEMAS: Record<string, DataPortSchemaObject> = {
-  ANTHROPIC: AnthropicModelRecordSchema as unknown as DataPortSchemaObject,
-  OPENAI: OpenAiModelRecordSchema as unknown as DataPortSchemaObject,
-  GOOGLE_GEMINI: GeminiModelRecordSchema as unknown as DataPortSchemaObject,
-  OLLAMA: OllamaModelRecordSchema as unknown as DataPortSchemaObject,
-  HF_INFERENCE: HfInferenceModelRecordSchema as unknown as DataPortSchemaObject,
-  HF_TRANSFORMERS_ONNX: HfTransformersOnnxModelRecordSchema as unknown as DataPortSchemaObject,
-  LOCAL_LLAMACPP: LlamaCppModelRecordSchema as unknown as DataPortSchemaObject,
+  ANTHROPIC: AnthropicModelRecordSchema,
+  OPENAI: OpenAiModelRecordSchema,
+  GOOGLE_GEMINI: GeminiModelRecordSchema,
+  OLLAMA: OllamaModelRecordSchema,
+  HF_INFERENCE: HfInferenceModelRecordSchema,
+  HF_TRANSFORMERS_ONNX: HfTransformersOnnxModelRecordSchema,
+  LOCAL_LLAMACPP: LlamaCppModelRecordSchema,
 };
 
 const AVAILABLE_PROVIDERS = Object.keys(PROVIDER_SCHEMAS);
@@ -106,7 +108,6 @@ async function findModelForProvider(provider: string): Promise<ModelSearchResult
   };
 
   if (HF_PROVIDERS.includes(provider)) {
-    const { renderSearchSelect } = await import("../ui/render");
     const selected = await renderSearchSelect<ModelSearchSelectItem>({
       placeholder: placeholders[provider] ?? "Search models",
       onSearch: async (query, _cursor) => {
@@ -134,7 +135,6 @@ async function findModelForProvider(provider: string): Promise<ModelSearchResult
     return undefined;
   }
 
-  const { renderSelectPrompt } = await import("../ui/render");
   const options = result.results.map((item) => ({
     label: item.label,
     value: item.id,
@@ -155,15 +155,15 @@ function narrowDtypeEnum(
 ): DataPortSchemaObject {
   const pc = schema.properties?.provider_config;
   if (!pc || typeof pc === "boolean" || pc.type !== "object") return schema;
-  const dtypeProp = (pc as DataPortSchemaObject).properties?.dtype;
+  const dtypeProp = pc.properties?.dtype;
   if (!dtypeProp || typeof dtypeProp === "boolean") return schema;
 
   const withAuto = ["auto", ...availableDtypes.filter((d) => d !== "auto")];
   const newDtype = { ...dtypeProp, enum: withAuto };
-  const newPcProps = { ...(pc as DataPortSchemaObject).properties, dtype: newDtype };
+  const newPcProps = { ...pc.properties, dtype: newDtype };
   const newPc = { ...pc, properties: newPcProps };
   const newProps = { ...schema.properties, provider_config: newPc };
-  return { ...schema, properties: newProps } as unknown as DataPortSchemaObject;
+  return { ...schema, properties: newProps };
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +216,6 @@ export function registerModelCommand(program: Command): void {
           console.log("No models found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = models.map((m) => ({
           label: `${m.model_id}  ${m.provider}  ${m.title ?? ""}`,
           value: m.model_id,
@@ -255,7 +254,6 @@ export function registerModelCommand(program: Command): void {
           console.log("No models to remove.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = models.map((m) => ({
           label: `${m.model_id}  ${m.provider}  ${m.title ?? ""}`,
           value: m.model_id,
@@ -287,9 +285,7 @@ export function registerModelCommand(program: Command): void {
     .action(async (opts: Record<string, string | boolean | undefined>) => {
       const provider = detectProviderFromArgv(process.argv);
       const schema: DataPortSchemaObject =
-        provider && PROVIDER_SCHEMAS[provider]
-          ? PROVIDER_SCHEMAS[provider]
-          : (ModelRecordSchema as unknown as DataPortSchemaObject);
+        provider && PROVIDER_SCHEMAS[provider] ? PROVIDER_SCHEMAS[provider] : ModelRecordSchema;
 
       if (opts.help) {
         add.outputHelp();
@@ -310,7 +306,6 @@ export function registerModelCommand(program: Command): void {
       let withDefaults = applySchemaDefaults(input, schema);
 
       if (process.stdin.isTTY) {
-        const { promptMissingInput } = await import("../input/prompt");
         withDefaults = await promptMissingInput(withDefaults, schema);
       }
 
@@ -360,7 +355,6 @@ export function registerModelCommand(program: Command): void {
           console.log("No models found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = models.map((m) => ({
           label: `${m.model_id}  ${m.provider}  ${m.title ?? ""}`,
           value: m.model_id,
@@ -407,8 +401,7 @@ export function registerModelCommand(program: Command): void {
       }
 
       const provider = parsed.provider as string;
-      const schema: DataPortSchemaObject =
-        PROVIDER_SCHEMAS[provider] ?? (ModelRecordSchema as unknown as DataPortSchemaObject);
+      const schema: DataPortSchemaObject = PROVIDER_SCHEMAS[provider] ?? ModelRecordSchema;
 
       normalizeHfTransformersOnnxDevice(parsed);
 
@@ -437,7 +430,6 @@ export function registerModelCommand(program: Command): void {
       }
 
       // Step 1: Pick provider
-      const { renderSelectPrompt } = await import("../ui/render");
       const providerOptions = AVAILABLE_PROVIDERS.map((p) => ({ label: p, value: p }));
       const selectedProvider = await renderSelectPrompt(providerOptions, "Select provider:");
       if (!selectedProvider) return;
@@ -447,15 +439,13 @@ export function registerModelCommand(program: Command): void {
       if (!result) return;
 
       // Step 3: Map to partial input and run add form
-      let input = result.record as Record<string, unknown>;
+      let input = result.record;
 
-      let schema: DataPortSchemaObject =
-        PROVIDER_SCHEMAS[selectedProvider] ??
-        (ModelRecordSchema as unknown as DataPortSchemaObject);
+      let schema: DataPortSchemaObject = PROVIDER_SCHEMAS[selectedProvider] ?? ModelRecordSchema;
 
       // For ONNX models, narrow dtype enum to available dtypes from search results
       if (selectedProvider === "HF_TRANSFORMERS_ONNX") {
-        const pc = input.provider_config as Record<string, unknown> | undefined;
+        const pc = input.provider_config;
         const quantizations = pc?.quantizations as string[] | undefined;
         if (quantizations && quantizations.length > 0) {
           schema = narrowDtypeEnum(schema, quantizations);
@@ -477,7 +467,6 @@ export function registerModelCommand(program: Command): void {
       let withDefaults = applySchemaDefaults(input, schema);
 
       // Present the full editable form pre-populated with found data
-      const { promptEditableInput } = await import("../input/prompt");
       withDefaults = await promptEditableInput(withDefaults, schema);
 
       normalizeHfTransformersOnnxDevice(withDefaults as Record<string, unknown>);

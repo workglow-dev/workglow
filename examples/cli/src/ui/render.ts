@@ -4,15 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TaskGraph } from "@workglow/task-graph";
+import type { IRunConfig, ITask, ITaskConstructor, TaskGraph } from "@workglow/task-graph";
+import { InputTaskConfig } from "@workglow/tasks";
+import { render } from "ink";
+import React from "react";
 import type { PromptFieldDescriptor } from "../input/prompt";
 import { getCliTheme } from "../terminal/detectTerminalTheme";
 import { formatError, outputResult } from "../util";
-import type { SearchSelectItem, SearchSelectAppProps } from "./SearchSelectApp";
 import { CliThemeProvider } from "./CliThemeContext";
-import React from "react";
+import { SchemaPromptApp } from "./SchemaPromptApp";
+import type { SearchSelectAppProps, SearchSelectItem } from "./SearchSelectApp";
+import { SearchSelectApp } from "./SearchSelectApp";
+import { SelectPromptApp } from "./SelectPromptApp";
+import { TaskRunApp } from "./TaskRunApp";
+import { WorkflowRunApp } from "./WorkflowRunApp";
 
-export type { SearchSelectItem, SearchPage } from "./SearchSelectApp";
+export type { SearchPage, SearchSelectItem } from "./SearchSelectApp";
 
 function wrapWithCliTheme(node: React.ReactElement): React.ReactElement {
   return React.createElement(CliThemeProvider, {
@@ -27,54 +34,16 @@ interface RenderOptions {
   readonly suppressResultOutput?: boolean;
 }
 
-type TaskConstructor = new (
-  input: Record<string, unknown>,
-  config: Record<string, unknown>
-) => {
-  run(overrides?: Record<string, unknown>): Promise<unknown>;
-  events: {
-    on(event: string, fn: (...args: any[]) => void): void;
-  };
-};
-
 export async function renderTaskRun(
-  Ctor: TaskConstructor & { type: string },
+  Ctor: ITaskConstructor<any, any, any>,
   input: Record<string, unknown>,
-  opts: RenderOptions & { readonly config?: Record<string, unknown> }
+  opts: RenderOptions & { readonly config?: InputTaskConfig }
 ): Promise<void> {
-  const React = await import("react");
-  const { render } = await import("ink");
-  const { TaskRunApp } = await import("./TaskRunApp");
-
-  const task = new Ctor(input, opts.config ?? {});
-
-  return new Promise<void>((resolve, reject) => {
-    const onComplete = async (result: unknown) => {
-      if (!opts.suppressResultOutput) {
-        await outputResult(result, opts.outputJsonFile);
-      }
-      instance.clear();
-      instance.unmount();
-      resolve();
-    };
-
-    const onError = (error: Error) => {
-      instance.clear();
-      instance.unmount();
-      console.error(`\nError: ${formatError(error)}`);
-      process.exit(1);
-    };
-
-    const instance = render(
-      wrapWithCliTheme(
-        React.createElement(TaskRunApp, {
-          task,
-          taskType: Ctor.type,
-          onComplete,
-          onError,
-        })
-      )
-    );
+  const task = new Ctor(opts.config ?? {}) as ITask;
+  await renderTaskInstanceRun(task, Ctor.type, {
+    outputJsonFile: opts.outputJsonFile,
+    suppressResultOutput: opts.suppressResultOutput,
+    overrides: input,
   });
 }
 
@@ -82,14 +51,10 @@ export async function renderWorkflowRun(
   graph: TaskGraph,
   input: Record<string, unknown>,
   opts: RenderOptions & {
-    readonly config?: Record<string, unknown>;
+    readonly config?: InputTaskConfig;
     readonly runExecutor?: () => Promise<unknown>;
   }
 ): Promise<unknown> {
-  const React = await import("react");
-  const { render } = await import("ink");
-  const { WorkflowRunApp } = await import("./WorkflowRunApp");
-
   return new Promise<unknown>((resolve, reject) => {
     const onComplete = async (result: unknown) => {
       if (!opts.suppressResultOutput) {
@@ -122,22 +87,14 @@ export async function renderWorkflowRun(
   });
 }
 
-type TaskInstanceForRun = {
-  run(overrides?: Record<string, unknown>): Promise<unknown>;
-  events: {
-    on(event: string, fn: (...args: unknown[]) => void): void;
-  };
-};
-
 export async function renderTaskInstanceRun(
-  task: TaskInstanceForRun,
+  task: ITask,
   taskType: string,
-  opts: RenderOptions
+  opts: RenderOptions & {
+    readonly overrides?: Record<string, unknown>;
+    readonly runConfig?: Partial<IRunConfig>;
+  }
 ): Promise<unknown> {
-  const React = await import("react");
-  const { render } = await import("ink");
-  const { TaskRunApp } = await import("./TaskRunApp");
-
   return new Promise<unknown>((resolve, reject) => {
     const onComplete = async (result: unknown) => {
       if (!opts.suppressResultOutput) {
@@ -160,6 +117,8 @@ export async function renderTaskInstanceRun(
         React.createElement(TaskRunApp, {
           task,
           taskType,
+          overrides: opts.overrides,
+          runConfig: opts.runConfig,
           onComplete,
           onError,
         })
@@ -176,10 +135,6 @@ export async function renderSchemaPrompt(
   fields: readonly PromptFieldDescriptor[],
   options?: SchemaPromptRenderOptions
 ): Promise<Record<string, unknown> | undefined> {
-  const React = await import("react");
-  const { render } = await import("ink");
-  const { SchemaPromptApp } = await import("./SchemaPromptApp");
-
   return new Promise<Record<string, unknown> | undefined>((resolve) => {
     const onComplete = (values: Record<string, unknown>) => {
       instance.clear();
@@ -210,10 +165,6 @@ export async function renderSchemaPrompt(
 export async function renderSearchSelect<T extends SearchSelectItem>(
   props: Omit<SearchSelectAppProps<T>, "onSelect" | "onCancel">
 ): Promise<T | undefined> {
-  const React = await import("react");
-  const { render } = await import("ink");
-  const { SearchSelectApp } = await import("./SearchSelectApp");
-
   return new Promise<T | undefined>((resolve) => {
     const onSelect = (item: T) => {
       instance.clear();
@@ -246,10 +197,6 @@ export async function renderSelectPrompt(
   options: Array<{ label: string; value: string }>,
   message?: string
 ): Promise<string | undefined> {
-  const React = await import("react");
-  const { render } = await import("ink");
-  const { SelectPromptApp } = await import("./SelectPromptApp");
-
   return new Promise<string | undefined>((resolve) => {
     const onSelect = (value: string) => {
       instance.clear();

@@ -40,6 +40,18 @@ export function parseDynamicFlags(
       value = rest.slice(eqIndex + 1);
     } else {
       key = rest;
+    }
+
+    // Only accept keys that match the input schema. This stops built-in
+    // commander flags like `-i` / `-h` from leaking into task input (and
+    // from greedily swallowing their next argv arg as a value).
+    const topLevel = key.split(".")[0];
+    if (!(topLevel in properties)) {
+      i++;
+      continue;
+    }
+
+    if (eqIndex === -1) {
       // Peek next arg for value (if not another flag)
       if (i + 1 < argv.length && !argv[i + 1].startsWith("-")) {
         value = argv[i + 1];
@@ -50,12 +62,38 @@ export function parseDynamicFlags(
       }
     }
 
-    const coerced = coerceValue(key, value, properties);
+    const coerced = coerceValue(key, value!, properties);
     setNestedValue(result, key, coerced);
     i++;
   }
 
+  warnOnDoubleDashInputFlags(argv, properties);
+
   return result;
+}
+
+/**
+ * Warn when the user passed `--foo` (or `--foo=bar`) where `foo` is a known
+ * input-schema property. Input-schema flags use single dash (`-foo=bar`) to
+ * avoid colliding with built-in double-dash flags like `--help` / `--dry-run`.
+ * Silently ignoring `--foo` led users to think the flag was consumed when it
+ * wasn't.
+ */
+function warnOnDoubleDashInputFlags(
+  argv: string[],
+  properties: Record<string, SchemaProperty>
+): void {
+  for (const arg of argv) {
+    if (!arg.startsWith("--") || arg === "--") continue;
+    const rest = arg.slice(2);
+    const eqIndex = rest.indexOf("=");
+    const key = eqIndex === -1 ? rest : rest.slice(0, eqIndex);
+    const topLevel = key.split(".")[0];
+    if (!(topLevel in properties)) continue;
+    process.stderr.write(
+      `Warning: "${arg}" was not used. Input flags use a single dash: "-${rest}".\n`
+    );
+  }
 }
 
 function coerceValue(

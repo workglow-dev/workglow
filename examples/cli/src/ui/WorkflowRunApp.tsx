@@ -10,14 +10,13 @@ import React, { useEffect, useState } from "react";
 import { sortCliTaskLinesForDisplay, startGraphTaskPoll } from "./cliTaskUi";
 import { useCliTheme } from "./CliThemeContext";
 import { ProgressBar } from "./components/ProgressBar";
-import { TaskStatusProgressRow } from "./components/TaskStatusProgressRow";
 import { HumanInteractionHost } from "./HumanInteractionHost";
+import { ChatTaskRow } from "./rows/ChatTaskRow";
+import { DefaultTaskRow } from "./rows/DefaultTaskRow";
+import { pickRenderer } from "./rows/pickRenderer";
+import { StreamingTextRow } from "./rows/StreamingTextRow";
 import type { CliTaskLine, IterationSlotRow } from "./taskGraphCliSubscriptions";
-import {
-  iterationSlotToTaskStatus,
-  sortIterationSlotsForDisplay,
-  subscribeTaskGraphForCli,
-} from "./taskGraphCliSubscriptions";
+import { subscribeTaskGraphForCli } from "./taskGraphCliSubscriptions";
 
 interface WorkflowRunAppProps {
   readonly graph: TaskGraph;
@@ -80,28 +79,23 @@ export function WorkflowRunApp({
             </Box>
           )}
           {orderedTasks.map((t) => {
-            const slots = iterationSlots.get(t.id);
-            const sortedSlots = slots ? sortIterationSlotsForDisplay(slots) : [];
+            const taskInstance = graph.getTasks().find((x) => String(x.id) === t.id);
+            // Every id in orderedTasks comes from graph.getTasks(), so this
+            // lookup should always succeed. Skip rendering if the invariant
+            // ever breaks rather than masking it with a bogus cast.
+            if (!taskInstance) return null;
+            const Row = pickRenderer(t.type, taskInstance.outputSchema(), {
+              ChatTaskRow,
+              StreamingTextRow,
+              DefaultTaskRow,
+            });
             return (
-              <Box key={t.id} flexDirection="column">
-                <TaskStatusProgressRow
-                  type={t.type}
-                  status={t.status}
-                  message={t.message}
-                  barProgress={t.progress ?? 0}
-                />
-                {sortedSlots.map((slot) => (
-                  <Box key={`${t.id}-iter-${slot.index}`} flexDirection="column" paddingLeft={2}>
-                    <TaskStatusProgressRow
-                      type={`#${slot.index + 1}`}
-                      status={iterationSlotToTaskStatus(slot.status)}
-                      message={slot.status === "completed" ? undefined : slot.message}
-                      barProgress={slot.progress ?? 0}
-                      suppressProgressBar={slot.status !== "running" || slot.progress === undefined}
-                    />
-                  </Box>
-                ))}
-              </Box>
+              <Row
+                key={t.id}
+                task={taskInstance}
+                line={t}
+                iterationSlots={iterationSlots.get(t.id)}
+              />
             );
           })}
         </Box>

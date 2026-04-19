@@ -104,6 +104,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             tools: [weatherTool],
             toolChoice: "required",
             maxTokens: setup.maxTokens,
+            messages: undefined,
           });
 
           getLogger().debug("ToolCalling result", result);
@@ -129,6 +130,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             tools: [weatherTool],
             toolChoice: "none",
             maxTokens: setup.maxTokens,
+            messages: undefined,
           });
 
           getLogger().debug("ToolCalling result", result);
@@ -184,7 +186,7 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
             toolChoice: "auto",
             maxTokens: setup.maxTokens,
             messages: [
-              { role: "user", content: "What is the weather in Tokyo?" },
+              { role: "user", content: [{ type: "text", text: "What is the weather in Tokyo?" }] },
               {
                 role: "assistant",
                 content: [
@@ -198,7 +200,13 @@ export function runGenericAiProviderTests(setup: AiProviderTestSetup): void {
                   {
                     type: "tool_result",
                     tool_use_id: call.id,
-                    content: JSON.stringify({ temperature: 22, conditions: "sunny" }),
+                    content: [
+                      {
+                        type: "text" as const,
+                        text: JSON.stringify({ temperature: 22, conditions: "sunny" }),
+                      },
+                    ],
+                    is_error: undefined,
                   },
                 ],
               },

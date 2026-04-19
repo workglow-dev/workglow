@@ -11,6 +11,7 @@ import { Gemini_ModelSearch } from "./Gemini_ModelSearch";
 export { loadGeminiSDK, getApiKey, getModelName } from "./Gemini_Client";
 export { sanitizeSchemaForGemini } from "./Gemini_Schema";
 
+import { Gemini_Chat, Gemini_Chat_Stream } from "./Gemini_Chat";
 import { Gemini_CountTokens, Gemini_CountTokens_Reactive } from "./Gemini_CountTokens";
 import { Gemini_ModelInfo } from "./Gemini_ModelInfo";
 import {
@@ -24,6 +25,7 @@ import { Gemini_TextSummary, Gemini_TextSummary_Stream } from "./Gemini_TextSumm
 import { Gemini_ToolCalling, Gemini_ToolCalling_Stream } from "./Gemini_ToolCalling";
 
 export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>> = {
+  AiChatTask: Gemini_Chat,
   CountTokensTask: Gemini_CountTokens,
   ModelInfoTask: Gemini_ModelInfo,
   TextGenerationTask: Gemini_TextGeneration,
@@ -39,6 +41,7 @@ export const GEMINI_STREAM_TASKS: Record<
   string,
   AiProviderStreamFn<any, any, GeminiModelConfig>
 > = {
+  AiChatTask: Gemini_Chat_Stream,
   TextGenerationTask: Gemini_TextGeneration_Stream,
   TextRewriterTask: Gemini_TextRewriter_Stream,
   TextSummaryTask: Gemini_TextSummary_Stream,

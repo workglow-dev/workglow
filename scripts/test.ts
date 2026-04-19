@@ -73,7 +73,7 @@ const SECTION_DIRS: Record<Section, string[]> = {
     join(TEST_BASE, "vector"),
   ],
   queue: [join(TEST_BASE, "job-queue")],
-  util: [join(TEST_BASE, "util")],
+  util: [join(TEST_BASE, "util"), join(TEST_BASE, "human")],
   ai: [join(TEST_BASE, "ai-model")],
   provider: [join(TEST_BASE, "ai-provider")],
   "provider-hft": [join(TEST_BASE, "ai-provider")],

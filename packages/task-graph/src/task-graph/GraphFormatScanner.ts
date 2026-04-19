@@ -67,9 +67,12 @@ export function scanGraphForFormat(graph: ITaskGraph, targetFormat: string): boo
 /**
  * Scans a task graph for credential requirements.
  *
- * Walks every task's `inputSchema()` and `configSchema()` looking for properties
- * annotated with `format: "credential"`, including nested objects like
- * `provider_config.credential_key`.
+ * A task only counts as needing credentials when it has a schema property
+ * annotated with `format: "credential"` **and** the corresponding value is
+ * actually set on the task's config or input defaults (non-empty string).
+ * Annotating a schema is not enough — plenty of model configs have
+ * `provider_config.credential_key` available but unused (e.g. local ONNX
+ * models).
  *
  * @example
  * ```ts
@@ -83,8 +86,12 @@ export function scanGraphForCredentials(graph: ITaskGraph): GraphFormatScanResul
   const credentialFormats = new Set<string>();
 
   for (const task of graph.getTasks()) {
-    collectCredentialFormats(task.inputSchema(), credentialFormats);
-    collectCredentialFormats(task.configSchema(), credentialFormats);
+    collectUsedCredentialFormats(task.inputSchema(), task.defaults ?? {}, credentialFormats);
+    collectUsedCredentialFormats(
+      task.configSchema(),
+      (task as unknown as { config?: Record<string, unknown> }).config ?? {},
+      credentialFormats
+    );
   }
 
   return {
@@ -94,25 +101,34 @@ export function scanGraphForCredentials(graph: ITaskGraph): GraphFormatScanResul
 }
 
 /**
- * Collects all "credential" format annotations from a schema into the provided set.
+ * Walk schema and data in parallel. When a property is annotated with a
+ * credential format AND the corresponding data value is a non-empty string,
+ * record the format. Recurses into nested object schemas.
  */
-function collectCredentialFormats(schema: unknown, formats: Set<string>): void {
+function collectUsedCredentialFormats(
+  schema: unknown,
+  data: unknown,
+  formats: Set<string>
+): void {
   if (typeof schema === "boolean" || typeof schema !== "object" || schema === null) return;
   const s = schema as Record<string, unknown>;
 
   const properties = s.properties as Record<string, unknown> | undefined;
   if (!properties || typeof properties !== "object") return;
 
-  for (const propSchema of Object.values(properties)) {
+  const dataObj = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+
+  for (const [propName, propSchema] of Object.entries(properties)) {
     const format = getSchemaFormat(propSchema);
-    if (format === "credential") {
+    const value = dataObj[propName];
+    if (format === "credential" && typeof value === "string" && value.length > 0) {
       formats.add(format);
     }
 
-    // Recurse into nested object schemas
+    // Recurse into nested object schemas with the matching nested data
     const objectSchema = getObjectSchema(propSchema);
     if (objectSchema) {
-      collectCredentialFormats(objectSchema, formats);
+      collectUsedCredentialFormats(objectSchema, value, formats);
     }
   }
 }

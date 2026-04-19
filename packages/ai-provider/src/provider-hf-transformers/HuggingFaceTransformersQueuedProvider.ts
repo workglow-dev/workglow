@@ -73,6 +73,7 @@ export class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider<HfTr
   private cpuStrategy: IAiExecutionStrategy | undefined;
 
   readonly taskTypes = [
+    "AiChatTask",
     "DownloadModelTask",
     "UnloadModelTask",
     "ModelInfoTask",
@@ -94,6 +95,7 @@ export class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider<HfTr
     "ImageClassificationTask",
     "ObjectDetectionTask",
     "ToolCallingTask",
+    "StructuredGenerationTask",
     "ModelSearchTask",
   ] as const;
 

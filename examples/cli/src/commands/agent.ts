@@ -7,6 +7,7 @@
 import {
   computeGraphInputSchema,
   createGraphFromGraphJSON,
+  scanGraphForCredentials,
   type TaskDeserializationOptions,
   type TaskGraphJson,
 } from "@workglow/task-graph";
@@ -22,7 +23,10 @@ import {
   resolveInput,
   validateInput,
 } from "../input";
+import { promptMissingInput } from "../input/prompt";
+import { ensureCredentialStoreUnlocked } from "../keyring";
 import { createAgentRepository } from "../storage";
+import { renderSelectPrompt, renderWorkflowRun } from "../ui/render";
 import { formatError, formatTable, outputResult } from "../util";
 
 export function registerAgentCommand(program: Command): void {
@@ -79,7 +83,6 @@ export function registerAgentCommand(program: Command): void {
           console.log("No agents found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: String(e.key),
           value: String(e.key),
@@ -123,7 +126,6 @@ export function registerAgentCommand(program: Command): void {
           console.log("No agents to remove.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: String(e.key),
           value: String(e.key),
@@ -187,7 +189,6 @@ export function registerAgentCommand(program: Command): void {
           console.log("No agents found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: String(e.key),
           value: String(e.key),
@@ -312,7 +313,6 @@ export function registerAgentCommand(program: Command): void {
       });
 
       if (process.stdin.isTTY) {
-        const { promptMissingInput } = await import("../input/prompt");
         input = await promptMissingInput(input, schema);
       }
 
@@ -331,16 +331,13 @@ export function registerAgentCommand(program: Command): void {
       }
 
       // Unlock encrypted credential store if the graph needs credentials
-      const { scanGraphForCredentials } = await import("@workglow/task-graph");
       const scanResult = scanGraphForCredentials(graph);
       if (scanResult.needsCredentials) {
-        const { ensureCredentialStoreUnlocked } = await import("../keyring");
         await ensureCredentialStoreUnlocked();
       }
 
       try {
         if (process.stdout.isTTY) {
-          const { renderWorkflowRun } = await import("../ui/render");
           await renderWorkflowRun(graph, input, {
             outputJsonFile: opts.outputJsonFile as string | undefined,
             config: runConfig,

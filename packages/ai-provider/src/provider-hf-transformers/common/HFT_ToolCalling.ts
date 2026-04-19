@@ -8,6 +8,7 @@ import type { Tensor, TextGenerationPipeline } from "@huggingface/transformers";
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  ChatMessage,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
   ToolDefinition,
@@ -20,7 +21,6 @@ import {
 import type { StreamEvent } from "@workglow/task-graph";
 import {
   adaptParserResult,
-  extractMessageText,
   forcedToolSelection,
   getAvailableParsers,
   getGenerationPrefix,
@@ -135,27 +135,6 @@ function resolveHFTToolsAndMessages(
 // ============================================================================
 
 /**
- * Try to parse a string as JSON; return the raw string if it's not valid JSON.
- * Used for tool result content which may be a JSON-encoded value.
- */
-function parsePossibleToolResponse(content: string): unknown {
-  const trimmed = content.trim();
-  if (!trimmed) return "";
-  if (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
-    (trimmed.startsWith('"') && trimmed.endsWith('"'))
-  ) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      // Fall back to the raw string.
-    }
-  }
-  return content;
-}
-
-/**
  * Build structured messages for HFT's `apply_chat_template`.
  *
  * Unlike `toTextFlatMessages` (which flattens everything to `{role, content}`
@@ -163,82 +142,83 @@ function parsePossibleToolResponse(content: string): unknown {
  * on tool-result messages — both required by HFT chat templates that support
  * tool calling.
  */
-function buildHFTMessages(input: ToolCallingTaskInput): Array<Record<string, unknown>> {
-  const messages: Array<Record<string, unknown>> = [];
-
-  if (input.systemPrompt) {
-    messages.push({ role: "system", content: input.systemPrompt });
+export function buildHFTMessages(
+  messages: ReadonlyArray<ChatMessage> | undefined,
+  systemPrompt: string | undefined,
+  prompt: unknown,
+  toolChoice: string | undefined
+): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  if (systemPrompt) {
+    out.push({ role: "system", content: systemPrompt });
   }
-
-  if (input.toolChoice === "required") {
-    const instruction =
-      "You must call at least one tool from the provided tool list when answering.";
-    if (messages.length > 0 && messages[0].role === "system") {
-      messages[0] = {
-        ...messages[0],
-        content: `${messages[0].content as string}\n\n${instruction}`,
-      };
-    } else {
-      messages.unshift({ role: "system", content: instruction });
-    }
+  if (toolChoice === "required") {
+    out.push({
+      role: "system",
+      content: "You MUST call one of the provided tools in this turn.",
+    });
   }
-
-  const sourceMessages =
-    input.messages && input.messages.length > 0
-      ? input.messages
-      : [{ role: "user" as const, content: input.prompt }];
-  const toolNamesById = new Map<string, string>();
-
-  for (const message of sourceMessages) {
-    if (message.role === "user") {
-      messages.push({ role: "user", content: extractMessageText(message.content) });
-      continue;
-    }
-
-    if (message.role === "assistant" && Array.isArray(message.content)) {
-      const text = message.content
-        .filter((block): block is { type: "text"; text: string } => block.type === "text")
-        .map((block) => block.text)
+  if (!messages || messages.length === 0) {
+    out.push({ role: "user", content: extractPromptText(prompt) });
+    return out;
+  }
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      const text = msg.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { type: "text"; text: string }).text)
         .join("");
-      const toolCalls = message.content
-        .filter(
-          (
-            block
-          ): block is {
+      out.push({ role: "user", content: text });
+    } else if (msg.role === "assistant") {
+      const text = msg.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { type: "text"; text: string }).text)
+        .join("");
+      const toolCalls = msg.content
+        .filter((b) => b.type === "tool_use")
+        .map((b) => {
+          const tu = b as {
             type: "tool_use";
             id: string;
             name: string;
             input: Record<string, unknown>;
-          } => block.type === "tool_use"
-        )
-        .map((block) => {
-          toolNamesById.set(block.id, block.name);
-          return { function: { name: block.name, arguments: block.input } };
+          };
+          return { id: tu.id, name: tu.name, arguments: tu.input };
         });
-
-      if (text || toolCalls.length > 0) {
-        const assistantMsg: Record<string, unknown> = { role: "assistant" };
-        if (text) assistantMsg.content = text;
-        if (toolCalls.length > 0) assistantMsg.tool_calls = toolCalls;
-        messages.push(assistantMsg);
-      }
-      continue;
-    }
-
-    if (message.role === "tool" && Array.isArray(message.content)) {
-      for (const block of message.content) {
-        const toolName = toolNamesById.get(block.tool_use_id);
-        if (!toolName) continue;
-        messages.push({
+      const entry: Record<string, unknown> = { role: "assistant", content: text };
+      if (toolCalls.length > 0) entry.tool_calls = toolCalls;
+      out.push(entry);
+    } else if (msg.role === "tool") {
+      for (const b of msg.content) {
+        if (b.type !== "tool_result") continue;
+        const text = b.content
+          .filter((inner) => inner.type === "text")
+          .map((inner) => (inner as { type: "text"; text: string }).text)
+          .join("");
+        out.push({
           role: "tool",
-          name: toolName,
-          content: parsePossibleToolResponse(extractMessageText(block.content)),
+          content: text,
+          tool_call_id: b.tool_use_id,
         });
       }
     }
   }
+  return out;
+}
 
-  return messages;
+function extractPromptText(prompt: unknown): string {
+  if (typeof prompt === "string") return prompt;
+  if (!Array.isArray(prompt)) return String(prompt ?? "");
+  return prompt
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object" && (item as Record<string, unknown>).type === "text") {
+        return (item as { text: string }).text;
+      }
+      return "";
+    })
+    .filter((s) => s)
+    .join("\n");
 }
 
 /**
@@ -281,7 +261,12 @@ function buildPromptAndPrefix(
   if (hasToolMessages(input)) {
     // Multi-turn with tool results: use structured messages so the tokenizer
     // can format tool_calls and tool responses correctly.
-    const messages = buildHFTMessages(input);
+    const messages = buildHFTMessages(
+      input.messages,
+      input.systemPrompt,
+      input.prompt,
+      input.toolChoice
+    );
     const tools = selectHFTTools(input);
     basePrompt = tokenizer.apply_chat_template(messages as any, {
       tools,

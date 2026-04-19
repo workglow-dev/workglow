@@ -38,6 +38,7 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
     "UnloadModelTask",
     "ModelInfoTask",
     "CountTokensTask",
+    "AiChatTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",

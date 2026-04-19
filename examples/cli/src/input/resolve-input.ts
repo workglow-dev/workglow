@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TaskInput } from "@workglow/task-graph";
+import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util/schema";
 import { readFile } from "fs/promises";
-import type { DataPortSchemaObject, DataPortSchemaNonBoolean } from "@workglow/util/schema";
 import { readStdin } from "../util";
 import { evaluateConditionalRequired } from "./schema-conditions";
 
@@ -122,9 +123,9 @@ export async function resolveConfig(opts: {
  * Apply default values from schema for missing fields.
  */
 export function applySchemaDefaults(
-  input: Record<string, unknown>,
+  input: Partial<TaskInput>,
   schema: DataPortSchemaObject
-): Record<string, unknown> {
+): Partial<TaskInput> {
   const result = { ...input };
   const properties = schema.properties ?? {};
   for (const [key, prop] of Object.entries(properties)) {
@@ -147,7 +148,7 @@ export interface ValidationResult {
  * Conditional required fields use {@link evaluateConditionalRequired} (same as prompting).
  */
 export function validateInput(
-  input: Record<string, unknown>,
+  input: Partial<TaskInput>,
   schema: DataPortSchemaObject
 ): ValidationResult {
   const errors: string[] = [];

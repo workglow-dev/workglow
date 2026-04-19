@@ -73,14 +73,11 @@ function withCliTask(task: ITask, options?: WithCliOptions): WithCliTaskHandle {
 
       const taskType = taskStaticType(task);
 
-      return renderTaskInstanceRun(
-        {
-          run: (o) => task.run(o, runConfig),
-          events: task.events,
-        },
-        taskType,
-        { suppressResultOutput }
-      );
+      return renderTaskInstanceRun(task, taskType, {
+        suppressResultOutput,
+        overrides,
+        runConfig,
+      });
     },
   };
 }

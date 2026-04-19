@@ -10,9 +10,11 @@ import type { Command } from "commander";
 import { editStringInExternalEditor } from "../editInEditor";
 import { loadConfig } from "../config";
 import { parseDynamicFlags, generateSchemaHelpText, resolveInput, validateInput } from "../input";
+import { promptMissingInput } from "../input/prompt";
 import { createMcpStorage, McpServerRecordSchema } from "../storage";
-import { formatError, formatTable } from "../util";
+import { renderSearchSelect, renderSelectPrompt } from "../ui/render";
 import type { SearchSelectItem } from "../ui/render";
+import { formatError, formatTable } from "../util";
 
 interface McpSearchSelectItem extends SearchSelectItem {
   readonly result: McpSearchResultItem;
@@ -64,7 +66,6 @@ export function registerMcpCommand(program: Command): void {
           console.log("No MCP servers found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
           value: String(e.name),
@@ -103,7 +104,6 @@ export function registerMcpCommand(program: Command): void {
           console.log("No MCP servers to remove.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
           value: String(e.name),
@@ -144,7 +144,6 @@ export function registerMcpCommand(program: Command): void {
       });
 
       if (process.stdin.isTTY) {
-        const { promptMissingInput } = await import("../input/prompt");
         input = await promptMissingInput(input, McpServerRecordSchema);
       }
 
@@ -203,7 +202,6 @@ export function registerMcpCommand(program: Command): void {
           console.log("No MCP servers found.");
           return;
         }
-        const { renderSelectPrompt } = await import("../ui/render");
         const options = all.map((e) => ({
           label: `${e.name}  ${e.transport ?? ""}  ${e.server_url ?? e.command ?? ""}`,
           value: String(e.name),
@@ -283,7 +281,6 @@ export function registerMcpCommand(program: Command): void {
         process.exit(1);
       }
 
-      const { renderSearchSelect } = await import("../ui/render");
       const selected = await renderSearchSelect<McpSearchSelectItem>({
         initialQuery: query,
         placeholder: "Search MCP servers",
@@ -305,7 +302,6 @@ export function registerMcpCommand(program: Command): void {
 
       let input = selected.result.config;
 
-      const { promptMissingInput } = await import("../input/prompt");
       input = await promptMissingInput(input, McpServerRecordSchema);
 
       const validation = validateInput(input, McpServerRecordSchema);

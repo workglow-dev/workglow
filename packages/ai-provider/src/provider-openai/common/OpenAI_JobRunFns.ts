@@ -10,6 +10,7 @@ import { OpenAI_ModelSearch } from "./OpenAI_ModelSearch";
 
 export { loadOpenAISDK, getClient, getModelName } from "./OpenAI_Client";
 
+import { OpenAI_Chat, OpenAI_Chat_Stream } from "./OpenAI_Chat";
 import { OpenAI_CountTokens, OpenAI_CountTokens_Reactive } from "./OpenAI_CountTokens";
 import { OpenAI_ModelInfo } from "./OpenAI_ModelInfo";
 import {
@@ -23,6 +24,7 @@ import { OpenAI_TextSummary, OpenAI_TextSummary_Stream } from "./OpenAI_TextSumm
 import { OpenAI_ToolCalling, OpenAI_ToolCalling_Stream } from "./OpenAI_ToolCalling";
 
 export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>> = {
+  AiChatTask: OpenAI_Chat,
   TextGenerationTask: OpenAI_TextGeneration,
   ModelInfoTask: OpenAI_ModelInfo,
   TextEmbeddingTask: OpenAI_TextEmbedding,
@@ -38,6 +40,7 @@ export const OPENAI_STREAM_TASKS: Record<
   string,
   AiProviderStreamFn<any, any, OpenAiModelConfig>
 > = {
+  AiChatTask: OpenAI_Chat_Stream,
   TextGenerationTask: OpenAI_TextGeneration_Stream,
   TextRewriterTask: OpenAI_TextRewriter_Stream,
   TextSummaryTask: OpenAI_TextSummary_Stream,

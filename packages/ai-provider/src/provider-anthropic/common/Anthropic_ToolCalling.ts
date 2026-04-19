@@ -7,6 +7,7 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
+  ChatMessage,
   ToolCall,
   ToolCallingTaskInput,
   ToolCallingTaskOutput,
@@ -19,78 +20,67 @@ import { parsePartialJson } from "@workglow/util/worker";
 import { getClient, getMaxTokens, getModelName } from "./Anthropic_Client";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 
-function mapUserContentToAnthropic(content: unknown): any {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return content;
-  const parts: any[] = [];
-  for (const block of content as Array<Record<string, unknown>>) {
-    if (block.type === "text") {
-      parts.push({ type: "text", text: block.text });
-    } else if (block.type === "image") {
-      parts.push({
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: block.mimeType as string,
-          data: block.data as string,
-        },
-      });
-    }
+export function buildAnthropicMessages(
+  messages: ReadonlyArray<ChatMessage> | undefined,
+  prompt: unknown
+): any[] {
+  if (!messages || messages.length === 0) {
+    return [{ role: "user", content: prompt }];
   }
-  return parts;
-}
-
-function mapToolResultContentToAnthropic(content: unknown): any {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return content;
-  const parts: any[] = [];
-  for (const block of content as Array<Record<string, unknown>>) {
-    if (block.type === "text") {
-      parts.push({ type: "text", text: block.text });
-    } else if (block.type === "image") {
-      parts.push({
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: block.mimeType as string,
-          data: block.data as string,
-        },
-      });
-    }
-  }
-  return parts;
-}
-
-function buildAnthropicMessages(input: ToolCallingTaskInput): any[] {
-  const inputMessages = input.messages;
-  if (!inputMessages || inputMessages.length === 0) {
-    return [{ role: "user", content: input.prompt }];
-  }
-
-  const messages: any[] = [];
-  for (const msg of inputMessages) {
+  const out: any[] = [];
+  for (const msg of messages) {
     if (msg.role === "user") {
-      messages.push({ role: "user", content: mapUserContentToAnthropic(msg.content) });
-    } else if (msg.role === "assistant" && Array.isArray(msg.content)) {
-      const blocks = msg.content.map((block: any) => {
-        if (block.type === "text") return { type: "text", text: block.text };
-        if (block.type === "tool_use") {
-          return { type: "tool_use", id: block.id, name: block.name, input: block.input };
+      const blocks = msg.content.map((b) => {
+        if (b.type === "text") return { type: "text", text: b.text };
+        if (b.type === "image") {
+          return {
+            type: "image",
+            source: { type: "base64", media_type: b.mimeType, data: b.data },
+          };
         }
-        return block;
+        return b;
       });
-      messages.push({ role: "assistant", content: blocks });
-    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
-      const blocks = msg.content.map((block: any) => ({
-        type: "tool_result",
-        tool_use_id: block.tool_use_id,
-        content: mapToolResultContentToAnthropic(block.content),
-        ...(block.is_error && { is_error: true }),
-      }));
-      messages.push({ role: "user", content: blocks });
+      out.push({ role: "user", content: blocks });
+    } else if (msg.role === "assistant") {
+      const blocks = msg.content.map((b) => {
+        if (b.type === "text") return { type: "text", text: b.text };
+        if (b.type === "tool_use") {
+          return { type: "tool_use", id: b.id, name: b.name, input: b.input };
+        }
+        return b;
+      });
+      out.push({ role: "assistant", content: blocks });
+    } else if (msg.role === "tool") {
+      const blocks = msg.content
+        .filter(
+          (b): b is Extract<ChatMessage["content"][number], { type: "tool_result" }> =>
+            b.type === "tool_result"
+        )
+        .map((b) => {
+          const content = b.content.map((inner) => {
+            if (inner.type === "text") return { type: "text", text: inner.text };
+            if (inner.type === "image") {
+              return {
+                type: "image",
+                source: { type: "base64", media_type: inner.mimeType, data: inner.data },
+              };
+            }
+            return inner;
+          });
+          return {
+            type: "tool_result",
+            tool_use_id: b.tool_use_id,
+            content,
+            ...(b.is_error ? { is_error: true } : {}),
+          };
+        });
+      out.push({ role: "user", content: blocks });
+    } else if (msg.role === "system") {
+      // System prompts are handled separately via params.system; skip here.
+      continue;
     }
   }
-  return messages;
+  return out;
 }
 
 function mapAnthropicToolChoice(
@@ -119,7 +109,7 @@ export const Anthropic_ToolCalling: AiProviderRunFn<
 
   const toolChoice = mapAnthropicToolChoice(input.toolChoice);
 
-  const messages = buildAnthropicMessages(input);
+  const messages = buildAnthropicMessages(input.messages, input.prompt);
 
   const params: any = {
     model: modelName,
@@ -201,7 +191,7 @@ export const Anthropic_ToolCalling_Stream: AiProviderStreamFn<
 
   const toolChoice = mapAnthropicToolChoice(input.toolChoice);
 
-  const messages = buildAnthropicMessages(input);
+  const messages = buildAnthropicMessages(input.messages, input.prompt);
 
   const params: any = {
     model: modelName,

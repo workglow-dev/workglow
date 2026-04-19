@@ -5,6 +5,9 @@
  */
 
 import type { DataPortSchemaNonBoolean, DataPortSchemaObject } from "@workglow/util/schema";
+import { loadConfig } from "../config";
+import { createModelRepository } from "../storage";
+import { renderSchemaPrompt } from "../ui/render";
 import { getNestedValue } from "../util";
 import { deepMerge } from "./resolve-input";
 import { evaluateConditionalRequired } from "./schema-conditions";
@@ -148,8 +151,6 @@ async function enrichFieldsWithOptions(
 
   let modelIds: string[] = [];
   try {
-    const { loadConfig } = await import("../config");
-    const { createModelRepository } = await import("../storage");
     const config = await loadConfig();
     const repo = createModelRepository(config);
     await repo.setupDatabase();
@@ -304,7 +305,6 @@ export async function promptEditableInput(
 
   const fields = await prepareSchemaFormFields(input, schema);
 
-  const { renderSchemaPrompt } = await import("../ui/render");
   const prompted = await renderSchemaPrompt(fields, {
     initialFocusedFieldKey: options?.initialFocusedFieldKey,
   });
@@ -328,7 +328,6 @@ export async function promptMissingInput(
   }
 
   let result = input;
-  const { renderSchemaPrompt } = await import("../ui/render");
 
   // Loop to handle conditional requirements (e.g. transport → server_url)
   for (;;) {

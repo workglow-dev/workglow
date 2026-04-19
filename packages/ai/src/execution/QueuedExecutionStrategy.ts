@@ -10,6 +10,7 @@ import {
   JobQueueClient,
   JobQueueServer,
 } from "@workglow/job-queue";
+import type { ILimiter } from "@workglow/job-queue";
 import { InMemoryQueueStorage } from "@workglow/storage";
 import { getTaskQueueRegistry, TaskConfigurationError } from "@workglow/task-graph";
 import type { RegisteredQueue, IExecuteContext, TaskInput, TaskOutput } from "@workglow/task-graph";
@@ -32,6 +33,13 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
    * within the same strategy instance share a single queue-creation flow.
    */
   private initPromise: Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> | null = null;
+
+  /**
+   * Shared limiter used by both the underlying JobQueueServer (for `execute`)
+   * and `executeStream` below. Created lazily in createQueue() and reused so
+   * streaming calls compete for the same concurrency slots as queued jobs.
+   */
+  private limiter: ILimiter | undefined;
 
   constructor(
     private readonly queueName: string,
@@ -95,19 +103,68 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
   }
 
   /**
-   * Streaming execution for queued providers. Because the job queue does not
-   * support streaming outputs, this method routes through `execute()` so that
-   * GPU serialization is preserved, then yields a single `finish` event with
-   * the result. Callers that need true token-by-token streaming should use a
-   * DirectExecutionStrategy provider instead.
+   * Streaming execution for queued providers. Runs the provider's stream
+   * function directly (bypassing the storage-backed queue, which can't
+   * forward mid-stream events) while still acquiring a slot from the same
+   * concurrency limiter the queue uses — so GPU serialization is preserved.
+   *
+   * AiJob.executeStream handles worker-proxy lookup, abort wiring, timeouts,
+   * and error classification; we just gate it through the limiter.
    */
   async *executeStream(
     jobInput: AiJobInput<TaskInput>,
     context: IExecuteContext,
     runnerId: string | undefined
   ): AsyncIterable<StreamEvent<TaskOutput>> {
-    const result = await this.execute(jobInput, context, runnerId);
-    yield { type: "finish", data: result } as StreamEvent<TaskOutput>;
+    if (context.signal.aborted) {
+      throw context.signal.reason ?? new AbortSignalJobError("The operation was aborted");
+    }
+
+    // Ensure the queue (and thus the shared limiter) has been created.
+    await this.ensureQueue();
+    const limiter = this.limiter;
+    if (!limiter) {
+      throw new TaskConfigurationError(
+        `QueuedExecutionStrategy: limiter was not initialized for queue "${this.queueName}"`
+      );
+    }
+
+    await this.acquireLimiterSlot(limiter, context.signal);
+
+    try {
+      const job = new AiJob({
+        queueName: jobInput.aiProvider,
+        jobRunId: runnerId,
+        input: jobInput,
+      });
+
+      yield* job.executeStream(jobInput, {
+        signal: context.signal,
+        updateProgress: context.updateProgress,
+      });
+    } finally {
+      await limiter.recordJobCompletion();
+    }
+  }
+
+  /**
+   * Spin-wait on `limiter.canProceed()` until a slot is available or the
+   * abort signal fires. Yields to the microtask queue between polls; for
+   * concurrency=1 with one caller at a time this usually takes one check.
+   */
+  private async acquireLimiterSlot(limiter: ILimiter, signal: AbortSignal): Promise<void> {
+    const poll = async (): Promise<void> => {
+      while (!(await limiter.canProceed())) {
+        if (signal.aborted) {
+          throw signal.reason ?? new AbortSignalJobError("The operation was aborted");
+        }
+        const next = await limiter.getNextAvailableTime();
+        const delay = Math.max(0, next.getTime() - Date.now());
+        await new Promise<void>((resolve) => setTimeout(resolve, Math.min(delay, 50)));
+      }
+    };
+    await poll();
+    await limiter.recordJobStart();
   }
 
   private ensureQueue(): Promise<RegisteredQueue<AiJobInput<TaskInput>, TaskOutput>> {
@@ -128,6 +185,7 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
       if (!existing.server.isRunning()) {
         await existing.server.start();
       }
+      this.limiter = existing.server.limiter;
       return existing;
     }
 
@@ -141,10 +199,11 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
     const storage = new InMemoryQueueStorage<AiJobInput<TaskInput>, TaskOutput>(this.queueName);
     await storage.setupDatabase();
 
+    this.limiter = new ConcurrencyLimiter(this.concurrency);
     const server = new JobQueueServer<AiJobInput<TaskInput>, TaskOutput>(AiJob, {
       storage,
       queueName: this.queueName,
-      limiter: new ConcurrencyLimiter(this.concurrency),
+      limiter: this.limiter,
     });
 
     const client = new JobQueueClient<AiJobInput<TaskInput>, TaskOutput>({
@@ -175,6 +234,7 @@ export class QueuedExecutionStrategy implements IAiExecutionStrategy {
           if (!raced.server.isRunning()) {
             await raced.server.start();
           }
+          this.limiter = raced.server.limiter;
           return raced;
         }
       }

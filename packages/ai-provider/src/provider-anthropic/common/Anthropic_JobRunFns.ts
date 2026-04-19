@@ -10,6 +10,7 @@ import { Anthropic_ModelSearch } from "./Anthropic_ModelSearch";
 
 export { getClient, getMaxTokens, getModelName, loadAnthropicSDK } from "./Anthropic_Client";
 
+import { Anthropic_Chat, Anthropic_Chat_Stream } from "./Anthropic_Chat";
 import { Anthropic_CountTokens, Anthropic_CountTokens_Reactive } from "./Anthropic_CountTokens";
 import { Anthropic_ModelInfo } from "./Anthropic_ModelInfo";
 import {
@@ -25,6 +26,7 @@ import { Anthropic_TextSummary, Anthropic_TextSummary_Stream } from "./Anthropic
 import { Anthropic_ToolCalling, Anthropic_ToolCalling_Stream } from "./Anthropic_ToolCalling";
 
 export const ANTHROPIC_TASKS: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>> = {
+  AiChatTask: Anthropic_Chat,
   CountTokensTask: Anthropic_CountTokens,
   ModelInfoTask: Anthropic_ModelInfo,
   TextGenerationTask: Anthropic_TextGeneration,
@@ -39,6 +41,7 @@ export const ANTHROPIC_STREAM_TASKS: Record<
   string,
   AiProviderStreamFn<any, any, AnthropicModelConfig>
 > = {
+  AiChatTask: Anthropic_Chat_Stream,
   TextGenerationTask: Anthropic_TextGeneration_Stream,
   TextRewriterTask: Anthropic_TextRewriter_Stream,
   TextSummaryTask: Anthropic_TextSummary_Stream,

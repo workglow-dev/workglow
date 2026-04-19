@@ -23,6 +23,7 @@ export class LlamaCppQueuedProvider extends QueuedAiProvider<LlamaCppModelConfig
     "UnloadModelTask",
     "ModelInfoTask",
     "CountTokensTask",
+    "AiChatTask",
     "TextGenerationTask",
     "TextEmbeddingTask",
     "TextRewriterTask",

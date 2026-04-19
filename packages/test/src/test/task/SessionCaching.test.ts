@@ -12,7 +12,7 @@ import {
   setAiProviderRegistry,
 } from "@workglow/ai";
 import type { AiJobInput, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
-import type { ModelConfig, ToolCallingTaskInput } from "@workglow/ai";
+import type { ModelConfig, ToolCallingTaskInput, ToolDefinition } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
 import { TaskInput, TaskOutput } from "@workglow/task-graph";
 import { makeFingerprint, setLogger } from "@workglow/util";
@@ -383,7 +383,8 @@ describe("Session caching: sessionId on task input", () => {
     const input: ToolCallingTaskInput = {
       model: "test-model",
       prompt: "hello",
-      tools: [],
+      tools: [] as ToolDefinition[],
+      messages: undefined,
       sessionId: "test-session",
     };
     expect(input.sessionId).toBe("test-session");
@@ -393,7 +394,8 @@ describe("Session caching: sessionId on task input", () => {
     const input: ToolCallingTaskInput = {
       model: "test-model",
       prompt: "hello",
-      tools: [],
+      tools: [] as ToolDefinition[],
+      messages: undefined,
     };
     expect(input.sessionId).toBeUndefined();
   });

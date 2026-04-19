@@ -9,11 +9,12 @@
 import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
 import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
 import { registerBaseTasks } from "@workglow/task-graph";
-import { HUMAN_CONNECTOR, registerCommonTasks } from "@workglow/tasks";
+import { registerCommonTasks } from "@workglow/tasks";
 import {
   ChainedCredentialStore,
   EnvCredentialStore,
   globalServiceRegistry,
+  HUMAN_CONNECTOR,
   setGlobalCredentialStore,
 } from "@workglow/util";
 import { program } from "commander";
@@ -27,7 +28,8 @@ import { registerTaskCommand } from "./commands/task";
 import { registerWorkflowCommand } from "./commands/workflow";
 import { loadConfig } from "./config";
 import { lazyStore } from "./keyring";
-import { createModelRepository } from "./storage";
+import { seedSamplesIfRepoEmpty } from "./samples/chatSample";
+import { createModelRepository, createWorkflowRepository } from "./storage";
 import { detectCliTheme, setCliTheme } from "./terminal/detectTerminalTheme";
 import { InkHumanConnector } from "./ui/InkHumanConnector";
 
@@ -49,6 +51,11 @@ setCliTheme(await detectCliTheme());
 const modelRepo = createModelRepository(config);
 await modelRepo.setupDatabase();
 setGlobalModelRepository(modelRepo);
+
+// Seed the chat sample workflow on first run (idempotent; only seeds if the repo is empty)
+const workflowRepo = createWorkflowRepository(config);
+await workflowRepo.setupDatabase();
+await seedSamplesIfRepoEmpty(workflowRepo);
 
 // Expose model cache path to the HFT worker via env var
 process.env.WORKGLOW_MODEL_CACHE = path.join(config.directories.cache, "onnx");

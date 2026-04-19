@@ -1,0 +1,338 @@
+/**
+ * @license
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type { AiProviderStreamFn, ModelConfig } from "@workglow/ai";
+import {
+  AiProvider,
+  getAiProviderRegistry,
+  registerAiTasks,
+  StructuredGenerationTask,
+  StructuredOutputValidationError,
+} from "@workglow/ai";
+import type { IExecuteContext } from "@workglow/task-graph";
+import { TaskConfigurationError, TaskRegistry } from "@workglow/task-graph";
+import { describe, expect, it } from "vitest";
+
+// ============================================================================
+// Fixtures
+// ============================================================================
+
+function mkContext(): IExecuteContext {
+  const controller = new AbortController();
+  return {
+    signal: controller.signal,
+    updateProgress: async () => {},
+    own: <T>(i: T) => i,
+    registry: {
+      has: () => false,
+      get: () => {
+        throw new Error("not registered");
+      },
+    } as any,
+    resourceScope: {
+      register: (_key: string, _fn: () => Promise<void>) => {},
+      dispose: async () => {},
+    } as any,
+  } as unknown as IExecuteContext;
+}
+
+function mkModel(): ModelConfig {
+  return {
+    provider: "fake-structured",
+    model: "fake-model",
+  } as unknown as ModelConfig;
+}
+
+class FakeStructuredProvider extends AiProvider {
+  override readonly name = "fake-structured";
+  override readonly displayName = "Fake Structured";
+  override readonly isLocal = true;
+  override readonly supportsBrowser = false;
+  override readonly taskTypes = ["StructuredGenerationTask"] as const;
+}
+
+/**
+ * Registers a fake provider that, per attempt, yields a final object-delta
+ * with the scripted payload and a finish event. `attempts` is an ordered
+ * list of payloads — one per invocation.
+ */
+function registerFakeStructuredProvider(attempts: ReadonlyArray<Record<string, unknown>>): {
+  calls: ReadonlyArray<string>;
+  unregister: () => void;
+} {
+  const calls: string[] = [];
+  let index = 0;
+  const stream: AiProviderStreamFn<any, any, ModelConfig> = async function* (input) {
+    calls.push(input.prompt as string);
+    const payload = attempts[Math.min(index, attempts.length - 1)];
+    index++;
+    yield { type: "object-delta", port: "object", objectDelta: payload };
+    yield { type: "finish", data: {} as any };
+  };
+
+  const registry = getAiProviderRegistry();
+  const provider = new FakeStructuredProvider();
+  registry.registerProvider(provider);
+  registry.registerStreamFn("fake-structured", "StructuredGenerationTask", stream);
+  return { calls, unregister: () => registry.unregisterProvider("fake-structured") };
+}
+
+const PERSON_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    age: { type: "integer", minimum: 0 },
+  },
+  required: ["name", "age"],
+  additionalProperties: false,
+} as const;
+
+async function drain<T>(iter: AsyncIterable<T>): Promise<T[]> {
+  const out: T[] = [];
+  for await (const item of iter) out.push(item);
+  return out;
+}
+
+// ============================================================================
+// Static + registration
+// ============================================================================
+
+describe("StructuredGenerationTask — schema and registration", () => {
+  it("declares maxRetries input with default 2", () => {
+    const schema = StructuredGenerationTask.inputSchema() as any;
+    expect(schema.properties.maxRetries).toBeDefined();
+    expect(schema.properties.maxRetries.default).toBe(2);
+  });
+
+  it("registers via registerAiTasks()", () => {
+    registerAiTasks();
+    expect(TaskRegistry.all.get("StructuredGenerationTask")).toBe(StructuredGenerationTask);
+  });
+});
+
+// ============================================================================
+// Validation (no retry)
+// ============================================================================
+
+describe("StructuredGenerationTask — validation", () => {
+  it("returns the object unchanged when it matches the schema", async () => {
+    const good = { name: "Alice", age: 30 };
+    const { unregister } = registerFakeStructuredProvider([good]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+        maxRetries: 0,
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      const result = await task.execute(input as any, mkContext());
+      expect(result).toEqual({ object: good });
+    } finally {
+      unregister();
+    }
+  });
+
+  it("throws StructuredOutputValidationError on type mismatch with maxRetries=0", async () => {
+    const bad = { name: "Alice", age: "thirty" }; // age wrong type
+    const { unregister } = registerFakeStructuredProvider([bad]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+        maxRetries: 0,
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      await expect(drain(task.executeStream(input as any, mkContext()))).rejects.toBeInstanceOf(
+        StructuredOutputValidationError
+      );
+    } finally {
+      unregister();
+    }
+  });
+
+  it("flags missing required properties", async () => {
+    const bad = { name: "Alice" }; // missing age
+    const { unregister } = registerFakeStructuredProvider([bad]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+        maxRetries: 0,
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      let caught: unknown;
+      try {
+        await drain(task.executeStream(input as any, mkContext()));
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(StructuredOutputValidationError);
+      const err = caught as StructuredOutputValidationError;
+      expect(err.attempts).toHaveLength(1);
+      const errorMessages = err.attempts[0].errors.map((e) => e.message).join(" | ");
+      expect(errorMessages.toLowerCase()).toContain("required");
+    } finally {
+      unregister();
+    }
+  });
+});
+
+// ============================================================================
+// Retry with feedback
+// ============================================================================
+
+describe("StructuredGenerationTask — retry", () => {
+  it("retries on validation failure and succeeds on a later attempt", async () => {
+    const bad = { name: "Alice", age: "thirty" };
+    const good = { name: "Alice", age: 30 };
+    const { calls, unregister } = registerFakeStructuredProvider([bad, good]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+        maxRetries: 2,
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      const result = await task.execute(input as any, mkContext());
+      expect(result).toEqual({ object: good });
+      expect(calls.length).toBe(2);
+      expect(calls[0]).toBe("Give me a person");
+      // Retry prompt should contain the original prompt plus feedback
+      expect(calls[1]).toContain("Give me a person");
+      expect(calls[1].toLowerCase()).toContain("validation");
+    } finally {
+      unregister();
+    }
+  });
+
+  it("emits an empty object-delta between attempts to reset accumulators", async () => {
+    const bad = { name: "Alice", age: "thirty" };
+    const good = { name: "Alice", age: 30 };
+    const { unregister } = registerFakeStructuredProvider([bad, good]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+        maxRetries: 2,
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      const events = await drain(task.executeStream(input as any, mkContext()));
+
+      // Between the first attempt's (invalid) object-delta and the second
+      // attempt's object-delta, there should be a reset {} delta.
+      const deltas = events.filter(
+        (e) => e.type === "object-delta" && (e as any).port === "object"
+      ) as Array<{ objectDelta: Record<string, unknown> }>;
+      expect(deltas.length).toBeGreaterThanOrEqual(3);
+      // First: the bad output. Second: the reset. Third: the good output.
+      expect(deltas[1].objectDelta).toEqual({});
+    } finally {
+      unregister();
+    }
+  });
+
+  it("throws with all attempt errors when retries are exhausted", async () => {
+    const bad1 = { name: "Alice", age: "thirty" };
+    const bad2 = { name: "Alice", age: "fifty" };
+    const bad3 = { name: "Alice", age: "eighty" };
+    const { calls, unregister } = registerFakeStructuredProvider([bad1, bad2, bad3]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+        maxRetries: 2, // 3 total attempts
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      let caught: unknown;
+      try {
+        await drain(task.executeStream(input as any, mkContext()));
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(StructuredOutputValidationError);
+      const err = caught as StructuredOutputValidationError;
+      expect(err.attempts).toHaveLength(3);
+      expect(calls.length).toBe(3);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("honors maxRetries=0 (no retries)", async () => {
+    const bad = { name: "Alice", age: "thirty" };
+    const { calls, unregister } = registerFakeStructuredProvider([bad, bad, bad]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+        maxRetries: 0,
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      await expect(drain(task.executeStream(input as any, mkContext()))).rejects.toBeInstanceOf(
+        StructuredOutputValidationError
+      );
+      expect(calls.length).toBe(1);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("defaults maxRetries to 2 when the field is omitted", async () => {
+    const bad = { name: "Alice", age: "thirty" };
+    const { calls, unregister } = registerFakeStructuredProvider([bad, bad, bad]);
+    try {
+      const input = {
+        model: mkModel(),
+        prompt: "Give me a person",
+        outputSchema: PERSON_SCHEMA,
+      };
+      const task = new StructuredGenerationTask({ defaults: input } as any);
+      await expect(drain(task.executeStream(input as any, mkContext()))).rejects.toBeInstanceOf(
+        StructuredOutputValidationError
+      );
+      // Default maxRetries=2 → 3 total attempts.
+      expect(calls.length).toBe(3);
+    } finally {
+      unregister();
+    }
+  });
+});
+
+// ============================================================================
+// Schema-of-schema check
+// ============================================================================
+
+describe("StructuredGenerationTask — schema compile errors", () => {
+  it("fails fast with a TaskConfigurationError when outputSchema is null", async () => {
+    // No provider registration — the compile error should hit before the
+    // provider is ever called. compileSchema() is lenient with most "bad"
+    // schemas (unknown types, broken $refs) but null is a genuine failure.
+    const input = {
+      model: mkModel(),
+      prompt: "Give me something",
+      outputSchema: null as unknown as Record<string, unknown>,
+      maxRetries: 0,
+    };
+    const task = new StructuredGenerationTask({ defaults: input } as any);
+    let caught: unknown;
+    try {
+      await drain(task.executeStream(input as any, mkContext()));
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(TaskConfigurationError);
+    expect((caught as TaskConfigurationError).message.toLowerCase()).toContain(
+      "invalid outputschema"
+    );
+  });
+});

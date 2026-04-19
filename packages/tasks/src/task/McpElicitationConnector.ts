@@ -6,7 +6,7 @@
 
 import type { Server } from "@modelcontextprotocol/sdk/server";
 import type { ElicitRequestFormParams, ElicitResult } from "@modelcontextprotocol/sdk/types";
-import type { IHumanConnector, IHumanRequest, IHumanResponse } from "./HumanInputTask";
+import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/util";
 
 /**
  * Converts a workglow DataPortSchema to MCP's flat requestedSchema format.
@@ -44,7 +44,8 @@ function toMcpRequestedSchema(
  * Usage:
  * ```ts
  * import { Server } from "@modelcontextprotocol/sdk/server";
- * import { McpElicitationConnector, HUMAN_CONNECTOR } from "@workglow/tasks";
+ * import { McpElicitationConnector } from "@workglow/tasks";
+ * import { HUMAN_CONNECTOR } from "@workglow/util";
  *
  * const mcpServer: Server = ...; // your MCP server instance
  * const connector = new McpElicitationConnector(mcpServer);

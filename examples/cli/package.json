@@ -19,7 +19,8 @@
     "build-js-worker-hft": "bun build --target=node --packages=external --outdir ./dist ./src/worker_hft.ts",
     "build-lib": "bun build --target=bun --packages=external --outdir ./dist ./src/lib.ts",
     "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "bin": "./dist/workglow.js",
   "files": [
