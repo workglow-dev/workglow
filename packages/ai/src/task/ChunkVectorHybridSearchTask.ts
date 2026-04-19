@@ -177,7 +177,7 @@ export class ChunkVectorHybridSearchTask extends Task<
     const searchVector =
       queryVector instanceof Float32Array ? queryVector : new Float32Array(queryVector);
 
-    // Perform hybrid search
+    // kb.hybridSearch throws if the storage backend doesn't support it.
     const results = await kb.hybridSearch(searchVector, {
       textQuery: queryText,
       topK,

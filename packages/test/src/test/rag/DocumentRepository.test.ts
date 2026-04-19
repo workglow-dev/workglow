@@ -5,13 +5,22 @@
  */
 
 import {
+  ChunkVectorPrimaryKey,
+  ChunkVectorStorageSchema,
   Document,
+  DocumentStorageKey,
+  DocumentStorageSchema,
   KnowledgeBase,
   NodeKind,
   StructuralParser,
   createKnowledgeBase,
 } from "@workglow/knowledge-base";
-import type { SectionNode } from "@workglow/knowledge-base";
+import type {
+  ChunkVectorStorage,
+  DocumentTabularStorage,
+  SectionNode,
+} from "@workglow/knowledge-base";
+import { InMemoryTabularStorage, InMemoryVectorStorage } from "@workglow/storage";
 import { setLogger, uuid4 } from "@workglow/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
@@ -361,7 +370,10 @@ Paragraph.`;
       });
 
       const queryVector = new Float32Array([1.0, 0.0, 0.0]);
-      const results = await kb.similaritySearch(queryVector, { topK: 10, scoreThreshold: 0.9 });
+      const results = await kb.similaritySearch(queryVector, {
+        topK: 10,
+        scoreThreshold: 0.9,
+      });
 
       expect(results.length).toBeGreaterThanOrEqual(1);
       results.forEach((r: any) => {
@@ -418,6 +430,165 @@ Paragraph.`;
           createKnowledgeBase({ name: "kb", vectorDimensions: 1.5, register: false })
         ).rejects.toThrow("createKnowledgeBase: 'vectorDimensions' must be a positive integer");
       });
+    });
+
+    describe("callbacks", () => {
+      it("should invoke onDocumentUpsert when a document is upserted", async () => {
+        const calls: Array<{ kbName: string; docId: string | undefined }> = [];
+        const kbWithCb = await createKnowledgeBase({
+          name: `test-kb-cb-${uuid4()}`,
+          vectorDimensions: 3,
+          register: false,
+          onDocumentUpsert: async (instance, doc) => {
+            calls.push({ kbName: instance.name, docId: doc.doc_id });
+          },
+        });
+
+        const doc_id = uuid4();
+        const root = await StructuralParser.parseMarkdown(doc_id, "# Test\n\nContent.", "Test");
+        const doc = new Document(root, { title: "Test" });
+
+        await kbWithCb.upsertDocument(doc);
+
+        expect(calls).toHaveLength(1);
+        expect(calls[0].kbName).toBe(kbWithCb.name);
+        expect(calls[0].docId).toBeDefined();
+      });
+
+      it("should invoke onDocumentDelete when a document is deleted", async () => {
+        const deletedIds: string[] = [];
+        const kbWithCb = await createKnowledgeBase({
+          name: `test-kb-del-${uuid4()}`,
+          vectorDimensions: 3,
+          register: false,
+          onDocumentDelete: async (_instance, doc_id) => {
+            deletedIds.push(doc_id);
+          },
+        });
+
+        const doc_id = uuid4();
+        const root = await StructuralParser.parseMarkdown(doc_id, "# T\n\nx.", "T");
+        const doc = new Document(root, { title: "T" });
+        const inserted = await kbWithCb.upsertDocument(doc);
+
+        await kbWithCb.deleteDocument(inserted.doc_id!);
+
+        expect(deletedIds).toEqual([inserted.doc_id]);
+      });
+
+      it("should reject upsertDocument when onDocumentUpsert throws, with storage already committed", async () => {
+        const kbWithCb = await createKnowledgeBase({
+          name: `test-kb-throw-${uuid4()}`,
+          vectorDimensions: 3,
+          register: false,
+          onDocumentUpsert: async () => {
+            throw new Error("callback boom");
+          },
+        });
+
+        const doc_id = uuid4();
+        const root = await StructuralParser.parseMarkdown(doc_id, "# T\n\nx.", "T");
+        const doc = new Document(root, { title: "T" });
+
+        await expect(kbWithCb.upsertDocument(doc)).rejects.toThrow("callback boom");
+
+        // Contract: storage is committed before the callback runs, so the document
+        // must still be retrievable even though upsertDocument rejected.
+        const retrieved = await kbWithCb.getDocument(doc.doc_id!);
+        expect(retrieved).toBeDefined();
+        expect(retrieved?.doc_id).toBe(doc.doc_id);
+      });
+
+      it("should throw a helpful error when kb.search() is called without onSearch", async () => {
+        const bareKb = await createKnowledgeBase({
+          name: `test-kb-nosearch-${uuid4()}`,
+          vectorDimensions: 3,
+          register: false,
+        });
+
+        await expect(bareKb.search("hello")).rejects.toThrow(/onSearch/);
+      });
+
+      it("should invoke onSearch with the query and options when kb.search() is called", async () => {
+        const received: Array<{ query: string; topK: number | undefined }> = [];
+        const kbWithSearch = await createKnowledgeBase({
+          name: `test-kb-search-${uuid4()}`,
+          vectorDimensions: 3,
+          register: false,
+          onSearch: async (_kb, query, options) => {
+            received.push({ query, topK: options?.topK });
+            return [];
+          },
+        });
+
+        const results = await kbWithSearch.search("query text", { topK: 4 });
+
+        expect(received).toEqual([{ query: "query text", topK: 4 }]);
+        expect(results).toEqual([]);
+      });
+    });
+  });
+
+  describe("KnowledgeBase virtual dispatch", () => {
+    it("should let a subclass intercept similaritySearch and inject a filter that scopes results", async () => {
+      const seenFilters: Array<Record<string, unknown> | undefined> = [];
+
+      class ScopedStub extends KnowledgeBase {
+        override async similaritySearch(
+          query: Parameters<KnowledgeBase["similaritySearch"]>[0],
+          options?: Parameters<KnowledgeBase["similaritySearch"]>[1]
+        ) {
+          seenFilters.push(options?.filter);
+          return super.similaritySearch(query, {
+            ...options,
+            filter: { ...options?.filter, doc_id: "doc_a" },
+          });
+        }
+      }
+
+      const tabularStorage = new InMemoryTabularStorage(DocumentStorageSchema, DocumentStorageKey);
+      await tabularStorage.setupDatabase();
+      const vectorStorage = new InMemoryVectorStorage(
+        ChunkVectorStorageSchema,
+        ChunkVectorPrimaryKey,
+        [],
+        3,
+        Float32Array
+      );
+      await vectorStorage.setupDatabase();
+
+      const scoped = new ScopedStub(
+        `test-kb-scope-${uuid4()}`,
+        tabularStorage as unknown as DocumentTabularStorage,
+        vectorStorage as unknown as ChunkVectorStorage
+      );
+
+      // Three chunks across two documents. The override will inject
+      // `doc_id: "doc_a"`, so only the two chunks in doc_a should come back.
+      await scoped.upsertChunk({
+        doc_id: "doc_a",
+        vector: new Float32Array([1, 0, 0]),
+        metadata: { chunkId: "c1", doc_id: "doc_a", text: "A1", nodePath: [], depth: 0 },
+      });
+      await scoped.upsertChunk({
+        doc_id: "doc_a",
+        vector: new Float32Array([0.9, 0.1, 0]),
+        metadata: { chunkId: "c2", doc_id: "doc_a", text: "A2", nodePath: [], depth: 0 },
+      });
+      await scoped.upsertChunk({
+        doc_id: "doc_b",
+        vector: new Float32Array([1, 0, 0]),
+        metadata: { chunkId: "c3", doc_id: "doc_b", text: "B1", nodePath: [], depth: 0 },
+      });
+
+      const results = await scoped.similaritySearch(new Float32Array([1, 0, 0]), { topK: 10 });
+
+      // Override ran, capturing the caller's filter (undefined here).
+      expect(seenFilters).toEqual([undefined]);
+      // Injected `doc_id: "doc_a"` actually narrowed results — the doc_b chunk
+      // is dropped, proving the filter reached the storage layer.
+      expect(results).toHaveLength(2);
+      expect(results.every((r) => r.doc_id === "doc_a")).toBe(true);
     });
   });
 

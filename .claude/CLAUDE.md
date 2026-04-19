@@ -150,7 +150,7 @@ Auto-generated PKs: `x-auto-generated: true` in schema — integers auto-increme
 - `ChunkRecord` — flat chunk with tree linkage (`nodePath`, `depth`)
 - `ChunkVectorStorageSchema` / `ChunkVectorPrimaryKey` — vector storage schema for chunks
 
-Key methods: `kb.upsertDocument()`, `kb.upsertChunk()`, `kb.similaritySearch()`, `kb.clearChunks()`, `kb.getAllChunks()`, `kb.putBulk()`, `kb.deleteDocument()` (cascades to chunks).
+Key methods: `kb.upsertDocument()`, `kb.upsertChunk()`, `kb.similaritySearch()` (or `kb.search()` with an installed `onSearch` callback), `kb.clearChunks()`, `kb.getAllChunks()`, `kb.putBulk()`, `kb.deleteDocument()` (cascades to chunks).
 
 RAG tasks reference knowledge bases by string ID (resolved from registry at runtime): `ChunkVectorUpsertTask({ knowledgeBase: "my-kb" })`, `ChunkRetrievalTask({ knowledgeBase: "my-kb" })`.
 

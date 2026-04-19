@@ -10,6 +10,11 @@ import type { ChunkVectorStorage } from "../chunk/ChunkVectorStorageSchema";
 import { ChunkVectorPrimaryKey, ChunkVectorStorageSchema } from "../chunk/ChunkVectorStorageSchema";
 import type { DocumentTabularStorage } from "../document/DocumentStorageSchema";
 import { DocumentStorageKey, DocumentStorageSchema } from "../document/DocumentStorageSchema";
+import type {
+  OnDocumentDeleteCallback,
+  OnDocumentUpsertCallback,
+  OnSearchCallback,
+} from "./KnowledgeBase";
 import { KnowledgeBase } from "./KnowledgeBase";
 import { registerKnowledgeBase } from "./KnowledgeBaseRegistry";
 
@@ -20,6 +25,9 @@ export interface CreateKnowledgeBaseOptions {
   readonly register?: boolean;
   readonly title?: string;
   readonly description?: string;
+  readonly onDocumentUpsert?: OnDocumentUpsertCallback;
+  readonly onDocumentDelete?: OnDocumentDeleteCallback;
+  readonly onSearch?: OnSearchCallback;
 }
 
 /**
@@ -43,6 +51,9 @@ export async function createKnowledgeBase(
     register: shouldRegister = true,
     title,
     description,
+    onDocumentUpsert,
+    onDocumentDelete,
+    onSearch,
   } = options;
 
   const vectorCtor = vectorCtorOption ?? Float32Array;
@@ -74,8 +85,7 @@ export async function createKnowledgeBase(
     name,
     tabularStorage as unknown as DocumentTabularStorage,
     vectorStorage as unknown as ChunkVectorStorage,
-    title,
-    description
+    { title, description, onDocumentUpsert, onDocumentDelete, onSearch }
   );
 
   if (shouldRegister) {
