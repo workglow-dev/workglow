@@ -203,7 +203,9 @@ export function registerTaskCommand(program: Command): void {
       try {
         const instance = new Ctor(taskConfig) as ITask;
         const result = await withCli(instance, { suppressResultOutput: true }).run(input);
-        await outputResult(result, opts.outputJsonFile as string | undefined);
+        if (!process.stdout.isTTY || opts.outputJsonFile) {
+          await outputResult(result, opts.outputJsonFile as string | undefined);
+        }
       } catch (err) {
         console.error(`Error: ${formatError(err)}`);
         process.exit(1);

@@ -384,7 +384,9 @@ export function registerWorkflowCommand(program: Command): void {
 
       try {
         const result = await withCli(graph, { suppressResultOutput: true }).run(input, runConfig);
-        await outputResult(result, opts.outputJsonFile as string | undefined);
+        if (!process.stdout.isTTY || opts.outputJsonFile) {
+          await outputResult(result, opts.outputJsonFile as string | undefined);
+        }
       } catch (err) {
         console.error(`Error: ${formatError(err)}`);
         process.exit(1);
