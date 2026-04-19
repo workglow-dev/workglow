@@ -7,6 +7,31 @@
 import type { DataPortSchema } from "@workglow/util/schema";
 
 // ========================================================================
+// Image content constraints (shared by schema + runtime guard)
+// ========================================================================
+
+/**
+ * MIME types accepted for image content blocks. Matches the set supported
+ * by the major provider APIs (Anthropic, Gemini, OpenAI).
+ */
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+] as const;
+
+export type ImageMimeType = (typeof ALLOWED_IMAGE_MIME_TYPES)[number];
+
+/**
+ * Maximum base64 length for image data. 20 MiB of base64 encodes ~15 MiB
+ * of binary — a reasonable upper bound for provider APIs, and a hard guard
+ * against unbounded memory use when ContentBlockImage originates from an
+ * untrusted caller.
+ */
+export const MAX_IMAGE_DATA_LENGTH = 20_971_520;
+
+// ========================================================================
 // Canonical ContentBlock union
 // ========================================================================
 
@@ -17,7 +42,7 @@ export type ContentBlockText = {
 
 export type ContentBlockImage = {
   readonly type: "image";
-  readonly mimeType: string;
+  readonly mimeType: ImageMimeType;
   readonly data: string;
 };
 
@@ -70,8 +95,8 @@ const ContentBlockImageSchema = {
   type: "object",
   properties: {
     type: { type: "string", enum: ["image"] },
-    mimeType: { type: "string" },
-    data: { type: "string" },
+    mimeType: { type: "string", enum: ALLOWED_IMAGE_MIME_TYPES },
+    data: { type: "string", maxLength: MAX_IMAGE_DATA_LENGTH },
   },
   required: ["type", "mimeType", "data"],
   additionalProperties: false,
@@ -155,7 +180,12 @@ export function isContentBlock(value: unknown): value is ContentBlock {
     case "text":
       return typeof v.text === "string";
     case "image":
-      return typeof v.mimeType === "string" && typeof v.data === "string";
+      return (
+        typeof v.mimeType === "string" &&
+        (ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(v.mimeType) &&
+        typeof v.data === "string" &&
+        v.data.length <= MAX_IMAGE_DATA_LENGTH
+      );
     case "tool_use":
       return (
         typeof v.id === "string" &&

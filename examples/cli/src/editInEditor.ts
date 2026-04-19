@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import process from "node:process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,6 +24,42 @@ export function getEditorCommand(): string {
 }
 
 /**
+ * Minimal POSIX shell-word splitter. Handles unquoted whitespace separators
+ * plus matched single/double quotes. Intentionally does NOT interpret shell
+ * metacharacters — an editor env var like `vim; rm -rf ~` splits into
+ * `["vim;", "rm", "-rf", "~"]` and is passed to execFileSync with shell:false,
+ * so the literal string `vim;` is treated as a binary name (which won't exist)
+ * rather than being interpreted by a shell.
+ */
+function splitEditorCommand(cmd: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (/\s/.test(ch) && !inSingle && !inDouble) {
+      if (current) {
+        args.push(current);
+        current = "";
+      }
+      continue;
+    }
+    current += ch;
+  }
+  if (current) args.push(current);
+  return args;
+}
+
+/**
  * Writes `initialContent` to a temp file, launches the user's editor, then reads the file back.
  * Same idea as `git commit`: unchanged buffer ⇒ cancel; non-zero editor exit ⇒ error.
  */
@@ -35,10 +71,14 @@ export function editStringInExternalEditor(
   const file = join(dir, tempBasename);
   writeFileSync(file, initialContent, "utf-8");
 
-  const shell = process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "/bin/sh";
   try {
-    const cmd = `${getEditorCommand()} ${JSON.stringify(file)}`;
-    execSync(cmd, { stdio: "inherit", shell });
+    const parts = splitEditorCommand(getEditorCommand());
+    if (parts.length === 0) {
+      throw new Error("No editor configured (GIT_EDITOR/VISUAL/EDITOR is empty)");
+    }
+    const [editorBin, ...editorArgs] = parts;
+    editorArgs.push(file);
+    execFileSync(editorBin, editorArgs, { stdio: "inherit" });
   } catch (e) {
     try {
       rmSync(dir, { recursive: true, force: true });
