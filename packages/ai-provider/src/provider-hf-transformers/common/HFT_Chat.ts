@@ -186,6 +186,10 @@ export const HFT_Chat_Stream: AiProviderStreamFn<
   const queue: string[] = [];
   let done = false;
   let resolver: (() => void) | undefined;
+  // Capture errors from the background generation task so they propagate
+  // through the generator even if the consumer drops the iterator before
+  // we reach `await task` in the normal path.
+  let genError: unknown = undefined;
 
   const task = (async () => {
     try {
@@ -193,6 +197,8 @@ export const HFT_Chat_Stream: AiProviderStreamFn<
         queue.push(piece);
         resolver?.();
       });
+    } catch (err) {
+      genError = err;
     } finally {
       done = true;
       resolver?.();
@@ -208,6 +214,12 @@ export const HFT_Chat_Stream: AiProviderStreamFn<
       yield { type: "text-delta", port: "text", textDelta: queue.shift()! };
     }
   }
+  // Ensure the background task settles before we decide whether to finish
+  // or surface an error. The task never rejects (errors are captured in
+  // genError above) so this just awaits the microtask chain.
   await task;
+  if (genError) {
+    throw genError;
+  }
   yield { type: "finish", data: {} as AiChatProviderOutput };
 };

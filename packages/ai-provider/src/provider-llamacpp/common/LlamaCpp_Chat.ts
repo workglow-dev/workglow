@@ -141,6 +141,10 @@ export const LlamaCpp_Chat_Stream: AiProviderStreamFn<
   const queue: string[] = [];
   let done = false;
   let resolver: (() => void) | undefined;
+  // Capture errors from the background prompt so they propagate through the
+  // generator even if the consumer drops the iterator before we reach
+  // `await promptPromise` on the normal completion path.
+  let genError: unknown = undefined;
 
   const promptPromise = session
     .prompt(userText, {
@@ -152,6 +156,9 @@ export const LlamaCpp_Chat_Stream: AiProviderStreamFn<
         queue.push(chunk);
         resolver?.();
       },
+    })
+    .catch((err: unknown) => {
+      genError = err;
     })
     .finally(() => {
       done = true;
@@ -175,6 +182,10 @@ export const LlamaCpp_Chat_Stream: AiProviderStreamFn<
       yield { type: "text-delta", port: "text", textDelta: queue.shift()! };
     }
   }
+  // Await the settled promise (never rejects — errors land in genError).
   await promptPromise;
+  if (genError) {
+    throw genError;
+  }
   yield { type: "finish", data: {} as AiChatProviderOutput };
 };
