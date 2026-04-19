@@ -6,6 +6,8 @@
 
 export * from "./task-graph/Dataflow";
 export * from "./task-graph/DataflowEvents";
+export * from "./task-graph/TransformRegistry";
+export * from "./task-graph/transforms";
 
 export * from "./task-graph/GraphEntitlementUtils";
 export * from "./task-graph/GraphFormatScanner";

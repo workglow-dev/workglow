@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { areSemanticallyCompatible } from "@workglow/util/schema";
-import { EventEmitter } from "@workglow/util";
+import { areSemanticallyCompatible, type JsonSchema } from "@workglow/util/schema";
+import { EventEmitter, type ServiceRegistry } from "@workglow/util";
 import type { StreamEvent } from "../task/StreamTypes";
 import { TaskError } from "../task/TaskError";
 import { DataflowJson } from "../task/TaskJSON";
@@ -18,6 +18,7 @@ import {
   DataflowEvents,
 } from "./DataflowEvents";
 import { TaskGraph } from "./TaskGraph";
+import { resolveTransform, type TransformStep } from "./TransformRegistry";
 
 export type DataflowIdType = `${string}[${string}] ==> ${string}[${string}]`;
 
@@ -53,6 +54,43 @@ export class Dataflow {
   public value: any = undefined;
   public status: TaskStatus = TaskStatus.PENDING;
   public error: TaskError | undefined;
+
+  /**
+   * Ordered chain of transform steps applied to the port value between source
+   * and target. Kept private so all mutations funnel through the setters and
+   * trigger cache invalidation.
+   */
+  private _transforms: TransformStep[] = [];
+
+  public getTransforms(): ReadonlyArray<TransformStep> {
+    return this._transforms;
+  }
+
+  public hasTransforms(): boolean {
+    return this._transforms.length > 0;
+  }
+
+  public setTransforms(steps: ReadonlyArray<TransformStep>): void {
+    this._transforms = steps.map((s) => ({ id: s.id, params: s.params }));
+    this.invalidateCompatibilityCache();
+  }
+
+  public addTransform(step: TransformStep): void {
+    this._transforms.push({ id: step.id, params: step.params });
+    this.invalidateCompatibilityCache();
+  }
+
+  public removeTransform(index: number): void {
+    if (index < 0 || index >= this._transforms.length) return;
+    this._transforms.splice(index, 1);
+    this.invalidateCompatibilityCache();
+  }
+
+  public clearTransforms(): void {
+    if (this._transforms.length === 0) return;
+    this._transforms = [];
+    this.invalidateCompatibilityCache();
+  }
 
   /**
    * Active stream for this dataflow edge.
@@ -95,13 +133,23 @@ export class Dataflow {
    * After consumption the stream reference is cleared. Calling this method on
    * a dataflow that has no stream is a no-op.
    */
-  public async awaitStreamValue(): Promise<void> {
+  public async awaitStreamValue(registry?: ServiceRegistry): Promise<void> {
     if (!this.stream) return;
 
     const reader = this.stream.getReader();
     let lastSnapshotData: any = undefined;
     let finishData: any = undefined;
     let streamError: Error | undefined;
+
+    // When transforms are configured and every step supports applyStream, we
+    // can transform snapshots in-flight after port extraction. Scalar casts
+    // (no applyStream) force buffering to the finish event.
+    const streamableTransforms =
+      this._transforms.length > 0 &&
+      this._transforms.every((step) => {
+        const { def } = resolveTransform(step, registry);
+        return typeof def.applyStream === "function";
+      });
 
     try {
       while (true) {
@@ -110,7 +158,14 @@ export class Dataflow {
 
         switch (event.type) {
           case "snapshot":
-            lastSnapshotData = event.data;
+            if (streamableTransforms) {
+              // Extract port from the snapshot block then fold the chain.
+              const extracted = this.extractSourcePort(event.data);
+              this.value = this.applyStreamChain(extracted, registry);
+              lastSnapshotData = undefined;
+            } else {
+              lastSnapshotData = event.data;
+            }
             break;
           case "finish":
             finishData = event.data;
@@ -133,13 +188,33 @@ export class Dataflow {
     }
 
     // Priority: snapshot > finish.
-    // The source task enriches the finish event with accumulated text when
-    // shouldAccumulate=true, so finishData carries complete port data.
     if (lastSnapshotData !== undefined) {
       this.setPortData(lastSnapshotData);
+      if (!streamableTransforms && this._transforms.length > 0) {
+        await this.applyTransforms(registry);
+      }
     } else if (finishData !== undefined) {
       this.setPortData(finishData);
+      if (this._transforms.length > 0) {
+        await this.applyTransforms(registry);
+      }
     }
+    // If streamableTransforms ran, this.value is already the transformed value.
+  }
+
+  private extractSourcePort(block: any): unknown {
+    if (this.sourceTaskPortId === DATAFLOW_ALL_PORTS) return block;
+    if (this.sourceTaskPortId === DATAFLOW_ERROR_PORT) return block;
+    return block?.[this.sourceTaskPortId];
+  }
+
+  private applyStreamChain(portValue: unknown, registry?: ServiceRegistry): unknown {
+    let current: unknown = portValue;
+    for (const step of this._transforms) {
+      const { def, params } = resolveTransform(step, registry);
+      current = def.applyStream!(current, params);
+    }
+    return current;
   }
 
   public reset() {
@@ -204,12 +279,43 @@ export class Dataflow {
   }
 
   toJSON(): DataflowJson {
-    return {
+    const base: DataflowJson = {
       sourceTaskId: this.sourceTaskId,
       sourceTaskPortId: this.sourceTaskPortId,
       targetTaskId: this.targetTaskId,
       targetTaskPortId: this.targetTaskPortId,
     };
+    if (this._transforms.length > 0) {
+      base.transforms = this._transforms.map((s) =>
+        s.params === undefined ? { id: s.id } : { id: s.id, params: { ...s.params } }
+      );
+    }
+    return base;
+  }
+
+  /**
+   * Applies the configured transform chain to {@link value} in sequence. Runs
+   * only when at least one transform is configured. Any throw is captured into
+   * {@link error} and the dataflow is flipped to FAILED so downstream nodes do
+   * not receive a half-transformed value.
+   *
+   * Resolution uses the provided DI registry when supplied; otherwise falls
+   * back to the global {@link TransformRegistry}.
+   */
+  public async applyTransforms(registry?: ServiceRegistry): Promise<void> {
+    if (this._transforms.length === 0) return;
+    try {
+      let current: unknown = this.value;
+      for (const step of this._transforms) {
+        const { def, params } = resolveTransform(step, registry);
+        current = await def.apply(current, params);
+      }
+      this.value = current;
+    } catch (err) {
+      this.error = err as TaskError;
+      this.setStatus(TaskStatus.FAILED);
+      throw err;
+    }
   }
 
   /**
@@ -282,11 +388,28 @@ export class Dataflow {
       sourceSchemaProperty = true;
     }
 
-    const result = areSemanticallyCompatible(sourceSchemaProperty, targetSchemaProperty);
+    const effectiveSourceSchema = this.composeSourceSchema(sourceSchemaProperty as JsonSchema);
+
+    const result = areSemanticallyCompatible(effectiveSourceSchema, targetSchemaProperty);
     if (shouldCache) {
       this._compatibilityCache = result;
     }
     return result;
+  }
+
+  /**
+   * Folds the transform chain over a source schema to get the effective schema
+   * the target port actually sees. Used by {@link semanticallyCompatible} and
+   * exposed so the UI can render bridge-validation identically.
+   */
+  public composeSourceSchema(sourceSchema: JsonSchema): JsonSchema {
+    if (this._transforms.length === 0) return sourceSchema;
+    let current: JsonSchema = sourceSchema;
+    for (const step of this._transforms) {
+      const { def, params } = resolveTransform(step);
+      current = def.inferOutputSchema(current, params);
+    }
+    return current;
   }
 
   // ========================================================================

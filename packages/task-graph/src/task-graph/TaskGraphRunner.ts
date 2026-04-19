@@ -472,6 +472,10 @@ export class TaskGraphRunner {
             resultsKeys,
           });
         }
+        continue;
+      }
+      if (dataflow.hasTransforms()) {
+        await dataflow.applyTransforms(this.registry);
       }
     }
   }
@@ -769,7 +773,7 @@ export class TaskGraphRunner {
     const dataflows = this.graph.getSourceDataflows(task.id);
     const streamPromises = dataflows
       .filter((df) => df.stream !== undefined)
-      .map((df) => df.awaitStreamValue());
+      .map((df) => df.awaitStreamValue(this.registry));
     if (streamPromises.length > 0) {
       await Promise.all(streamPromises);
     }

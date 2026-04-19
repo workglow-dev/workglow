@@ -94,7 +94,7 @@ export * from "./util/BrowserTaskDeps";
 export * from "./util/SafeFetch";
 export * from "./util/UrlClassifier";
 
-import { TaskRegistry } from "@workglow/task-graph";
+import { TaskRegistry, registerBuiltInTransforms } from "@workglow/task-graph";
 import { registerBrowserTasks } from "./task/browser-control/register";
 import { DateFormatTask } from "./task/DateFormatTask";
 import { DebugLogTask } from "./task/DebugLogTask";
@@ -243,5 +243,6 @@ export let registerCommonTasks = () => {
   ];
   tasks.map(TaskRegistry.registerTask);
   registerBrowserTasks();
+  registerBuiltInTransforms();
   return tasks;
 };

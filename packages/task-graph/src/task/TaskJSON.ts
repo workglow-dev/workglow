@@ -107,6 +107,15 @@ export type DataflowJson = {
   sourceTaskPortId: string;
   targetTaskId: unknown;
   targetTaskPortId: string;
+  /**
+   * Ordered chain of edge-level transforms. Each step is resolved against the
+   * {@link TransformRegistry}; unknown ids survive serialization but fail
+   * visibly at runtime via the `BrokenTransform` sentinel.
+   */
+  transforms?: ReadonlyArray<{
+    readonly id: string;
+    readonly params?: Record<string, unknown>;
+  }>;
 };
 
 export interface TaskGraphJsonOptions {
@@ -277,14 +286,18 @@ export const createGraphFromGraphJSON = (
     subGraph.addTask(createTaskFromGraphJSON(subitem, registry, options));
   }
   for (const subitem of graphJsonObj.dataflows) {
-    subGraph.addDataflow(
-      new Dataflow(
-        subitem.sourceTaskId,
-        subitem.sourceTaskPortId,
-        subitem.targetTaskId,
-        subitem.targetTaskPortId
-      )
+    const dataflow = new Dataflow(
+      subitem.sourceTaskId,
+      subitem.sourceTaskPortId,
+      subitem.targetTaskId,
+      subitem.targetTaskPortId
     );
+    if (subitem.transforms && subitem.transforms.length > 0) {
+      dataflow.setTransforms(
+        subitem.transforms.map((t) => ({ id: t.id, params: t.params }))
+      );
+    }
+    subGraph.addDataflow(dataflow);
   }
   return subGraph;
 };
