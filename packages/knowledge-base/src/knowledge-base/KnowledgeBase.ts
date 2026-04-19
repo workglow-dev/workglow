@@ -22,6 +22,48 @@ import type {
 } from "../document/DocumentStorageSchema";
 
 /**
+ * Options passed through `kb.search()` to the `onSearch` callback.
+ * The callback decides how to interpret them (similarity vs hybrid, etc.).
+ * `filter` is intentionally a loose record — the callback and its backing
+ * vector storage define the allowed keys.
+ */
+export interface ISearchOptions {
+  readonly topK?: number;
+  readonly filter?: Readonly<Record<string, unknown>>;
+  readonly scoreThreshold?: number;
+}
+
+/**
+ * Callback invoked after a document is upserted.
+ * Receives the KB instance and the upserted document.
+ */
+export type OnDocumentUpsertCallback = (kb: KnowledgeBase, doc: Document) => Promise<void>;
+
+/**
+ * Callback invoked after a document (and its chunks) are deleted.
+ * Receives the KB instance and the deleted document's ID.
+ */
+export type OnDocumentDeleteCallback = (kb: KnowledgeBase, doc_id: string) => Promise<void>;
+
+/**
+ * Callback invoked by `search()` to handle text-to-vector conversion
+ * and the actual search. Returns search results.
+ */
+export type OnSearchCallback = (
+  kb: KnowledgeBase,
+  query: string,
+  options?: ISearchOptions
+) => Promise<ChunkSearchResult[]>;
+
+export interface KnowledgeBaseOptions {
+  readonly title?: string;
+  readonly description?: string;
+  readonly onDocumentUpsert?: OnDocumentUpsertCallback;
+  readonly onDocumentDelete?: OnDocumentDeleteCallback;
+  readonly onSearch?: OnSearchCallback;
+}
+
+/**
  * Unified KnowledgeBase that owns both document and vector storage,
  * providing lifecycle management and cascading deletes.
  */
@@ -29,21 +71,64 @@ export class KnowledgeBase {
   readonly name: string;
   readonly title: string;
   readonly description: string;
-  private tabularStorage: DocumentTabularStorage;
-  private chunkStorage: ChunkVectorStorage;
+  private readonly tabularStorage: DocumentTabularStorage;
+  private readonly chunkStorage: ChunkVectorStorage;
 
+  /**
+   * Called after `upsertDocument` successfully writes to storage.
+   * Awaited — throwing rejects the upsert call, but storage is already committed.
+   * Use for chunk re-indexing, audit logging, etc.
+   */
+  readonly onDocumentUpsert: OnDocumentUpsertCallback | undefined;
+  /**
+   * Called after `deleteDocument` successfully deletes the document and its chunks.
+   * Awaited — throwing rejects the delete call, but storage is already committed.
+   */
+  readonly onDocumentDelete: OnDocumentDeleteCallback | undefined;
+  /**
+   * Called by `search()` to embed the query and execute the search.
+   * Required if you intend to call `kb.search()`.
+   */
+  readonly onSearch: OnSearchCallback | undefined;
+
+  constructor(
+    name: string,
+    documentStorage: DocumentTabularStorage,
+    chunkStorage: ChunkVectorStorage,
+    options?: KnowledgeBaseOptions
+  );
+  /** @deprecated Use the options object overload instead. */
   constructor(
     name: string,
     documentStorage: DocumentTabularStorage,
     chunkStorage: ChunkVectorStorage,
     title?: string,
     description?: string
+  );
+  constructor(
+    name: string,
+    documentStorage: DocumentTabularStorage,
+    chunkStorage: ChunkVectorStorage,
+    titleOrOptions?: string | KnowledgeBaseOptions,
+    description?: string
   ) {
     this.name = name;
-    this.title = title ?? name;
-    this.description = description ?? "";
     this.tabularStorage = documentStorage;
     this.chunkStorage = chunkStorage;
+
+    if (typeof titleOrOptions === "object" && titleOrOptions !== null) {
+      this.title = titleOrOptions.title ?? name;
+      this.description = titleOrOptions.description ?? "";
+      this.onDocumentUpsert = titleOrOptions.onDocumentUpsert;
+      this.onDocumentDelete = titleOrOptions.onDocumentDelete;
+      this.onSearch = titleOrOptions.onSearch;
+    } else {
+      this.title = titleOrOptions ?? name;
+      this.description = description ?? "";
+      this.onDocumentUpsert = undefined;
+      this.onDocumentDelete = undefined;
+      this.onSearch = undefined;
+    }
   }
 
   // ===========================================================================
@@ -66,6 +151,11 @@ export class KnowledgeBase {
     if (document.doc_id !== entity.doc_id) {
       document.setDocId(entity.doc_id);
     }
+
+    if (this.onDocumentUpsert) {
+      await this.onDocumentUpsert(this, document);
+    }
+
     return document;
   }
 
@@ -86,6 +176,10 @@ export class KnowledgeBase {
   async deleteDocument(doc_id: string): Promise<void> {
     await this.deleteChunksForDocument(doc_id);
     await this.tabularStorage.delete({ doc_id });
+
+    if (this.onDocumentDelete) {
+      await this.onDocumentDelete(this, doc_id);
+    }
   }
 
   /**
@@ -234,7 +328,10 @@ export class KnowledgeBase {
   // ===========================================================================
 
   /**
-   * Search for similar chunks using vector similarity
+   * Search for similar chunks using vector similarity. This is the canonical
+   * scope-aware entry point — subclasses (e.g. a scoped KB that isolates by
+   * tenant) override this to inject filter predicates before delegating to
+   * the underlying storage.
    */
   async similaritySearch(
     query: TypedArray,
@@ -244,14 +341,10 @@ export class KnowledgeBase {
   }
 
   /**
-   * Check if the configured storage backend supports hybrid search
-   */
-  supportsHybridSearch(): boolean {
-    return typeof this.chunkStorage.hybridSearch === "function";
-  }
-
-  /**
-   * Hybrid search combining vector similarity and full-text search
+   * Hybrid search combining vector similarity and full-text search. Canonical
+   * scope-aware entry point; subclasses override for filter injection.
+   *
+   * @throws Error if the configured storage backend does not support hybrid search.
    */
   async hybridSearch(
     query: TypedArray,
@@ -264,6 +357,52 @@ export class KnowledgeBase {
       );
     }
     return this.chunkStorage.hybridSearch(query, options);
+  }
+
+  /**
+   * Check if the configured storage backend supports hybrid search.
+   */
+  supportsHybridSearch(): boolean {
+    return typeof this.chunkStorage.hybridSearch === "function";
+  }
+
+  /**
+   * High-level text search. Delegates to the `onSearch` callback, which is
+   * responsible for embedding the query and executing the appropriate search
+   * (similarity, hybrid, keyword, etc.). Install `onSearch` via
+   * `createKnowledgeBase({ onSearch })` or the KnowledgeBase constructor options.
+   *
+   * If `onSearch` calls back into `kb.similaritySearch()` / `kb.hybridSearch()`,
+   * those calls still go through virtual dispatch — so subclass filter injection
+   * (e.g. tenant scope) applies even when the entry point is `kb.search()`.
+   *
+   * @throws Error if `onSearch` is not configured.
+   */
+  async search(query: string, options?: ISearchOptions): Promise<ChunkSearchResult[]> {
+    if (!this.onSearch) {
+      throw new Error(
+        "KnowledgeBase.search() requires an `onSearch` callback. " +
+          "Pass one via createKnowledgeBase({ onSearch }) or the KnowledgeBase " +
+          "constructor options. For raw vector search, use " +
+          "`kb.similaritySearch()` or `kb.vectorStorage.similaritySearch()` directly."
+      );
+    }
+    return this.onSearch(this, query, options);
+  }
+
+  // ===========================================================================
+  // Accessors for raw storage
+  // ===========================================================================
+
+  /**
+   * The underlying chunk/vector storage. Use when you need raw, unscoped
+   * access to low-level vector operations — e.g. bulk maintenance, metrics,
+   * or behavior that explicitly should bypass any subclass scoping. For
+   * normal search, prefer `kb.similaritySearch()` / `kb.hybridSearch()`,
+   * which subclasses can override to inject scope.
+   */
+  get vectorStorage(): ChunkVectorStorage {
+    return this.chunkStorage;
   }
 
   // ===========================================================================

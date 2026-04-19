@@ -388,6 +388,18 @@ const results = await kb.hybridSearch(queryVector, {
 });
 ```
 
+Subclasses (e.g. a scoped KB that isolates by tenant) override `similaritySearch`
+and `hybridSearch` to inject filter predicates. For text-based search that handles
+embedding internally, install an `onSearch` callback via
+`createKnowledgeBase({ onSearch })` and call `kb.search(queryText, options)`.
+
+Note: `ISearchOptions.filter` passed to `kb.search()` is typed as
+`Readonly<Record<string, unknown>>` — intentionally looser than
+`kb.similaritySearch()`'s typed `VectorSearchOptions<ChunkRecord>` filter — so the
+`onSearch` callback can express predicates beyond the chunk schema (e.g. scope
+fields). The trade-off: `kb.search()` callers give up autocomplete on filter
+keys. If you want typed keys, reach for `kb.similaritySearch()` directly.
+
 ### Tree Traversal
 
 Navigate the document tree stored in the knowledge base:
@@ -714,11 +726,17 @@ class Document {
 ```typescript
 class KnowledgeBase {
   readonly name: string;
+  readonly title: string;
+  readonly description: string;
+  readonly onDocumentUpsert: OnDocumentUpsertCallback | undefined;
+  readonly onDocumentDelete: OnDocumentDeleteCallback | undefined;
+  readonly onSearch: OnSearchCallback | undefined;
 
   constructor(
     name: string,
     documentStorage: DocumentTabularStorage,
-    chunkStorage: ChunkVectorStorage
+    chunkStorage: ChunkVectorStorage,
+    options?: KnowledgeBaseOptions
   );
 
   // Documents
@@ -738,7 +756,7 @@ class KnowledgeBase {
   getChunksForDocument(doc_id: string): Promise<ChunkVectorEntity[]>;
   deleteChunksForDocument(doc_id: string): Promise<void>;
 
-  // Search
+  // Search (canonical, scope-aware — subclasses override these)
   similaritySearch(
     query: TypedArray,
     options?: VectorSearchOptions<ChunkRecord>
@@ -747,6 +765,11 @@ class KnowledgeBase {
     query: TypedArray,
     options: HybridSearchOptions<ChunkRecord>
   ): Promise<ChunkSearchResult[]>;
+  supportsHybridSearch(): boolean;
+  // High-level text search (requires onSearch callback):
+  search(query: string, options?: ISearchOptions): Promise<ChunkSearchResult[]>;
+  // Raw, unscoped access — bypasses any subclass scoping:
+  get vectorStorage(): ChunkVectorStorage;
 
   // Lifecycle
   prepareReindex(doc_id: string): Promise<Document | undefined>;
@@ -775,6 +798,11 @@ interface CreateKnowledgeBaseOptions {
   readonly vectorDimensions: number;
   readonly vectorCtor?: TypedArrayConstructor;
   readonly register?: boolean; // Default: true
+  readonly title?: string;
+  readonly description?: string;
+  readonly onDocumentUpsert?: OnDocumentUpsertCallback;
+  readonly onDocumentDelete?: OnDocumentDeleteCallback;
+  readonly onSearch?: OnSearchCallback;
 }
 ```
 

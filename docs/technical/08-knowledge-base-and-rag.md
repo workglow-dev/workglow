@@ -608,10 +608,10 @@ At runtime, when the task receives `{ knowledgeBase: "research-papers" }`, the r
 
 ### KnowledgeBase
 
-- `new KnowledgeBase(name, documentStorage, chunkStorage, title?, description?)` -- Create a knowledge base.
-- `upsertDocument(document): Promise<Document>` -- Insert or update a document.
+- `new KnowledgeBase(name, documentStorage, chunkStorage, options?)` -- Create a knowledge base. `options` carries `title`, `description`, and the lifecycle callbacks `onDocumentUpsert`, `onDocumentDelete`, `onSearch`.
+- `upsertDocument(document): Promise<Document>` -- Insert or update a document. Invokes `onDocumentUpsert` after commit.
 - `getDocument(doc_id): Promise<Document | undefined>` -- Retrieve a document.
-- `deleteDocument(doc_id): Promise<void>` -- Delete a document and its chunks.
+- `deleteDocument(doc_id): Promise<void>` -- Delete a document and its chunks. Invokes `onDocumentDelete` after commit.
 - `listDocuments(): Promise<string[]>` -- List all document IDs.
 - `getNode(doc_id, nodeId): Promise<DocumentNode | undefined>` -- Get a node from the tree.
 - `getAncestors(doc_id, nodeId): Promise<DocumentNode[]>` -- Get ancestor nodes.
@@ -625,9 +625,11 @@ At runtime, when the task receives `{ knowledgeBase: "research-papers" }`, the r
 - `clearChunks(): Promise<void>` -- Delete all chunks.
 - `put(chunk): Promise<ChunkVectorEntity>` -- Alias for `upsertChunk`.
 - `putBulk(chunks): Promise<ChunkVectorEntity[]>` -- Alias for `upsertChunksBulk`.
-- `similaritySearch(query, options?): Promise<ChunkSearchResult[]>` -- Vector search.
-- `hybridSearch(query, options): Promise<ChunkSearchResult[]>` -- Combined vector + text search.
+- `similaritySearch(query, options?): Promise<ChunkSearchResult[]>` -- Canonical scope-aware vector search. Subclasses override to inject filter predicates.
+- `hybridSearch(query, options): Promise<ChunkSearchResult[]>` -- Canonical scope-aware combined vector + text search; throws if the storage backend does not support it.
 - `supportsHybridSearch(): boolean` -- Check backend support.
+- `search(query, options?): Promise<ChunkSearchResult[]>` -- High-level text search; delegates to the `onSearch` callback (throws if none configured).
+- `get vectorStorage(): ChunkVectorStorage` -- Raw, unscoped access to the underlying storage. Bypasses any subclass scoping — use only when that is intentional.
 - `prepareReindex(doc_id): Promise<Document | undefined>` -- Delete chunks, keep document.
 - `getDocumentChunks(doc_id): Promise<ChunkRecord[]>` -- Get chunks from the document JSON.
 - `findChunksByNodeId(doc_id, nodeId): Promise<ChunkRecord[]>` -- Find chunks by node path.
