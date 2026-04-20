@@ -1,5 +1,17 @@
 # @workglow/storage
 
+## 0.2.10
+
+### Refactors
+
+#### kb
+
+- update KnowledgeBase constructor to accept options object
+
+### Chores
+
+- refactor Supabase to be unknown so mixed minor versions are ok.
+
 ## 0.2.9
 
 ## 0.2.8

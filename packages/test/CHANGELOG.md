@@ -1,5 +1,13 @@
 # @workglow/test
 
+## 0.2.10
+
+### Refactors
+
+#### kb
+
+- update KnowledgeBase constructor to accept options object
+
 ## 0.2.9
 
 ### Features
