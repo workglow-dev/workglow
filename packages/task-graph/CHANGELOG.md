@@ -1,5 +1,13 @@
 # @workglow/task-graph
 
+## 0.2.11
+
+### Refactors
+
+#### task-graph
+
+- enhance progress reporting in FallbackTaskRunner, IteratorTaskRunner, and WhileTask
+
 ## 0.2.10
 
 ## 0.2.9

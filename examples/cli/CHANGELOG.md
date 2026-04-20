@@ -1,5 +1,13 @@
 # @workglow/cli
 
+## 0.2.11
+
+### Refactors
+
+#### tests
+
+- streamline Chrome availability checks and add tests
+
 ## 0.2.10
 
 ## 0.2.9
