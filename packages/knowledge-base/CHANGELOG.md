@@ -1,5 +1,13 @@
 # @workglow/knowledge-base
 
+## 0.2.9
+
+### Features
+
+#### kb
+
+- stable public API for vector search and lifecycle hooks
+
 ## 0.2.8
 
 ## 0.2.7

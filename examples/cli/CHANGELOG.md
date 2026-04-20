@@ -1,5 +1,19 @@
 # @workglow/cli
 
+## 0.2.9
+
+### Features
+
+#### cli
+
+- run AiChatTask from a workflow; per-task row rendering
+
+### Refactors
+
+#### cli
+
+- update output handling for task and workflow commands
+
 ## 0.2.8
 
 ### Chores

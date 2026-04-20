@@ -1,5 +1,18 @@
 # @workglow/ai
 
+## 0.2.9
+
+### Features
+
+#### kb
+
+- stable public API for vector search and lifecycle hooks
+
+#### ai
+
+- StructuredGenerationTask validates output and retries on mismatch
+- AiChatTask, canonical ChatMessage, and worker streaming
+
 ## 0.2.8
 
 ### Features

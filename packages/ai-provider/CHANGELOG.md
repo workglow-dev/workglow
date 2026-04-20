@@ -1,5 +1,13 @@
 # @workglow/ai-provider
 
+## 0.2.9
+
+### Features
+
+#### ai
+
+- AiChatTask, canonical ChatMessage, and worker streaming
+
 ## 0.2.8
 
 ### Features

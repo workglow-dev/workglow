@@ -1,5 +1,24 @@
 # @workglow/test
 
+## 0.2.9
+
+### Features
+
+#### kb
+
+- stable public API for vector search and lifecycle hooks
+
+#### ai
+
+- StructuredGenerationTask validates output and retries on mismatch
+- AiChatTask, canonical ChatMessage, and worker streaming
+
+### Refactors
+
+#### task-graph
+
+- clean up imports and improve formatting
+
 ## 0.2.8
 
 ### Features

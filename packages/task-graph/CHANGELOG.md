@@ -1,5 +1,19 @@
 # @workglow/task-graph
 
+## 0.2.9
+
+### Features
+
+#### ai
+
+- AiChatTask, canonical ChatMessage, and worker streaming
+
+### Refactors
+
+#### task-graph
+
+- clean up imports and improve formatting
+
 ## 0.2.8
 
 ## 0.2.7
