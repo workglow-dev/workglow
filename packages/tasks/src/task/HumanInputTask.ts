@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { IExecuteContext } from "@workglow/task-graph";
 import {
   CreateWorkflow,
   Task,
@@ -13,11 +14,14 @@ import {
   TaskConfigurationError,
   Workflow,
 } from "@workglow/task-graph";
-import type { IExecuteContext } from "@workglow/task-graph";
+import type {
+  HumanInteractionKind,
+  HumanResponseAction,
+  IHumanRequest,
+  IHumanResponse,
+} from "@workglow/util";
+import { resolveHumanConnector, uuid4 } from "@workglow/util";
 import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
-import { uuid4 } from "@workglow/util";
-import type { HumanInteractionKind, HumanResponseAction, IHumanRequest, IHumanResponse } from "@workglow/util";
-import { resolveHumanConnector } from "@workglow/util";
 
 // ========================================================================
 // Task config and schemas

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getObjectSchema, getSchemaFormat } from "../task/InputResolver";
 import type { ITaskGraph } from "./ITaskGraph";
-import { getSchemaFormat, getObjectSchema } from "../task/InputResolver";
 
 /**
  * Result of scanning a task graph for credential format annotations.
@@ -105,18 +105,15 @@ export function scanGraphForCredentials(graph: ITaskGraph): GraphFormatScanResul
  * credential format AND the corresponding data value is a non-empty string,
  * record the format. Recurses into nested object schemas.
  */
-function collectUsedCredentialFormats(
-  schema: unknown,
-  data: unknown,
-  formats: Set<string>
-): void {
+function collectUsedCredentialFormats(schema: unknown, data: unknown, formats: Set<string>): void {
   if (typeof schema === "boolean" || typeof schema !== "object" || schema === null) return;
   const s = schema as Record<string, unknown>;
 
   const properties = s.properties as Record<string, unknown> | undefined;
   if (!properties || typeof properties !== "object") return;
 
-  const dataObj = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+  const dataObj =
+    typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
 
   for (const [propName, propSchema] of Object.entries(properties)) {
     const format = getSchemaFormat(propSchema);

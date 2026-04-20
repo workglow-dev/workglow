@@ -387,7 +387,10 @@ describe("AiChatTask — chat loop", () => {
 
       await expect(
         (async () => {
-          for await (const _ of task.executeStream(input as any, mkContext(new ThrowingConnector()))) {
+          for await (const _ of task.executeStream(
+            input as any,
+            mkContext(new ThrowingConnector())
+          )) {
             // drain
           }
         })()
