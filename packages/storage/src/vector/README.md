@@ -363,7 +363,10 @@ const vectorStorage = new InMemoryChunkVectorStorage(384);
 await vectorStorage.setupDatabase();
 
 // Create knowledge base with both storages
-const kb = new KnowledgeBase("my-kb", tabularStorage, vectorStorage, "My KB", "Description");
+const kb = new KnowledgeBase("my-kb", tabularStorage, vectorStorage, {
+  title: "My KB",
+  description: "Description",
+});
 
 // Store document structure in tabular, chunks in vector
 await kb.upsertDocument(document);

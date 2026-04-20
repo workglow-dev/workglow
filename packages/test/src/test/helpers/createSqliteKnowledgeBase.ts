@@ -91,7 +91,7 @@ export async function createSqliteKnowledgeBase(
   );
   await vectorStorage.setupDatabase();
 
-  const kb = new KnowledgeBase(name, tabularStorage, vectorStorage, title, description);
+  const kb = new KnowledgeBase(name, tabularStorage, vectorStorage, { title, description });
 
   if (shouldRegister) {
     await registerKnowledgeBase(name, kb);

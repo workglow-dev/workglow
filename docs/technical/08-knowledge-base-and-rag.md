@@ -24,20 +24,19 @@ The system is built on two core ideas:
 import { KnowledgeBase } from "@workglow/knowledge-base";
 
 const kb = new KnowledgeBase(
-  "my-kb",                   // name
-  documentTabularStorage,     // ITabularStorage for documents
-  chunkVectorStorage,         // IVectorStorage for chunk vectors
-  "My Knowledge Base",        // title (optional)
-  "Research papers corpus"    // description (optional)
+  "my-kb", // name
+  documentTabularStorage, // ITabularStorage for documents
+  chunkVectorStorage, // IVectorStorage for chunk vectors
+  { title: "My Knowledge Base", description: "Research papers corpus" }
 );
 ```
 
 ### Properties
 
-| Property | Type | Description |
-|---|---|---|
-| `name` | `string` | Unique identifier for the knowledge base |
-| `title` | `string` | Human-readable title (defaults to `name`) |
+| Property      | Type     | Description                                |
+| ------------- | -------- | ------------------------------------------ |
+| `name`        | `string` | Unique identifier for the knowledge base   |
+| `title`       | `string` | Human-readable title (defaults to `name`)  |
 | `description` | `string` | Description of the knowledge base contents |
 
 ### Document Operations
@@ -143,10 +142,10 @@ The `Document` class wraps a hierarchical tree structure (`DocumentRootNode`), m
 import { Document } from "@workglow/knowledge-base";
 
 const doc = new Document(
-  rootNode,                    // DocumentRootNode tree
+  rootNode, // DocumentRootNode tree
   { title: "My Document", sourceUri: "https://example.com/doc.md" },
-  chunks,                      // ChunkRecord[] (optional)
-  "doc-123"                    // doc_id (optional, auto-generated)
+  chunks, // ChunkRecord[] (optional)
+  "doc-123" // doc_id (optional, auto-generated)
 );
 
 // Serialize
@@ -169,7 +168,7 @@ const related = doc.findChunksByNodeId("section-node-5");
 interface DocumentMetadata {
   readonly title: string;
   readonly sourceUri?: string;
-  readonly createdAt?: string;    // ISO timestamp
+  readonly createdAt?: string; // ISO timestamp
   // Additional properties allowed
 }
 ```
@@ -210,7 +209,7 @@ interface DocumentRootNode {
 interface SectionNode {
   readonly nodeId: string;
   readonly kind: "section";
-  readonly level: number;         // 1-6 for markdown headers
+  readonly level: number; // 1-6 for markdown headers
   readonly title: string;
   readonly range: NodeRange;
   readonly text: string;
@@ -262,8 +261,8 @@ Every node tracks its character offset range in the source text:
 
 ```typescript
 interface NodeRange {
-  readonly startOffset: number;   // Starting character offset
-  readonly endOffset: number;     // Ending character offset
+  readonly startOffset: number; // Starting character offset
+  readonly endOffset: number; // Ending character offset
 }
 ```
 
@@ -274,7 +273,7 @@ Optional AI-generated metadata attached to any node:
 ```typescript
 interface NodeEnrichment {
   readonly summary?: string;
-  readonly entities?: Entity[];     // { text, type, score }
+  readonly entities?: Entity[]; // { text, type, score }
   readonly keywords?: string[];
 }
 ```
@@ -327,14 +326,14 @@ interface ChunkRecord {
   readonly chunkId: string;
   readonly doc_id: string;
   readonly text: string;
-  readonly nodePath: string[];      // Node IDs from root to leaf
-  readonly depth: number;           // Depth in the document tree
-  readonly leafNodeId?: string;     // ID of the originating leaf node
-  readonly summary?: string;        // AI-generated summary
-  readonly entities?: Entity[];     // Named entities
-  readonly parentSummaries?: string[];  // Summaries from ancestor nodes
-  readonly sectionTitles?: string[];    // Titles of ancestor sections
-  readonly doc_title?: string;          // Parent document title
+  readonly nodePath: string[]; // Node IDs from root to leaf
+  readonly depth: number; // Depth in the document tree
+  readonly leafNodeId?: string; // ID of the originating leaf node
+  readonly summary?: string; // AI-generated summary
+  readonly entities?: Entity[]; // Named entities
+  readonly parentSummaries?: string[]; // Summaries from ancestor nodes
+  readonly sectionTitles?: string[]; // Titles of ancestor sections
+  readonly doc_title?: string; // Parent document title
 }
 ```
 
@@ -397,7 +396,7 @@ const DocumentStorageSchema = {
   type: "object",
   properties: {
     doc_id: { type: "string", "x-auto-generated": true },
-    data: { type: "string" },       // JSON-serialized Document
+    data: { type: "string" }, // JSON-serialized Document
     metadata: { type: "object" },
   },
   required: ["doc_id", "data"],
@@ -538,12 +537,12 @@ The factory function provides a convenient way to create a fully configured know
 
 ```typescript
 interface CreateKnowledgeBaseOptions {
-  readonly name: string;                                     // Required: unique ID
-  readonly vectorDimensions: number;                         // Required: embedding dimensions
+  readonly name: string; // Required: unique ID
+  readonly vectorDimensions: number; // Required: embedding dimensions
   readonly vectorType?: { new (array: number[]): TypedArray }; // Default: Float32Array
-  readonly register?: boolean;                                // Default: true
-  readonly title?: string;                                   // Human-readable title
-  readonly description?: string;                             // Description
+  readonly register?: boolean; // Default: true
+  readonly title?: string; // Human-readable title
+  readonly description?: string; // Description
 }
 ```
 
@@ -599,10 +598,10 @@ At runtime, when the task receives `{ knowledgeBase: "research-papers" }`, the r
 
 ### Service Tokens
 
-| Token | Type | Description |
-|---|---|---|
-| `KNOWLEDGE_BASES` | `Map<string, KnowledgeBase>` | Live registry of active knowledge bases |
-| `KNOWLEDGE_BASE_REPOSITORY` | `KnowledgeBaseRepository` | Persistent metadata repository |
+| Token                       | Type                         | Description                             |
+| --------------------------- | ---------------------------- | --------------------------------------- |
+| `KNOWLEDGE_BASES`           | `Map<string, KnowledgeBase>` | Live registry of active knowledge bases |
+| `KNOWLEDGE_BASE_REPOSITORY` | `KnowledgeBaseRepository`    | Persistent metadata repository          |
 
 ## API Reference
 

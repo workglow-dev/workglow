@@ -69,8 +69,8 @@ export interface KnowledgeBaseOptions {
  */
 export class KnowledgeBase {
   readonly name: string;
-  readonly title: string;
-  readonly description: string;
+  readonly title: string = "";
+  readonly description: string = "";
   private readonly tabularStorage: DocumentTabularStorage;
   private readonly chunkStorage: ChunkVectorStorage;
 
@@ -79,55 +79,34 @@ export class KnowledgeBase {
    * Awaited — throwing rejects the upsert call, but storage is already committed.
    * Use for chunk re-indexing, audit logging, etc.
    */
-  readonly onDocumentUpsert: OnDocumentUpsertCallback | undefined;
+  onDocumentUpsert: OnDocumentUpsertCallback | undefined;
   /**
    * Called after `deleteDocument` successfully deletes the document and its chunks.
    * Awaited — throwing rejects the delete call, but storage is already committed.
    */
-  readonly onDocumentDelete: OnDocumentDeleteCallback | undefined;
+  onDocumentDelete: OnDocumentDeleteCallback | undefined;
   /**
    * Called by `search()` to embed the query and execute the search.
    * Required if you intend to call `kb.search()`.
    */
-  readonly onSearch: OnSearchCallback | undefined;
+  onSearch: OnSearchCallback | undefined;
 
   constructor(
     name: string,
     documentStorage: DocumentTabularStorage,
     chunkStorage: ChunkVectorStorage,
     options?: KnowledgeBaseOptions
-  );
-  /** @deprecated Use the options object overload instead. */
-  constructor(
-    name: string,
-    documentStorage: DocumentTabularStorage,
-    chunkStorage: ChunkVectorStorage,
-    title?: string,
-    description?: string
-  );
-  constructor(
-    name: string,
-    documentStorage: DocumentTabularStorage,
-    chunkStorage: ChunkVectorStorage,
-    titleOrOptions?: string | KnowledgeBaseOptions,
-    description?: string
   ) {
     this.name = name;
     this.tabularStorage = documentStorage;
     this.chunkStorage = chunkStorage;
 
-    if (typeof titleOrOptions === "object" && titleOrOptions !== null) {
-      this.title = titleOrOptions.title ?? name;
-      this.description = titleOrOptions.description ?? "";
-      this.onDocumentUpsert = titleOrOptions.onDocumentUpsert;
-      this.onDocumentDelete = titleOrOptions.onDocumentDelete;
-      this.onSearch = titleOrOptions.onSearch;
-    } else {
-      this.title = titleOrOptions ?? name;
-      this.description = description ?? "";
-      this.onDocumentUpsert = undefined;
-      this.onDocumentDelete = undefined;
-      this.onSearch = undefined;
+    if (typeof options === "object" && options !== null) {
+      this.title = options.title ?? name;
+      this.description = options.description ?? "";
+      this.onDocumentUpsert = options.onDocumentUpsert;
+      this.onDocumentDelete = options.onDocumentDelete;
+      this.onSearch = options.onSearch;
     }
   }
 
