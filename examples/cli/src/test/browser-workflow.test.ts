@@ -4,50 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Dataflow, TaskGraph } from "@workglow/task-graph";
+import {
+  BrowserNavigateTask,
+  BrowserSessionRegistry,
+  BrowserSessionTask,
+  BrowserSnapshotTask,
+  registerCommonTasks,
+} from "@workglow/tasks";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { Dataflow, TaskGraph } from "@workglow/task-graph";
-import {
-  BrowserSessionRegistry,
-  BrowserSessionTask,
-  BrowserNavigateTask,
-  BrowserSnapshotTask,
-  registerCommonTasks,
-} from "@workglow/tasks";
 import { registerCliBrowserDeps } from "../browser";
 import type { CliConfig } from "../config";
+import { isChromeAvailable } from "./chromeAvailability";
 
-// ---------------------------------------------------------------------------
-// Chrome availability gate
-// ---------------------------------------------------------------------------
-
-let chromeAvailable = false;
-try {
-  const WebView = (globalThis as any).Bun?.WebView;
-  if (WebView) {
-    const wv = new WebView({ headless: true, backend: "chrome", url: "about:blank" });
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        wv.close();
-        reject();
-      }, 10_000);
-      wv.onNavigated = () => {
-        clearTimeout(timer);
-        resolve();
-      };
-      wv.onNavigationFailed = () => {
-        clearTimeout(timer);
-        reject();
-      };
-    });
-    wv.close();
-    chromeAvailable = true;
-  }
-} catch {
-  /* Chrome not available */
-}
+const chromeAvailable =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Boolean((globalThis as any).Bun?.WebView) && isChromeAvailable();
 
 // ---------------------------------------------------------------------------
 // Test page
