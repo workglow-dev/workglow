@@ -348,6 +348,86 @@ describe("FallbackTask", () => {
       const result = await task.run({} as TaskInput);
       expect(result.result).toBe(70); // 7 * 10
     });
+
+    test("data mode progress surfaces inner graph_progress between attempt boundaries", async () => {
+      // A child task that reports progress=50 mid-execution. Pre-fix, the
+      // FallbackTaskRunner only emitted at attempt boundaries (synthetic "Trying X/N"
+      // and "Succeeded X/N" markers), so inner streaming was invisible to the outer
+      // progress bar. With the graph_progress subscription in executeDataFallback,
+      // we should see blended values between each pair of attempt markers.
+      class MidProgressTask extends Task<{ value: number }, { result: number }> {
+        public static override type = "FallbackTest_DataMidProgressTask";
+        public static override readonly cacheable = false;
+
+        public static override inputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { value: { type: "number", default: 0 } },
+            additionalProperties: true,
+          } as const satisfies DataPortSchema;
+        }
+
+        public static override outputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { result: { type: "number" } },
+            additionalProperties: false,
+          } as const satisfies DataPortSchema;
+        }
+
+        override async execute(
+          input: { value: number },
+          context: IExecuteContext
+        ): Promise<{ result: number }> {
+          await sleep(5);
+          await context.updateProgress(50, "halfway");
+          await sleep(5);
+          // First two attempts fail; third succeeds (value >= 5).
+          if ((input.value ?? 0) < 5) {
+            throw new TaskFailedError(`Value ${input.value} is too low`);
+          }
+          return { result: (input.value ?? 0) * 10 };
+        }
+      }
+
+      const task = new FallbackTask({
+        fallbackMode: "data",
+        alternatives: [{ value: 1 }, { value: 2 }, { value: 7 }],
+      });
+      const subGraph = new TaskGraph();
+      subGraph.addTask(new MidProgressTask({ id: "template", defaults: { value: 0 } }));
+      task.subGraph = subGraph;
+
+      const events: Array<{ progress: number; message?: string }> = [];
+      task.events.on("progress", (progress: number, message?: string) => {
+        events.push({ progress, message });
+      });
+
+      const result = await task.run({} as TaskInput);
+      expect(result.result).toBe(70);
+
+      // Pre-fix, the only messages emitted during execution were the runner's synthetic
+      // boundary markers ("Trying data alternative X/N", "Data alternative X/N succeeded").
+      // Post-fix, the inner child task's "halfway" message should surface via the
+      // subgraph's `graph_progress` relay. We observe it N times (once per attempt —
+      // 3 total for this test) since the subgraph runs fresh each attempt.
+      const halfwayEvents = events.filter((e) => e.message === "halfway");
+      expect(halfwayEvents.length).toBeGreaterThanOrEqual(3);
+
+      // Every emitted progress value must be in [0, 100] and non-decreasing so the
+      // blended progress never regresses past a boundary marker.
+      for (const e of events) {
+        expect(e.progress).toBeGreaterThanOrEqual(0);
+        expect(e.progress).toBeLessThanOrEqual(100);
+      }
+      for (let i = 1; i < events.length; i++) {
+        expect(events[i].progress).toBeGreaterThanOrEqual(events[i - 1].progress);
+      }
+
+      // Progress on successful completion must reach 100.
+      const last = events[events.length - 1];
+      expect(last?.progress).toBe(100);
+    });
   });
 
   // ============================================================================

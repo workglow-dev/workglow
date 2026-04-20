@@ -375,79 +375,107 @@ export class WhileTask<
       ? Math.min(this.maxIterations, arrayAnalysis.iterationCount)
       : this.maxIterations;
 
-    // Execute iterations until condition returns false or max iterations reached
-    while (this._currentIteration < effectiveMax) {
-      if (context.signal?.aborted) {
-        break;
-      }
-
-      // Build the input for this iteration
-      let iterationInput: Input;
-      if (arrayAnalysis) {
-        // Decompose array inputs into per-iteration scalars
-        iterationInput = {
-          ...this.buildIterationInput(currentInput, arrayAnalysis, this._currentIteration),
-          _iterationIndex: this._currentIteration,
-        } as Input;
-      } else {
-        iterationInput = {
-          ...currentInput,
-          _iterationIndex: this._currentIteration,
-        } as Input;
-      }
-
-      // Run the subgraph (it resets itself on each run)
-      const results = await this.subGraph.run<Output>(iterationInput, {
-        parentSignal: context.signal,
-      });
-
-      // Merge results
-      currentOutput = this.subGraph.mergeExecuteOutputsToRunOutput(
-        results,
-        this.compoundMerge
-      ) as Output;
-
-      // Check condition — wrap in try/catch so a throwing condition doesn't
-      // leave the task in an inconsistent state without progress cleanup.
-      let shouldContinue: boolean;
-      try {
-        shouldContinue = condition(currentOutput, this._currentIteration);
-      } catch (err) {
-        // Rethrow TaskFailedError instances unchanged so their type, message,
-        // and stack are preserved for the caller.
-        if (err instanceof TaskFailedError) {
-          throw err;
-        }
-        const message = `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${
-          err instanceof Error ? err.message : String(err)
-        }`;
-        const wrappedError = new TaskFailedError(message);
-        if (err instanceof Error && err.stack) {
-          if (wrappedError.stack) {
-            wrappedError.stack += `\nCaused by original error:\n${err.stack}`;
-          } else {
-            wrappedError.stack = err.stack;
-          }
-        }
-        throw wrappedError;
-      }
-      if (!shouldContinue) {
-        break;
-      }
-
-      // Chain output to input for next iteration if enabled
-      if (this.chainIterations) {
-        currentInput = { ...currentInput, ...currentOutput } as Input;
-      }
-
-      this._currentIteration++;
-
-      // Update progress — cap at 99 since the loop may stop before effectiveMax
-      const progress = Math.min(Math.round((this._currentIteration / effectiveMax) * 100), 99);
-      await context.updateProgress(
-        progress,
-        `Completed ${this._currentIteration}/${effectiveMax} iterations`
+    /**
+     * Blend the inner subgraph's aggregate `graph_progress` with the outer iteration
+     * count so nested streaming tasks visibly advance the progress bar between iteration
+     * boundaries. See {@link IteratorTaskRunner.executeSubgraphIteration} for the
+     * equivalent pattern in `MapTask`. Capped at 99 because the loop may exit early
+     * (condition can return false before hitting `effectiveMax`), mirroring the
+     * boundary emit below.
+     */
+    const onInnerGraphProgress = (innerProgress: number, innerMessage?: string): void => {
+      const blended = Math.min(
+        Math.round(((this._currentIteration + innerProgress / 100) / effectiveMax) * 100),
+        99
       );
+      const message = innerMessage
+        ? `Iteration ${this._currentIteration + 1}/${effectiveMax}: ${innerMessage}`
+        : `Iteration ${this._currentIteration + 1}/${effectiveMax}`;
+      void context.updateProgress(blended, message);
+    };
+    const unsubscribeInnerProgress = this.subGraph.subscribe(
+      "graph_progress",
+      onInnerGraphProgress
+    );
+
+    try {
+      // Execute iterations until condition returns false or max iterations reached
+      while (this._currentIteration < effectiveMax) {
+        if (context.signal?.aborted) {
+          break;
+        }
+
+        // Build the input for this iteration
+        let iterationInput: Input;
+        if (arrayAnalysis) {
+          // Decompose array inputs into per-iteration scalars
+          iterationInput = {
+            ...this.buildIterationInput(currentInput, arrayAnalysis, this._currentIteration),
+            _iterationIndex: this._currentIteration,
+          } as Input;
+        } else {
+          iterationInput = {
+            ...currentInput,
+            _iterationIndex: this._currentIteration,
+          } as Input;
+        }
+
+        // Run the subgraph (it resets itself on each run)
+        const results = await this.subGraph.run<Output>(iterationInput, {
+          parentSignal: context.signal,
+        });
+
+        // Merge results
+        currentOutput = this.subGraph.mergeExecuteOutputsToRunOutput(
+          results,
+          this.compoundMerge
+        ) as Output;
+
+        // Check condition — wrap in try/catch so a throwing condition doesn't
+        // leave the task in an inconsistent state without progress cleanup.
+        let shouldContinue: boolean;
+        try {
+          shouldContinue = condition(currentOutput, this._currentIteration);
+        } catch (err) {
+          // Rethrow TaskFailedError instances unchanged so their type, message,
+          // and stack are preserved for the caller.
+          if (err instanceof TaskFailedError) {
+            throw err;
+          }
+          const message = `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${
+            err instanceof Error ? err.message : String(err)
+          }`;
+          const wrappedError = new TaskFailedError(message);
+          if (err instanceof Error && err.stack) {
+            if (wrappedError.stack) {
+              wrappedError.stack += `\nCaused by original error:\n${err.stack}`;
+            } else {
+              wrappedError.stack = err.stack;
+            }
+          }
+          throw wrappedError;
+        }
+        if (!shouldContinue) {
+          break;
+        }
+
+        // Chain output to input for next iteration if enabled
+        if (this.chainIterations) {
+          currentInput = { ...currentInput, ...currentOutput } as Input;
+        }
+
+        this._currentIteration++;
+
+        // Boundary emit — coarse signal that iteration N/effectiveMax completed. Capped
+        // at 99 since the loop may exit early; the task runner will emit 100 on completion.
+        const progress = Math.min(Math.round((this._currentIteration / effectiveMax) * 100), 99);
+        await context.updateProgress(
+          progress,
+          `Completed ${this._currentIteration}/${effectiveMax} iterations`
+        );
+      }
+    } finally {
+      unsubscribeInnerProgress();
     }
 
     return currentOutput;
@@ -481,58 +509,78 @@ export class WhileTask<
       ? Math.min(this.maxIterations, arrayAnalysis.iterationCount)
       : this.maxIterations;
 
-    while (this._currentIteration < effectiveMax) {
-      if (context.signal?.aborted) break;
+    // Blend inner subgraph progress with outer iteration count; see execute() above.
+    const onInnerGraphProgress = (innerProgress: number, innerMessage?: string): void => {
+      const blended = Math.min(
+        Math.round(((this._currentIteration + innerProgress / 100) / effectiveMax) * 100),
+        99
+      );
+      const message = innerMessage
+        ? `Iteration ${this._currentIteration + 1}/${effectiveMax}: ${innerMessage}`
+        : `Iteration ${this._currentIteration + 1}/${effectiveMax}`;
+      void context.updateProgress(blended, message);
+    };
+    const unsubscribeInnerProgress = this.subGraph.subscribe(
+      "graph_progress",
+      onInnerGraphProgress
+    );
 
-      let iterationInput: Input;
-      if (arrayAnalysis) {
-        iterationInput = {
-          ...this.buildIterationInput(currentInput, arrayAnalysis, this._currentIteration),
-          _iterationIndex: this._currentIteration,
-        } as Input;
-      } else {
-        iterationInput = {
-          ...currentInput,
-          _iterationIndex: this._currentIteration,
-        } as Input;
-      }
+    try {
+      while (this._currentIteration < effectiveMax) {
+        if (context.signal?.aborted) break;
 
-      // Check if the NEXT iteration would be the potential last: we always
-      // run non-streaming first, then decide after the condition check.
-      const results = await this.subGraph.run<Output>(iterationInput, {
-        parentSignal: context.signal,
-      });
+        let iterationInput: Input;
+        if (arrayAnalysis) {
+          iterationInput = {
+            ...this.buildIterationInput(currentInput, arrayAnalysis, this._currentIteration),
+            _iterationIndex: this._currentIteration,
+          } as Input;
+        } else {
+          iterationInput = {
+            ...currentInput,
+            _iterationIndex: this._currentIteration,
+          } as Input;
+        }
 
-      currentOutput = this.subGraph.mergeExecuteOutputsToRunOutput(
-        results,
-        this.compoundMerge
-      ) as Output;
+        // Check if the NEXT iteration would be the potential last: we always
+        // run non-streaming first, then decide after the condition check.
+        const results = await this.subGraph.run<Output>(iterationInput, {
+          parentSignal: context.signal,
+        });
 
-      let shouldContinue: boolean;
-      try {
-        shouldContinue = condition(currentOutput, this._currentIteration);
-      } catch (err) {
-        throw new TaskFailedError(
-          `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${err instanceof Error ? err.message : String(err)}`
+        currentOutput = this.subGraph.mergeExecuteOutputsToRunOutput(
+          results,
+          this.compoundMerge
+        ) as Output;
+
+        let shouldContinue: boolean;
+        try {
+          shouldContinue = condition(currentOutput, this._currentIteration);
+        } catch (err) {
+          throw new TaskFailedError(
+            `${this.type}: Condition function threw at iteration ${this._currentIteration}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+        if (!shouldContinue) {
+          // This was the final iteration -- but we already ran it non-streaming.
+          // Emit the finish event with the collected output.
+          break;
+        }
+
+        if (this.chainIterations) {
+          currentInput = { ...currentInput, ...currentOutput } as Input;
+        }
+
+        this._currentIteration++;
+
+        const progress = Math.min(Math.round((this._currentIteration / effectiveMax) * 100), 99);
+        await context.updateProgress(
+          progress,
+          `Completed ${this._currentIteration}/${effectiveMax} iterations`
         );
       }
-      if (!shouldContinue) {
-        // This was the final iteration -- but we already ran it non-streaming.
-        // Emit the finish event with the collected output.
-        break;
-      }
-
-      if (this.chainIterations) {
-        currentInput = { ...currentInput, ...currentOutput } as Input;
-      }
-
-      this._currentIteration++;
-
-      const progress = Math.min(Math.round((this._currentIteration / effectiveMax) * 100), 99);
-      await context.updateProgress(
-        progress,
-        `Completed ${this._currentIteration}/${effectiveMax} iterations`
-      );
+    } finally {
+      unsubscribeInnerProgress();
     }
 
     yield { type: "finish", data: currentOutput } as StreamFinish<Output>;

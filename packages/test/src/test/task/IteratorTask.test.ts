@@ -5,6 +5,7 @@
  */
 
 import {
+  IExecuteContext,
   IteratorTask,
   MapTask,
   ReduceTask,
@@ -15,10 +16,11 @@ import {
   WhileTask,
   Workflow,
 } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { setLogger, sleep } from "@workglow/util";
 import { DataPortSchema } from "@workglow/util/schema";
 import { describe, expect, test } from "vitest";
 
+import { getTestingLogger } from "../../binding/TestingLogger";
 import {
   AddToSumTask,
   DoubleToResultTask as DoubleTask,
@@ -27,7 +29,6 @@ import {
   TestIteratorTask,
   TextEmbeddingTask,
 } from "./TestTasks";
-import { getTestingLogger } from "../../binding/TestingLogger";
 
 interface ArrayInput extends TaskInput {
   items: number[];
@@ -998,6 +999,201 @@ describe("IteratorTask", () => {
       expect(first.inferredArray).toBe(3);
       expect(first.runtimeFlexible).toBe(5);
       expect(first.forceScalar).toEqual([100, 200]);
+    });
+
+    /**
+     * Regression: {@link IteratorTaskRunner.executeSubgraphIteration} used to subscribe to every
+     * per-task `progress` event inside an iteration's cloned subgraph and take a `Math.max` as
+     * the iteration's partial progress. That meant a single early-finishing subtask reporting
+     * `progress=100` saturated the iteration's partial immediately, making the outer `MapTask`
+     * announce `"Map N/N"` before the slow sibling tasks had actually run. The fix subscribes
+     * to the cloned subgraph's aggregate `graph_progress` instead — which averages across only
+     * real-work tasks via {@link taskPrototypeHasOwnExecute} — so a fast subtask can no longer
+     * prematurely complete the iteration.
+     *
+     * This test builds an iteration subgraph whose first task explicitly reports progress=100
+     * right away (simulating a passthrough / quick-finishing node) and whose second task sleeps.
+     * It then asserts that no "Map X/N" message announces an iteration as done before the slow
+     * sibling has actually finished.
+     */
+    test("map progress does not report iterations done before real work completes", async () => {
+      let slowCompletedCount = 0;
+
+      class EarlyProgressTask extends Task<{ item: number }, { item: number }> {
+        public static override type = "EarlyProgressTask_ProgressRegression";
+
+        public static override inputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { item: { type: "number" } },
+            required: ["item"],
+            additionalProperties: true,
+          } as const satisfies DataPortSchema;
+        }
+
+        public static override outputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { item: { type: "number" } },
+            required: ["item"],
+            additionalProperties: false,
+          } as const satisfies DataPortSchema;
+        }
+
+        override async execute(
+          input: { item: number },
+          context: { updateProgress: (p: number, m?: string) => Promise<void> | void }
+        ): Promise<{ item: number }> {
+          await context.updateProgress(100, "early done");
+          return { item: input.item };
+        }
+      }
+
+      class SlowWorkTask extends Task<{ item: number }, { processed: number }> {
+        public static override type = "SlowWorkTask_ProgressRegression";
+
+        public static override inputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { item: { type: "number" } },
+            required: ["item"],
+            additionalProperties: true,
+          } as const satisfies DataPortSchema;
+        }
+
+        public static override outputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { processed: { type: "number" } },
+            required: ["processed"],
+            additionalProperties: false,
+          } as const satisfies DataPortSchema;
+        }
+
+        override async execute(input: { item: number }): Promise<{ processed: number }> {
+          await sleep(20);
+          slowCompletedCount += 1;
+          return { processed: input.item * 2 };
+        }
+      }
+
+      const n = 4;
+      const workflow = new Workflow();
+      workflow
+        .map({ concurrencyLimit: n })
+        .addTask(EarlyProgressTask)
+        .addTask(SlowWorkTask)
+        .endMap();
+
+      const mapTask = workflow.graph.getTasks()[0] as MapTask;
+
+      const events: Array<{ progress: number; message?: string; slowDoneAtEmit: number }> = [];
+      mapTask.events.on("progress", (progress: number, message?: string) => {
+        events.push({ progress, message, slowDoneAtEmit: slowCompletedCount });
+      });
+
+      const result = await workflow.run({ item: [1, 2, 3, 4] });
+      expect((result.processed as number[]).slice().sort((a, b) => a - b)).toEqual([2, 4, 6, 8]);
+
+      const mapMessageRegex = /^Map (\d+)\/(\d+)/;
+      let sawMapMessage = false;
+      for (const e of events) {
+        if (!e.message) continue;
+        const match = e.message.match(mapMessageRegex);
+        if (!match) continue;
+        sawMapMessage = true;
+        const done = Number(match[1]);
+        const total = Number(match[2]);
+        expect(total).toBe(n);
+        // Pre-fix: `done` jumped to `n` as soon as EarlyProgressTask fired progress=100,
+        // before any SlowWorkTask had resolved. The fix bounds `done` by the number of
+        // iterations whose SlowWorkTask has actually finished.
+        expect(done).toBeLessThanOrEqual(e.slowDoneAtEmit);
+      }
+
+      expect(sawMapMessage).toBe(true);
+      const last = events[events.length - 1];
+      expect(last).toBeDefined();
+      expect(last.progress).toBe(100);
+    });
+
+    test("while progress surfaces inner graph_progress between iteration boundaries", async () => {
+      // A child task that reports progress=50 mid-execution simulates any long-running
+      // inner task. Pre-fix, WhileTask only emitted at iteration boundaries
+      // (25, 50, 75 for maxIterations=4), so nested streaming work was invisible to the
+      // outer progress bar. With the graph_progress subscription, we should see blended
+      // values between each pair of boundary emits.
+      class ProgressReportingTask extends Task<{ quality?: number }, { quality: number }> {
+        public static override type = "WhileTest_MidProgressTask";
+
+        public static override inputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { quality: { type: "number" } },
+            additionalProperties: true,
+          } as const satisfies DataPortSchema;
+        }
+
+        public static override outputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { quality: { type: "number" } },
+            required: ["quality"],
+            additionalProperties: false,
+          } as const satisfies DataPortSchema;
+        }
+
+        override async execute(
+          input: { quality?: number },
+          context: IExecuteContext
+        ): Promise<{ quality: number }> {
+          await sleep(5);
+          await context.updateProgress(50, "halfway");
+          await sleep(5);
+          return { quality: (input.quality ?? 0) + 0.25 };
+        }
+      }
+
+      const maxIterations = 4;
+      const workflow = new Workflow();
+      workflow
+        .while({
+          condition: (output: { quality?: number }) => (output?.quality ?? 0) < 1,
+          maxIterations,
+          chainIterations: true,
+        })
+        .addTask(ProgressReportingTask)
+        .endWhile();
+
+      const whileTask = workflow.graph.getTasks()[0] as WhileTask;
+      const events: Array<{ progress: number; message?: string }> = [];
+      whileTask.events.on("progress", (progress: number, message?: string) => {
+        events.push({ progress, message });
+      });
+
+      const result = await workflow.run({ quality: 0 });
+      expect(result.quality).toBe(1);
+
+      // With maxIterations=4 and 4 actual iterations, boundary emits land at 25/50/75.
+      // Between those we expect blended values around 13 (iter 0 @ 50%), 38 (iter 1 @ 50%),
+      // 63 (iter 2 @ 50%), 88 (iter 3 @ 50%). Require at least one sample strictly between
+      // each boundary pair to prove inner progress is surfacing.
+      const inBand = (lo: number, hi: number): boolean =>
+        events.some((e) => typeof e.progress === "number" && e.progress > lo && e.progress < hi);
+
+      expect(inBand(0, 25)).toBe(true);
+      expect(inBand(25, 50)).toBe(true);
+
+      // Progress should be non-decreasing across the observed emits (modulo rounding of
+      // the blended value, which is monotonic by construction).
+      for (let i = 1; i < events.length; i++) {
+        expect(events[i].progress).toBeGreaterThanOrEqual(events[i - 1].progress);
+      }
+
+      // No emit should exceed 99 until the runner itself marks the task complete.
+      for (const e of events) {
+        expect(e.progress).toBeLessThanOrEqual(99);
+      }
     });
   });
 

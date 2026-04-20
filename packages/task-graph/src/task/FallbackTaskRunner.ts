@@ -118,53 +118,81 @@ export class FallbackTaskRunner<
     const errors: { alternative: Record<string, unknown>; error: Error }[] = [];
     const totalAttempts = alternatives.length;
 
-    for (let i = 0; i < alternatives.length; i++) {
-      if (this.abortController?.signal.aborted) {
-        throw new TaskAbortedError("Fallback aborted");
-      }
-
-      const alternative = alternatives[i];
-      const attemptNumber = i + 1;
-
-      await this.handleProgress(
-        Math.round(((i + 0.5) / totalAttempts) * 100),
-        `Trying data alternative ${attemptNumber}/${totalAttempts}`
+    /**
+     * Blend the subgraph's aggregate `graph_progress` with the outer attempt index so
+     * nested streaming tasks visibly advance the bar between attempt boundaries. This
+     * mirrors the pattern used by {@link IteratorTaskRunner.executeSubgraphIteration}
+     * and {@link WhileTask.execute}. Because each attempt resets the subgraph and
+     * `graph_progress` starts at 0, the blended value is monotonic across attempts
+     * as `currentAttemptIndex` advances.
+     */
+    let currentAttemptIndex = 0;
+    const onSubgraphProgress = (innerProgress: number, message?: string): void => {
+      const blended = Math.round(
+        ((currentAttemptIndex + innerProgress / 100) / totalAttempts) * 100
       );
+      void this.handleProgress(
+        blended,
+        message ?? `Data alternative ${currentAttemptIndex + 1}/${totalAttempts}`
+      );
+    };
+    const unsubscribeSubgraphProgress = this.task.subGraph.subscribe(
+      "graph_progress",
+      onSubgraphProgress
+    );
 
-      try {
-        // Reset all tasks in the subgraph to PENDING
-        this.resetSubgraph();
+    try {
+      for (let i = 0; i < alternatives.length; i++) {
+        if (this.abortController?.signal.aborted) {
+          throw new TaskAbortedError("Fallback aborted");
+        }
 
-        // Merge the alternative's data with the original input
-        const mergedInput = { ...input, ...alternative } as Input;
-
-        // Run the subgraph with merged input
-        const results = await this.task.subGraph.run<Output>(mergedInput, {
-          parentSignal: this.abortController?.signal,
-          outputCache: this.outputCache,
-          registry: this.registry,
-        });
-
-        const mergedOutput = this.task.subGraph.mergeExecuteOutputsToRunOutput(
-          results,
-          this.task.compoundMerge
-        ) as Output;
+        currentAttemptIndex = i;
+        const alternative = alternatives[i];
+        const attemptNumber = i + 1;
 
         await this.handleProgress(
-          100,
-          `Data alternative ${attemptNumber}/${totalAttempts} succeeded`
+          Math.round(((i + 0.5) / totalAttempts) * 100),
+          `Trying data alternative ${attemptNumber}/${totalAttempts}`
         );
 
-        // Apply reactive post-processing
-        return (await this.executeTaskReactive(input, mergedOutput)) as Output;
-      } catch (error) {
-        // Aborts (non-timeout) are not retryable — propagate immediately
-        if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {
-          throw error;
+        try {
+          // Reset all tasks in the subgraph to PENDING
+          this.resetSubgraph();
+
+          // Merge the alternative's data with the original input
+          const mergedInput = { ...input, ...alternative } as Input;
+
+          // Run the subgraph with merged input
+          const results = await this.task.subGraph.run<Output>(mergedInput, {
+            parentSignal: this.abortController?.signal,
+            outputCache: this.outputCache,
+            registry: this.registry,
+          });
+
+          const mergedOutput = this.task.subGraph.mergeExecuteOutputsToRunOutput(
+            results,
+            this.task.compoundMerge
+          ) as Output;
+
+          await this.handleProgress(
+            100,
+            `Data alternative ${attemptNumber}/${totalAttempts} succeeded`
+          );
+
+          // Apply reactive post-processing
+          return (await this.executeTaskReactive(input, mergedOutput)) as Output;
+        } catch (error) {
+          // Aborts (non-timeout) are not retryable — propagate immediately
+          if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {
+            throw error;
+          }
+          errors.push({ alternative, error: error as Error });
+          // Continue to next alternative
         }
-        errors.push({ alternative, error: error as Error });
-        // Continue to next alternative
       }
+    } finally {
+      unsubscribeSubgraphProgress();
     }
 
     // All alternatives failed

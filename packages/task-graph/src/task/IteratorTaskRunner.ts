@@ -8,7 +8,7 @@ import { uuid4 } from "@workglow/util";
 import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
-import type { ITask, ITaskConstructor } from "./ITask";
+import type { ITaskConstructor } from "./ITask";
 import type { IterationAnalysisResult, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
 import type { TaskInput, TaskOutput } from "./TaskTypes";
 
@@ -252,22 +252,23 @@ export class IteratorTaskRunner<
     this.task.emit("iteration_start", index, iterationCount);
 
     /**
-     * Per-task `progress` (0–100), not {@link TaskGraph}'s `graph_progress`, which averages
-     * `task.progress` across nodes when `getTasks().length > 1` (e.g. one task at 100% and
-     * three at 0% becomes 25% — wrong for iteration sub-rows).
+     * Subscribe to the iteration subgraph's aggregate `graph_progress` rather than individual
+     * task `progress` events. {@link TaskGraphRunner.handleProgress} already averages across
+     * only the tasks whose class declares its own `execute` (see `taskPrototypeHasOwnExecute`),
+     * so passthrough nodes like `InputTask` — which hit `progress=100` immediately and would
+     * otherwise saturate a max-across-tasks partial — are correctly excluded. This mirrors
+     * the pattern in {@link GraphAsTaskRunner.executeTaskChildren}, and the `finally` block
+     * below bumps the partial to 100 to guarantee completion for degenerate (all-passthrough)
+     * subgraphs where `contributors.length === 0`.
      */
-    const taskProgressUnsubs: Array<{ task: ITask; fn: (p: number, m?: string) => void }> = [];
-    for (const t of graphClone.getTasks()) {
-      const fn = (p: number, message?: string): void => {
-        this.task.emit("iteration_progress", index, iterationCount, p, message);
-        if (this.aggregatingParentMapProgress && this.mapPartialIterationCount > 0) {
-          this.mapPartialProgress[index] = Math.max(this.mapPartialProgress[index] ?? 0, p);
-          this.emitMapParentProgressFromPartials(message);
-        }
-      };
-      t.events.on("progress", fn);
-      taskProgressUnsubs.push({ task: t, fn });
-    }
+    const onGraphProgress = (p: number, message?: string): void => {
+      this.task.emit("iteration_progress", index, iterationCount, p, message);
+      if (this.aggregatingParentMapProgress && this.mapPartialIterationCount > 0) {
+        this.mapPartialProgress[index] = Math.max(this.mapPartialProgress[index] ?? 0, p);
+        this.emitMapParentProgressFromPartials(message);
+      }
+    };
+    const unsubscribeGraphProgress = graphClone.subscribe("graph_progress", onGraphProgress);
 
     try {
       const results = await graphClone.run<TaskOutput>(input as TaskInput, {
@@ -286,9 +287,7 @@ export class IteratorTaskRunner<
         this.task.compoundMerge
       ) as TaskOutput;
     } finally {
-      for (const { task, fn } of taskProgressUnsubs) {
-        task.events.off("progress", fn);
-      }
+      unsubscribeGraphProgress();
       if (this.aggregatingParentMapProgress && this.mapPartialIterationCount > 0) {
         this.mapPartialProgress[index] = 100;
         this.emitMapParentProgressFromPartials();
