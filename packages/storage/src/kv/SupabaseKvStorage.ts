@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { JsonSchema } from "@workglow/util/schema";
 import { createServiceToken } from "@workglow/util";
+import { JsonSchema } from "@workglow/util/schema";
 import { SupabaseTabularStorage } from "../tabular/SupabaseTabularStorage";
 import { DefaultKeyValueKey, DefaultKeyValueSchema, IKvStorage } from "./IKvStorage";
 import { KvViaTabularStorage } from "./KvViaTabularStorage";
@@ -38,7 +37,7 @@ export class SupabaseKvStorage extends KvViaTabularStorage {
    * @param valueSchema - Schema for the value type (defaults to any)
    */
   constructor(
-    public client: SupabaseClient,
+    public client: unknown,
     public tableName: string,
     keySchema: JsonSchema = { type: "string" },
     valueSchema: JsonSchema = {},

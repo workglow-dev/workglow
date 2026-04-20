@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceToken } from "@workglow/util";
 import type { PrefixColumn } from "../queue/IQueueStorage";
 import { IRateLimiterStorage, RateLimiterStorageOptions } from "./IRateLimiterStorage";
@@ -18,19 +18,14 @@ export const SUPABASE_RATE_LIMITER_STORAGE = createServiceToken<IRateLimiterStor
  * Manages execution records and next available times for rate limiting.
  */
 export class SupabaseRateLimiterStorage implements IRateLimiterStorage {
-  /** The prefix column definitions */
+  protected readonly client: SupabaseClient;
   protected readonly prefixes: readonly PrefixColumn[];
-  /** The prefix values for filtering */
   protected readonly prefixValues: Readonly<Record<string, string | number>>;
-  /** The table name for execution tracking */
   protected readonly executionTableName: string;
-  /** The table name for next available times */
   protected readonly nextAvailableTableName: string;
 
-  constructor(
-    protected readonly client: SupabaseClient,
-    options?: RateLimiterStorageOptions
-  ) {
+  constructor(client: unknown, options?: RateLimiterStorageOptions) {
+    this.client = client as SupabaseClient;
     this.prefixes = options?.prefixes ?? [];
     this.prefixValues = options?.prefixValues ?? {};
 

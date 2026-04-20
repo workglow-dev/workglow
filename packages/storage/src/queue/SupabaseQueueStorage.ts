@@ -27,15 +27,11 @@ export const SUPABASE_QUEUE_STORAGE = createServiceToken<IQueueStorage<any, any>
  * Provides storage and retrieval for job execution states using Supabase.
  */
 export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input, Output> {
-  /** The prefix column definitions */
+  protected readonly client: SupabaseClient;
   protected readonly prefixes: readonly PrefixColumn[];
-  /** The prefix values for filtering */
   protected readonly prefixValues: Readonly<Record<string, string | number>>;
-  /** The table name for the job queue */
   protected readonly tableName: string;
-  /** Realtime channel for subscriptions */
   private realtimeChannel: RealtimeChannel | null = null;
-  /** Shared polling subscription manager (fallback) */
   private pollingManager: PollingSubscriptionManager<
     JobStorageFormat<Input, Output>,
     unknown,
@@ -43,10 +39,11 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
   > | null = null;
 
   constructor(
-    protected readonly client: SupabaseClient,
+    client: SupabaseClient,
     protected readonly queueName: string,
     options?: QueueStorageOptions
   ) {
+    this.client = client as SupabaseClient;
     this.prefixes = options?.prefixes ?? [];
     this.prefixValues = options?.prefixValues ?? {};
     // Generate table name based on prefix configuration to avoid column conflicts
