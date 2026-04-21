@@ -95,6 +95,11 @@ Options:
   --all          Run full suite (bun + vitest, no filters, very slow)
   --help         Show this usage message
 
+Environment variables:
+  BUN_PARALLEL_TESTS=1  Enable 'bun test --parallel'. Off by default because
+                        process-shared singletons (service registry, model
+                        registries, WASM PGlite) have surfaced flakes.
+
 Examples:
   bun scripts/test.ts --all                 # Run all tests
   bun scripts/test.ts unit                  # Run only unit tests
@@ -155,8 +160,14 @@ function collectFiles(
 }
 
 async function runBunTest(files: string[]): Promise<number> {
+  // `--parallel` executes test files concurrently inside a single Bun process.
+  // Process-shared singletons (globalServiceRegistry, model registries, telemetry
+  // providers, WASM PGlite) have surfaced flakes; opt-in via BUN_PARALLEL_TESTS=1
+  // rather than defaulting on.
+  const parallel = process.env.BUN_PARALLEL_TESTS === "1";
+  const baseArgs = parallel ? ["bun", "test", "--parallel"] : ["bun", "test"];
   const proc = Bun.spawn(
-    files.length > 0 ? ["bun", "test", "--parallel", ...files] : ["bun", "test", "--parallel"],
+    files.length > 0 ? [...baseArgs, ...files] : baseArgs,
     {
       cwd: ROOT,
       stdio: ["inherit", "inherit", "inherit"],
@@ -232,7 +243,7 @@ if (unknown.length > 0) {
   process.exit(1);
 }
 
-// ── Collect test files (when section or kind filter is given) ──────────────────
+// ── Collect test files (when section or kind filter is given) ──────────────
 
 const needsFileFilter = sections.length > 0 || kinds.length > 0;
 const dirs =
@@ -253,7 +264,7 @@ const sectionLabel = sections.length > 0 ? sections.join("+") : "all";
 const fileCount = files.length > 0 ? `${files.length} file(s)` : "all files";
 console.log(`\nRunning ${kindLabel} tests in sections [${sectionLabel}] — ${fileCount}\n`);
 
-// ── Execute ───────────────────────────────────────────────────────────────────
+// ── Execute ─────────────────────────────────────────────────────────────────────
 
 if (!vitestOnly) {
   const code = await runBunTest(files);
