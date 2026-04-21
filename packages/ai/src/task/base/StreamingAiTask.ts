@@ -36,9 +36,10 @@ import type { ModelConfig } from "../../model/ModelSchema";
  * @cancel The `context.signal` is forwarded to the resolved execution strategy
  * (direct or queued), which in turn forwards it to the provider stream function.
  * When the signal fires, the underlying provider SDK tears down its connection
- * and the inner `for await` exits; this generator then returns. Any partial
- * accumulated text / object state on the task is discarded -- downstream
- * consumers see status `ABORTING` and MUST NOT treat `runOutputData` as valid.
+ * and the inner `for await` exits; this generator then returns or throws
+ * promptly. Partial accumulated text / object state may still remain in task
+ * or runner state after abort (the runner does not clear `runOutputData`) and
+ * MUST be treated as invalid unless the final run status is `COMPLETED`.
  * Subclasses overriding `executeStream()` MUST preserve this contract: forward
  * `context.signal`, and either return or throw promptly after abort.
  */
