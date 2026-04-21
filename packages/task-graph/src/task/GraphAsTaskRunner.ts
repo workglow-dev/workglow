@@ -5,10 +5,10 @@
  */
 
 import { GraphResultArray } from "../task-graph/TaskGraphRunner";
+import type { GraphAsTaskConfig } from "./GraphAsTask";
 import { GraphAsTask } from "./GraphAsTask";
 import { TaskRunner } from "./TaskRunner";
 import type { TaskInput, TaskOutput } from "./TaskTypes";
-import type { GraphAsTaskConfig } from "./GraphAsTask";
 
 export class GraphAsTaskRunner<
   Input extends TaskInput = TaskInput,
@@ -21,10 +21,16 @@ export class GraphAsTaskRunner<
    * Protected method to execute a task subgraph by delegating back to the task itself.
    */
   protected async executeTaskChildren(input: Input): Promise<GraphResultArray<Output>> {
+    // Route inner graph_progress through handleProgress so the outer graph's
+    // updateProgress callback fires (updating task.progress and re-emitting
+    // graph_progress up the chain). A bare emit on the task was silently
+    // dropped by the outer TaskGraphRunner, leaving parent progress stuck at
+    // the value from whichever task ran before this one. Mirrors the pattern
+    // used by FallbackTaskRunner, IteratorTaskRunner, and WhileTask.
     const unsubscribe = this.task.subGraph!.subscribe(
       "graph_progress",
       (progress: number, message?: string, ...args: any[]) => {
-        this.task.emit("progress", progress, message, ...args);
+        void this.handleProgress(progress, message, ...args);
       }
     );
     const results = await this.task.subGraph!.run<Output>(input, {

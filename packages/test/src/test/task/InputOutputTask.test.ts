@@ -19,6 +19,8 @@ describe("InputTask", () => {
     expect(InputTask.category).toBe("Flow Control");
     expect(InputTask.hasDynamicSchemas).toBe(true);
     expect(InputTask.cacheable).toBe(false);
+    // Must be marked passthrough so it is excluded from graph-level progress averaging.
+    expect(InputTask.isPassthrough).toBe(true);
   });
 
   it("should pass through all input as output", async () => {
@@ -51,6 +53,8 @@ describe("OutputTask", () => {
     expect(OutputTask.category).toBe("Flow Control");
     expect(OutputTask.hasDynamicSchemas).toBe(true);
     expect(OutputTask.cacheable).toBe(false);
+    // Must be marked passthrough so it is excluded from graph-level progress averaging.
+    expect(OutputTask.isPassthrough).toBe(true);
   });
 
   it("should pass through all input as output", async () => {

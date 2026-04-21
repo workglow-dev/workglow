@@ -43,13 +43,28 @@ import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./Tas
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
 /**
- * Tasks that inherit {@link Task.prototype.execute} without declaring their own `execute` on the
- * subclass prototype are omitted from graph-level progress averaging (they keep default 0% until
- * complete and would dilute the bar).
+ * Identifies tasks whose progress is meaningful to graph-level averaging. A task contributes when
+ * it does real work — either because:
+ *
+ *   - it declares its own `execute` on the subclass prototype (standard case), or
+ *   - it declares its own `executeStream` on the subclass prototype (streaming tasks keep their
+ *     `execute` on `Task.prototype` but still do real work), or
+ *   - it wraps a subgraph (`hasChildren()` — e.g. `GraphAsTask` / `WorkflowAsTask` /
+ *     `IteratorTask` / `WhileTask` / `FallbackTask`). Their runners route subgraph
+ *     `graph_progress` through {@link TaskRunner.handleProgress}, so `task.progress` tracks
+ *     the nested work and the averaging is accurate.
+ *
+ * Tasks flagged `isPassthrough` (e.g. `InputTask`, `OutputTask`) are always excluded: they only
+ * forward data and would jump from 0% to 100%, diluting the bar.
  */
 export function taskPrototypeHasOwnExecute(task: ITask): boolean {
   const Ctor = task.constructor as typeof Task;
-  return Object.hasOwn(Ctor.prototype, "execute");
+  if (Ctor.isPassthrough) return false;
+  return (
+    Object.hasOwn(Ctor.prototype, "execute") ||
+    Object.hasOwn(Ctor.prototype, "executeStream") ||
+    task.hasChildren()
+  );
 }
 
 export type GraphSingleTaskResult<T> = {

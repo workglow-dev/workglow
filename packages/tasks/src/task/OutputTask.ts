@@ -4,8 +4,8 @@
  * All Rights Reserved
  */
 
-import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import type { IExecuteContext, StreamEvent, StreamFinish } from "@workglow/task-graph";
+import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 
 export type OutputTaskInput = Record<string, unknown>;
@@ -21,6 +21,7 @@ export class OutputTask extends Task<OutputTaskInput, OutputTaskOutput, OutputTa
   static override hasDynamicSchemas = true;
   static override cacheable = false;
   static override isGraphOutput = true;
+  static override isPassthrough = true;
 
   public static override inputSchema(): DataPortSchema {
     return {

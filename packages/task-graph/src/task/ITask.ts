@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { EventEmitter, ServiceRegistry, ResourceScope } from "@workglow/util";
+import type { EventEmitter, ResourceScope, ServiceRegistry } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ITaskGraph } from "../task-graph/ITaskGraph";
@@ -130,6 +130,7 @@ export interface ITaskStaticProperties {
   readonly hasDynamicEntitlements: boolean;
   readonly passthroughInputsToOutputs?: boolean;
   readonly isGraphOutput?: boolean;
+  readonly isPassthrough?: boolean;
   readonly customizable?: boolean;
   readonly inputSchema: () => DataPortSchema;
   readonly outputSchema: () => DataPortSchema;

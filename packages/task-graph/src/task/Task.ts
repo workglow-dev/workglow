@@ -101,6 +101,13 @@ export class Task<
   public static isGraphOutput: boolean = false;
 
   /**
+   * When true, this task does no real work — it only forwards inputs to outputs
+   * (e.g. `InputTask`, `OutputTask`). Such tasks are excluded from graph-level
+   * progress averaging because they jump from 0% to 100% and would dilute the bar.
+   */
+  public static isPassthrough: boolean = false;
+
+  /**
    * Whether this task has dynamic entitlements that can change at runtime.
    * Tasks with dynamic entitlements should override the instance entitlements() method
    * and emit 'entitlementChange' events when their entitlements change.

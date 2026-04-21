@@ -4,11 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Dataflow, GraphAsTask, TaskGraph } from "@workglow/task-graph";
-import { Container, ServiceRegistry, setLogger } from "@workglow/util";
+import {
+  Dataflow,
+  GraphAsTask,
+  IExecuteContext,
+  MapTask,
+  Task,
+  TaskGraph,
+  Workflow,
+} from "@workglow/task-graph";
+import { InputTask, OutputTask } from "@workglow/tasks";
+import { Container, ServiceRegistry, setLogger, sleep } from "@workglow/util";
 import { DataPortSchema } from "@workglow/util/schema";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { getTestingLogger } from "../../binding/TestingLogger";
 import {
   GraphAsTask_ComputeTask,
   GraphAsTask_InputTask,
@@ -19,7 +29,6 @@ import {
   TestGraphAsTask_AB,
   TestGraphAsTask_Value,
 } from "./TestTasks";
-import { getTestingLogger } from "../../binding/TestingLogger";
 
 describe("GraphAsTask Dynamic Schema", () => {
   let logger = getTestingLogger();
@@ -610,6 +619,208 @@ describe("GraphAsTask Dynamic Schema", () => {
       expect(result.result).toBe(8);
       expect(computeTask.runInputData).toEqual({ a: 5, b: 3 });
       expect(computeTask.runOutputData).toEqual({ result: 8 });
+    });
+  });
+
+  describe("Progress Propagation", () => {
+    it("surfaces inner subgraph progress to the containing graph's graph_progress", async () => {
+      // Regression test for a bug where GraphAsTaskRunner bridged the subgraph's
+      // `graph_progress` via a bare `this.task.emit("progress", ...)` — which
+      // neither updated `task.progress` nor invoked the outer updateProgress
+      // callback. Symptom in the real app: when Help/Blog Indexer's outer
+      // MapTask finished ("Map 22/22"), the subsequent WorkflowAsTask:KB Embed
+      // ran for minutes but its inner progress events never reached the outer
+      // graph, so the activity row was stuck on the stale "Map 22/22" message.
+      class MidProgressTask extends Task<{ value: number }, { result: number }> {
+        public static override type = "GraphAsTaskTest_MidProgressTask";
+        public static override readonly cacheable = false;
+
+        public static override inputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { value: { type: "number", default: 0 } },
+            additionalProperties: true,
+          } as const satisfies DataPortSchema;
+        }
+
+        public static override outputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { result: { type: "number" } },
+            additionalProperties: false,
+          } as const satisfies DataPortSchema;
+        }
+
+        override async execute(
+          input: { value: number },
+          context: IExecuteContext
+        ): Promise<{ result: number }> {
+          await sleep(5);
+          await context.updateProgress(50, "inner-halfway");
+          await sleep(5);
+          return { result: (input.value ?? 0) * 10 };
+        }
+      }
+
+      const subGraph = new TaskGraph();
+      subGraph.addTask(new MidProgressTask({ id: "mid", defaults: { value: 4 } }));
+
+      const graphAsTask = new GraphAsTask({ id: "wrapper" });
+      graphAsTask.subGraph = subGraph;
+
+      const outerGraph = new TaskGraph();
+      outerGraph.addTask(graphAsTask);
+
+      const outerEvents: Array<{ progress: number; message?: string }> = [];
+      outerGraph.subscribe("graph_progress", (progress: number, message?: string) => {
+        outerEvents.push({ progress, message });
+      });
+
+      await outerGraph.run({ value: 4 }, { registry });
+
+      // The inner task's "inner-halfway" message must reach the outer graph.
+      // Pre-fix, this array was empty because the bare `emit("progress", ...)`
+      // inside GraphAsTaskRunner was not routed through handleProgress.
+      const halfway = outerEvents.filter((e) => e.message === "inner-halfway");
+      expect(halfway.length).toBeGreaterThanOrEqual(1);
+
+      // Progress should be monotonic and bounded.
+      for (const e of outerEvents) {
+        expect(e.progress).toBeGreaterThanOrEqual(0);
+        expect(e.progress).toBeLessThanOrEqual(100);
+      }
+    });
+
+    /**
+     * Regression test for a multi-stage workflow whose outer `graph_progress` message got
+     * stuck on `"Map N/N iterations"` for the entire duration of a subsequent slow
+     * `GraphAsTask`. Two compounding bugs caused it:
+     *   1. `taskPrototypeHasOwnExecute` only recognized tasks with an own `execute` on
+     *      the prototype — excluding all `GraphAsTask`-style wrappers (which rely on
+     *      their runner / subgraph). An outer graph with `MapTask -> GraphAsTask`
+     *      therefore had zero contributors, and `graph_progress` degenerated to passing
+     *      through the last child `progress` event (the MapTask's final tally).
+     *   2. Streaming-capable `InputTask` / `OutputTask` nodes were counted as
+     *      contributors even though they do no real work — their 0%→100% jumps diluted
+     *      the bar.
+     *
+     * The test wires a realistic shape: InputTask → MapTask → GraphAsTask → OutputTask,
+     * where the MapTask finishes fast and the GraphAsTask's inner task sleeps while
+     * reporting intermediate progress with a distinct "embed-working" message. We
+     * assert that after the MapTask's last "Map N/N" event, the outer graph surfaces
+     * the GraphAsTask's inner messages — proving both the filter expansion (so
+     * GraphAsTask is a contributor) and the `isPassthrough` exclusion (so the two
+     * flow-control nodes don't starve out the contributor count).
+     */
+    it("outer graph_progress does not stick on 'Map N/N' while a slow GraphAsTask runs", async () => {
+      class EmbedStepTask extends Task<{ value: number }, { embedded: number }> {
+        public static override type = "GraphAsTaskTest_EmbedStepTask";
+        public static override readonly cacheable = false;
+
+        public static override inputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { value: { type: "number", default: 0 } },
+            additionalProperties: true,
+          } as const satisfies DataPortSchema;
+        }
+
+        public static override outputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { embedded: { type: "number" } },
+            additionalProperties: false,
+          } as const satisfies DataPortSchema;
+        }
+
+        override async execute(
+          input: { value: number },
+          context: IExecuteContext
+        ): Promise<{ embedded: number }> {
+          await sleep(5);
+          await context.updateProgress(25, "embed-working");
+          await sleep(5);
+          await context.updateProgress(75, "embed-working");
+          await sleep(5);
+          return { embedded: (input.value ?? 0) + 1000 };
+        }
+      }
+
+      class MultiplyTask extends Task<{ item: number }, { item: number }> {
+        public static override type = "GraphAsTaskTest_MultiplyTask";
+        public static override readonly cacheable = false;
+
+        public static override inputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { item: { type: "number" } },
+            required: ["item"],
+            additionalProperties: true,
+          } as const satisfies DataPortSchema;
+        }
+
+        public static override outputSchema(): DataPortSchema {
+          return {
+            type: "object",
+            properties: { item: { type: "number" } },
+            required: ["item"],
+            additionalProperties: false,
+          } as const satisfies DataPortSchema;
+        }
+
+        override async execute(input: { item: number }): Promise<{ item: number }> {
+          return { item: input.item * 2 };
+        }
+      }
+
+      // Build the wrapper GraphAsTask whose inner work emits a distinct message.
+      const embedSubGraph = new TaskGraph();
+      embedSubGraph.addTask(new EmbedStepTask({ id: "embed-step", defaults: { value: 0 } }));
+      const embedTask = new GraphAsTask({ id: "embed-wrapper" });
+      embedTask.subGraph = embedSubGraph;
+
+      // Build a MapTask that completes fast (producing a "Map N/N" message at the end).
+      const workflow = new Workflow();
+      workflow.map({ concurrencyLimit: 4 }).addTask(MultiplyTask).endMap();
+      const mapTask = workflow.graph.getTasks()[0] as MapTask;
+
+      // Outer graph mirrors the real "Help/Blog Indexer" shape:
+      // InputTask -> MapTask -> GraphAsTask -> OutputTask
+      const outerGraph = new TaskGraph();
+      const inputNode = new InputTask({ id: "in" });
+      const outputNode = new OutputTask({ id: "out" });
+      outerGraph.addTask(inputNode);
+      outerGraph.addTask(mapTask);
+      outerGraph.addTask(embedTask);
+      outerGraph.addTask(outputNode);
+
+      const outerEvents: Array<{ progress: number; message?: string; at: number }> = [];
+      outerGraph.subscribe("graph_progress", (progress: number, message?: string) => {
+        outerEvents.push({ progress, message, at: outerEvents.length });
+      });
+
+      await outerGraph.run({ item: [1, 2, 3, 4] }, { registry });
+
+      // Sanity: the outer graph saw at least one "Map N/N" message and at least one
+      // "embed-working" message.
+      const mapEvents = outerEvents.filter((e) => /^Map \d+\/\d+/.test(e.message ?? ""));
+      const embedEvents = outerEvents.filter((e) => e.message === "embed-working");
+      expect(mapEvents.length).toBeGreaterThan(0);
+      expect(embedEvents.length).toBeGreaterThanOrEqual(1);
+
+      // Core assertion: after the last "Map N/N" event, subsequent events must include
+      // the GraphAsTask's inner "embed-working" message. Pre-fix, outer graph_progress
+      // was stuck on "Map N/N" for the entire embed phase.
+      const lastMapAt = mapEvents[mapEvents.length - 1]!.at;
+      const afterMap = outerEvents.filter((e) => e.at > lastMapAt);
+      const embedAfterMap = afterMap.filter((e) => e.message === "embed-working");
+      expect(embedAfterMap.length).toBeGreaterThanOrEqual(1);
+
+      // Progress should remain bounded.
+      for (const e of outerEvents) {
+        expect(e.progress).toBeGreaterThanOrEqual(0);
+        expect(e.progress).toBeLessThanOrEqual(100);
+      }
     });
   });
 });

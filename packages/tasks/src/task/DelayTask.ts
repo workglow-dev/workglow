@@ -13,8 +13,8 @@ import {
   TaskConfigSchema,
   Workflow,
 } from "@workglow/task-graph";
-import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { sleep } from "@workglow/util";
+import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const delayTaskConfigSchema = {
   type: "object",

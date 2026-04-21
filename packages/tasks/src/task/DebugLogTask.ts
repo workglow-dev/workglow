@@ -69,6 +69,7 @@ export class DebugLogTask<
   static override readonly cacheable = false;
   public static override passthroughInputsToOutputs = true;
   public static override customizable = true;
+  public static override isPassthrough = true;
 
   public static override configSchema(): DataPortSchema {
     return debugLogTaskConfigSchema;
