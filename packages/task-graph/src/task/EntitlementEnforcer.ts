@@ -141,7 +141,12 @@ export function createPolicyEnforcer(
         }
         if (answer === "deny") {
           // ask verdicts always have a matchedRule (the ask rule that fired)
-          denied.push({ entitlement: result.entitlement, reason: "user-deny", matchedRule: result.matchedRule! });
+          if (!result.matchedRule) {
+            throw new Error(
+              `Invariant violation: ask verdict for "${result.entitlement.id}" is missing matchedRule`
+            );
+          }
+          denied.push({ entitlement: result.entitlement, reason: "user-deny", matchedRule: result.matchedRule });
         }
       }
       // "granted" — nothing to do
