@@ -349,19 +349,35 @@ required entitlements are granted:
 
 ```ts
 interface IEntitlementEnforcer {
-  check(required: TaskEntitlements): readonly TaskEntitlement[];
+  checkAll(required: TaskEntitlements): Promise<readonly EntitlementDenial[]>;
+  checkTask(task: ITask): Promise<readonly EntitlementDenial[]>;
 }
 ```
 
-The `check()` method returns an array of _denied_ (non-optional) entitlements.
-An empty array means all entitlements are granted.
+`checkAll()` is the preflight check: it evaluates every required entitlement
+against the policy, resolving `"ask"` verdicts via the registered
+`IEntitlementResolver`. `checkTask()` is the runtime check for tasks with
+`hasDynamicEntitlements`. Both return an array of `EntitlementDenial` records
+(non-optional entitlements only) — an empty array means all entitlements are
+granted.
+
+Each `EntitlementDenial` is a discriminated union on `reason`:
+
+- `"policy-deny"` -- matched an explicit deny rule (`matchedRule` present)
+- `"user-deny"` -- matched an ask rule and the resolver returned `"deny"` (`matchedRule` present)
+- `"default-deny"` -- no rule covered the entitlement (`matchedRule` absent)
+
+Use `formatEntitlementDenial(denial)` to render a human-readable message.
 
 ### Built-In Enforcers
 
 **Permissive enforcer** -- grants everything, suitable for trusted environments:
 
 ```ts
-const PERMISSIVE_ENFORCER: IEntitlementEnforcer = { check: () => [] };
+const PERMISSIVE_ENFORCER: IEntitlementEnforcer = {
+  checkAll: async () => [],
+  checkTask: async () => [],
+};
 ```
 
 **Grant-list enforcer** -- checks against a list of entitlement ID strings
@@ -543,7 +559,9 @@ without needing to instantiate task classes.
 | `TrackedTaskEntitlements` | Container with `entitlements: readonly TrackedTaskEntitlement[]`            |
 | `EntitlementGrant`        | Grant declaration with `id` and optional `resources` (glob patterns)        |
 | `EntitlementProfile`      | `"browser" \| "desktop" \| "server"`                                        |
-| `IEntitlementEnforcer`    | Interface with `check(required): readonly TaskEntitlement[]`                |
+| `EntitlementDenial`       | Denied entitlement: `{ entitlement, reason, matchedRule? }` (discriminated) |
+| `EntitlementDenialReason` | `"policy-deny" \| "default-deny" \| "user-deny"`                            |
+| `IEntitlementEnforcer`    | Interface with async `checkAll(required)` and `checkTask(task)` methods     |
 
 ### Functions
 
@@ -558,6 +576,7 @@ without needing to instantiate task classes.
 | `createProfileEnforcer`    | `(profile: EntitlementProfile) => IEntitlementEnforcer`           | Create an enforcer for a standard runtime profile                   |
 | `getProfileGrants`         | `(profile: EntitlementProfile) => readonly EntitlementGrant[]`    | Get the grant list for a profile                                    |
 | `computeGraphEntitlements` | `(graph: TaskGraph, options?) => TaskEntitlements`                | Aggregate entitlements across all tasks in a graph                  |
+| `formatEntitlementDenial`  | `(denial: EntitlementDenial) => string`                           | Render a denial as a human-readable error-message fragment          |
 
 ### Constants
 
