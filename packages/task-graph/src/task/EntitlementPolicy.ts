@@ -128,3 +128,23 @@ export function evaluatePolicy(
 
   return results;
 }
+
+/**
+ * Pure single-entitlement check. Convenience wrapper around `evaluatePolicy`
+ * for callers that want the `can(action, resource)` style verdict in one call.
+ *
+ * Returns the per-entitlement check result with `verdict` (`"granted"`, `"denied"`,
+ * or `"ask"`) and the `matchedRule` that produced it. No side effects — no
+ * resolver is invoked even for `"ask"` verdicts; the caller decides how to
+ * handle that.
+ */
+export function can(
+  policy: EntitlementPolicy,
+  id: EntitlementId,
+  resources?: readonly string[]
+): EntitlementCheckResult {
+  const required: TaskEntitlement = resources !== undefined ? { id, resources } : { id };
+  // evaluatePolicy skips optional entitlements; we always pass a non-optional one.
+  const [result] = evaluatePolicy(policy, { entitlements: [required] });
+  return result;
+}

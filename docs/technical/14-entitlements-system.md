@@ -477,9 +477,9 @@ for (const e of allEntitlements.entitlements) {
 }
 
 // Check against enforcer
-const denied = enforcer.check(allEntitlements);
+const denied = await enforcer.checkAll(allEntitlements);
 if (denied.length > 0) {
-  throw new Error(`Denied entitlements: ${denied.map((e) => e.id).join(", ")}`);
+  throw new Error(`Denied entitlements: ${denied.map(formatEntitlementDenial).join(", ")}`);
 }
 ```
 
