@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
 import type { ResourceScope } from "@workglow/util";
+import { EventEmitter, ServiceRegistry, uuid4 } from "@workglow/util";
 import { DirectedAcyclicGraph } from "@workglow/util/graph";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
 import type { ITask } from "../task/ITask";
@@ -39,6 +39,8 @@ import { CompoundMergeStrategy, GraphResult, TaskGraphRunner } from "./TaskGraph
 export interface TaskGraphRunConfig {
   /** Optional output cache to use for this task graph */
   outputCache?: TaskOutputRepository | boolean;
+  /** Optional if we should match all empty inputs with the graph input */
+  matchAllEmptyInputs?: boolean;
   /** Optional signal to abort the task graph */
   parentSignal?: AbortSignal;
   /** Optional service registry to use for this task graph (creates child from global if not provided) */

@@ -216,8 +216,15 @@ export class TaskGraphRunner {
         const runAsync = async () => {
           let errorRouted = false;
           try {
-            // Only filter input for non-root tasks; root tasks get the full input
-            const taskInput = isRootTask ? input : this.filterInputForTask(task, input);
+            // Root tasks (no incoming dataflows) receive the graph run input so e.g.
+            // InputTask can seed the graph. Downstream tasks rely only on dataflow
+            // edges plus task defaults — unless matchAllEmptyInputs is true, in which case
+            // we filter the input to only include properties that are not connected via dataflows.
+            const taskInput = isRootTask
+              ? input
+              : config?.matchAllEmptyInputs
+                ? this.filterInputForTask(task, input)
+                : {};
 
             const taskPromise = this.runTask(task, taskInput);
             this.inProgressTasks!.set(task.id, taskPromise);
