@@ -5,6 +5,7 @@
  */
 
 import {
+  can,
   computeGraphEntitlements,
   createGrantListEnforcer,
   createPolicyEnforcer,
@@ -485,7 +486,8 @@ describe("Entitlements", () => {
         entitlements: [{ id: "filesystem:read" }],
       });
       expect(denied).toHaveLength(1);
-      expect(denied[0].id).toBe("filesystem:read");
+      expect(denied[0].entitlement.id).toBe("filesystem:read");
+      expect(denied[0].reason).toBe("default-deny");
     });
 
     it("skips optional entitlements", async () => {
@@ -885,6 +887,157 @@ describe("Entitlements", () => {
       });
       expect(results[0].matchedRule).toBeUndefined();
     });
+
+    // ====================================================================
+    // Explicit verdict matrix — one row per (rule-source × hierarchy ×
+    // resource-scope) combination that needs to behave the same way every
+    // release. Add a row whenever a new dimension is introduced.
+    // ====================================================================
+    describe("verdict matrix", () => {
+      type MatrixRow = {
+        readonly name: string;
+        readonly policy: EntitlementPolicy;
+        readonly required: TaskEntitlements;
+        readonly expected: "granted" | "denied" | "ask";
+      };
+      const rows: readonly MatrixRow[] = [
+        {
+          name: "exact deny",
+          policy: { deny: [{ id: "network:http" }], grant: [], ask: [] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "denied",
+        },
+        {
+          name: "hierarchical deny (parent covers child)",
+          policy: { deny: [{ id: "network" }], grant: [], ask: [] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "denied",
+        },
+        {
+          name: "scoped deny matches resource",
+          policy: {
+            deny: [{ id: "filesystem:write", resources: ["/etc/*"] }],
+            grant: [{ id: "filesystem" }],
+            ask: [],
+          },
+          required: { entitlements: [{ id: "filesystem:write", resources: ["/etc/passwd"] }] },
+          expected: "denied",
+        },
+        {
+          name: "scoped deny misses, falls through to grant",
+          policy: {
+            deny: [{ id: "filesystem:write", resources: ["/etc/*"] }],
+            grant: [{ id: "filesystem" }],
+            ask: [],
+          },
+          required: { entitlements: [{ id: "filesystem:write", resources: ["/tmp/data"] }] },
+          expected: "granted",
+        },
+        {
+          name: "exact grant",
+          policy: { deny: [], grant: [{ id: "network:http" }], ask: [] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "granted",
+        },
+        {
+          name: "hierarchical grant (parent covers child)",
+          policy: { deny: [], grant: [{ id: "network" }], ask: [] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "granted",
+        },
+        {
+          name: "scoped grant matches resource pattern",
+          policy: { deny: [], grant: [{ id: "ai:model", resources: ["claude-*"] }], ask: [] },
+          required: { entitlements: [{ id: "ai:model", resources: ["claude-3-opus"] }] },
+          expected: "granted",
+        },
+        {
+          name: "scoped grant misses resource, falls through to ask",
+          policy: {
+            deny: [],
+            grant: [{ id: "ai:model", resources: ["claude-*"] }],
+            ask: [{ id: "ai:model" }],
+          },
+          required: { entitlements: [{ id: "ai:model", resources: ["gpt-4"] }] },
+          expected: "ask",
+        },
+        {
+          name: "scoped grant cannot cover broad requirement",
+          policy: { deny: [], grant: [{ id: "network", resources: ["api.example.com"] }], ask: [] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "denied",
+        },
+        {
+          name: "exact ask",
+          policy: { deny: [], grant: [], ask: [{ id: "network:http" }] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "ask",
+        },
+        {
+          name: "hierarchical ask (parent covers child)",
+          policy: { deny: [], grant: [], ask: [{ id: "network" }] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "ask",
+        },
+        {
+          name: "no rule matches → default deny",
+          policy: { deny: [], grant: [], ask: [] },
+          required: { entitlements: [{ id: "network:http" }] },
+          expected: "denied",
+        },
+      ];
+
+      it.each(rows)("$name → $expected", ({ policy, required, expected }) => {
+        const results = evaluatePolicy(policy, required);
+        expect(results).toHaveLength(1);
+        expect(results[0].verdict).toBe(expected);
+      });
+
+      it("optional requirement is skipped regardless of policy", () => {
+        const results = evaluatePolicy(
+          { deny: [{ id: "network" }], grant: [], ask: [] },
+          { entitlements: [{ id: "network:http", optional: true }] }
+        );
+        expect(results).toHaveLength(0);
+      });
+    });
+  });
+
+  // ======================================================================
+  // can() helper
+  // ======================================================================
+
+  describe("can", () => {
+    const policy: EntitlementPolicy = {
+      deny: [{ id: "filesystem:write", resources: ["/etc/*"] }],
+      grant: [{ id: "network" }, { id: "filesystem" }],
+      ask: [{ id: "code-execution" }],
+    };
+
+    it("returns granted verdict for covered entitlement", () => {
+      const result = can(policy, "network:http");
+      expect(result.verdict).toBe("granted");
+      expect(result.entitlement.id).toBe("network:http");
+    });
+
+    it("returns ask verdict for ask-rule match", () => {
+      const result = can(policy, "code-execution:javascript");
+      expect(result.verdict).toBe("ask");
+    });
+
+    it("returns denied verdict for default-deny", () => {
+      const result = can(policy, "storage:read");
+      expect(result.verdict).toBe("denied");
+      expect(result.matchedRule).toBeUndefined();
+    });
+
+    it("respects resource scope when provided", () => {
+      const allowed = can(policy, "filesystem:write", ["/tmp/data"]);
+      expect(allowed.verdict).toBe("granted");
+      const blocked = can(policy, "filesystem:write", ["/etc/passwd"]);
+      expect(blocked.verdict).toBe("denied");
+      expect(blocked.matchedRule?.id).toBe("filesystem:write");
+    });
   });
 
   // ======================================================================
@@ -902,7 +1055,12 @@ describe("Entitlements", () => {
         entitlements: [{ id: "network:http" }],
       });
       expect(denied).toHaveLength(1);
-      expect(denied[0].id).toBe("network:http");
+      const firstDenial = denied[0];
+      expect(firstDenial.entitlement.id).toBe("network:http");
+      expect(firstDenial.reason).toBe("policy-deny");
+      if (firstDenial.reason === "policy-deny") {
+        expect(firstDenial.matchedRule?.id).toBe("network:http");
+      }
     });
 
     it("ask with PERMISSIVE_RESOLVER grants", async () => {

@@ -19,7 +19,7 @@ import {
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import type { IEntitlementEnforcer } from "../task/EntitlementEnforcer";
-import { ENTITLEMENT_ENFORCER } from "../task/EntitlementEnforcer";
+import { ENTITLEMENT_ENFORCER, formatEntitlementDenial } from "../task/EntitlementEnforcer";
 import { ITask } from "../task/ITask";
 import type { StreamEvent, StreamMode } from "../task/StreamTypes";
 import {
@@ -749,7 +749,7 @@ export class TaskGraphRunner {
       const denied = await this.activeEnforcer.checkTask(task);
       if (denied.length > 0) {
         throw new TaskEntitlementError(
-          `Task ${(task.constructor as typeof Task).type} denied entitlements: ${denied.map((e) => e.id).join(", ")}`
+          `Task ${(task.constructor as typeof Task).type} denied entitlements: ${denied.map(formatEntitlementDenial).join(", ")}`
         );
       }
     }
@@ -1087,7 +1087,7 @@ export class TaskGraphRunner {
         const denied = await enforcer.checkAll(computeGraphEntitlements(this.graph));
         if (denied.length > 0) {
           throw new TaskEntitlementError(
-            `Denied entitlements: ${denied.map((e: { id: string }) => e.id).join(", ")}`
+            `Denied entitlements: ${denied.map(formatEntitlementDenial).join(", ")}`
           );
         }
         this.activeEnforcer = enforcer;

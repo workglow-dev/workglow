@@ -5,13 +5,65 @@
  */
 
 import { createServiceToken } from "@workglow/util";
-import type { EntitlementPolicy } from "./EntitlementPolicy";
+import type { EntitlementPolicy, EntitlementRule } from "./EntitlementPolicy";
 import { evaluatePolicy } from "./EntitlementPolicy";
 import type { IEntitlementResolver } from "./EntitlementResolver";
 import { PERMISSIVE_RESOLVER } from "./EntitlementResolver";
 import type { ITask } from "./ITask";
 import type { Task } from "./Task";
 import type { EntitlementGrant, TaskEntitlement, TaskEntitlements } from "./TaskEntitlements";
+
+// ========================================================================
+// Denial Type
+// ========================================================================
+
+/**
+ * Why an entitlement was denied.
+ * - `policy-deny`: matched a deny rule
+ * - `default-deny`: no rule covered the entitlement
+ * - `user-deny`: matched an ask rule and the resolver returned "deny"
+ */
+export type EntitlementDenialReason = "policy-deny" | "default-deny" | "user-deny";
+
+/**
+ * A single denied entitlement with the reason and the matching rule (if any).
+ * Returned by `IEntitlementEnforcer` to give callers enough context to build
+ * actionable error messages without re-running policy evaluation.
+ *
+ * Discriminated union on `reason`:
+ * - `policy-deny`: `matchedRule` is always present (it is the deny rule that matched).
+ * - `user-deny`:   `matchedRule` is always present (it is the ask rule that matched).
+ * - `default-deny`: no rule matched at all; `matchedRule` is absent.
+ */
+export type EntitlementDenial =
+  | {
+      readonly entitlement: TaskEntitlement;
+      readonly reason: "policy-deny";
+      /** The deny rule that explicitly blocked this entitlement. */
+      readonly matchedRule: EntitlementRule;
+    }
+  | {
+      readonly entitlement: TaskEntitlement;
+      readonly reason: "default-deny";
+    }
+  | {
+      readonly entitlement: TaskEntitlement;
+      readonly reason: "user-deny";
+      /** The ask rule that triggered the user prompt. */
+      readonly matchedRule: EntitlementRule;
+    };
+
+/** Format a denial for inclusion in an error message. */
+export function formatEntitlementDenial(denial: EntitlementDenial): string {
+  switch (denial.reason) {
+    case "policy-deny":
+      return `${denial.entitlement.id} (denied by rule ${denial.matchedRule.id})`;
+    case "user-deny":
+      return `${denial.entitlement.id} (denied by user)`;
+    case "default-deny":
+      return `${denial.entitlement.id} (no matching grant)`;
+  }
+}
 
 // ========================================================================
 // Enforcer Interface
@@ -27,15 +79,15 @@ export interface IEntitlementEnforcer {
   /**
    * Preflight check: evaluate all required entitlements against the policy.
    * Resolves "ask" verdicts via the resolver (prompt + save).
-   * Returns the list of denied (non-optional) entitlements, or empty array if all granted.
+   * Returns the list of denials (non-optional entitlements only) — empty array when all granted.
    */
-  checkAll(required: TaskEntitlements): Promise<readonly TaskEntitlement[]>;
+  checkAll(required: TaskEntitlements): Promise<readonly EntitlementDenial[]>;
 
   /**
    * Runtime check: evaluate a single task's dynamic entitlements.
    * Called during execution for tasks with `hasDynamicEntitlements`.
    */
-  checkTask(task: ITask): Promise<readonly TaskEntitlement[]>;
+  checkTask(task: ITask): Promise<readonly EntitlementDenial[]>;
 }
 
 // ========================================================================
@@ -64,32 +116,37 @@ export function createPolicyEnforcer(
     required: TaskEntitlements,
     taskType?: string,
     taskId?: unknown
-  ): Promise<readonly TaskEntitlement[]> {
+  ): Promise<readonly EntitlementDenial[]> {
     const results = evaluatePolicy(policy, required);
-    const denied: TaskEntitlement[] = [];
+    const denied: EntitlementDenial[] = [];
 
     for (const result of results) {
       if (result.verdict === "denied") {
-        denied.push(result.entitlement);
+        if (result.matchedRule) {
+          denied.push({ entitlement: result.entitlement, reason: "policy-deny", matchedRule: result.matchedRule });
+        } else {
+          denied.push({ entitlement: result.entitlement, reason: "default-deny" });
+        }
       } else if (result.verdict === "ask") {
         const request = {
           entitlement: result.entitlement,
           taskType: taskType ?? "unknown",
           taskId: taskId ?? "unknown",
         };
-        // Check saved answer first
-        const saved = resolver.lookup(request);
-        if (saved !== undefined) {
-          if (saved === "deny") {
-            denied.push(result.entitlement);
-          }
-          continue;
+        // Check saved answer first; otherwise prompt and save
+        let answer = resolver.lookup(request);
+        if (answer === undefined) {
+          answer = await resolver.prompt(request);
+          resolver.save(request, answer);
         }
-        // Prompt user
-        const answer = await resolver.prompt(request);
-        resolver.save(request, answer);
         if (answer === "deny") {
-          denied.push(result.entitlement);
+          // ask verdicts always have a matchedRule (the ask rule that fired)
+          if (!result.matchedRule) {
+            throw new Error(
+              `Invariant violation: ask verdict for "${result.entitlement.id}" is missing matchedRule`
+            );
+          }
+          denied.push({ entitlement: result.entitlement, reason: "user-deny", matchedRule: result.matchedRule });
         }
       }
       // "granted" — nothing to do
@@ -99,11 +156,11 @@ export function createPolicyEnforcer(
   }
 
   return {
-    async checkAll(required: TaskEntitlements): Promise<readonly TaskEntitlement[]> {
+    async checkAll(required: TaskEntitlements): Promise<readonly EntitlementDenial[]> {
       return resolveAsks(required);
     },
 
-    async checkTask(task: ITask): Promise<readonly TaskEntitlement[]> {
+    async checkTask(task: ITask): Promise<readonly EntitlementDenial[]> {
       const entitlements = task.entitlements();
       return resolveAsks(entitlements, (task.constructor as typeof Task).type, task.id);
     },
