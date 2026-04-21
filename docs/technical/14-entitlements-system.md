@@ -470,13 +470,22 @@ non-disabled branches are included, which is useful for runtime checks after
 conditions have been evaluated.
 
 ```ts
+import {
+  computeGraphEntitlements,
+  formatEntitlementDenial,
+  ENTITLEMENT_ENFORCER,
+} from "@workglow/task-graph";
+import { globalServiceRegistry } from "@workglow/util";
+
+const enforcer = globalServiceRegistry.get(ENTITLEMENT_ENFORCER);
+
 // Pre-execution: analyze all possible entitlements
 const allEntitlements = computeGraphEntitlements(graph, { trackOrigins: true });
 for (const e of allEntitlements.entitlements) {
   console.log(`${e.id} required by tasks: ${e.sourceTaskIds.join(", ")}`);
 }
 
-// Check against enforcer
+// Check against enforcer (requires top-level await or async context)
 const denied = await enforcer.checkAll(allEntitlements);
 if (denied.length > 0) {
   throw new Error(`Denied entitlements: ${denied.map(formatEntitlementDenial).join(", ")}`);

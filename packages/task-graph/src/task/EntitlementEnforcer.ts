@@ -29,19 +29,35 @@ export type EntitlementDenialReason = "policy-deny" | "default-deny" | "user-den
  * A single denied entitlement with the reason and the matching rule (if any).
  * Returned by `IEntitlementEnforcer` to give callers enough context to build
  * actionable error messages without re-running policy evaluation.
+ *
+ * Discriminated union on `reason`:
+ * - `policy-deny`: `matchedRule` is always present (it is the deny rule that matched).
+ * - `user-deny`:   `matchedRule` is always present (it is the ask rule that matched).
+ * - `default-deny`: no rule matched at all; `matchedRule` is absent.
  */
-export interface EntitlementDenial {
-  readonly entitlement: TaskEntitlement;
-  readonly reason: EntitlementDenialReason;
-  /** The rule that produced this denial. Undefined when `reason === "default-deny"`. */
-  readonly matchedRule?: EntitlementRule;
-}
+export type EntitlementDenial =
+  | {
+      readonly entitlement: TaskEntitlement;
+      readonly reason: "policy-deny";
+      /** The deny rule that explicitly blocked this entitlement. */
+      readonly matchedRule: EntitlementRule;
+    }
+  | {
+      readonly entitlement: TaskEntitlement;
+      readonly reason: "default-deny";
+    }
+  | {
+      readonly entitlement: TaskEntitlement;
+      readonly reason: "user-deny";
+      /** The ask rule that triggered the user prompt. */
+      readonly matchedRule: EntitlementRule;
+    };
 
 /** Format a denial for inclusion in an error message. */
 export function formatEntitlementDenial(denial: EntitlementDenial): string {
   switch (denial.reason) {
     case "policy-deny":
-      return `${denial.entitlement.id} (denied by rule ${denial.matchedRule?.id ?? "?"})`;
+      return `${denial.entitlement.id} (denied by rule ${denial.matchedRule.id})`;
     case "user-deny":
       return `${denial.entitlement.id} (denied by user)`;
     case "default-deny":
@@ -106,11 +122,11 @@ export function createPolicyEnforcer(
 
     for (const result of results) {
       if (result.verdict === "denied") {
-        denied.push({
-          entitlement: result.entitlement,
-          reason: result.matchedRule ? "policy-deny" : "default-deny",
-          ...(result.matchedRule && { matchedRule: result.matchedRule }),
-        });
+        if (result.matchedRule) {
+          denied.push({ entitlement: result.entitlement, reason: "policy-deny", matchedRule: result.matchedRule });
+        } else {
+          denied.push({ entitlement: result.entitlement, reason: "default-deny" });
+        }
       } else if (result.verdict === "ask") {
         const request = {
           entitlement: result.entitlement,
@@ -124,11 +140,8 @@ export function createPolicyEnforcer(
           resolver.save(request, answer);
         }
         if (answer === "deny") {
-          denied.push({
-            entitlement: result.entitlement,
-            reason: "user-deny",
-            ...(result.matchedRule && { matchedRule: result.matchedRule }),
-          });
+          // ask verdicts always have a matchedRule (the ask rule that fired)
+          denied.push({ entitlement: result.entitlement, reason: "user-deny", matchedRule: result.matchedRule! });
         }
       }
       // "granted" — nothing to do
