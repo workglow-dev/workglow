@@ -1055,9 +1055,12 @@ describe("Entitlements", () => {
         entitlements: [{ id: "network:http" }],
       });
       expect(denied).toHaveLength(1);
-      expect(denied[0].entitlement.id).toBe("network:http");
-      expect(denied[0].reason).toBe("policy-deny");
-      expect(denied[0].matchedRule?.id).toBe("network:http");
+      const firstDenial = denied[0];
+      expect(firstDenial.entitlement.id).toBe("network:http");
+      expect(firstDenial.reason).toBe("policy-deny");
+      if (firstDenial.reason === "policy-deny") {
+        expect(firstDenial.matchedRule?.id).toBe("network:http");
+      }
     });
 
     it("ask with PERMISSIVE_RESOLVER grants", async () => {
