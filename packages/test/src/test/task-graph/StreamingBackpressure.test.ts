@@ -84,7 +84,7 @@ class HighRateProducer extends Task<PromptInput, TextOutput> {
       for (let i = 0; i < this.totalEvents; i++) {
         if (context.signal.aborted) return;
         this.yieldCount++;
-        yield { type: "text-delta", port: "text", textDelta: "x" };
+        yield { type: "text-delta", port: "text", textDelta: `${i}|` };
       }
       yield { type: "finish", data: {} as TextOutput };
     } finally {
@@ -94,8 +94,14 @@ class HighRateProducer extends Task<PromptInput, TextOutput> {
   }
 
   override async execute(_input: PromptInput): Promise<TextOutput | undefined> {
-    return { text: "x".repeat(this.totalEvents) };
+    return { text: expectedAccumulatedText(this.totalEvents) };
   }
+}
+
+function expectedAccumulatedText(totalEvents: number): string {
+  let out = "";
+  for (let i = 0; i < totalEvents; i++) out += `${i}|`;
+  return out;
 }
 
 /**
@@ -206,10 +212,14 @@ describe("Streaming backpressure and stress", () => {
       expect(deltaEvents.length).toBe(totalEvents);
       expect(finishEvents.length).toBe(1);
 
+      // Deltas arrived in strict index order (order-sensitive payloads).
+      const expectedDeltas = Array.from({ length: totalEvents }, (_, i) => `${i}|`);
+      const observedDeltas = deltaEvents.map((e) => (e as { textDelta: string }).textDelta);
+      expect(observedDeltas).toEqual(expectedDeltas);
+
       // Accumulated text materialised correctly for the downstream consumer.
       const consumerOutput = consumer.runOutputData as TextOutput;
-      expect(consumerOutput.text.length).toBe(totalEvents);
-      expect(consumerOutput.text).toBe("x".repeat(totalEvents));
+      expect(consumerOutput.text).toBe(expectedDeltas.join(""));
     });
   });
 
@@ -224,18 +234,34 @@ describe("Streaming backpressure and stress", () => {
       graph.addDataflow(new Dataflow("producer", "text", "consumer", "text"));
 
       const runner = new TaskGraphRunner(graph);
-      const runPromise = runner.runGraph({ prompt: "" });
 
-      // Abort as soon as the producer has started streaming.
-      await new Promise<void>((resolve) => {
+      // Attach the status listener BEFORE starting the run so we cannot
+      // miss the PROCESSING/STREAMING transition. Short-circuit if the
+      // producer has already reached STREAMING, and time out defensively.
+      const streamingPromise = new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          producer.off("status", onStatus);
+          reject(new Error("Timed out waiting for producer to reach STREAMING"));
+        }, 5_000);
+
         const onStatus = (s: TaskStatus) => {
           if (s === TaskStatus.STREAMING) {
+            clearTimeout(timeout);
             producer.off("status", onStatus);
             resolve();
           }
         };
         producer.on("status", onStatus);
+
+        if (producer.status === TaskStatus.STREAMING) {
+          clearTimeout(timeout);
+          producer.off("status", onStatus);
+          resolve();
+        }
       });
+
+      const runPromise = runner.runGraph({ prompt: "" });
+      await streamingPromise;
 
       const yieldCountAtAbort = producer.yieldCount;
       runner.abort();
@@ -278,11 +304,12 @@ describe("Streaming backpressure and stress", () => {
       const runner = new TaskGraphRunner(graph);
       await runner.runGraph({ prompt: "" });
 
+      // Every consumer sees the identical, order-sensitive sequence.
+      const expected = expectedAccumulatedText(totalEvents);
       for (const consumer of [consumerA, consumerB, consumerC]) {
         expect(consumer.status).toBe(TaskStatus.COMPLETED);
         const output = consumer.runOutputData as TextOutput;
-        expect(output.text.length).toBe(totalEvents);
-        expect(output.text).toBe("x".repeat(totalEvents));
+        expect(output.text).toBe(expected);
       }
     });
   });
