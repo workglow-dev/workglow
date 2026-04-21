@@ -58,6 +58,17 @@ const PROVIDER_LLAMACPP_FILES = [
   "LlamaCpp_NativeToolCalling",
 ];
 
+/** node-llama-cpp/ipull downloads use shared ./models paths; parallel test files corrupt the same .gguf.ipull partial. */
+function isLlamaCppProviderIntegrationFile(filePath: string): boolean {
+  const base = filePath.split("/").pop() ?? filePath;
+  return (PROVIDER_LLAMACPP_FILES as readonly string[]).some((stem) => base.startsWith(`${stem}.`));
+}
+
+function shouldRunLlamaCppIntegrationFilesSequentially(files: string[]): boolean {
+  const n = files.filter(isLlamaCppProviderIntegrationFile).length;
+  return n > 1;
+}
+
 const SECTION_DIRS: Record<Section, string[]> = {
   graph: [
     join(TEST_BASE, "task-graph"),
@@ -155,8 +166,12 @@ function collectFiles(
 }
 
 async function runBunTest(files: string[]): Promise<number> {
+  const parallelFlag =
+    files.length > 0 && shouldRunLlamaCppIntegrationFilesSequentially(files)
+      ? "--parallel=1"
+      : "--parallel";
   const proc = Bun.spawn(
-    files.length > 0 ? ["bun", "test", "--parallel", ...files] : ["bun", "test", "--parallel"],
+    files.length > 0 ? ["bun", "test", parallelFlag, ...files] : ["bun", "test", parallelFlag],
     {
       cwd: ROOT,
       stdio: ["inherit", "inherit", "inherit"],
@@ -173,6 +188,9 @@ async function runVitest(files: string[]): Promise<number> {
   // When no file filter: run all. Otherwise pass relative paths as name filters.
   const relFiles = files.length > 0 ? files.map((f) => relative(ROOT, f)) : [];
   const args = ["npx", "vitest", "run", ...relFiles];
+  if (files.length > 0 && shouldRunLlamaCppIntegrationFilesSequentially(files)) {
+    args.push("--no-file-parallelism");
+  }
   if (process.env.CI) {
     args.push("--coverage");
   }
