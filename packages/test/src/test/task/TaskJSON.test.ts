@@ -676,7 +676,10 @@ describe("TaskJSON", () => {
     });
 
     test("WhileTask with function condition is not serializable", () => {
-      const task = new WhileTask({ condition: (_output: any, _i: number) => true });
+      const task = new WhileTask({
+        condition: (_output: any, _i: number) => true,
+        maxIterations: 10,
+      });
       expect(task.canSerializeConfig()).toBe(false);
       expect(() => task.toJSON()).toThrow(TaskSerializationError);
     });
@@ -686,6 +689,7 @@ describe("TaskJSON", () => {
         conditionField: "done",
         conditionOperator: "equals",
         conditionValue: "false",
+        maxIterations: 10,
       });
       expect(task.canSerializeConfig()).toBe(true);
       expect(() => task.toJSON()).not.toThrow();

@@ -15,7 +15,9 @@ export const mapTaskConfigSchema = {
     ...iteratorTaskConfigSchema["properties"],
     preserveOrder: { type: "boolean" },
     flatten: { type: "boolean" },
+    discardResults: { type: "boolean" },
   },
+  required: iteratorTaskConfigSchema.required,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -36,6 +38,14 @@ export type MapTaskConfig<Input extends TaskInput = TaskInput> = IteratorTaskCon
    * @default false
    */
   readonly flatten?: boolean;
+
+  /**
+   * When true, iteration results are discarded rather than collected into
+   * per-property arrays. Used by the `.forEach()` workflow combinator for
+   * side-effect-only loops where the caller does not need the return value.
+   * @default false
+   */
+  readonly discardResults?: boolean;
 };
 
 /**
@@ -97,6 +107,14 @@ export class MapTask<
     return this.config.flatten ?? false;
   }
 
+  /**
+   * Whether to drop iteration outputs rather than collect them. Used by
+   * `.forEach()` for side-effect iteration.
+   */
+  public get discardResults(): boolean {
+    return this.config.discardResults ?? false;
+  }
+
   public override preserveIterationOrder(): boolean {
     return this.preserveOrder;
   }
@@ -131,9 +149,15 @@ export class MapTask<
   }
 
   /**
-   * Collects and optionally flattens results from all iterations.
+   * Collects and optionally flattens results from all iterations. When
+   * `discardResults` is set (via `.forEach()`), returns the empty result
+   * without touching the per-iteration outputs.
    */
   public override collectResults(results: TaskOutput[]): Output {
+    if (this.discardResults) {
+      return this.getEmptyResult();
+    }
+
     const collected = super.collectResults(results);
 
     if (!this.flatten || typeof collected !== "object" || collected === null) {
@@ -153,6 +177,25 @@ export class MapTask<
   }
 }
 
+/**
+ * ForEachTask is a `MapTask` variant that discards iteration results by default.
+ * Used via the `.forEach()` workflow combinator for side-effect-only loops.
+ */
+export class ForEachTask<
+  Input extends TaskInput = TaskInput,
+  Output extends TaskOutput = TaskOutput,
+  Config extends MapTaskConfig<Input> = MapTaskConfig<Input>,
+> extends MapTask<Input, Output, Config> {
+  public static override type: TaskTypeName = "ForEachTask";
+  public static override title: string = "For Each";
+  public static override description: string =
+    "Runs a workflow per array item for side effects; discards collected results";
+
+  constructor(config: Partial<Config> = {}) {
+    super({ discardResults: true, ...config } as Partial<Config>);
+  }
+}
+
 // ============================================================================
 // Workflow Prototype Extensions
 // ============================================================================
@@ -169,8 +212,22 @@ declare module "../task-graph/Workflow" {
      * Ends the map loop and returns to the parent workflow.
      */
     endMap(): Workflow;
+
+    /**
+     * Starts a forEach loop — iterates array input ports for side effects and
+     * discards collected results. Use .endForEach() to close the loop and
+     * return to the parent workflow. `maxIterations` is still required.
+     */
+    forEach: CreateLoopWorkflow<TaskInput, TaskOutput, MapTaskConfig<TaskInput>>;
+
+    /**
+     * Ends the forEach loop and returns to the parent workflow.
+     */
+    endForEach(): Workflow;
   }
 }
 
 Workflow.prototype.map = CreateLoopWorkflow(MapTask);
 Workflow.prototype.endMap = CreateEndLoopWorkflow("endMap");
+Workflow.prototype.forEach = CreateLoopWorkflow(ForEachTask);
+Workflow.prototype.endForEach = CreateEndLoopWorkflow("endForEach");

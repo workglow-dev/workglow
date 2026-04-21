@@ -35,8 +35,15 @@ export type JsonTaskConfig = Omit<
     ReduceTaskConfig &
     MapTaskConfig &
     ConditionalTaskConfig,
-  "id" | "defaults"
->;
+  "id" | "defaults" | "maxIterations"
+> & {
+  /**
+   * Optional in the JSON union because non-loop tasks don't carry it —
+   * each loop task class still enforces required-at-construction via its
+   * own config type.
+   */
+  readonly maxIterations?: WhileTaskConfig["maxIterations"];
+};
 
 export type JsonTaskItem = {
   /** Unique identifier for the task */

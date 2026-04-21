@@ -415,16 +415,22 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
       if (rawConfig.batchSize !== undefined) {
         config.batchSize = rawConfig.batchSize;
       }
+      if (rawConfig.maxIterations !== undefined) {
+        config.maxIterations = rawConfig.maxIterations;
+      }
       break;
     }
     case "ReduceTask": {
       if (rawConfig.initialValue !== undefined) {
         config.initialValue = rawConfig.initialValue;
       }
+      if (rawConfig.maxIterations !== undefined) {
+        config.maxIterations = rawConfig.maxIterations;
+      }
       break;
     }
     case "WhileTask": {
-      if (rawConfig.maxIterations !== undefined && rawConfig.maxIterations !== 100) {
+      if (rawConfig.maxIterations !== undefined) {
         config.maxIterations = rawConfig.maxIterations;
       }
       if (rawConfig.chainIterations !== undefined && rawConfig.chainIterations !== true) {

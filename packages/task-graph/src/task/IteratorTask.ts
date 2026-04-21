@@ -8,7 +8,7 @@ import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { GraphAsTaskConfig } from "./GraphAsTask";
-import type { IExecuteContext } from "./ITask";
+import type { IExecuteContext, IRunConfig } from "./ITask";
 import { IteratorTaskRunner } from "./IteratorTaskRunner";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { TaskConfigurationError } from "./TaskError";
@@ -55,6 +55,21 @@ export type ExecutionMode = "parallel" | "parallel-limited";
 export type IterationInputMode = "array" | "scalar" | "flexible";
 
 /**
+ * Upper bound for iteration. Either a positive integer or the string
+ * sentinel `"unbounded"` — which the runner treats as `Number.POSITIVE_INFINITY`.
+ * The string form forces every caller to explicitly acknowledge the opt-out
+ * instead of silently dropping the safety ceiling.
+ */
+export type IterationBound = number | "unbounded";
+
+/**
+ * Resolves an IterationBound to a numeric cap the runner can compare against.
+ */
+export function resolveIterationBound(bound: IterationBound): number {
+  return bound === "unbounded" ? Number.POSITIVE_INFINITY : bound;
+}
+
+/**
  * Configuration for a single property in the iteration input schema.
  */
 export interface IterationPropertyConfig {
@@ -70,9 +85,12 @@ export const iteratorTaskConfigSchema = {
     ...graphAsTaskConfigSchema["properties"],
     concurrencyLimit: { type: "integer", minimum: 1 },
     batchSize: { type: "integer", minimum: 1 },
-    maxIterations: { type: "integer", minimum: 1 },
+    maxIterations: {
+      oneOf: [{ type: "integer", minimum: 1 }, { type: "string", const: "unbounded" }],
+    },
     iterationInputConfig: { type: "object", additionalProperties: true },
   },
+  required: ["maxIterations"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -94,10 +112,11 @@ export type IteratorTaskConfig<Input extends TaskInput = TaskInput> = GraphAsTas
   readonly batchSize?: number;
 
   /**
-   * Maximum number of iterations allowed. When set, the iteration count is capped
-   * to this value regardless of input array length. Prevents runaway iteration.
+   * Upper bound on the number of iterations. Required — pass `"unbounded"` to
+   * explicitly opt out of the safety ceiling, or a positive integer to cap.
+   * Prevents runaway iteration on unexpectedly large input arrays.
    */
-  readonly maxIterations?: number;
+  readonly maxIterations: IterationBound;
 
   /**
    * User-defined iteration input schema configuration.
@@ -281,6 +300,16 @@ export abstract class IteratorTask<
 
   public static override configSchema(): DataPortSchema {
     return iteratorTaskConfigSchema;
+  }
+
+  constructor(config: Partial<Config> = {}, runConfig: Partial<IRunConfig> = {}) {
+    if ((config as Partial<IteratorTaskConfig<Input>>).maxIterations === undefined) {
+      throw new TaskConfigurationError(
+        `${(new.target as typeof IteratorTask).type ?? "IteratorTask"}: maxIterations is required. ` +
+          `Pass a positive integer to cap iteration, or "unbounded" to opt out explicitly.`
+      );
+    }
+    super(config, runConfig);
   }
 
   /**

@@ -175,7 +175,7 @@ describe("GraphToWorkflowCode", () => {
   describe("map task", () => {
     it("should generate map builder code", () => {
       const workflow = new Workflow();
-      workflow.map().addTask(ProcessItemTask).endMap();
+      workflow.map({ maxIterations: "unbounded" }).addTask(ProcessItemTask).endMap();
 
       const code = graphToWorkflowCode(workflow.graph);
 
@@ -187,7 +187,12 @@ describe("GraphToWorkflowCode", () => {
     it("should generate map with config options", () => {
       const workflow = new Workflow();
       workflow
-        .map({ preserveOrder: false, concurrencyLimit: 5, flatten: true })
+        .map({
+          preserveOrder: false,
+          concurrencyLimit: 5,
+          flatten: true,
+          maxIterations: "unbounded",
+        })
         .addTask(ProcessItemTask)
         .endMap();
 
@@ -200,7 +205,10 @@ describe("GraphToWorkflowCode", () => {
 
     it("should not emit preserveOrder when default (true)", () => {
       const workflow = new Workflow();
-      workflow.map({ preserveOrder: true }).addTask(ProcessItemTask).endMap();
+      workflow
+        .map({ preserveOrder: true, maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .endMap();
 
       const code = graphToWorkflowCode(workflow.graph);
       expect(code).not.toContain("preserveOrder");
@@ -208,7 +216,11 @@ describe("GraphToWorkflowCode", () => {
 
     it("should generate map with multiple inner tasks", () => {
       const workflow = new Workflow();
-      workflow.map().addTask(ProcessItemTask).addTask(DoubleTask).endMap();
+      workflow
+        .map({ maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .addTask(DoubleTask)
+        .endMap();
 
       const code = graphToWorkflowCode(workflow.graph);
 
@@ -222,7 +234,7 @@ describe("GraphToWorkflowCode", () => {
     it("should generate reduce builder code", () => {
       const workflow = new Workflow();
       workflow
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -275,19 +287,20 @@ describe("GraphToWorkflowCode", () => {
       expect(code).toContain("condition");
     });
 
-    it("should not emit maxIterations when default (100)", () => {
+    it("should round-trip explicit unbounded maxIterations", () => {
       const workflow = new Workflow();
       workflow
         .while({
           conditionField: "done",
           conditionOperator: "eq",
           conditionValue: "false",
+          maxIterations: "unbounded",
         })
         .addTask(RefineTask)
         .endWhile();
 
       const code = graphToWorkflowCode(workflow.graph);
-      expect(code).not.toContain("maxIterations");
+      expect(code).toContain('maxIterations: "unbounded"');
     });
   });
 
@@ -295,7 +308,7 @@ describe("GraphToWorkflowCode", () => {
     it("should generate map with while inside", () => {
       const workflow = new Workflow();
       workflow
-        .map()
+        .map({ maxIterations: "unbounded" })
         .while({
           conditionField: "quality",
           conditionOperator: "lt",
@@ -323,7 +336,7 @@ describe("GraphToWorkflowCode", () => {
           conditionValue: "false",
           maxIterations: 5,
         })
-        .map()
+        .map({ maxIterations: "unbounded" })
         .addTask(ProcessItemTask)
         .endMap()
         .endWhile();
@@ -339,10 +352,10 @@ describe("GraphToWorkflowCode", () => {
     it("should generate chained map then reduce", () => {
       const workflow = new Workflow();
       workflow
-        .map({ concurrencyLimit: 1 })
+        .map({ concurrencyLimit: 1, maxIterations: "unbounded" })
         .addTask(ProcessItemTask)
         .endMap()
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -357,11 +370,11 @@ describe("GraphToWorkflowCode", () => {
     it("should generate map -> rename -> reduce", () => {
       const workflow = new Workflow();
       workflow
-        .map({ concurrencyLimit: 1 })
+        .map({ concurrencyLimit: 1, maxIterations: "unbounded" })
         .addTask(ProcessItemTask)
         .endMap()
         .rename("processed", "currentItem")
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -401,7 +414,12 @@ describe("GraphToWorkflowCode", () => {
 
     it("should generate group with map inside", () => {
       const workflow = new Workflow();
-      workflow.group().map().addTask(ProcessItemTask).endMap().endGroup();
+      workflow
+        .group()
+        .map({ maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .endMap()
+        .endGroup();
 
       const code = graphToWorkflowCode(workflow.graph);
 
@@ -453,7 +471,7 @@ describe("GraphToWorkflowCode", () => {
 
     it("should round-trip a map workflow", () => {
       const original = new Workflow();
-      original.map().addTask(ProcessItemTask).endMap();
+      original.map({ maxIterations: "unbounded" }).addTask(ProcessItemTask).endMap();
 
       const code = graphToWorkflowCode(original.graph, { includeDeclaration: false });
       const rebuilt = rebuildFromCode(code);
@@ -469,7 +487,7 @@ describe("GraphToWorkflowCode", () => {
     it("should round-trip a reduce workflow", () => {
       const original = new Workflow();
       original
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -512,7 +530,7 @@ describe("GraphToWorkflowCode", () => {
     it("should round-trip nested map with while inside", () => {
       const original = new Workflow();
       original
-        .map()
+        .map({ maxIterations: "unbounded" })
         .while({
           conditionField: "quality",
           conditionOperator: "lt",
@@ -539,10 +557,10 @@ describe("GraphToWorkflowCode", () => {
     it("should round-trip chained map then reduce", () => {
       const original = new Workflow();
       original
-        .map({ concurrencyLimit: 1 })
+        .map({ concurrencyLimit: 1, maxIterations: "unbounded" })
         .addTask(ProcessItemTask)
         .endMap()
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -598,7 +616,7 @@ describe("GraphToWorkflowCode", () => {
     it("should generate code for document ingestion pipeline", () => {
       const workflow = new Workflow()
         .input({ url: ["file:///test.md", "file:///test2.md"] })
-        .map()
+        .map({ maxIterations: "unbounded" })
         .fileLoader({
           format: "markdown",
         })
