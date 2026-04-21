@@ -155,10 +155,13 @@ function collectFiles(
 }
 
 async function runBunTest(files: string[]): Promise<number> {
-  const proc = Bun.spawn(files.length > 0 ? ["bun", "test", ...files] : ["bun", "test"], {
-    cwd: ROOT,
-    stdio: ["inherit", "inherit", "inherit"],
-  });
+  const proc = Bun.spawn(
+    files.length > 0 ? ["bun", "test", "--parallel", ...files] : ["bun", "test", "--parallel"],
+    {
+      cwd: ROOT,
+      stdio: ["inherit", "inherit", "inherit"],
+    }
+  );
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
     console.error(`Bun test failed with exit code ${exitCode}`);
