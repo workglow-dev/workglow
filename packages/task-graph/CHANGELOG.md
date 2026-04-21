@@ -1,5 +1,13 @@
 # @workglow/task-graph
 
+## 0.2.13
+
+### Refactors
+
+#### task-graph
+
+- simplify input handling for root tasks
+
 ## 0.2.12
 
 ### Refactors
