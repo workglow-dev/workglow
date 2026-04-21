@@ -1,5 +1,17 @@
 # @workglow/web
 
+## 0.2.12
+
+### Chores
+
+- update dependencies for improved compatibility
+
+### Updated Dependencies
+
+- `@tailwindcss/vite`: ^4.2.3
+- `tailwindcss`: ^4.2.3
+- `vite`: ^8.0.9
+
 ## 0.2.11
 
 ## 0.2.10

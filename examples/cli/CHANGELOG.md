@@ -1,5 +1,7 @@
 # @workglow/cli
 
+## 0.2.12
+
 ## 0.2.11
 
 ### Refactors

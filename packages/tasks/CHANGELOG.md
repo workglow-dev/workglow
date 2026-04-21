@@ -1,5 +1,13 @@
 # @workglow/tasks
 
+## 0.2.12
+
+### Refactors
+
+#### task-graph
+
+- introduce isPassthrough flag for task types
+
 ## 0.2.11
 
 ## 0.2.10
