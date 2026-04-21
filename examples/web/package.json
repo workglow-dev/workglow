@@ -43,10 +43,10 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "@tailwindcss/vite": "^4.1.7",
-    "tailwindcss": "^4.1.7",
+    "@tailwindcss/vite": "^4.2.3",
+    "tailwindcss": "^4.2.3",
     "rollup-plugin-visualizer": "^7.0.1",
-    "vite": "^8.0.8",
+    "vite": "^8.0.9",
     "vite-plugin-wasm": "^3.6.0"
   },
   "publishConfig": {
