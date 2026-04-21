@@ -48,6 +48,22 @@ export type AiProviderReactiveRunFn<
  * Returns an AsyncIterable of StreamEvents instead of a Promise.
  * No `update_progress` callback -- for streaming providers, the stream itself IS the progress signal.
  * The optional `outputSchema` is provided for structured output tasks.
+ *
+ * Streaming primitive: this is the canonical authoring surface for provider streams.
+ * Implementations MUST be `async function*` generators returning `AsyncIterable`.
+ * Do not return a `ReadableStream` -- `ReadableStream` is an engine-internal primitive
+ * used only at the dataflow edge for fan-out via `tee()`.
+ *
+ * Finish convention: yield `{ type: "finish", data: {} as Output }` at the end.
+ * Do not accumulate deltas into the finish payload -- the `StreamingAiTask` / `TaskRunner`
+ * consumer handles accumulation.
+ *
+ * @cancel The provided `signal` MUST be forwarded to the underlying SDK or fetch.
+ * Generators MUST stop yielding promptly after `signal.aborted` becomes true -- either
+ * because the underlying SDK tears down the connection, or because the generator checks
+ * `signal.aborted` at loop boundaries. Use `try { ... } finally { ... }` to release any
+ * resources (readers, timers) -- `finally` runs when the consumer stops iterating on abort.
+ * On abort, the consumer will throw `TaskAbortedError`; do not swallow abort errors.
  */
 export type AiProviderStreamFn<
   Input extends TaskInput = TaskInput,
