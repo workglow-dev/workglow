@@ -258,8 +258,8 @@ No streaming. The task returns its output as a complete `Promise<Output>` from `
 // No x-stream annotation: standard execution
 properties: {
   result: {
-    type: "string";
-  }
+    type: "string",
+  },
 }
 ```
 
@@ -575,7 +575,7 @@ Each `TaskRunner` owns an `AbortController`, created in `handleStart()` and wire
 1. **Either poll `context.signal.aborted`** at safe loop boundaries, **or forward `context.signal`** to any I/O it performs (fetch, SDK client, subprocess, child task).
 2. **Stop producing output promptly.** A streaming task's generator must return (or throw) on the next `yield` point after abort, not continue producing events.
 3. **Release resources.** Close readers, cancel timers, unregister listeners. A `try { ... } finally { ... }` block in an `async *executeStream()` generator is the idiomatic cleanup hook -- `finally` runs when the consumer stops iterating (including on abort).
-4. **Throw `TaskAbortedError`** if the abort is detected inside `execute()` / `executeStream()`. The TaskRunner also detects abort on its own and converts it to a `TaskAbortedError` when the generator finishes after the signal fires (`TaskRunner.ts:487-489`).
+4. **Throw `TaskAbortedError`** if the abort is detected inside `execute()` / `executeStream()`. The TaskRunner also detects abort on its own and converts it to a `TaskAbortedError` when the generator finishes after the signal fires, via the post-stream abort check in `TaskRunner.executeStreamingTask`.
 
 Tasks **do not** need to manually set the task status -- the runner's `handleAbort()` transitions the task to `ABORTING` (the terminal aborted state) and attaches a `TaskAbortedError`.
 
