@@ -7,6 +7,7 @@
 import type { DataPortSchema } from "@workglow/util/schema";
 import { PROPERTY_ARRAY } from "../task-graph/TaskGraphRunner";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
+import type { IRunConfig } from "./ITask";
 import { IteratorTask, IteratorTaskConfig, iteratorTaskConfigSchema } from "./IteratorTask";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
 export const mapTaskConfigSchema = {
@@ -191,8 +192,8 @@ export class ForEachTask<
   public static override description: string =
     "Runs a workflow per array item for side effects; discards collected results";
 
-  constructor(config: Partial<Config> = {}) {
-    super({ discardResults: true, ...config } as Partial<Config>);
+  constructor(config: Partial<Config> = {}, runConfig: Partial<IRunConfig> = {}) {
+    super({ discardResults: true, ...config } as Partial<Config>, runConfig);
   }
 }
 

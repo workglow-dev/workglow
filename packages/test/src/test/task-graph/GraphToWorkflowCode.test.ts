@@ -230,6 +230,32 @@ describe("GraphToWorkflowCode", () => {
     });
   });
 
+  describe("forEach task", () => {
+    it("should generate forEach builder code with inner task and endForEach", () => {
+      const workflow = new Workflow();
+      workflow
+        .forEach({ maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .endForEach();
+
+      const code = graphToWorkflowCode(workflow.graph);
+
+      expect(code).toContain(".forEach(");
+      expect(code).toContain("processItem");
+      expect(code).toContain(".endForEach()");
+      // Must not fall through to a regular .addTask(ForEachTask) call
+      expect(code).not.toContain("ForEachTask");
+    });
+
+    it("should emit maxIterations in forEach code", () => {
+      const workflow = new Workflow();
+      workflow.forEach({ maxIterations: 5 }).addTask(ProcessItemTask).endForEach();
+
+      const code = graphToWorkflowCode(workflow.graph);
+      expect(code).toContain("maxIterations: 5");
+    });
+  });
+
   describe("reduce task", () => {
     it("should generate reduce builder code", () => {
       const workflow = new Workflow();

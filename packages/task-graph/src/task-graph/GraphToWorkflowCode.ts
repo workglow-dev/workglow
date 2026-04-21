@@ -50,6 +50,7 @@ function getMethodNameMap(): Map<string, string> {
  */
 const LOOP_TASK_TYPES: Record<string, { method: string; endMethod: string }> = {
   MapTask: { method: "map", endMethod: "endMap" },
+  ForEachTask: { method: "forEach", endMethod: "endForEach" },
   ReduceTask: { method: "reduce", endMethod: "endReduce" },
   WhileTask: { method: "while", endMethod: "endWhile" },
   GraphAsTask: { method: "group", endMethod: "endGroup" },
@@ -402,7 +403,8 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
       }
       break;
     }
-    case "MapTask": {
+    case "MapTask":
+    case "ForEachTask": {
       if (rawConfig.preserveOrder !== undefined && rawConfig.preserveOrder !== true) {
         config.preserveOrder = rawConfig.preserveOrder;
       }

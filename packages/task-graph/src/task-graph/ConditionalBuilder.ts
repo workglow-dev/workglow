@@ -8,6 +8,7 @@ import { uuid4 } from "@workglow/util";
 import type { ConditionFn } from "../task/ConditionalTask";
 import { ConditionalTask } from "../task/ConditionalTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
+import { WorkflowError } from "../task/TaskError";
 import type { DataPorts, TaskConfig, TaskInput } from "../task/TaskTypes";
 import { Dataflow } from "./Dataflow";
 import type { Workflow } from "./Workflow";
@@ -70,7 +71,7 @@ export class ConditionalBuilder {
    */
   public endIf(): Workflow {
     if (!this.thenSpec) {
-      throw new Error(".endIf() called without a prior .then(...) call");
+      throw new WorkflowError(".endIf() called without a prior .then(...) call");
     }
 
     const thenPort = "then";
@@ -86,16 +87,12 @@ export class ConditionalBuilder {
 
     if (this.elseSpec) {
       // Inverse condition so the "else" branch is mutually exclusive with "then".
-      // Wrapped in try/catch to match ConditionalTask's internal error-as-false semantics.
+      // If the user's condition throws, ConditionalTask's own error handling
+      // treats both branches as not-matched; `defaultBranch: elsePort` below
+      // then routes to else — matching ConditionalTask's error-as-false semantics.
       branches.push({
         id: elsePort,
-        condition: (input: TaskInput) => {
-          try {
-            return !this.condition(input);
-          } catch {
-            return true;
-          }
-        },
+        condition: (input: TaskInput) => !this.condition(input),
         outputPort: elsePort,
       });
     }

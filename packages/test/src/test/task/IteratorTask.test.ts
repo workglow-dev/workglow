@@ -5,6 +5,7 @@
  */
 
 import {
+  ForEachTask,
   IExecuteContext,
   IteratorTask,
   MapTask,
@@ -416,6 +417,59 @@ describe("IteratorTask", () => {
       const tasks = workflow.graph.getTasks();
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toBeInstanceOf(ReduceTask);
+    });
+
+    test("Workflow should have forEach method", () => {
+      const workflow = new Workflow();
+      expect(typeof workflow.forEach).toBe("function");
+    });
+
+    test("forEach should add a ForEachTask to the graph", () => {
+      const workflow = new Workflow();
+      workflow.forEach({ maxIterations: "unbounded" }).endForEach();
+
+      const tasks = workflow.graph.getTasks();
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0]).toBeInstanceOf(ForEachTask);
+      // ForEachTask extends MapTask
+      expect(tasks[0]).toBeInstanceOf(MapTask);
+    });
+  });
+
+  // ============================================================================
+  // ForEachTask Tests
+  // ============================================================================
+
+  describe("ForEachTask", () => {
+    test("should default discardResults to true", () => {
+      const task = new ForEachTask({ maxIterations: "unbounded" });
+      expect(task.discardResults).toBe(true);
+    });
+
+    test("should allow explicit override of discardResults", () => {
+      const task = new ForEachTask({ maxIterations: "unbounded", discardResults: false });
+      expect(task.discardResults).toBe(false);
+    });
+
+    test("should throw when maxIterations is omitted", () => {
+      expect(() => new ForEachTask({} as any)).toThrow(/maxIterations/);
+    });
+
+    test("should forward runConfig to base Task", () => {
+      // Regression: the constructor must accept and forward the runConfig
+      // parameter required by ITaskConstructor. IteratorTaskRunner clones
+      // tasks via `new ctor(config, task.runConfig)` — dropping runConfig
+      // here silently loses per-call DI/service bindings for deserialized
+      // or cloned ForEachTasks.
+      const runConfig = { cacheable: false };
+      const task = new ForEachTask({ maxIterations: "unbounded" }, runConfig);
+      expect(task.runConfig).toEqual(runConfig);
+    });
+
+    test("should return empty result when discardResults is true", () => {
+      const task = new ForEachTask({ maxIterations: "unbounded" });
+      const result = task.collectResults([{ out: 1 }, { out: 2 }, { out: 3 }]);
+      expect(result).toEqual({});
     });
   });
 
