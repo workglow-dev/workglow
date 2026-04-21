@@ -17,8 +17,6 @@ export default defineConfig({
   envDir: __dirname,
   test: {
     setupFiles: ["./vitest.setup.ts"],
-    maxConcurrency: 1,
-    maxWorkers: 1,
     testTimeout: 15000, // 15 second global timeout (WASM Postgres / PGlite init can be slow)
     retry: 1,
     exclude: [...configDefaults.exclude, "**/*.e2e.test.ts"],
