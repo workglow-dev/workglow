@@ -1,5 +1,19 @@
 # @workglow/ai
 
+## 0.2.14
+
+### Tests
+
+#### streaming
+
+- detect reorder, fix abort race, correct cancel docs
+
+### Documentation
+
+#### streaming
+
+- formalize primitive contract, cancel semantics, add stress tests
+
 ## 0.2.13
 
 ## 0.2.12

@@ -1,5 +1,29 @@
 # @workglow/test
 
+## 0.2.14
+
+### Features
+
+#### task-graph
+
+- require explicit iteration bounds, document cycle guarantees, add forEach/if combinators (#424)
+
+#### entitlements
+
+- return structured denials with reason + add can() (#422)
+
+### Tests
+
+#### streaming
+
+- detect reorder, fix abort race, correct cancel docs
+
+### Documentation
+
+#### streaming
+
+- formalize primitive contract, cancel semantics, add stress tests
+
 ## 0.2.13
 
 ## 0.2.12

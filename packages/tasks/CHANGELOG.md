@@ -1,5 +1,13 @@
 # @workglow/tasks
 
+## 0.2.14
+
+### Bug Fixes
+
+#### cli
+
+- improve terminal theme detection and stdin handling
+
 ## 0.2.13
 
 ## 0.2.12

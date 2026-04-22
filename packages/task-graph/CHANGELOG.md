@@ -1,5 +1,23 @@
 # @workglow/task-graph
 
+## 0.2.14
+
+### Features
+
+#### task-graph
+
+- require explicit iteration bounds, document cycle guarantees, add forEach/if combinators (#424)
+
+#### entitlements
+
+- return structured denials with reason + add can() (#422)
+
+### Bug Fixes
+
+#### cli
+
+- improve terminal theme detection and stdin handling
+
 ## 0.2.13
 
 ### Refactors
