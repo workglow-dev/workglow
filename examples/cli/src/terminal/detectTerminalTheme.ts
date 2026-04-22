@@ -140,6 +140,10 @@ export async function detectCliTheme(): Promise<CliTheme> {
     return DEFAULT_CLI_THEME;
   }
 
+  const stdinReadableFlowingBefore =
+    "readableFlowing" in stdin
+      ? (stdin as NodeJS.ReadStream & { readableFlowing?: boolean | null }).readableFlowing
+      : null;
   let fg: TerminalRgb | undefined;
   let bg: TerminalRgb | undefined;
 
@@ -156,6 +160,7 @@ export async function detectCliTheme(): Promise<CliTheme> {
   } finally {
     try {
       if (stdin.isTTY) stdin.setRawMode(false);
+      if (stdinReadableFlowingBefore !== true) stdin.pause();
     } catch {
       /* ignore */
     }

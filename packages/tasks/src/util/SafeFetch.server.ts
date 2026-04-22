@@ -21,10 +21,24 @@
 import { PermanentJobError } from "@workglow/job-queue";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent, fetch as undiciFetch } from "undici";
-import { classifyIpLiteral, classifyUrl, urlMatchesScope } from "./UrlClassifier";
 import { registerSafeFetch, type SafeFetchFn, type SafeFetchOptions } from "./SafeFetch";
+import { classifyIpLiteral, classifyUrl, urlMatchesScope } from "./UrlClassifier";
 
 const MAX_REDIRECT_HOPS = 20;
+
+/**
+ * Close an undici {@link Agent} if it exposes a `close` method.
+ * Bun can load undici in a way where `Agent` instances lack `close` on the
+ * prototype, which would make unconditional `dispatcher.close()` throw
+ * (see `close` is not a function) while the fetch may still work.
+ */
+function closeAgent(dispatcher: Agent): void {
+  void dispatcher.close?.().catch(() => {});
+}
+
+async function closeAgentAsync(dispatcher: Agent): Promise<void> {
+  await dispatcher.close?.().catch(() => {});
+}
 
 interface ResolvedAddress {
   readonly address: string;
@@ -140,7 +154,7 @@ async function fetchOneHop(
     });
     return { response: response as unknown as Response, dispatcher };
   } catch (err) {
-    await dispatcher.close().catch(() => {});
+    await closeAgentAsync(dispatcher);
     throw err;
   }
 }
@@ -163,7 +177,7 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
 
     // Close the previous hop's dispatcher now that we have the next response.
     if (prevDispatcher !== undefined) {
-      prevDispatcher.close().catch(() => {});
+      closeAgent(prevDispatcher);
     }
 
     if (!isRedirectStatus(response.status)) {
@@ -174,7 +188,7 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
         // The dispatcher is closed once the body is fully consumed or cancelled.
         const { readable, writable } = new TransformStream();
         body.pipeTo(writable).finally(() => {
-          dispatcher.close().catch(() => {});
+          closeAgent(dispatcher);
         });
         return new Response(readable, {
           status: response.status,
@@ -183,18 +197,18 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
         });
       }
       // No body (e.g. HEAD response) — close dispatcher immediately.
-      dispatcher.close().catch(() => {});
+      closeAgent(dispatcher);
       return response;
     }
 
     if (requestedRedirectMode === "manual") {
       // Caller wants the raw redirect response; they own the dispatcher now.
-      dispatcher.close().catch(() => {});
+      closeAgent(dispatcher);
       return response;
     }
 
     if (requestedRedirectMode === "error") {
-      dispatcher.close().catch(() => {});
+      closeAgent(dispatcher);
       throw new TypeError(
         `Fetch for ${currentUrl} failed because redirect mode was set to 'error'.`
       );
@@ -202,7 +216,7 @@ export const serverSafeFetch: SafeFetchFn = async (url, options) => {
 
     const location = response.headers.get("location");
     if (!location) {
-      dispatcher.close().catch(() => {});
+      closeAgent(dispatcher);
       throw new PermanentJobError(
         `Refusing to follow redirect from ${currentUrl}: missing Location header.`
       );

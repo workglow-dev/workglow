@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchema } from "@workglow/util/schema";
 import { uuid4 } from "@workglow/util";
-import { DATAFLOW_ALL_PORTS } from "./Dataflow";
-import type { TaskGraph } from "./TaskGraph";
-import type { TaskIdType } from "../task/TaskTypes";
+import type { DataPortSchema } from "@workglow/util/schema";
 import type {
   DataflowJson,
   JsonTaskItem,
   TaskGraphItemJson,
   TaskGraphJson,
 } from "../task/TaskJSON";
+import type { TaskIdType } from "../task/TaskTypes";
+import { DATAFLOW_ALL_PORTS } from "./Dataflow";
+import type { TaskGraph } from "./TaskGraph";
 
 export interface GraphSchemaOptions {
   /**
@@ -89,7 +89,19 @@ export function computeGraphInputSchema(
       if (!properties[inputName]) {
         properties[inputName] = inputProp;
 
-        if (taskInputSchema.required && taskInputSchema.required.includes(inputName)) {
+        // A root task's property is only truly "required" from the outside if
+        // the task itself marks it required AND it is not pre-populated by a
+        // `defaults` value baked into the task at construction. Tasks wrapped
+        // into a parent graph after being built with `{ defaults: ... }` (a
+        // common pattern inside `task.execute` when assembling a subgraph)
+        // would otherwise cause the wrapping graph/workflow to reject empty
+        // external input even though every child input is already satisfied.
+        // The non-root branch below already honors `task.defaults`; this keeps
+        // root handling consistent.
+        const isRequired =
+          taskInputSchema.required?.includes(inputName) === true &&
+          !(task.defaults && task.defaults[inputName] !== undefined);
+        if (isRequired) {
           required.push(inputName);
         }
 

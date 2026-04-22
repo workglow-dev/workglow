@@ -90,6 +90,14 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
   fn: PipeFunction<I, O>,
   config?: any
 ): ITask<I, O> {
+  // Plain JS functions used inside `pipe()` cannot declare port schemas, so
+  // the wrapper must accept (and emit) any object shape. The previous
+  // `additionalProperties: false` (alongside a single `[DATAFLOW_ALL_PORTS]`
+  // ("*") property) caused the JSON-schema validator to treat "*" as a
+  // literal key and reject every real upstream port — e.g. `{ json, metadata }`
+  // from `FetchUrlTask` — breaking any `pipe(task, async fn, ...)` chain with
+  // TaskInvalidInputError. The runtime already handles the "*" wildcard in
+  // `Task.addInput`; the schema just needs to permit the data through.
   class QuickTask extends Task<I, O> {
     public static override type = fn.name ? `𝑓 ${fn.name}` : "𝑓";
     public static override inputSchema = () => {
@@ -98,7 +106,7 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
         properties: {
           [DATAFLOW_ALL_PORTS]: {},
         },
-        additionalProperties: false,
+        additionalProperties: true,
       } as const satisfies DataPortSchema;
     };
     public static override outputSchema = () => {
@@ -107,7 +115,7 @@ function convertPipeFunctionToTask<I extends DataPorts, O extends DataPorts>(
         properties: {
           [DATAFLOW_ALL_PORTS]: {},
         },
-        additionalProperties: false,
+        additionalProperties: true,
       } as const satisfies DataPortSchema;
     };
     public static override cacheable = false;
