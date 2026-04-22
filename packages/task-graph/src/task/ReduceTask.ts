@@ -21,6 +21,7 @@ export const reduceTaskConfigSchema = {
     ...iteratorTaskConfigSchema["properties"],
     initialValue: {},
   },
+  required: iteratorTaskConfigSchema.required,
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 

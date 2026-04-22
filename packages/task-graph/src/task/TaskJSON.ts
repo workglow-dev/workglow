@@ -8,6 +8,7 @@ import type { ServiceRegistry } from "@workglow/util";
 import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { CompoundMergeStrategy } from "../task-graph/TaskGraphRunner";
+import type { ITransformStep } from "../task-graph/TransformTypes";
 import type { TaskEntitlements } from "../task/TaskEntitlements";
 import { TaskConfigurationError, TaskJSONError } from "../task/TaskError";
 import { getTaskConstructors } from "../task/TaskRegistry";
@@ -114,6 +115,7 @@ export type DataflowJson = {
   sourceTaskPortId: string;
   targetTaskId: unknown;
   targetTaskPortId: string;
+  transforms?: ReadonlyArray<ITransformStep>;
 };
 
 export interface TaskGraphJsonOptions {
@@ -284,14 +286,16 @@ export const createGraphFromGraphJSON = (
     subGraph.addTask(createTaskFromGraphJSON(subitem, registry, options));
   }
   for (const subitem of graphJsonObj.dataflows) {
-    subGraph.addDataflow(
-      new Dataflow(
-        subitem.sourceTaskId,
-        subitem.sourceTaskPortId,
-        subitem.targetTaskId,
-        subitem.targetTaskPortId
-      )
+    const dataflow = new Dataflow(
+      subitem.sourceTaskId,
+      subitem.sourceTaskPortId,
+      subitem.targetTaskId,
+      subitem.targetTaskPortId
     );
+    if (subitem.transforms && subitem.transforms.length > 0) {
+      dataflow.setTransforms(subitem.transforms);
+    }
+    subGraph.addDataflow(dataflow);
   }
   return subGraph;
 };

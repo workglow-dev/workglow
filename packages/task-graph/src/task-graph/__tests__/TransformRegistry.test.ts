@@ -1,0 +1,44 @@
+import { describe, expect, it, beforeEach } from "vitest";
+import { TransformRegistry, TRANSFORM_DEFS } from "../TransformRegistry";
+import type { ITransformDef } from "../TransformTypes";
+import { globalServiceRegistry } from "@workglow/util";
+import { registerBuiltInTransforms } from "../transforms";
+
+const dummy: ITransformDef<{ x: number }> = {
+  id: "dummy-test",
+  title: "Dummy",
+  category: "Test",
+  paramsSchema: undefined,
+  inferOutputSchema: (schema) => schema,
+  apply: (v) => v,
+};
+
+describe("TransformRegistry", () => {
+  beforeEach(() => {
+    TransformRegistry.unregisterTransform(dummy.id);
+  });
+
+  it("registers and looks up a transform", () => {
+    TransformRegistry.registerTransform(dummy);
+    expect(TransformRegistry.all.get("dummy-test")).toBe(dummy);
+  });
+
+  it("exposes the same map via the DI token", () => {
+    TransformRegistry.registerTransform(dummy);
+    const fromDI = globalServiceRegistry.get(TRANSFORM_DEFS);
+    expect(fromDI.get("dummy-test")).toBe(dummy);
+  });
+
+  it("registerBuiltInTransforms registers all 13 MVP built-ins", () => {
+    registerBuiltInTransforms();
+    const ids = [
+      "pick", "index", "coalesce",
+      "uppercase", "lowercase", "truncate", "substring",
+      "unixToIsoDate", "isoDateToUnix",
+      "numberToString", "toBoolean", "stringify", "parseJson",
+    ];
+    for (const id of ids) {
+      expect(TransformRegistry.all.has(id), `missing ${id}`).toBe(true);
+    }
+  });
+});
