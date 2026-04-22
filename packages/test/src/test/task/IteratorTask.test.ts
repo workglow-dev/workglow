@@ -5,6 +5,7 @@
  */
 
 import {
+  ForEachTask,
   IExecuteContext,
   IteratorTask,
   MapTask,
@@ -44,8 +45,12 @@ describe("IteratorTask", () => {
 
   describe("IteratorTask", () => {
     describe("constructor and configuration", () => {
-      test("should create with default configuration", () => {
-        const task = new TestIteratorTask<ArrayInput>();
+      test("should throw when maxIterations is omitted", () => {
+        expect(() => new TestIteratorTask<ArrayInput>({} as any)).toThrow(/maxIterations/);
+      });
+
+      test("should create with explicit unbounded maxIterations", () => {
+        const task = new TestIteratorTask<ArrayInput>({ maxIterations: "unbounded" });
 
         expect(task.concurrencyLimit).toBe(undefined);
         expect(task.batchSize).toBe(undefined);
@@ -54,6 +59,7 @@ describe("IteratorTask", () => {
       test("should respect custom configuration", () => {
         const task = new TestIteratorTask<ArrayInput>({
           concurrencyLimit: 3,
+          maxIterations: "unbounded",
         });
 
         expect(task.concurrencyLimit).toBe(3);
@@ -62,6 +68,7 @@ describe("IteratorTask", () => {
       test("should support batchSize configuration", () => {
         const task = new TestIteratorTask<ArrayInput>({
           batchSize: 10,
+          maxIterations: "unbounded",
         });
 
         expect(task.batchSize).toBe(10);
@@ -75,6 +82,7 @@ describe("IteratorTask", () => {
         const task = new TestIteratorTask<ArrayInput>({
           concurrencyLimit: 2,
           batchSize: 5,
+          maxIterations: "unbounded",
         });
 
         expect(task.concurrencyLimit).toBe(2);
@@ -82,7 +90,7 @@ describe("IteratorTask", () => {
       });
 
       test("should have undefined batchSize by default", () => {
-        const task = new TestIteratorTask<ArrayInput>();
+        const task = new TestIteratorTask<ArrayInput>({ maxIterations: "unbounded" });
 
         expect(task.batchSize).toBeUndefined();
       });
@@ -105,7 +113,10 @@ describe("IteratorTask", () => {
           }
         }
 
-        const task = new TestIteratorWithArray({ defaults: { items: [1, 2, 3] } });
+        const task = new TestIteratorWithArray({
+          defaults: { items: [1, 2, 3] },
+          maxIterations: "unbounded",
+        });
         const subGraph = new TaskGraph();
         subGraph.addTask(new DoubleTask({ id: "double", defaults: { value: 0 } }));
 
@@ -138,14 +149,17 @@ describe("IteratorTask", () => {
           }
         }
 
-        const task = new TestMapTask({ defaults: { items: [] } });
+        const task = new TestMapTask({
+          defaults: { items: [] },
+          maxIterations: "unbounded",
+        });
         const result = await task.run();
 
         expect(result).toEqual({});
       });
 
       test("should have dynamic output schema", () => {
-        const task = new MapTask();
+        const task = new MapTask({ maxIterations: "unbounded" });
         const schema = task.outputSchema();
 
         // Without template graph, should return static schema
@@ -154,18 +168,26 @@ describe("IteratorTask", () => {
     });
 
     describe("configuration", () => {
+      test("should throw when maxIterations is omitted", () => {
+        expect(() => new MapTask({} as any)).toThrow(/maxIterations/);
+      });
+
       test("should default preserveOrder to true", () => {
-        const task = new MapTask();
+        const task = new MapTask({ maxIterations: "unbounded" });
         expect(task.preserveOrder).toBe(true);
       });
 
       test("should default flatten to false", () => {
-        const task = new MapTask();
+        const task = new MapTask({ maxIterations: "unbounded" });
         expect(task.flatten).toBe(false);
       });
 
       test("should respect custom configuration", () => {
-        const task = new MapTask({ preserveOrder: false, flatten: true });
+        const task = new MapTask({
+          preserveOrder: false,
+          flatten: true,
+          maxIterations: "unbounded",
+        });
         expect(task.preserveOrder).toBe(false);
         expect(task.flatten).toBe(true);
       });
@@ -178,12 +200,12 @@ describe("IteratorTask", () => {
 
   describe("Type Safety", () => {
     test("IteratorTask should be an instance of IteratorTask", () => {
-      const task = new TestIteratorTask();
+      const task = new TestIteratorTask({ maxIterations: "unbounded" });
       expect(task).toBeInstanceOf(IteratorTask);
     });
 
     test("MapTask should be an instance of IteratorTask", () => {
-      const task = new MapTask();
+      const task = new MapTask({ maxIterations: "unbounded" });
       expect(task).toBeInstanceOf(IteratorTask);
       expect(task).toBeInstanceOf(MapTask);
     });
@@ -214,13 +236,17 @@ describe("IteratorTask", () => {
 
   describe("WhileTask", () => {
     describe("configuration", () => {
-      test("should default maxIterations to 100", () => {
-        const task = new WhileTask();
-        expect(task.maxIterations).toBe(100);
+      test("should throw when maxIterations is omitted", () => {
+        expect(() => new WhileTask({} as any)).toThrow(/maxIterations/);
+      });
+
+      test("should resolve unbounded sentinel to Infinity", () => {
+        const task = new WhileTask({ maxIterations: "unbounded" });
+        expect(task.maxIterations).toBe(Number.POSITIVE_INFINITY);
       });
 
       test("should default chainIterations to true", () => {
-        const task = new WhileTask();
+        const task = new WhileTask({ maxIterations: "unbounded" });
         expect(task.chainIterations).toBe(true);
       });
 
@@ -240,7 +266,7 @@ describe("IteratorTask", () => {
 
     describe("subgraph", () => {
       test("should set and get subGraph", () => {
-        const task = new WhileTask();
+        const task = new WhileTask({ maxIterations: "unbounded" });
         const subGraph = new TaskGraph();
         subGraph.addTask(new DoubleTask({ id: "double", defaults: { value: 0 } }));
 
@@ -252,7 +278,7 @@ describe("IteratorTask", () => {
 
     describe("type safety", () => {
       test("WhileTask should not be an instance of IteratorTask", () => {
-        const task = new WhileTask();
+        const task = new WhileTask({ maxIterations: "unbounded" });
         // WhileTask extends GraphAsTask, not IteratorTask
         expect(task).toBeInstanceOf(WhileTask);
       });
@@ -279,18 +305,22 @@ describe("IteratorTask", () => {
 
   describe("ReduceTask", () => {
     describe("configuration", () => {
+      test("should throw when maxIterations is omitted", () => {
+        expect(() => new ReduceTask({} as any)).toThrow(/maxIterations/);
+      });
+
       test("should default initialValue to empty object", () => {
-        const task = new ReduceTask();
+        const task = new ReduceTask({ maxIterations: "unbounded" });
         expect(task.initialValue).toEqual({});
       });
 
       test("should respect custom initialValue", () => {
-        const task = new ReduceTask({ initialValue: { sum: 0 } });
+        const task = new ReduceTask({ initialValue: { sum: 0 }, maxIterations: "unbounded" });
         expect(task.initialValue).toEqual({ sum: 0 });
       });
 
       test("should force sequential execution mode (parallel-limited with concurrency 1)", () => {
-        const task = new ReduceTask({ concurrencyLimit: 5 });
+        const task = new ReduceTask({ concurrencyLimit: 5, maxIterations: "unbounded" });
         expect(task.concurrencyLimit).toBe(1);
         expect(task.batchSize).toBe(1);
       });
@@ -298,7 +328,7 @@ describe("IteratorTask", () => {
 
     describe("type safety", () => {
       test("ReduceTask should be an instance of IteratorTask", () => {
-        const task = new ReduceTask();
+        const task = new ReduceTask({ maxIterations: "unbounded" });
         expect(task).toBeInstanceOf(IteratorTask);
         expect(task).toBeInstanceOf(ReduceTask);
       });
@@ -337,7 +367,7 @@ describe("IteratorTask", () => {
 
     test("map should return a LoopWorkflowBuilder", () => {
       const workflow = new Workflow();
-      const builder = workflow.map();
+      const builder = workflow.map({ maxIterations: "unbounded" });
 
       expect(builder).toBeDefined();
       expect(typeof builder.endMap).toBe("function");
@@ -353,7 +383,10 @@ describe("IteratorTask", () => {
 
     test("reduce should return a LoopWorkflowBuilder", () => {
       const workflow = new Workflow();
-      const builder = workflow.reduce({ initialValue: { count: 0 } });
+      const builder = workflow.reduce({
+        initialValue: { count: 0 },
+        maxIterations: "unbounded",
+      });
 
       expect(builder).toBeDefined();
       expect(typeof builder.endReduce).toBe("function");
@@ -361,7 +394,7 @@ describe("IteratorTask", () => {
 
     test("map should add a MapTask to the graph", () => {
       const workflow = new Workflow();
-      workflow.map().endMap();
+      workflow.map({ maxIterations: "unbounded" }).endMap();
 
       const tasks = workflow.graph.getTasks();
       expect(tasks).toHaveLength(1);
@@ -370,7 +403,7 @@ describe("IteratorTask", () => {
 
     test("while should add a WhileTask to the graph", () => {
       const workflow = new Workflow();
-      workflow.while({ condition: () => false }).endWhile();
+      workflow.while({ condition: () => false, maxIterations: 10 }).endWhile();
 
       const tasks = workflow.graph.getTasks();
       expect(tasks).toHaveLength(1);
@@ -379,11 +412,64 @@ describe("IteratorTask", () => {
 
     test("reduce should add a ReduceTask to the graph", () => {
       const workflow = new Workflow();
-      workflow.reduce({ initialValue: {} }).endReduce();
+      workflow.reduce({ initialValue: {}, maxIterations: "unbounded" }).endReduce();
 
       const tasks = workflow.graph.getTasks();
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toBeInstanceOf(ReduceTask);
+    });
+
+    test("Workflow should have forEach method", () => {
+      const workflow = new Workflow();
+      expect(typeof workflow.forEach).toBe("function");
+    });
+
+    test("forEach should add a ForEachTask to the graph", () => {
+      const workflow = new Workflow();
+      workflow.forEach({ maxIterations: "unbounded" }).endForEach();
+
+      const tasks = workflow.graph.getTasks();
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0]).toBeInstanceOf(ForEachTask);
+      // ForEachTask extends MapTask
+      expect(tasks[0]).toBeInstanceOf(MapTask);
+    });
+  });
+
+  // ============================================================================
+  // ForEachTask Tests
+  // ============================================================================
+
+  describe("ForEachTask", () => {
+    test("should default discardResults to true", () => {
+      const task = new ForEachTask({ maxIterations: "unbounded" });
+      expect(task.discardResults).toBe(true);
+    });
+
+    test("should allow explicit override of discardResults", () => {
+      const task = new ForEachTask({ maxIterations: "unbounded", discardResults: false });
+      expect(task.discardResults).toBe(false);
+    });
+
+    test("should throw when maxIterations is omitted", () => {
+      expect(() => new ForEachTask({} as any)).toThrow(/maxIterations/);
+    });
+
+    test("should forward runConfig to base Task", () => {
+      // Regression: the constructor must accept and forward the runConfig
+      // parameter required by ITaskConstructor. IteratorTaskRunner clones
+      // tasks via `new ctor(config, task.runConfig)` — dropping runConfig
+      // here silently loses per-call DI/service bindings for deserialized
+      // or cloned ForEachTasks.
+      const runConfig = { cacheable: false };
+      const task = new ForEachTask({ maxIterations: "unbounded" }, runConfig);
+      expect(task.runConfig).toEqual(runConfig);
+    });
+
+    test("should return empty result when discardResults is true", () => {
+      const task = new ForEachTask({ maxIterations: "unbounded" });
+      const result = task.collectResults([{ out: 1 }, { out: 2 }, { out: 3 }]);
+      expect(result).toEqual({});
     });
   });
 
@@ -408,7 +494,10 @@ describe("IteratorTask", () => {
     test("should build workflow with map loop for transformation", () => {
       const workflow = new Workflow();
 
-      workflow.map({ preserveOrder: true }).addTask(TextEmbeddingTask).endMap();
+      workflow
+        .map({ preserveOrder: true, maxIterations: "unbounded" })
+        .addTask(TextEmbeddingTask)
+        .endMap();
 
       const tasks = workflow.graph.getTasks();
       expect(tasks).toHaveLength(1);
@@ -427,7 +516,10 @@ describe("IteratorTask", () => {
     test("map with flatten option should configure correctly", () => {
       const workflow = new Workflow();
 
-      workflow.map({ flatten: true, concurrencyLimit: 5 }).addTask(TextEmbeddingTask).endMap();
+      workflow
+        .map({ flatten: true, concurrencyLimit: 5, maxIterations: "unbounded" })
+        .addTask(TextEmbeddingTask)
+        .endMap();
 
       const mapTask = workflow.graph.getTasks()[0] as MapTask;
       expect(mapTask.flatten).toBe(true);
@@ -517,7 +609,7 @@ describe("IteratorTask", () => {
       const workflow = new Workflow();
 
       workflow
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -540,6 +632,7 @@ describe("IteratorTask", () => {
       workflow
         .reduce({
           initialValue: { count: 0, total: 0 },
+          maxIterations: "unbounded",
         })
         .addTask(AddToSumTask)
         .endReduce();
@@ -565,10 +658,10 @@ describe("IteratorTask", () => {
       const workflow = new Workflow();
 
       workflow
-        .map()
+        .map({ maxIterations: "unbounded" })
         .addTask(TextEmbeddingTask)
         .endMap()
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -582,10 +675,10 @@ describe("IteratorTask", () => {
       const workflow = new Workflow();
 
       workflow
-        .map({ concurrencyLimit: 1 })
+        .map({ concurrencyLimit: 1, maxIterations: "unbounded" })
         .addTask(ProcessItemTask)
         .endMap()
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -609,7 +702,11 @@ describe("IteratorTask", () => {
     test("should support multiple tasks inside a loop", () => {
       const workflow = new Workflow();
 
-      workflow.map().addTask(ProcessItemTask).addTask(DoubleTask).endMap();
+      workflow
+        .map({ maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .addTask(DoubleTask)
+        .endMap();
 
       const mapTask = workflow.graph.getTasks()[0] as MapTask;
       const templateGraph = mapTask.subGraph;
@@ -643,7 +740,7 @@ describe("IteratorTask", () => {
     test("loop builder graph should be accessible", () => {
       const workflow = new Workflow();
 
-      const builder = workflow.map();
+      const builder = workflow.map({ maxIterations: "unbounded" });
       expect(builder.graph).toBeInstanceOf(TaskGraph);
       builder.endMap();
     });
@@ -651,7 +748,11 @@ describe("IteratorTask", () => {
     test("template graph should contain added tasks with auto-generated IDs", () => {
       const workflow = new Workflow();
 
-      workflow.map().addTask(ProcessItemTask).addTask(DoubleTask).endMap();
+      workflow
+        .map({ maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .addTask(DoubleTask)
+        .endMap();
 
       const mapTask = workflow.graph.getTasks()[0] as MapTask;
       const templateTasks = mapTask.subGraph?.getTasks() ?? [];
@@ -719,7 +820,7 @@ describe("IteratorTask", () => {
 
       const workflow = new Workflow();
 
-      workflow.map().addTask(TaskA).addTask(TaskB).endMap();
+      workflow.map({ maxIterations: "unbounded" }).addTask(TaskA).addTask(TaskB).endMap();
 
       const mapTask = workflow.graph.getTasks()[0] as MapTask;
       const templateGraph = mapTask.subGraph;
@@ -740,14 +841,14 @@ describe("IteratorTask", () => {
     test("workflow map run should execute without pre-run scalar failure", async () => {
       const workflow = new Workflow();
 
-      workflow.map().addTask(ProcessItemTask).endMap();
+      workflow.map({ maxIterations: "unbounded" }).addTask(ProcessItemTask).endMap();
 
       const result = await workflow.run({ item: [1, 2, 3] });
       expect(result.processed).toEqual([2, 4, 6]);
     });
 
     test("direct MapTask.run should execute a reusable subgraph across iterations", async () => {
-      const mapTask = new MapTask();
+      const mapTask = new MapTask({ maxIterations: "unbounded" });
       const subGraph = new TaskGraph();
       subGraph.addTask(new ProcessItemTask({ id: "process", defaults: { item: 0 } }));
 
@@ -790,7 +891,10 @@ describe("IteratorTask", () => {
       }
 
       const workflow = new Workflow();
-      workflow.map({ preserveOrder: true, concurrencyLimit: 3 }).addTask(DelayedEchoTask).endMap();
+      workflow
+        .map({ preserveOrder: true, concurrencyLimit: 3, maxIterations: "unbounded" })
+        .addTask(DelayedEchoTask)
+        .endMap();
 
       const result = await workflow.run({ item: [1, 2, 3] });
       expect(result.item).toEqual([1, 2, 3]);
@@ -798,7 +902,10 @@ describe("IteratorTask", () => {
 
     test("map preserveOrder=false should still return complete results", async () => {
       const workflow = new Workflow();
-      workflow.map({ preserveOrder: false, concurrencyLimit: 3 }).addTask(ProcessItemTask).endMap();
+      workflow
+        .map({ preserveOrder: false, concurrencyLimit: 3, maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .endMap();
 
       const result = await workflow.run({ item: [1, 2, 3] });
       expect((result.processed as number[]).slice().sort((a, b) => a - b)).toEqual([2, 4, 6]);
@@ -806,7 +913,10 @@ describe("IteratorTask", () => {
 
     test("map should honor batchSize and concurrency settings without data loss", async () => {
       const workflow = new Workflow();
-      workflow.map({ concurrencyLimit: 2, batchSize: 2 }).addTask(ProcessItemTask).endMap();
+      workflow
+        .map({ concurrencyLimit: 2, batchSize: 2, maxIterations: "unbounded" })
+        .addTask(ProcessItemTask)
+        .endMap();
 
       const result = await workflow.run({ item: [1, 2, 3, 4, 5] });
       expect(result.processed).toEqual([2, 4, 6, 8, 10]);
@@ -861,7 +971,7 @@ describe("IteratorTask", () => {
 
       const workflow = new Workflow();
       workflow
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(ZipReduceTask)
         .endReduce();
 
@@ -872,7 +982,7 @@ describe("IteratorTask", () => {
     test("reduce with AddToSumTask should sum array via workflow.run", async () => {
       const workflow = new Workflow();
       workflow
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -925,10 +1035,10 @@ describe("IteratorTask", () => {
 
       const workflow = new Workflow();
       workflow
-        .map({ concurrencyLimit: 1 })
+        .map({ concurrencyLimit: 1, maxIterations: "unbounded" })
         .addTask(DoubleToCurrentItemTask)
         .endMap()
-        .reduce({ initialValue: { sum: 0 } })
+        .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
         .addTask(AddToSumTask)
         .endReduce();
 
@@ -939,7 +1049,7 @@ describe("IteratorTask", () => {
 
     test("map with TextEmbeddingTask should produce embeddings via workflow.run", async () => {
       const workflow = new Workflow();
-      workflow.map().addTask(TextEmbeddingTask).endMap();
+      workflow.map({ maxIterations: "unbounded" }).addTask(TextEmbeddingTask).endMap();
 
       const result = (await workflow.run({ text: ["hi", "bye"] })) as {
         vector?: readonly (readonly number[])[];
@@ -979,7 +1089,7 @@ describe("IteratorTask", () => {
         }
       }
 
-      const task = new PrecedenceIterator();
+      const task = new PrecedenceIterator({ maxIterations: "unbounded" });
       const analysis = task.analyzeIterationInput({
         forceArray: [1, 2],
         forceScalar: [100, 200],
@@ -1080,7 +1190,7 @@ describe("IteratorTask", () => {
       const n = 4;
       const workflow = new Workflow();
       workflow
-        .map({ concurrencyLimit: n })
+        .map({ concurrencyLimit: n, maxIterations: "unbounded" })
         .addTask(EarlyProgressTask)
         .addTask(SlowWorkTask)
         .endMap();
@@ -1208,7 +1318,7 @@ describe("IteratorTask", () => {
         // RefineTask: quality += 0.2 per step, value += 1. So 5 steps to reach 1.0 from 0.
         const workflow = new Workflow();
         workflow
-          .map()
+          .map({ maxIterations: "unbounded" })
           .while({
             condition: (output: { quality?: number }) => (output?.quality ?? 0) < 0.9,
             maxIterations: 10,
@@ -1227,7 +1337,7 @@ describe("IteratorTask", () => {
       test("should respect maxIterations when while is inside map", async () => {
         const workflow = new Workflow();
         workflow
-          .map()
+          .map({ maxIterations: "unbounded" })
           .while({
             condition: () => true, // never exit by condition
             maxIterations: 2,
@@ -1259,7 +1369,7 @@ describe("IteratorTask", () => {
             maxIterations: 5,
             chainIterations: true,
           })
-          .map()
+          .map({ maxIterations: "unbounded" })
           .addTask(ProcessItemTask)
           .endMap()
           .endWhile();
@@ -1271,7 +1381,7 @@ describe("IteratorTask", () => {
             maxIterations: 5,
             chainIterations: false,
           })
-          .map()
+          .map({ maxIterations: "unbounded" })
           .addTask(ProcessItemTask)
           .endMap()
           .endWhile();
@@ -1287,11 +1397,11 @@ describe("IteratorTask", () => {
       test("map then reduce then run with array input", async () => {
         const workflow = new Workflow();
         workflow
-          .map({ concurrencyLimit: 1 })
+          .map({ concurrencyLimit: 1, maxIterations: "unbounded" })
           .addTask(ProcessItemTask)
           .endMap()
           .rename("processed", "currentItem")
-          .reduce({ initialValue: { sum: 0 } })
+          .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
           .addTask(AddToSumTask)
           .endReduce();
 
@@ -1306,7 +1416,7 @@ describe("IteratorTask", () => {
         // (ending node outputs {quality, value}), then DoubleTask after while completes.
         const workflow = new Workflow();
         workflow
-          .map()
+          .map({ maxIterations: "unbounded" })
           .while({
             condition: (output: { quality?: number }) => (output?.quality ?? 0) < 0.9,
             maxIterations: 10,
@@ -1327,7 +1437,7 @@ describe("IteratorTask", () => {
       test("should build reduce whose body contains a WhileTask", () => {
         const workflow = new Workflow();
         workflow
-          .reduce({ initialValue: { sum: 0 } })
+          .reduce({ initialValue: { sum: 0 }, maxIterations: "unbounded" })
           .while({
             condition: () => false,
             maxIterations: 2,
@@ -1351,7 +1461,7 @@ describe("IteratorTask", () => {
       test("map with empty while (condition false immediately) still returns structure", async () => {
         const workflow = new Workflow();
         workflow
-          .map()
+          .map({ maxIterations: "unbounded" })
           .while({
             condition: () => false,
             maxIterations: 5,
@@ -1370,9 +1480,9 @@ describe("IteratorTask", () => {
       test("chained map -> while -> map (outer map, inner while with inner map) via structure only", () => {
         const workflow = new Workflow();
         workflow
-          .map()
+          .map({ maxIterations: "unbounded" })
           .while({ condition: () => false, maxIterations: 2 })
-          .map()
+          .map({ maxIterations: "unbounded" })
           .addTask(ProcessItemTask)
           .endMap()
           .endWhile()

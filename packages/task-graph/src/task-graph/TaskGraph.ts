@@ -222,6 +222,15 @@ export class TaskGraph implements ITaskGraph {
   }
 
   /**
+   * Returns true if the underlying DAG is acyclic. Cycles are already rejected
+   * synchronously by {@link addDataflow}, so this is a defensive check for
+   * direct `_dag` manipulation or invariant re-assertion after cloning.
+   */
+  public isAcyclic(): boolean {
+    return this._dag.isAcyclic();
+  }
+
+  /**
    * Adds a task to the task graph
    * @param task The task to add
    * @returns The current task graph

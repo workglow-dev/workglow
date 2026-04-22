@@ -6,6 +6,7 @@
 
 import type { DataPortSchema } from "@workglow/util/schema";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
+import type { IRunConfig } from "./ITask";
 import {
   IterationAnalysisResult,
   IteratorTask,
@@ -54,14 +55,14 @@ export class ReduceTask<
     return reduceTaskConfigSchema;
   }
 
-  constructor(config: Partial<Config> = {}) {
+  constructor(config: Partial<Config> = {}, runConfig: Partial<IRunConfig> = {}) {
     // Reduce is always sequential
     const reduceConfig = {
       ...config,
       concurrencyLimit: 1,
       batchSize: 1,
     };
-    super(reduceConfig as Partial<Config>);
+    super(reduceConfig as Partial<Config>, runConfig);
   }
 
   /**

@@ -9,6 +9,7 @@ import { EventEmitter, getLogger, ServiceRegistry, uuid4 } from "@workglow/util"
 import type { DataPortSchema } from "@workglow/util/schema";
 import { JsonSchema } from "@workglow/util/schema";
 import { TaskOutputRepository } from "../storage/TaskOutputRepository";
+import type { ConditionFn } from "../task/ConditionalTask";
 import { GraphAsTask } from "../task/GraphAsTask";
 import type { ITask, ITaskConstructor } from "../task/ITask";
 import type { StreamEvent } from "../task/StreamTypes";
@@ -17,7 +18,8 @@ import { Task } from "../task/Task";
 import type { TaskEntitlements } from "../task/TaskEntitlements";
 import { WorkflowError } from "../task/TaskError";
 import type { JsonTaskItem, TaskGraphJson, TaskGraphJsonOptions } from "../task/TaskJSON";
-import type { DataPorts, TaskConfig, TaskIdType } from "../task/TaskTypes";
+import type { DataPorts, TaskConfig, TaskIdType, TaskInput } from "../task/TaskTypes";
+import { ConditionalBuilder } from "./ConditionalBuilder";
 import type { PipeFunction, Taskish } from "./Conversions";
 import { ensureTask } from "./Conversions";
 import { Dataflow, DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
@@ -1078,6 +1080,24 @@ export class Workflow<
   }
 
   /**
+   * Opens a conditional branch. Returns a {@link ConditionalBuilder} that
+   * accepts `.then(taskClass)` and optional `.else(taskClass)` arms and is
+   * closed via `.endIf()` to return to this workflow.
+   *
+   * @example
+   * ```ts
+   * workflow
+   *   .if((input) => input.kind === "text")
+   *   .then(TextTask)
+   *   .else(ImageTask)
+   *   .endIf();
+   * ```
+   */
+  public if(condition: ConditionFn<TaskInput>): ConditionalBuilder {
+    return new ConditionalBuilder(this, condition);
+  }
+
+  /**
    * Runs deferred auto-connect for a loop task on this (parent) workflow's graph.
    * Called after finalizeTemplate() populates the iterator task's template graph,
    * so that the iterator task's dynamic inputSchema() is available for matching.
@@ -1700,6 +1720,7 @@ export class Workflow<
     }
 
     this._iteratorTask.subGraph = this.graph;
+    this._iteratorTask.validateAcyclic();
   }
 
   /**

@@ -781,7 +781,10 @@ describe("GraphAsTask Dynamic Schema", () => {
 
       // Build a MapTask that completes fast (producing a "Map N/N" message at the end).
       const workflow = new Workflow();
-      workflow.map({ concurrencyLimit: 4 }).addTask(MultiplyTask).endMap();
+      workflow
+        .map({ concurrencyLimit: 4, maxIterations: "unbounded" })
+        .addTask(MultiplyTask)
+        .endMap();
       const mapTask = workflow.graph.getTasks()[0] as MapTask;
 
       // Outer graph mirrors the real "Help/Blog Indexer" shape:

@@ -50,6 +50,7 @@ function getMethodNameMap(): Map<string, string> {
  */
 const LOOP_TASK_TYPES: Record<string, { method: string; endMethod: string }> = {
   MapTask: { method: "map", endMethod: "endMap" },
+  ForEachTask: { method: "forEach", endMethod: "endForEach" },
   ReduceTask: { method: "reduce", endMethod: "endReduce" },
   WhileTask: { method: "while", endMethod: "endWhile" },
   GraphAsTask: { method: "group", endMethod: "endGroup" },
@@ -402,7 +403,8 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
       }
       break;
     }
-    case "MapTask": {
+    case "MapTask":
+    case "ForEachTask": {
       if (rawConfig.preserveOrder !== undefined && rawConfig.preserveOrder !== true) {
         config.preserveOrder = rawConfig.preserveOrder;
       }
@@ -415,16 +417,22 @@ function extractLoopConfig(task: ITask): Record<string, unknown> {
       if (rawConfig.batchSize !== undefined) {
         config.batchSize = rawConfig.batchSize;
       }
+      if (rawConfig.maxIterations !== undefined) {
+        config.maxIterations = rawConfig.maxIterations;
+      }
       break;
     }
     case "ReduceTask": {
       if (rawConfig.initialValue !== undefined) {
         config.initialValue = rawConfig.initialValue;
       }
+      if (rawConfig.maxIterations !== undefined) {
+        config.maxIterations = rawConfig.maxIterations;
+      }
       break;
     }
     case "WhileTask": {
-      if (rawConfig.maxIterations !== undefined && rawConfig.maxIterations !== 100) {
+      if (rawConfig.maxIterations !== undefined) {
         config.maxIterations = rawConfig.maxIterations;
       }
       if (rawConfig.chainIterations !== undefined && rawConfig.chainIterations !== true) {

@@ -8,7 +8,8 @@ import type { DataPortSchema } from "@workglow/util/schema";
 import { CreateEndLoopWorkflow, CreateLoopWorkflow, Workflow } from "../task-graph/Workflow";
 import { evaluateCondition, getNestedValue } from "./ConditionUtils";
 import { GraphAsTask, GraphAsTaskConfig, graphAsTaskConfigSchema } from "./GraphAsTask";
-import type { IExecuteContext } from "./ITask";
+import type { IExecuteContext, IRunConfig } from "./ITask";
+import { resolveIterationBound, type IterationBound } from "./IteratorTask";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
 import { TaskConfigurationError, TaskFailedError } from "./TaskError";
 import type { TaskInput, TaskOutput, TaskTypeName } from "./TaskTypes";
@@ -47,13 +48,16 @@ export const whileTaskConfigSchema = {
   properties: {
     ...graphAsTaskConfigSchema["properties"],
     condition: {},
-    maxIterations: { type: "integer", minimum: 1 },
+    maxIterations: {
+      oneOf: [{ type: "integer", minimum: 1 }, { type: "string", const: "unbounded" }],
+    },
     chainIterations: { type: "boolean" },
     conditionField: { type: "string" },
     conditionOperator: { type: "string" },
     conditionValue: { type: "string" },
     iterationInputConfig: { type: "object", additionalProperties: true },
   },
+  required: ["maxIterations"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -72,10 +76,12 @@ export type WhileTaskConfig<
   readonly condition?: WhileConditionFn<Output>;
 
   /**
-   * Maximum number of iterations to prevent infinite loops.
-   * @default 100
+   * Upper bound on the number of iterations. Required — pass `"unbounded"` to
+   * explicitly opt out of the safety ceiling, or a positive integer to cap.
+   * Prevents infinite loops when the condition function can't disqualify
+   * unbounded runaway input.
    */
-  readonly maxIterations?: number;
+  readonly maxIterations: IterationBound;
 
   /**
    * Whether to pass the output of each iteration as input to the next.
@@ -157,6 +163,16 @@ export class WhileTask<
     return whileTaskConfigSchema;
   }
 
+  constructor(config: Partial<Config> = {}, runConfig: Partial<IRunConfig> = {}) {
+    if ((config as Partial<WhileTaskConfig<Input, Output>>).maxIterations === undefined) {
+      throw new TaskConfigurationError(
+        `${(new.target as typeof WhileTask).type ?? "WhileTask"}: maxIterations is required. ` +
+          `Pass a positive integer to cap iteration, or "unbounded" to opt out explicitly.`
+      );
+    }
+    super(config, runConfig);
+  }
+
   /**
    * Returns the schema for iteration-context inputs that will be
    * injected into the subgraph InputTask at runtime.
@@ -202,10 +218,13 @@ export class WhileTask<
   }
 
   /**
-   * Gets the maximum iterations limit.
+   * Gets the maximum iterations limit, resolved to a numeric cap. The raw
+   * `config.maxIterations` accepts `"unbounded"` as an explicit opt-out — that
+   * sentinel resolves to `Number.POSITIVE_INFINITY` here so the loop logic can
+   * compare against it directly.
    */
   public get maxIterations(): number {
-    return this.config.maxIterations ?? 100;
+    return resolveIterationBound(this.config.maxIterations);
   }
 
   /**

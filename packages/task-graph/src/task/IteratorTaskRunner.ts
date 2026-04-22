@@ -9,7 +9,12 @@ import { Dataflow } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
 import { GraphAsTaskRunner } from "./GraphAsTaskRunner";
 import type { ITaskConstructor } from "./ITask";
-import type { IterationAnalysisResult, IteratorTask, IteratorTaskConfig } from "./IteratorTask";
+import {
+  resolveIterationBound,
+  type IterationAnalysisResult,
+  type IteratorTask,
+  type IteratorTaskConfig,
+} from "./IteratorTask";
 import type { TaskInput, TaskOutput } from "./TaskTypes";
 
 /**
@@ -36,13 +41,11 @@ export class IteratorTaskRunner<
   protected override async executeTask(input: Input): Promise<Output | undefined> {
     let analysis = this.task.analyzeIterationInput(input);
 
-    // Enforce maxIterations limit from config
-    const maxIterations = this.task.config.maxIterations;
-    if (
-      maxIterations !== undefined &&
-      maxIterations > 0 &&
-      analysis.iterationCount > maxIterations
-    ) {
+    // Enforce maxIterations cap. Config is required (construction-time guard),
+    // so the bound is always set; `"unbounded"` resolves to Infinity, which
+    // leaves the natural array-length count untouched.
+    const maxIterations = resolveIterationBound(this.task.config.maxIterations);
+    if (analysis.iterationCount > maxIterations) {
       analysis = { ...analysis, iterationCount: maxIterations };
     }
 

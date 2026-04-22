@@ -195,7 +195,10 @@ describe("TextEmbeddingTask with real models", () => {
       ];
 
       const workflow = new Workflow();
-      workflow.map().textEmbedding({ model: "onnx:Xenova/gte-small:q8" }).endMap();
+      workflow
+        .map({ maxIterations: "unbounded" })
+        .textEmbedding({ model: "onnx:Xenova/gte-small:q8" })
+        .endMap();
 
       const result = (await workflow.run({ text: texts })) as {
         vector: readonly (Float32Array | number[])[];

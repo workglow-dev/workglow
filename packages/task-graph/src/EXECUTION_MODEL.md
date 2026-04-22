@@ -288,6 +288,12 @@ This ensures:
 
 ## Key Invariants
 
+### 0. Cycle Guarantees
+
+- `TaskGraph` is a `DirectedAcyclicGraph`. The underlying `TaskGraphDAG` extends `DirectedAcyclicGraph` from `@workglow/util/graph`.
+- `TaskGraph.addDataflow` throws `CycleError` **synchronously** whenever the new edge would close a cycle. Detection runs inside `DirectedAcyclicGraph.addEdge` via `wouldAddingEdgeCreateCycle`, so no graph can ever reach a cyclic state — cycles are rejected at the construction call, not at run time.
+- Loop tasks (`WhileTask`, `IteratorTask`, `MapTask`, `ReduceTask`) achieve repetition by re-running an internally-acyclic subgraph once per iteration, never by adding back-edges. Each subgraph is its own `TaskGraph` and inherits the same invariant. `GraphAsTask.validateAcyclic()` re-asserts the invariant when the subgraph is finalized, so any direct `_dag` manipulation is caught before execution.
+
 ### 1. COMPLETED Tasks Are Immutable
 
 Once a task's `run()` completes and status becomes `COMPLETED`:

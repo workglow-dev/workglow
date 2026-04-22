@@ -5,6 +5,7 @@
  */
 
 import { getLogger } from "@workglow/util";
+import { CycleError } from "@workglow/util/graph";
 import type { DataPortSchema, SchemaNode } from "@workglow/util/schema";
 import { compileSchema } from "@workglow/util/schema";
 import { computeGraphEntitlements } from "../task-graph/GraphEntitlementUtils";
@@ -322,6 +323,27 @@ export class GraphAsTask<
   // ========================================================================
   //  Compound task methods
   // ========================================================================
+
+  /**
+   * Defensive re-assertion of the DAG invariant for the subgraph. `TaskGraph`
+   * already rejects cycle-creating dataflows at `addDataflow` time, but this
+   * runs a full topo sort so that any direct `_dag` manipulation or cycle
+   * introduced via recursive subgraph composition surfaces here with a clear
+   * error rather than deep inside the runner.
+   */
+  public validateAcyclic(): void {
+    if (!this.hasChildren()) return;
+    if (!this.subGraph.isAcyclic()) {
+      throw new CycleError(
+        `${this.type} (${this.id}): subgraph contains a cycle — loop tasks must wrap an acyclic subgraph.`
+      );
+    }
+    for (const child of this.subGraph.getTasks()) {
+      if (child instanceof GraphAsTask) {
+        child.validateAcyclic();
+      }
+    }
+  }
 
   /**
    * Regenerates the subtask graph and emits a "regenerate" event

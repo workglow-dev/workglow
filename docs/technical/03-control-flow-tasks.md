@@ -208,7 +208,7 @@ interface MapTaskConfig extends IteratorTaskConfig {
   flatten?: boolean;           // Flatten nested arrays in results (default: false)
   concurrencyLimit?: number;   // Max concurrent iterations
   batchSize?: number;          // Items per batch
-  maxIterations?: number;      // Safety cap on iteration count
+  maxIterations: IterationBound; // REQUIRED — positive integer or "unbounded"
 }
 ```
 
@@ -216,7 +216,7 @@ interface MapTaskConfig extends IteratorTaskConfig {
 
 ```typescript
 const workflow = new Workflow()
-  .map()                                  // Start map loop
+  .map({ maxIterations: "unbounded" })    // Start map loop (required: bound)
     .addTask(new FetchUrlTask())
     .pipe(new ExtractTextTask())
   .endMap();                              // Close map loop
@@ -232,7 +232,7 @@ const results = await workflow.run({
 
 ```typescript
 const workflow = new Workflow()
-  .map({ concurrencyLimit: 3 })           // Max 3 concurrent iterations
+  .map({ concurrencyLimit: 3, maxIterations: "unbounded" }) // 3 concurrent + explicit unbounded
     .addTask(new TranslateTask())
   .endMap();
 
@@ -275,7 +275,8 @@ await workflow.run({ text: [] });
 
 ```typescript
 interface ReduceTaskConfig extends IteratorTaskConfig {
-  initialValue?: unknown;   // Starting value for the accumulator
+  initialValue?: unknown;          // Starting value for the accumulator
+  maxIterations: IterationBound;   // REQUIRED — inherited from IteratorTaskConfig
 }
 ```
 
@@ -287,7 +288,7 @@ Unlike MapTask, ReduceTask does **not** wrap output properties in arrays. The ou
 
 ```typescript
 const workflow = new Workflow()
-  .reduce({ initialValue: { total: 0 } })
+  .reduce({ initialValue: { total: 0 }, maxIterations: "unbounded" })
     .addTask(new SumTask())
   .endReduce();
 
@@ -301,7 +302,7 @@ await workflow.run({
 
 ```typescript
 const workflow = new Workflow()
-  .reduce({ initialValue: { summary: "" } })
+  .reduce({ initialValue: { summary: "" }, maxIterations: "unbounded" })
     .addTask(new AppendSummaryTask())
   .endReduce();
 
@@ -364,11 +365,11 @@ WhileTask injects an `_iterationIndex` property into each iteration's input. Unl
 ```typescript
 interface WhileTaskConfig extends GraphAsTaskConfig {
   condition?: (output: Output, iteration: number) => boolean;
-  maxIterations?: number;      // Safety limit (default: 100)
-  chainIterations?: boolean;   // Pass output as next input (default: true)
-  conditionField?: string;     // Serializable: field to check
-  conditionOperator?: string;  // Serializable: comparison operator
-  conditionValue?: string;     // Serializable: value to compare against
+  maxIterations: IterationBound; // REQUIRED — positive integer or "unbounded"
+  chainIterations?: boolean;     // Pass output as next input (default: true)
+  conditionField?: string;       // Serializable: field to check
+  conditionOperator?: string;    // Serializable: comparison operator
+  conditionValue?: string;       // Serializable: value to compare against
 }
 ```
 
@@ -575,7 +576,7 @@ const workflow = new Workflow()
     condition: (output) => output.needsMoreData,
     maxIterations: 5,
   })
-    .map({ concurrencyLimit: 3 })
+    .map({ concurrencyLimit: 3, maxIterations: "unbounded" })
       .addTask(new FetchTask())
     .endMap()
     .addTask(new AggregateTask())
@@ -587,7 +588,7 @@ const workflow = new Workflow()
 
 ```typescript
 const workflow = new Workflow()
-  .map()
+  .map({ maxIterations: "unbounded" })
     .addTask(new ClassifyTask())
     .pipe(new ConditionalTask({
       branches: [
@@ -692,7 +693,7 @@ class WhileTask<Input, Output, Config> extends GraphAsTask<Input, Output, Config
   static category: "Flow Control";
 
   condition?: WhileConditionFn<Output>;             // Loop condition
-  maxIterations: number;                            // Default: 100
+  maxIterations: IterationBound;                    // REQUIRED — number | "unbounded"
   chainIterations: boolean;                         // Default: true
   currentIteration: number;                         // Read-only counter
 
