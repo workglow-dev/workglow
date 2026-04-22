@@ -16,26 +16,26 @@ import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 const inputSchema = {
   type: "object",
   properties: {
-    value: {
+    text: {
       type: "string",
-      title: "Value",
+      title: "Text",
       description: "Input string",
     },
   },
-  required: ["value"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    length: {
       type: "integer",
-      title: "Result",
+      title: "Length",
       description: "Length of the string",
     },
   },
-  required: ["result"],
+  required: ["length"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -65,7 +65,7 @@ export class StringLengthTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    return { result: input.value.length } as Output;
+    return { length: input.text.length } as Output;
   }
 }
 

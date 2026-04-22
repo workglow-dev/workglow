@@ -16,26 +16,26 @@ import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 const inputSchema = {
   type: "object",
   properties: {
-    value: {
+    text: {
       type: "string",
-      title: "Value",
+      title: "Text",
       description: "Input string",
     },
   },
-  required: ["value"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    text: {
       type: "string",
-      title: "Result",
+      title: "Text",
       description: "Trimmed string",
     },
   },
-  required: ["result"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -65,7 +65,7 @@ export class StringTrimTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    return { result: input.value.trim() } as Output;
+    return { text: input.text.trim() } as Output;
   }
 }
 

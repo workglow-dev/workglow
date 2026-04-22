@@ -22,13 +22,13 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    text: {
       type: "string",
-      title: "Result",
+      title: "Text",
       description: "Concatenation of all input strings",
     },
   },
-  required: ["result"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -58,7 +58,7 @@ export class StringConcatTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    return { result: Object.values(input).join("") } as Output;
+    return { text: Object.values(input).join("") } as Output;
   }
 }
 
