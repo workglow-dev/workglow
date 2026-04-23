@@ -1,3 +1,8 @@
+/**
+ * @license Copyright 2025 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { describe, expect, it, beforeEach } from "vitest";
 import { TransformRegistry, TRANSFORM_DEFS } from "../TransformRegistry";
 import type { ITransformDef } from "../TransformTypes";
