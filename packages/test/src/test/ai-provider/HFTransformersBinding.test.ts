@@ -11,26 +11,26 @@ import {
   InMemoryModelRepository,
   setGlobalModelRepository,
 } from "@workglow/ai";
+import type { HfTransformersOnnxModelRecord } from "@workglow/ai-provider/hf-transformers/runtime";
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
   HF_TRANSFORMERS_ONNX_CPU,
   registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers/runtime";
-import type { HfTransformersOnnxModelRecord } from "@workglow/ai-provider/hf-transformers/runtime";
 import {
   ConcurrencyLimiter,
   JobQueueClient,
   JobQueueServer,
   RateLimiter,
 } from "@workglow/job-queue";
-import { Sqlite } from "@workglow/storage/sqlite";
 import {
   InMemoryQueueStorage,
   JobStatus,
   SqliteQueueStorage,
   SqliteRateLimiterStorage,
 } from "@workglow/storage";
+import { Sqlite } from "@workglow/storage/sqlite";
 import {
   getTaskQueueRegistry,
   setTaskQueueRegistry,
@@ -68,9 +68,10 @@ async function waitForQueueActivity(
 describe("HFTransformersBinding", () => {
   let logger = getTestingLogger();
   setLogger(logger);
+  // `setTaskQueueRegistry` is quick; 15s matches vitest and Bun CLI (`--timeout`) so hooks are not the tight limit
   beforeEach(async () => {
     await setTaskQueueRegistry(null);
-  });
+  }, 15_000);
 
   describe("InMemoryJobQueue", () => {
     it("Should use the pre-registered queue", async () => {
@@ -137,7 +138,7 @@ describe("HFTransformersBinding", () => {
       expect(total).toBeGreaterThan(0);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
-    });
+    }, 15_000);
   });
 
   describe("SqliteJobQueue", () => {
@@ -171,6 +172,7 @@ describe("HFTransformersBinding", () => {
       // Register custom queue BEFORE the provider so QueuedExecutionStrategy.ensureQueue() finds it
       queueRegistry.registerQueue({ server, client, storage });
 
+      clearPipelineCache();
       await registerHuggingFaceTransformersInline();
 
       setGlobalModelRepository(new InMemoryModelRepository());
@@ -208,12 +210,12 @@ describe("HFTransformersBinding", () => {
       expect(total).toBeGreaterThan(0);
       workflow.reset();
       await registeredQueue?.storage.deleteAll();
-    });
+    }, 15_000);
   });
 
   afterAll(async () => {
     await getTaskQueueRegistry().stopQueues();
     await getTaskQueueRegistry().clearQueues();
     await setTaskQueueRegistry(null);
-  });
+  }, 15_000);
 });
