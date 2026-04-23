@@ -116,6 +116,17 @@ export class ChunkVectorUpsertTask extends Task<
     const kb = knowledgeBase as KnowledgeBase;
     const doc_id = chunkArray[0].doc_id;
 
+    // Upsert is scoped to a single document — callers must pass chunks from one
+    // doc. Mixing doc_ids would upsert rows under multiple docs while returning
+    // a misleading single doc_id, so we reject it up front.
+    for (let i = 1; i < chunkArray.length; i++) {
+      if (chunkArray[i].doc_id !== doc_id) {
+        throw new Error(
+          `ChunkVectorUpsertTask expects all chunks to share one doc_id, but chunk[${i}] has doc_id=${JSON.stringify(chunkArray[i].doc_id)} (expected ${JSON.stringify(doc_id)}).`
+        );
+      }
+    }
+
     await context.updateProgress(1, "Upserting vectors");
 
     const entities = chunkArray.map((chunk, i) => {

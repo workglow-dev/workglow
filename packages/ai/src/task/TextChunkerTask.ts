@@ -9,7 +9,6 @@ import { ChunkRecordArraySchema } from "@workglow/knowledge-base";
 import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 
 import type { TaskConfig } from "@workglow/task-graph";
-import { uuid4 } from "@workglow/util";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const ChunkingStrategy = {
@@ -32,7 +31,7 @@ const inputSchema = {
     doc_id: {
       type: "string",
       title: "Document ID",
-      description: "Document ID stamped onto each chunk; auto-generated if omitted",
+      description: "Optional document ID stamped onto each chunk. When omitted, chunks are emitted without a doc_id and the output also has no doc_id.",
     },
     chunkSize: {
       type: "number",
@@ -66,7 +65,7 @@ const outputSchema = {
     doc_id: {
       type: "string",
       title: "Document ID",
-      description: "The document ID (passed through or generated)",
+      description: "The document ID (only emitted when provided in input)",
     },
     chunks: ChunkRecordArraySchema,
     text: {
@@ -81,7 +80,7 @@ const outputSchema = {
       description: "Number of chunks generated",
     },
   },
-  required: ["doc_id", "chunks", "text", "count"],
+  required: ["chunks", "text", "count"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -99,6 +98,9 @@ interface RawChunk {
  * Task for chunking plain text into smaller segments with configurable strategies.
  * Emits `ChunkRecord[]` so the output is interchangeable with HierarchicalChunkerTask
  * and can feed directly into TextEmbeddingTask → ChunkVectorUpsertTask.
+ *
+ * Deterministic: identical inputs produce identical `chunkId`s (no random UUIDs),
+ * so this task is safe to mark cacheable.
  */
 export class TextChunkerTask extends Task<
   TextChunkerTaskInput,
@@ -126,11 +128,11 @@ export class TextChunkerTask extends Task<
   ): Promise<TextChunkerTaskOutput> {
     const {
       text,
+      doc_id,
       chunkSize = 512,
       chunkOverlap = 50,
       strategy = ChunkingStrategy.FIXED,
     } = input;
-    const doc_id = input.doc_id ?? uuid4();
 
     let rawChunks: RawChunk[];
     switch (strategy) {
@@ -148,24 +150,28 @@ export class TextChunkerTask extends Task<
         break;
     }
 
+    const nodePath = doc_id ? [doc_id] : [];
     const chunks: ChunkRecord[] = rawChunks.map((raw, index) => ({
-      chunkId: uuid4(),
-      doc_id,
+      chunkId: doc_id
+        ? `${doc_id}:${index}`
+        : `chunk:${index}:${raw.startChar}`,
+      doc_id: doc_id ?? "",
       text: raw.text,
-      nodePath: [doc_id],
-      depth: 0,
-      leafNodeId: doc_id,
+      nodePath,
+      depth: nodePath.length,
+      ...(doc_id ? { leafNodeId: doc_id } : {}),
       index,
       startChar: raw.startChar,
       endChar: raw.endChar,
     }));
 
-    return {
-      doc_id,
+    const output: TextChunkerTaskOutput = {
       chunks,
       text: chunks.map((c) => c.text),
       count: chunks.length,
     };
+    if (doc_id) output.doc_id = doc_id;
+    return output;
   }
 
   /** Fixed-size chunking with overlap */

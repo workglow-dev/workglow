@@ -19,6 +19,7 @@ describe("TextChunkerTask", () => {
   test("should chunk text with FIXED strategy and emit ChunkRecord[]", async () => {
     const result = await textChunker({
       text: testText,
+      doc_id: "my-doc",
       chunkSize: 50,
       chunkOverlap: 10,
       strategy: ChunkingStrategy.FIXED,
@@ -28,20 +29,36 @@ describe("TextChunkerTask", () => {
     expect(result.chunks.length).toBeGreaterThan(0);
     expect(result.count).toBe(result.chunks.length);
     expect(result.text).toHaveLength(result.chunks.length);
-    expect(result.doc_id).toBeDefined();
+    expect(result.doc_id).toBe("my-doc");
 
     result.chunks.forEach((chunk, idx) => {
-      expect(chunk.chunkId).toBeDefined();
-      expect(chunk.doc_id).toBe(result.doc_id);
+      expect(chunk.chunkId).toBe(`my-doc:${idx}`);
+      expect(chunk.doc_id).toBe("my-doc");
       expect(chunk.text).toBe(result.text[idx]);
-      expect(chunk.nodePath).toEqual([result.doc_id]);
+      expect(chunk.nodePath).toEqual(["my-doc"]);
+      expect(chunk.depth).toBe(chunk.nodePath.length);
+    });
+  });
+
+  test("should omit doc_id from output when not provided and emit deterministic chunkIds", async () => {
+    const first = await textChunker({ text: testText, chunkSize: 50 });
+    const second = await textChunker({ text: testText, chunkSize: 50 });
+
+    expect(first.doc_id).toBeUndefined();
+    expect(second.doc_id).toBeUndefined();
+    expect(first.chunks.map((c) => c.chunkId)).toEqual(second.chunks.map((c) => c.chunkId));
+    first.chunks.forEach((chunk) => {
+      expect(chunk.doc_id).toBe("");
+      expect(chunk.nodePath).toEqual([]);
       expect(chunk.depth).toBe(0);
+      expect(chunk.chunkId).toMatch(/^chunk:\d+:\d+$/);
     });
   });
 
   test("should chunk with SENTENCE strategy", async () => {
     const result = await textChunker({
       text: testText,
+      doc_id: "d1",
       chunkSize: 80,
       chunkOverlap: 20,
       strategy: ChunkingStrategy.SENTENCE,
@@ -61,6 +78,7 @@ describe("TextChunkerTask", () => {
 
     const result = await textChunker({
       text: paragraphText,
+      doc_id: "d1",
       chunkSize: 100,
       chunkOverlap: 20,
       strategy: ChunkingStrategy.PARAGRAPH,
@@ -84,7 +102,6 @@ describe("TextChunkerTask", () => {
 
   test("should handle default parameters", async () => {
     const result = await textChunker({ text: testText });
-
     expect(result.chunks.length).toBeGreaterThan(0);
   });
 

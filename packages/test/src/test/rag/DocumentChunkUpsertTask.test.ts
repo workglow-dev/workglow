@@ -150,6 +150,19 @@ describe("ChunkVectorUpsertTask", () => {
     );
   });
 
+  test("should throw when chunks have mixed doc_ids", async () => {
+    const chunks = [
+      makeChunk({ doc_id: "doc-a" }),
+      makeChunk({ doc_id: "doc-b" }),
+    ];
+    const vectors = [new Float32Array([0.1, 0.2, 0.3]), new Float32Array([0.4, 0.5, 0.6])];
+
+    const task = new ChunkVectorUpsertTask();
+    await expect(task.run({ knowledgeBase: kb, chunks, vector: vectors })).rejects.toThrow(
+      /share one doc_id/
+    );
+  });
+
   test("should handle large batch upsert", async () => {
     const count = 100;
     const chunks = Array.from({ length: count }, (_, i) =>

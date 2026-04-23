@@ -489,6 +489,7 @@ const kb = await createKnowledgeBase({
 // Build an ingestion pipeline — five chained tasks, no transform step needed
 await new Workflow()
   .structuralParser({ text: documentText, title: "My Paper" })
+  .documentEnricher({ generateSummaries: true, extractEntities: true })
   .hierarchicalChunker({ maxTokens: 512 })
   .textEmbedding({ model: "text-embedding-3-small" })
   .chunkVectorUpsert({ knowledgeBase: "research-papers" })
