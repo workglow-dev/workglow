@@ -5,7 +5,7 @@
  */
 
 import type { TaskConfig, TaskOutput } from "@workglow/task-graph";
-import { convertImageDataToUseableForm, ImageDataSupport } from "@workglow/util/media";
+import { Image, ImageDataSupport } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";
 import type { ModelConfig } from "../../model/ModelSchema";
@@ -55,9 +55,10 @@ export class AiVisionTask<
       ) {
         supports.push("VideoFrame");
       }
+      const toSupported = (img: unknown) => Image.from(img).toFirstSupported(supports);
       const image = Array.isArray(input.image)
-        ? await Promise.all(input.image.map((img) => convertImageDataToUseableForm(img, supports)))
-        : await convertImageDataToUseableForm(input.image, supports);
+        ? await Promise.all(input.image.map(toSupported))
+        : await toSupported(input.image);
       // @ts-ignore
       jobInput.taskInput.image = image;
     }
