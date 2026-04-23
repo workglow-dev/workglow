@@ -478,12 +478,13 @@ export class TaskGraphRunner {
     const dataflows = this.graph.getTargetDataflows(node.id);
     for (const dataflow of dataflows) {
       // Edges with an active stream have their final value materialised by the
-      // downstream task's awaitStreamInputs (via Dataflow.awaitStreamValue),
-      // which also applies transforms. Setting port data here would be
-      // overwritten by the finish event and transforms would double-apply
-      // (non-idempotent), so skip the whole post-materialisation step.
+      // downstream task's awaitStreamInputs (which uses Dataflow.awaitStreamValue
+      // to read the raw snapshot/finish data and then applies transforms).
+      // Setting port data here would be overwritten by the finish event, and
+      // applying transforms again on this path would double-apply
+      // non-idempotent transforms, so skip the whole post-materialisation step.
       if (dataflow.stream !== undefined) continue;
-      const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow);
+      const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow, this.registry);
       if (compatibility === "static") {
         dataflow.setPortData(results);
         await dataflow.applyTransforms(this.registry);

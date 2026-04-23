@@ -288,7 +288,14 @@ export class Dataflow {
       }
       this.value = cur;
     } catch (e) {
-      this.error = e as Error;
+      const error =
+        e instanceof TaskError
+          ? e
+          : new TaskError(e instanceof Error ? e.message : String(e));
+      if (!(e instanceof TaskError) && e instanceof Error && e.stack) {
+        error.stack = e.stack;
+      }
+      this.error = error;
       this.setStatus(TaskStatus.FAILED);
       throw e;
     }
@@ -305,7 +312,8 @@ export class Dataflow {
 
   semanticallyCompatible(
     graph: TaskGraph,
-    dataflow: Dataflow
+    dataflow: Dataflow,
+    registry?: ServiceRegistry
   ): "static" | "runtime" | "incompatible" {
     const sourceTask = graph.getTask(dataflow.sourceTaskId)!;
     const targetTask = graph.getTask(dataflow.targetTaskId)!;
@@ -359,7 +367,8 @@ export class Dataflow {
     }
 
     // Compose source schema through the transform chain before comparing.
-    // Uses TransformRegistry.all directly (same map the DI token resolves to).
+    // Resolves transform defs from the same registry used by applyTransforms so
+    // that custom TRANSFORM_DEFS overrides are reflected in both places.
     // When the source schema is `true` (accepts any — e.g. a boundary task
     // with `additionalProperties: true`), start the chain from `{}` so
     // transforms can still narrow the effective schema. Without this a chain
@@ -367,12 +376,14 @@ export class Dataflow {
     // "static" against any target regardless of the transforms' output type.
     let effectiveSourceSchema = sourceSchemaProperty;
     if (this._transforms.length > 0) {
+      const defs = registry ? registry.get(TRANSFORM_DEFS) : TransformRegistry.all;
       try {
         let cur: any = effectiveSourceSchema === true ? {} : effectiveSourceSchema;
         for (const step of this._transforms) {
-          const def = TransformRegistry.all.get(step.id);
+          const def = defs.get(step.id);
           if (!def) {
-            if (shouldCache) this._compatibilityCache = "incompatible";
+            // Do not cache missing transform definitions because the registry
+            // supports runtime registration and a later call may become compatible.
             return "incompatible";
           }
           cur = def.inferOutputSchema(cur, step.params ?? {});
