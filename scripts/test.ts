@@ -170,8 +170,12 @@ async function runBunTest(files: string[]): Promise<number> {
     files.length > 0 && shouldRunLlamaCppIntegrationFilesSequentially(files)
       ? "--parallel=1"
       : "--parallel";
+  // Match vitest's testTimeout: Bun's default is 5s per test, which is easy to exceed in HF/Sqlite work
+  const timeoutFlag = "--timeout=15000";
   const proc = Bun.spawn(
-    files.length > 0 ? ["bun", "test", parallelFlag, ...files] : ["bun", "test", parallelFlag],
+    files.length > 0
+      ? ["bun", "test", timeoutFlag, parallelFlag, ...files]
+      : ["bun", "test", timeoutFlag, parallelFlag],
     {
       cwd: ROOT,
       stdio: ["inherit", "inherit", "inherit"],
