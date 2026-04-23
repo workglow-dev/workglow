@@ -429,7 +429,7 @@ StructuralParser -----> DocumentRootNode tree
 Chunking Task --------> ChunkRecord[]
     |
     v
-ChunkToVectorTask ----> Float32Array[] (embeddings)
+TextEmbeddingTask ----> Float32Array[] (embeddings)
     |
     v
 ChunkVectorUpsertTask -> Stored in KnowledgeBase vector storage
@@ -443,31 +443,36 @@ AI Generation Task ---> Answer with context
 
 ### Key RAG Tasks
 
-**ChunkToVectorTask** -- Generates embeddings for an array of chunks using a specified model:
+**TextEmbeddingTask** -- Generates embeddings for text or an array of chunks using a specified model:
 
 ```typescript
-// Input: { vector: TypedArray, chunks: ChunkRecord[] }
-// Output: { vectors: Float32Array[] }
+// Input: { text: string | string[], model: "..." }
+// Output: { vector: TypedArray | TypedArray[] }
 ```
 
-**ChunkVectorUpsertTask** -- Stores chunk vectors in a knowledge base:
+**ChunkVectorUpsertTask** -- Stores chunks + their embeddings in a knowledge base (1:1 aligned):
 
 ```typescript
-// Input: { knowledgeBase: "my-kb", vectors: ChunkVectorEntity[] }
+// Input: { knowledgeBase: "my-kb", chunks: ChunkRecord[], vector: TypedArray[] }
+// Output: { count: number, doc_id: string, chunk_ids: string[] }
 ```
 
-**ChunkRetrievalTask** -- Retrieves relevant chunks from a knowledge base given a query:
+**ChunkRetrievalTask** -- End-to-end retrieval. Embeds the query (if a string),
+then runs similarity or hybrid search:
 
 ```typescript
-// Input: { knowledgeBase: "my-kb", query: "What is...", model: "..." }
-// Output: { chunks: ChunkSearchResult[] }
+// Input: { knowledgeBase, query, model?, method?: "similarity" | "hybrid",
+//          topK?, filter?, scoreThreshold?, vectorWeight?, returnVectors? }
+// Output: { chunks, chunk_ids, metadata, scores, count, query, vectors? }
 ```
 
-**ChunkVectorSearchTask** -- Direct vector similarity search against a knowledge base.
+**HierarchyJoinTask** -- Given retrieved metadata, walks the document tree to
+reconstruct section context and enrich the metadata with ancestor information:
 
-**ChunkVectorHybridSearchTask** -- Combined vector + full-text search.
-
-**HierarchyJoinTask** -- Given chunk search results, walks the document tree to reconstruct section context and enrich the results with ancestor information.
+```typescript
+// Input: { knowledgeBase, metadata, includeParentSummaries?, includeEntities? }
+// Output: { metadata: ChunkRecord[], count }
+```
 
 ### Example Workflow
 
@@ -481,22 +486,13 @@ const kb = await createKnowledgeBase({
   vectorDimensions: 1024,
 });
 
-// Build an ingestion pipeline
-const workflow = new Workflow("ingest");
-const parseTask = workflow.addTask("StructuralParseTask", {
-  text: documentText,
-  title: "My Paper",
-});
-const chunkTask = workflow.addTask("ChunkingTask", {});
-const embedTask = workflow.addTask("ChunkToVectorTask", {
-  model: "text-embedding-3-small",
-});
-const upsertTask = workflow.addTask("ChunkVectorUpsertTask", {
-  knowledgeBase: "research-papers",
-});
-
-workflow.pipe(parseTask, chunkTask, embedTask, upsertTask);
-await workflow.run();
+// Build an ingestion pipeline — five chained tasks, no transform step needed
+await new Workflow()
+  .structuralParser({ text: documentText, title: "My Paper" })
+  .hierarchicalChunker({ maxTokens: 512 })
+  .textEmbedding({ model: "text-embedding-3-small" })
+  .chunkVectorUpsert({ knowledgeBase: "research-papers" })
+  .run();
 ```
 
 ## Global Registry

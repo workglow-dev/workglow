@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { KnowledgeBase, TypeKnowledgeBase } from "@workglow/knowledge-base";
+import type { ChunkRecord, KnowledgeBase } from "@workglow/knowledge-base";
+import { ChunkRecordArraySchema, TypeKnowledgeBase } from "@workglow/knowledge-base";
 import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 import type { TaskConfig } from "@workglow/task-graph";
 import {
   DataPortSchema,
   FromSchema,
+  TypedArray,
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
@@ -22,25 +24,20 @@ const inputSchema = {
       title: "Knowledge Base",
       description: "The knowledge base instance to store vectors in",
     }),
-    doc_id: {
-      type: "string",
-      title: "Document ID",
-      description: "The document ID",
-    },
-    vectors: TypeSingleOrArray(
+    chunks: ChunkRecordArraySchema,
+    vector: TypeSingleOrArray(
       TypedArraySchema({
         title: "Vectors",
-        description: "The vector embeddings",
+        description: "The vector embeddings, aligned 1:1 with chunks",
       })
     ),
-    metadata: TypeSingleOrArray({
-      type: "object",
-      title: "Metadata",
-      description: "Metadata associated with the vector",
-      additionalProperties: true,
-    }),
+    doc_title: {
+      type: "string",
+      title: "Document Title",
+      description: "Optional human-readable title stamped onto each chunk's metadata",
+    },
   },
-  required: ["knowledgeBase", "doc_id", "vectors", "metadata"],
+  required: ["knowledgeBase", "chunks", "vector"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -55,7 +52,7 @@ const outputSchema = {
     doc_id: {
       type: "string",
       title: "Document ID",
-      description: "The document ID",
+      description: "The document ID (read from the first chunk)",
     },
     chunk_ids: {
       type: "array",
@@ -68,16 +65,14 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export type VectorStoreUpsertTaskInput = FromSchema<
-  typeof inputSchema,
-  TypedArraySchemaOptions // & TypeVectorRepositoryOptions
->;
+export type VectorStoreUpsertTaskInput = FromSchema<typeof inputSchema, TypedArraySchemaOptions>;
 export type VectorStoreUpsertTaskOutput = FromSchema<typeof outputSchema>;
 export type ChunkVectorUpsertTaskConfig = TaskConfig<VectorStoreUpsertTaskInput>;
 
 /**
- * Task for upserting (insert or update) vectors into a knowledge base.
- * Supports both single and bulk operations.
+ * Upsert chunks + their embeddings into a knowledge base in a single step.
+ * Consumes the output of `HierarchicalChunkerTask` (chunks) and
+ * `TextEmbeddingTask` (vector) directly — no intermediate transform task needed.
  */
 export class ChunkVectorUpsertTask extends Task<
   VectorStoreUpsertTaskInput,
@@ -87,7 +82,8 @@ export class ChunkVectorUpsertTask extends Task<
   public static override type = "ChunkVectorUpsertTask";
   public static override category = "Vector Store";
   public static override title = "Add to Vector Store";
-  public static override description = "Store vector embeddings with metadata in a knowledge base";
+  public static override description =
+    "Store chunks + their embeddings in a knowledge base (1:1 aligned)";
   public static override cacheable = false; // Has side effects
 
   public static override inputSchema(): DataPortSchema {
@@ -102,57 +98,48 @@ export class ChunkVectorUpsertTask extends Task<
     input: VectorStoreUpsertTaskInput,
     context: IExecuteContext
   ): Promise<VectorStoreUpsertTaskOutput> {
-    const { knowledgeBase, doc_id, vectors, metadata } = input;
+    const { knowledgeBase, chunks, vector, doc_title } = input;
 
-    // Normalize inputs to arrays
-    const vectorArray = Array.isArray(vectors) ? vectors : [vectors];
-    const metadataArray = Array.isArray(metadata)
-      ? metadata
-      : Array(vectorArray.length).fill(metadata);
+    const chunkArray = chunks as ChunkRecord[];
+    const vectorArray: TypedArray[] = Array.isArray(vector) ? vector : [vector];
+
+    if (chunkArray.length !== vectorArray.length) {
+      throw new Error(
+        `Mismatch: ${chunkArray.length} chunks but ${vectorArray.length} vectors — they must be 1:1 aligned`
+      );
+    }
+
+    if (chunkArray.length === 0) {
+      return { doc_id: "", chunk_ids: [], count: 0 };
+    }
 
     const kb = knowledgeBase as KnowledgeBase;
+    const doc_id = chunkArray[0].doc_id;
 
     await context.updateProgress(1, "Upserting vectors");
 
-    // Bulk upsert if multiple items
-    if (vectorArray.length > 1) {
-      if (vectorArray.length !== metadataArray.length) {
-        throw new Error("Mismatch: vectors and metadata arrays must have the same length");
-      }
-      const entities = vectorArray.map((vector, i) => {
-        const metadataItem = metadataArray[i];
-        return {
-          doc_id,
-          vector,
-          metadata: metadataItem,
-        };
-      });
-      const results = await kb.upsertChunksBulk(entities);
-      const chunk_ids = results.map((r) => r.chunk_id);
-      return {
-        doc_id,
-        chunk_ids,
-        count: chunk_ids.length,
+    const entities = chunkArray.map((chunk, i) => {
+      const leafNodeId =
+        chunk.leafNodeId ?? chunk.nodePath[chunk.nodePath.length - 1] ?? undefined;
+      const metadata: ChunkRecord = {
+        ...chunk,
+        ...(leafNodeId !== undefined ? { leafNodeId } : {}),
+        ...(doc_title ? { doc_title } : {}),
       };
-    } else if (vectorArray.length === 1) {
-      // Single upsert
-      const metadataItem = metadataArray[0];
-      const result = await kb.upsertChunk({
-        doc_id,
-        vector: vectorArray[0],
-        metadata: metadataItem,
-      });
       return {
-        doc_id,
-        chunk_ids: [result.chunk_id],
-        count: 1,
+        doc_id: chunk.doc_id,
+        vector: vectorArray[i],
+        metadata,
       };
-    }
+    });
+
+    const results = await kb.upsertChunksBulk(entities);
+    const chunk_ids = results.map((r) => r.chunk_id);
 
     return {
       doc_id,
-      chunk_ids: [],
-      count: 0,
+      chunk_ids,
+      count: chunk_ids.length,
     };
   }
 }

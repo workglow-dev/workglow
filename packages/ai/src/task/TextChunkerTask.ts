@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ChunkRecord } from "@workglow/knowledge-base";
+import { ChunkRecordArraySchema } from "@workglow/knowledge-base";
 import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-graph";
 
 import type { TaskConfig } from "@workglow/task-graph";
+import { uuid4 } from "@workglow/util";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const ChunkingStrategy = {
@@ -25,6 +28,11 @@ const inputSchema = {
       type: "string",
       title: "Text",
       description: "The text to chunk",
+    },
+    doc_id: {
+      type: "string",
+      title: "Document ID",
+      description: "Document ID stamped onto each chunk; auto-generated if omitted",
     },
     chunkSize: {
       type: "number",
@@ -55,29 +63,25 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    chunks: {
+    doc_id: {
+      type: "string",
+      title: "Document ID",
+      description: "The document ID (passed through or generated)",
+    },
+    chunks: ChunkRecordArraySchema,
+    text: {
       type: "array",
       items: { type: "string" },
-      title: "Text Chunks",
-      description: "The chunked text segments",
+      title: "Texts",
+      description: "Chunk texts (for TextEmbeddingTask)",
     },
-    metadata: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          index: { type: "number" },
-          startChar: { type: "number" },
-          endChar: { type: "number" },
-          length: { type: "number" },
-        },
-        additionalProperties: false,
-      },
-      title: "Chunk Metadata",
-      description: "Metadata for each chunk",
+    count: {
+      type: "number",
+      title: "Count",
+      description: "Number of chunks generated",
     },
   },
-  required: ["chunks", "metadata"],
+  required: ["doc_id", "chunks", "text", "count"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -85,16 +89,16 @@ export type TextChunkerTaskInput = FromSchema<typeof inputSchema>;
 export type TextChunkerTaskOutput = FromSchema<typeof outputSchema>;
 export type TextChunkerTaskConfig = TaskConfig<TextChunkerTaskInput>;
 
-interface ChunkMetadata {
-  index: number;
+interface RawChunk {
+  text: string;
   startChar: number;
   endChar: number;
-  length: number;
 }
 
 /**
- * Task for chunking text into smaller segments with configurable strategies.
- * Supports fixed-size, sentence-based, paragraph-based, and semantic chunking.
+ * Task for chunking plain text into smaller segments with configurable strategies.
+ * Emits `ChunkRecord[]` so the output is interchangeable with HierarchicalChunkerTask
+ * and can feed directly into TextEmbeddingTask → ChunkVectorUpsertTask.
  */
 export class TextChunkerTask extends Task<
   TextChunkerTaskInput,
@@ -120,74 +124,71 @@ export class TextChunkerTask extends Task<
     input: TextChunkerTaskInput,
     context: IExecuteContext
   ): Promise<TextChunkerTaskOutput> {
-    const { text, chunkSize = 512, chunkOverlap = 50, strategy = ChunkingStrategy.FIXED } = input;
+    const {
+      text,
+      chunkSize = 512,
+      chunkOverlap = 50,
+      strategy = ChunkingStrategy.FIXED,
+    } = input;
+    const doc_id = input.doc_id ?? uuid4();
 
-    let chunks: string[];
-    let metadata: ChunkMetadata[];
-
+    let rawChunks: RawChunk[];
     switch (strategy) {
       case ChunkingStrategy.SENTENCE:
-        ({ chunks, metadata } = this.chunkBySentence(text, chunkSize, chunkOverlap));
+      case ChunkingStrategy.SEMANTIC:
+        // Semantic is currently aliased to sentence; true semantic chunking is TODO.
+        rawChunks = this.chunkBySentence(text, chunkSize, chunkOverlap);
         break;
       case ChunkingStrategy.PARAGRAPH:
-        ({ chunks, metadata } = this.chunkByParagraph(text, chunkSize, chunkOverlap));
-        break;
-      case ChunkingStrategy.SEMANTIC:
-        // For now, semantic is the same as sentence-based
-        // TODO: Implement true semantic chunking with embeddings
-        ({ chunks, metadata } = this.chunkBySentence(text, chunkSize, chunkOverlap));
+        rawChunks = this.chunkByParagraph(text, chunkSize, chunkOverlap);
         break;
       case ChunkingStrategy.FIXED:
       default:
-        ({ chunks, metadata } = this.chunkFixed(text, chunkSize, chunkOverlap));
+        rawChunks = this.chunkFixed(text, chunkSize, chunkOverlap);
         break;
     }
 
-    return { chunks, metadata };
+    const chunks: ChunkRecord[] = rawChunks.map((raw, index) => ({
+      chunkId: uuid4(),
+      doc_id,
+      text: raw.text,
+      nodePath: [doc_id],
+      depth: 0,
+      leafNodeId: doc_id,
+      index,
+      startChar: raw.startChar,
+      endChar: raw.endChar,
+    }));
+
+    return {
+      doc_id,
+      chunks,
+      text: chunks.map((c) => c.text),
+      count: chunks.length,
+    };
   }
 
-  /**
-   * Fixed-size chunking with overlap
-   */
-  private chunkFixed(
-    text: string,
-    chunkSize: number,
-    chunkOverlap: number
-  ): { chunks: string[]; metadata: ChunkMetadata[] } {
-    const chunks: string[] = [];
-    const metadata: ChunkMetadata[] = [];
+  /** Fixed-size chunking with overlap */
+  private chunkFixed(text: string, chunkSize: number, chunkOverlap: number): RawChunk[] {
+    const chunks: RawChunk[] = [];
     let startChar = 0;
-    let index = 0;
 
     while (startChar < text.length) {
       const endChar = Math.min(startChar + chunkSize, text.length);
-      const chunk = text.substring(startChar, endChar);
-      chunks.push(chunk);
-      metadata.push({
-        index,
+      chunks.push({
+        text: text.substring(startChar, endChar),
         startChar,
         endChar,
-        length: chunk.length,
       });
-
-      // Move forward by chunkSize - chunkOverlap, but at least 1 character to prevent infinite loop
-      const step = Math.max(1, chunkSize - chunkOverlap);
-      startChar += step;
-      index++;
+      // Move forward by chunkSize - chunkOverlap, but at least 1 character to prevent infinite loop.
+      startChar += Math.max(1, chunkSize - chunkOverlap);
     }
 
-    return { chunks, metadata };
+    return chunks;
   }
 
-  /**
-   * Sentence-based chunking that respects sentence boundaries
-   */
-  private chunkBySentence(
-    text: string,
-    chunkSize: number,
-    chunkOverlap: number
-  ): { chunks: string[]; metadata: ChunkMetadata[] } {
-    // Split by sentence boundaries (., !, ?, followed by space or newline)
+  /** Sentence-based chunking that respects sentence boundaries */
+  private chunkBySentence(text: string, chunkSize: number, chunkOverlap: number): RawChunk[] {
     const sentenceRegex = /[.!?]+[\s\n]+/g;
     const sentences: string[] = [];
     const sentenceStarts: number[] = [];
@@ -195,43 +196,31 @@ export class TextChunkerTask extends Task<
     let match: RegExpExecArray | null;
 
     while ((match = sentenceRegex.exec(text)) !== null) {
-      const sentence = text.substring(lastIndex, match.index + match[0].length);
-      sentences.push(sentence);
+      sentences.push(text.substring(lastIndex, match.index + match[0].length));
       sentenceStarts.push(lastIndex);
       lastIndex = match.index + match[0].length;
     }
-
-    // Add remaining text as last sentence
     if (lastIndex < text.length) {
       sentences.push(text.substring(lastIndex));
       sentenceStarts.push(lastIndex);
     }
 
-    // Group sentences into chunks
-    const chunks: string[] = [];
-    const metadata: ChunkMetadata[] = [];
+    const chunks: RawChunk[] = [];
     let currentChunk = "";
     let currentStartChar = 0;
-    let index = 0;
 
     for (let i = 0; i < sentences.length; i++) {
       const sentence = sentences[i];
       const sentenceStart = sentenceStarts[i];
 
-      // If adding this sentence would exceed chunkSize, save current chunk
       if (currentChunk.length > 0 && currentChunk.length + sentence.length > chunkSize) {
-        chunks.push(currentChunk.trim());
-        metadata.push({
-          index,
+        chunks.push({
+          text: currentChunk.trim(),
           startChar: currentStartChar,
           endChar: currentStartChar + currentChunk.length,
-          length: currentChunk.trim().length,
         });
-        index++;
 
-        // Start new chunk with overlap
         if (chunkOverlap > 0) {
-          // Find sentences to include in overlap
           let overlapText = "";
           let j = i - 1;
           while (j >= 0 && overlapText.length < chunkOverlap) {
@@ -252,35 +241,23 @@ export class TextChunkerTask extends Task<
       }
     }
 
-    // Add final chunk
     if (currentChunk.length > 0) {
-      chunks.push(currentChunk.trim());
-      metadata.push({
-        index,
+      chunks.push({
+        text: currentChunk.trim(),
         startChar: currentStartChar,
         endChar: currentStartChar + currentChunk.length,
-        length: currentChunk.trim().length,
       });
     }
 
-    return { chunks, metadata };
+    return chunks;
   }
 
-  /**
-   * Paragraph-based chunking that respects paragraph boundaries
-   */
-  private chunkByParagraph(
-    text: string,
-    chunkSize: number,
-    chunkOverlap: number
-  ): { chunks: string[]; metadata: ChunkMetadata[] } {
-    // Split by paragraph boundaries (double newline or more)
+  /** Paragraph-based chunking that respects paragraph boundaries */
+  private chunkByParagraph(text: string, chunkSize: number, chunkOverlap: number): RawChunk[] {
     const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
-    const chunks: string[] = [];
-    const metadata: ChunkMetadata[] = [];
+    const chunks: RawChunk[] = [];
     let currentChunk = "";
     let currentStartChar = 0;
-    let index = 0;
     let charPosition = 0;
 
     for (let i = 0; i < paragraphs.length; i++) {
@@ -288,20 +265,14 @@ export class TextChunkerTask extends Task<
       const paragraphStart = text.indexOf(paragraph, charPosition);
       charPosition = paragraphStart + paragraph.length;
 
-      // If adding this paragraph would exceed chunkSize, save current chunk
       if (currentChunk.length > 0 && currentChunk.length + paragraph.length + 2 > chunkSize) {
-        chunks.push(currentChunk.trim());
-        metadata.push({
-          index,
+        chunks.push({
+          text: currentChunk.trim(),
           startChar: currentStartChar,
           endChar: currentStartChar + currentChunk.length,
-          length: currentChunk.trim().length,
         });
-        index++;
 
-        // Start new chunk with overlap
         if (chunkOverlap > 0 && i > 0) {
-          // Include previous paragraph(s) for overlap
           let overlapText = "";
           let j = i - 1;
           while (j >= 0 && overlapText.length < chunkOverlap) {
@@ -324,18 +295,15 @@ export class TextChunkerTask extends Task<
       }
     }
 
-    // Add final chunk
     if (currentChunk.length > 0) {
-      chunks.push(currentChunk.trim());
-      metadata.push({
-        index,
+      chunks.push({
+        text: currentChunk.trim(),
         startChar: currentStartChar,
         endChar: currentStartChar + currentChunk.length,
-        length: currentChunk.trim().length,
       });
     }
 
-    return { chunks, metadata };
+    return chunks;
   }
 }
 

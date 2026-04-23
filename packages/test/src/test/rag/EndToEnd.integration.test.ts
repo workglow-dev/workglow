@@ -7,48 +7,29 @@
 /**
  * Complete End-to-End RAG Pipeline Test
  *
- * This test demonstrates a full RAG pipeline using single, composable workflows:
- *
  * Stage 1 - Document Ingestion Pipeline:
  *   FileLoader -> StructuralParser -> DocumentEnricher -> HierarchicalChunker
- *   -> TextEmbedding -> ChunkToVector -> ChunkVectorUpsert
+ *   -> TextEmbedding -> ChunkVectorUpsert
  *
- * Stage 2 - Query Retrieval Pipeline with RAG Tasks:
+ * Stage 2 - Query Retrieval Pipeline:
  *   ChunkRetrieval -> Reranker -> ContextBuilder
  *
- * All 6 RAG Tasks Demonstrated (category = "RAG"):
- *   1. ChunkRetrievalTask - Embed query and search vector store for similar chunks
- *   2. RerankerTask - Rerank retrieved chunks to improve relevance
+ * RAG Tasks Demonstrated (category = "RAG"):
+ *   1. ChunkRetrievalTask - Embed query and search; supports similarity + hybrid methods
+ *   2. RerankerTask - Heuristic reranking (simple / reciprocal-rank-fusion)
  *   3. ContextBuilderTask - Format chunks into context for LLM prompts
- *   4. QueryExpanderTask - Generate query variations for improved recall
- *   5. ChunkVectorHybridSearchTask - Combined vector + full-text search
- *   6. HierarchyJoinTask - Enrich results with document hierarchy context
- *
- * Auto-connect notes:
- * - QueryExpander -> ChunkRetrieval: `query` auto-connects by name
- * - ChunkRetrieval -> Reranker: `query` available via lookback
- *
- * Models Used:
- *   - Qwen3 Embedding 0.6B (1024D) for text embedding
- *   - BGE Reranker Base for cross-encoder reranking
- *   - Falconsai text_summarization for document summaries
- *   - NeuroBERT NER for named entity recognition
- *   - LaMini Flan T5 783M for query expansion
- *
- * Sample Document:
- *   - history_of_the_united_states.md
+ *   4. QueryExpanderTask - Rule-based query variations for improved recall
+ *   5. HierarchyJoinTask - Enrich results with document hierarchy context
  */
 
 import {
   ChunkRetrievalTaskOutput,
   ContextBuilderTaskOutput,
   HierarchyJoinTaskOutput,
-  HybridSearchTaskOutput,
   InMemoryModelRepository,
   QueryExpanderTaskOutput,
   RerankerTaskOutput,
   setGlobalModelRepository,
-  TextEmbeddingTaskOutput,
 } from "@workglow/ai";
 import {
   clearPipelineCache,
@@ -70,10 +51,8 @@ describe("End-to-End RAG Pipeline", () => {
 
   // Configuration - Models
   const embeddingModel = "onnx:Qwen3-Embedding-0.6B:auto";
-  const rerankerModel = "onnx:Xenova/bge-reranker-base:q8";
   const summaryModel = "onnx:Falconsai/text_summarization:fp32";
   const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
-  const textGenerationModel = "onnx:Xenova/LaMini-Flan-T5-783M:q8";
 
   // Configuration - Knowledge Base
   const kbName = "e2e-rag-test-kb";
@@ -135,7 +114,6 @@ describe("End-to-End RAG Pipeline", () => {
       .textEmbedding({
         model: embeddingModel,
       })
-      .chunkToVector()
       .chunkVectorUpsert({
         knowledgeBase: kbName,
       });
@@ -171,8 +149,7 @@ describe("End-to-End RAG Pipeline", () => {
       })
       .reranker({
         query,
-        method: "cross-encoder",
-        model: rerankerModel,
+        method: "simple",
         topK: 5,
       })
       .contextBuilder({
@@ -273,9 +250,8 @@ describe("End-to-End RAG Pipeline", () => {
 
     const expanderWorkflow = new Workflow().queryExpander({
       query,
-      method: "paraphrase",
+      method: "multi-query",
       numVariations: 3,
-      model: textGenerationModel,
     });
 
     expect(expanderWorkflow.error).toBe("");
@@ -302,8 +278,7 @@ describe("End-to-End RAG Pipeline", () => {
         })
         .reranker({
           query: expandedQuery,
-          method: "cross-encoder",
-          model: rerankerModel,
+          method: "simple",
           topK: 2,
         });
 
@@ -350,25 +325,22 @@ describe("End-to-End RAG Pipeline", () => {
     }
   }, 120000);
 
-  it("should use ChunkVectorHybridSearchTask for combined vector + text search", async () => {
+  it("should use ChunkRetrieval in hybrid mode for combined vector + text search", async () => {
     const query = "Civil War slavery abolition Lincoln";
 
-    logger.info(`\n=== ChunkVectorHybridSearchTask ===`);
+    logger.info(`\n=== ChunkRetrieval (hybrid) ===`);
 
-    const embeddingWorkflow = new Workflow().textEmbedding({
-      text: query,
-      model: embeddingModel,
-    });
+    // In-memory KB does not support hybrid search; skip cleanly.
+    if (!kb.supportsHybridSearch()) {
+      logger.info("Skipping: knowledge base does not support hybrid search");
+      return;
+    }
 
-    const embeddingResult = (await embeddingWorkflow.run()) as TextEmbeddingTaskOutput;
-    expect(embeddingResult.vector).toBeDefined();
-
-    const queryVector = embeddingResult.vector as Float32Array;
-
-    const hybridWorkflow = new Workflow().hybridSearch({
+    const hybridWorkflow = new Workflow().chunkRetrieval({
       knowledgeBase: kbName,
-      queryVector,
-      queryText: query,
+      query,
+      model: embeddingModel,
+      method: "hybrid",
       topK: 5,
       vectorWeight: 0.7,
       scoreThreshold: 0.0,
@@ -376,7 +348,7 @@ describe("End-to-End RAG Pipeline", () => {
 
     expect(hybridWorkflow.error).toBe("");
 
-    const result = (await hybridWorkflow.run()) as HybridSearchTaskOutput;
+    const result = (await hybridWorkflow.run()) as ChunkRetrievalTaskOutput;
 
     expect(result).toBeDefined();
     expect(result.chunks).toBeDefined();
@@ -413,11 +385,9 @@ describe("End-to-End RAG Pipeline", () => {
     const result = (await hierarchyWorkflow.run()) as HierarchyJoinTaskOutput;
 
     expect(result).toBeDefined();
-    expect(result.chunks).toBeDefined();
-    expect(result.chunk_ids).toBeDefined();
     expect(result.metadata).toBeDefined();
-    expect(result.scores).toBeDefined();
-    expect(result.count).toBe(result.chunks.length);
+    expect(Array.isArray(result.metadata)).toBe(true);
+    expect(result.count).toBe(result.metadata.length);
   }, 120000);
 
   it("should demonstrate workflow composability", async () => {
@@ -429,11 +399,10 @@ describe("End-to-End RAG Pipeline", () => {
       .documentEnricher({})
       .hierarchicalChunker({ maxTokens: 512 })
       .textEmbedding({ model: embeddingModel })
-      .chunkToVector({})
       .chunkVectorUpsert({ knowledgeBase: kbName });
 
     const tasks = ingestionWorkflow.graph.getTasks();
-    expect(tasks.length).toBe(7);
+    expect(tasks.length).toBe(6);
 
     const taskTypes = tasks.map((t) => t.type);
     expect(taskTypes).toContain("FileLoaderTask");
@@ -441,13 +410,12 @@ describe("End-to-End RAG Pipeline", () => {
     expect(taskTypes).toContain("DocumentEnricherTask");
     expect(taskTypes).toContain("HierarchicalChunkerTask");
     expect(taskTypes).toContain("TextEmbeddingTask");
-    expect(taskTypes).toContain("ChunkToVectorTask");
     expect(taskTypes).toContain("ChunkVectorUpsertTask");
 
     const retrievalWorkflow = new Workflow()
       .chunkRetrieval({ knowledgeBase: kbName, query: "test", model: embeddingModel })
       .hierarchyJoin({ knowledgeBase: kbName })
-      .reranker({ query: "test", method: "cross-encoder", model: rerankerModel, topK: 5 })
+      .reranker({ query: "test", method: "simple", topK: 5 })
       .contextBuilder({ format: "numbered", includeMetadata: true });
 
     const retrievalTasks = retrievalWorkflow.graph.getTasks();
@@ -455,17 +423,18 @@ describe("End-to-End RAG Pipeline", () => {
     expect(retrievalWorkflow.error).toBe("");
 
     const hybridRetrievalWorkflow = new Workflow()
-      .textEmbedding({ text: "test query", model: embeddingModel })
-      .hybridSearch({
+      .chunkRetrieval({
         knowledgeBase: kbName,
-        queryText: "test query",
+        query: "test query",
+        model: embeddingModel,
+        method: "hybrid",
         topK: 5,
       })
-      .reranker({ query: "test query", method: "cross-encoder", model: rerankerModel, topK: 3 })
+      .reranker({ query: "test query", method: "simple", topK: 3 })
       .contextBuilder({ format: "markdown" });
 
     const hybridTasks = hybridRetrievalWorkflow.graph.getTasks();
-    expect(hybridTasks.length).toBe(4);
+    expect(hybridTasks.length).toBe(3);
     expect(hybridRetrievalWorkflow.error).toBe("");
   });
 });

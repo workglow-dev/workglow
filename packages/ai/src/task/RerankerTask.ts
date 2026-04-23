@@ -9,10 +9,6 @@ import { CreateWorkflow, IExecuteContext, Task, Workflow } from "@workglow/task-
 import type { TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
-import { ModelConfig } from "../model/ModelSchema";
-import { TextClassificationTask } from "./TextClassificationTask";
-import { TypeModel } from "./base/AiTaskSchemas";
-
 const inputSchema = {
   type: "object",
   properties: {
@@ -51,15 +47,11 @@ const inputSchema = {
     },
     method: {
       type: "string",
-      enum: ["cross-encoder", "reciprocal-rank-fusion", "simple"],
+      enum: ["reciprocal-rank-fusion", "simple"],
       title: "Reranking Method",
       description: "Method to use for reranking",
       default: "simple",
     },
-    model: TypeModel("model:RerankerTask", {
-      title: "Reranker Model",
-      description: "Cross-encoder model to use for reranking",
-    }),
   },
   required: ["query", "chunks"],
   additionalProperties: false,
@@ -118,11 +110,10 @@ interface RankedItem {
 }
 
 /**
- * Task for reranking retrieved chunks to improve relevance.
- * Supports multiple reranking methods including cross-encoder models.
- *
- * Note: Cross-encoder reranking requires a model to be loaded.
- * For now, this implements simple heuristic-based reranking.
+ * Rerank retrieved chunks to improve relevance using in-process heuristics.
+ * Supports `simple` (keyword overlap + position) and `reciprocal-rank-fusion`.
+ * Note: a `cross-encoder` method will be added when a real cross-encoder
+ * task exists; until then, use a dedicated model task upstream.
  */
 export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, RerankerTaskConfig> {
   public static override type = "RerankerTask";
@@ -143,26 +134,10 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Re
     input: RerankerTaskInput,
     context: IExecuteContext
   ): Promise<RerankerTaskOutput> {
-    const { query, chunks, scores = [], metadata = [], topK, method = "simple", model } = input;
+    const { query, chunks, scores = [], metadata = [], topK, method = "simple" } = input;
 
     let rankedItems: RankedItem[];
-
     switch (method) {
-      case "cross-encoder":
-        if (!model) {
-          throw new Error(
-            "No cross-encoder model found. Please provide a model with format 'model:RerankerTask'."
-          );
-        }
-        rankedItems = await this.crossEncoderRerank(
-          query,
-          chunks,
-          scores,
-          metadata,
-          model,
-          context
-        );
-        break;
       case "reciprocal-rank-fusion":
         rankedItems = this.reciprocalRankFusion(chunks, scores, metadata);
         break;
@@ -172,7 +147,6 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Re
         break;
     }
 
-    // Apply topK if specified
     if (topK && topK < rankedItems.length) {
       rankedItems = rankedItems.slice(0, topK);
     }
@@ -186,67 +160,7 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Re
     };
   }
 
-  private async crossEncoderRerank(
-    query: string,
-    chunks: string[],
-    scores: number[],
-    metadata: any[],
-    model: string | ModelConfig,
-    context: IExecuteContext
-  ): Promise<RankedItem[]> {
-    if (chunks.length === 0) {
-      return [];
-    }
-
-    if (!model) {
-      throw new Error(
-        "No cross-encoder model found. Please provide a model or register a TextClassificationTask model."
-      );
-    }
-
-    const items = await Promise.all(
-      chunks.map(async (chunk, index) => {
-        const pairText = `${query} [SEP] ${chunk}`;
-        const task = context.own(new TextClassificationTask({ defaults: { model } }));
-        const result = await task.run({ text: pairText, maxCategories: 2 });
-        const crossScore = this.extractCrossEncoderScore(result.categories);
-        return {
-          chunk,
-          score: Number.isFinite(crossScore) ? crossScore : scores[index] || 0,
-          metadata: metadata[index],
-          originalIndex: index,
-        };
-      })
-    );
-
-    items.sort((a, b) => b.score - a.score);
-    return items;
-  }
-
-  private extractCrossEncoderScore(
-    categories: Array<{ label: string; score: number }> | undefined
-  ): number {
-    if (!categories || categories.length === 0) {
-      return 0;
-    }
-    const preferred = categories.find((category) =>
-      /^(label_1|positive|relevant|yes|true)$/i.test(category.label)
-    );
-    if (preferred) {
-      return preferred.score;
-    }
-    let best = categories[0].score;
-    for (let i = 1; i < categories.length; i++) {
-      if (categories[i].score > best) {
-        best = categories[i].score;
-      }
-    }
-    return best;
-  }
-
-  /**
-   * Simple heuristic-based reranking using keyword matching and position
-   */
+  /** Simple heuristic reranking: keyword overlap + exact match bonus - position penalty */
   private simpleRerank(
     query: string,
     chunks: string[],
@@ -260,12 +174,8 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Re
       const chunkLower = chunk.toLowerCase();
       const initialScore = scores[index] || 0;
 
-      // Calculate keyword match score
       let keywordScore = 0;
-      let exactMatchBonus = 0;
-
       for (const word of queryWords) {
-        // Count occurrences
         const regex = new RegExp(word, "gi");
         const matches = chunkLower.match(regex);
         if (matches) {
@@ -273,58 +183,30 @@ export class RerankerTask extends Task<RerankerTaskInput, RerankerTaskOutput, Re
         }
       }
 
-      // Bonus for exact query match
-      if (chunkLower.includes(queryLower)) {
-        exactMatchBonus = 0.5;
-      }
-
-      // Normalize keyword score
+      const exactMatchBonus = chunkLower.includes(queryLower) ? 0.5 : 0;
       const normalizedKeywordScore = Math.min(keywordScore / (queryWords.length * 3), 1);
-
-      // Position penalty (prefer earlier results, but not too heavily)
       const positionPenalty = Math.log(index + 1) / 10;
 
-      // Combined score
       const combinedScore =
         initialScore * 0.4 + normalizedKeywordScore * 0.4 + exactMatchBonus * 0.2 - positionPenalty;
 
-      return {
-        chunk,
-        score: combinedScore,
-        metadata: metadata[index],
-        originalIndex: index,
-      };
+      return { chunk, score: combinedScore, metadata: metadata[index], originalIndex: index };
     });
 
-    // Sort by score descending
     items.sort((a, b) => b.score - a.score);
-
     return items;
   }
 
-  /**
-   * Reciprocal Rank Fusion for combining multiple rankings
-   * Useful when you have multiple retrieval methods
-   */
+  /** Reciprocal Rank Fusion: 1 / (k + rank) — useful when combining multiple rankings */
   private reciprocalRankFusion(chunks: string[], scores: number[], metadata: any[]): RankedItem[] {
-    const k = 60; // RRF constant
-
-    const items: RankedItem[] = chunks.map((chunk, index) => {
-      // RRF score = 1 / (k + rank)
-      // Here we use the initial ranking (index) as the rank
-      const rrfScore = 1 / (k + index + 1);
-
-      return {
-        chunk,
-        score: rrfScore,
-        metadata: metadata[index],
-        originalIndex: index,
-      };
-    });
-
-    // Sort by RRF score descending
+    const k = 60;
+    const items: RankedItem[] = chunks.map((chunk, index) => ({
+      chunk,
+      score: 1 / (k + index + 1),
+      metadata: metadata[index],
+      originalIndex: index,
+    }));
     items.sort((a, b) => b.score - a.score);
-
     return items;
   }
 }

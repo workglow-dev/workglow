@@ -617,9 +617,6 @@ ChunkRecord[] (flat chunks with nodePath linkage)
   ▼  TextEmbeddingTask (AI model)
 ChunkRecord[] + Float32Array[] (text → vectors)
   │
-  ▼  ChunkToVectorTask
-Vectors + metadata in vector store format
-  │
   ▼  ChunkVectorUpsertTask → vector + tabular storage
 ```
 
@@ -634,7 +631,6 @@ const result = await new Workflow()
   .documentEnricher({ generateSummaries: true, extractEntities: true })
   .hierarchicalChunker({ maxTokens: 512, overlap: 50 })
   .textEmbedding({ model: "your-embedding-model" })
-  .chunkToVector()
   .chunkVectorUpsert({ knowledgeBase: "my-kb" })
   .run();
 
@@ -651,14 +647,13 @@ User Query
   ▼  QueryExpanderTask (optional — generates query variations)
 Expanded queries
   │
-  ▼  ChunkRetrievalTask (embeds query + vector search)
-     or ChunkVectorHybridSearchTask (vector + full-text search)
+  ▼  ChunkRetrievalTask (embeds query + vector or hybrid search via `method`)
 ChunkSearchResult[] (chunks, chunk_ids, scores, query)
   │
   ▼  HierarchyJoinTask (optional — enriches with ancestor context)
 Enriched chunks (+ parentSummaries, sectionTitles, entities)
   │
-  ▼  RerankerTask (optional — cross-encoder reranking)
+  ▼  RerankerTask (optional — heuristic or RRF reranking)
 Re-scored chunks
   │
   ▼  ContextBuilderTask
