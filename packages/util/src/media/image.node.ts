@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ImageBinary, ImageChannels, ImageDataSupport } from "./image";
+import type { ImageBinary, ImageChannels, ImageDataSupport, RgbaImageBinary } from "./image";
 import { parseDataUri } from "./image";
 
 export { parseDataUri };
-export type { ImageBinary, ImageChannels, ImageDataSupport };
+export type { ImageBinary, ImageChannels, ImageDataSupport, RgbaImageBinary };
 
 async function dataUriToBlob(string: string): Promise<Blob> {
   const { mimeType, base64 } = parseDataUri(string);

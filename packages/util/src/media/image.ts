@@ -24,6 +24,11 @@ export interface ImageBinary {
   rawChannels?: number | undefined;
 }
 
+/** RGBA pixel buffer (`channels` is always 4). */
+export type RgbaImageBinary = Readonly<
+  Omit<ImageBinary, "channels" | "rawChannels"> & { readonly channels: 4 }
+>;
+
 export function parseDataUri(dataUri: string): {
   mimeType: string;
   base64: string;
