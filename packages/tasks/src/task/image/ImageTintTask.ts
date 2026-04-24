@@ -12,14 +12,15 @@ import {
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ColorSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { ColorValueSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { resolveColor } from "@workglow/util/media";
 import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
   type: "object",
   properties: {
     image: ImageBinaryOrDataUriSchema({ title: "Image", description: "Source image" }),
-    color: ColorSchema({ title: "Color", description: "Tint color" }),
+    color: ColorValueSchema({ title: "Color", description: "Tint color" }),
     amount: {
       type: "number",
       title: "Amount",
@@ -68,7 +69,7 @@ export class ImageTintTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { r: tr, g: tg, b: tb } = input.color;
+    const { r: tr, g: tg, b: tb } = resolveColor(input.color as any);
     const amount = input.amount ?? 0.5;
     const invAmount = 1 - amount;
     const tintR = tr * amount;
