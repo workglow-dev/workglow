@@ -117,106 +117,68 @@ const IMAGE_TEXT_POSITION_LABELS: Record<ImageTextAnchorPosition, string> = {
   "bottom-right": "Bottom right",
 };
 
-const imageTextSharedProperties = {
-  text: {
-    type: "string",
-    title: "Text",
-    description: "Text to render (use \\n for line breaks)",
-    minLength: 1,
-  },
-  font: {
-    type: "string",
-    title: "Font",
-    description: "CSS font family name (e.g. sans-serif, Arial)",
-    default: "sans-serif",
-  },
-  fontSize: {
-    type: "integer",
-    title: "Font size",
-    description: "Font size in pixels",
-    minimum: 1,
-    default: 24,
-  },
-  bold: { type: "boolean", title: "Bold", default: false },
-  italic: { type: "boolean", title: "Italic", default: false },
-  color: ColorSchema({ title: "Color", description: "Text color" }),
-  position: {
-    type: "string",
-    title: "Position",
-    description: "Anchor position of the text block within the image",
-    enum: [...IMAGE_TEXT_ANCHOR_POSITIONS],
-    default: "middle-center",
-    "x-ui-enum-labels": IMAGE_TEXT_POSITION_LABELS,
-  },
-} as const;
-
 const backgroundImageProperty = ImageBinaryOrDataUriSchema({
   title: "Image",
   description: "Background image to render the text onto",
 });
 
-const widthProperty = {
-  type: "integer",
-  title: "Width",
-  description: "Output width in pixels",
-  minimum: 1,
-} as const;
-
-const heightProperty = {
-  type: "integer",
-  title: "Height",
-  description: "Output height in pixels",
-  minimum: 1,
-} as const;
-
-// `imageBranchInputSchema` and `explicitDimensionsBranchInputSchema` are kept
-// purely as type-level helpers that back the `ImageTextTaskInput` discriminated
-// union below. The runtime `inputSchema` no longer composes them via `oneOf` —
-// it encodes the mutual-exclusion rule as `allOf: [{ if/then/else }]` so that
-// the builder canvas can render every input as a first-class handle without
-// special-casing root-level `oneOf` schemas.
-const imageBranchInputSchema = {
-  type: "object",
-  properties: {
-    ...imageTextSharedProperties,
-    image: backgroundImageProperty,
-  },
-  required: ["image", "text", "color"],
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
-
-const explicitDimensionsBranchInputSchema = {
-  type: "object",
-  properties: {
-    ...imageTextSharedProperties,
-    width: widthProperty,
-    height: heightProperty,
-  },
-  required: ["text", "color", "width", "height"],
-  additionalProperties: false,
-} as const satisfies DataPortSchema;
-
 const inputSchema = {
   type: "object",
   properties: {
-    ...imageTextSharedProperties,
+    text: {
+      type: "string",
+      title: "Text",
+      description: "Text to render (use \\n for line breaks)",
+      minLength: 1,
+    },
+    font: {
+      type: "string",
+      title: "Font",
+      description: "CSS font family name (e.g. sans-serif, Arial)",
+      default: "sans-serif",
+    },
+    fontSize: {
+      type: "integer",
+      title: "Font size",
+      description: "Font size in pixels",
+      minimum: 1,
+      default: 24,
+    },
+    bold: { type: "boolean", title: "Bold", default: false },
+    italic: { type: "boolean", title: "Italic", default: false },
+    color: ColorSchema({ title: "Color", description: "Text color" }),
+    position: {
+      type: "string",
+      title: "Position",
+      description: "Anchor position of the text block within the image",
+      enum: [...IMAGE_TEXT_ANCHOR_POSITIONS],
+      default: "middle-center",
+      "x-ui-enum-labels": IMAGE_TEXT_POSITION_LABELS,
+    },
     image: backgroundImageProperty,
-    width: widthProperty,
-    height: heightProperty,
+    width: {
+      type: "integer",
+      title: "Width",
+      description: "Output width in pixels",
+      minimum: 1,
+    },
+    height: {
+      type: "integer",
+      title: "Height",
+      description: "Output height in pixels",
+      minimum: 1,
+    },
   },
   required: ["text", "color"],
   additionalProperties: false,
-  allOf: [
-    {
-      if: { required: ["image"] },
-      then: {
-        not: {
-          anyOf: [{ required: ["width"] }, { required: ["height"] }],
-        },
-      },
-      else: { required: ["width", "height"] },
+  if: {
+    not: {
+      required: ["image"],
     },
-  ],
+  },
+  then: {
+    required: ["width", "height"],
+  },
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
@@ -228,17 +190,10 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-type ImageTextTaskImageInput = ImageFromSchema<typeof imageBranchInputSchema>;
-type ImageTextTaskExplicitDimensionsInput = ImageFromSchema<
-  typeof explicitDimensionsBranchInputSchema
->;
-
-export type ImageTextTaskInput = ImageTextTaskImageInput | ImageTextTaskExplicitDimensionsInput;
+export type ImageTextTaskInput = ImageFromSchema<typeof inputSchema>;
 export type ImageTextTaskOutput = ImageFromSchema<typeof outputSchema>;
 
-function hasUsableBackgroundImage(
-  value: unknown
-): value is ImageTextTaskImageInput["image"] {
+function hasUsableBackgroundImage(value: unknown): value is ImageTextTaskInput["image"] {
   if (typeof value === "string") {
     return value.length > 0;
   }
@@ -295,7 +250,7 @@ export class ImageTextTask<
     const backgroundImage = "image" in input ? input.image : undefined;
     let image: ImageTextTaskOutput["image"];
     if (hasUsableBackgroundImage(backgroundImage)) {
-      image = await produceImageOutput(backgroundImage, async (background) => {
+      image = await produceImageOutput(backgroundImage!, async (background) => {
         const overlay = await renderImageTextToRgba({
           text: input.text,
           font,
