@@ -5,7 +5,14 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { parseHexColor, toHexColor } from "@workglow/util/media";
+import {
+  isColorObject,
+  isHexColor,
+  parseHexColor,
+  resolveColor,
+  toHexColor,
+} from "@workglow/util/media";
+import type { ColorObject } from "@workglow/util/media";
 
 describe("parseHexColor", () => {
   it("parses #RRGGBB", () => {
@@ -112,5 +119,78 @@ describe("toHexColor", () => {
     expect(() => toHexColor({ r: -1, g: 0, b: 0, a: 255 })).toThrow();
     expect(() => toHexColor({ r: 256, g: 0, b: 0, a: 255 })).toThrow();
     expect(() => toHexColor({ r: 0, g: 0, b: 0, a: 300 })).toThrow();
+  });
+});
+
+describe("resolveColor", () => {
+  it("normalizes a full ColorObject", () => {
+    expect(resolveColor({ r: 1, g: 2, b: 3, a: 4 })).toEqual({ r: 1, g: 2, b: 3, a: 4 });
+  });
+
+  it("defaults alpha to 255 when missing from object input", () => {
+    const result = resolveColor({ r: 10, g: 20, b: 30 } as unknown as ColorObject);
+    expect(result).toEqual({ r: 10, g: 20, b: 30, a: 255 });
+  });
+
+  it("parses a hex string input", () => {
+    expect(resolveColor("#ff0000")).toEqual({ r: 255, g: 0, b: 0, a: 255 });
+    expect(resolveColor("#abc")).toEqual({ r: 0xaa, g: 0xbb, b: 0xcc, a: 255 });
+    expect(resolveColor("#00000080")).toEqual({ r: 0, g: 0, b: 0, a: 128 });
+  });
+
+  it("throws on invalid hex", () => {
+    expect(() => resolveColor("ff0000")).toThrow();
+    expect(() => resolveColor("#zzzzzz")).toThrow();
+  });
+
+  it("throws on out-of-range object channels", () => {
+    expect(() => resolveColor({ r: 300, g: 0, b: 0, a: 255 })).toThrow();
+    expect(() => resolveColor({ r: -1, g: 0, b: 0, a: 255 })).toThrow();
+  });
+
+  it("throws on non-object non-string input", () => {
+    expect(() => resolveColor(null as unknown as ColorObject)).toThrow();
+    expect(() => resolveColor(undefined as unknown as ColorObject)).toThrow();
+    expect(() => resolveColor(123 as unknown as ColorObject)).toThrow();
+    expect(() => resolveColor({ foo: "bar" } as unknown as ColorObject)).toThrow();
+  });
+});
+
+describe("isColorObject", () => {
+  it("returns true for a valid full RGBA object", () => {
+    expect(isColorObject({ r: 1, g: 2, b: 3, a: 4 })).toBe(true);
+  });
+
+  it("returns true when alpha is omitted", () => {
+    expect(isColorObject({ r: 1, g: 2, b: 3 })).toBe(true);
+  });
+
+  it("returns false when any channel is out of range or non-integer", () => {
+    expect(isColorObject({ r: -1, g: 0, b: 0 })).toBe(false);
+    expect(isColorObject({ r: 256, g: 0, b: 0 })).toBe(false);
+    expect(isColorObject({ r: 1.5, g: 0, b: 0 })).toBe(false);
+    expect(isColorObject({ r: 0, g: 0, b: 0, a: 300 })).toBe(false);
+  });
+
+  it("returns false for non-objects, nulls, strings, arrays", () => {
+    expect(isColorObject(null)).toBe(false);
+    expect(isColorObject(undefined)).toBe(false);
+    expect(isColorObject("#ff0000")).toBe(false);
+    expect(isColorObject([1, 2, 3])).toBe(false);
+    expect(isColorObject(123)).toBe(false);
+  });
+});
+
+describe("isHexColor", () => {
+  it("returns true for valid hex forms", () => {
+    for (const x of ["#f00", "#f008", "#ff0000", "#ff000080", "#ABCDEF"]) {
+      expect(isHexColor(x)).toBe(true);
+    }
+  });
+
+  it("returns false for invalid inputs", () => {
+    for (const x of ["ff0000", "#gg0000", "#", "#f", "#fffff", "#fffffff", "", 123, null]) {
+      expect(isHexColor(x)).toBe(false);
+    }
   });
 });

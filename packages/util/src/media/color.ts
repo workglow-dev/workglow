@@ -76,3 +76,44 @@ export function toHexColor(c: ColorObject): string {
   const head = `#${byteToHex(c.r)}${byteToHex(c.g)}${byteToHex(c.b)}`;
   return c.a === 255 ? head : `${head}${byteToHex(c.a)}`;
 }
+
+function isInRangeByte(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 255;
+}
+
+/**
+ * Type guard for a {@link ColorObject}-shaped value (alpha optional).
+ * Does not reject extra properties — JSON Schema validation handles that separately.
+ */
+export function isColorObject(value: unknown): value is ColorObject {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  if (!isInRangeByte(candidate.r)) return false;
+  if (!isInRangeByte(candidate.g)) return false;
+  if (!isInRangeByte(candidate.b)) return false;
+  if (candidate.a !== undefined && !isInRangeByte(candidate.a)) return false;
+  return true;
+}
+
+/** Type guard for a hex color string (same regex as `parseHexColor`). */
+export function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && HEX_PATTERN.test(value);
+}
+
+/**
+ * Normalize either wire form to a full {@link ColorObject}. Object inputs default
+ * `a` to 255. Throws on anything that's neither a valid hex string nor a valid
+ * color object.
+ */
+export function resolveColor(value: string | ColorObject): ColorObject {
+  if (typeof value === "string") return parseHexColor(value);
+  if (!isColorObject(value)) {
+    throw new Error(`Invalid color value: ${JSON.stringify(value)}`);
+  }
+  return {
+    r: value.r,
+    g: value.g,
+    b: value.b,
+    a: value.a ?? 255,
+  };
+}
