@@ -58,6 +58,6 @@ export const parseJsonTransform: ITransformDef<{}> = {
   title: "Parse JSON",
   category: "Conversion",
   paramsSchema: undefined,
-  inferOutputSchema: () => ({} as DataPortSchema),
+  inferOutputSchema: () => ({}) as DataPortSchema,
   apply: (v) => JSON.parse(String(v)),
 };

@@ -49,7 +49,10 @@ export const whileTaskConfigSchema = {
     ...graphAsTaskConfigSchema["properties"],
     condition: {},
     maxIterations: {
-      oneOf: [{ type: "integer", minimum: 1 }, { type: "string", const: "unbounded" }],
+      oneOf: [
+        { type: "integer", minimum: 1 },
+        { type: "string", const: "unbounded" },
+      ],
     },
     chainIterations: { type: "boolean" },
     conditionField: { type: "string" },

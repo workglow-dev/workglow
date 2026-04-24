@@ -17,14 +17,16 @@ describe("numberToString", () => {
     expect(await numberToStringTransform.apply(42, {})).toBe("42");
   });
   it("inferOutputSchema returns string", () => {
-    expect(numberToStringTransform.inferOutputSchema({ type: "number" } as DataPortSchema, {})).toEqual({
+    expect(
+      numberToStringTransform.inferOutputSchema({ type: "number" } as DataPortSchema, {})
+    ).toEqual({
       type: "string",
     });
   });
   it("suggestFromSchemas number → string", () => {
     const res = numberToStringTransform.suggestFromSchemas!(
       { type: "number" } as DataPortSchema,
-      { type: "string" } as DataPortSchema,
+      { type: "string" } as DataPortSchema
     );
     expect(res?.score).toBeGreaterThan(0.5);
   });

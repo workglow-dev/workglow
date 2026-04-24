@@ -20,12 +20,10 @@ export const TransformRegistry = {
 };
 
 /** DI token — mirrors TASK_CONSTRUCTORS pattern. */
-export const TRANSFORM_DEFS = createServiceToken<Map<string, ITransformDef<any>>>(
-  "transform.defs",
-);
+export const TRANSFORM_DEFS = createServiceToken<Map<string, ITransformDef<any>>>("transform.defs");
 
 globalServiceRegistry.registerIfAbsent(
   TRANSFORM_DEFS,
   (): Map<string, ITransformDef<any>> => TransformRegistry.all,
-  true,
+  true
 );

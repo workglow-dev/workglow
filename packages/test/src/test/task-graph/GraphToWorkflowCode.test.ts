@@ -233,10 +233,7 @@ describe("GraphToWorkflowCode", () => {
   describe("forEach task", () => {
     it("should generate forEach builder code with inner task and endForEach", () => {
       const workflow = new Workflow();
-      workflow
-        .forEach({ maxIterations: "unbounded" })
-        .addTask(ProcessItemTask)
-        .endForEach();
+      workflow.forEach({ maxIterations: "unbounded" }).addTask(ProcessItemTask).endForEach();
 
       const code = graphToWorkflowCode(workflow.graph);
 

@@ -10,16 +10,18 @@ import type { DataPortSchema } from "@workglow/util/schema";
 describe("unixToIsoDate", () => {
   it("converts seconds to ISO", async () => {
     expect(await unixToIsoDateTransform.apply(1700000000, { unit: "s" })).toBe(
-      "2023-11-14T22:13:20.000Z",
+      "2023-11-14T22:13:20.000Z"
     );
   });
   it("converts milliseconds to ISO", async () => {
     expect(await unixToIsoDateTransform.apply(1700000000000, { unit: "ms" })).toBe(
-      "2023-11-14T22:13:20.000Z",
+      "2023-11-14T22:13:20.000Z"
     );
   });
   it("inferOutputSchema returns date-time string", () => {
-    const out = unixToIsoDateTransform.inferOutputSchema({ type: "number" } as DataPortSchema, { unit: "s" });
+    const out = unixToIsoDateTransform.inferOutputSchema({ type: "number" } as DataPortSchema, {
+      unit: "s",
+    });
     expect(out).toEqual({ type: "string", format: "date-time" });
   });
   it("suggestFromSchemas suggests unit when target has format date-time", () => {
@@ -33,12 +35,12 @@ describe("unixToIsoDate", () => {
 
 describe("isoDateToUnix", () => {
   it("converts ISO string to unix ms", async () => {
-    expect(
-      await isoDateToUnixTransform.apply("2023-11-14T22:13:20.000Z", {}),
-    ).toBe(1700000000000);
+    expect(await isoDateToUnixTransform.apply("2023-11-14T22:13:20.000Z", {})).toBe(1700000000000);
   });
   it("inferOutputSchema returns number", () => {
-    expect(isoDateToUnixTransform.inferOutputSchema({ type: "string" } as DataPortSchema, {})).toEqual({
+    expect(
+      isoDateToUnixTransform.inferOutputSchema({ type: "string" } as DataPortSchema, {})
+    ).toEqual({
       type: "number",
     });
   });

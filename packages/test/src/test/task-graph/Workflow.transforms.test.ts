@@ -44,8 +44,9 @@ describe("Workflow .rename accepts { transforms }", () => {
       index: -1,
       transforms: [{ id: "uppercase" }, { id: "lowercase" }],
     });
-    const pending = (w as unknown as { _dataFlows: { getTransforms(): readonly { id: string }[] }[] })
-      ._dataFlows;
+    const pending = (
+      w as unknown as { _dataFlows: { getTransforms(): readonly { id: string }[] }[] }
+    )._dataFlows;
     expect(pending[0].getTransforms().map((t) => t.id)).toEqual(["uppercase", "lowercase"]);
   });
 });

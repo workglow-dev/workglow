@@ -281,9 +281,7 @@ export function autoConnect(
       const outputPortIdOutputInput = fromOutputPortId === "output" && toInputPortId === "input";
       const portIdsCompatible = outputPortIdMatch || outputPortIdOutputInput;
 
-      return (
-        portIdsCompatible && isTypeCompatible(fromPortOutputSchema, toPortInputSchema, false)
-      );
+      return portIdsCompatible && isTypeCompatible(fromPortOutputSchema, toPortInputSchema, false);
     }
   );
 

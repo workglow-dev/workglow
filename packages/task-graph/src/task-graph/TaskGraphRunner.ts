@@ -310,6 +310,27 @@ export class TaskGraphRunner {
   ): Promise<GraphResultArray<Output>> {
     await this.handleStartReactive(config);
 
+    const reactiveRunId = uuid4();
+    const telemetry = getTelemetryProvider();
+    let reactiveSpan: ISpan | undefined;
+    if (telemetry.isEnabled) {
+      reactiveSpan = telemetry.startSpan("workglow.graph.runReactive", {
+        attributes: {
+          "workglow.graph.reactive.run_id": reactiveRunId,
+          "workglow.graph.task_count": this.graph.getTasks().length,
+          "workglow.graph.dataflow_count": this.graph.getDataflows().length,
+        },
+      });
+    }
+
+    const t0 = performance.now();
+    const taskTimings: Array<{
+      id: unknown;
+      type: string;
+      runReactiveMs: number;
+      pushOutputMs: number;
+    }> = [];
+
     const results: GraphResultArray<Output> = [];
     try {
       for await (const task of this.reactiveScheduler.tasks()) {
@@ -335,9 +356,25 @@ export class TaskGraphRunner {
         // to receive the parent's input values
         const taskInput = isRootTask ? input : {};
 
-        const taskResult = await task.runReactive(taskInput);
+        const taskType = String(
+          (task.constructor as any).runtype || (task.constructor as typeof Task).type || "?"
+        );
 
+        const tReactive = performance.now();
+        const taskResult = await task.runReactive(taskInput);
+        const runReactiveMs = performance.now() - tReactive;
+
+        const tPush = performance.now();
         await this.pushOutputFromNodeToEdges(task, taskResult);
+        const pushOutputMs = performance.now() - tPush;
+
+        taskTimings.push({
+          id: task.id,
+          type: taskType,
+          runReactiveMs,
+          pushOutputMs,
+        });
+
         if (this.graph.getTargetDataflows(task.id).length === 0) {
           results.push({
             id: task.id,
@@ -347,9 +384,43 @@ export class TaskGraphRunner {
         }
       }
       await this.handleCompleteReactive();
+
+      const totalMs = performance.now() - t0;
+      if (reactiveSpan) {
+        reactiveSpan.setAttributes({
+          "workglow.graph.reactive.duration_ms": Math.round(totalMs * 1000) / 1000,
+          "workglow.graph.reactive.tasks_executed": taskTimings.length,
+        });
+        reactiveSpan.setStatus(SpanStatusCode.OK);
+        reactiveSpan.end();
+      }
+      getLogger().debug("task graph runReactive timings", {
+        reactiveRunId,
+        totalMs: Math.round(totalMs * 1000) / 1000,
+        taskTimings,
+      });
+
       return this.filterLeafResults(results);
     } catch (error) {
       await this.handleErrorReactive();
+
+      const totalMs = performance.now() - t0;
+      if (reactiveSpan) {
+        const message = error instanceof Error ? error.message : String(error);
+        reactiveSpan.setAttributes({
+          "workglow.graph.reactive.duration_ms": Math.round(totalMs * 1000) / 1000,
+          "workglow.graph.reactive.tasks_executed": taskTimings.length,
+        });
+        reactiveSpan.setStatus(SpanStatusCode.ERROR, message);
+        reactiveSpan.end();
+      }
+      getLogger().debug("task graph runReactive failed", {
+        reactiveRunId,
+        totalMs: Math.round(totalMs * 1000) / 1000,
+        taskTimings,
+        error,
+      });
+
       throw error;
     }
   }

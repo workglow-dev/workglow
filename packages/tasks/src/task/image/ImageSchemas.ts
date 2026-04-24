@@ -137,7 +137,4 @@ export const ColorFromSchemaOptions = {
 
 export type ColorFromSchemaOptions = typeof ColorFromSchemaOptions;
 
-export type ColorFromSchema<SCHEMA extends JsonSchema> = FromSchema<
-  SCHEMA,
-  ColorFromSchemaOptions
->;
+export type ColorFromSchema<SCHEMA extends JsonSchema> = FromSchema<SCHEMA, ColorFromSchemaOptions>;
