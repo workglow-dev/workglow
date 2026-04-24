@@ -69,7 +69,7 @@ export class ImageTintTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { r: tr, g: tg, b: tb } = resolveColor(input.color as any);
+    const { r: tr, g: tg, b: tb } = resolveColor(input.color);
     const amount = input.amount ?? 0.5;
     const invAmount = 1 - amount;
     const tintR = tr * amount;
