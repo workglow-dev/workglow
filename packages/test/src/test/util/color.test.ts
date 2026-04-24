@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { parseHexColor } from "@workglow/util/media";
+import { parseHexColor, toHexColor } from "@workglow/util/media";
 
 describe("parseHexColor", () => {
   it("parses #RRGGBB", () => {
@@ -66,5 +66,51 @@ describe("parseHexColor", () => {
     expect(() => parseHexColor(null as unknown as string)).toThrow();
     expect(() => parseHexColor(undefined as unknown as string)).toThrow();
     expect(() => parseHexColor(123 as unknown as string)).toThrow();
+  });
+});
+
+describe("toHexColor", () => {
+  it("emits #RRGGBB when alpha is 255", () => {
+    expect(toHexColor({ r: 255, g: 0, b: 0, a: 255 })).toBe("#ff0000");
+    expect(toHexColor({ r: 0, g: 255, b: 0, a: 255 })).toBe("#00ff00");
+    expect(toHexColor({ r: 0, g: 0, b: 255, a: 255 })).toBe("#0000ff");
+  });
+
+  it("emits #RRGGBBAA when alpha < 255", () => {
+    expect(toHexColor({ r: 255, g: 0, b: 0, a: 128 })).toBe("#ff000080");
+    expect(toHexColor({ r: 0, g: 0, b: 0, a: 0 })).toBe("#00000000");
+    expect(toHexColor({ r: 170, g: 187, b: 204, a: 136 })).toBe("#aabbcc88");
+  });
+
+  it("emits lowercase only", () => {
+    expect(toHexColor({ r: 0xab, g: 0xcd, b: 0xef, a: 255 })).toBe("#abcdef");
+  });
+
+  it("never emits 3/4-digit shorthand", () => {
+    expect(toHexColor({ r: 255, g: 0, b: 0, a: 255 })).toBe("#ff0000");
+    expect(toHexColor({ r: 255, g: 0, b: 0, a: 0 })).toBe("#ff000000");
+  });
+
+  it("round-trips 6-digit and 8-digit hex", () => {
+    for (const hex of ["#ff0000", "#00ff00", "#0000ff", "#123456", "#abcdef12", "#00000080"]) {
+      expect(toHexColor(parseHexColor(hex))).toBe(hex);
+    }
+  });
+
+  it("expands 3/4-digit shorthand to long lowercase form after round trip", () => {
+    expect(toHexColor(parseHexColor("#f00"))).toBe("#ff0000");
+    expect(toHexColor(parseHexColor("#ABC"))).toBe("#aabbcc");
+    expect(toHexColor(parseHexColor("#f008"))).toBe("#ff000088");
+  });
+
+  it("throws on non-integer channels", () => {
+    expect(() => toHexColor({ r: 1.5, g: 0, b: 0, a: 255 })).toThrow();
+    expect(() => toHexColor({ r: 0, g: NaN, b: 0, a: 255 })).toThrow();
+  });
+
+  it("throws on out-of-range channels", () => {
+    expect(() => toHexColor({ r: -1, g: 0, b: 0, a: 255 })).toThrow();
+    expect(() => toHexColor({ r: 256, g: 0, b: 0, a: 255 })).toThrow();
+    expect(() => toHexColor({ r: 0, g: 0, b: 0, a: 300 })).toThrow();
   });
 });

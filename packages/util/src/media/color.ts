@@ -50,3 +50,29 @@ export function parseHexColor(hex: string): ColorObject {
     a: parseInt(body.slice(6, 8), 16),
   };
 }
+
+const CHANNEL_MIN = 0;
+const CHANNEL_MAX = 255;
+
+function assertChannel(name: string, value: number): void {
+  if (!Number.isInteger(value) || value < CHANNEL_MIN || value > CHANNEL_MAX) {
+    throw new Error(`Color channel ${name} out of range (0-255 integer): ${value}`);
+  }
+}
+
+function byteToHex(value: number): string {
+  return value.toString(16).padStart(2, "0");
+}
+
+/**
+ * Emit a {@link ColorObject} as `#RRGGBB` when `a === 255`, otherwise `#RRGGBBAA`.
+ * Always lowercase, never shorthand. Throws on non-integer or out-of-range channels.
+ */
+export function toHexColor(c: ColorObject): string {
+  assertChannel("r", c.r);
+  assertChannel("g", c.g);
+  assertChannel("b", c.b);
+  assertChannel("a", c.a);
+  const head = `#${byteToHex(c.r)}${byteToHex(c.g)}${byteToHex(c.b)}`;
+  return c.a === 255 ? head : `${head}${byteToHex(c.a)}`;
+}
