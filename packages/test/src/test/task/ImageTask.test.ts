@@ -555,7 +555,7 @@ describe("ImageTask", () => {
     } as const;
     const { width: _baseWidth, height: _baseHeight, ...baseWithBackground } = base;
 
-    test("exposes an object-shaped top-level schema with exclusive branches", () => {
+    test("exposes an object-shaped top-level schema with allOf-encoded exclusive branches", () => {
       const schema = ImageTextTask.inputSchema() as Record<string, unknown>;
 
       expect(schema.type).toBe("object");
@@ -564,7 +564,25 @@ describe("ImageTask", () => {
         width: expect.any(Object),
         height: expect.any(Object),
       });
-      expect(schema.oneOf).toHaveLength(2);
+      expect(schema.required).toEqual(expect.arrayContaining(["text", "color"]));
+      expect(schema.additionalProperties).toBe(false);
+      expect(schema.oneOf).toBeUndefined();
+
+      const allOf = schema.allOf as Array<Record<string, unknown>>;
+      expect(Array.isArray(allOf)).toBe(true);
+      expect(allOf).toHaveLength(1);
+
+      const { if: ifClause, then: thenClause, else: elseClause } = allOf[0] as {
+        if: { required: string[] };
+        then: { not: { anyOf: Array<{ required: string[] }> } };
+        else: { required: string[] };
+      };
+      expect(ifClause.required).toEqual(["image"]);
+      expect(thenClause.not.anyOf).toEqual([
+        { required: ["width"] },
+        { required: ["height"] },
+      ]);
+      expect(elseClause.required).toEqual(["width", "height"]);
     });
 
     test("accepts the image branch without width and height", async () => {
@@ -617,6 +635,20 @@ describe("ImageTask", () => {
           position: "middle-center",
         })
       ).rejects.toThrow(/does not match schema/);
+    });
+
+    test("rejects zero font size", async () => {
+      const task = new ImageTextTask();
+      await expect(
+        task.run({ ...base, fontSize: 0, position: "middle-center" })
+      ).rejects.toThrow(/does not match schema/);
+    });
+
+    test("rejects empty text", async () => {
+      const task = new ImageTextTask();
+      await expect(task.run({ ...base, text: "", position: "middle-center" })).rejects.toThrow(
+        /does not match schema/
+      );
     });
 
     test("outputs RGBA image with requested dimensions", async () => {

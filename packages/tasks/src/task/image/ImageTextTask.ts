@@ -105,22 +105,6 @@ function compositeTextOverBackground(
   return { data: out, width: bg.width, height: bg.height, channels: 4 };
 }
 
-function hasUsableBackgroundImage(value: unknown): value is ImageTextTaskBackgroundImageInput {
-  if (typeof value === "string") {
-    return value.length > 0;
-  }
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.width === "number" &&
-    typeof candidate.height === "number" &&
-    typeof candidate.channels === "number" &&
-    candidate.data !== undefined
-  );
-}
-
 const IMAGE_TEXT_POSITION_LABELS: Record<ImageTextAnchorPosition, string> = {
   "top-left": "Top left",
   "top-center": "Top center",
@@ -138,6 +122,7 @@ const imageTextSharedProperties = {
     type: "string",
     title: "Text",
     description: "Text to render (use \\n for line breaks)",
+    minLength: 1,
   },
   font: {
     type: "string",
@@ -165,34 +150,36 @@ const imageTextSharedProperties = {
   },
 } as const;
 
-const imageTextAllProperties = {
-  ...imageTextSharedProperties,
-  image: ImageBinaryOrDataUriSchema({
-    title: "Image",
-    description: "Background image to render the text onto",
-  }),
-  width: {
-    type: "integer",
-    title: "Width",
-    description: "Output width in pixels",
-    minimum: 1,
-  },
-  height: {
-    type: "integer",
-    title: "Height",
-    description: "Output height in pixels",
-    minimum: 1,
-  },
+const backgroundImageProperty = ImageBinaryOrDataUriSchema({
+  title: "Image",
+  description: "Background image to render the text onto",
+});
+
+const widthProperty = {
+  type: "integer",
+  title: "Width",
+  description: "Output width in pixels",
+  minimum: 1,
 } as const;
 
+const heightProperty = {
+  type: "integer",
+  title: "Height",
+  description: "Output height in pixels",
+  minimum: 1,
+} as const;
+
+// `imageBranchInputSchema` and `explicitDimensionsBranchInputSchema` are kept
+// purely as type-level helpers that back the `ImageTextTaskInput` discriminated
+// union below. The runtime `inputSchema` no longer composes them via `oneOf` —
+// it encodes the mutual-exclusion rule as `allOf: [{ if/then/else }]` so that
+// the builder canvas can render every input as a first-class handle without
+// special-casing root-level `oneOf` schemas.
 const imageBranchInputSchema = {
   type: "object",
   properties: {
     ...imageTextSharedProperties,
-    image: ImageBinaryOrDataUriSchema({
-      title: "Image",
-      description: "Background image to render the text onto",
-    }),
+    image: backgroundImageProperty,
   },
   required: ["image", "text", "color"],
   additionalProperties: false,
@@ -202,18 +189,8 @@ const explicitDimensionsBranchInputSchema = {
   type: "object",
   properties: {
     ...imageTextSharedProperties,
-    width: {
-      type: "integer",
-      title: "Width",
-      description: "Output width in pixels",
-      minimum: 1,
-    },
-    height: {
-      type: "integer",
-      title: "Height",
-      description: "Output height in pixels",
-      minimum: 1,
-    },
+    width: widthProperty,
+    height: heightProperty,
   },
   required: ["text", "color", "width", "height"],
   additionalProperties: false,
@@ -221,9 +198,25 @@ const explicitDimensionsBranchInputSchema = {
 
 const inputSchema = {
   type: "object",
-  properties: imageTextAllProperties,
+  properties: {
+    ...imageTextSharedProperties,
+    image: backgroundImageProperty,
+    width: widthProperty,
+    height: heightProperty,
+  },
+  required: ["text", "color"],
   additionalProperties: false,
-  oneOf: [imageBranchInputSchema, explicitDimensionsBranchInputSchema],
+  allOf: [
+    {
+      if: { required: ["image"] },
+      then: {
+        not: {
+          anyOf: [{ required: ["width"] }, { required: ["height"] }],
+        },
+      },
+      else: { required: ["width", "height"] },
+    },
+  ],
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
@@ -239,25 +232,26 @@ type ImageTextTaskImageInput = ImageFromSchema<typeof imageBranchInputSchema>;
 type ImageTextTaskExplicitDimensionsInput = ImageFromSchema<
   typeof explicitDimensionsBranchInputSchema
 >;
-type ImageTextTaskBackgroundImageInput = ImageTextTaskImageInput["image"];
 
 export type ImageTextTaskInput = ImageTextTaskImageInput | ImageTextTaskExplicitDimensionsInput;
 export type ImageTextTaskOutput = ImageFromSchema<typeof outputSchema>;
 
-function getImageTextTaskDefaultInputs(): {
-  readonly font: string;
-  readonly fontSize: number;
-  readonly bold: boolean;
-  readonly italic: boolean;
-  readonly position: ImageTextAnchorPosition;
-} {
-  return {
-    font: "sans-serif",
-    fontSize: 24,
-    bold: false,
-    italic: false,
-    position: "middle-center",
-  };
+function hasUsableBackgroundImage(
+  value: unknown
+): value is ImageTextTaskImageInput["image"] {
+  if (typeof value === "string") {
+    return value.length > 0;
+  }
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.width === "number" &&
+    typeof candidate.height === "number" &&
+    typeof candidate.channels === "number" &&
+    candidate.data !== undefined
+  );
 }
 
 export class ImageTextTask<
@@ -280,7 +274,11 @@ export class ImageTextTask<
   }
 
   override getDefaultInputsFromStaticInputDefinitions(): Partial<Input> {
-    return getImageTextTaskDefaultInputs() as Partial<Input>;
+    const defaults = super.getDefaultInputsFromStaticInputDefinitions() as Record<string, unknown>;
+    delete defaults.image;
+    delete defaults.width;
+    delete defaults.height;
+    return defaults as Partial<Input>;
   }
 
   override async executeReactive(
@@ -297,11 +295,7 @@ export class ImageTextTask<
     const backgroundImage = "image" in input ? input.image : undefined;
     let image: ImageTextTaskOutput["image"];
     if (hasUsableBackgroundImage(backgroundImage)) {
-      const validatedBackgroundImage = backgroundImage as Exclude<
-        typeof backgroundImage,
-        undefined
-      >;
-      image = await produceImageOutput(validatedBackgroundImage, async (background) => {
+      image = await produceImageOutput(backgroundImage, async (background) => {
         const overlay = await renderImageTextToRgba({
           text: input.text,
           font,
@@ -316,12 +310,12 @@ export class ImageTextTask<
         return compositeTextOverBackground(background, overlay);
       });
     } else {
-      if (!("width" in input) || !("height" in input)) {
-        throw new Error(
-          "ImageTextTask: width and height are required when no background image is provided"
-        );
-      }
-      if (typeof input.width !== "number" || typeof input.height !== "number") {
+      if (
+        !("width" in input) ||
+        !("height" in input) ||
+        typeof input.width !== "number" ||
+        typeof input.height !== "number"
+      ) {
         throw new Error(
           "ImageTextTask: width and height are required when no background image is provided"
         );
