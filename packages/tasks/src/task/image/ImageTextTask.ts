@@ -13,7 +13,8 @@ import {
 } from "@workglow/task-graph";
 import type { RgbaImageBinary } from "@workglow/util/media";
 import type { DataPortSchema } from "@workglow/util/schema";
-import { ColorSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { ColorValueSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { resolveColor } from "@workglow/util/media";
 import { produceImageOutput } from "./imageTaskIo";
 import {
   IMAGE_TEXT_ANCHOR_POSITIONS,
@@ -146,7 +147,7 @@ const inputSchema = {
     },
     bold: { type: "boolean", title: "Bold", default: false },
     italic: { type: "boolean", title: "Italic", default: false },
-    color: ColorSchema({ title: "Color", description: "Text color" }),
+    color: ColorValueSchema({ title: "Color", description: "Text color" }),
     position: {
       type: "string",
       title: "Position",
@@ -241,6 +242,7 @@ export class ImageTextTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
+    const color = resolveColor(input.color);
     const fontSize = input.fontSize ?? 24;
     const font = input.font ?? "sans-serif";
     const bold = input.bold ?? false;
@@ -257,7 +259,7 @@ export class ImageTextTask<
           fontSize,
           bold,
           italic,
-          color: input.color,
+          color,
           width: background.width,
           height: background.height,
           position,
@@ -281,7 +283,7 @@ export class ImageTextTask<
         fontSize,
         bold,
         italic,
-        color: input.color,
+        color,
         width: input.width,
         height: input.height,
         position,

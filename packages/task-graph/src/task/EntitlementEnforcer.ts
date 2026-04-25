@@ -123,7 +123,11 @@ export function createPolicyEnforcer(
     for (const result of results) {
       if (result.verdict === "denied") {
         if (result.matchedRule) {
-          denied.push({ entitlement: result.entitlement, reason: "policy-deny", matchedRule: result.matchedRule });
+          denied.push({
+            entitlement: result.entitlement,
+            reason: "policy-deny",
+            matchedRule: result.matchedRule,
+          });
         } else {
           denied.push({ entitlement: result.entitlement, reason: "default-deny" });
         }
@@ -146,7 +150,11 @@ export function createPolicyEnforcer(
               `Invariant violation: ask verdict for "${result.entitlement.id}" is missing matchedRule`
             );
           }
-          denied.push({ entitlement: result.entitlement, reason: "user-deny", matchedRule: result.matchedRule });
+          denied.push({
+            entitlement: result.entitlement,
+            reason: "user-deny",
+            matchedRule: result.matchedRule,
+          });
         }
       }
       // "granted" — nothing to do

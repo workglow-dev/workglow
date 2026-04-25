@@ -11,8 +11,9 @@ import {
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
+import { resolveColor } from "@workglow/util/media";
 import { DataPortSchema } from "@workglow/util/schema";
-import { ColorSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { ColorValueSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
 
 const inputSchema = {
@@ -26,7 +27,7 @@ const inputSchema = {
       minimum: 1,
       default: 1,
     },
-    color: ColorSchema({ title: "Color", description: "Border color" }),
+    color: ColorValueSchema({ title: "Color", description: "Border color" }),
   },
   required: ["image", "color"],
   additionalProperties: false,
@@ -67,7 +68,8 @@ export class ImageBorderTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { borderWidth: bw = 1, color } = input;
+    const { borderWidth: bw = 1 } = input;
+    const color = resolveColor(input.color);
     const image = await produceImageOutput(input.image, (img) => {
       const { data: src, width: srcW, height: srcH, channels: srcCh } = img;
       const outCh = 4;
@@ -78,7 +80,7 @@ export class ImageBorderTask<
       const r = color.r;
       const g = color.g;
       const b = color.b;
-      const a = color.a ?? 255;
+      const a = color.a;
 
       // Fill entire image with border color
       for (let i = 0; i < dst.length; i += outCh) {

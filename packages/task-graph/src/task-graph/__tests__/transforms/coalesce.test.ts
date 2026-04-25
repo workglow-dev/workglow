@@ -17,10 +17,9 @@ describe("coalesce", () => {
     expect(await coalesceTransform.apply(undefined, { defaultValue: "x" })).toBe("x");
   });
   it("inferOutputSchema strips nullability", () => {
-    const out = coalesceTransform.inferOutputSchema(
-      { type: ["string", "null"] } as any,
-      { defaultValue: "" },
-    );
+    const out = coalesceTransform.inferOutputSchema({ type: ["string", "null"] } as any, {
+      defaultValue: "",
+    });
     expect(out).toEqual({ type: "string" });
   });
 });
