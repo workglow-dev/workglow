@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { registerImageRasterCodec } from "@workglow/util/media";
+
 import { createBrowserImageRasterCodec } from "./imageRasterCodecBrowser";
-import { registerImageRasterCodec } from "./imageRasterCodecRegistry";
 
 registerImageRasterCodec(createBrowserImageRasterCodec());

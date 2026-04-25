@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./media/image";
-export * from "./media/image.node";
+export * from "./media/imageTypes";
 export * from "./media/color";
+export * from "./media/imageRasterCodecRegistry";
+export * from "./media/MediaRawImage";
+export * from "./media/Image";

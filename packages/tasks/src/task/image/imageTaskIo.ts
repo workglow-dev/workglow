@@ -5,18 +5,29 @@
  */
 
 import type { ImageBinary } from "@workglow/util/media";
-
-import { formatImageOutput, resolveImageInput } from "./imageTaskTransport";
+import { Image, getImageRasterCodec } from "@workglow/util/media";
 
 /**
- * Decode {@link ImageBinary} or data URI to a raster, run pixel work, then re-encode to a data URI
- * when the input was a data URI (same MIME as the input, when supported).
+ * Decode the input to pixels via the unified {@link Image} class, run `run`,
+ * then return output in the same wire form as the input:
+ *
+ * - data URI string in → data URI string out (re-encoded with input MIME),
+ * - `ImageBinary` in → `ImageBinary` out.
+ *
+ * The legacy wire format is preserved so existing task graphs and caches
+ * keep working; `Image` is used internally to funnel decode/encode through
+ * the single raster-codec registry.
  */
 export async function produceImageOutput(
-  inputImage: ImageBinary | string,
+  inputImage: Image | ImageBinary | string,
   run: (image: ImageBinary) => ImageBinary | Promise<ImageBinary>
 ): Promise<ImageBinary | string> {
-  const { raster, transport } = await resolveImageInput(inputImage);
-  const outRaster = await run(raster);
-  return formatImageOutput(outRaster, transport);
+  const image = Image.is(inputImage) ? inputImage : Image.from(inputImage);
+  const pixels = await image.getPixels();
+  const out = await run(pixels);
+  if (image.kind === "dataUri") {
+    const mime = image.mimeType ?? "image/png";
+    return getImageRasterCodec().encodeDataUri(out, mime);
+  }
+  return out;
 }
