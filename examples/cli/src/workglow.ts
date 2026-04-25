@@ -8,7 +8,7 @@
 
 import { registerAiTasks, setGlobalModelRepository } from "@workglow/ai";
 import { registerHuggingFaceTransformers } from "@workglow/ai-provider/hf-transformers";
-import { registerBaseTasks } from "@workglow/task-graph";
+import { registerBaseTasks, registerBuiltInTransforms } from "@workglow/task-graph";
 import { registerCommonTasks } from "@workglow/tasks";
 import {
   ChainedCredentialStore,
@@ -37,6 +37,7 @@ import { InkHumanConnector } from "./ui/InkHumanConnector";
 registerBaseTasks();
 registerCommonTasks();
 registerAiTasks();
+registerBuiltInTransforms();
 
 // Set up global credential store: lazy encrypted store (unlocked on demand) + env var fallback.
 // The lazyStore starts locked; ensureCredentialStoreUnlocked() is called before operations

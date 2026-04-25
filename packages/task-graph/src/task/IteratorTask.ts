@@ -6,8 +6,8 @@
 
 import type { DataPortSchema, PropertySchema } from "@workglow/util/schema";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { GraphAsTaskConfig } from "./GraphAsTask";
+import { GraphAsTask, graphAsTaskConfigSchema } from "./GraphAsTask";
 import type { IExecuteContext, IRunConfig } from "./ITask";
 import { IteratorTaskRunner } from "./IteratorTaskRunner";
 import type { StreamEvent, StreamFinish } from "./StreamTypes";
@@ -86,7 +86,10 @@ export const iteratorTaskConfigSchema = {
     concurrencyLimit: { type: "integer", minimum: 1 },
     batchSize: { type: "integer", minimum: 1 },
     maxIterations: {
-      oneOf: [{ type: "integer", minimum: 1 }, { type: "string", const: "unbounded" }],
+      oneOf: [
+        { type: "integer", minimum: 1 },
+        { type: "string", const: "unbounded" },
+      ],
     },
     iterationInputConfig: { type: "object", additionalProperties: true },
   },

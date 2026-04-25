@@ -18,6 +18,9 @@ import {
   DataflowEvents,
 } from "./DataflowEvents";
 import { TaskGraph } from "./TaskGraph";
+import { TRANSFORM_DEFS, TransformRegistry } from "./TransformRegistry";
+import type { ITransformStep } from "./TransformTypes";
+import type { ServiceRegistry } from "@workglow/util";
 
 export type DataflowIdType = `${string}[${string}] ==> ${string}[${string}]`;
 
@@ -204,12 +207,16 @@ export class Dataflow {
   }
 
   toJSON(): DataflowJson {
-    return {
+    const base: DataflowJson = {
       sourceTaskId: this.sourceTaskId,
       sourceTaskPortId: this.sourceTaskPortId,
       targetTaskId: this.targetTaskId,
       targetTaskPortId: this.targetTaskPortId,
     };
+    if (this._transforms.length > 0) {
+      base.transforms = this._transforms.map((s) => ({ id: s.id, params: s.params }));
+    }
+    return base;
   }
 
   /**
@@ -217,6 +224,82 @@ export class Dataflow {
    * Invalidated by calling {@link invalidateCompatibilityCache}.
    */
   protected _compatibilityCache?: "static" | "runtime" | "incompatible";
+
+  /**
+   * Transform steps applied to data flowing through this dataflow.
+   */
+  private _transforms: Array<ITransformStep> = [];
+
+  /**
+   * Returns the list of transform steps applied to this dataflow.
+   */
+  getTransforms(): ReadonlyArray<ITransformStep> {
+    return this._transforms;
+  }
+
+  /**
+   * Replaces the transform chain with the given steps and invalidates the compatibility cache.
+   * Accepts either strict {@link ITransformStep} or steps whose `params` is omitted;
+   * omitted `params` is normalised to `undefined`.
+   */
+  setTransforms(
+    steps: ReadonlyArray<{ readonly id: string; readonly params?: Record<string, unknown> }>
+  ): void {
+    this._transforms = steps.map((s) => ({ id: s.id, params: s.params }));
+    this.invalidateCompatibilityCache();
+  }
+
+  /**
+   * Appends a single transform step to the chain and invalidates the compatibility cache.
+   * Accepts either strict {@link ITransformStep} or a step whose `params` is omitted;
+   * omitted `params` is normalised to `undefined`.
+   */
+  addTransform(step: { readonly id: string; readonly params?: Record<string, unknown> }): void {
+    this._transforms.push({ id: step.id, params: step.params });
+    this.invalidateCompatibilityCache();
+  }
+
+  /**
+   * Removes the transform step at the given index and invalidates the compatibility cache.
+   */
+  removeTransform(index: number): void {
+    this._transforms.splice(index, 1);
+    this.invalidateCompatibilityCache();
+  }
+
+  /**
+   * Fold the transform chain over `this.value`. On any throw, sets
+   * `this.error` and TaskStatus.FAILED, then re-throws so the caller
+   * (typically TaskGraphRunner) fails the run. Without the re-throw the
+   * runner's status-push step would overwrite the FAILED edge state with
+   * the source task's COMPLETED status, silently delivering corrupt data.
+   */
+  async applyTransforms(registry: ServiceRegistry): Promise<void> {
+    if (this._transforms.length === 0) return;
+    const defs = registry.get(TRANSFORM_DEFS);
+    let cur: unknown = this.value;
+    try {
+      for (const step of this._transforms) {
+        const def = defs.get(step.id);
+        if (!def) {
+          throw new Error(`Unknown transform: ${step.id}`);
+        }
+        cur = await def.apply(cur, step.params ?? {});
+      }
+      this.value = cur;
+    } catch (e) {
+      const error =
+        e instanceof TaskError
+          ? e
+          : new TaskError(e instanceof Error ? e.message : String(e));
+      if (!(e instanceof TaskError) && e instanceof Error && e.stack) {
+        error.stack = e.stack;
+      }
+      this.error = error;
+      this.setStatus(TaskStatus.FAILED);
+      throw e;
+    }
+  }
 
   /**
    * Invalidates the cached semantic compatibility result so the next call
@@ -229,7 +312,8 @@ export class Dataflow {
 
   semanticallyCompatible(
     graph: TaskGraph,
-    dataflow: Dataflow
+    dataflow: Dataflow,
+    registry?: ServiceRegistry
   ): "static" | "runtime" | "incompatible" {
     const sourceTask = graph.getTask(dataflow.sourceTaskId)!;
     const targetTask = graph.getTask(dataflow.targetTaskId)!;
@@ -282,7 +366,36 @@ export class Dataflow {
       sourceSchemaProperty = true;
     }
 
-    const result = areSemanticallyCompatible(sourceSchemaProperty, targetSchemaProperty);
+    // Compose source schema through the transform chain before comparing.
+    // Resolves transform defs from the same registry used by applyTransforms so
+    // that custom TRANSFORM_DEFS overrides are reflected in both places.
+    // When the source schema is `true` (accepts any — e.g. a boundary task
+    // with `additionalProperties: true`), start the chain from `{}` so
+    // transforms can still narrow the effective schema. Without this a chain
+    // like `pick → unixToIsoDate` from an InputTask would short-circuit to
+    // "static" against any target regardless of the transforms' output type.
+    let effectiveSourceSchema = sourceSchemaProperty;
+    if (this._transforms.length > 0) {
+      const defs = registry ? registry.get(TRANSFORM_DEFS) : TransformRegistry.all;
+      try {
+        let cur: any = effectiveSourceSchema === true ? {} : effectiveSourceSchema;
+        for (const step of this._transforms) {
+          const def = defs.get(step.id);
+          if (!def) {
+            // Do not cache missing transform definitions because the registry
+            // supports runtime registration and a later call may become compatible.
+            return "incompatible";
+          }
+          cur = def.inferOutputSchema(cur, step.params ?? {});
+        }
+        effectiveSourceSchema = cur;
+      } catch {
+        if (shouldCache) this._compatibilityCache = "incompatible";
+        return "incompatible";
+      }
+    }
+
+    const result = areSemanticallyCompatible(effectiveSourceSchema, targetSchemaProperty);
     if (shouldCache) {
       this._compatibilityCache = result;
     }

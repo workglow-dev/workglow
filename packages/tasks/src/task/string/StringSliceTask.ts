@@ -16,9 +16,9 @@ import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 const inputSchema = {
   type: "object",
   properties: {
-    value: {
+    text: {
       type: "string",
-      title: "Value",
+      title: "Text",
       description: "Input string",
     },
     start: {
@@ -32,20 +32,20 @@ const inputSchema = {
       description: "End index (exclusive, supports negative indexing)",
     },
   },
-  required: ["value", "start"],
+  required: ["text", "start"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    text: {
       type: "string",
-      title: "Result",
+      title: "Text",
       description: "Extracted substring",
     },
   },
-  required: ["result"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -75,7 +75,7 @@ export class StringSliceTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    return { result: input.value.slice(input.start, input.end) } as Output;
+    return { text: input.text.slice(input.start, input.end) } as Output;
   }
 }
 
