@@ -1,5 +1,27 @@
 # @workglow/ai
 
+## 0.2.16
+
+### Features
+
+#### util/media
+
+- introduce Image class and consolidate image handling
+
+### Bug Fixes
+
+- add validation for outputSchema in StructuredGenerationTask, changes to tool use schema
+
+### Refactors
+
+#### ai
+
+- simplify and consolidate RAG tasks (#427)
+
+### Chores
+
+- release 12 packages
+
 ## 0.2.15
 
 ### Features

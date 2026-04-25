@@ -1,5 +1,23 @@
 # @workglow/task-graph
 
+## 0.2.16
+
+### Features
+
+#### task-graph
+
+- instrument runReactive with gated telemetry
+- dataflow transforms engine with autoConnect refactor
+
+#### tasks
+
+- add ColorValueSchema and migrate image tasks
+- enhance ImageTextTask input schema and validation
+
+### Chores
+
+- release 12 packages
+
 ## 0.2.15
 
 ### Features

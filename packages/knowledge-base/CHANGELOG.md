@@ -1,5 +1,17 @@
 # @workglow/knowledge-base
 
+## 0.2.16
+
+### Refactors
+
+#### ai
+
+- simplify and consolidate RAG tasks (#427)
+
+### Chores
+
+- release 12 packages
+
 ## 0.2.15
 
 ## 0.2.14

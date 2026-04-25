@@ -1,5 +1,11 @@
 # workglow
 
+## 0.2.16
+
+### Chores
+
+- release 12 packages
+
 ## 0.2.15
 
 ## 0.2.14
