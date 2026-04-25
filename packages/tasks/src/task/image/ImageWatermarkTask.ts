@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
+import { ImageTaskBase } from "./ImageTaskBase";
 import { produceImageOutput } from "./imageTaskIo";
+import { Image } from "@workglow/util/media";
 
 const inputSchema = {
   type: "object",
@@ -62,7 +63,7 @@ export class ImageWatermarkTask<
   Input extends ImageWatermarkTaskInput = ImageWatermarkTaskInput,
   Output extends ImageWatermarkTaskOutput = ImageWatermarkTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageWatermarkTask";
   static override readonly category = "Image";
   public static override title = "Add Watermark";
@@ -134,7 +135,7 @@ export class ImageWatermarkTask<
 
       return { data: dst, width, height, channels: outCh };
     });
-    return { image } as Output;
+    return { image: Image.fromPixels(image) as unknown as Output["image"] } as Output;
   }
 }
 

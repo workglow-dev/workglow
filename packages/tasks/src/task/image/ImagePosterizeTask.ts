@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageOp } from "./imageOpDispatcher";
+import { POSTERIZE_OP, ensureImageGpuApi } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -48,7 +49,7 @@ export class ImagePosterizeTask<
   Input extends ImagePosterizeTaskInput = ImagePosterizeTaskInput,
   Output extends ImagePosterizeTaskOutput = ImagePosterizeTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImagePosterizeTask";
   static override readonly category = "Image";
   public static override title = "Posterize";
@@ -67,35 +68,10 @@ export class ImagePosterizeTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
+    await ensureImageGpuApi();
     const levels = input.levels ?? 4;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-
-      // Precompute 256-entry lookup table
-      const step = 255 / (levels - 1);
-      const lut = new Uint8ClampedArray(256);
-      for (let i = 0; i < 256; i++) {
-        lut[i] = Math.round(Math.round(i / step) * step);
-      }
-
-      const dst = new Uint8ClampedArray(src.length);
-
-      if (channels === 4) {
-        for (let i = 0; i < src.length; i += 4) {
-          dst[i] = lut[src[i]!]!;
-          dst[i + 1] = lut[src[i + 1]!]!;
-          dst[i + 2] = lut[src[i + 2]!]!;
-          dst[i + 3] = src[i + 3]!; // preserve alpha
-        }
-      } else {
-        for (let i = 0; i < src.length; i++) {
-          dst[i] = lut[src[i]!]!;
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    const image = await runImageOp(input.image, POSTERIZE_OP, { levels });
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

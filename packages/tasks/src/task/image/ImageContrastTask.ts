@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageOp } from "./imageOpDispatcher";
+import { CONTRAST_OP, ensureImageGpuApi } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -48,7 +49,7 @@ export class ImageContrastTask<
   Input extends ImageContrastTaskInput = ImageContrastTaskInput,
   Output extends ImageContrastTaskOutput = ImageContrastTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageContrastTask";
   static override readonly category = "Image";
   public static override title = "Adjust Contrast";
@@ -67,35 +68,10 @@ export class ImageContrastTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
+    await ensureImageGpuApi();
     const amount = input.amount ?? 0;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-
-      // Precompute 256-entry lookup table
-      const factor = (259 * (amount + 255)) / (255 * (259 - amount));
-      const lut = new Uint8ClampedArray(256);
-      for (let i = 0; i < 256; i++) {
-        lut[i] = factor * (i - 128) + 128;
-      }
-
-      const dst = new Uint8ClampedArray(src.length);
-
-      if (channels === 4) {
-        for (let i = 0; i < src.length; i += 4) {
-          dst[i] = lut[src[i]!]!;
-          dst[i + 1] = lut[src[i + 1]!]!;
-          dst[i + 2] = lut[src[i + 2]!]!;
-          dst[i + 3] = src[i + 3]!; // preserve alpha
-        }
-      } else {
-        for (let i = 0; i < src.length; i++) {
-          dst[i] = lut[src[i]!]!;
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    const image = await runImageOp(input.image, CONTRAST_OP, { amount });
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

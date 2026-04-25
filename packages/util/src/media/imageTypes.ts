@@ -14,7 +14,8 @@ export type ImageDataSupport =
   | "VideoFrame"
   | "RawImage"
   | "DataUri"
-  | "Sharp";
+  | "Sharp"
+  | "GpuTexture";
 
 export interface ImageBinary {
   data: Uint8ClampedArray;

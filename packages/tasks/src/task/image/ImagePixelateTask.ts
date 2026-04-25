@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageOp } from "./imageOpDispatcher";
+import { PIXELATE_OP, ensureImageGpuApi } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -47,7 +48,7 @@ export class ImagePixelateTask<
   Input extends ImagePixelateTaskInput = ImagePixelateTaskInput,
   Output extends ImagePixelateTaskOutput = ImagePixelateTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImagePixelateTask";
   static override readonly category = "Image";
   public static override title = "Pixelate Image";
@@ -66,45 +67,10 @@ export class ImagePixelateTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { blockSize = 8 } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const dst = new Uint8ClampedArray(src.length);
-
-      for (let by = 0; by < height; by += blockSize) {
-        const blockH = Math.min(blockSize, height - by);
-        for (let bx = 0; bx < width; bx += blockSize) {
-          const blockW = Math.min(blockSize, width - bx);
-          const blockArea = blockW * blockH;
-
-          // Compute average color of the block
-          const sums = new Array<number>(channels).fill(0);
-          for (let y = by; y < by + blockH; y++) {
-            for (let x = bx; x < bx + blockW; x++) {
-              const idx = (y * width + x) * channels;
-              for (let c = 0; c < channels; c++) {
-                sums[c] += src[idx + c];
-              }
-            }
-          }
-
-          const avg = sums.map((s) => (s / blockArea + 0.5) | 0);
-
-          // Fill the block with the average color
-          for (let y = by; y < by + blockH; y++) {
-            for (let x = bx; x < bx + blockW; x++) {
-              const idx = (y * width + x) * channels;
-              for (let c = 0; c < channels; c++) {
-                dst[idx + c] = avg[c]!;
-              }
-            }
-          }
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    await ensureImageGpuApi();
+    const blockSize = input.blockSize ?? 8;
+    const image = await runImageOp(input.image, PIXELATE_OP, { blockSize });
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

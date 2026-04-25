@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageResizeOp } from "./imageOpDispatcher";
+import { CROP_OP } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -44,7 +45,7 @@ export class ImageCropTask<
   Input extends ImageCropTaskInput = ImageCropTaskInput,
   Output extends ImageCropTaskOutput = ImageCropTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageCropTask";
   static override readonly category = "Image";
   public static override title = "Crop Image";
@@ -63,35 +64,13 @@ export class ImageCropTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { x: rawX, y: rawY, width: rawW, height: rawH } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width: srcW, height: srcH, channels } = img;
-
-      if (srcW < 1 || srcH < 1) {
-        throw new RangeError("Cannot crop an empty image");
-      }
-
-      if (rawX < 0 || rawX >= srcW || rawY < 0 || rawY >= srcH) {
-        throw new RangeError("Crop origin is outside the source image bounds");
-      }
-
-      const x = rawX;
-      const y = rawY;
-      const w = Math.min(rawW, srcW - x);
-      const h = Math.min(rawH, srcH - y);
-
-      const dst = new Uint8ClampedArray(w * h * channels);
-      const rowBytes = w * channels;
-
-      for (let row = 0; row < h; row++) {
-        const srcOffset = ((y + row) * srcW + x) * channels;
-        const dstOffset = row * rowBytes;
-        dst.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
-      }
-
-      return { data: dst, width: w, height: h, channels };
+    const image = await runImageResizeOp(input.image, CROP_OP, {
+      x: input.x,
+      y: input.y,
+      width: input.width,
+      height: input.height,
     });
-    return { image } as Output;
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

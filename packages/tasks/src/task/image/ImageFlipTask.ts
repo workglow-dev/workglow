@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageOp } from "./imageOpDispatcher";
+import { FLIP_OP, ensureImageGpuApi } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -46,7 +47,7 @@ export class ImageFlipTask<
   Input extends ImageFlipTaskInput = ImageFlipTaskInput,
   Output extends ImageFlipTaskOutput = ImageFlipTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageFlipTask";
   static override readonly category = "Image";
   public static override title = "Flip Image";
@@ -65,33 +66,9 @@ export class ImageFlipTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { direction } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const dst = new Uint8ClampedArray(src.length);
-      const rowBytes = width * channels;
-
-      if (direction === "vertical") {
-        for (let y = 0; y < height; y++) {
-          const srcOffset = y * rowBytes;
-          const dstOffset = (height - 1 - y) * rowBytes;
-          dst.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
-        }
-      } else {
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const srcIdx = (y * width + x) * channels;
-            const dstIdx = (y * width + (width - 1 - x)) * channels;
-            for (let c = 0; c < channels; c++) {
-              dst[dstIdx + c] = src[srcIdx + c];
-            }
-          }
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    await ensureImageGpuApi();
+    const image = await runImageOp(input.image, FLIP_OP, { direction: input.direction });
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

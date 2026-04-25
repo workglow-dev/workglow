@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageOp } from "./imageOpDispatcher";
+import { GRAYSCALE_OP, ensureImageGpuApi } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -40,7 +41,7 @@ export class ImageGrayscaleTask<
   Input extends ImageGrayscaleTaskInput = ImageGrayscaleTaskInput,
   Output extends ImageGrayscaleTaskOutput = ImageGrayscaleTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageGrayscaleTask";
   static override readonly category = "Image";
   public static override title = "Grayscale";
@@ -59,24 +60,9 @@ export class ImageGrayscaleTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-
-      if (channels === 1) {
-        return { data: new Uint8ClampedArray(src), width, height, channels: 1 };
-      }
-
-      const pixelCount = width * height;
-      const dst = new Uint8ClampedArray(pixelCount);
-
-      for (let i = 0; i < pixelCount; i++) {
-        const idx = i * channels;
-        dst[i] = (src[idx] * 77 + src[idx + 1] * 150 + src[idx + 2] * 29) >> 8;
-      }
-
-      return { data: dst, width, height, channels: 1 };
-    });
-    return { image } as Output;
+    await ensureImageGpuApi();
+    const image = await runImageOp(input.image, GRAYSCALE_OP, undefined);
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

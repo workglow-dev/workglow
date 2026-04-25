@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageOp } from "./imageOpDispatcher";
+import { THRESHOLD_OP, ensureImageGpuApi } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -48,7 +49,7 @@ export class ImageThresholdTask<
   Input extends ImageThresholdTaskInput = ImageThresholdTaskInput,
   Output extends ImageThresholdTaskOutput = ImageThresholdTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageThresholdTask";
   static override readonly category = "Image";
   public static override title = "Threshold";
@@ -67,26 +68,10 @@ export class ImageThresholdTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
+    await ensureImageGpuApi();
     const threshold = input.threshold ?? 128;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const pixelCount = width * height;
-      const dst = new Uint8ClampedArray(pixelCount);
-
-      for (let i = 0; i < pixelCount; i++) {
-        const idx = i * channels;
-        let gray: number;
-        if (channels === 1) {
-          gray = src[idx]!;
-        } else {
-          gray = (src[idx]! * 77 + src[idx + 1]! * 150 + src[idx + 2]! * 29) >> 8;
-        }
-        dst[i] = gray >= threshold ? 255 : 0;
-      }
-
-      return { data: dst, width, height, channels: 1 };
-    });
-    return { image } as Output;
+    const image = await runImageOp(input.image, THRESHOLD_OP, { threshold });
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

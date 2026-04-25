@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageOp } from "./imageOpDispatcher";
+import { INVERT_OP, ensureImageGpuApi } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -40,7 +41,7 @@ export class ImageInvertTask<
   Input extends ImageInvertTaskInput = ImageInvertTaskInput,
   Output extends ImageInvertTaskOutput = ImageInvertTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageInvertTask";
   static override readonly category = "Image";
   public static override title = "Invert Colors";
@@ -59,26 +60,9 @@ export class ImageInvertTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const dst = new Uint8ClampedArray(src.length);
-
-      if (channels === 4) {
-        for (let i = 0; i < src.length; i += 4) {
-          dst[i] = 255 - src[i]!;
-          dst[i + 1] = 255 - src[i + 1]!;
-          dst[i + 2] = 255 - src[i + 2]!;
-          dst[i + 3] = src[i + 3]!; // preserve alpha
-        }
-      } else {
-        for (let i = 0; i < src.length; i++) {
-          dst[i] = 255 - src[i]!;
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    await ensureImageGpuApi();
+    const image = await runImageOp(input.image, INVERT_OP, undefined);
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

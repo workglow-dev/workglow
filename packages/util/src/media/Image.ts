@@ -39,7 +39,8 @@ export type ImageSourceKind =
   | "blob"
   | "bitmap"
   | "videoFrame"
-  | "offscreenCanvas";
+  | "offscreenCanvas"
+  | "texture";
 
 type ImageSource =
   | { readonly kind: "dataUri"; readonly dataUri: string; readonly mimeType: string }
@@ -47,7 +48,16 @@ type ImageSource =
   | { readonly kind: "blob"; readonly blob: Blob }
   | { readonly kind: "bitmap"; readonly bitmap: ImageBitmap }
   | { readonly kind: "videoFrame"; readonly frame: VideoFrame }
-  | { readonly kind: "offscreenCanvas"; readonly canvas: OffscreenCanvas };
+  | { readonly kind: "offscreenCanvas"; readonly canvas: OffscreenCanvas }
+  | {
+      // GPU-resident `rgba8unorm` texture. Width/height are explicit because
+      // `GPUTexture` carries them but TS-without-`@webgpu/types` doesn't, and
+      // we want `image.width`/`image.height` to work synchronously.
+      readonly kind: "texture";
+      readonly texture: unknown;
+      readonly width: number;
+      readonly height: number;
+    };
 
 const IMAGE_BRAND = Symbol.for("@workglow/util/media/Image");
 
@@ -155,6 +165,16 @@ export class Image {
     return new Image({ kind: "blob", blob });
   }
 
+  /**
+   * Wrap a GPU-resident texture so downstream tasks can chain GPU operations
+   * without an intermediate readback. `getPixels()` will lazily download the
+   * texture the first time pixel data is requested (e.g. for display or
+   * serialization).
+   */
+  static fromTexture(texture: unknown, width: number, height: number): Image {
+    return new Image({ kind: "texture", texture, width, height });
+  }
+
   /** Accepts anything `convertImageDataToUseableForm` accepted today, plus `Image`. */
   static from(value: unknown): Image {
     if (Image.is(value)) {
@@ -260,6 +280,7 @@ export class Image {
     if (this.source.kind === "bitmap") return this.source.bitmap.width;
     if (this.source.kind === "offscreenCanvas") return this.source.canvas.width;
     if (this.source.kind === "videoFrame") return this.source.frame.displayWidth;
+    if (this.source.kind === "texture") return this.source.width;
     return this.pixelsCache?.width;
   }
 
@@ -268,6 +289,7 @@ export class Image {
     if (this.source.kind === "bitmap") return this.source.bitmap.height;
     if (this.source.kind === "offscreenCanvas") return this.source.canvas.height;
     if (this.source.kind === "videoFrame") return this.source.frame.displayHeight;
+    if (this.source.kind === "texture") return this.source.height;
     return this.pixelsCache?.height;
   }
 
@@ -291,9 +313,21 @@ export class Image {
       this.pixelsCache = await getImageRasterCodec().decodeDataUri(dataUri);
       return this.pixelsCache;
     }
+    // `texture` and the other browser-only sources (bitmap / videoFrame /
+    // offscreenCanvas) materialize via the browser augmentation, which
+    // installs a `getPixels` override that handles them.
     throw new Error(
       `Image.getPixels: browser-only source '${this.source.kind}' requires Image.browser augmentation`
     );
+  }
+
+  /**
+   * Synchronous accessor for the underlying GPU texture if this image is
+   * already GPU-resident. Returns null for any other source kind. Browser
+   * augmentation provides an async `getTexture()` that uploads on demand.
+   */
+  getTextureSync(): unknown | null {
+    return this.source.kind === "texture" ? this.source.texture : null;
   }
 
   async getDataUri(mimeType: string = "image/png"): Promise<string> {
@@ -351,7 +385,8 @@ export class Image {
         }
         case "ImageBitmap":
         case "VideoFrame":
-        case "OffscreenCanvas": {
+        case "OffscreenCanvas":
+        case "GpuTexture": {
           const asBrowser = this as unknown as {
             toFirstSupportedBrowser?: (
               want: ImageDataSupport
@@ -403,6 +438,8 @@ export class Image {
         return "VideoFrame";
       case "offscreenCanvas":
         return "OffscreenCanvas";
+      case "texture":
+        return "GpuTexture";
     }
   }
 
@@ -430,6 +467,8 @@ export class Image {
         return this.source.frame;
       case "offscreenCanvas":
         return this.source.canvas;
+      case "texture":
+        return this.source.texture;
     }
   }
 }

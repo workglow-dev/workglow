@@ -7,14 +7,15 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { resolveColor } from "@workglow/util/media";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ColorValueSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageResizeOp } from "./imageOpDispatcher";
+import { BORDER_OP } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -49,7 +50,7 @@ export class ImageBorderTask<
   Input extends ImageBorderTaskInput = ImageBorderTaskInput,
   Output extends ImageBorderTaskOutput = ImageBorderTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageBorderTask";
   static override readonly category = "Image";
   public static override title = "Add Border";
@@ -68,43 +69,16 @@ export class ImageBorderTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { borderWidth: bw = 1 } = input;
-    const color = resolveColor(input.color);
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width: srcW, height: srcH, channels: srcCh } = img;
-      const outCh = 4;
-      const dstW = srcW + bw * 2;
-      const dstH = srcH + bw * 2;
-      const dst = new Uint8ClampedArray(dstW * dstH * outCh);
-
-      const r = color.r;
-      const g = color.g;
-      const b = color.b;
-      const a = color.a;
-
-      // Fill entire image with border color
-      for (let i = 0; i < dst.length; i += outCh) {
-        dst[i] = r;
-        dst[i + 1] = g;
-        dst[i + 2] = b;
-        dst[i + 3] = a;
-      }
-
-      // Copy source image into center
-      for (let y = 0; y < srcH; y++) {
-        for (let x = 0; x < srcW; x++) {
-          const srcIdx = (y * srcW + x) * srcCh;
-          const dstIdx = ((y + bw) * dstW + (x + bw)) * outCh;
-          dst[dstIdx] = src[srcIdx];
-          dst[dstIdx + 1] = srcCh >= 3 ? src[srcIdx + 1] : src[srcIdx];
-          dst[dstIdx + 2] = srcCh >= 3 ? src[srcIdx + 2] : src[srcIdx];
-          dst[dstIdx + 3] = srcCh === 4 ? src[srcIdx + 3] : 255;
-        }
-      }
-
-      return { data: dst, width: dstW, height: dstH, channels: outCh };
+    const { r, g, b, a } = resolveColor(input.color);
+    const borderWidth = input.borderWidth ?? 1;
+    const image = await runImageResizeOp(input.image, BORDER_OP, {
+      borderWidth,
+      r,
+      g,
+      b,
+      a,
     });
-    return { image } as Output;
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 

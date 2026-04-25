@@ -10,3 +10,5 @@ export * from "./media/imageRasterCodecRegistry";
 export * from "./media/MediaRawImage";
 export * from "./media/Image";
 export * from "./media/Image.browser";
+export * from "./media/imageGpu";
+export * from "./media/imageGpuOps";

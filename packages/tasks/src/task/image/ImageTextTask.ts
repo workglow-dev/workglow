@@ -6,15 +6,16 @@
 
 import {
   CreateWorkflow,
-  Task,
   Workflow,
   type IExecuteReactiveContext,
   type TaskConfig,
 } from "@workglow/task-graph";
 import type { RgbaImageBinary } from "@workglow/util/media";
+import { Image } from "@workglow/util/media";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { ColorValueSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { resolveColor } from "@workglow/util/media";
+import { ImageTaskBase } from "./ImageTaskBase";
 import { produceImageOutput } from "./imageTaskIo";
 import {
   IMAGE_TEXT_ANCHOR_POSITIONS,
@@ -201,6 +202,11 @@ function hasUsableBackgroundImage(value: unknown): value is ImageTextTaskInput["
   if (typeof value !== "object" || value === null) {
     return false;
   }
+  // Accept upstream `Image` instances (their dimensions are available
+  // synchronously even before `getPixels()` materializes the pixel buffer).
+  if (Image.is(value)) {
+    return typeof value.width === "number" && typeof value.height === "number";
+  }
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.width === "number" &&
@@ -214,7 +220,7 @@ export class ImageTextTask<
   Input extends ImageTextTaskInput = ImageTextTaskInput,
   Output extends ImageTextTaskOutput = ImageTextTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageTextTask";
   static override readonly category = "Image";
   public static override title = "Render Text to Image";
@@ -250,9 +256,9 @@ export class ImageTextTask<
     const position = (input.position ?? "middle-center") as ImageTextAnchorPosition;
 
     const backgroundImage = "image" in input ? input.image : undefined;
-    let image: ImageTextTaskOutput["image"];
+    let pixels: RgbaImageBinary | { data: Uint8ClampedArray; width: number; height: number; channels: number };
     if (hasUsableBackgroundImage(backgroundImage)) {
-      image = await produceImageOutput(backgroundImage!, async (background) => {
+      pixels = await produceImageOutput(backgroundImage!, async (background) => {
         const overlay = await renderImageTextToRgba({
           text: input.text,
           font,
@@ -277,7 +283,7 @@ export class ImageTextTask<
           "ImageTextTask: width and height are required when no background image is provided"
         );
       }
-      image = await renderImageTextToRgba({
+      pixels = await renderImageTextToRgba({
         text: input.text,
         font,
         fontSize,
@@ -289,7 +295,9 @@ export class ImageTextTask<
         position,
       });
     }
-    return { image } as Output;
+    return {
+      image: Image.fromPixels(pixels) as unknown as Output["image"],
+    } as Output;
   }
 }
 

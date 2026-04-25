@@ -7,13 +7,14 @@
 import {
   CreateWorkflow,
   IExecuteReactiveContext,
-  Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
-import { produceImageOutput } from "./imageTaskIo";
+import { ImageTaskBase } from "./ImageTaskBase";
+import { runImageResizeOp } from "./imageOpDispatcher";
+import { RESIZE_OP } from "./imageOps";
 
 const inputSchema = {
   type: "object",
@@ -47,7 +48,7 @@ export class ImageResizeTask<
   Input extends ImageResizeTaskInput = ImageResizeTaskInput,
   Output extends ImageResizeTaskOutput = ImageResizeTaskOutput,
   Config extends TaskConfig = TaskConfig,
-> extends Task<Input, Output, Config> {
+> extends ImageTaskBase<Input, Output, Config> {
   static override readonly type = "ImageResizeTask";
   static override readonly category = "Image";
   public static override title = "Resize Image";
@@ -66,26 +67,11 @@ export class ImageResizeTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    const { width: dstW, height: dstH } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width: srcW, height: srcH, channels } = img;
-      const dst = new Uint8ClampedArray(dstW * dstH * channels);
-
-      for (let dy = 0; dy < dstH; dy++) {
-        const srcY = Math.min(Math.floor((dy * srcH) / dstH), srcH - 1);
-        for (let dx = 0; dx < dstW; dx++) {
-          const srcX = Math.min(Math.floor((dx * srcW) / dstW), srcW - 1);
-          const srcIdx = (srcY * srcW + srcX) * channels;
-          const dstIdx = (dy * dstW + dx) * channels;
-          for (let c = 0; c < channels; c++) {
-            dst[dstIdx + c] = src[srcIdx + c];
-          }
-        }
-      }
-
-      return { data: dst, width: dstW, height: dstH, channels };
+    const image = await runImageResizeOp(input.image, RESIZE_OP, {
+      width: input.width,
+      height: input.height,
     });
-    return { image } as Output;
+    return { image: image as unknown as Output["image"] } as Output;
   }
 }
 
