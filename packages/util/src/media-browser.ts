@@ -6,3 +6,4 @@
 
 export * from "./media/image";
 export * from "./media/image.browser";
+export * from "./media/color";
