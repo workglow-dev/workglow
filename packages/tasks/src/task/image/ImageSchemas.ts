@@ -92,6 +92,7 @@ export const ColorSchema = (annotations: Record<string, unknown> = {}) =>
       a: { type: "integer", minimum: 0, maximum: 255, title: "Alpha", default: 255 },
     },
     required: ["r", "g", "b"],
+    format: "color",
     additionalProperties: false,
     ...annotations,
   }) as const;

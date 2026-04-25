@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ImageBinary, ImageChannels, ImageDataSupport } from "./image";
+import type { ImageBinary, ImageChannels, ImageDataSupport, RgbaImageBinary } from "./image";
 import { parseDataUri } from "./image";
 
 export { parseDataUri };
-export type { ImageBinary, ImageChannels, ImageDataSupport };
+export type { ImageBinary, ImageChannels, ImageDataSupport, RgbaImageBinary };
 
 const convertBlobToOffscreenCanvas = async (blob: Blob): Promise<OffscreenCanvas> => {
   const img = await createImageBitmap(blob);

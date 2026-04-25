@@ -553,6 +553,103 @@ describe("ImageTask", () => {
       width: 160,
       height: 160,
     } as const;
+    const { width: _baseWidth, height: _baseHeight, ...baseWithBackground } = base;
+
+    test("exposes an object-shaped top-level schema with allOf-encoded exclusive branches", () => {
+      const schema = ImageTextTask.inputSchema() as Record<string, unknown>;
+
+      expect(schema.type).toBe("object");
+      expect(schema.properties).toMatchObject({
+        image: expect.any(Object),
+        width: expect.any(Object),
+        height: expect.any(Object),
+      });
+      expect(schema.required).toEqual(expect.arrayContaining(["text", "color"]));
+      expect(schema.additionalProperties).toBe(false);
+      expect(schema.oneOf).toBeUndefined();
+
+      const allOf = schema.allOf as Array<Record<string, unknown>>;
+      expect(Array.isArray(allOf)).toBe(true);
+      expect(allOf).toHaveLength(1);
+
+      const { if: ifClause, then: thenClause, else: elseClause } = allOf[0] as {
+        if: { required: string[] };
+        then: { not: { anyOf: Array<{ required: string[] }> } };
+        else: { required: string[] };
+      };
+      expect(ifClause.required).toEqual(["image"]);
+      expect(thenClause.not.anyOf).toEqual([
+        { required: ["width"] },
+        { required: ["height"] },
+      ]);
+      expect(elseClause.required).toEqual(["width", "height"]);
+    });
+
+    test("accepts the image branch without width and height", async () => {
+      const task = new ImageTextTask();
+      const background = createTestImage(96, 64, 3, [40, 80, 120]);
+
+      const result = (await task.run({
+        ...baseWithBackground,
+        image: background,
+        position: "bottom-right",
+      })) as { image: ImageBinary };
+
+      expect(result.image.width).toBe(96);
+      expect(result.image.height).toBe(64);
+    });
+
+    test("accepts the explicit-dimensions branch without image", async () => {
+      const task = new ImageTextTask();
+
+      const result = (await task.run({
+        ...base,
+        width: 96,
+        height: 64,
+        position: "middle-center",
+      })) as { image: ImageBinary };
+
+      expect(result.image.width).toBe(96);
+      expect(result.image.height).toBe(64);
+    });
+
+    test("rejects mixing background image with explicit dimensions", async () => {
+      const task = new ImageTextTask();
+      const background = createTestImage(96, 64, 3, [40, 80, 120]);
+
+      await expect(
+        task.run({
+          ...base,
+          image: background,
+          position: "bottom-right",
+        })
+      ).rejects.toThrow(/does not match schema/);
+    });
+
+    test("rejects missing both background image and explicit dimensions", async () => {
+      const task = new ImageTextTask();
+
+      await expect(
+        task.run({
+          ...baseWithBackground,
+          position: "middle-center",
+        })
+      ).rejects.toThrow(/does not match schema/);
+    });
+
+    test("rejects zero font size", async () => {
+      const task = new ImageTextTask();
+      await expect(
+        task.run({ ...base, fontSize: 0, position: "middle-center" })
+      ).rejects.toThrow(/does not match schema/);
+    });
+
+    test("rejects empty text", async () => {
+      const task = new ImageTextTask();
+      await expect(task.run({ ...base, text: "", position: "middle-center" })).rejects.toThrow(
+        /does not match schema/
+      );
+    });
 
     test("outputs RGBA image with requested dimensions", async () => {
       const task = new ImageTextTask();
@@ -562,6 +659,21 @@ describe("ImageTask", () => {
       expect(result.image.width).toBe(160);
       expect(result.image.height).toBe(160);
       expect(result.image.channels).toBe(4);
+    });
+
+    test("renders text into a transparent image when width and height are provided", async () => {
+      const task = new ImageTextTask();
+      const result = (await task.run({
+        ...base,
+        width: 96,
+        height: 64,
+        position: "middle-center",
+      })) as { image: ImageBinary };
+
+      expect(result.image.width).toBe(96);
+      expect(result.image.height).toBe(64);
+      expect(result.image.channels).toBe(4);
+      expect(getAlpha(result.image, 0, 0)).toBeLessThan(12);
     });
 
     test("keeps a corner transparent when text is anchored bottom-right", async () => {
@@ -617,7 +729,7 @@ describe("ImageTask", () => {
       const task = new ImageTextTask();
       const background = createTestImage(160, 160, 3, [40, 80, 120]);
       const result = (await task.run({
-        ...base,
+        ...baseWithBackground,
         image: background,
         position: "bottom-right",
       })) as { image: ImageBinary };
@@ -628,13 +740,31 @@ describe("ImageTask", () => {
       expect(getPixel(result.image, 0, 0)).toEqual([40, 80, 120, 255]);
     });
 
+    test("renders text over a background image using the image dimensions", async () => {
+      const task = new ImageTextTask();
+      const background = createTestImage(96, 64, 3, [40, 80, 120]);
+      const result = (await task.run({
+        text: base.text,
+        font: base.font,
+        fontSize: base.fontSize,
+        bold: base.bold,
+        italic: base.italic,
+        color: base.color,
+        image: background,
+        position: "bottom-right",
+      })) as { image: ImageBinary };
+
+      expect(result.image.width).toBe(96);
+      expect(result.image.height).toBe(64);
+      expect(result.image.channels).toBe(4);
+      expect(getPixel(result.image, 0, 0)).toEqual([40, 80, 120, 255]);
+    });
+
     test("preserves data-uri output when background input is a data uri", async () => {
       const task = new ImageTextTask();
       const result = await task.run({
-        ...base,
+        ...baseWithBackground,
         image: PNG_1X1_DATA_URI,
-        width: 1,
-        height: 1,
         fontSize: 1,
         position: "top-left",
       });
