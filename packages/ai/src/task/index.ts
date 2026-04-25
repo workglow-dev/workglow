@@ -8,9 +8,6 @@ import { TaskRegistry } from "@workglow/task-graph";
 import { AiChatTask } from "./AiChatTask";
 import { BackgroundRemovalTask } from "./BackgroundRemovalTask";
 import { ChunkRetrievalTask } from "./ChunkRetrievalTask";
-import { ChunkToVectorTask } from "./ChunkToVectorTask";
-import { ChunkVectorHybridSearchTask } from "./ChunkVectorHybridSearchTask";
-import { ChunkVectorSearchTask } from "./ChunkVectorSearchTask";
 import { ChunkVectorUpsertTask } from "./ChunkVectorUpsertTask";
 import { ContextBuilderTask } from "./ContextBuilderTask";
 import { CountTokensTask } from "./CountTokensTask";
@@ -60,14 +57,11 @@ export const registerAiTasks = () => {
   const tasks = [
     AiChatTask,
     BackgroundRemovalTask,
-    ChunkToVectorTask,
     CountTokensTask,
     ContextBuilderTask,
     DocumentEnricherTask,
     DocumentUpsertTask,
     ChunkRetrievalTask,
-    ChunkVectorHybridSearchTask,
-    ChunkVectorSearchTask,
     ChunkVectorUpsertTask,
     DownloadModelTask,
     FaceDetectorTask,
@@ -117,9 +111,6 @@ export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";
 export * from "./base/StreamingAiTask";
 export * from "./ChunkRetrievalTask";
-export * from "./ChunkToVectorTask";
-export * from "./ChunkVectorHybridSearchTask";
-export * from "./ChunkVectorSearchTask";
 export * from "./ChunkVectorUpsertTask";
 export * from "./ContextBuilderTask";
 export * from "./CountTokensTask";

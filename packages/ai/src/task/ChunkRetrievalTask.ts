@@ -16,7 +16,7 @@ import {
   TypedArraySchema,
   TypedArraySchemaOptions,
 } from "@workglow/util/schema";
-import { TypeModel, TypeSingleOrArray } from "./base/AiTaskSchemas";
+import { TypeModel } from "./base/AiTaskSchemas";
 import { TextEmbeddingTask } from "./TextEmbeddingTask";
 import type { ChunkSearchResult } from "@workglow/knowledge-base";
 
@@ -27,7 +27,7 @@ const inputSchema = {
       title: "Knowledge Base",
       description: "The knowledge base instance to search in",
     }),
-    query: TypeSingleOrArray({
+    query: {
       oneOf: [
         { type: "string" },
         TypedArraySchema({
@@ -36,13 +36,21 @@ const inputSchema = {
         }),
       ],
       title: "Query",
-      description: "Query string or pre-computed query vector",
-    }),
+      description: "Query string (requires `model`) or pre-computed query vector",
+    },
     model: TypeModel("model:TextEmbeddingTask", {
       title: "Model",
       description:
         "Text embedding model to use for query embedding (required when query is a string)",
     }),
+    method: {
+      type: "string",
+      enum: ["similarity", "hybrid"],
+      title: "Retrieval Method",
+      description:
+        "Retrieval strategy: 'similarity' (vector only) or 'hybrid' (vector + full-text).",
+      default: "similarity",
+    },
     topK: {
       type: "number",
       title: "Top K",
@@ -62,6 +70,15 @@ const inputSchema = {
       minimum: 0,
       maximum: 1,
       default: 0,
+    },
+    vectorWeight: {
+      type: "number",
+      title: "Vector Weight",
+      description:
+        "For hybrid method: weight for vector similarity (0-1), remainder goes to text relevance",
+      minimum: 0,
+      maximum: 1,
+      default: 0.7,
     },
     returnVectors: {
       type: "boolean",
@@ -128,7 +145,7 @@ const outputSchema = {
       title: "Count",
       description: "Number of results returned",
     },
-    query: TypeSingleOrArray({
+    query: {
       oneOf: [
         { type: "string" },
         TypedArraySchema({
@@ -138,7 +155,7 @@ const outputSchema = {
       ],
       title: "Query",
       description: "The query used for retrieval (pass-through)",
-    }),
+    },
   },
   required: ["chunks", "chunk_ids", "metadata", "scores", "count", "query"],
   additionalProperties: false,
@@ -149,8 +166,8 @@ export type ChunkRetrievalTaskOutput = FromSchema<typeof outputSchema, TypedArra
 export type ChunkRetrievalTaskConfig = TaskConfig<ChunkRetrievalTaskInput>;
 
 /**
- * End-to-end retrieval task that combines embedding generation (if needed) and vector search.
- * Simplifies the RAG pipeline by handling the full retrieval process.
+ * End-to-end retrieval task that combines query embedding (if needed), vector
+ * search, and optional hybrid full-text search in a single step.
  */
 export class ChunkRetrievalTask extends Task<
   ChunkRetrievalTaskInput,
@@ -161,7 +178,7 @@ export class ChunkRetrievalTask extends Task<
   public static override category = "RAG";
   public static override title = "Chunk Retrieval";
   public static override description =
-    "End-to-end retrieval: embed query and search for similar chunks";
+    "End-to-end retrieval: embed query (if string) and search the knowledge base. Supports similarity and hybrid methods.";
   public static override cacheable = true;
 
   public static override inputSchema(): DataPortSchema {
@@ -182,50 +199,66 @@ export class ChunkRetrievalTask extends Task<
       topK = 5,
       filter,
       model,
+      method = "similarity",
+      vectorWeight = 0.7,
       scoreThreshold = 0,
       returnVectors = false,
     } = input;
 
     const kb = knowledgeBase as KnowledgeBase;
 
-    // Determine query vector
-    let queryVectors: TypedArray[];
+    const queryIsString = typeof query === "string";
 
-    if (
-      typeof query === "string" ||
-      (Array.isArray(query) && query.every((q) => typeof q === "string"))
-    ) {
+    if (method === "hybrid" && !queryIsString) {
+      throw new Error(
+        "Hybrid retrieval requires a string query (it will be embedded and used for full-text search)."
+      );
+    }
+    if (method === "hybrid" && !kb.supportsHybridSearch()) {
+      throw new Error(
+        "The provided knowledge base does not support hybrid search. Use method: 'similarity' or a backend with hybrid support (e.g., Postgres with pgvector)."
+      );
+    }
+
+    // Resolve the query to a single vector (+ original text, for hybrid mode).
+    let queryVector: TypedArray;
+    let queryText: string | undefined;
+
+    if (queryIsString) {
       if (!model) {
         throw new Error(
           "Model is required when query is a string. Please provide a model with format 'model:TextEmbeddingTask'."
         );
       }
+      queryText = query;
       const embeddingTask = context.own(new TextEmbeddingTask());
       const embeddingResult = await embeddingTask.run({ text: query, model });
-      queryVectors = Array.isArray(embeddingResult.vector)
-        ? embeddingResult.vector
-        : [embeddingResult.vector];
-    } else if (isTypedArray(query) || (Array.isArray(query) && query.every(isTypedArray))) {
-      queryVectors = Array.isArray(query) ? query : [query];
+      const vec = embeddingResult.vector;
+      queryVector = Array.isArray(vec) ? vec[0] : vec;
+    } else if (isTypedArray(query)) {
+      queryVector = query;
     } else {
-      throw new Error("Query must be a string, array of strings, or TypedArray");
+      throw new Error("Query must be a string or TypedArray");
     }
 
-    const searchVectors = queryVectors.map((v) =>
-      v instanceof Float32Array ? v : new Float32Array(v)
-    );
+    const searchVector =
+      queryVector instanceof Float32Array ? queryVector : new Float32Array(queryVector);
 
-    const results: ChunkSearchResult[] = [];
-    for (const searchVector of searchVectors) {
-      const res = await kb.similaritySearch(searchVector, {
-        topK,
-        filter,
-        scoreThreshold,
-      });
-      results.push(...res);
-    }
+    const results: ChunkSearchResult[] =
+      method === "hybrid"
+        ? await kb.hybridSearch(searchVector, {
+            textQuery: queryText!,
+            topK,
+            filter,
+            scoreThreshold,
+            vectorWeight,
+          })
+        : await kb.similaritySearch(searchVector, {
+            topK,
+            filter,
+            scoreThreshold,
+          });
 
-    // Extract text chunks from typed metadata
     const chunks = results.map((r) => {
       const meta = r.metadata as ChunkRecord;
       return meta.text || JSON.stringify(meta);

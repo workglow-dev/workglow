@@ -18,24 +18,26 @@ const inputSchema = {
       title: "Knowledge Base",
       description: "The knowledge base to query for hierarchy",
     }),
+    metadata: ChunkRecordArraySchema,
+    // Optional pass-through ports so downstream tasks (Reranker, ContextBuilder)
+    // can auto-connect chunks/chunk_ids/scores through this task.
     chunks: {
       type: "array",
       items: { type: "string" },
       title: "Chunks",
-      description: "Retrieved text chunks",
+      description: "Retrieved text chunks (pass-through)",
     },
     chunk_ids: {
       type: "array",
       items: { type: "string" },
       title: "Chunk IDs",
-      description: "IDs of retrieved chunks",
+      description: "IDs of retrieved chunks (pass-through)",
     },
-    metadata: ChunkRecordArraySchema,
     scores: {
       type: "array",
       items: { type: "number" },
       title: "Scores",
-      description: "Similarity scores for each result",
+      description: "Similarity scores (pass-through)",
     },
     includeParentSummaries: {
       type: "boolean",
@@ -50,39 +52,39 @@ const inputSchema = {
       default: true,
     },
   },
-  required: ["knowledgeBase", "chunks", "chunk_ids", "metadata", "scores"],
+  required: ["knowledgeBase", "metadata"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
   properties: {
+    metadata: ChunkRecordArraySchema,
     chunks: {
       type: "array",
       items: { type: "string" },
       title: "Chunks",
-      description: "Retrieved text chunks",
+      description: "Retrieved text chunks (pass-through)",
     },
     chunk_ids: {
       type: "array",
       items: { type: "string" },
       title: "Chunk IDs",
-      description: "IDs of retrieved chunks",
+      description: "IDs of retrieved chunks (pass-through)",
     },
-    metadata: ChunkRecordArraySchema,
     scores: {
       type: "array",
       items: { type: "number" },
       title: "Scores",
-      description: "Similarity scores",
+      description: "Similarity scores (pass-through)",
     },
     count: {
       type: "number",
       title: "Count",
-      description: "Number of results",
+      description: "Number of enriched records",
     },
   },
-  required: ["chunks", "chunk_ids", "metadata", "scores", "count"],
+  required: ["metadata", "count"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -91,8 +93,10 @@ export type HierarchyJoinTaskOutput = FromSchema<typeof outputSchema>;
 export type HierarchyJoinTaskConfig = TaskConfig<HierarchyJoinTaskInput>;
 
 /**
- * Task for enriching search results with hierarchy information
- * Joins chunk IDs back to knowledge base to get parent summaries and entities
+ * Enrich retrieval metadata with document-hierarchy context (parent summaries,
+ * section titles, ancestor entities). Consumes only the `metadata` port of an
+ * upstream retrieval task; other retrieval ports (chunks, chunk_ids, scores)
+ * flow around this task via the workflow DAG.
  */
 export class HierarchyJoinTask extends Task<
   HierarchyJoinTaskInput,
@@ -102,7 +106,7 @@ export class HierarchyJoinTask extends Task<
   public static override type = "HierarchyJoinTask";
   public static override category = "RAG";
   public static override title = "Hierarchy Join";
-  public static override description = "Enrich search results with document hierarchy context";
+  public static override description = "Enrich retrieval metadata with document hierarchy context";
   public static override cacheable = false; // Has external dependency
 
   public static override inputSchema(): DataPortSchema {
@@ -119,9 +123,9 @@ export class HierarchyJoinTask extends Task<
   ): Promise<HierarchyJoinTaskOutput> {
     const {
       knowledgeBase,
+      metadata,
       chunks,
       chunk_ids,
-      metadata,
       scores,
       includeParentSummaries = true,
       includeEntities = true,
@@ -130,17 +134,16 @@ export class HierarchyJoinTask extends Task<
     const kb = knowledgeBase as KnowledgeBase;
     const enrichedMetadata: ChunkRecord[] = [];
 
-    for (let i = 0; i < chunk_ids.length; i++) {
-      const chunkId = chunk_ids[i];
-      const originalMetadata: ChunkRecord | undefined = metadata[i] as ChunkRecord | undefined;
-
+    for (const originalMetadata of metadata as ChunkRecord[]) {
       if (!originalMetadata) {
         enrichedMetadata.push({} as ChunkRecord);
         continue;
       }
 
       const doc_id = originalMetadata.doc_id;
-      const leafNodeId = originalMetadata.leafNodeId;
+      const leafNodeId =
+        originalMetadata.leafNodeId ??
+        originalMetadata.nodePath?.[originalMetadata.nodePath.length - 1];
 
       if (!doc_id || !leafNodeId) {
         enrichedMetadata.push(originalMetadata);
@@ -149,7 +152,6 @@ export class HierarchyJoinTask extends Task<
 
       try {
         const ancestors = await kb.getAncestors(doc_id, leafNodeId);
-
         const enriched: ChunkRecord = { ...originalMetadata };
 
         if (includeParentSummaries && ancestors.length > 0) {
@@ -175,7 +177,6 @@ export class HierarchyJoinTask extends Task<
 
         if (includeEntities && ancestors.length > 0) {
           const allEntities: Array<{ text: string; type: string; score: number }> = [];
-
           for (const ancestor of ancestors) {
             if (ancestor.enrichment?.entities) {
               allEntities.push(...ancestor.enrichment.entities);
@@ -197,18 +198,19 @@ export class HierarchyJoinTask extends Task<
 
         enrichedMetadata.push(enriched);
       } catch (error) {
-        console.error(`Failed to join hierarchy for chunk ${chunkId}:`, error);
+        console.error(`Failed to join hierarchy for chunk ${originalMetadata.chunkId}:`, error);
         enrichedMetadata.push(originalMetadata);
       }
     }
 
-    return {
-      chunks,
-      chunk_ids,
+    const output: HierarchyJoinTaskOutput = {
       metadata: enrichedMetadata,
-      scores,
-      count: chunks.length,
+      count: enrichedMetadata.length,
     };
+    if (chunks !== undefined) output.chunks = chunks;
+    if (chunk_ids !== undefined) output.chunk_ids = chunk_ids;
+    if (scores !== undefined) output.scores = scores;
+    return output;
   }
 }
 

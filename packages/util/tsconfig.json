@@ -1,12 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "include": [
-    "src/common.ts",
-    "src/worker-entry.ts",
-    "src/schema-entry.ts",
-    "src/graph-entry.ts",
-    "src/*/**/*"
-  ],
+  "include": ["src/common.ts", "src/*/**/*"],
   "files": [
     "./src/node.ts",
     "./src/browser.ts",

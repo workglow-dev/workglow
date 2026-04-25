@@ -630,10 +630,8 @@ describe("GraphToWorkflowCode", () => {
 
   describe("RAG pipeline workflows", () => {
     const embeddingModel = "onnx:Qwen3-Embedding-0.6B:auto";
-    const rerankerModel = "onnx:Xenova/bge-reranker-base:q8";
     const summaryModel = "onnx:Falconsai/text_summarization:fp32";
     const nerModel = "onnx:onnx-community/NeuroBERT-NER-ONNX:q8";
-    const textGenerationModel = "onnx:Xenova/LaMini-Flan-T5-783M:q8";
     const kbName = "test-kb";
 
     it("should generate code for document ingestion pipeline", () => {
@@ -662,7 +660,6 @@ describe("GraphToWorkflowCode", () => {
         .textEmbedding({
           model: embeddingModel,
         })
-        .chunkToVector()
         .chunkVectorUpsert({
           knowledgeBase: kbName,
         })
@@ -677,7 +674,6 @@ describe("GraphToWorkflowCode", () => {
       expect(code).toContain("documentEnricher");
       expect(code).toContain("hierarchicalChunker");
       expect(code).toContain("textEmbedding");
-      expect(code).toContain("chunkToVector");
       expect(code).toContain("chunkVectorUpsert");
 
       expect(code).toContain('"markdown"');
@@ -701,8 +697,7 @@ describe("GraphToWorkflowCode", () => {
         })
         .reranker({
           query: "What caused the Civil War?",
-          method: "cross-encoder",
-          model: rerankerModel,
+          method: "simple",
           topK: 5,
         })
         .contextBuilder({
@@ -719,8 +714,7 @@ describe("GraphToWorkflowCode", () => {
       expect(code).toContain("reranker");
       expect(code).toContain("contextBuilder");
       expect(code).toContain('"What caused the Civil War?"');
-      expect(code).toContain(`"${rerankerModel}"`);
-      expect(code).toContain('"cross-encoder"');
+      expect(code).toContain('"simple"');
       expect(code).toContain('"numbered"');
     });
 
@@ -752,19 +746,16 @@ describe("GraphToWorkflowCode", () => {
 
     it("should generate code for hybrid retrieval pipeline", () => {
       const workflow = new Workflow()
-        .textEmbedding({
-          text: "test query",
-          model: embeddingModel,
-        })
-        .hybridSearch({
+        .chunkRetrieval({
           knowledgeBase: kbName,
-          queryText: "test query",
+          query: "test query",
+          model: embeddingModel,
+          method: "hybrid",
           topK: 5,
         })
         .reranker({
           query: "test query",
-          method: "cross-encoder",
-          model: rerankerModel,
+          method: "simple",
           topK: 3,
         })
         .contextBuilder({
@@ -775,20 +766,19 @@ describe("GraphToWorkflowCode", () => {
 
       const code = graphToWorkflowCode(workflow.graph);
 
-      expect(code).toContain("textEmbedding");
-      expect(code).toContain("hybridSearch");
+      expect(code).toContain("chunkRetrieval");
       expect(code).toContain("reranker");
       expect(code).toContain("contextBuilder");
       expect(code).toContain('"test query"');
       expect(code).toContain('"markdown"');
+      expect(code).toContain('"hybrid"');
     });
 
     it("should generate code for query expander workflow", () => {
       const workflow = new Workflow().queryExpander({
         query: "What were the major battles?",
-        method: "paraphrase",
+        method: "multi-query",
         numVariations: 3,
-        model: textGenerationModel,
       });
 
       expect(workflow.error).toBe("");
@@ -797,9 +787,8 @@ describe("GraphToWorkflowCode", () => {
 
       expect(code).toContain("queryExpander");
       expect(code).toContain('"What were the major battles?"');
-      expect(code).toContain('"paraphrase"');
+      expect(code).toContain('"multi-query"');
       expect(code).toContain("numVariations: 3");
-      expect(code).toContain(`"${textGenerationModel}"`);
     });
 
     it("should round-trip document ingestion pipeline", () => {
@@ -809,7 +798,6 @@ describe("GraphToWorkflowCode", () => {
         .documentEnricher({})
         .hierarchicalChunker({ maxTokens: 512 })
         .textEmbedding({ model: embeddingModel })
-        .chunkToVector()
         .chunkVectorUpsert({ knowledgeBase: kbName });
 
       const code = graphToWorkflowCode(original.graph, { includeDeclaration: false });
@@ -817,7 +805,7 @@ describe("GraphToWorkflowCode", () => {
 
       const { tasksMatch } = compareGraphStructure(original.graph, rebuilt.graph);
       expect(tasksMatch).toBe(true);
-      expect(rebuilt.graph.getTasks()).toHaveLength(7);
+      expect(rebuilt.graph.getTasks()).toHaveLength(6);
       expect(rebuilt.graph.getDataflows().length).toBeGreaterThan(0);
     });
 
@@ -831,8 +819,7 @@ describe("GraphToWorkflowCode", () => {
         .hierarchyJoin({ knowledgeBase: kbName })
         .reranker({
           query: "test",
-          method: "cross-encoder",
-          model: rerankerModel,
+          method: "simple",
           topK: 5,
         })
         .contextBuilder({ format: "numbered", includeMetadata: true });
@@ -847,16 +834,16 @@ describe("GraphToWorkflowCode", () => {
 
     it("should round-trip hybrid retrieval pipeline", () => {
       const original = new Workflow()
-        .textEmbedding({ text: "test query", model: embeddingModel })
-        .hybridSearch({
+        .chunkRetrieval({
           knowledgeBase: kbName,
-          queryText: "test query",
+          query: "test query",
+          model: embeddingModel,
+          method: "hybrid",
           topK: 5,
         })
         .reranker({
           query: "test query",
-          method: "cross-encoder",
-          model: rerankerModel,
+          method: "simple",
           topK: 3,
         })
         .contextBuilder({ format: "markdown" });

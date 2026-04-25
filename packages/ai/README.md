@@ -516,23 +516,20 @@ The AI package provides a comprehensive set of tasks for building RAG pipelines.
 
 ### Vector and Storage Tasks
 
-| Task                    | Description                                                                              |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| `ChunkToVectorTask`     | Transforms chunks to vector store format (input: `vector` + `chunks`, output: `vectors`) |
-| `ChunkVectorUpsertTask` | Stores vectors in a KnowledgeBase (input: `knowledgeBase` + `vectors`)                   |
-| `ChunkVectorSearchTask` | Searches vectors by similarity                                                           |
-| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency                                                 |
+| Task                    | Description                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------- |
+| `ChunkVectorUpsertTask` | Stores chunks + their embeddings in a KnowledgeBase (input: `chunks` + `vector`)  |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency                                          |
 
 ### Retrieval and Generation Tasks
 
-| Task                          | Description                                   |
-| ----------------------------- | --------------------------------------------- |
-| `QueryExpanderTask`           | Expands queries for better retrieval coverage |
-| `ChunkVectorHybridSearchTask` | Combines vector and full-text search          |
-| `RerankerTask`                | Reranks search results for relevance          |
-| `HierarchyJoinTask`           | Enriches results with parent context          |
-| `ContextBuilderTask`          | Builds context for LLM prompts                |
-| `ChunkRetrievalTask`          | Orchestrates end-to-end retrieval             |
+| Task                 | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| `ChunkRetrievalTask` | End-to-end retrieval: embeds the query, runs similarity or hybrid search |
+| `QueryExpanderTask`  | Expands queries (multi-query / synonyms) for better retrieval coverage   |
+| `RerankerTask`       | Reranks search results (simple heuristic or reciprocal-rank-fusion)      |
+| `HierarchyJoinTask`  | Enriches retrieved metadata with parent summaries, section titles, entities |
+| `ContextBuilderTask` | Builds formatted context for LLM prompts                                 |
 
 ### Complete RAG Workflow Example
 
@@ -600,7 +597,6 @@ await new Workflow()
   .textEmbedding({
     model: "onnx:Xenova/all-MiniLM-L6-v2:q8",
   })
-  .chunkToVector()
   .chunkVectorUpsert({
     knowledgeBase: "my-kb",
   })

@@ -11,9 +11,7 @@ import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 export const QueryExpansionMethod = {
   MULTI_QUERY: "multi-query",
-  HYDE: "hyde",
   SYNONYMS: "synonyms",
-  PARAPHRASE: "paraphrase",
 } as const;
 
 export type QueryExpansionMethod = (typeof QueryExpansionMethod)[keyof typeof QueryExpansionMethod];
@@ -40,11 +38,6 @@ const inputSchema = {
       minimum: 1,
       maximum: 10,
       default: 3,
-    },
-    model: {
-      type: "string",
-      title: "Model",
-      description: "LLM model to use for expansion (for HyDE and paraphrase methods)",
     },
   },
   required: ["query"],
@@ -85,11 +78,10 @@ export type QueryExpanderTaskOutput = FromSchema<typeof outputSchema>;
 export type QueryExpanderTaskConfig = TaskConfig<QueryExpanderTaskInput>;
 
 /**
- * Task for expanding queries to improve retrieval coverage.
- * Supports multiple expansion methods including multi-query, HyDE, and paraphrasing.
- *
- * Note: HyDE and paraphrase methods require an LLM model.
- * For now, this implements simple rule-based expansion.
+ * Rule-based query expansion for improved retrieval recall.
+ * Supports `multi-query` (question-word variations) and `synonyms` (keyword swaps).
+ * Note: LLM-driven methods (HyDE, paraphrase) were removed until a real
+ * implementation lands — use a TextGenerationTask upstream for those.
  */
 export class QueryExpanderTask extends Task<
   QueryExpanderTaskInput,
@@ -117,16 +109,9 @@ export class QueryExpanderTask extends Task<
     const { query, method = QueryExpansionMethod.MULTI_QUERY, numVariations = 3 } = input;
 
     let queries: string[];
-
     switch (method) {
-      case QueryExpansionMethod.HYDE:
-        queries = this.hydeExpansion(query, numVariations);
-        break;
       case QueryExpansionMethod.SYNONYMS:
         queries = this.synonymExpansion(query, numVariations);
-        break;
-      case QueryExpansionMethod.PARAPHRASE:
-        queries = this.paraphraseExpansion(query, numVariations);
         break;
       case QueryExpansionMethod.MULTI_QUERY:
       default:
@@ -134,7 +119,6 @@ export class QueryExpanderTask extends Task<
         break;
     }
 
-    // Always include original query
     if (!queries.includes(query)) {
       queries.unshift(query);
     }
@@ -147,16 +131,10 @@ export class QueryExpanderTask extends Task<
     };
   }
 
-  /**
-   * Multi-query expansion: Generate variations by rephrasing the question
-   */
   private multiQueryExpansion(query: string, numVariations: number): string[] {
     const queries: string[] = [query];
-
-    // Simple rule-based variations
     const variations: string[] = [];
 
-    // Question word variations
     if (query.toLowerCase().startsWith("what")) {
       variations.push(query.replace(/^what/i, "Which"));
       variations.push(query.replace(/^what/i, "Can you explain"));
@@ -171,17 +149,13 @@ export class QueryExpanderTask extends Task<
       variations.push(query.replace(/^where/i, "At what place"));
     }
 
-    // Add "Tell me about" variation
     if (!query.toLowerCase().startsWith("tell me")) {
       variations.push(`Tell me about ${query.toLowerCase()}`);
     }
-
-    // Add "Explain" variation
     if (!query.toLowerCase().startsWith("explain")) {
       variations.push(`Explain ${query.toLowerCase()}`);
     }
 
-    // Take up to numVariations
     for (let i = 0; i < Math.min(numVariations - 1, variations.length); i++) {
       if (variations[i] && !queries.includes(variations[i])) {
         queries.push(variations[i]);
@@ -191,34 +165,9 @@ export class QueryExpanderTask extends Task<
     return queries;
   }
 
-  /**
-   * HyDE (Hypothetical Document Embeddings): Generate hypothetical answers
-   */
-  private hydeExpansion(query: string, numVariations: number): string[] {
-    // TODO: in a real implementation, this would call a model to generate hypothetical answer templates
-    const queries: string[] = [query];
-
-    const templates = [
-      `The answer to "${query}" is that`,
-      `Regarding ${query}, it is important to note that`,
-      `${query} can be explained by the fact that`,
-      `In response to ${query}, one should consider that`,
-    ];
-
-    for (let i = 0; i < Math.min(numVariations - 1, templates.length); i++) {
-      queries.push(templates[i]);
-    }
-
-    return queries;
-  }
-
-  /**
-   * Synonym expansion: Replace keywords with synonyms
-   */
   private synonymExpansion(query: string, numVariations: number): string[] {
     const queries: string[] = [query];
 
-    // Simple synonym dictionary (in production, use a proper thesaurus)
     const synonyms: Record<string, string[]> = {
       find: ["locate", "discover", "search for"],
       create: ["make", "build", "generate"],
@@ -237,18 +186,13 @@ export class QueryExpanderTask extends Task<
 
     for (const [word, syns] of Object.entries(synonyms)) {
       if (variationsGenerated >= numVariations - 1) break;
-
       const wordIndex = words.indexOf(word);
       if (wordIndex !== -1) {
         for (const syn of syns) {
           if (variationsGenerated >= numVariations - 1) break;
-
           const newWords = [...words];
           newWords[wordIndex] = syn;
-          const newQuery = newWords.join(" ");
-
-          // Preserve original capitalization pattern
-          const capitalizedQuery = this.preserveCapitalization(query, newQuery);
+          const capitalizedQuery = this.preserveCapitalization(query, newWords.join(" "));
           if (!queries.includes(capitalizedQuery)) {
             queries.push(capitalizedQuery);
             variationsGenerated++;
@@ -260,33 +204,6 @@ export class QueryExpanderTask extends Task<
     return queries;
   }
 
-  /**
-   * Paraphrase expansion: Rephrase the query
-   * TODO: This should use an LLM for better paraphrasing
-   */
-  private paraphraseExpansion(query: string, numVariations: number): string[] {
-    const queries: string[] = [query];
-
-    // Simple paraphrase templates
-    const paraphrases: string[] = [];
-
-    // Add context
-    paraphrases.push(`I need information about ${query.toLowerCase()}`);
-    paraphrases.push(`Can you help me understand ${query.toLowerCase()}`);
-    paraphrases.push(`I'm looking for details on ${query.toLowerCase()}`);
-
-    for (let i = 0; i < Math.min(numVariations - 1, paraphrases.length); i++) {
-      if (!queries.includes(paraphrases[i])) {
-        queries.push(paraphrases[i]);
-      }
-    }
-
-    return queries;
-  }
-
-  /**
-   * Preserve capitalization pattern from original to new query
-   */
   private preserveCapitalization(original: string, modified: string): string {
     if (original[0] === original[0].toUpperCase()) {
       return modified.charAt(0).toUpperCase() + modified.slice(1);

@@ -40,7 +40,7 @@
     "build-compress": "concurrently -c 'auto' -n 'compress-browser,compress-node' 'bun run build-compress-browser' 'bun run build-compress-node'",
     "build-compress-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/compress-browser.ts",
     "build-compress-node": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist ./src/compress-node.ts",
-    "build-types": "rm -f tsconfig.tsbuildinfo && tsgo",
+    "build-types": "rm -f tsconfig.tsbuildinfo && tsgo && test -f dist/json-schema/FromSchema.d.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "bun test"
   },

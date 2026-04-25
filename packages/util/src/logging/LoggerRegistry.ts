@@ -5,6 +5,7 @@
  */
 
 import { createServiceToken, globalServiceRegistry } from "../di/ServiceRegistry";
+import { readRuntimeEnv } from "../utilities/runtimeEnv";
 import type { LogLevel } from "./ConsoleLogger";
 import { ConsoleLogger } from "./ConsoleLogger";
 import type { ILogger } from "./ILogger";
@@ -23,26 +24,19 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set<string>([
   "fatal",
 ]);
 
-function getEnv(name: string): string | undefined {
-  if (typeof process !== "undefined" && process.env) {
-    return process.env[name];
-  }
-  return import.meta.env[name];
-}
-
 function isTruthy(value: string | undefined): boolean {
   return value !== undefined && value !== "" && value !== "0" && value !== "false";
 }
 
 function createDefaultLogger(): ILogger {
-  const levelEnv = getEnv("LOGGER_LEVEL")?.toLowerCase();
+  const levelEnv = readRuntimeEnv("LOGGER_LEVEL")?.toLowerCase();
   if (levelEnv && VALID_LOG_LEVELS.has(levelEnv)) {
     return new ConsoleLogger({
       level: levelEnv as LogLevel,
-      timings: isTruthy(getEnv("LOGGER_TIMINGS")),
+      timings: isTruthy(readRuntimeEnv("LOGGER_TIMINGS")),
     });
   }
-  if (getEnv("DEV")) {
+  if (isTruthy(readRuntimeEnv("DEV"))) {
     return new ConsoleLogger({
       level: "debug" as LogLevel,
       timings: true,

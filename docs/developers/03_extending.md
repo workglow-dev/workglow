@@ -278,26 +278,23 @@ The `workglow` package provides a comprehensive set of tasks for building RAG (R
 
 ### Vector and Embedding Tasks
 
-| Task                    | Description                                    |
-| ----------------------- | ---------------------------------------------- |
-| `TextEmbeddingTask`     | Generates embeddings using configurable models |
-| `ChunkToVectorTask`     | Transforms chunks to vector store format       |
-| `ChunkVectorUpsertTask` | Stores vectors in a repository                 |
-| `ChunkVectorSearchTask` | Searches vectors by similarity                 |
-| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency       |
+| Task                    | Description                                                                 |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `TextEmbeddingTask`     | Generates embeddings using configurable models                              |
+| `ChunkVectorUpsertTask` | Stores chunks + embeddings in a KnowledgeBase (1:1 aligned)                 |
+| `VectorQuantizeTask`    | Quantizes vectors for storage efficiency                                    |
 
 ### Retrieval and Generation Tasks
 
-| Task                          | Description                                   |
-| ----------------------------- | --------------------------------------------- |
-| `QueryExpanderTask`           | Expands queries for better retrieval coverage |
-| `ChunkVectorHybridSearchTask` | Combines vector and full-text search          |
-| `RerankerTask`                | Reranks search results for relevance          |
-| `HierarchyJoinTask`           | Enriches results with parent context          |
-| `ContextBuilderTask`          | Builds context for LLM prompts                |
-| `ChunkRetrievalTask`          | Orchestrates end-to-end retrieval             |
-| `TextQuestionAnswerTask`      | Generates answers from context                |
-| `TextGenerationTask`          | General text generation                       |
+| Task                     | Description                                                              |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `ChunkRetrievalTask`     | End-to-end retrieval: embeds query, runs similarity or hybrid search     |
+| `QueryExpanderTask`      | Rule-based query expansion (multi-query / synonyms)                      |
+| `RerankerTask`           | Reranks results (simple heuristic or reciprocal-rank-fusion)             |
+| `HierarchyJoinTask`      | Enriches retrieval metadata with parent context                          |
+| `ContextBuilderTask`     | Builds formatted context for LLM prompts                                 |
+| `TextQuestionAnswerTask` | Generates answers from context                                           |
+| `TextGenerationTask`     | General text generation                                                  |
 
 ### Chainable RAG Pipeline Example
 
@@ -332,7 +329,6 @@ await new Workflow()
   .textEmbedding({
     model: "Xenova/all-MiniLM-L6-v2",
   })
-  .chunkToVector()
   .chunkVectorUpsert({
     knowledgeBase: "my-kb",
   })
@@ -393,13 +389,12 @@ interface BaseNode {
 
 Each task passes through what the next task needs:
 
-| Task                  | Passes Through           | Adds                                  |
-| --------------------- | ------------------------ | ------------------------------------- |
-| `structuralParser`    | -                        | `doc_id`, `documentTree`, `nodeCount` |
-| `documentEnricher`    | `doc_id`, `documentTree` | `summaryCount`, `entityCount`         |
-| `hierarchicalChunker` | `doc_id`                 | `chunks`, `text[]`, `count`           |
-| `textEmbedding`       | (implicit)               | `vector[]`                            |
-| `chunkToVector`       | -                        | `ids[]`, `vectors[]`, `metadata[]`    |
-| `chunkVectorUpsert`   | -                        | `count`, `ids`                        |
+| Task                  | Passes Through           | Adds                                      |
+| --------------------- | ------------------------ | ----------------------------------------- |
+| `structuralParser`    | -                        | `doc_id`, `documentTree`, `nodeCount`     |
+| `documentEnricher`    | `doc_id`, `documentTree` | `summaryCount`, `entityCount`             |
+| `hierarchicalChunker` | `doc_id`                 | `chunks: ChunkRecord[]`, `text[]`, `count` |
+| `textEmbedding`       | (implicit)               | `vector[]`                                |
+| `chunkVectorUpsert`   | -                        | `count`, `doc_id`, `chunk_ids`            |
 
 This design eliminates the need for external loops - the entire pipeline chains together naturally.

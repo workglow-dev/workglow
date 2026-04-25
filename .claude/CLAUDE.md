@@ -162,7 +162,7 @@ Model system: `ModelRepository`, `ModelRegistry`, `AiProviderRegistry`.
 
 Task categories: text generation/embedding/summary/translation/rewriting/classification, image classification/embedding/segmentation, RAG (chunking, vector search, retrieval, reranking), vision/pose detection.
 
-RAG tasks: `ChunkToVectorTask` (input: `vector` + `chunks` → output: `vectors`), `ChunkVectorUpsertTask` (input: `knowledgeBase` + `vectors`), `ChunkRetrievalTask` (input: `knowledgeBase` + `query` + `model`), `ChunkVectorSearchTask`, `ChunkVectorHybridSearchTask`, `HierarchyJoinTask`.
+RAG tasks: `ChunkVectorUpsertTask` (input: `knowledgeBase` + `chunks` + `vector`, optional `doc_title`), `ChunkRetrievalTask` (input: `knowledgeBase` + `query` + `model`, with `method: "similarity" | "hybrid"`), `HierarchyJoinTask`, `RerankerTask`, `QueryExpanderTask`, `TextChunkerTask`, `HierarchicalChunkerTask`.
 
 ### `@workglow/ai-provider` — provider implementations
 
