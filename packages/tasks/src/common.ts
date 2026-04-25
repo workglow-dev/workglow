@@ -38,7 +38,6 @@ export * from "./task/image/ImageRotateTask";
 export * from "./task/image/ImageSchemas";
 export * from "./task/image/ImageSepiaTask";
 export * from "./task/image/imageTaskIo";
-export * from "./task/image/imageTaskTransport";
 export * from "./task/image/ImageTextTask";
 export * from "./task/image/ImageThresholdTask";
 export * from "./task/image/ImageTintTask";

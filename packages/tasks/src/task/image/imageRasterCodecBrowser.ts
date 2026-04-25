@@ -15,7 +15,7 @@ import {
   extractDataUriMimeType,
   normalizeOutputMimeType,
 } from "./imageCodecLimits";
-import type { ImageRasterCodec } from "./imageRasterCodecRegistry";
+import type { ImageRasterCodec } from "@workglow/util/media";
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);

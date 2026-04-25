@@ -17,7 +17,7 @@ import {
   extractDataUriMimeType,
   normalizeOutputMimeType,
 } from "./imageCodecLimits";
-import type { ImageRasterCodec } from "./imageRasterCodecRegistry";
+import type { ImageRasterCodec } from "@workglow/util/media";
 
 function expandGrayAlphaToRgba(src: Buffer, width: number, height: number): Uint8ClampedArray {
   const n = width * height;

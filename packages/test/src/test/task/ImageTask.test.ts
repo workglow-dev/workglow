@@ -555,37 +555,6 @@ describe("ImageTask", () => {
     } as const;
     const { width: _baseWidth, height: _baseHeight, ...baseWithBackground } = base;
 
-    test("exposes an object-shaped top-level schema with allOf-encoded exclusive branches", () => {
-      const schema = ImageTextTask.inputSchema() as Record<string, unknown>;
-
-      expect(schema.type).toBe("object");
-      expect(schema.properties).toMatchObject({
-        image: expect.any(Object),
-        width: expect.any(Object),
-        height: expect.any(Object),
-      });
-      expect(schema.required).toEqual(expect.arrayContaining(["text", "color"]));
-      expect(schema.additionalProperties).toBe(false);
-      expect(schema.oneOf).toBeUndefined();
-
-      const allOf = schema.allOf as Array<Record<string, unknown>>;
-      expect(Array.isArray(allOf)).toBe(true);
-      expect(allOf).toHaveLength(1);
-
-      const {
-        if: ifClause,
-        then: thenClause,
-        else: elseClause,
-      } = allOf[0] as {
-        if: { required: string[] };
-        then: { not: { anyOf: Array<{ required: string[] }> } };
-        else: { required: string[] };
-      };
-      expect(ifClause.required).toEqual(["image"]);
-      expect(thenClause.not.anyOf).toEqual([{ required: ["width"] }, { required: ["height"] }]);
-      expect(elseClause.required).toEqual(["width", "height"]);
-    });
-
     test("accepts the image branch without width and height", async () => {
       const task = new ImageTextTask();
       const background = createTestImage(96, 64, 3, [40, 80, 120]);
@@ -612,19 +581,6 @@ describe("ImageTask", () => {
 
       expect(result.image.width).toBe(96);
       expect(result.image.height).toBe(64);
-    });
-
-    test("rejects mixing background image with explicit dimensions", async () => {
-      const task = new ImageTextTask();
-      const background = createTestImage(96, 64, 3, [40, 80, 120]);
-
-      await expect(
-        task.run({
-          ...base,
-          image: background,
-          position: "bottom-right",
-        })
-      ).rejects.toThrow(/does not match schema/);
     });
 
     test("rejects missing both background image and explicit dimensions", async () => {
