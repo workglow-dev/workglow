@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, TaskConfigurationError, TaskError, Workflow } from "@workglow/task-graph";
 import type { IExecuteContext, StreamEvent, TaskConfig } from "@workglow/task-graph";
-import { compileSchema } from "@workglow/util/schema";
+import { CreateWorkflow, TaskConfigurationError, TaskError, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema, SchemaNode } from "@workglow/util/schema";
+import { compileSchema } from "@workglow/util/schema";
 import { TypeModel } from "./base/AiTaskSchemas";
 import { StreamingAiTask } from "./base/StreamingAiTask";
 
@@ -163,6 +163,7 @@ export class StructuredGenerationTask extends StreamingAiTask<
     let validator: SchemaNode;
     try {
       validator = compileSchema(input.outputSchema);
+      if (!input.outputSchema) throw new Error("outputSchema is not a valid JSON Schema");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const configErr = new TaskConfigurationError(
