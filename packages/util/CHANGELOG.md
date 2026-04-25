@@ -1,5 +1,27 @@
 # @workglow/util
 
+## 0.2.15
+
+### Features
+
+#### util/media
+
+- introduce Image class and consolidate image handling
+- add color type system
+
+#### tasks
+
+- add ColorValueSchema and migrate image tasks
+- enhance ImageTextTask input schema and validation
+
+### Chores
+
+- update deps
+
+### Updated Dependencies
+
+- `@sroussey/json-schema-library`: ^11.4.0
+
 ## 0.2.14
 
 ## 0.2.13

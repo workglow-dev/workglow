@@ -1,5 +1,13 @@
 # @workglow/cli
 
+## 0.2.15
+
+### Features
+
+#### task-graph
+
+- dataflow transforms engine with autoConnect refactor
+
 ## 0.2.14
 
 ### Bug Fixes
