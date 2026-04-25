@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Side-effect: registers the image raster codec for AiVisionTask image decoding.
+import "@workglow/tasks";
+
 import {
   getGlobalModelRepository,
   imageClassification,
@@ -14,12 +17,12 @@ import {
   objectDetection,
   setGlobalModelRepository,
 } from "@workglow/ai";
+import type { HfTransformersOnnxModelRecord } from "@workglow/ai-provider/hf-transformers/runtime";
 import {
   clearPipelineCache,
   HF_TRANSFORMERS_ONNX,
   registerHuggingFaceTransformersInline,
 } from "@workglow/ai-provider/hf-transformers/runtime";
-import type { HfTransformersOnnxModelRecord } from "@workglow/ai-provider/hf-transformers/runtime";
 import { getTaskQueueRegistry, setTaskQueueRegistry } from "@workglow/task-graph";
 import { setLogger } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
