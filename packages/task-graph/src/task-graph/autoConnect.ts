@@ -35,6 +35,12 @@ export function autoConnect(
     readonly connectedInputKeys?: Set<string>;
     /** Earlier tasks to search for unmatched required inputs (in reverse chronological order) */
     readonly earlierTasks?: readonly ITask[];
+    /**
+     * When true, skip `graph.addDataflow(...)` side effects and return matches
+     * only. Used by callers (e.g. the builder's proximity auto-connect) that
+     * need to know what *would* be connected without mutating the graph.
+     */
+    readonly dryRun?: boolean;
   }
 ): {
   readonly matches: Map<string, string>;
@@ -47,6 +53,10 @@ export function autoConnect(
   const providedInputKeys = options?.providedInputKeys ?? new Set<string>();
   const connectedInputKeys = options?.connectedInputKeys ?? new Set<string>();
   const earlierTasks = options?.earlierTasks ?? [];
+  const dryRun = options?.dryRun ?? false;
+  const addDataflow = (df: Dataflow): void => {
+    if (!dryRun) graph.addDataflow(df);
+  };
 
   /**
    * Extracts specific type identifiers (format, $id) from a schema,
@@ -177,9 +187,7 @@ export function autoConnect(
           for (const fromOutputPortId of outputKeys) {
             if (matches.has(fromOutputPortId)) continue;
             matches.set(fromOutputPortId, fromOutputPortId);
-            graph.addDataflow(
-              new Dataflow(fromTaskId, fromOutputPortId, toTaskId, fromOutputPortId)
-            );
+            addDataflow(new Dataflow(fromTaskId, fromOutputPortId, toTaskId, fromOutputPortId));
           }
         } else if (fromSchema.additionalProperties === true) {
           // For passthrough tasks with no named output ports, infer output
@@ -197,7 +205,7 @@ export function autoConnect(
               if (matches.has(portId)) continue;
               if (connectedInputKeys.has(portId)) continue;
               matches.set(portId, portId);
-              graph.addDataflow(new Dataflow(fromTaskId, portId, toTaskId, portId));
+              addDataflow(new Dataflow(fromTaskId, portId, toTaskId, portId));
             }
           }
         }
@@ -216,7 +224,7 @@ export function autoConnect(
         if (matches.has(toInputPortId)) continue;
         if (connectedInputKeys.has(toInputPortId)) continue;
         matches.set(toInputPortId, toInputPortId);
-        graph.addDataflow(new Dataflow(fromTaskId, toInputPortId, toTaskId, toInputPortId));
+        addDataflow(new Dataflow(fromTaskId, toInputPortId, toTaskId, toInputPortId));
       }
       return;
     }
@@ -258,7 +266,7 @@ export function autoConnect(
       }
 
       matches.set(toInputPortId, winner);
-      graph.addDataflow(new Dataflow(fromTaskId, winner, toTaskId, toInputPortId));
+      addDataflow(new Dataflow(fromTaskId, winner, toTaskId, toInputPortId));
     }
   };
 
@@ -339,7 +347,7 @@ export function autoConnect(
           // If schema is manual, only connect ports that exist in the explicit schema
           if (inputProperties && !inputProperties.has(requiredInputId)) continue;
           matches.set(requiredInputId, requiredInputId);
-          graph.addDataflow(
+          addDataflow(
             new Dataflow(earlierTask.id, requiredInputId, targetTask.id, requiredInputId)
           );
         }
@@ -372,7 +380,7 @@ export function autoConnect(
               )
             ) {
               matches.set(requiredInputId, fromOutputPortId);
-              graph.addDataflow(
+              addDataflow(
                 new Dataflow(earlierTask.id, fromOutputPortId, targetTask.id, requiredInputId)
               );
             }

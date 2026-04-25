@@ -6,18 +6,19 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
   Task,
-  TaskConfig,
   Workflow,
+  type IExecuteReactiveContext,
+  type TaskConfig,
 } from "@workglow/task-graph";
-import { DataPortSchema } from "@workglow/util/schema";
+import type { RgbaImageBinary } from "@workglow/util/media";
+import type { DataPortSchema } from "@workglow/util/schema";
 import { ColorSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
 import {
   IMAGE_TEXT_ANCHOR_POSITIONS,
-  type ImageTextAnchorPosition,
   renderImageTextToRgba,
+  type ImageTextAnchorPosition,
 } from "./imageTextRender";
 
 function toRgbaImage(image: {
@@ -25,12 +26,7 @@ function toRgbaImage(image: {
   readonly width: number;
   readonly height: number;
   readonly channels: number;
-}): {
-  readonly data: Uint8ClampedArray;
-  readonly width: number;
-  readonly height: number;
-  readonly channels: 4;
-} {
+}): RgbaImageBinary {
   const { data, width, height, channels } = image;
   const rgba = new Uint8ClampedArray(width * height * 4);
   if (channels === 4) {
@@ -72,12 +68,7 @@ function compositeTextOverBackground(
     readonly height: number;
     readonly channels: number;
   }
-): {
-  readonly data: Uint8ClampedArray;
-  readonly width: number;
-  readonly height: number;
-  readonly channels: 4;
-} {
+): RgbaImageBinary {
   if (background.width !== overlay.width || background.height !== overlay.height) {
     throw new Error("ImageTextTask: background and text overlay dimensions must match");
   }
@@ -114,22 +105,6 @@ function compositeTextOverBackground(
   return { data: out, width: bg.width, height: bg.height, channels: 4 };
 }
 
-function hasUsableBackgroundImage(value: unknown): value is ImageTextTaskInput["image"] {
-  if (typeof value === "string") {
-    return value.length > 0;
-  }
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.width === "number" &&
-    typeof candidate.height === "number" &&
-    typeof candidate.channels === "number" &&
-    candidate.data !== undefined
-  );
-}
-
 const IMAGE_TEXT_POSITION_LABELS: Record<ImageTextAnchorPosition, string> = {
   "top-left": "Top left",
   "top-center": "Top center",
@@ -142,17 +117,19 @@ const IMAGE_TEXT_POSITION_LABELS: Record<ImageTextAnchorPosition, string> = {
   "bottom-right": "Bottom right",
 };
 
+const backgroundImageProperty = ImageBinaryOrDataUriSchema({
+  title: "Image",
+  description: "Background image to render the text onto",
+});
+
 const inputSchema = {
   type: "object",
   properties: {
-    image: ImageBinaryOrDataUriSchema({
-      title: "Image",
-      description: "Optional background image to render the text onto",
-    }),
     text: {
       type: "string",
       title: "Text",
       description: "Text to render (use \\n for line breaks)",
+      minLength: 1,
     },
     font: {
       type: "string",
@@ -170,6 +147,15 @@ const inputSchema = {
     bold: { type: "boolean", title: "Bold", default: false },
     italic: { type: "boolean", title: "Italic", default: false },
     color: ColorSchema({ title: "Color", description: "Text color" }),
+    position: {
+      type: "string",
+      title: "Position",
+      description: "Anchor position of the text block within the image",
+      enum: [...IMAGE_TEXT_ANCHOR_POSITIONS],
+      default: "middle-center",
+      "x-ui-enum-labels": IMAGE_TEXT_POSITION_LABELS,
+    },
+    image: backgroundImageProperty,
     width: {
       type: "integer",
       title: "Width",
@@ -182,17 +168,17 @@ const inputSchema = {
       description: "Output height in pixels",
       minimum: 1,
     },
-    position: {
-      type: "string",
-      title: "Position",
-      description: "Anchor position of the text block within the image",
-      enum: [...IMAGE_TEXT_ANCHOR_POSITIONS],
-      default: "middle-center",
-      "x-ui-enum-labels": IMAGE_TEXT_POSITION_LABELS,
+  },
+  required: ["text", "color"],
+  additionalProperties: false,
+  if: {
+    not: {
+      required: ["image"],
     },
   },
-  required: ["text", "color", "width", "height"],
-  additionalProperties: false,
+  then: {
+    required: ["width", "height"],
+  },
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
@@ -207,6 +193,22 @@ const outputSchema = {
 export type ImageTextTaskInput = ImageFromSchema<typeof inputSchema>;
 export type ImageTextTaskOutput = ImageFromSchema<typeof outputSchema>;
 
+function hasUsableBackgroundImage(value: unknown): value is ImageTextTaskInput["image"] {
+  if (typeof value === "string") {
+    return value.length > 0;
+  }
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.width === "number" &&
+    typeof candidate.height === "number" &&
+    typeof candidate.channels === "number" &&
+    candidate.data !== undefined
+  );
+}
+
 export class ImageTextTask<
   Input extends ImageTextTaskInput = ImageTextTaskInput,
   Output extends ImageTextTaskOutput = ImageTextTaskOutput,
@@ -218,18 +220,20 @@ export class ImageTextTask<
   public static override description =
     "Renders text onto a transparent RGBA image or overlays it on an optional background image";
 
-  static override inputSchema() {
+  static override inputSchema(): DataPortSchema {
     return inputSchema;
   }
 
-  static override outputSchema() {
+  static override outputSchema(): DataPortSchema {
     return outputSchema;
   }
 
   override getDefaultInputsFromStaticInputDefinitions(): Partial<Input> {
-    const defaults = super.getDefaultInputsFromStaticInputDefinitions();
-    delete (defaults as { image?: unknown }).image;
-    return defaults;
+    const defaults = super.getDefaultInputsFromStaticInputDefinitions() as Record<string, unknown>;
+    delete defaults.image;
+    delete defaults.width;
+    delete defaults.height;
+    return defaults as Partial<Input>;
   }
 
   override async executeReactive(
@@ -243,36 +247,45 @@ export class ImageTextTask<
     const italic = input.italic ?? false;
     const position = (input.position ?? "middle-center") as ImageTextAnchorPosition;
 
-    const renderParams = {
-      text: input.text,
-      font,
-      fontSize,
-      bold,
-      italic,
-      color: input.color,
-      width: input.width,
-      height: input.height,
-      position,
-    };
-
-    const backgroundImage = input.image;
+    const backgroundImage = "image" in input ? input.image : undefined;
     let image: ImageTextTaskOutput["image"];
     if (hasUsableBackgroundImage(backgroundImage)) {
-      const validatedBackgroundImage = backgroundImage as Exclude<
-        typeof backgroundImage,
-        undefined
-      >;
-      image = await produceImageOutput(validatedBackgroundImage, async (background) => {
-        if (background.width !== input.width || background.height !== input.height) {
-          throw new Error(
-            `ImageTextTask: background image dimensions (${background.width}x${background.height}) must match width/height (${input.width}x${input.height})`
-          );
-        }
-        const overlay = await renderImageTextToRgba(renderParams);
+      image = await produceImageOutput(backgroundImage!, async (background) => {
+        const overlay = await renderImageTextToRgba({
+          text: input.text,
+          font,
+          fontSize,
+          bold,
+          italic,
+          color: input.color,
+          width: background.width,
+          height: background.height,
+          position,
+        });
         return compositeTextOverBackground(background, overlay);
       });
     } else {
-      image = await renderImageTextToRgba(renderParams);
+      if (
+        !("width" in input) ||
+        !("height" in input) ||
+        typeof input.width !== "number" ||
+        typeof input.height !== "number"
+      ) {
+        throw new Error(
+          "ImageTextTask: width and height are required when no background image is provided"
+        );
+      }
+      image = await renderImageTextToRgba({
+        text: input.text,
+        font,
+        fontSize,
+        bold,
+        italic,
+        color: input.color,
+        width: input.width,
+        height: input.height,
+        position,
+      });
     }
     return { image } as Output;
   }
