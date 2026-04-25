@@ -28,10 +28,22 @@ export type ContentBlockToolUse = {
   readonly input: Record<string, unknown>;
 };
 
+/**
+ * Blocks that may appear in a `tool_result`'s `content` array. Provider payloads
+ * typically use text, image, and tool_use; nested `tool_result` is not modeled
+ * here so the JSON schema can be embedded in parent task schemas without a
+ * recursive `$ref` (which fails to resolve when `ContentBlockSchema` is nested
+ * under a larger document such as `ToolCallingInputSchema`).
+ */
+export type ContentBlockInToolResultBody =
+  | ContentBlockText
+  | ContentBlockImage
+  | ContentBlockToolUse;
+
 export type ContentBlockToolResult = {
   readonly type: "tool_result";
   readonly tool_use_id: string;
-  readonly content: ReadonlyArray<ContentBlock>;
+  readonly content: ReadonlyArray<ContentBlockInToolResultBody>;
   readonly is_error: boolean | undefined;
 };
 
@@ -89,8 +101,11 @@ const ContentBlockToolUseSchema = {
   additionalProperties: false,
 } as const;
 
-// tool_result is recursive — its `content` is an array of ContentBlock.
-// The $ref resolves against ContentBlockSchema.definitions.ContentBlock below.
+/** `tool_result.content` — text, image, and tool_use only (no nested `tool_result`). */
+const ContentBlockInToolResultBodySchema = {
+  oneOf: [ContentBlockTextSchema, ContentBlockImageSchema, ContentBlockToolUseSchema],
+} as const;
+
 const ContentBlockToolResultSchema = {
   type: "object",
   properties: {
@@ -98,7 +113,7 @@ const ContentBlockToolResultSchema = {
     tool_use_id: { type: "string" },
     content: {
       type: "array",
-      items: { $ref: "#/definitions/ContentBlock" },
+      items: ContentBlockInToolResultBodySchema,
     },
     is_error: { type: "boolean" },
   },
@@ -115,16 +130,6 @@ export const ContentBlockSchema = {
     ContentBlockToolUseSchema,
     ContentBlockToolResultSchema,
   ],
-  definitions: {
-    ContentBlock: {
-      oneOf: [
-        ContentBlockTextSchema,
-        ContentBlockImageSchema,
-        ContentBlockToolUseSchema,
-        ContentBlockToolResultSchema,
-      ],
-    },
-  },
   title: "ContentBlock",
   description: "A single content block within a chat message",
 } as const;
@@ -148,6 +153,28 @@ export const ChatMessageSchema = {
 // Runtime type guards
 // ========================================================================
 
+export function isContentBlockInToolResultBody(
+  value: unknown
+): value is ContentBlockInToolResultBody {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  switch (v.type) {
+    case "text":
+      return typeof v.text === "string";
+    case "image":
+      return typeof v.mimeType === "string" && typeof v.data === "string";
+    case "tool_use":
+      return (
+        typeof v.id === "string" &&
+        typeof v.name === "string" &&
+        v.input !== null &&
+        typeof v.input === "object"
+      );
+    default:
+      return false;
+  }
+}
+
 export function isContentBlock(value: unknown): value is ContentBlock {
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
@@ -167,7 +194,7 @@ export function isContentBlock(value: unknown): value is ContentBlock {
       return (
         typeof v.tool_use_id === "string" &&
         Array.isArray(v.content) &&
-        v.content.every(isContentBlock)
+        v.content.every(isContentBlockInToolResultBody)
       );
     default:
       return false;

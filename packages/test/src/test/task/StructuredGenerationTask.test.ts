@@ -323,10 +323,10 @@ describe("StructuredGenerationTask — schema compile errors", () => {
       outputSchema: null as unknown as Record<string, unknown>,
       maxRetries: 0,
     };
-    const task = new StructuredGenerationTask({ defaults: input } as any);
+    const task = new StructuredGenerationTask({ defaults: input });
     let caught: unknown;
     try {
-      await drain(task.executeStream(input as any, mkContext()));
+      await drain(task.executeStream(input, mkContext()));
     } catch (e) {
       caught = e;
     }
