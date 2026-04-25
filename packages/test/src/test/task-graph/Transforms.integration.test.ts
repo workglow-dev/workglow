@@ -56,10 +56,7 @@ describe("Transforms end-to-end", () => {
   it("round-trips transforms through dataflow serialization", () => {
     // Test Dataflow.toJSON() directly — no graph needed for serialization.
     const df = new Dataflow("a", "out", "b", "in");
-    df.setTransforms([
-      { id: "pick", params: { path: "x" } },
-      { id: "uppercase" },
-    ]);
+    df.setTransforms([{ id: "pick", params: { path: "x" } }, { id: "uppercase" }]);
 
     const json = df.toJSON();
 

@@ -42,9 +42,9 @@ describe("Subgraph cycle guard", () => {
     const sub = whileTask.subGraph;
     const [taskA, taskB] = sub.getTasks();
 
-    expect(() =>
-      sub.addDataflow(new Dataflow(taskB.id, "value", taskA.id, "value"))
-    ).toThrow(CycleError);
+    expect(() => sub.addDataflow(new Dataflow(taskB.id, "value", taskA.id, "value"))).toThrow(
+      CycleError
+    );
   });
 
   it("validateAcyclic() is a no-op on a healthy loop subgraph and runs cheaply", () => {

@@ -105,7 +105,9 @@ export function isHexColor(value: unknown): value is string {
  * `a` to 255. Throws on anything that's neither a valid hex string nor a valid
  * color object.
  */
-export function resolveColor(value: string | ColorObject): ColorObject {
+export function resolveColor(
+  value: string | { r: number; g: number; b: number; a?: number }
+): ColorObject {
   if (typeof value === "string") return parseHexColor(value);
   if (!isColorObject(value)) {
     throw new Error(`Invalid color value: ${JSON.stringify(value)}`);

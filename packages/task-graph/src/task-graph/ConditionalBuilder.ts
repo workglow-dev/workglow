@@ -107,16 +107,12 @@ export class ConditionalBuilder {
 
     const thenTask = instantiate(this.thenSpec);
     this.workflow.graph.addTask(thenTask);
-    this.workflow.graph.addDataflow(
-      new Dataflow(conditionalTask.id, thenPort, thenTask.id, "*")
-    );
+    this.workflow.graph.addDataflow(new Dataflow(conditionalTask.id, thenPort, thenTask.id, "*"));
 
     if (this.elseSpec) {
       const elseTask = instantiate(this.elseSpec);
       this.workflow.graph.addTask(elseTask);
-      this.workflow.graph.addDataflow(
-        new Dataflow(conditionalTask.id, elsePort, elseTask.id, "*")
-      );
+      this.workflow.graph.addDataflow(new Dataflow(conditionalTask.id, elsePort, elseTask.id, "*"));
     }
 
     return this.workflow;

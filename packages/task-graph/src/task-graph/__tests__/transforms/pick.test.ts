@@ -13,9 +13,7 @@ describe("pick transform", () => {
   });
 
   it("applies a dotted path", async () => {
-    expect(
-      await pickTransform.apply({ user: { id: 42 } }, { path: "user.id" }),
-    ).toBe(42);
+    expect(await pickTransform.apply({ user: { id: 42 } }, { path: "user.id" })).toBe(42);
   });
 
   it("returns undefined when path is missing", async () => {

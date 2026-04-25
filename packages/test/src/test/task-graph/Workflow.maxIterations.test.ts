@@ -25,7 +25,10 @@ describe("Workflow loop methods default maxIterations to 'unbounded'", () => {
 
   it(".while() without maxIterations does not throw", () => {
     expect(() => {
-      new Workflow().while({ condition: () => false }).addTask(TestSimpleTask).endWhile();
+      new Workflow()
+        .while({ condition: () => false })
+        .addTask(TestSimpleTask)
+        .endWhile();
     }).not.toThrow();
   });
 

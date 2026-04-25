@@ -289,9 +289,7 @@ export class Dataflow {
       this.value = cur;
     } catch (e) {
       const error =
-        e instanceof TaskError
-          ? e
-          : new TaskError(e instanceof Error ? e.message : String(e));
+        e instanceof TaskError ? e : new TaskError(e instanceof Error ? e.message : String(e));
       if (!(e instanceof TaskError) && e instanceof Error && e.stack) {
         error.stack = e.stack;
       }

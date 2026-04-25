@@ -37,10 +37,19 @@ describe("TransformRegistry", () => {
   it("registerBuiltInTransforms registers all 13 MVP built-ins", () => {
     registerBuiltInTransforms();
     const ids = [
-      "pick", "index", "coalesce",
-      "uppercase", "lowercase", "truncate", "substring",
-      "unixToIsoDate", "isoDateToUnix",
-      "numberToString", "toBoolean", "stringify", "parseJson",
+      "pick",
+      "index",
+      "coalesce",
+      "uppercase",
+      "lowercase",
+      "truncate",
+      "substring",
+      "unixToIsoDate",
+      "isoDateToUnix",
+      "numberToString",
+      "toBoolean",
+      "stringify",
+      "parseJson",
     ];
     for (const id of ids) {
       expect(TransformRegistry.all.has(id), `missing ${id}`).toBe(true);
