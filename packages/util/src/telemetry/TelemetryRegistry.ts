@@ -5,6 +5,7 @@
  */
 
 import { createServiceToken, globalServiceRegistry } from "../di/ServiceRegistry";
+import { readRuntimeEnv } from "../utilities/runtimeEnv";
 import { ConsoleTelemetryProvider } from "./ConsoleTelemetryProvider";
 import type { ITelemetryProvider } from "./ITelemetryProvider";
 import { NoopTelemetryProvider } from "./NoopTelemetryProvider";
@@ -14,26 +15,19 @@ import { NoopTelemetryProvider } from "./NoopTelemetryProvider";
  */
 export const TELEMETRY_PROVIDER = createServiceToken<ITelemetryProvider>("telemetry");
 
-function getEnv(name: string): string | undefined {
-  if (typeof process !== "undefined" && process.env) {
-    return process.env[name];
-  }
-  return import.meta.env[name];
-}
-
 function isTruthy(value: string | undefined): boolean {
   return value !== undefined && value !== "" && value !== "0" && value !== "false";
 }
 
 function createDefaultTelemetryProvider(): ITelemetryProvider {
-  if (getEnv("TELEMETRY")?.toLowerCase() === "console") {
+  if (readRuntimeEnv("TELEMETRY")?.toLowerCase() === "console") {
     return new ConsoleTelemetryProvider();
   }
   if (
-    isTruthy(getEnv("DEV")) &&
-    getEnv("NODE_ENV") !== "test" &&
-    !isTruthy(getEnv("VITEST")) &&
-    !isTruthy(getEnv("CI"))
+    isTruthy(readRuntimeEnv("DEV")) &&
+    readRuntimeEnv("NODE_ENV") !== "test" &&
+    !isTruthy(readRuntimeEnv("VITEST")) &&
+    !isTruthy(readRuntimeEnv("CI"))
   ) {
     return new ConsoleTelemetryProvider();
   }
