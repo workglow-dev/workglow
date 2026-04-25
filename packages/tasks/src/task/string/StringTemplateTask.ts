@@ -35,13 +35,13 @@ const inputSchema = {
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    text: {
       type: "string",
-      title: "Result",
+      title: "Text",
       description: "Template with placeholders replaced by values",
     },
   },
-  required: ["result"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -76,11 +76,11 @@ export class StringTemplateTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    let result = input.template;
+    let text = input.template;
     for (const [key, value] of Object.entries(input.values)) {
-      result = result.replaceAll(`{{${key}}}`, String(value));
+      text = text.replaceAll(`{{${key}}}`, String(value));
     }
-    return { result } as Output;
+    return { text } as Output;
   }
 }
 

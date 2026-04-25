@@ -16,9 +16,9 @@ import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 const inputSchema = {
   type: "object",
   properties: {
-    value: {
+    text: {
       type: "string",
-      title: "Value",
+      title: "Text",
       description: "Input string",
     },
     search: {
@@ -32,20 +32,20 @@ const inputSchema = {
       description: "Replacement string",
     },
   },
-  required: ["value", "search", "replace"],
+  required: ["text", "search", "replace"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    text: {
       type: "string",
-      title: "Result",
+      title: "Text",
       description: "String with all occurrences replaced",
     },
   },
-  required: ["result"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -75,7 +75,7 @@ export class StringReplaceTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    return { result: input.value.replaceAll(input.search, input.replace) } as Output;
+    return { text: input.text.replaceAll(input.search, input.replace) } as Output;
   }
 }
 

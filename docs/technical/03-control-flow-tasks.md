@@ -208,7 +208,8 @@ interface MapTaskConfig extends IteratorTaskConfig {
   flatten?: boolean;           // Flatten nested arrays in results (default: false)
   concurrencyLimit?: number;   // Max concurrent iterations
   batchSize?: number;          // Items per batch
-  maxIterations: IterationBound; // REQUIRED — positive integer or "unbounded"
+  maxIterations: IterationBound; // Required on the raw class; the fluent
+                                 // Workflow builder defaults it to "unbounded".
 }
 ```
 
@@ -216,7 +217,7 @@ interface MapTaskConfig extends IteratorTaskConfig {
 
 ```typescript
 const workflow = new Workflow()
-  .map({ maxIterations: "unbounded" })    // Start map loop (required: bound)
+  .map()                                  // maxIterations defaults to "unbounded"
     .addTask(new FetchUrlTask())
     .pipe(new ExtractTextTask())
   .endMap();                              // Close map loop
@@ -276,7 +277,8 @@ await workflow.run({ text: [] });
 ```typescript
 interface ReduceTaskConfig extends IteratorTaskConfig {
   initialValue?: unknown;          // Starting value for the accumulator
-  maxIterations: IterationBound;   // REQUIRED — inherited from IteratorTaskConfig
+  maxIterations: IterationBound;   // Required on the raw class; the fluent
+                                   // Workflow builder defaults it to "unbounded".
 }
 ```
 
@@ -288,7 +290,7 @@ Unlike MapTask, ReduceTask does **not** wrap output properties in arrays. The ou
 
 ```typescript
 const workflow = new Workflow()
-  .reduce({ initialValue: { total: 0 }, maxIterations: "unbounded" })
+  .reduce({ initialValue: { total: 0 } })      // maxIterations defaults to "unbounded"
     .addTask(new SumTask())
   .endReduce();
 
@@ -365,7 +367,8 @@ WhileTask injects an `_iterationIndex` property into each iteration's input. Unl
 ```typescript
 interface WhileTaskConfig extends GraphAsTaskConfig {
   condition?: (output: Output, iteration: number) => boolean;
-  maxIterations: IterationBound; // REQUIRED — positive integer or "unbounded"
+  maxIterations: IterationBound; // Required on the raw class; the fluent
+                                 // Workflow builder defaults it to "unbounded".
   chainIterations?: boolean;     // Pass output as next input (default: true)
   conditionField?: string;       // Serializable: field to check
   conditionOperator?: string;    // Serializable: comparison operator

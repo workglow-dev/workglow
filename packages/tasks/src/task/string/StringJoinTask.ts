@@ -16,10 +16,10 @@ import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 const inputSchema = {
   type: "object",
   properties: {
-    values: {
+    texts: {
       type: "array",
       items: { type: "string" },
-      title: "Values",
+      title: "Texts",
       description: "Array of strings to join",
     },
     separator: {
@@ -29,20 +29,20 @@ const inputSchema = {
       default: "",
     },
   },
-  required: ["values"],
+  required: ["texts"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    text: {
       type: "string",
-      title: "Result",
+      title: "Text",
       description: "Joined string",
     },
   },
-  required: ["result"],
+  required: ["text"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -73,7 +73,7 @@ export class StringJoinTask<
     _context: IExecuteReactiveContext
   ): Promise<Output> {
     const separator = input.separator ?? "";
-    return { result: input.values.join(separator) } as Output;
+    return { text: input.texts.join(separator) } as Output;
   }
 }
 

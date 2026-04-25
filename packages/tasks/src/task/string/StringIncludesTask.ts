@@ -16,9 +16,9 @@ import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 const inputSchema = {
   type: "object",
   properties: {
-    value: {
+    text: {
       type: "string",
-      title: "Value",
+      title: "Text",
       description: "Input string to search in",
     },
     search: {
@@ -27,20 +27,20 @@ const inputSchema = {
       description: "Substring to search for",
     },
   },
-  required: ["value", "search"],
+  required: ["text", "search"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
 const outputSchema = {
   type: "object",
   properties: {
-    result: {
+    included: {
       type: "boolean",
-      title: "Result",
+      title: "Included",
       description: "Whether the string contains the search substring",
     },
   },
-  required: ["result"],
+  required: ["included"],
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
@@ -70,7 +70,7 @@ export class StringIncludesTask<
     _output: Output,
     _context: IExecuteReactiveContext
   ): Promise<Output> {
-    return { result: input.value.includes(input.search) } as Output;
+    return { included: input.text.includes(input.search) } as Output;
   }
 }
 

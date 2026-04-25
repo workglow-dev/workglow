@@ -477,13 +477,22 @@ export class TaskGraphRunner {
   protected async pushOutputFromNodeToEdges(node: ITask, results: TaskOutput) {
     const dataflows = this.graph.getTargetDataflows(node.id);
     for (const dataflow of dataflows) {
-      const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow);
+      // Edges with an active stream have their final value materialised by the
+      // downstream task's awaitStreamInputs (which uses Dataflow.awaitStreamValue
+      // to read the raw snapshot/finish data and then applies transforms).
+      // Setting port data here would be overwritten by the finish event, and
+      // applying transforms again on this path would double-apply
+      // non-idempotent transforms, so skip the whole post-materialisation step.
+      if (dataflow.stream !== undefined) continue;
+      const compatibility = dataflow.semanticallyCompatible(this.graph, dataflow, this.registry);
       if (compatibility === "static") {
         dataflow.setPortData(results);
+        await dataflow.applyTransforms(this.registry);
       } else if (compatibility === "runtime") {
         const task = this.graph.getTask(dataflow.targetTaskId)!;
         const narrowed = await task.narrowInput({ ...results }, this.registry);
         dataflow.setPortData(narrowed);
+        await dataflow.applyTransforms(this.registry);
       } else {
         // Warn only when we had data to push; empty results (e.g. progress mid-run) are expected
         const resultsKeys = Object.keys(results);
@@ -524,6 +533,9 @@ export class TaskGraphRunner {
       const activeBranches = node.getActiveBranches();
 
       for (const dataflow of dataflows) {
+        // Preserve FAILED edges (e.g. transform chain failure) rather than
+        // overwriting with the source task's completion status.
+        if (dataflow.status === TaskStatus.FAILED) continue;
         const branchId = portToBranch.get(dataflow.sourceTaskPortId);
         if (branchId !== undefined) {
           // This dataflow is from a branch port
@@ -547,6 +559,9 @@ export class TaskGraphRunner {
 
     // Default behavior for non-conditional tasks
     dataflows.forEach((dataflow) => {
+      // Preserve FAILED edges (e.g. transform chain failure) rather than
+      // overwriting with the source task's completion status.
+      if (dataflow.status === TaskStatus.FAILED) return;
       dataflow.setStatus(effectiveStatus);
     });
   }
@@ -789,12 +804,19 @@ export class TaskGraphRunner {
    */
   protected async awaitStreamInputs(task: ITask): Promise<void> {
     const dataflows = this.graph.getSourceDataflows(task.id);
-    const streamPromises = dataflows
-      .filter((df) => df.stream !== undefined)
-      .map((df) => df.awaitStreamValue());
-    if (streamPromises.length > 0) {
-      await Promise.all(streamPromises);
-    }
+    const streamingDataflows = dataflows.filter((df) => df.stream !== undefined);
+    if (streamingDataflows.length === 0) return;
+    await Promise.all(
+      streamingDataflows.map(async (df) => {
+        await df.awaitStreamValue();
+        // awaitStreamValue sets port data from the raw finish/snapshot event.
+        // Apply the edge's transform chain over the materialised value so the
+        // downstream task receives the transformed result. This is the sole
+        // transform application for streaming edges (pushOutputFromNodeToEdges
+        // deliberately skips them to avoid double-apply).
+        await df.applyTransforms(this.registry);
+      })
+    );
   }
 
   /**
