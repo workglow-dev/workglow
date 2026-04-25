@@ -1,5 +1,17 @@
 # @workglow/web
 
+## 0.2.15
+
+### Chores
+
+- update deps
+
+### Updated Dependencies
+
+- `@tailwindcss/vite`: ^4.2.4
+- `tailwindcss`: ^4.2.4
+- `vite`: ^8.0.10
+
 ## 0.2.14
 
 ## 0.2.13

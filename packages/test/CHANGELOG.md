@@ -1,5 +1,39 @@
 # @workglow/test
 
+## 0.2.15
+
+### Features
+
+#### util/media
+
+- introduce Image class and consolidate image handling
+- add color type system
+
+#### tasks
+
+- add ColorValueSchema and migrate image tasks
+- enhance ImageTextTask input schema and validation
+
+#### task-graph
+
+- dataflow transforms engine with autoConnect refactor
+
+### Bug Fixes
+
+- add validation for outputSchema in StructuredGenerationTask, changes to tool use schema
+
+### Chores
+
+- update deps
+
+#### tests
+
+- align timeout settings across Vitest and Bun
+
+### Updated Dependencies
+
+- `vitest`: ^4.1.5
+
 ## 0.2.14
 
 ### Features

@@ -1,5 +1,22 @@
 # @workglow/tasks
 
+## 0.2.15
+
+### Features
+
+#### util/media
+
+- introduce Image class and consolidate image handling
+
+#### tasks
+
+- add ColorValueSchema and migrate image tasks
+- enhance ImageTextTask input schema and validation
+
+#### task-graph
+
+- dataflow transforms engine with autoConnect refactor
+
 ## 0.2.14
 
 ### Bug Fixes

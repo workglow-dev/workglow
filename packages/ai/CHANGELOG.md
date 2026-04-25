@@ -1,5 +1,17 @@
 # @workglow/ai
 
+## 0.2.15
+
+### Features
+
+#### util/media
+
+- introduce Image class and consolidate image handling
+
+### Bug Fixes
+
+- add validation for outputSchema in StructuredGenerationTask, changes to tool use schema
+
 ## 0.2.14
 
 ### Tests
