@@ -569,8 +569,8 @@ describe("GraphAsTask Dynamic Schema", () => {
     });
   });
 
-  describe("Reactive Execution Input Propagation", () => {
-    it("should pass input to subgraph runReactive", async () => {
+  describe("Preview Execution Input Propagation", () => {
+    it("should pass input to subgraph runPreview", async () => {
       // Create a subgraph with just an InputTask -> OutputTask
       const subGraph = new TaskGraph();
       const inputTask = new GraphAsTask_InputTask({ id: "input" });

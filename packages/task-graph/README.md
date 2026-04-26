@@ -138,7 +138,8 @@ console.log(second); // { result: 60 }
 Tasks are the fundamental units of work. Each task:
 
 - Defines input/output schemas using JSON Schema (from `@workglow/util`), TypeBox, or Zod
-- Implements `execute()` for main logic or `executeReactive()` for UI updates
+- Implements `execute()` for main logic; optionally `executePreview()` for fast UI previews
+  (called only by `runPreview()`, never as part of `run()`)
 - Has a unique type identifier and category
 - Can be cached based on inputs
 - Emits lifecycle events
@@ -1109,9 +1110,13 @@ Format is also used on array types, e.g., `format: 'Float64Array'` on arrays con
 
 #### Task
 
-- `run(overrides?)`: Execute the task with optional input overrides
-- `runReactive(overrides?)`: Execute in reactive mode
+- `run(overrides?)`: Execute the task with optional input overrides (calls `execute()` / `executeStream()`)
+- `runPreview(overrides?)`: Run the preview-only path (calls `executePreview()` only)
 - `abort()`: Cancel execution
+
+`run()` and `runPreview()` are strictly orthogonal: `run()` never invokes `executePreview()`,
+and `runPreview()` never invokes `execute()` or `executeStream()`. There is no post-execute
+overlay; cache hits during `run()` return the cached value verbatim.
 - `setInput(input)`: Set input values
 - `validateInput(input)`: Validate input against schema
 

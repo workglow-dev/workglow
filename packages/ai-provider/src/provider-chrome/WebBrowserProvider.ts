@@ -5,7 +5,7 @@
  */
 
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
 } from "@workglow/ai/worker";
@@ -44,8 +44,8 @@ export class WebBrowserProvider extends AiProvider<WebBrowserModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, WebBrowserModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, WebBrowserModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, WebBrowserModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, WebBrowserModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

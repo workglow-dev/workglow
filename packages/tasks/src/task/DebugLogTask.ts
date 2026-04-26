@@ -47,6 +47,26 @@ export type DebugLogTaskInput = FromSchema<typeof inputSchema>;
 export type DebugLogTaskOutput = FromSchema<typeof outputSchema>;
 
 /**
+ * Logs the input at the configured level and returns a fresh output object
+ * containing the same key/value pairs (passthrough). Pure helper so both
+ * execute() and executePreview() can share behavior.
+ */
+function logAndPassthrough<Output extends DebugLogTaskOutput>(
+  input: DebugLogTaskInput,
+  log_level: LogLevel
+): Output {
+  const inputRecord = input as Record<string, unknown>;
+  if (log_level === "dir") {
+    console.dir(inputRecord, { depth: null });
+  } else {
+    console[log_level](inputRecord);
+  }
+  const output = {} as Output;
+  Object.assign(output, inputRecord);
+  return output;
+}
+
+/**
  * DebugLogTask provides console logging functionality as a task within the system.
  *
  * Features:
@@ -83,16 +103,12 @@ export class DebugLogTask<
     return outputSchema;
   }
 
-  override async executeReactive(input: Input, output: Output) {
-    const log_level: LogLevel = this.config.log_level ?? DEFAULT_LOG_LEVEL;
-    const inputRecord = input as Record<string, unknown>;
-    if (log_level === "dir") {
-      console.dir(inputRecord, { depth: null });
-    } else {
-      console[log_level](inputRecord);
-    }
-    Object.assign(output, inputRecord);
-    return output;
+  override async execute(input: Input) {
+    return logAndPassthrough<Output>(input, this.config.log_level ?? DEFAULT_LOG_LEVEL);
+  }
+
+  override async executePreview(input: Input) {
+    return logAndPassthrough<Output>(input, this.config.log_level ?? DEFAULT_LOG_LEVEL);
   }
 }
 

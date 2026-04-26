@@ -5,7 +5,7 @@
  */
 
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
@@ -25,10 +25,10 @@ export const Gemini_CountTokens: AiProviderRunFn<
   return { count: result.totalTokens };
 };
 
-export const Gemini_CountTokens_Reactive: AiProviderReactiveRunFn<
+export const Gemini_CountTokens_Preview: AiProviderPreviewRunFn<
   CountTokensTaskInput,
   CountTokensTaskOutput,
   GeminiModelConfig
-> = async (input, _output, _model) => {
+> = async (input, _model) => {
   return { count: Math.ceil(input.text.length / 4) };
 };

@@ -35,7 +35,8 @@ export class IteratorTaskRunner<
   private mapPartialIterationCount = 0;
 
   /**
-   * For iterator tasks, reactive runs use full execution for correctness.
+   * For iterator tasks, runPreview() invokes only the task's executePreview hook —
+   * it does not iterate the subgraph.
    */
 
   protected override async executeTask(input: Input): Promise<Output | undefined> {
@@ -50,23 +51,21 @@ export class IteratorTaskRunner<
     }
 
     if (analysis.iterationCount === 0) {
-      const emptyResult = this.task.getEmptyResult();
-      return this.executeTaskReactive(input, emptyResult as Output);
+      return this.task.getEmptyResult() as Output;
     }
 
     const result = this.task.isReduceTask()
       ? await this.executeReduceIterations(analysis)
       : await this.executeCollectIterations(analysis);
 
-    return this.executeTaskReactive(input, result as Output);
+    return result as Output;
   }
 
   /**
-   * Iterator tasks should only run the task's reactive hook here.
+   * Iterator tasks should only run the task's preview hook here.
    */
-  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
-    const reactiveResult = await this.task.executeReactive(input, output, { own: this.own });
-    return Object.assign({}, output, reactiveResult ?? {}) as Output;
+  public override async executeTaskPreview(input: Input): Promise<Output | undefined> {
+    return this.task.executePreview?.(input, { own: this.own });
   }
 
   protected async executeCollectIterations(analysis: IterationAnalysisResult): Promise<Output> {

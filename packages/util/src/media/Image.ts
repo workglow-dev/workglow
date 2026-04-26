@@ -209,11 +209,7 @@ export class Image {
     if (typeof value === "string" && value.startsWith("data:")) {
       return Image.fromDataUri(value);
     }
-    if (
-      value &&
-      typeof value === "object" &&
-      (value as { unsynced?: unknown }).unsynced === true
-    ) {
+    if (value && typeof value === "object" && (value as { unsynced?: unknown }).unsynced === true) {
       const kind = (value as { kind?: unknown }).kind;
       throw new Error(
         `Image.fromJSON: cannot reconstruct image from "unsynced" sentinel (kind=${String(kind)}); pixels were not materialized before serialization. Call await image.getPixels() before JSON.stringify.`
@@ -353,9 +349,7 @@ export class Image {
         case "VideoFrame":
         case "OffscreenCanvas": {
           const asBrowser = this as unknown as {
-            toFirstSupportedBrowser?: (
-              want: ImageDataSupport
-            ) => Promise<unknown> | undefined;
+            toFirstSupportedBrowser?: (want: ImageDataSupport) => Promise<unknown> | undefined;
           };
           if (asBrowser.toFirstSupportedBrowser) {
             const produced = await asBrowser.toFirstSupportedBrowser(want);
@@ -376,8 +370,7 @@ export class Image {
     if (this.source.kind === "dataUri") {
       return this.source.dataUri;
     }
-    const pixels =
-      this.source.kind === "pixels" ? this.source.pixels : this.pixelsCache;
+    const pixels = this.source.kind === "pixels" ? this.source.pixels : this.pixelsCache;
     if (pixels) {
       return {
         data: Array.from(pixels.data),

@@ -6,12 +6,32 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function renderTemplate(template: string, values: Record<string, unknown>): string {
+  return template.replace(/\{\{([^{}]+)\}\}/g, (_match, expr: string) => {
+    const [path, defaultValue] = expr.split("|").map((s: string) => s.trim());
+    const segments = path.split(".");
+    let current: unknown = values;
+    for (const segment of segments) {
+      if (current === null || current === undefined || typeof current !== "object") {
+        current = undefined;
+        break;
+      }
+      current = (current as Record<string, unknown>)[segment];
+    }
+    if (current !== undefined && current !== null) {
+      return String(current);
+    }
+    return defaultValue !== undefined ? defaultValue : "";
+  });
+}
 
 const inputSchema = {
   type: "object",
@@ -74,28 +94,15 @@ export class TemplateTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return { result: renderTemplate(input.template, input.values) } as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    const result = input.template.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
-      const [path, defaultValue] = expr.split("|").map((s: string) => s.trim());
-      const segments = path.split(".");
-      let current: unknown = input.values;
-      for (const segment of segments) {
-        if (current === null || current === undefined || typeof current !== "object") {
-          current = undefined;
-          break;
-        }
-        current = (current as Record<string, unknown>)[segment];
-      }
-      if (current !== undefined && current !== null) {
-        return String(current);
-      }
-      return defaultValue !== undefined ? defaultValue : "";
-    });
-    return { result } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return { result: renderTemplate(input.template, input.values) } as Output;
   }
 }
 

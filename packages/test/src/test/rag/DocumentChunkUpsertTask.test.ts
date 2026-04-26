@@ -123,7 +123,10 @@ describe("ChunkVectorUpsertTask", () => {
   });
 
   test("should stamp doc_title onto every chunk when provided", async () => {
-    const chunks = [makeChunk({ text: "A", doc_id: "doc1" }), makeChunk({ text: "B", doc_id: "doc1" })];
+    const chunks = [
+      makeChunk({ text: "A", doc_id: "doc1" }),
+      makeChunk({ text: "B", doc_id: "doc1" }),
+    ];
     const vectors = [new Float32Array([0.1, 0.2, 0.3]), new Float32Array([0.4, 0.5, 0.6])];
 
     const task = new ChunkVectorUpsertTask();
@@ -151,10 +154,7 @@ describe("ChunkVectorUpsertTask", () => {
   });
 
   test("should throw when chunks have mixed doc_ids", async () => {
-    const chunks = [
-      makeChunk({ doc_id: "doc-a" }),
-      makeChunk({ doc_id: "doc-b" }),
-    ];
+    const chunks = [makeChunk({ doc_id: "doc-a" }), makeChunk({ doc_id: "doc-b" })];
     const vectors = [new Float32Array([0.1, 0.2, 0.3]), new Float32Array([0.4, 0.5, 0.6])];
 
     const task = new ChunkVectorUpsertTask();

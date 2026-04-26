@@ -5,11 +5,7 @@
  */
 
 import { registerProviderWorker } from "../common/registerProvider";
-import {
-  OPENAI_REACTIVE_TASKS,
-  OPENAI_STREAM_TASKS,
-  OPENAI_TASKS,
-} from "./common/OpenAI_JobRunFns";
+import { OPENAI_PREVIEW_TASKS, OPENAI_STREAM_TASKS, OPENAI_TASKS } from "./common/OpenAI_JobRunFns";
 import { OpenAiProvider } from "./OpenAiProvider";
 
 export async function registerOpenAiWorker(): Promise<void> {
@@ -18,7 +14,7 @@ export async function registerOpenAiWorker(): Promise<void> {
       new OpenAiProvider(
         OPENAI_TASKS,
         OPENAI_STREAM_TASKS,
-        OPENAI_REACTIVE_TASKS
+        OPENAI_PREVIEW_TASKS
       ).registerOnWorkerServer(ws),
     "OpenAI"
   );

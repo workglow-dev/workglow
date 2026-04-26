@@ -6,7 +6,7 @@
 
 import { registerProviderWorker } from "../common/registerProvider";
 import {
-  ANTHROPIC_REACTIVE_TASKS,
+  ANTHROPIC_PREVIEW_TASKS,
   ANTHROPIC_STREAM_TASKS,
   ANTHROPIC_TASKS,
 } from "./common/Anthropic_JobRunFns";
@@ -18,7 +18,7 @@ export async function registerAnthropicWorker(): Promise<void> {
       new AnthropicProvider(
         ANTHROPIC_TASKS,
         ANTHROPIC_STREAM_TASKS,
-        ANTHROPIC_REACTIVE_TASKS
+        ANTHROPIC_PREVIEW_TASKS
       ).registerOnWorkerServer(ws),
     "Anthropic"
   );

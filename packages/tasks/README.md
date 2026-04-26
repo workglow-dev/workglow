@@ -279,7 +279,7 @@ Executes custom JavaScript functions with full access to task context and config
 **Configuration:**
 
 - `execute`: Function for standard execution
-- `executeReactive`: Function for reactive execution with output parameter
+- `executePreview`: Function for lightweight preview execution
 
 **Examples:**
 
@@ -298,17 +298,18 @@ const result = await Lambda(
   }
 );
 
-// Reactive pattern with output parameter
-const reactiveResult = await new LambdaTask(
+// Preview pattern (lightweight, fast — used by runPreview)
+const previewResult = await new LambdaTask(
   { message: "Hello" },
   {
-    executeReactive: async (input, output, context) => {
-      output.processed = input.message.toUpperCase();
-      output.timestamp = new Date().toISOString();
-      return output;
+    executePreview: async (input, _context) => {
+      return {
+        processed: input.message.toUpperCase(),
+        timestamp: new Date().toISOString(),
+      };
     },
   }
-).run();
+).runPreview();
 
 // Data transformation function
 const transformer = await new LambdaTask(
@@ -356,7 +357,7 @@ const apiProcessor = await new LambdaTask(
 **Features:**
 
 - Full access to execution context and progress tracking
-- Support for both standard and reactive execution patterns
+- Support for both committed run and live preview execution patterns
 - Async/await support
 - Flexible input/output schemas
 - Cacheable by default

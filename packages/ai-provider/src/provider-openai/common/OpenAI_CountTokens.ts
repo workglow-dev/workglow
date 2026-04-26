@@ -5,7 +5,7 @@
  */
 
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
@@ -57,10 +57,10 @@ export const OpenAI_CountTokens: AiProviderRunFn<
   return { count: tokens.length };
 };
 
-export const OpenAI_CountTokens_Reactive: AiProviderReactiveRunFn<
+export const OpenAI_CountTokens_Preview: AiProviderPreviewRunFn<
   CountTokensTaskInput,
   CountTokensTaskOutput,
   OpenAiModelConfig
-> = async (input, _output, model) => {
+> = async (input, model) => {
   return OpenAI_CountTokens(input, model, () => {}, new AbortController().signal);
 };

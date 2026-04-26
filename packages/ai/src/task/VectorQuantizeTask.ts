@@ -118,9 +118,12 @@ export class VectorQuantizeTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  override async executeReactive(
-    input: VectorQuantizeTaskInput
-  ): Promise<VectorQuantizeTaskOutput> {
+  override async execute(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
+    // Quantization is a pure transform; preview and full-run share implementation.
+    return this.executePreview(input);
+  }
+
+  override async executePreview(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
     const { vector, targetType, normalize = true } = input;
     const isArray = Array.isArray(vector);
     const vectors = isArray ? vector : [vector];

@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import type { AnthropicModelConfig } from "./Anthropic_ModelSchema";
 import { Anthropic_ModelSearch } from "./Anthropic_ModelSearch";
 
 export { getClient, getMaxTokens, getModelName, loadAnthropicSDK } from "./Anthropic_Client";
 
 import { Anthropic_Chat, Anthropic_Chat_Stream } from "./Anthropic_Chat";
-import { Anthropic_CountTokens, Anthropic_CountTokens_Reactive } from "./Anthropic_CountTokens";
+import { Anthropic_CountTokens, Anthropic_CountTokens_Preview } from "./Anthropic_CountTokens";
 import { Anthropic_ModelInfo } from "./Anthropic_ModelInfo";
 import {
   Anthropic_StructuredGeneration,
@@ -49,9 +49,9 @@ export const ANTHROPIC_STREAM_TASKS: Record<
   ToolCallingTask: Anthropic_ToolCalling_Stream,
 };
 
-export const ANTHROPIC_REACTIVE_TASKS: Record<
+export const ANTHROPIC_PREVIEW_TASKS: Record<
   string,
-  AiProviderReactiveRunFn<any, any, AnthropicModelConfig>
+  AiProviderPreviewRunFn<any, any, AnthropicModelConfig>
 > = {
-  CountTokensTask: Anthropic_CountTokens_Reactive,
+  CountTokensTask: Anthropic_CountTokens_Preview,
 };

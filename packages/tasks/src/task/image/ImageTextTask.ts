@@ -8,7 +8,8 @@ import {
   CreateWorkflow,
   Task,
   Workflow,
-  type IExecuteReactiveContext,
+  type IExecuteContext,
+  type IExecutePreviewContext,
   type TaskConfig,
 } from "@workglow/task-graph";
 import type { RgbaImageBinary } from "@workglow/util/media";
@@ -210,6 +211,57 @@ function hasUsableBackgroundImage(value: unknown): value is ImageTextTaskInput["
   );
 }
 
+async function renderImageText(input: ImageTextTaskInput): Promise<ImageTextTaskOutput> {
+  const color = resolveColor(input.color);
+  const fontSize = input.fontSize ?? 24;
+  const font = input.font ?? "sans-serif";
+  const bold = input.bold ?? false;
+  const italic = input.italic ?? false;
+  const position = (input.position ?? "middle-center") as ImageTextAnchorPosition;
+
+  const backgroundImage = "image" in input ? input.image : undefined;
+  let image: ImageTextTaskOutput["image"];
+  if (hasUsableBackgroundImage(backgroundImage)) {
+    image = await produceImageOutput(backgroundImage!, async (background) => {
+      const overlay = await renderImageTextToRgba({
+        text: input.text,
+        font,
+        fontSize,
+        bold,
+        italic,
+        color,
+        width: background.width,
+        height: background.height,
+        position,
+      });
+      return compositeTextOverBackground(background, overlay);
+    });
+  } else {
+    if (
+      !("width" in input) ||
+      !("height" in input) ||
+      typeof input.width !== "number" ||
+      typeof input.height !== "number"
+    ) {
+      throw new Error(
+        "ImageTextTask: width and height are required when no background image is provided"
+      );
+    }
+    image = await renderImageTextToRgba({
+      text: input.text,
+      font,
+      fontSize,
+      bold,
+      italic,
+      color,
+      width: input.width,
+      height: input.height,
+      position,
+    });
+  }
+  return { image };
+}
+
 export class ImageTextTask<
   Input extends ImageTextTaskInput = ImageTextTaskInput,
   Output extends ImageTextTaskOutput = ImageTextTaskOutput,
@@ -237,59 +289,15 @@ export class ImageTextTask<
     return defaults as Partial<Input>;
   }
 
-  override async executeReactive(
-    input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    const color = resolveColor(input.color);
-    const fontSize = input.fontSize ?? 24;
-    const font = input.font ?? "sans-serif";
-    const bold = input.bold ?? false;
-    const italic = input.italic ?? false;
-    const position = (input.position ?? "middle-center") as ImageTextAnchorPosition;
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return (await renderImageText(input)) as Output;
+  }
 
-    const backgroundImage = "image" in input ? input.image : undefined;
-    let image: ImageTextTaskOutput["image"];
-    if (hasUsableBackgroundImage(backgroundImage)) {
-      image = await produceImageOutput(backgroundImage!, async (background) => {
-        const overlay = await renderImageTextToRgba({
-          text: input.text,
-          font,
-          fontSize,
-          bold,
-          italic,
-          color,
-          width: background.width,
-          height: background.height,
-          position,
-        });
-        return compositeTextOverBackground(background, overlay);
-      });
-    } else {
-      if (
-        !("width" in input) ||
-        !("height" in input) ||
-        typeof input.width !== "number" ||
-        typeof input.height !== "number"
-      ) {
-        throw new Error(
-          "ImageTextTask: width and height are required when no background image is provided"
-        );
-      }
-      image = await renderImageTextToRgba({
-        text: input.text,
-        font,
-        fontSize,
-        bold,
-        italic,
-        color,
-        width: input.width,
-        height: input.height,
-        position,
-      });
-    }
-    return { image } as Output;
+  override async executePreview(
+    input: Input,
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return (await renderImageText(input)) as Output;
   }
 }
 

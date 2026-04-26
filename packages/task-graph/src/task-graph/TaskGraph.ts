@@ -75,7 +75,7 @@ export interface TaskGraphRunConfig {
   resourceScope?: ResourceScope;
 }
 
-export interface TaskGraphRunReactiveConfig extends Omit<
+export interface TaskGraphRunPreviewConfig extends Omit<
   TaskGraphRunConfig,
   "enforceEntitlements" | "timeout"
 > {
@@ -154,15 +154,15 @@ export class TaskGraph implements ITaskGraph {
   }
 
   /**
-   * Runs the task graph reactively
+   * Runs the task graph in preview mode
    * @returns A promise that resolves when all tasks are complete
    * @throws TaskError if any tasks have failed
    */
-  public runReactive<Output extends TaskOutput>(
+  public runPreview<Output extends TaskOutput>(
     input: TaskInput = {} as TaskInput,
     config: TaskGraphRunConfig = {}
   ): Promise<GraphResultArray<Output>> {
-    return this.runner.runGraphReactive<Output>(input, config);
+    return this.runner.runGraphPreview<Output>(input, config);
   }
 
   /**

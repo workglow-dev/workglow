@@ -13,8 +13,9 @@ compute-intensive operations -- primarily AI model inference -- to Web Workers
 (browser) or worker threads (Node.js, Bun). It is built around two complementary
 classes: **WorkerManager** on the main thread and **WorkerServer** inside the
 worker. Together they implement a request/response message protocol that supports
-three function types: regular (one-shot), streaming (async generator), and
-reactive (lightweight preview).
+three function types: regular (one-shot, used by the `run()` path), streaming
+(async generator, also used by `run()`), and preview (lightweight, used only by
+the `runPreview()` path).
 
 Key design goals:
 
@@ -22,7 +23,7 @@ Key design goals:
   needs them. A factory function is stored at registration time and invoked on
   demand, with single-flight deduplication to prevent races.
 - **Function registries.** Each worker advertises three sets of function names --
-  regular, stream, and reactive -- in its `ready` message. The manager uses
+  regular, stream, and preview -- in its `ready` message. The manager uses
   these registries to fail fast when a function is not available, avoiding an
   unnecessary roundtrip.
 - **Structured cloning with asymmetric transfer.** Data flowing _to_ a worker is
@@ -81,7 +82,7 @@ eviction applies only to the lazy `() => Worker` path. Passing
 ### Lazy Initialization and Single-Flight
 
 When `callWorkerFunction`, `callWorkerStreamFunction`, or
-`callWorkerReactiveFunction` is invoked on a lazily registered worker, the
+`callWorkerPreviewFunction` is invoked on a lazily registered worker, the
 manager calls `ensureWorkerReady()`. This method:
 
 1. Checks whether the worker instance already exists. If so, it awaits the
@@ -104,7 +105,7 @@ instead of getting stuck behind a permanently rejected initialization promise.
 
 For factory-backed registrations, `WorkerManager` can terminate an idle worker
 after a configurable quiet period. The manager keeps the original factory,
-tracks in-flight regular/stream/reactive calls, and only schedules termination
+tracks in-flight regular/stream/preview calls, and only schedules termination
 when the active-call count returns to zero.
 
 When the idle timer fires, the manager:
@@ -128,20 +129,20 @@ of function names:
   type: "ready",
   functions: ["TextGenerationTask", "EmbeddingTask"],
   streamFunctions: ["TextGenerationTask"],
-  reactiveFunctions: ["TextGenerationTask"]
+  previewFunctions: ["TextGenerationTask"]
 }
 ```
 
 These are stored in three internal `Map<string, Set<string>>` registries:
 
-| Registry                  | Purpose                                         |
-| ------------------------- | ----------------------------------------------- |
-| `workerFunctions`         | Names of regular (one-shot) functions           |
-| `workerStreamFunctions`   | Names of async-generator stream functions       |
-| `workerReactiveFunctions` | Names of lightweight reactive preview functions |
+| Registry                 | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| `workerFunctions`        | Names of regular (one-shot) functions     |
+| `workerStreamFunctions`  | Names of async-generator stream functions |
+| `workerPreviewFunctions` | Names of lightweight preview functions    |
 
 Subsequent calls to the manager check the appropriate registry and throw (or
-return `undefined` for reactive calls) immediately if the function name is not
+return `undefined` for preview calls) immediately if the function name is not
 present, without sending a message to the worker.
 
 ### Three Function Types
@@ -197,24 +198,24 @@ regular function registered (not a stream function), the manager still allows th
 call and the worker-side server runs the regular function and wraps the result as
 a single `finish` stream event.
 
-#### Reactive Functions
+#### Preview Functions
 
 ```ts
-const preview = await manager.callWorkerReactiveFunction<Output>(
-  "anthropic",
-  "TextGenerationTask",
-  [input, currentOutput, model]
-);
+const preview = await manager.callWorkerPreviewFunction<Output>("anthropic", "TextGenerationTask", [
+  input,
+  model,
+]);
 // preview is Output | undefined
 ```
 
-Reactive functions are used for `executeReactive()` -- lightweight UI previews
-that must complete in under 1 millisecond. They receive the current input,
-output, and model, and return an updated preview or `undefined`.
+Preview functions are used for `executePreview()` -- lightweight UI previews
+that must complete in under 1 millisecond. They receive the current input and
+model and return a fast preview or `undefined`. Preview is a separate path that
+is invoked only by `runPreview()`; it never participates in `run()`.
 
-Unlike the other two function types, reactive calls return `undefined` instead of
+Unlike the other two function types, preview calls return `undefined` instead of
 throwing when the function is not registered or when an error occurs. This is
-intentional: reactive execution is always optional, and the caller treats the
+intentional: preview execution is always optional, and the caller treats the
 result as a best-effort preview.
 
 ## Message Protocol
@@ -225,20 +226,20 @@ string, and type-specific fields.
 
 ### Main Thread to Worker
 
-| `type`  | Fields                                               | Description              |
-| ------- | ---------------------------------------------------- | ------------------------ |
-| `call`  | `id`, `functionName`, `args`, `stream?`, `reactive?` | Invoke a function        |
-| `abort` | `id`                                                 | Cancel an in-flight call |
+| `type`  | Fields                                              | Description              |
+| ------- | --------------------------------------------------- | ------------------------ |
+| `call`  | `id`, `functionName`, `args`, `stream?`, `preview?` | Invoke a function        |
+| `abort` | `id`                                                | Cancel an in-flight call |
 
 ### Worker to Main Thread
 
-| `type`         | Fields                                              | Description                                      |
-| -------------- | --------------------------------------------------- | ------------------------------------------------ |
-| `ready`        | `functions`, `streamFunctions`, `reactiveFunctions` | Handshake on startup                             |
-| `complete`     | `id`, `data`                                        | Final result of a call                           |
-| `error`        | `id`, `data`                                        | Error with `{ message, name }`                   |
-| `progress`     | `id`, `data`                                        | Progress update `{ progress, message, details }` |
-| `stream_chunk` | `id`, `data`                                        | One chunk from a streaming call                  |
+| `type`         | Fields                                             | Description                                      |
+| -------------- | -------------------------------------------------- | ------------------------------------------------ |
+| `ready`        | `functions`, `streamFunctions`, `previewFunctions` | Handshake on startup                             |
+| `complete`     | `id`, `data`                                       | Final result of a call                           |
+| `error`        | `id`, `data`                                       | Error with `{ message, name }`                   |
+| `progress`     | `id`, `data`                                       | Progress update `{ progress, message, details }` |
+| `stream_chunk` | `id`, `data`                                       | One chunk from a streaming call                  |
 
 ## WorkerServer
 
@@ -270,8 +271,8 @@ server.registerStreamFunction("TextGenerationTask", async function* (input, mode
   yield { type: "finish", data: {} };
 });
 
-// Reactive function: (input, output, model) => Promise<Output | undefined>
-server.registerReactiveFunction("TextGenerationTask", async (input, output, model) => {
+// Preview function: (input, model) => Promise<Output | undefined>
+server.registerPreviewFunction("TextGenerationTask", async (input, model) => {
   return { text: `Preview for model ${model.model_name}...` };
 });
 
@@ -410,7 +411,7 @@ AI provider packages integrate with the worker system through a standard pattern
 
    server.registerFunction("TextGenerationTask", runTextGeneration);
    server.registerStreamFunction("TextGenerationTask", streamTextGeneration);
-   server.registerReactiveFunction("TextGenerationTask", reactiveTextGeneration);
+   server.registerPreviewFunction("TextGenerationTask", previewTextGeneration);
 
    server.sendReady();
    ```
@@ -429,23 +430,23 @@ AI provider packages integrate with the worker system through a standard pattern
 
 ### WorkerManager
 
-| Method                       | Signature                                                                                                                             | Description                                                                  |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `registerWorker`             | `(name: string, workerOrFactory: Worker \| (() => Worker)) => void`                                                                   | Register a worker by name. Throws if the name is already registered.         |
-| `getWorker`                  | `(name: string) => Worker`                                                                                                            | Get the raw Worker instance. Throws if not found.                            |
-| `callWorkerFunction`         | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal; onProgress?: Function }) => Promise<T>` | Call a regular function on a worker.                                         |
-| `callWorkerStreamFunction`   | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal }) => AsyncGenerator<T>`                 | Call a streaming function. Returns an async generator of stream chunks.      |
-| `callWorkerReactiveFunction` | `<T>(workerName: string, functionName: string, args: any[]) => Promise<T \| undefined>`                                               | Call a reactive function. Returns `undefined` if not registered or on error. |
+| Method                      | Signature                                                                                                                             | Description                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `registerWorker`            | `(name: string, workerOrFactory: Worker \| (() => Worker)) => void`                                                                   | Register a worker by name. Throws if the name is already registered.        |
+| `getWorker`                 | `(name: string) => Worker`                                                                                                            | Get the raw Worker instance. Throws if not found.                           |
+| `callWorkerFunction`        | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal; onProgress?: Function }) => Promise<T>` | Call a regular function on a worker.                                        |
+| `callWorkerStreamFunction`  | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal }) => AsyncGenerator<T>`                 | Call a streaming function. Returns an async generator of stream chunks.     |
+| `callWorkerPreviewFunction` | `<T>(workerName: string, functionName: string, args: any[]) => Promise<T \| undefined>`                                               | Call a preview function. Returns `undefined` if not registered or on error. |
 
 ### WorkerServerBase
 
-| Method                     | Signature                                                            | Description                                                                                     |
-| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `registerFunction`         | `(name: string, fn: (...args: any[]) => Promise<any>) => void`       | Register a regular function. `fn` receives `(input, model, postProgress, signal)`.              |
-| `registerStreamFunction`   | `(name: string, fn: (...args: any[]) => AsyncIterable<any>) => void` | Register a streaming function. `fn` receives `(input, model, signal)`.                          |
-| `registerReactiveFunction` | `(name: string, fn: (input, output, model) => Promise<any>) => void` | Register a reactive preview function.                                                           |
-| `sendReady`                | `() => void`                                                         | Send the ready handshake to the main thread. Must be called after all functions are registered. |
-| `handleMessage`            | `(event: { type: string; data: any }) => Promise<void>`              | Dispatch an incoming message. Called automatically by platform subclasses.                      |
+| Method                    | Signature                                                            | Description                                                                                     |
+| ------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `registerFunction`        | `(name: string, fn: (...args: any[]) => Promise<any>) => void`       | Register a regular function. `fn` receives `(input, model, postProgress, signal)`.              |
+| `registerStreamFunction`  | `(name: string, fn: (...args: any[]) => AsyncIterable<any>) => void` | Register a streaming function. `fn` receives `(input, model, signal)`.                          |
+| `registerPreviewFunction` | `(name: string, fn: (input, model) => Promise<any>) => void`         | Register a preview function (called only via `runPreview()`).                                   |
+| `sendReady`               | `() => void`                                                         | Send the ready handshake to the main thread. Must be called after all functions are registered. |
+| `handleMessage`           | `(event: { type: string; data: any }) => Promise<void>`              | Dispatch an incoming message. Called automatically by platform subclasses.                      |
 
 ### Service Tokens
 

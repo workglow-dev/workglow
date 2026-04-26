@@ -19,6 +19,32 @@ import { Interpreter } from "../util/interpreter";
 
 const isValidIdentifier = (key: string) => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
 
+function runJavaScript(
+  input: JavaScriptTaskInput,
+  configuredCode: string | undefined
+): JavaScriptTaskOutput {
+  const output = {} as JavaScriptTaskOutput;
+  const code = input.javascript_code || configuredCode;
+  if (code) {
+    try {
+      const inputVariables = Object.keys(input)
+        .filter((key) => key !== "javascript_code")
+        .filter(isValidIdentifier);
+      const inputVariablesString = inputVariables
+        .map((key) => `var ${key} = ${JSON.stringify(input[key])};`)
+        .join("\n");
+      const myInterpreter = new Interpreter(`${inputVariablesString} ${code}`);
+      myInterpreter.run();
+      output.output = myInterpreter.value;
+    } catch (e) {
+      throw new TaskInvalidInputError(
+        `JavaScript execution failed: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+  }
+  return output;
+}
+
 const configSchema = {
   type: "object",
   properties: {
@@ -117,26 +143,12 @@ export class JavaScriptTask extends Task<
     return inputSchema;
   }
 
-  override async executeReactive(input: JavaScriptTaskInput, output: JavaScriptTaskOutput) {
-    const code = input.javascript_code || this.config.javascript_code;
-    if (code) {
-      try {
-        const inputVariables = Object.keys(input)
-          .filter((key) => key !== "javascript_code")
-          .filter(isValidIdentifier);
-        const inputVariablesString = inputVariables
-          .map((key) => `var ${key} = ${JSON.stringify(input[key])};`)
-          .join("\n");
-        const myInterpreter = new Interpreter(`${inputVariablesString} ${code}`);
-        myInterpreter.run();
-        output.output = myInterpreter.value;
-      } catch (e) {
-        throw new TaskInvalidInputError(
-          `JavaScript execution failed: ${e instanceof Error ? e.message : String(e)}`
-        );
-      }
-    }
-    return output;
+  override async execute(input: JavaScriptTaskInput) {
+    return runJavaScript(input, this.config.javascript_code);
+  }
+
+  override async executePreview(input: JavaScriptTaskInput) {
+    return runJavaScript(input, this.config.javascript_code);
   }
 }
 

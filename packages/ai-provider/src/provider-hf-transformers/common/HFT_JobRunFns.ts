@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderReactiveRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderStreamFn } from "@workglow/ai";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { HFT_ModelSearch } from "./HFT_ModelSearch";
 
 import { HFT_BackgroundRemoval } from "./HFT_BackgroundRemoval";
 import { HFT_Chat, HFT_Chat_Stream } from "./HFT_Chat";
-import { HFT_CountTokens, HFT_CountTokens_Reactive } from "./HFT_CountTokens";
+import { HFT_CountTokens, HFT_CountTokens_Preview } from "./HFT_CountTokens";
 import { HFT_Download } from "./HFT_Download";
 import { HFT_ImageClassification } from "./HFT_ImageClassification";
 import { HFT_ImageEmbedding } from "./HFT_ImageEmbedding";
@@ -84,9 +84,9 @@ export const HFT_STREAM_TASKS: Record<
   StructuredGenerationTask: HFT_StructuredGeneration_Stream,
 };
 
-export const HFT_REACTIVE_TASKS: Record<
+export const HFT_PREVIEW_TASKS: Record<
   string,
-  AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>
+  AiProviderPreviewRunFn<any, any, HfTransformersOnnxModelConfig>
 > = {
-  CountTokensTask: HFT_CountTokens_Reactive,
+  CountTokensTask: HFT_CountTokens_Preview,
 };

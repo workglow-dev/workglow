@@ -33,15 +33,15 @@ export type AiProviderRunFn<
 ) => Promise<Output>;
 
 /**
- * Type for the reactive run function for AiTask.executeReactive().
- * Receives the current output alongside the input so it can return a fast preview.
- * No `signal` or `update_progress` -- reactive execution is lightweight and synchronous-ish.
+ * Type for the preview run function for AiTask.executePreview().
+ * Computes a fast preview from input alone -- no prior output needed.
+ * No `signal` or `update_progress` -- preview execution is lightweight and synchronous-ish.
  */
-export type AiProviderReactiveRunFn<
+export type AiProviderPreviewRunFn<
   Input extends TaskInput = TaskInput,
   Output extends TaskOutput = TaskOutput,
   Model extends ModelConfig = ModelConfig,
-> = (input: Input, output: Output, model: Model | undefined) => Promise<Output | undefined>;
+> = (input: Input, model: Model | undefined) => Promise<Output | undefined>;
 
 /**
  * Type for the streaming run function for the AiJob.
@@ -85,7 +85,7 @@ export type AiProviderStreamFn<
 export class AiProviderRegistry {
   runFnRegistry: Map<string, Map<string, AiProviderRunFn<any, any>>> = new Map();
   streamFnRegistry: Map<string, Map<string, AiProviderStreamFn<any, any>>> = new Map();
-  reactiveRunFnRegistry: Map<string, Map<string, AiProviderReactiveRunFn<any, any>>> = new Map();
+  previewRunFnRegistry: Map<string, Map<string, AiProviderPreviewRunFn<any, any>>> = new Map();
   private providers: Map<string, AiProvider<any>> = new Map();
   private strategyResolvers: Map<string, AiStrategyResolver> = new Map();
   private defaultStrategy: IAiExecutionStrategy | undefined;
@@ -99,7 +99,7 @@ export class AiProviderRegistry {
   }
 
   /**
-   * Removes a previously registered provider and all of its run/stream/reactive functions.
+   * Removes a previously registered provider and all of its run/stream/preview functions.
    * Used for cleanup when provider initialization fails partway through.
    * @param name - The provider name to unregister
    */
@@ -113,7 +113,7 @@ export class AiProviderRegistry {
     for (const [, providerMap] of this.streamFnRegistry) {
       providerMap.delete(name);
     }
-    for (const [, providerMap] of this.reactiveRunFnRegistry) {
+    for (const [, providerMap] of this.previewRunFnRegistry) {
       providerMap.delete(name);
     }
   }
@@ -306,57 +306,52 @@ export class AiProviderRegistry {
   }
 
   /**
-   * Registers a worker-proxied reactive function for a specific task type and model provider.
-   * Creates a proxy that delegates reactive execution to a Web Worker via WorkerManager.
-   * Returns undefined (non-throwing) if the worker has no reactive function for the task type.
+   * Registers a worker-proxied preview function for a specific task type and model provider.
+   * Creates a proxy that delegates preview execution to a Web Worker via WorkerManager.
+   * Returns undefined (non-throwing) if the worker has no preview function for the task type.
    */
-  registerAsWorkerReactiveRunFn<
+  registerAsWorkerPreviewRunFn<
     Input extends TaskInput = TaskInput,
     Output extends TaskOutput = TaskOutput,
   >(modelProvider: string, taskType: string) {
-    const reactiveFn: AiProviderReactiveRunFn<Input, Output> = async (
+    const previewFn: AiProviderPreviewRunFn<Input, Output> = async (
       input: Input,
-      output: Output,
       model: ModelConfig | undefined
     ) => {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
-      return workerManager.callWorkerReactiveFunction<Output>(modelProvider, taskType, [
+      return workerManager.callWorkerPreviewFunction<Output>(modelProvider, taskType, [
         input,
-        output,
         model,
       ]);
     };
-    this.registerReactiveRunFn<Input, Output>(modelProvider, taskType, reactiveFn);
+    this.registerPreviewRunFn<Input, Output>(modelProvider, taskType, previewFn);
   }
 
   /**
-   * Registers a reactive execution function for a specific task type and model provider.
-   * Called by AiTask.executeReactive() to provide a fast, lightweight preview without a network call.
+   * Registers a preview execution function for a specific task type and model provider.
+   * Called by AiTask.executePreview() to provide a fast, lightweight preview without a network call.
    */
-  registerReactiveRunFn<
-    Input extends TaskInput = TaskInput,
-    Output extends TaskOutput = TaskOutput,
-  >(
+  registerPreviewRunFn<Input extends TaskInput = TaskInput, Output extends TaskOutput = TaskOutput>(
     modelProvider: string,
     taskType: string,
-    reactiveRunFn: AiProviderReactiveRunFn<Input, Output>
+    previewRunFn: AiProviderPreviewRunFn<Input, Output>
   ) {
-    if (!this.reactiveRunFnRegistry.has(taskType)) {
-      this.reactiveRunFnRegistry.set(taskType, new Map());
+    if (!this.previewRunFnRegistry.has(taskType)) {
+      this.previewRunFnRegistry.set(taskType, new Map());
     }
-    this.reactiveRunFnRegistry.get(taskType)!.set(modelProvider, reactiveRunFn);
+    this.previewRunFnRegistry.get(taskType)!.set(modelProvider, previewRunFn);
   }
 
   /**
-   * Retrieves the reactive execution function for a task type and model provider.
-   * Returns undefined if no reactive function is registered (fallback to default behavior).
+   * Retrieves the preview execution function for a task type and model provider.
+   * Returns undefined if no preview function is registered (fallback to default behavior).
    */
-  getReactiveRunFn<Input extends TaskInput = TaskInput, Output extends TaskOutput = TaskOutput>(
+  getPreviewRunFn<Input extends TaskInput = TaskInput, Output extends TaskOutput = TaskOutput>(
     modelProvider: string,
     taskType: string
-  ): AiProviderReactiveRunFn<Input, Output> | undefined {
-    const taskTypeMap = this.reactiveRunFnRegistry.get(taskType);
-    return taskTypeMap?.get(modelProvider) as AiProviderReactiveRunFn<Input, Output> | undefined;
+  ): AiProviderPreviewRunFn<Input, Output> | undefined {
+    const taskTypeMap = this.previewRunFnRegistry.get(taskType);
+    return taskTypeMap?.get(modelProvider) as AiProviderPreviewRunFn<Input, Output> | undefined;
   }
 
   /**

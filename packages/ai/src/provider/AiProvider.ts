@@ -9,7 +9,7 @@ import type { WorkerServerBase as WorkerServer } from "@workglow/util/worker";
 import { globalServiceRegistry, WORKER_MANAGER } from "@workglow/util/worker";
 import type { ModelConfig } from "../model/ModelSchema";
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
 } from "./AiProviderRegistry";
@@ -144,23 +144,20 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   protected readonly streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>;
 
   /**
-   * Map of task type names to their reactive run functions.
+   * Map of task type names to their preview run functions.
    * Injected via constructor alongside `tasks`. Only needed for tasks that
-   * provide lightweight reactive previews via executeReactive().
+   * provide lightweight previews via executePreview().
    */
-  protected readonly reactiveTasks?: Record<
-    string,
-    AiProviderReactiveRunFn<any, any, TModelConfig>
-  >;
+  protected readonly previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, TModelConfig>>;
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, TModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, TModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, TModelConfig>>
   ) {
     this.tasks = tasks;
     this.streamTasks = streamTasks;
-    this.reactiveTasks = reactiveTasks;
+    this.previewTasks = previewTasks;
   }
 
   /** Get all task type names this provider supports */
@@ -191,16 +188,14 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   }
 
   /**
-   * Get the reactive run function for a specific task type.
+   * Get the preview run function for a specific task type.
    * @param taskType - The task type name (e.g., "CountTokensTask")
-   * @returns The reactive function, or undefined if not supported for this task type
+   * @returns The preview function, or undefined if not supported for this task type
    */
-  getReactiveRunFn<I extends TaskInput = TaskInput, O extends TaskOutput = TaskOutput>(
+  getPreviewRunFn<I extends TaskInput = TaskInput, O extends TaskOutput = TaskOutput>(
     taskType: string
-  ): AiProviderReactiveRunFn<I, O, TModelConfig> | undefined {
-    return this.reactiveTasks?.[taskType] as
-      | AiProviderReactiveRunFn<I, O, TModelConfig>
-      | undefined;
+  ): AiProviderPreviewRunFn<I, O, TModelConfig> | undefined {
+    return this.previewTasks?.[taskType] as AiProviderPreviewRunFn<I, O, TModelConfig> | undefined;
   }
 
   /**
@@ -248,7 +243,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
       for (const taskType of this.taskTypes) {
         registry.registerAsWorkerRunFn(this.name, taskType);
         registry.registerAsWorkerStreamFn(this.name, taskType);
-        registry.registerAsWorkerReactiveRunFn(this.name, taskType);
+        registry.registerAsWorkerPreviewRunFn(this.name, taskType);
       }
     } else {
       for (const [taskType, fn] of Object.entries(this.tasks!)) {
@@ -261,9 +256,9 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
       }
     }
 
-    if (this.reactiveTasks) {
-      for (const [taskType, fn] of Object.entries(this.reactiveTasks)) {
-        registry.registerReactiveRunFn(this.name, taskType, fn as AiProviderReactiveRunFn);
+    if (this.previewTasks) {
+      for (const [taskType, fn] of Object.entries(this.previewTasks)) {
+        registry.registerPreviewRunFn(this.name, taskType, fn as AiProviderPreviewRunFn);
       }
     }
 
@@ -303,9 +298,9 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
         workerServer.registerStreamFunction(taskType, fn);
       }
     }
-    if (this.reactiveTasks) {
-      for (const [taskType, fn] of Object.entries(this.reactiveTasks)) {
-        workerServer.registerReactiveFunction(taskType, fn);
+    if (this.previewTasks) {
+      for (const [taskType, fn] of Object.entries(this.previewTasks)) {
+        workerServer.registerPreviewFunction(taskType, fn);
       }
     }
   }

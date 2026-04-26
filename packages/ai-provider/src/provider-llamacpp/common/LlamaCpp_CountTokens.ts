@@ -5,7 +5,7 @@
  */
 
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
@@ -23,10 +23,10 @@ export const LlamaCpp_CountTokens: AiProviderRunFn<
   return { count: tokens.length };
 };
 
-export const LlamaCpp_CountTokens_Reactive: AiProviderReactiveRunFn<
+export const LlamaCpp_CountTokens_Preview: AiProviderPreviewRunFn<
   CountTokensTaskInput,
   CountTokensTaskOutput,
   LlamaCppModelConfig
-> = async (input, _output, model) => {
+> = async (input, model) => {
   return LlamaCpp_CountTokens(input, model, () => {}, new AbortController().signal);
 };

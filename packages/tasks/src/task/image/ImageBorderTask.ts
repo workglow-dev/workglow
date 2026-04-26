@@ -6,7 +6,8 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -15,6 +16,46 @@ import { resolveColor } from "@workglow/util/media";
 import { DataPortSchema } from "@workglow/util/schema";
 import { ColorValueSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function applyBorder(input: ImageBorderTaskInput): Promise<ImageBorderTaskOutput> {
+  const { borderWidth: bw = 1 } = input;
+  const color = resolveColor(input.color);
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width: srcW, height: srcH, channels: srcCh } = img;
+    const outCh = 4;
+    const dstW = srcW + bw * 2;
+    const dstH = srcH + bw * 2;
+    const dst = new Uint8ClampedArray(dstW * dstH * outCh);
+
+    const r = color.r;
+    const g = color.g;
+    const b = color.b;
+    const a = color.a;
+
+    // Fill entire image with border color
+    for (let i = 0; i < dst.length; i += outCh) {
+      dst[i] = r;
+      dst[i + 1] = g;
+      dst[i + 2] = b;
+      dst[i + 3] = a;
+    }
+
+    // Copy source image into center
+    for (let y = 0; y < srcH; y++) {
+      for (let x = 0; x < srcW; x++) {
+        const srcIdx = (y * srcW + x) * srcCh;
+        const dstIdx = ((y + bw) * dstW + (x + bw)) * outCh;
+        dst[dstIdx] = src[srcIdx];
+        dst[dstIdx + 1] = srcCh >= 3 ? src[srcIdx + 1] : src[srcIdx];
+        dst[dstIdx + 2] = srcCh >= 3 ? src[srcIdx + 2] : src[srcIdx];
+        dst[dstIdx + 3] = srcCh === 4 ? src[srcIdx + 3] : 255;
+      }
+    }
+
+    return { data: dst, width: dstW, height: dstH, channels: outCh };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -63,48 +104,15 @@ export class ImageBorderTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return (await applyBorder(input)) as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    const { borderWidth: bw = 1 } = input;
-    const color = resolveColor(input.color);
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width: srcW, height: srcH, channels: srcCh } = img;
-      const outCh = 4;
-      const dstW = srcW + bw * 2;
-      const dstH = srcH + bw * 2;
-      const dst = new Uint8ClampedArray(dstW * dstH * outCh);
-
-      const r = color.r;
-      const g = color.g;
-      const b = color.b;
-      const a = color.a;
-
-      // Fill entire image with border color
-      for (let i = 0; i < dst.length; i += outCh) {
-        dst[i] = r;
-        dst[i + 1] = g;
-        dst[i + 2] = b;
-        dst[i + 3] = a;
-      }
-
-      // Copy source image into center
-      for (let y = 0; y < srcH; y++) {
-        for (let x = 0; x < srcW; x++) {
-          const srcIdx = (y * srcW + x) * srcCh;
-          const dstIdx = ((y + bw) * dstW + (x + bw)) * outCh;
-          dst[dstIdx] = src[srcIdx];
-          dst[dstIdx + 1] = srcCh >= 3 ? src[srcIdx + 1] : src[srcIdx];
-          dst[dstIdx + 2] = srcCh >= 3 ? src[srcIdx + 2] : src[srcIdx];
-          dst[dstIdx + 3] = srcCh === 4 ? src[srcIdx + 3] : 255;
-        }
-      }
-
-      return { data: dst, width: dstW, height: dstH, channels: outCh };
-    });
-    return { image } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return (await applyBorder(input)) as Output;
   }
 }
 

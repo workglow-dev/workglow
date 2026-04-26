@@ -130,8 +130,7 @@ export class ChunkVectorUpsertTask extends Task<
     await context.updateProgress(1, "Upserting vectors");
 
     const entities = chunkArray.map((chunk, i) => {
-      const leafNodeId =
-        chunk.leafNodeId ?? chunk.nodePath[chunk.nodePath.length - 1] ?? undefined;
+      const leafNodeId = chunk.leafNodeId ?? chunk.nodePath[chunk.nodePath.length - 1] ?? undefined;
       const metadata: ChunkRecord = {
         ...chunk,
         ...(leafNodeId !== undefined ? { leafNodeId } : {}),

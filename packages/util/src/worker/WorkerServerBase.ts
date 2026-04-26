@@ -87,8 +87,7 @@ export class WorkerServerBase {
 
   private functions: Record<string, (...args: any[]) => Promise<any>> = {};
   private streamFunctions: Record<string, (...args: any[]) => AsyncIterable<any>> = {};
-  private reactiveFunctions: Record<string, (input: any, output: any, model: any) => Promise<any>> =
-    {};
+  private previewFunctions: Record<string, (input: any, model: any) => Promise<any>> = {};
 
   // Keep track of each request's AbortController
   private requestControllers = new Map<string, AbortController>();
@@ -140,7 +139,7 @@ export class WorkerServerBase {
       type: "ready",
       functions: Object.keys(this.functions),
       streamFunctions: Object.keys(this.streamFunctions),
-      reactiveFunctions: Object.keys(this.reactiveFunctions),
+      previewFunctions: Object.keys(this.previewFunctions),
     });
   }
 
@@ -149,18 +148,15 @@ export class WorkerServerBase {
   }
 
   /**
-   * Register a reactive function for lightweight preview execution.
-   * Reactive functions receive (input, output, model) and return a fast preview
+   * Register a preview function for lightweight preview execution.
+   * Preview functions receive (input, model) and return a fast preview
    * without progress tracking or abort signals.
    *
    * @param name - The function name (e.g., task type identifier)
-   * @param fn - Async function: (input, output, model) => Promise<output | undefined>
+   * @param fn - Async function: (input, model) => Promise<output | undefined>
    */
-  registerReactiveFunction(
-    name: string,
-    fn: (input: any, output: any, model: any) => Promise<any>
-  ) {
-    this.reactiveFunctions[name] = fn;
+  registerPreviewFunction(name: string, fn: (input: any, model: any) => Promise<any>) {
+    this.previewFunctions[name] = fn;
   }
 
   /**
@@ -178,7 +174,7 @@ export class WorkerServerBase {
 
   // Handle messages from the main thread
   async handleMessage(event: { type: string; data: any }) {
-    const { id, type, functionName, args, stream, reactive } = event.data;
+    const { id, type, functionName, args, stream, preview } = event.data;
     if (type === "abort") {
       return await this.handleAbort(id);
     }
@@ -186,8 +182,8 @@ export class WorkerServerBase {
       if (stream) {
         return await this.handleStreamCall(id, functionName, args);
       }
-      if (reactive) {
-        return await this.handleReactiveCall(id, functionName, args);
+      if (preview) {
+        return await this.handlePreviewCall(id, functionName, args);
       }
       return await this.handleCall(id, functionName, args);
     }
@@ -205,21 +201,17 @@ export class WorkerServerBase {
   }
 
   /**
-   * Handle a reactive call. Returns undefined (non-error) if the reactive
-   * function is not registered, since not all task types expose a reactive fn.
+   * Handle a preview call. Returns undefined (non-error) if the preview
+   * function is not registered, since not all task types expose a preview fn.
    */
-  async handleReactiveCall(
-    id: string,
-    functionName: string,
-    [input, output, model]: [any, any, any]
-  ) {
-    if (!(functionName in this.reactiveFunctions)) {
+  async handlePreviewCall(id: string, functionName: string, [input, model]: [any, any]) {
+    if (!(functionName in this.previewFunctions)) {
       this.postResult(id, undefined);
       return;
     }
     try {
-      const fn = this.reactiveFunctions[functionName];
-      const result = await fn(input, output, model);
+      const fn = this.previewFunctions[functionName];
+      const result = await fn(input, model);
       this.postResult(id, result);
     } catch (error) {
       this.postError(id, error);

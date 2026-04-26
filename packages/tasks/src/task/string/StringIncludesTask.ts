@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function stringIncludes(text: string, search: string): boolean {
+  return text.includes(search);
+}
 
 const inputSchema = {
   type: "object",
@@ -65,12 +70,15 @@ export class StringIncludesTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return { included: stringIncludes(input.text, input.search) } as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    return { included: input.text.includes(input.search) } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return { included: stringIncludes(input.text, input.search) } as Output;
   }
 }
 

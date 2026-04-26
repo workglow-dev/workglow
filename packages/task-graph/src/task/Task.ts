@@ -10,7 +10,7 @@ import type { DataPortSchema, SchemaNode } from "@workglow/util/schema";
 import { compileSchema } from "@workglow/util/schema";
 import { DATAFLOW_ALL_PORTS } from "../task-graph/Dataflow";
 import { TaskGraph } from "../task-graph/TaskGraph";
-import type { IExecuteContext, IExecuteReactiveContext, IRunConfig, ITask } from "./ITask";
+import type { IExecuteContext, IExecutePreviewContext, IRunConfig, ITask } from "./ITask";
 import { EMPTY_ENTITLEMENTS, type TaskEntitlements } from "./TaskEntitlements";
 import {
   TaskAbortedError,
@@ -36,7 +36,7 @@ import { TaskConfigSchema, TaskStatus } from "./TaskTypes";
  *
  * The Task class is responsible for:
  * 1. Defining what a task is (inputs, outputs, configuration)
- * 2. Providing the execution logic (via execute and executeReactive)
+ * 2. Providing the execution logic (via execute and executePreview)
  * 3. Delegating the running logic to a TaskRunner
  */
 export class Task<
@@ -172,20 +172,18 @@ export class Task<
   }
 
   /**
-   * Default implementation of executeReactive that does nothing.
-   * Subclasses should override this to provide actual reactive functionality.
+   * Default implementation of executePreview that does nothing.
+   * Subclasses should override this to provide actual preview functionality.
    *
    * This is generally for UI updating, and should be lightweight.
    * @param input The input to the task
-   * @param output The current output of the task
-   * @returns The updated output of the task or undefined if no changes
+   * @returns The preview output, or undefined for "no preview update"
    */
-  public async executeReactive(
+  public async executePreview(
     _input: Input,
-    output: Output,
-    _context: IExecuteReactiveContext
+    _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    return output;
+    return undefined;
   }
 
   // ========================================================================
@@ -222,14 +220,14 @@ export class Task<
   }
 
   /**
-   * Runs the task in reactive mode
+   * Runs the task in preview mode
    * Delegates to the task runner
    *
    * @param overrides Optional input overrides
    * @returns The task output
    */
-  public async runReactive(overrides: Partial<Input> = {}): Promise<Output> {
-    return this.runner.runReactive(overrides);
+  public async runPreview(overrides: Partial<Input> = {}): Promise<Output> {
+    return this.runner.runPreview(overrides);
   }
 
   /**

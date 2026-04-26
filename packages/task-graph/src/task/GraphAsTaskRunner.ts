@@ -43,14 +43,14 @@ export class GraphAsTaskRunner<
     return results;
   }
   /**
-   * Protected method for reactive execution delegation
+   * Protected method for preview execution delegation
    *
-   * For GraphAsTask, we pass the parent's runInputData to the subgraph's runReactive.
+   * For GraphAsTask, we pass the parent's runInputData to the subgraph's runPreview.
    * This ensures that root tasks in the subgraph (like InputTask) receive the
    * parent's input values after resetInputData() is called.
    */
-  protected async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
-    return this.task.subGraph!.runReactive<Output>(this.task.runInputData, {
+  protected async executeTaskChildrenPreview(): Promise<GraphResultArray<Output>> {
+    return this.task.subGraph!.runPreview<Output>(this.task.runInputData, {
       registry: this.registry,
       resourceScope: this.resourceScope,
     });
@@ -85,19 +85,22 @@ export class GraphAsTaskRunner<
   }
 
   /**
-   * Execute the task reactively
+   * Execute the task in preview mode
    */
-  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
+  public override async executeTaskPreview(input: Input): Promise<Output | undefined> {
     if (this.task.hasChildren()) {
-      const reactiveResults = await this.executeTaskChildrenReactive();
+      const previewResults = await this.executeTaskChildrenPreview();
       this.task.runOutputData = this.task.subGraph.mergeExecuteOutputsToRunOutput(
-        reactiveResults,
+        previewResults,
         this.task.compoundMerge
       );
+      return this.task.runOutputData as Output;
     } else {
-      const reactiveResults = await super.executeTaskReactive(input, output);
-      this.task.runOutputData = Object.assign({}, output, reactiveResults ?? {}) as Output;
+      const previewResult = await super.executeTaskPreview(input);
+      if (previewResult !== undefined) {
+        this.task.runOutputData = previewResult;
+      }
+      return this.task.runOutputData as Output;
     }
-    return this.task.runOutputData as Output;
   }
 }

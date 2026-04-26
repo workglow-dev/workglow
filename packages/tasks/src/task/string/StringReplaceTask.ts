@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function replaceString(text: string, search: string, replace: string): string {
+  return text.replaceAll(search, replace);
+}
 
 const inputSchema = {
   type: "object",
@@ -70,12 +75,15 @@ export class StringReplaceTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return { text: replaceString(input.text, input.search, input.replace) } as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    return { text: input.text.replaceAll(input.search, input.replace) } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return { text: replaceString(input.text, input.search, input.replace) } as Output;
   }
 }
 

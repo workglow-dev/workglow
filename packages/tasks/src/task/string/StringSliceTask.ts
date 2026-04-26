@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function sliceString(text: string, start: number, end: number | undefined): string {
+  return text.slice(start, end);
+}
 
 const inputSchema = {
   type: "object",
@@ -70,12 +75,15 @@ export class StringSliceTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return { text: sliceString(input.text, input.start, input.end) } as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    return { text: input.text.slice(input.start, input.end) } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return { text: sliceString(input.text, input.start, input.end) } as Output;
   }
 }
 

@@ -39,13 +39,13 @@ export type TestIOTaskInput = {
  * Standard output type for basic test tasks with flags for different run modes
  */
 export type TestIOTaskOutput = {
-  reactiveOnly: boolean; // Indicates if the result came from reactive run
+  previewOnly: boolean; // Indicates if the result came from preview run
   all: boolean; // Indicates if the result came from full run
   key: string; // Echo of the input key
 };
 
 /**
- * Basic implementation of a test task with both reactive and full run modes
+ * Basic implementation of a test task with both preview and full run modes
  * Used as a foundation for testing task execution and data flow
  */
 export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
@@ -68,7 +68,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     return {
       type: "object",
       properties: {
-        reactiveOnly: {
+        previewOnly: {
           type: "boolean",
         },
         all: {
@@ -84,18 +84,16 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
   }
 
   /**
-   * Implementation of reactive run mode
+   * Implementation of preview run mode
    * if execute ran then there will be output data
    * if not then we send the input data
    */
-  override async executeReactive(
-    input: TestIOTaskInput,
-    output: TestIOTaskOutput
-  ): Promise<TestIOTaskOutput> {
+  override async executePreview(input: TestIOTaskInput): Promise<TestIOTaskOutput> {
+    const output = this.runOutputData;
     return {
       all: output.all ?? false,
       key: output.key !== "default" && output.key !== undefined ? output.key : input.key,
-      reactiveOnly: output.reactiveOnly ?? true,
+      previewOnly: output.previewOnly ?? true,
     };
   }
 
@@ -106,7 +104,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     _input: TestIOTaskInput,
     _context: IExecuteContext
   ): Promise<TestIOTaskOutput> {
-    return { all: true, key: "full", reactiveOnly: false };
+    return { all: true, key: "full", previewOnly: false };
   }
 }
 
@@ -181,11 +179,12 @@ export class SimpleProcessingTask extends Task<SimpleProcessingInput, SimpleProc
   }
 
   /**
-   * Reactive implementation for real-time feedback
+   * Preview implementation for real-time feedback
    */
-  override async executeReactive(input: SimpleProcessingInput, output: SimpleProcessingOutput) {
+  override async executePreview(input: SimpleProcessingInput) {
     // For testing purposes, just return a different result
-    return { processed: output.processed ?? false, result: `Reactive: ${input.value}` };
+    const output = this.runOutputData;
+    return { processed: output.processed ?? false, result: `Preview: ${input.value}` };
   }
 }
 
@@ -277,7 +276,7 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     return {
       type: "object",
       properties: {
-        reactiveOnly: {
+        previewOnly: {
           type: "boolean",
         },
         all: {
@@ -319,7 +318,7 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     }
 
     return {
-      reactiveOnly: false,
+      previewOnly: false,
       all: true,
       key: input.key,
     };
@@ -373,9 +372,18 @@ export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutp
   }
 
   /**
-   * Reactive implementation that squares the input number
+   * Squares the input number (full run).
    */
-  override async executeReactive(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+  override async execute(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+    return {
+      output: input.input * input.input,
+    };
+  }
+
+  /**
+   * Preview implementation that squares the input number
+   */
+  override async executePreview(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     return {
       output: input.input * input.input,
     };
@@ -383,11 +391,11 @@ export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutp
 }
 
 /**
- * Non-reactive version of TestSquareTask
- * Only implements execute() for testing differences between reactive and non-reactive tasks
+ * Non-preview version of TestSquareTask
+ * Only implements execute() for testing differences between preview and non-preview tasks
  */
-export class TestSquareNonReactiveTask extends Task<TestSquareTaskInput, TestSquareTaskOutput> {
-  static override readonly type = "TestSquareNonReactiveTask";
+export class TestSquareNonPreviewTask extends Task<TestSquareTaskInput, TestSquareTaskOutput> {
+  static override readonly type = "TestSquareNonPreviewTask";
 
   static override inputSchema(): DataPortSchema {
     return {
@@ -416,7 +424,7 @@ export class TestSquareNonReactiveTask extends Task<TestSquareTaskInput, TestSqu
   }
 
   /**
-   * Non-reactive implementation that squares the input number
+   * Non-preview implementation that squares the input number
    */
   override async execute(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     return { output: input.input * input.input };
@@ -470,9 +478,18 @@ export class TestDoubleTask extends Task<TestDoubleTaskInput, TestDoubleTaskOutp
   }
 
   /**
-   * Reactive implementation that doubles the input number
+   * Doubles the input number (full run).
    */
-  override async executeReactive(input: TestDoubleTaskInput): Promise<TestDoubleTaskOutput> {
+  override async execute(input: TestDoubleTaskInput): Promise<TestDoubleTaskOutput> {
+    return {
+      output: input.input * 2,
+    };
+  }
+
+  /**
+   * Preview implementation that doubles the input number
+   */
+  override async executePreview(input: TestDoubleTaskInput): Promise<TestDoubleTaskOutput> {
     return {
       output: input.input * 2,
     };
@@ -513,9 +530,16 @@ export class TestSquareErrorTask extends Task<TestSquareTaskInput, TestSquareTas
   }
 
   /**
+   * Always throws an error to test error handling (full run).
+   */
+  override async execute(_input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+    throw new TaskError("Test error");
+  }
+
+  /**
    * Always throws an error to test error handling
    */
-  override async executeReactive(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+  override async executePreview(_input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     throw new TaskError("Test error");
   }
 }
@@ -692,12 +716,16 @@ export class StringTask extends Task<{ input: string }, { output: string }, Task
   }
 
   /**
+   * Returns the input string as output (full run).
+   */
+  override async execute(input: { input: string }): Promise<{ output: string }> {
+    return { output: input.input };
+  }
+
+  /**
    * Returns the input string as output
    */
-  override async executeReactive(
-    input: { input: string },
-    _output: { output: string }
-  ): Promise<{ output: string }> {
+  override async executePreview(input: { input: string }): Promise<{ output: string }> {
     return { output: input.input };
   }
 }
@@ -839,9 +867,18 @@ export class TestAddTask extends Task<TestAddTaskInput, TestAddTaskOutput> {
   }
 
   /**
+   * Adds the two input numbers (full run).
+   */
+  override async execute(input: TestAddTaskInput) {
+    return {
+      output: input.a + input.b,
+    };
+  }
+
+  /**
    * Adds the two input numbers
    */
-  override async executeReactive(input: TestAddTaskInput) {
+  override async executePreview(input: TestAddTaskInput) {
     return {
       output: input.a + input.b,
     };
@@ -1810,7 +1847,7 @@ export class GraphAsTask_InputTask extends Task<Record<string, unknown>, Record<
     return input;
   }
 
-  override async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  override async executePreview(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     return input;
   }
 }
@@ -1849,13 +1886,13 @@ export class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { re
     return { result: input.a + input.b };
   }
 
-  override async executeReactive(input: { a: number; b: number }): Promise<{ result: number }> {
+  override async executePreview(input: { a: number; b: number }): Promise<{ result: number }> {
     return { result: input.a + input.b };
   }
 }
 
 /**
- * Custom GraphAsTask with explicit schemas for testing reactive execution (from GraphAsTask tests)
+ * Custom GraphAsTask with explicit schemas for testing preview execution (from GraphAsTask tests)
  */
 export class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { result: number }> {
   static override type = "TestGraphAsTask_AB";
@@ -2085,7 +2122,7 @@ export class GraphAsTask_OutputTask extends Task<Record<string, unknown>, Record
     return input;
   }
 
-  override async executeReactive(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  override async executePreview(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     return input;
   }
 }

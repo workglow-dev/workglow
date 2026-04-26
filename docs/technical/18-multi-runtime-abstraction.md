@@ -24,14 +24,14 @@ and how to extend the system with new platform-specific code.
 
 Source files referenced in this document:
 
-| File | Purpose |
-|------|---------|
-| `packages/util/src/common.ts` | Shared exports used by all three runtimes |
-| `packages/util/src/browser.ts` | Browser entry point |
-| `packages/util/src/node.ts` | Node.js entry point |
-| `packages/util/src/bun.ts` | Bun entry point |
-| `packages/util/package.json` | Conditional exports and build scripts |
-| `packages/util/tsconfig.json` | TypeScript configuration listing all entry points |
+| File                           | Purpose                                           |
+| ------------------------------ | ------------------------------------------------- |
+| `packages/util/src/common.ts`  | Shared exports used by all three runtimes         |
+| `packages/util/src/browser.ts` | Browser entry point                               |
+| `packages/util/src/node.ts`    | Node.js entry point                               |
+| `packages/util/src/bun.ts`     | Bun entry point                                   |
+| `packages/util/package.json`   | Conditional exports and build scripts             |
+| `packages/util/tsconfig.json`  | TypeScript configuration listing all entry points |
 
 ---
 
@@ -124,14 +124,14 @@ a `WorkerPolyfill` that wraps `worker_threads`.
 `@workglow/util` exposes additional sub-paths beyond `"."`, each with their own platform
 conditions where appropriate:
 
-| Sub-path | Description | Platform-specific? |
-|----------|-------------|-------------------|
-| `@workglow/util` | Core utilities, DI, events, logging, crypto, workers | Yes (worker impl) |
-| `@workglow/util/schema` | JSON Schema types, validation, vector/tensor math | No |
-| `@workglow/util/graph` | Graph data structures (Graph, DirectedGraph, DAG) | No |
-| `@workglow/util/media` | Platform-specific image handling | Yes |
-| `@workglow/util/compress` | Platform-specific compression | Yes |
-| `@workglow/util/worker` | Lightweight worker entry point | Yes |
+| Sub-path                  | Description                                          | Platform-specific? |
+| ------------------------- | ---------------------------------------------------- | ------------------ |
+| `@workglow/util`          | Core utilities, DI, events, logging, crypto, workers | Yes (worker impl)  |
+| `@workglow/util/schema`   | JSON Schema types, validation, vector/tensor math    | No                 |
+| `@workglow/util/graph`    | Graph data structures (Graph, DirectedGraph, DAG)    | No                 |
+| `@workglow/util/media`    | Platform-specific image handling                     | Yes                |
+| `@workglow/util/compress` | Platform-specific compression                        | Yes                |
+| `@workglow/util/worker`   | Lightweight worker entry point                       | Yes                |
 
 Sub-paths that are **not** platform-specific (schema, graph) are built once with
 `--target=browser` and served to all runtimes — no conditional branching needed.
@@ -236,9 +236,8 @@ import { pathToFileURL } from "url";
 
 class WorkerPolyfill extends NodeWorker {
   constructor(scriptUrl: string | URL, options?: WorkerOptions) {
-    const resolved = scriptUrl instanceof URL
-      ? scriptUrl.toString()
-      : pathToFileURL(scriptUrl).toString();
+    const resolved =
+      scriptUrl instanceof URL ? scriptUrl.toString() : pathToFileURL(scriptUrl).toString();
     super(resolved, options);
   }
 
@@ -287,7 +286,7 @@ Key features:
 - **Ready handshake**: Workers send a `ready` message advertising their registered functions;
   the manager waits for this before dispatching calls.
 - **Three call modes**: `callWorkerFunction` (request/response), `callWorkerStreamFunction`
-  (async generator yielding stream chunks), and `callWorkerReactiveFunction` (lightweight
+  (async generator yielding stream chunks), and `callWorkerPreviewFunction` (lightweight
   preview with no abort support).
 - **Abort support**: Callers can pass an `AbortSignal`; the manager forwards abort messages to
   the worker.
@@ -326,8 +325,14 @@ conversions differ:
 ```typescript
 export type ImageChannels = 1 | 3 | 4; // grayscale, rgb, rgba
 export type ImageDataSupport =
-  | "Blob" | "ImageBinary" | "ImageBitmap" | "OffscreenCanvas"
-  | "VideoFrame" | "RawImage" | "DataUri" | "Sharp";
+  | "Blob"
+  | "ImageBinary"
+  | "ImageBitmap"
+  | "OffscreenCanvas"
+  | "VideoFrame"
+  | "RawImage"
+  | "DataUri"
+  | "Sharp";
 
 export interface ImageBinary {
   data: Uint8ClampedArray;
@@ -371,9 +376,7 @@ export async function decompress(
 Uses the Web Streams API with `CompressionStream` / `DecompressionStream`:
 
 ```typescript
-const compressedStream = sourceBlob
-  .stream()
-  .pipeThrough(new CompressionStream(algorithm));
+const compressedStream = sourceBlob.stream().pipeThrough(new CompressionStream(algorithm));
 const compressedBuffer = await new Response(compressedStream).arrayBuffer();
 return new Uint8Array(compressedBuffer);
 ```
@@ -565,8 +568,8 @@ The complete conditional exports map for `@workglow/util`:
   "exports": {
     ".": {
       "react-native": { "types": "./dist/browser.d.ts", "import": "./dist/browser.js" },
-      "browser":      { "types": "./dist/browser.d.ts", "import": "./dist/browser.js" },
-      "bun":          { "types": "./dist/bun.d.ts",     "import": "./dist/bun.js" },
+      "browser": { "types": "./dist/browser.d.ts", "import": "./dist/browser.js" },
+      "bun": { "types": "./dist/bun.d.ts", "import": "./dist/bun.js" },
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js"
     },
@@ -580,22 +583,31 @@ The complete conditional exports map for `@workglow/util`:
     },
     "./media": {
       "react-native": { "types": "./dist/media-browser.d.ts", "import": "./dist/media-browser.js" },
-      "browser":      { "types": "./dist/media-browser.d.ts", "import": "./dist/media-browser.js" },
-      "bun":          { "types": "./dist/media-node.d.ts",    "import": "./dist/media-node.js" },
+      "browser": { "types": "./dist/media-browser.d.ts", "import": "./dist/media-browser.js" },
+      "bun": { "types": "./dist/media-node.d.ts", "import": "./dist/media-node.js" },
       "types": "./dist/media-node.d.ts",
       "import": "./dist/media-node.js"
     },
     "./compress": {
-      "react-native": { "types": "./dist/compress-browser.d.ts", "import": "./dist/compress-browser.js" },
-      "browser":      { "types": "./dist/compress-browser.d.ts", "import": "./dist/compress-browser.js" },
-      "bun":          { "types": "./dist/compress-node.d.ts",    "import": "./dist/compress-node.js" },
+      "react-native": {
+        "types": "./dist/compress-browser.d.ts",
+        "import": "./dist/compress-browser.js"
+      },
+      "browser": {
+        "types": "./dist/compress-browser.d.ts",
+        "import": "./dist/compress-browser.js"
+      },
+      "bun": { "types": "./dist/compress-node.d.ts", "import": "./dist/compress-node.js" },
       "types": "./dist/compress-node.d.ts",
       "import": "./dist/compress-node.js"
     },
     "./worker": {
-      "react-native": { "types": "./dist/worker-browser.d.ts", "import": "./dist/worker-browser.js" },
-      "browser":      { "types": "./dist/worker-browser.d.ts", "import": "./dist/worker-browser.js" },
-      "bun":          { "types": "./dist/worker-bun.d.ts",     "import": "./dist/worker-bun.js" },
+      "react-native": {
+        "types": "./dist/worker-browser.d.ts",
+        "import": "./dist/worker-browser.js"
+      },
+      "browser": { "types": "./dist/worker-browser.d.ts", "import": "./dist/worker-browser.js" },
+      "bun": { "types": "./dist/worker-bun.d.ts", "import": "./dist/worker-bun.js" },
       "types": "./dist/worker-entry.d.ts",
       "import": "./dist/worker-node.js"
     }

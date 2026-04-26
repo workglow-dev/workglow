@@ -6,7 +6,8 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -14,6 +15,32 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function applyBrightness(
+  input: ImageBrightnessTaskInput
+): Promise<ImageBrightnessTaskOutput> {
+  const amount = input.amount ?? 0;
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels } = img;
+    const dst = new Uint8ClampedArray(src.length);
+
+    if (channels === 4) {
+      for (let i = 0; i < src.length; i += 4) {
+        dst[i] = src[i]! + amount;
+        dst[i + 1] = src[i + 1]! + amount;
+        dst[i + 2] = src[i + 2]! + amount;
+        dst[i + 3] = src[i + 3]!; // preserve alpha
+      }
+    } else {
+      for (let i = 0; i < src.length; i++) {
+        dst[i] = src[i]! + amount;
+      }
+    }
+
+    return { data: dst, width, height, channels };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -62,32 +89,15 @@ export class ImageBrightnessTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return (await applyBrightness(input)) as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    const amount = input.amount ?? 0;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const dst = new Uint8ClampedArray(src.length);
-
-      if (channels === 4) {
-        for (let i = 0; i < src.length; i += 4) {
-          dst[i] = src[i]! + amount;
-          dst[i + 1] = src[i + 1]! + amount;
-          dst[i + 2] = src[i + 2]! + amount;
-          dst[i + 3] = src[i + 3]!; // preserve alpha
-        }
-      } else {
-        for (let i = 0; i < src.length; i++) {
-          dst[i] = src[i]! + amount;
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return (await applyBrightness(input)) as Output;
   }
 }
 

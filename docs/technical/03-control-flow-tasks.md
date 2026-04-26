@@ -79,22 +79,24 @@ mergeExecuteOutputsToRunOutput()
 Return merged output from ending nodes
 ```
 
-### Reactive Execution
+### Preview Execution
 
 ```
-GraphAsTask.runReactive(input)
+GraphAsTask.runPreview(input)
   |
   v
-GraphAsTaskRunner.executeTaskReactive(input, output)
+GraphAsTaskRunner.executeTaskPreview(input)
   |
   v
-subGraph.runReactive(this.task.runInputData)
+subGraph.runPreview(this.task.runInputData)
   |
   v
 mergeExecuteOutputsToRunOutput()
 ```
 
-**Critical**: The parent's `runInputData` is passed to `subGraph.runReactive()` so that root tasks in the subgraph (like InputTask) receive the correct input values.
+**Critical**: The parent's `runInputData` is passed to `subGraph.runPreview()` so that root tasks in the subgraph (like InputTask) receive the correct input values.
+
+`runPreview()` is a separate path from `run()` — it never invokes the subgraph's `execute()`/`executeStream()` methods, only `executePreview()` on each task in topological order.
 
 ### Compound Merge Strategies
 

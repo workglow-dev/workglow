@@ -5,7 +5,7 @@
  */
 
 import { AiProvider } from "@workglow/ai";
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { OPENAI } from "./common/OpenAI_Constants";
 import type { OpenAiModelConfig } from "./common/OpenAI_ModelSchema";
 
@@ -31,8 +31,8 @@ export class OpenAiQueuedProvider extends AiProvider<OpenAiModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, OpenAiModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, OpenAiModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, OpenAiModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

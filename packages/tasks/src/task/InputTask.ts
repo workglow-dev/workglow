@@ -12,6 +12,10 @@ export type InputTaskInput = Record<string, unknown>;
 export type InputTaskOutput = Record<string, unknown>;
 export type InputTaskConfig = TaskConfig;
 
+function passthroughInput(input: InputTaskInput): InputTaskOutput {
+  return input as InputTaskOutput;
+}
+
 export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskConfig> {
   static override type = "InputTask";
   static override category = "Flow Control";
@@ -45,8 +49,12 @@ export class InputTask extends Task<InputTaskInput, InputTaskOutput, InputTaskCo
     return this.config?.outputSchema ?? (this.constructor as typeof InputTask).outputSchema();
   }
 
-  public override async executeReactive(input: InputTaskInput) {
-    return input as InputTaskOutput;
+  public override async execute(input: InputTaskInput, _context: IExecuteContext) {
+    return passthroughInput(input);
+  }
+
+  public override async executePreview(input: InputTaskInput) {
+    return passthroughInput(input);
   }
 
   /**

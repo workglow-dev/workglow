@@ -6,12 +6,45 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function formatDate(input: {
+  value: string;
+  format?: string;
+  locale?: string;
+  timeZone?: string;
+}): string {
+  const dateInput = /^\d+$/.test(input.value) ? Number(input.value) : input.value;
+  const date = new Date(dateInput);
+
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${input.value}`);
+  }
+
+  const format = input.format ?? "iso";
+  const locale = input.locale;
+  const timeZone = input.timeZone;
+
+  switch (format) {
+    case "iso":
+      return date.toISOString();
+    case "date":
+      return date.toLocaleDateString(locale, timeZone ? { timeZone } : undefined);
+    case "time":
+      return date.toLocaleTimeString(locale, timeZone ? { timeZone } : undefined);
+    case "unix":
+      return String(date.getTime());
+    case "datetime":
+    default:
+      return date.toLocaleString(locale, timeZone ? { timeZone } : undefined);
+  }
+}
 
 const inputSchema = {
   type: "object",
@@ -78,43 +111,15 @@ export class DateFormatTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return { result: formatDate(input) } as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    const dateInput = /^\d+$/.test(input.value) ? Number(input.value) : input.value;
-    const date = new Date(dateInput);
-
-    if (isNaN(date.getTime())) {
-      throw new Error(`Invalid date: ${input.value}`);
-    }
-
-    const format = input.format ?? "iso";
-    const locale = input.locale;
-    const timeZone = input.timeZone;
-    let result: string;
-
-    switch (format) {
-      case "iso":
-        result = date.toISOString();
-        break;
-      case "date":
-        result = date.toLocaleDateString(locale, timeZone ? { timeZone } : undefined);
-        break;
-      case "time":
-        result = date.toLocaleTimeString(locale, timeZone ? { timeZone } : undefined);
-        break;
-      case "unix":
-        result = String(date.getTime());
-        break;
-      case "datetime":
-      default:
-        result = date.toLocaleString(locale, timeZone ? { timeZone } : undefined);
-        break;
-    }
-
-    return { result } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return { result: formatDate(input) } as Output;
   }
 }
 

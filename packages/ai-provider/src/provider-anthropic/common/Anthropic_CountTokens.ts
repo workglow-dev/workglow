@@ -5,7 +5,7 @@
  */
 
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   CountTokensTaskInput,
   CountTokensTaskOutput,
@@ -26,10 +26,10 @@ export const Anthropic_CountTokens: AiProviderRunFn<
   return { count: result.input_tokens };
 };
 
-export const Anthropic_CountTokens_Reactive: AiProviderReactiveRunFn<
+export const Anthropic_CountTokens_Preview: AiProviderPreviewRunFn<
   CountTokensTaskInput,
   CountTokensTaskOutput,
   AnthropicModelConfig
-> = async (input, _output, _model) => {
+> = async (input, _model) => {
   return { count: Math.ceil(input.text.length / 4) };
 };

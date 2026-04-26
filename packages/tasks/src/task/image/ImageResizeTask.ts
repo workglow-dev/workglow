@@ -6,7 +6,8 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -14,6 +15,29 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function resizeImage(input: ImageResizeTaskInput): Promise<ImageResizeTaskOutput> {
+  const { width: dstW, height: dstH } = input;
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width: srcW, height: srcH, channels } = img;
+    const dst = new Uint8ClampedArray(dstW * dstH * channels);
+
+    for (let dy = 0; dy < dstH; dy++) {
+      const srcY = Math.min(Math.floor((dy * srcH) / dstH), srcH - 1);
+      for (let dx = 0; dx < dstW; dx++) {
+        const srcX = Math.min(Math.floor((dx * srcW) / dstW), srcW - 1);
+        const srcIdx = (srcY * srcW + srcX) * channels;
+        const dstIdx = (dy * dstW + dx) * channels;
+        for (let c = 0; c < channels; c++) {
+          dst[dstIdx + c] = src[srcIdx + c];
+        }
+      }
+    }
+
+    return { data: dst, width: dstW, height: dstH, channels };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -61,31 +85,15 @@ export class ImageResizeTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return (await resizeImage(input)) as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    const { width: dstW, height: dstH } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width: srcW, height: srcH, channels } = img;
-      const dst = new Uint8ClampedArray(dstW * dstH * channels);
-
-      for (let dy = 0; dy < dstH; dy++) {
-        const srcY = Math.min(Math.floor((dy * srcH) / dstH), srcH - 1);
-        for (let dx = 0; dx < dstW; dx++) {
-          const srcX = Math.min(Math.floor((dx * srcW) / dstW), srcW - 1);
-          const srcIdx = (srcY * srcW + srcX) * channels;
-          const dstIdx = (dy * dstW + dx) * channels;
-          for (let c = 0; c < channels; c++) {
-            dst[dstIdx + c] = src[srcIdx + c];
-          }
-        }
-      }
-
-      return { data: dst, width: dstW, height: dstH, channels };
-    });
-    return { image } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return (await resizeImage(input)) as Output;
   }
 }
 

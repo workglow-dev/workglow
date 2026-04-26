@@ -5,7 +5,7 @@
  */
 
 import { AiProvider } from "@workglow/ai";
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { GOOGLE_GEMINI } from "./common/Gemini_Constants";
 import type { GeminiModelConfig } from "./common/Gemini_ModelSchema";
 
@@ -31,8 +31,8 @@ export class GoogleGeminiQueuedProvider extends AiProvider<GeminiModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, GeminiModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, GeminiModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, GeminiModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, GeminiModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import type { LlamaCppModelConfig } from "./LlamaCpp_ModelSchema";
 import { LlamaCpp_ModelSearch } from "./LlamaCpp_ModelSearch";
 
@@ -23,7 +23,7 @@ export {
 } from "./LlamaCpp_Runtime";
 
 import { LlamaCpp_Chat, LlamaCpp_Chat_Stream } from "./LlamaCpp_Chat";
-import { LlamaCpp_CountTokens, LlamaCpp_CountTokens_Reactive } from "./LlamaCpp_CountTokens";
+import { LlamaCpp_CountTokens, LlamaCpp_CountTokens_Preview } from "./LlamaCpp_CountTokens";
 import { LlamaCpp_Download } from "./LlamaCpp_Download";
 import { LlamaCpp_ModelInfo } from "./LlamaCpp_ModelInfo";
 import {
@@ -64,9 +64,9 @@ export const LLAMACPP_STREAM_TASKS: Record<
   StructuredGenerationTask: LlamaCpp_StructuredGeneration_Stream,
 };
 
-export const LLAMACPP_REACTIVE_TASKS: Record<
+export const LLAMACPP_PREVIEW_TASKS: Record<
   string,
-  AiProviderReactiveRunFn<any, any, LlamaCppModelConfig>
+  AiProviderPreviewRunFn<any, any, LlamaCppModelConfig>
 > = {
-  CountTokensTask: LlamaCpp_CountTokens_Reactive,
+  CountTokensTask: LlamaCpp_CountTokens_Preview,
 };

@@ -6,7 +6,8 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecuteContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -14,6 +15,29 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function invertImage(input: ImageInvertTaskInput): Promise<ImageInvertTaskOutput> {
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels } = img;
+    const dst = new Uint8ClampedArray(src.length);
+
+    if (channels === 4) {
+      for (let i = 0; i < src.length; i += 4) {
+        dst[i] = 255 - src[i]!;
+        dst[i + 1] = 255 - src[i + 1]!;
+        dst[i + 2] = 255 - src[i + 2]!;
+        dst[i + 3] = src[i + 3]!; // preserve alpha
+      }
+    } else {
+      for (let i = 0; i < src.length; i++) {
+        dst[i] = 255 - src[i]!;
+      }
+    }
+
+    return { data: dst, width, height, channels };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -54,31 +78,15 @@ export class ImageInvertTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return (await invertImage(input)) as Output;
+  }
+
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const dst = new Uint8ClampedArray(src.length);
-
-      if (channels === 4) {
-        for (let i = 0; i < src.length; i += 4) {
-          dst[i] = 255 - src[i]!;
-          dst[i + 1] = 255 - src[i + 1]!;
-          dst[i + 2] = 255 - src[i + 2]!;
-          dst[i + 3] = src[i + 3]!; // preserve alpha
-        }
-      } else {
-        for (let i = 0; i < src.length; i++) {
-          dst[i] = 255 - src[i]!;
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    return (await invertImage(input)) as Output;
   }
 }
 

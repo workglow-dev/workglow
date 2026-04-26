@@ -51,12 +51,12 @@ The system is composed of four collaborating pieces:
 
 Source files:
 
-| File | Purpose |
-|------|---------|
-| `packages/ai/src/model/ModelSchema.ts` | `ModelConfig`, `ModelRecord` types and schemas |
-| `packages/ai/src/model/ModelRepository.ts` | `ModelRepository` base class |
-| `packages/ai/src/model/InMemoryModelRepository.ts` | In-memory implementation |
-| `packages/ai/src/model/ModelRegistry.ts` | DI wiring, global accessors, resolver/compactor |
+| File                                               | Purpose                                         |
+| -------------------------------------------------- | ----------------------------------------------- |
+| `packages/ai/src/model/ModelSchema.ts`             | `ModelConfig`, `ModelRecord` types and schemas  |
+| `packages/ai/src/model/ModelRepository.ts`         | `ModelRepository` base class                    |
+| `packages/ai/src/model/InMemoryModelRepository.ts` | In-memory implementation                        |
+| `packages/ai/src/model/ModelRegistry.ts`           | DI wiring, global accessors, resolver/compactor |
 
 ---
 
@@ -99,15 +99,15 @@ type ModelConfig = FromSchema<typeof ModelConfigSchema>;
 
 Key fields:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `model_id` | `string` | No | Unique identifier for the model |
-| `tasks` | `string[]` | No | Task types this model supports |
-| `title` | `string` | No | Human-readable name |
-| `description` | `string` | No | Description of the model |
-| `provider` | `string` | Yes | Provider name (e.g., `"OPENAI"`) |
-| `provider_config` | `object` | Yes | Provider-specific settings |
-| `metadata` | `object` | No | Arbitrary metadata |
+| Field             | Type       | Required | Description                      |
+| ----------------- | ---------- | -------- | -------------------------------- |
+| `model_id`        | `string`   | No       | Unique identifier for the model  |
+| `tasks`           | `string[]` | No       | Task types this model supports   |
+| `title`           | `string`   | No       | Human-readable name              |
+| `description`     | `string`   | No       | Description of the model         |
+| `provider`        | `string`   | Yes      | Provider name (e.g., `"OPENAI"`) |
+| `provider_config` | `object`   | Yes      | Provider-specific settings       |
+| `metadata`        | `object`   | No       | Arbitrary metadata               |
 
 The `provider_config` object supports `additionalProperties: true`, so providers can include
 their own fields (e.g., `model_name`, `device`, `dtype`). The `credential_key` sub-field uses
@@ -125,8 +125,13 @@ const ModelRecordSchema = {
     ...ModelConfigSchema.properties,
   },
   required: [
-    "model_id", "tasks", "provider", "title",
-    "description", "provider_config", "metadata",
+    "model_id",
+    "tasks",
+    "provider",
+    "title",
+    "description",
+    "provider_config",
+    "metadata",
   ],
   format: "model",
   additionalProperties: false,
@@ -166,7 +171,7 @@ class ModelRepository {
       typeof ModelPrimaryKeyNames,
       ModelRecord
     >
-  )
+  );
 }
 ```
 
@@ -315,7 +320,7 @@ if (!globalServiceRegistry.has(MODEL_REPOSITORY)) {
   globalServiceRegistry.register(
     MODEL_REPOSITORY,
     (): ModelRepository => new InMemoryModelRepository(),
-    true  // singleton
+    true // singleton
   );
 }
 ```
@@ -352,7 +357,7 @@ await repo.addModel({
   title: "All MiniLM L6 v2",
   description: "Sentence transformer for embeddings",
   provider: "HF_TRANSFORMERS_ONNX",
-  tasks: ["TextEmbeddingTask"],  // Only supports embeddings
+  tasks: ["TextEmbeddingTask"], // Only supports embeddings
   provider_config: { model_name: "Xenova/all-MiniLM-L6-v2" },
   metadata: {},
 });
@@ -366,9 +371,7 @@ task type. If not, it throws a `TaskConfigurationError`:
 ```typescript
 const tasks = (model as ModelConfig).tasks;
 if (Array.isArray(tasks) && tasks.length > 0 && !tasks.includes(this.type)) {
-  throw new TaskConfigurationError(
-    `Model "${modelId}" is not compatible with task '${this.type}'`
-  );
+  throw new TaskConfigurationError(`Model "${modelId}" is not compatible with task '${this.type}'`);
 }
 ```
 
@@ -475,7 +478,7 @@ const task = new TextGenerationTask({ model: "gpt-4", prompt: "Hello" });
 ## Events
 
 The `ModelRepository` emits events through an `EventEmitter<ModelEventListeners>` instance.
-These events enable reactive UI updates and cross-component communication.
+These events enable reactive and preview UI updates, telemetry, and cross-component communication.
 
 ### Event Types
 
@@ -515,7 +518,9 @@ console.log(`Waited for model: ${newModel.model_id}`);
 ### Unsubscribing
 
 ```typescript
-const handler = (model: ModelRecord) => { /* ... */ };
+const handler = (model: ModelRecord) => {
+  /* ... */
+};
 repo.on("model_added", handler);
 // Later:
 repo.off("model_added", handler);
@@ -559,21 +564,21 @@ Replaces the global `ModelRepository` instance.
 
 ### ModelRepository
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `setupDatabase()` | `Promise<void>` | Initialize storage backend |
-| `addModel(model)` | `Promise<ModelRecord>` | Add a model, emit `model_added` |
-| `removeModel(model_id)` | `Promise<void>` | Remove a model, emit `model_removed` |
-| `findByName(model_id)` | `Promise<ModelRecord \| undefined>` | Look up by ID |
-| `findModelsByTask(task)` | `Promise<ModelRecord[] \| undefined>` | Models supporting a task |
-| `findTasksByModel(model_id)` | `Promise<string[] \| undefined>` | Tasks supported by a model |
-| `enumerateAllTasks()` | `Promise<string[] \| undefined>` | All unique task types |
-| `enumerateAllModels()` | `Promise<ModelRecord[] \| undefined>` | All models |
-| `size()` | `Promise<number>` | Total model count |
-| `on(event, fn)` | `void` | Subscribe to events |
-| `off(event, fn)` | `void` | Unsubscribe from events |
-| `once(event, fn)` | `void` | One-time event listener |
-| `waitOn(event)` | `Promise<[ModelRecord]>` | Wait for an event (promise) |
+| Method                       | Returns                               | Description                          |
+| ---------------------------- | ------------------------------------- | ------------------------------------ |
+| `setupDatabase()`            | `Promise<void>`                       | Initialize storage backend           |
+| `addModel(model)`            | `Promise<ModelRecord>`                | Add a model, emit `model_added`      |
+| `removeModel(model_id)`      | `Promise<void>`                       | Remove a model, emit `model_removed` |
+| `findByName(model_id)`       | `Promise<ModelRecord \| undefined>`   | Look up by ID                        |
+| `findModelsByTask(task)`     | `Promise<ModelRecord[] \| undefined>` | Models supporting a task             |
+| `findTasksByModel(model_id)` | `Promise<string[] \| undefined>`      | Tasks supported by a model           |
+| `enumerateAllTasks()`        | `Promise<string[] \| undefined>`      | All unique task types                |
+| `enumerateAllModels()`       | `Promise<ModelRecord[] \| undefined>` | All models                           |
+| `size()`                     | `Promise<number>`                     | Total model count                    |
+| `on(event, fn)`              | `void`                                | Subscribe to events                  |
+| `off(event, fn)`             | `void`                                | Unsubscribe from events              |
+| `once(event, fn)`            | `void`                                | One-time event listener              |
+| `waitOn(event)`              | `Promise<[ModelRecord]>`              | Wait for an event (promise)          |
 
 ### InMemoryModelRepository
 
@@ -586,8 +591,8 @@ model repository via the DI system.
 
 ### Model Events
 
-| Event | Payload | Emitted When |
-|-------|---------|-------------|
-| `model_added` | `ModelRecord` | After `addModel()` succeeds |
+| Event           | Payload       | Emitted When                   |
+| --------------- | ------------- | ------------------------------ |
+| `model_added`   | `ModelRecord` | After `addModel()` succeeds    |
 | `model_removed` | `ModelRecord` | After `removeModel()` succeeds |
-| `model_updated` | `ModelRecord` | After a model is updated |
+| `model_updated` | `ModelRecord` | After a model is updated       |

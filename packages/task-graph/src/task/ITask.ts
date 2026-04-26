@@ -43,7 +43,7 @@ export interface IExecuteContext {
   resourceScope?: ResourceScope;
 }
 
-export type IExecuteReactiveContext = Pick<IExecuteContext, "own">;
+export type IExecutePreviewContext = Pick<IExecuteContext, "own">;
 
 /**
  * Configuration for running a task (runtime concerns, not serialized with the task).
@@ -147,11 +147,7 @@ export interface ITaskExecution<
   Output extends TaskOutput = TaskOutput,
 > {
   execute(input: Input, context: IExecuteContext): Promise<Output | undefined>;
-  executeReactive(
-    input: Input,
-    output: Output,
-    context: IExecuteReactiveContext
-  ): Promise<Output | undefined>;
+  executePreview?(input: Input, ctx: IExecutePreviewContext): Promise<Output | undefined>;
 
   /**
    * Optional streaming execution method.
@@ -178,7 +174,7 @@ export interface ITaskLifecycle<
   Config extends TaskConfig,
 > {
   run(overrides?: Partial<Input>, runConfig?: Partial<IRunConfig>): Promise<Output>;
-  runReactive(overrides?: Partial<Input>): Promise<Output>;
+  runPreview(overrides?: Partial<Input>): Promise<Output>;
   get runner(): TaskRunner<Input, Output, Config>;
   abort(): void;
   disable(): Promise<void>;
