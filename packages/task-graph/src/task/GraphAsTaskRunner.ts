@@ -87,17 +87,20 @@ export class GraphAsTaskRunner<
   /**
    * Execute the task in preview mode
    */
-  public override async executeTaskPreview(input: Input, output: Output): Promise<Output> {
+  public override async executeTaskPreview(input: Input): Promise<Output | undefined> {
     if (this.task.hasChildren()) {
       const previewResults = await this.executeTaskChildrenPreview();
       this.task.runOutputData = this.task.subGraph.mergeExecuteOutputsToRunOutput(
         previewResults,
         this.task.compoundMerge
       );
+      return this.task.runOutputData as Output;
     } else {
-      const previewResults = await super.executeTaskPreview(input, output);
-      this.task.runOutputData = Object.assign({}, output, previewResults ?? {}) as Output;
+      const previewResult = await super.executeTaskPreview(input);
+      if (previewResult !== undefined) {
+        this.task.runOutputData = previewResult;
+      }
+      return this.task.runOutputData as Output;
     }
-    return this.task.runOutputData as Output;
   }
 }

@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -26,6 +27,48 @@ function hasNestedQuantifiers(pattern: string): boolean {
   const withoutClasses = pattern.replace(/\[(?:[^\]\\]|\\.)*\]/g, "X");
   // Detect group with inner quantifier followed by outer quantifier
   return /\([^)]*[+*][^)]*\)[+*?]|\([^)]*[+*][^)]*\)\{/.test(withoutClasses);
+}
+
+function executeRegex(input: { value: string; pattern: string; flags?: string }): {
+  match: boolean;
+  matches: string[];
+} {
+  const bracketCount = (input.pattern.match(/\[/g) ?? []).length;
+  if (bracketCount > MAX_BRACKET_COUNT) {
+    throw new TaskInvalidInputError(
+      "Regex pattern rejected: too many '[' characters (potential ReDoS). " +
+        "Simplify the pattern to reduce complexity."
+    );
+  }
+
+  if (hasNestedQuantifiers(input.pattern)) {
+    throw new TaskInvalidInputError(
+      "Regex pattern rejected: nested quantifiers detected (potential ReDoS). " +
+        "Simplify the pattern to avoid catastrophic backtracking."
+    );
+  }
+
+  const flags = input.flags ?? "";
+  const regex = new RegExp(input.pattern, flags);
+
+  if (flags.includes("g")) {
+    const allMatches = Array.from(input.value.matchAll(new RegExp(input.pattern, flags)));
+    return {
+      match: allMatches.length > 0,
+      matches: allMatches.map((m) => m[0]),
+    };
+  }
+
+  const result = regex.exec(input.value);
+  if (!result) {
+    return { match: false, matches: [] as string[] };
+  }
+
+  // Return full match + captured groups
+  return {
+    match: true,
+    matches: result.slice(0),
+  };
 }
 
 const inputSchema = {
@@ -92,46 +135,18 @@ export class RegexTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return executeRegex(input) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const bracketCount = (input.pattern.match(/\[/g) ?? []).length;
-    if (bracketCount > MAX_BRACKET_COUNT) {
-      throw new TaskInvalidInputError(
-        "Regex pattern rejected: too many '[' characters (potential ReDoS). " +
-          "Simplify the pattern to reduce complexity."
-      );
-    }
-
-    if (hasNestedQuantifiers(input.pattern)) {
-      throw new TaskInvalidInputError(
-        "Regex pattern rejected: nested quantifiers detected (potential ReDoS). " +
-          "Simplify the pattern to avoid catastrophic backtracking."
-      );
-    }
-
-    const flags = input.flags ?? "";
-    const regex = new RegExp(input.pattern, flags);
-
-    if (flags.includes("g")) {
-      const allMatches = Array.from(input.value.matchAll(new RegExp(input.pattern, flags)));
-      return {
-        match: allMatches.length > 0,
-        matches: allMatches.map((m) => m[0]),
-      } as Output;
-    }
-
-    const result = regex.exec(input.value);
-    if (!result) {
-      return { match: false, matches: [] as string[] } as Output;
-    }
-
-    // Return full match + captured groups
-    return {
-      match: true,
-      matches: result.slice(0),
-    } as Output;
+    return executeRegex(input) as Output;
   }
 }
 

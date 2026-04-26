@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -14,6 +15,29 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function applyThreshold(input: ImageThresholdTaskInput): Promise<ImageThresholdTaskOutput> {
+  const threshold = input.threshold ?? 128;
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels } = img;
+    const pixelCount = width * height;
+    const dst = new Uint8ClampedArray(pixelCount);
+
+    for (let i = 0; i < pixelCount; i++) {
+      const idx = i * channels;
+      let gray: number;
+      if (channels === 1) {
+        gray = src[idx]!;
+      } else {
+        gray = (src[idx]! * 77 + src[idx + 1]! * 150 + src[idx + 2]! * 29) >> 8;
+      }
+      dst[i] = gray >= threshold ? 255 : 0;
+    }
+
+    return { data: dst, width, height, channels: 1 };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -62,30 +86,18 @@ export class ImageThresholdTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return (await applyThreshold(input)) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const threshold = input.threshold ?? 128;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const pixelCount = width * height;
-      const dst = new Uint8ClampedArray(pixelCount);
-
-      for (let i = 0; i < pixelCount; i++) {
-        const idx = i * channels;
-        let gray: number;
-        if (channels === 1) {
-          gray = src[idx]!;
-        } else {
-          gray = (src[idx]! * 77 + src[idx + 1]! * 150 + src[idx + 2]! * 29) >> 8;
-        }
-        dst[i] = gray >= threshold ? 255 : 0;
-      }
-
-      return { data: dst, width, height, channels: 1 };
-    });
-    return { image } as Output;
+    return (await applyThreshold(input)) as Output;
   }
 }
 

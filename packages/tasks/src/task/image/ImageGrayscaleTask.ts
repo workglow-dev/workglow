@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -14,6 +15,27 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function applyGrayscale(input: ImageGrayscaleTaskInput): Promise<ImageGrayscaleTaskOutput> {
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels } = img;
+
+    if (channels === 1) {
+      return { data: new Uint8ClampedArray(src), width, height, channels: 1 };
+    }
+
+    const pixelCount = width * height;
+    const dst = new Uint8ClampedArray(pixelCount);
+
+    for (let i = 0; i < pixelCount; i++) {
+      const idx = i * channels;
+      dst[i] = (src[idx] * 77 + src[idx + 1] * 150 + src[idx + 2] * 29) >> 8;
+    }
+
+    return { data: dst, width, height, channels: 1 };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -54,28 +76,18 @@ export class ImageGrayscaleTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return (await applyGrayscale(input)) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-
-      if (channels === 1) {
-        return { data: new Uint8ClampedArray(src), width, height, channels: 1 };
-      }
-
-      const pixelCount = width * height;
-      const dst = new Uint8ClampedArray(pixelCount);
-
-      for (let i = 0; i < pixelCount; i++) {
-        const idx = i * channels;
-        dst[i] = (src[idx] * 77 + src[idx + 1] * 150 + src[idx + 2] * 29) >> 8;
-      }
-
-      return { data: dst, width, height, channels: 1 };
-    });
-    return { image } as Output;
+    return (await applyGrayscale(input)) as Output;
   }
 }
 

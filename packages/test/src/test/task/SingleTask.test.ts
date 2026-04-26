@@ -83,10 +83,11 @@ describe("SingleTask", () => {
 
     describe("Task execution", () => {
       it("should run the task with default inputs", async () => {
+        // After the run/runPreview split, run() returns execute() output verbatim.
         const output = await task.run();
         expect(output).toEqual({
           processed: true,
-          result: "Reactive: default", // reactive overrites
+          result: "Processed: default",
         });
         expect(task.status).toBe(TaskStatus.COMPLETED);
       });
@@ -251,13 +252,15 @@ describe("SingleTask", () => {
         task = new Task();
       });
 
-      it("should call runPreview when run is called", async () => {
+      it("should call execute when run is called and not executePreview", async () => {
+        // After the run/runPreview split, run() calls execute() only —
+        // executePreview() is reserved for runPreview().
         const executeSpy = spyOn(task, "execute");
         const executePreviewSpy = spyOn(task, "executePreview");
 
         await task.run();
         expect(executeSpy).toHaveBeenCalled();
-        expect(executePreviewSpy).toHaveBeenCalled();
+        expect(executePreviewSpy).not.toHaveBeenCalled();
       });
 
       it("should update status during task execution", async () => {

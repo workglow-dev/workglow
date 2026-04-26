@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function stringLength(text: string): number {
+  return text.length;
+}
 
 const inputSchema = {
   type: "object",
@@ -60,11 +65,18 @@ export class StringLengthTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return { length: stringLength(input.text) } as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    return { length: input.text.length } as Output;
+    return { length: stringLength(input.text) } as Output;
   }
 }
 

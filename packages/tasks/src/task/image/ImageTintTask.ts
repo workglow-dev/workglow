@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -15,6 +16,46 @@ import { DataPortSchema } from "@workglow/util/schema";
 import { ColorValueSchema, ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { resolveColor } from "@workglow/util/media";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function applyTint(input: ImageTintTaskInput): Promise<ImageTintTaskOutput> {
+  const { r: tr, g: tg, b: tb } = resolveColor(input.color);
+  const amount = input.amount ?? 0.5;
+  const invAmount = 1 - amount;
+  const tintR = tr * amount;
+  const tintG = tg * amount;
+  const tintB = tb * amount;
+
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels } = img;
+    const pixelCount = width * height;
+
+    if (channels === 1) {
+      const dst = new Uint8ClampedArray(pixelCount * 3);
+      for (let i = 0; i < pixelCount; i++) {
+        const gray = src[i]!;
+        dst[i * 3] = gray * invAmount + tintR;
+        dst[i * 3 + 1] = gray * invAmount + tintG;
+        dst[i * 3 + 2] = gray * invAmount + tintB;
+      }
+      return { data: dst, width, height, channels: 3 };
+    }
+
+    const dst = new Uint8ClampedArray(src.length);
+
+    for (let i = 0; i < pixelCount; i++) {
+      const idx = i * channels;
+      dst[idx] = src[idx]! * invAmount + tintR;
+      dst[idx + 1] = src[idx + 1]! * invAmount + tintG;
+      dst[idx + 2] = src[idx + 2]! * invAmount + tintB;
+      if (channels === 4) {
+        dst[idx + 3] = src[idx + 3]!; // preserve alpha
+      }
+    }
+
+    return { data: dst, width, height, channels };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -64,47 +105,18 @@ export class ImageTintTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return (await applyTint(input)) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const { r: tr, g: tg, b: tb } = resolveColor(input.color);
-    const amount = input.amount ?? 0.5;
-    const invAmount = 1 - amount;
-    const tintR = tr * amount;
-    const tintG = tg * amount;
-    const tintB = tb * amount;
-
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const pixelCount = width * height;
-
-      if (channels === 1) {
-        const dst = new Uint8ClampedArray(pixelCount * 3);
-        for (let i = 0; i < pixelCount; i++) {
-          const gray = src[i]!;
-          dst[i * 3] = gray * invAmount + tintR;
-          dst[i * 3 + 1] = gray * invAmount + tintG;
-          dst[i * 3 + 2] = gray * invAmount + tintB;
-        }
-        return { data: dst, width, height, channels: 3 };
-      }
-
-      const dst = new Uint8ClampedArray(src.length);
-
-      for (let i = 0; i < pixelCount; i++) {
-        const idx = i * channels;
-        dst[idx] = src[idx]! * invAmount + tintR;
-        dst[idx + 1] = src[idx + 1]! * invAmount + tintG;
-        dst[idx + 2] = src[idx + 2]! * invAmount + tintB;
-        if (channels === 4) {
-          dst[idx + 3] = src[idx + 3]!; // preserve alpha
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    return (await applyTint(input)) as Output;
   }
 }
 

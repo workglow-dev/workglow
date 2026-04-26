@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -14,6 +15,63 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function applyWatermark(input: ImageWatermarkTaskInput): Promise<ImageWatermarkTaskOutput> {
+  const { spacing = 64, opacity = 0.3, pattern = "diagonal-lines" } = input;
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels: srcCh } = img;
+    const outCh = 4;
+    const dst = new Uint8ClampedArray(width * height * outCh);
+    const lineWidth = 2;
+    const dotRadius = Math.max(2, spacing >> 3);
+    const dotRadiusSq = dotRadius * dotRadius;
+    const half = spacing >> 1;
+    const alpha = Math.round(opacity * 255);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const srcIdx = (y * width + x) * srcCh;
+        const dstIdx = (y * width + x) * outCh;
+
+        // Read source pixel
+        const sr = src[srcIdx];
+        const sg = srcCh >= 3 ? src[srcIdx + 1] : sr;
+        const sb = srcCh >= 3 ? src[srcIdx + 2] : sr;
+        const sa = srcCh === 4 ? src[srcIdx + 3] : 255;
+
+        // Check if this pixel is part of the watermark pattern
+        let isPattern = false;
+        if (pattern === "diagonal-lines") {
+          isPattern = (x + y) % spacing < lineWidth;
+        } else if (pattern === "grid") {
+          isPattern = x % spacing < lineWidth || y % spacing < lineWidth;
+        } else {
+          const dx = (x % spacing) - half;
+          const dy = (y % spacing) - half;
+          isPattern = dx * dx + dy * dy < dotRadiusSq;
+        }
+
+        if (isPattern) {
+          // Blend white watermark with source
+          const blend = alpha;
+          const invBlend = 255 - blend;
+          dst[dstIdx] = (sr * invBlend + 255 * blend + 127) / 255;
+          dst[dstIdx + 1] = (sg * invBlend + 255 * blend + 127) / 255;
+          dst[dstIdx + 2] = (sb * invBlend + 255 * blend + 127) / 255;
+          dst[dstIdx + 3] = sa;
+        } else {
+          dst[dstIdx] = sr;
+          dst[dstIdx + 1] = sg;
+          dst[dstIdx + 2] = sb;
+          dst[dstIdx + 3] = sa;
+        }
+      }
+    }
+
+    return { data: dst, width, height, channels: outCh };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -76,64 +134,18 @@ export class ImageWatermarkTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return (await applyWatermark(input)) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const { spacing = 64, opacity = 0.3, pattern = "diagonal-lines" } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels: srcCh } = img;
-      const outCh = 4;
-      const dst = new Uint8ClampedArray(width * height * outCh);
-      const lineWidth = 2;
-      const dotRadius = Math.max(2, spacing >> 3);
-      const dotRadiusSq = dotRadius * dotRadius;
-      const half = spacing >> 1;
-      const alpha = Math.round(opacity * 255);
-
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const srcIdx = (y * width + x) * srcCh;
-          const dstIdx = (y * width + x) * outCh;
-
-          // Read source pixel
-          const sr = src[srcIdx];
-          const sg = srcCh >= 3 ? src[srcIdx + 1] : sr;
-          const sb = srcCh >= 3 ? src[srcIdx + 2] : sr;
-          const sa = srcCh === 4 ? src[srcIdx + 3] : 255;
-
-          // Check if this pixel is part of the watermark pattern
-          let isPattern = false;
-          if (pattern === "diagonal-lines") {
-            isPattern = (x + y) % spacing < lineWidth;
-          } else if (pattern === "grid") {
-            isPattern = x % spacing < lineWidth || y % spacing < lineWidth;
-          } else {
-            const dx = (x % spacing) - half;
-            const dy = (y % spacing) - half;
-            isPattern = dx * dx + dy * dy < dotRadiusSq;
-          }
-
-          if (isPattern) {
-            // Blend white watermark with source
-            const blend = alpha;
-            const invBlend = 255 - blend;
-            dst[dstIdx] = (sr * invBlend + 255 * blend + 127) / 255;
-            dst[dstIdx + 1] = (sg * invBlend + 255 * blend + 127) / 255;
-            dst[dstIdx + 2] = (sb * invBlend + 255 * blend + 127) / 255;
-            dst[dstIdx + 3] = sa;
-          } else {
-            dst[dstIdx] = sr;
-            dst[dstIdx + 1] = sg;
-            dst[dstIdx + 2] = sb;
-            dst[dstIdx + 3] = sa;
-          }
-        }
-      }
-
-      return { data: dst, width, height, channels: outCh };
-    });
-    return { image } as Output;
+    return (await applyWatermark(input)) as Output;
   }
 }
 

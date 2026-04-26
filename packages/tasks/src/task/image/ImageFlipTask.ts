@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -14,6 +15,36 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function flipImage(input: ImageFlipTaskInput): Promise<ImageFlipTaskOutput> {
+  const { direction } = input;
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels } = img;
+    const dst = new Uint8ClampedArray(src.length);
+    const rowBytes = width * channels;
+
+    if (direction === "vertical") {
+      for (let y = 0; y < height; y++) {
+        const srcOffset = y * rowBytes;
+        const dstOffset = (height - 1 - y) * rowBytes;
+        dst.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+      }
+    } else {
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const srcIdx = (y * width + x) * channels;
+          const dstIdx = (y * width + (width - 1 - x)) * channels;
+          for (let c = 0; c < channels; c++) {
+            dst[dstIdx + c] = src[srcIdx + c];
+          }
+        }
+      }
+    }
+
+    return { data: dst, width, height, channels };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -60,37 +91,18 @@ export class ImageFlipTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return (await flipImage(input)) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const { direction } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-      const dst = new Uint8ClampedArray(src.length);
-      const rowBytes = width * channels;
-
-      if (direction === "vertical") {
-        for (let y = 0; y < height; y++) {
-          const srcOffset = y * rowBytes;
-          const dstOffset = (height - 1 - y) * rowBytes;
-          dst.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
-        }
-      } else {
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const srcIdx = (y * width + x) * channels;
-            const dstIdx = (y * width + (width - 1 - x)) * channels;
-            for (let c = 0; c < channels; c++) {
-              dst[dstIdx + c] = src[srcIdx + c];
-            }
-          }
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    return (await flipImage(input)) as Output;
   }
 }
 

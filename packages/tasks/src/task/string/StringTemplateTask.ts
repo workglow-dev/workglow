@@ -6,12 +6,21 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function renderStringTemplate(template: string, values: Record<string, unknown>): string {
+  let text = template;
+  for (const [key, value] of Object.entries(values)) {
+    text = text.replaceAll(`{{${key}}}`, String(value));
+  }
+  return text;
+}
 
 const inputSchema = {
   type: "object",
@@ -71,15 +80,18 @@ export class StringTemplateTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return { text: renderStringTemplate(input.template, input.values) } as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    let text = input.template;
-    for (const [key, value] of Object.entries(input.values)) {
-      text = text.replaceAll(`{{${key}}}`, String(value));
-    }
-    return { text } as Output;
+    return { text: renderStringTemplate(input.template, input.values) } as Output;
   }
 }
 

@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function joinStrings(texts: readonly string[], separator: string | undefined): string {
+  return texts.join(separator ?? "");
+}
 
 const inputSchema = {
   type: "object",
@@ -67,12 +72,18 @@ export class StringJoinTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return { text: joinStrings(input.texts, input.separator) } as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const separator = input.separator ?? "";
-    return { text: input.texts.join(separator) } as Output;
+    return { text: joinStrings(input.texts, input.separator) } as Output;
   }
 }
 

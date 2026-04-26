@@ -24,6 +24,7 @@ import { getOutputStreamMode, getStreamingPorts, isTaskStreamable } from "./Stre
 import { Task } from "./Task";
 import {
   TaskAbortedError,
+  TaskConfigurationError,
   TaskError,
   TaskFailedError,
   TaskInvalidInputError,
@@ -135,6 +136,19 @@ export class TaskRunner<
   async run(overrides: Partial<Input> = {}, config: IRunConfig = {}): Promise<Output> {
     await this.handleStart(config);
 
+    const proto = Object.getPrototypeOf(this.task);
+    if (
+      proto.execute === Task.prototype.execute &&
+      typeof proto.executeStream !== "function" &&
+      proto.executePreview !== Task.prototype.executePreview
+    ) {
+      throw new TaskConfigurationError(
+        `Task "${this.task.type}" implements only executePreview() and cannot be run via run(). ` +
+          `After the run/runPreview split, run() requires execute() (or executeStream()). ` +
+          `See docs/technical/02-dual-mode-execution.md.`
+      );
+    }
+
     try {
       this.task.setInput(overrides);
 
@@ -195,9 +209,8 @@ export class TaskRunner<
             this.task.emit("stream_start");
             this.task.emit("stream_chunk", { type: "finish", data: outputs } as StreamEvent);
             this.task.emit("stream_end", outputs);
-            this.task.runOutputData = await this.executeTaskPreview(inputs, outputs);
           } else {
-            this.task.runOutputData = await this.executeTaskPreview(inputs, outputs);
+            this.task.runOutputData = outputs;
           }
         }
       }
@@ -264,12 +277,10 @@ export class TaskRunner<
         throw new TaskInvalidInputError("Invalid input data");
       }
 
-      const previewResult = await this.executeTaskPreview(
-        inputs,
-        this.task.runOutputData as Output
-      );
-
-      this.task.runOutputData = previewResult;
+      const resultPreview = await this.executeTaskPreview(inputs);
+      if (resultPreview !== undefined) {
+        this.task.runOutputData = resultPreview;
+      }
 
       await this.handleCompletePreview();
     } catch (err: any) {
@@ -325,15 +336,14 @@ export class TaskRunner<
       registry: this.registry,
       resourceScope: this.resourceScope,
     });
-    return await this.executeTaskPreview(input, result || ({} as Output));
+    return result;
   }
 
   /**
    * Protected method for preview execution delegation
    */
-  protected async executeTaskPreview(input: Input, output: Output): Promise<Output> {
-    const previewResult = await this.task.executePreview?.(input, { own: this.own });
-    return Object.assign({}, output, previewResult ?? {}) as Output;
+  protected async executeTaskPreview(input: Input): Promise<Output | undefined> {
+    return this.task.executePreview?.(input, { own: this.own });
   }
 
   /**
@@ -494,11 +504,7 @@ export class TaskRunner<
 
     this.task.emit("stream_end", this.task.runOutputData as Output);
 
-    const previewResult = await this.executeTaskPreview(
-      input,
-      (this.task.runOutputData as Output) || ({} as Output)
-    );
-    return previewResult;
+    return this.task.runOutputData as Output;
   }
 
   // ========================================================================

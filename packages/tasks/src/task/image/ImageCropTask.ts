@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -14,6 +15,38 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function cropImage(input: ImageCropTaskInput): Promise<ImageCropTaskOutput> {
+  const { x: rawX, y: rawY, width: rawW, height: rawH } = input;
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width: srcW, height: srcH, channels } = img;
+
+    if (srcW < 1 || srcH < 1) {
+      throw new RangeError("Cannot crop an empty image");
+    }
+
+    if (rawX < 0 || rawX >= srcW || rawY < 0 || rawY >= srcH) {
+      throw new RangeError("Crop origin is outside the source image bounds");
+    }
+
+    const x = rawX;
+    const y = rawY;
+    const w = Math.min(rawW, srcW - x);
+    const h = Math.min(rawH, srcH - y);
+
+    const dst = new Uint8ClampedArray(w * h * channels);
+    const rowBytes = w * channels;
+
+    for (let row = 0; row < h; row++) {
+      const srcOffset = ((y + row) * srcW + x) * channels;
+      const dstOffset = row * rowBytes;
+      dst.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+    }
+
+    return { data: dst, width: w, height: h, channels };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -58,39 +91,18 @@ export class ImageCropTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return (await cropImage(input)) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const { x: rawX, y: rawY, width: rawW, height: rawH } = input;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width: srcW, height: srcH, channels } = img;
-
-      if (srcW < 1 || srcH < 1) {
-        throw new RangeError("Cannot crop an empty image");
-      }
-
-      if (rawX < 0 || rawX >= srcW || rawY < 0 || rawY >= srcH) {
-        throw new RangeError("Crop origin is outside the source image bounds");
-      }
-
-      const x = rawX;
-      const y = rawY;
-      const w = Math.min(rawW, srcW - x);
-      const h = Math.min(rawH, srcH - y);
-
-      const dst = new Uint8ClampedArray(w * h * channels);
-      const rowBytes = w * channels;
-
-      for (let row = 0; row < h; row++) {
-        const srcOffset = ((y + row) * srcW + x) * channels;
-        const dstOffset = row * rowBytes;
-        dst.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
-      }
-
-      return { data: dst, width: w, height: h, channels };
-    });
-    return { image } as Output;
+    return (await cropImage(input)) as Output;
   }
 }
 

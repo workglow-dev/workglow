@@ -5,7 +5,13 @@
  */
 
 import { estimateTokens } from "@workglow/knowledge-base";
-import { CreateWorkflow, IExecutePreviewContext, Task, Workflow } from "@workglow/task-graph";
+import {
+  CreateWorkflow,
+  IExecuteContext,
+  IExecutePreviewContext,
+  Task,
+  Workflow,
+} from "@workglow/task-graph";
 import type { TaskConfig } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { CountTokensTask } from "./CountTokensTask";
@@ -148,6 +154,14 @@ export class ContextBuilderTask extends Task<
 
   public static override outputSchema(): DataPortSchema {
     return outputSchema as DataPortSchema;
+  }
+
+  override async execute(
+    input: ContextBuilderTaskInput,
+    context: IExecuteContext
+  ): Promise<ContextBuilderTaskOutput> {
+    // Preview and full-run produce identical output; share implementation.
+    return this.executePreview(input, context);
   }
 
   override async executePreview(

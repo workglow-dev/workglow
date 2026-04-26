@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function trimString(text: string): string {
+  return text.trim();
+}
 
 const inputSchema = {
   type: "object",
@@ -60,11 +65,18 @@ export class StringTrimTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return { text: trimString(input.text) } as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    return { text: input.text.trim() } as Output;
+    return { text: trimString(input.text) } as Output;
   }
 }
 
