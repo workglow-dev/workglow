@@ -357,7 +357,7 @@ const apiProcessor = await new LambdaTask(
 **Features:**
 
 - Full access to execution context and progress tracking
-- Support for both standard and reactive execution patterns
+- Support for both committed run and live preview execution patterns
 - Async/await support
 - Flexible input/output schemas
 - Cacheable by default

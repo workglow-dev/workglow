@@ -20,44 +20,44 @@ describe("SingleTask", () => {
       const input = { key: "value" };
       const task = new TestIOTask({ defaults: input });
       const output = await task.run();
-      expect(output).toEqual({ key: "full", reactiveOnly: false, all: true });
+      expect(output).toEqual({ key: "full", previewOnly: false, all: true });
       expect(task.runInputData).toEqual(input);
     });
 
     it("should set input data and run the task", async () => {
       const task = new TestIOTask({ defaults: { key: "value" } });
       const output = await task.run();
-      expect(output).toEqual({ key: "full", reactiveOnly: false, all: true });
+      expect(output).toEqual({ key: "full", previewOnly: false, all: true });
       expect(task.runInputData).toEqual({ key: "value" });
     });
 
-    it("should run the task reactively see input definition defaults", async () => {
+    it("should run the task previewly see input definition defaults", async () => {
       const task = new TestIOTask();
       const output = await task.runPreview();
-      expect(output).toEqual({ key: "default", reactiveOnly: true, all: false });
+      expect(output).toEqual({ key: "default", previewOnly: true, all: false });
     });
-    it("should run the task reactively see defaults", async () => {
+    it("should run the task previewly see defaults", async () => {
       const task = new TestIOTask({ defaults: { key: "givendefault" } }); // pass as defaults
       const output = await task.runPreview();
-      expect(output).toEqual({ key: "givendefault", reactiveOnly: true, all: false });
+      expect(output).toEqual({ key: "givendefault", previewOnly: true, all: false });
     });
-    it("should run the task reactively see setInput", async () => {
+    it("should run the task previewly see setInput", async () => {
       const task = new TestIOTask();
       task.setInput({ key: "setvalue" });
       const output = await task.runPreview();
-      expect(output).toEqual({ key: "setvalue", reactiveOnly: true, all: false });
+      expect(output).toEqual({ key: "setvalue", previewOnly: true, all: false });
     });
-    it("should run the task reactively see inputs as params", async () => {
+    it("should run the task previewly see inputs as params", async () => {
       const task = new TestIOTask();
       const output = await task.runPreview({ key: "valueparams" });
-      expect(output).toEqual({ key: "valueparams", reactiveOnly: true, all: false });
+      expect(output).toEqual({ key: "valueparams", previewOnly: true, all: false });
     });
     it("should use inputSchema default values when no input is provided", async () => {
       const task = new TestIOTask();
       const output = await task.run();
       // The inputSchema defines a default value of "default" for the key property
       expect(task.runInputData).toEqual({ key: "default" });
-      expect(output).toEqual({ key: "full", reactiveOnly: false, all: true });
+      expect(output).toEqual({ key: "full", previewOnly: false, all: true });
     });
   });
   describe("SimpleProcessingTask", () => {
@@ -92,11 +92,11 @@ describe("SingleTask", () => {
         expect(task.status).toBe(TaskStatus.COMPLETED);
       });
 
-      it("should run the task reactively", async () => {
+      it("should run the task previewly", async () => {
         const output = await task.runPreview();
         expect(output).toEqual({
           processed: false,
-          result: "Reactive: default",
+          result: "Preview: default",
         });
       });
     });

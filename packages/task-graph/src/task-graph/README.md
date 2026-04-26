@@ -28,7 +28,7 @@ A robust TypeScript library for creating and managing task graphs with dependenc
 - Caching of task results (same run on same input returns cached result)
 - Error handling and abortion support
 - Serial and parallel execution patterns
-- Reactive execution capabilities to drive UI updates
+- Live preview execution to drive UI updates
 
 ## Installation
 
