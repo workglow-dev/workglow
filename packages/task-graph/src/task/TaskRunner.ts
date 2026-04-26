@@ -284,6 +284,7 @@ export class TaskRunner<
 
       await this.handleCompletePreview();
     } catch (err: any) {
+      getLogger().debug("runPreview failed", { taskId: this.task.config?.id, error: err });
       await this.handleErrorPreview();
     } finally {
       return this.task.runOutputData as Output;

@@ -52,7 +52,7 @@ describe("LambdaTask", () => {
     const graph = new TaskGraph();
     graph.addTask(
       new LambdaTask({
-        id: "lambdaReactiveTest",
+        id: "lambdaPreviewTest",
         executePreview: async () => {
           return { output: "Hello, world!" };
         },

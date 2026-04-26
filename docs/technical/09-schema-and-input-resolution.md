@@ -36,15 +36,15 @@ Stored as:      { model: "gpt-4" }
 
 Source files:
 
-| File | Purpose |
-|------|---------|
-| `packages/util/src/json-schema/DataPortSchema.ts` | `DataPortSchema` and related type aliases |
-| `packages/util/src/json-schema/JsonSchema.ts` | `JsonSchema` base type and `JsonSchemaCustomProps` |
-| `packages/util/src/di/InputResolverRegistry.ts` | Global input resolver registry |
-| `packages/util/src/di/InputCompactorRegistry.ts` | Global input compactor registry |
-| `packages/task-graph/src/task/InputResolver.ts` | `resolveSchemaInputs()` and schema helpers |
-| `packages/task-graph/src/task/InputCompactor.ts` | `compactSchemaInputs()` reverse operation |
-| `packages/ai/src/task/base/AiTaskSchemas.ts` | AI-specific schema helpers (`TypeModel`, etc.) |
+| File                                              | Purpose                                            |
+| ------------------------------------------------- | -------------------------------------------------- |
+| `packages/util/src/json-schema/DataPortSchema.ts` | `DataPortSchema` and related type aliases          |
+| `packages/util/src/json-schema/JsonSchema.ts`     | `JsonSchema` base type and `JsonSchemaCustomProps` |
+| `packages/util/src/di/InputResolverRegistry.ts`   | Global input resolver registry                     |
+| `packages/util/src/di/InputCompactorRegistry.ts`  | Global input compactor registry                    |
+| `packages/task-graph/src/task/InputResolver.ts`   | `resolveSchemaInputs()` and schema helpers         |
+| `packages/task-graph/src/task/InputCompactor.ts`  | `compactSchemaInputs()` reverse operation          |
+| `packages/ai/src/task/base/AiTaskSchemas.ts`      | AI-specific schema helpers (`TypeModel`, etc.)     |
 
 ---
 
@@ -110,31 +110,31 @@ auto-generation, and more.
 
 ### UI Annotations
 
-| Property | Type | Purpose |
-|----------|------|---------|
-| `x-ui-hidden` | `boolean` | Hides the property from UI editors |
-| `x-ui-order` | `number` | Controls display ordering within a group |
-| `x-ui-priority` | `number` | Controls priority for rendering decisions |
-| `x-ui-viewer` | `string` | Specifies a custom viewer component |
-| `x-ui-editor` | `string` | Specifies a custom editor (e.g., `"textarea"`, `"multiselect"`) |
-| `x-ui-group` | `string` | Groups properties into collapsible sections |
-| `x-ui-group-order` | `number` | Controls group display ordering |
-| `x-ui-group-priority` | `number` | Controls group priority |
-| `x-ui-group-open` | `boolean` | Whether the group starts expanded |
-| `x-ui-enum-labels` | `Record<string, string>` | Maps enum values to display labels |
-| `x-ui-manual` | `boolean` | Marks a property as user-added (dynamic ports) |
-| `x-ui-type-override` | `boolean` | Allows UI to override the type of the property |
-| `x-ui-reactive` | `boolean \| string` | Hints that this field responds to reactive execution |
-| `x-ui-iteration` | `boolean` | Marks a property as injected by iteration (hidden from parent) |
+| Property              | Type                     | Purpose                                                         |
+| --------------------- | ------------------------ | --------------------------------------------------------------- |
+| `x-ui-hidden`         | `boolean`                | Hides the property from UI editors                              |
+| `x-ui-order`          | `number`                 | Controls display ordering within a group                        |
+| `x-ui-priority`       | `number`                 | Controls priority for rendering decisions                       |
+| `x-ui-viewer`         | `string`                 | Specifies a custom viewer component                             |
+| `x-ui-editor`         | `string`                 | Specifies a custom editor (e.g., `"textarea"`, `"multiselect"`) |
+| `x-ui-group`          | `string`                 | Groups properties into collapsible sections                     |
+| `x-ui-group-order`    | `number`                 | Controls group display ordering                                 |
+| `x-ui-group-priority` | `number`                 | Controls group priority                                         |
+| `x-ui-group-open`     | `boolean`                | Whether the group starts expanded                               |
+| `x-ui-enum-labels`    | `Record<string, string>` | Maps enum values to display labels                              |
+| `x-ui-manual`         | `boolean`                | Marks a property as user-added (dynamic ports)                  |
+| `x-ui-type-override`  | `boolean`                | Allows UI to override the type of the property                  |
+| `x-ui-preview`        | `boolean \| string`      | Hints that this field responds to preview execution             |
+| `x-ui-iteration`      | `boolean`                | Marks a property as injected by iteration (hidden from parent)  |
 
 ### Behavioral Annotations
 
-| Property | Type | Purpose |
-|----------|------|---------|
-| `x-replicate` | `boolean` | Whether the value should be replicated across instances |
-| `x-auto-generated` | `boolean` | Marks a PK column as auto-generated by storage backends |
-| `x-stream` | `"append" \| "replace" \| "object"` | Streaming mode for the port |
-| `x-structured-output` | `boolean` | Requires structured output from the AI provider |
+| Property              | Type                                | Purpose                                                 |
+| --------------------- | ----------------------------------- | ------------------------------------------------------- |
+| `x-replicate`         | `boolean`                           | Whether the value should be replicated across instances |
+| `x-auto-generated`    | `boolean`                           | Marks a PK column as auto-generated by storage backends |
+| `x-stream`            | `"append" \| "replace" \| "object"` | Streaming mode for the port                             |
+| `x-structured-output` | `boolean`                           | Requires structured output from the AI provider         |
 
 Example using multiple annotations:
 
@@ -170,17 +170,17 @@ types that the input resolution system understands.
 
 Formats follow the pattern `prefix` or `prefix:qualifier`:
 
-| Format | Meaning |
-|--------|---------|
-| `"model"` | Any AI model (generic) |
+| Format                       | Meaning                                |
+| ---------------------------- | -------------------------------------- |
+| `"model"`                    | Any AI model (generic)                 |
 | `"model:TextGenerationTask"` | Model specifically for text generation |
-| `"model:EmbeddingTask"` | Model specifically for embeddings |
-| `"storage:tabular"` | Tabular storage reference |
-| `"knowledge-base"` | Knowledge base reference |
-| `"credential"` | Credential reference |
-| `"image"` | Image data (URI or binary) |
-| `"image:data-uri"` | Image as data URI |
-| `"audio:data-uri"` | Audio as data URI |
+| `"model:EmbeddingTask"`      | Model specifically for embeddings      |
+| `"storage:tabular"`          | Tabular storage reference              |
+| `"knowledge-base"`           | Knowledge base reference               |
+| `"credential"`               | Credential reference                   |
+| `"image"`                    | Image data (URI or binary)             |
+| `"image:data-uri"`           | Image as data URI                      |
+| `"audio:data-uri"`           | Audio as data URI                      |
 
 The resolution system uses the prefix (before the colon) to look up the appropriate resolver. The
 full format string (including the qualifier) is passed to the resolver so it can make finer-grained
@@ -195,8 +195,8 @@ property to be either a string ID or a full `ModelConfig` object:
 function TypeModel(semantic: TypeModelSemantic = "model", options = {}) {
   return {
     oneOf: [
-      TypeModelAsString(semantic, options),   // { type: "string", format: "model:..." }
-      TypeModelByDetail(semantic, options),   // Full ModelConfigSchema with format
+      TypeModelAsString(semantic, options), // { type: "string", format: "model:..." }
+      TypeModelByDetail(semantic, options), // Full ModelConfigSchema with format
     ],
     format: semantic,
   } as const satisfies JsonSchema;
@@ -244,6 +244,7 @@ type InputResolverFn = (
 ```
 
 Parameters:
+
 - `id` -- The string value to resolve (e.g., `"gpt-4"`)
 - `format` -- The full format string from the schema (e.g., `"model:TextGenerationTask"`)
 - `registry` -- The active `ServiceRegistry` for looking up dependencies
@@ -357,12 +358,12 @@ The resolution proceeds in two phases per property:
 
 ### Helper Functions
 
-| Function | Purpose |
-|----------|---------|
-| `getSchemaFormat(schema)` | Extracts `format` from a schema, checking `oneOf`/`anyOf` variants |
-| `getObjectSchema(schema)` | Extracts the object-typed variant from `oneOf`/`anyOf` wrappers |
-| `getFormatPrefix(format)` | Returns the prefix before the colon (`"model:Foo"` -> `"model"`) |
-| `schemaHasFormatAnnotations(schema)` | Fast-path check: returns `true` if any property has a format |
+| Function                             | Purpose                                                            |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `getSchemaFormat(schema)`            | Extracts `format` from a schema, checking `oneOf`/`anyOf` variants |
+| `getObjectSchema(schema)`            | Extracts the object-typed variant from `oneOf`/`anyOf` wrappers    |
+| `getFormatPrefix(format)`            | Returns the prefix before the colon (`"model:Foo"` -> `"model"`)   |
+| `schemaHasFormatAnnotations(schema)` | Fast-path check: returns `true` if any property has a format       |
 
 ### Example Flow
 
@@ -479,41 +480,41 @@ type TTypeModel = DataPortSchemaNonBoolean & {
 Resolves format-annotated string values in `input` to their runtime objects using registered
 resolvers. Called automatically by the task runner before `execute()`.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input` | `Record<string, unknown>` | The raw task input |
-| `schema` | `DataPortSchema` | The task's input schema |
-| `config.registry` | `ServiceRegistry` | DI registry for resolver lookups |
-| **Returns** | `Promise<T>` | Input with resolved values |
+| Parameter         | Type                      | Description                      |
+| ----------------- | ------------------------- | -------------------------------- |
+| `input`           | `Record<string, unknown>` | The raw task input               |
+| `schema`          | `DataPortSchema`          | The task's input schema          |
+| `config.registry` | `ServiceRegistry`         | DI registry for resolver lookups |
+| **Returns**       | `Promise<T>`              | Input with resolved values       |
 
 ### compactSchemaInputs(input, schema, config)
 
 Converts resolved objects back to string IDs using registered compactors.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input` | `Record<string, unknown>` | The resolved task input |
-| `schema` | `DataPortSchema` | The task's input schema |
-| `config.registry` | `ServiceRegistry` | DI registry for compactor lookups |
-| **Returns** | `Promise<T>` | Input with compacted values |
+| Parameter         | Type                      | Description                       |
+| ----------------- | ------------------------- | --------------------------------- |
+| `input`           | `Record<string, unknown>` | The resolved task input           |
+| `schema`          | `DataPortSchema`          | The task's input schema           |
+| `config.registry` | `ServiceRegistry`         | DI registry for compactor lookups |
+| **Returns**       | `Promise<T>`              | Input with compacted values       |
 
 ### registerInputResolver(formatPrefix, resolver)
 
 Registers a resolver function for a format prefix.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `formatPrefix` | `string` | The format prefix (e.g., `"model"`) |
-| `resolver` | `InputResolverFn` | The resolver function |
+| Parameter      | Type              | Description                         |
+| -------------- | ----------------- | ----------------------------------- |
+| `formatPrefix` | `string`          | The format prefix (e.g., `"model"`) |
+| `resolver`     | `InputResolverFn` | The resolver function               |
 
 ### registerInputCompactor(formatPrefix, compactor)
 
 Registers a compactor function for a format prefix.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `formatPrefix` | `string` | The format prefix (e.g., `"model"`) |
-| `compactor` | `InputCompactorFn` | The compactor function |
+| Parameter      | Type               | Description                         |
+| -------------- | ------------------ | ----------------------------------- |
+| `formatPrefix` | `string`           | The format prefix (e.g., `"model"`) |
+| `compactor`    | `InputCompactorFn` | The compactor function              |
 
 ### getSchemaFormat(schema)
 

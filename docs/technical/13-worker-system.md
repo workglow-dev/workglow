@@ -135,11 +135,11 @@ of function names:
 
 These are stored in three internal `Map<string, Set<string>>` registries:
 
-| Registry                 | Purpose                                          |
-| ------------------------ | ------------------------------------------------ |
-| `workerFunctions`        | Names of regular (one-shot) functions            |
-| `workerStreamFunctions`  | Names of async-generator stream functions        |
-| `workerPreviewFunctions` | Names of lightweight preview functions           |
+| Registry                 | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| `workerFunctions`        | Names of regular (one-shot) functions     |
+| `workerStreamFunctions`  | Names of async-generator stream functions |
+| `workerPreviewFunctions` | Names of lightweight preview functions    |
 
 Subsequent calls to the manager check the appropriate registry and throw (or
 return `undefined` for preview calls) immediately if the function name is not
@@ -201,11 +201,10 @@ a single `finish` stream event.
 #### Preview Functions
 
 ```ts
-const preview = await manager.callWorkerPreviewFunction<Output>(
-  "anthropic",
-  "TextGenerationTask",
-  [input, model]
-);
+const preview = await manager.callWorkerPreviewFunction<Output>("anthropic", "TextGenerationTask", [
+  input,
+  model,
+]);
 // preview is Output | undefined
 ```
 
@@ -218,13 +217,6 @@ Unlike the other two function types, preview calls return `undefined` instead of
 throwing when the function is not registered or when an error occurs. This is
 intentional: preview execution is always optional, and the caller treats the
 result as a best-effort preview.
-
-> **Naming note.** As of the run/runPreview split, the destination names are
-> `callWorkerPreviewFunction` / `registerPreviewFunction` /
-> `workerPreviewFunctions`. The current source still uses the older
-> `*Reactive*` symbols inside `@workglow/util/worker`; a follow-up rename brings
-> the source in line with these doc names. Treat any `Reactive` identifier you
-> see in the source as the same thing as `Preview` here.
 
 ## Message Protocol
 
@@ -438,23 +430,23 @@ AI provider packages integrate with the worker system through a standard pattern
 
 ### WorkerManager
 
-| Method                       | Signature                                                                                                                             | Description                                                                  |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `registerWorker`             | `(name: string, workerOrFactory: Worker \| (() => Worker)) => void`                                                                   | Register a worker by name. Throws if the name is already registered.         |
-| `getWorker`                  | `(name: string) => Worker`                                                                                                            | Get the raw Worker instance. Throws if not found.                            |
-| `callWorkerFunction`         | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal; onProgress?: Function }) => Promise<T>` | Call a regular function on a worker.                                         |
-| `callWorkerStreamFunction`   | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal }) => AsyncGenerator<T>`                 | Call a streaming function. Returns an async generator of stream chunks.      |
-| `callWorkerPreviewFunction`  | `<T>(workerName: string, functionName: string, args: any[]) => Promise<T \| undefined>`                                               | Call a preview function. Returns `undefined` if not registered or on error.  |
+| Method                      | Signature                                                                                                                             | Description                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `registerWorker`            | `(name: string, workerOrFactory: Worker \| (() => Worker)) => void`                                                                   | Register a worker by name. Throws if the name is already registered.        |
+| `getWorker`                 | `(name: string) => Worker`                                                                                                            | Get the raw Worker instance. Throws if not found.                           |
+| `callWorkerFunction`        | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal; onProgress?: Function }) => Promise<T>` | Call a regular function on a worker.                                        |
+| `callWorkerStreamFunction`  | `<T>(workerName: string, functionName: string, args: any[], options?: { signal?: AbortSignal }) => AsyncGenerator<T>`                 | Call a streaming function. Returns an async generator of stream chunks.     |
+| `callWorkerPreviewFunction` | `<T>(workerName: string, functionName: string, args: any[]) => Promise<T \| undefined>`                                               | Call a preview function. Returns `undefined` if not registered or on error. |
 
 ### WorkerServerBase
 
-| Method                     | Signature                                                            | Description                                                                                     |
-| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `registerFunction`         | `(name: string, fn: (...args: any[]) => Promise<any>) => void`       | Register a regular function. `fn` receives `(input, model, postProgress, signal)`.              |
-| `registerStreamFunction`   | `(name: string, fn: (...args: any[]) => AsyncIterable<any>) => void` | Register a streaming function. `fn` receives `(input, model, signal)`.                          |
-| `registerPreviewFunction`  | `(name: string, fn: (input, model) => Promise<any>) => void`         | Register a preview function (called only via `runPreview()`).                                   |
-| `sendReady`                | `() => void`                                                         | Send the ready handshake to the main thread. Must be called after all functions are registered. |
-| `handleMessage`            | `(event: { type: string; data: any }) => Promise<void>`              | Dispatch an incoming message. Called automatically by platform subclasses.                      |
+| Method                    | Signature                                                            | Description                                                                                     |
+| ------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `registerFunction`        | `(name: string, fn: (...args: any[]) => Promise<any>) => void`       | Register a regular function. `fn` receives `(input, model, postProgress, signal)`.              |
+| `registerStreamFunction`  | `(name: string, fn: (...args: any[]) => AsyncIterable<any>) => void` | Register a streaming function. `fn` receives `(input, model, signal)`.                          |
+| `registerPreviewFunction` | `(name: string, fn: (input, model) => Promise<any>) => void`         | Register a preview function (called only via `runPreview()`).                                   |
+| `sendReady`               | `() => void`                                                         | Send the ready handshake to the main thread. Must be called after all functions are registered. |
+| `handleMessage`           | `(event: { type: string; data: any }) => Promise<void>`              | Dispatch an incoming message. Called automatically by platform subclasses.                      |
 
 ### Service Tokens
 

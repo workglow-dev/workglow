@@ -39,13 +39,13 @@ export type TestIOTaskInput = {
  * Standard output type for basic test tasks with flags for different run modes
  */
 export type TestIOTaskOutput = {
-  reactiveOnly: boolean; // Indicates if the result came from reactive run
+  previewOnly: boolean; // Indicates if the result came from preview run
   all: boolean; // Indicates if the result came from full run
   key: string; // Echo of the input key
 };
 
 /**
- * Basic implementation of a test task with both reactive and full run modes
+ * Basic implementation of a test task with both preview and full run modes
  * Used as a foundation for testing task execution and data flow
  */
 export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
@@ -68,7 +68,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     return {
       type: "object",
       properties: {
-        reactiveOnly: {
+        previewOnly: {
           type: "boolean",
         },
         all: {
@@ -93,7 +93,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     return {
       all: output.all ?? false,
       key: output.key !== "default" && output.key !== undefined ? output.key : input.key,
-      reactiveOnly: output.reactiveOnly ?? true,
+      previewOnly: output.previewOnly ?? true,
     };
   }
 
@@ -104,7 +104,7 @@ export class TestIOTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     _input: TestIOTaskInput,
     _context: IExecuteContext
   ): Promise<TestIOTaskOutput> {
-    return { all: true, key: "full", reactiveOnly: false };
+    return { all: true, key: "full", previewOnly: false };
   }
 }
 
@@ -184,7 +184,7 @@ export class SimpleProcessingTask extends Task<SimpleProcessingInput, SimpleProc
   override async executePreview(input: SimpleProcessingInput) {
     // For testing purposes, just return a different result
     const output = this.runOutputData;
-    return { processed: output.processed ?? false, result: `Reactive: ${input.value}` };
+    return { processed: output.processed ?? false, result: `Preview: ${input.value}` };
   }
 }
 
@@ -276,7 +276,7 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     return {
       type: "object",
       properties: {
-        reactiveOnly: {
+        previewOnly: {
           type: "boolean",
         },
         all: {
@@ -318,7 +318,7 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     }
 
     return {
-      reactiveOnly: false,
+      previewOnly: false,
       all: true,
       key: input.key,
     };
@@ -391,11 +391,11 @@ export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutp
 }
 
 /**
- * Non-reactive version of TestSquareTask
- * Only implements execute() for testing differences between reactive and non-reactive tasks
+ * Non-preview version of TestSquareTask
+ * Only implements execute() for testing differences between preview and non-preview tasks
  */
-export class TestSquareNonReactiveTask extends Task<TestSquareTaskInput, TestSquareTaskOutput> {
-  static override readonly type = "TestSquareNonReactiveTask";
+export class TestSquareNonPreviewTask extends Task<TestSquareTaskInput, TestSquareTaskOutput> {
+  static override readonly type = "TestSquareNonPreviewTask";
 
   static override inputSchema(): DataPortSchema {
     return {
@@ -424,7 +424,7 @@ export class TestSquareNonReactiveTask extends Task<TestSquareTaskInput, TestSqu
   }
 
   /**
-   * Non-reactive implementation that squares the input number
+   * Non-preview implementation that squares the input number
    */
   override async execute(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     return { output: input.input * input.input };
@@ -1892,7 +1892,7 @@ export class GraphAsTask_ComputeTask extends Task<{ a: number; b: number }, { re
 }
 
 /**
- * Custom GraphAsTask with explicit schemas for testing reactive execution (from GraphAsTask tests)
+ * Custom GraphAsTask with explicit schemas for testing preview execution (from GraphAsTask tests)
  */
 export class TestGraphAsTask_AB extends GraphAsTask<{ a: number; b: number }, { result: number }> {
   static override type = "TestGraphAsTask_AB";

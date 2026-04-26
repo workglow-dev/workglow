@@ -91,7 +91,7 @@ class MultiplyRunTask extends ArrayTask<
  * Create a task that multiplies two numbers
  * This is a direct subclass of ArrayTask
  */
-class MultiplyRunReactiveTask extends ArrayTask<
+class MultiplyRunPreviewTask extends ArrayTask<
   ConvertAllToOptionalArray<MultiplyInput>,
   ConvertAllToOptionalArray<MultiplyOutput>
 > {
@@ -184,7 +184,7 @@ class SquareRunTask extends ArrayTask<
   }
 }
 
-class SquareRunReactiveTask extends ArrayTask<
+class SquareRunPreviewTask extends ArrayTask<
   ConvertAllToOptionalArray<SquareInput>,
   ConvertAllToOptionalArray<SquareOutput>
 > {
@@ -230,11 +230,11 @@ interface JobQueueTestOutput extends TaskOutput {
   result: number;
 }
 
-class JobQueueReactiveTask extends Task<
+class JobQueuePreviewTask extends Task<
   ConvertAllToOptionalArray<JobQueueTestInput>,
   ConvertAllToOptionalArray<JobQueueTestOutput>
 > {
-  public static override type = "JobQueueReactiveTask";
+  public static override type = "JobQueuePreviewTask";
 
   public static override inputSchema(): DataPortSchema {
     return {
@@ -272,8 +272,8 @@ class JobQueueReactiveTask extends Task<
   }
 }
 
-class JobQueueReactiveTask2 extends Task<JobQueueTestInput, JobQueueTestOutput> {
-  public static override type = "JobQueueReactiveTask2";
+class JobQueuePreviewTask2 extends Task<JobQueueTestInput, JobQueueTestOutput> {
+  public static override type = "JobQueuePreviewTask2";
 
   public static override inputSchema(): DataPortSchema {
     return {
@@ -373,7 +373,7 @@ class QueryAppendTask extends ArrayTask<
   public override async executePreview(input: QueryTestInput): Promise<QueryTestOutput> {
     const output = this.runOutputData;
     return {
-      result: `${output.result ?? input.query}-reactive`,
+      result: `${output.result ?? input.query}-preview`,
       val: input.val,
     };
   }
@@ -420,7 +420,7 @@ describe("ArrayTask", () => {
     });
   });
 
-  test("MultiplyRunTask in task mode reactive run", async () => {
+  test("MultiplyRunTask in task mode preview run", async () => {
     const task = new MultiplyRunTask({
       id: "test",
       defaults: {
@@ -439,32 +439,32 @@ describe("ArrayTask", () => {
     }
   });
 
-  test("MultiplyRunReactiveTask in task mode reactive run", async () => {
-    const task = new MultiplyRunReactiveTask({
+  test("MultiplyRunPreviewTask in task mode preview run", async () => {
+    const task = new MultiplyRunPreviewTask({
       defaults: { a: 2, b: 10 },
     });
     const results = await task.runPreview();
     expect(results).toEqual({ result: 20 });
   });
 
-  test("MultiplyRunReactiveTask in task mode reactive runPreview", async () => {
-    const task = new MultiplyRunReactiveTask({
+  test("MultiplyRunPreviewTask in task mode preview runPreview", async () => {
+    const task = new MultiplyRunPreviewTask({
       defaults: { a: 2, b: 10 },
     });
     const results = await task.runPreview();
     expect(results).toEqual({ result: 20 });
   });
 
-  test("MultiplyRunReactiveTask in task mode reactive runPreview array", async () => {
-    const task = new MultiplyRunReactiveTask({
+  test("MultiplyRunPreviewTask in task mode preview runPreview array", async () => {
+    const task = new MultiplyRunPreviewTask({
       defaults: { a: [2], b: [10] },
     });
     const results = await task.runPreview();
     expect(results).toEqual({ result: 20 });
   });
 
-  test("MultiplyRunReactiveTask in task mode reactive runPreview", async () => {
-    const task = new MultiplyRunReactiveTask({
+  test("MultiplyRunPreviewTask in task mode preview runPreview", async () => {
+    const task = new MultiplyRunPreviewTask({
       defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], b: 10 },
     });
     const results = await task.runPreview();
@@ -478,28 +478,28 @@ describe("ArrayTask", () => {
     expect(results).toEqual({ result: 25 });
   });
 
-  test("SquareRunTask in task mode reactive run with single", async () => {
+  test("SquareRunTask in task mode preview run with single", async () => {
     const task = new SquareRunTask({ defaults: { a: 5 } });
     const results = await task.runPreview();
     expect(results).toEqual({} as SquareOutput);
   });
 
-  test("SquareRunReactiveTask in task mode run with single", async () => {
-    const task = new SquareRunReactiveTask({ defaults: { a: 5 } });
+  test("SquareRunPreviewTask in task mode run with single", async () => {
+    const task = new SquareRunPreviewTask({ defaults: { a: 5 } });
     await task.run();
     const results = await task.runPreview();
     expect(results).toEqual({ result: 25 });
   });
 
-  test("SquareRunReactiveTask in task mode reactive run with single", async () => {
-    const task = new SquareRunReactiveTask({ defaults: { a: 5 } });
+  test("SquareRunPreviewTask in task mode preview run with single", async () => {
+    const task = new SquareRunPreviewTask({ defaults: { a: 5 } });
     const results = await task.runPreview();
     expect(results).toEqual({ result: 25 } as SquareOutput);
   });
 
   test("ArrayTask runPreview calls executePreview in single task mode (no children)", async () => {
     // Create a task with non-array input - this puts it in single task mode (no subtasks)
-    const task = new SquareRunReactiveTask({ defaults: { a: 7 } });
+    const task = new SquareRunPreviewTask({ defaults: { a: 7 } });
 
     // Verify it has no children (single task mode)
     expect(task.hasChildren()).toBe(false);
@@ -523,7 +523,7 @@ describe("ArrayTask", () => {
 
   test("ArrayTask runPreview works in single task mode without prior run() call", async () => {
     // This test ensures runPreview works even when run() hasn't been called first
-    const task = new MultiplyRunReactiveTask({
+    const task = new MultiplyRunPreviewTask({
       defaults: { a: 3, b: 4 },
     });
 
@@ -538,7 +538,7 @@ describe("ArrayTask", () => {
     expect(task.runOutputData).toEqual({ result: 12 });
   });
 
-  test("in task mode non-reactive run", async () => {
+  test("in task mode non-preview run", async () => {
     const task = new SquareRunTask({
       defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
     });
@@ -546,8 +546,8 @@ describe("ArrayTask", () => {
     expect(results).toEqual({ result: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100] });
   });
 
-  test("in task mode non-reactive runPreview", async () => {
-    const task = new SquareRunReactiveTask({
+  test("in task mode non-preview runPreview", async () => {
+    const task = new SquareRunPreviewTask({
       defaults: { a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
     });
     const results = await task.runPreview();
@@ -762,7 +762,7 @@ describe("ArrayTask", () => {
 
   test("Task runPreview calls executePreview in single task mode (no children)", async () => {
     // Create a Task with non-array input - this puts it in single task mode (no subtasks)
-    const task = new JobQueueReactiveTask({ defaults: { value: 5 } });
+    const task = new JobQueuePreviewTask({ defaults: { value: 5 } });
 
     // Verify it has no children (single task mode)
     expect(task.hasChildren()).toBe(false);
@@ -786,7 +786,7 @@ describe("ArrayTask", () => {
 
   test("Task runPreview works in single task mode without prior run() call", async () => {
     // This test ensures runPreview works even when run() hasn't been called first
-    const task = new JobQueueReactiveTask({ defaults: { value: 7 } });
+    const task = new JobQueuePreviewTask({ defaults: { value: 7 } });
 
     // Verify single task mode
     expect(task.hasChildren()).toBe(false);
@@ -801,8 +801,8 @@ describe("ArrayTask", () => {
 
   test("Task runPreview works task graph mode", async () => {
     const graph = new TaskGraph();
-    const task1 = new JobQueueReactiveTask2({ id: "task1", defaults: { value: 7 } });
-    const task2 = new JobQueueReactiveTask2({ id: "task2", defaults: { value: 8 } });
+    const task1 = new JobQueuePreviewTask2({ id: "task1", defaults: { value: 7 } });
+    const task2 = new JobQueuePreviewTask2({ id: "task2", defaults: { value: 8 } });
     graph.addTask(task1);
     graph.addTask(task2);
     graph.addDataflow(new Dataflow("task1", "result", "task2", "value"));
@@ -812,20 +812,20 @@ describe("ArrayTask", () => {
     expect(results[0].data).toEqual({ result: 28 });
   });
 
-  test("QueryAppendTask with single string input run reactive", async () => {
+  test("QueryAppendTask with single string input run preview", async () => {
     const task = new QueryAppendTask({
       defaults: { query: "test", val: 1 },
     });
     const results = await task.runPreview();
-    expect(results).toEqual({ result: "test-reactive", val: 1 });
+    expect(results).toEqual({ result: "test-preview", val: 1 });
   });
 
-  test("QueryAppendTask with array string input run reactive", async () => {
+  test("QueryAppendTask with array string input run preview", async () => {
     const task = new QueryAppendTask({
       defaults: { query: ["test1", "test2"], val: 2 },
     });
     const results = await task.runPreview();
-    expect(results).toEqual({ result: ["test1-reactive", "test2-reactive"], val: 2 });
+    expect(results).toEqual({ result: ["test1-preview", "test2-preview"], val: 2 });
   });
 
   test("QueryAppendTask with single string input", async () => {

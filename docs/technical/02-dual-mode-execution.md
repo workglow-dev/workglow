@@ -18,8 +18,6 @@ There is no overlap and no overlay. `run()` never invokes `executePreview()`. `r
 
 This dual-path architecture allows the same task graph to serve both batch processing and interactive UI scenarios. A user editing an input node in a visual builder sees instant preview updates via `runPreview()`, while the final "Run" button triggers `run()` to produce the authoritative, cached output.
 
-> **Migration note.** Earlier versions of this engine called these paths `runReactive()` / `executeReactive()` and overlaid the reactive method on top of `execute()` results during full runs. That overlay has been removed; the methods have been renamed to `runPreview()` / `executePreview()` to describe intent rather than implementation.
-
 ---
 
 ## Full Execution: run()
@@ -156,18 +154,6 @@ When the timeout elapses, the TaskRunner aborts the task and throws a `TaskTimeo
 
 ---
 
-## Why preview is not called by run()
-
-Earlier versions of this engine called `executeReactive()` automatically after `execute()` finished, merging its result on top of the committed output. That overlay was removed for three reasons:
-
-1. **Single responsibility.** `run()` should produce exactly one thing: the committed output of `execute()` (or `executeStream()`). A second hidden stage made it ambiguous which method was actually responsible for any given field in the result.
-2. **No hidden second stage on cache hits.** Under the old model, a cache hit still ran the reactive overlay on top of the cached value, so the value returned to callers could differ from the value stored in the cache. Under the new model, a cache hit returns the cached output verbatim — the cache is the source of truth.
-3. **Debuggability.** When something goes wrong in a full run, the failure is in one place — `execute()` or `executeStream()`. There is no "did the preview method clobber a field?" branch to investigate.
-
-The price is that tasks which previously implemented only `executePreview()` and relied on the overlay to make `run()` work no longer do so. The runtime guard below catches those cases loudly the first time `run()` is called.
-
----
-
 ## Runtime guard for preview-only tasks
 
 `TaskRunner.run()` checks at the start of execution whether the task has overridden `executePreview()` but not `execute()`. If so, it throws a `TaskConfigurationError`:
@@ -181,7 +167,7 @@ if (
   throw new TaskConfigurationError(
     `Task "${this.task.type}" implements only executePreview() and cannot be run via run(). ` +
       `After the run/runPreview split, run() requires execute() (or executeStream()). ` +
-      `See docs/technical/02-dual-mode-execution.md.`,
+      `See docs/technical/02-dual-mode-execution.md.`
   );
 }
 ```
@@ -465,38 +451,38 @@ async executePreview(input, context) {
 
 ### Task Methods
 
-| Method                                  | Mode    | Description                                                  |
-| --------------------------------------- | ------- | ------------------------------------------------------------ |
-| `task.run(overrides?, runConfig?)`       | Full    | Execute and return immutable output                          |
-| `task.runPreview(overrides?)`           | Preview | Execute preview and return temporary output                   |
-| `task.execute(input, context)`          | Full    | Override this to implement task logic                         |
-| `task.executeStream(input, context)`    | Full    | Optional override for streamed full execution                 |
-| `task.executePreview(input, ctx)`       | Preview | Override for sub-1ms preview logic                            |
-| `task.abort()`                          | Both    | Abort the task via its AbortController                        |
-| `task.disable()`                        | Both    | Set task to DISABLED status                                   |
-| `task.resetInputData()`                 | Both    | Reset runInputData to construction defaults                   |
-| `task.setInput(partial)`                | Both    | Merge partial input into runInputData                         |
-| `task.setDefaults(partial)`             | Both    | Update default input values                                   |
-| `task.validateInput(input)`             | Both    | Validate input against compiled schema                        |
+| Method                               | Mode    | Description                                   |
+| ------------------------------------ | ------- | --------------------------------------------- |
+| `task.run(overrides?, runConfig?)`   | Full    | Execute and return immutable output           |
+| `task.runPreview(overrides?)`        | Preview | Execute preview and return temporary output   |
+| `task.execute(input, context)`       | Full    | Override this to implement task logic         |
+| `task.executeStream(input, context)` | Full    | Optional override for streamed full execution |
+| `task.executePreview(input, ctx)`    | Preview | Override for sub-1ms preview logic            |
+| `task.abort()`                       | Both    | Abort the task via its AbortController        |
+| `task.disable()`                     | Both    | Set task to DISABLED status                   |
+| `task.resetInputData()`              | Both    | Reset runInputData to construction defaults   |
+| `task.setInput(partial)`             | Both    | Merge partial input into runInputData         |
+| `task.setDefaults(partial)`          | Both    | Update default input values                   |
+| `task.validateInput(input)`          | Both    | Validate input against compiled schema        |
 
 ### TaskGraph Methods
 
-| Method                                  | Mode    | Description                                                  |
-| --------------------------------------- | ------- | ------------------------------------------------------------ |
-| `graph.run(input?, config?)`            | Full    | Execute all tasks in topological order                       |
-| `graph.runPreview(input?, config?)`     | Preview | Preview execution for UI updates                              |
-| `graph.abort()`                         | Both    | Abort all running tasks                                       |
-| `graph.resetGraph()`                    | Both    | Reset all tasks to PENDING                                    |
+| Method                              | Mode    | Description                            |
+| ----------------------------------- | ------- | -------------------------------------- |
+| `graph.run(input?, config?)`        | Full    | Execute all tasks in topological order |
+| `graph.runPreview(input?, config?)` | Preview | Preview execution for UI updates       |
+| `graph.abort()`                     | Both    | Abort all running tasks                |
+| `graph.resetGraph()`                | Both    | Reset all tasks to PENDING             |
 
 ### TaskRunner Properties
 
-| Property         | Type                  | Description                                  |
-| ---------------- | --------------------- | -------------------------------------------- |
-| `running`        | `boolean`             | Whether a full run is in progress            |
-| `previewRunning` | `boolean`             | Whether a preview run is in progress         |
-| `task`           | `ITask`               | The task being managed                       |
-| `inputStreams`   | `Map<string, Stream>` | Input streams for pass-through streaming     |
-| `shouldAccumulate` | `boolean`           | Whether to accumulate streaming deltas       |
+| Property           | Type                  | Description                              |
+| ------------------ | --------------------- | ---------------------------------------- |
+| `running`          | `boolean`             | Whether a full run is in progress        |
+| `previewRunning`   | `boolean`             | Whether a preview run is in progress     |
+| `task`             | `ITask`               | The task being managed                   |
+| `inputStreams`     | `Map<string, Stream>` | Input streams for pass-through streaming |
+| `shouldAccumulate` | `boolean`             | Whether to accumulate streaming deltas   |
 
 ### IExecuteContext
 
@@ -504,11 +490,11 @@ Provided to `execute()`:
 
 ```typescript
 interface IExecuteContext {
-  signal: AbortSignal;                              // For cancellation
+  signal: AbortSignal; // For cancellation
   updateProgress: (progress: number, message?: string) => Promise<void>;
-  own: <T>(task: T) => T;                          // Register child task
-  registry: ServiceRegistry;                        // DI container
-  inputStreams?: Map<string, ReadableStream>;        // Upstream streams
+  own: <T>(task: T) => T; // Register child task
+  registry: ServiceRegistry; // DI container
+  inputStreams?: Map<string, ReadableStream>; // Upstream streams
 }
 ```
 
@@ -518,7 +504,7 @@ Provided to `executePreview()`:
 
 ```typescript
 interface IExecutePreviewContext {
-  own: <T>(task: T) => T;  // Register child task
+  own: <T>(task: T) => T; // Register child task
 }
 ```
 
@@ -609,18 +595,18 @@ await graph.run({ text: "hello world" });
 
 ## Summary: run() vs runPreview()
 
-| Aspect                  | `run()`                                  | `runPreview()`                  |
-| ----------------------- | ---------------------------------------- | ------------------------------- |
-| **Purpose**             | Full, authoritative run                  | UI previews                     |
-| **Method called**       | `execute()` (or `executeStream()`)       | `executePreview()`              |
-| **Calls preview?**      | Never                                    | n/a                             |
-| **Calls execute?**      | n/a                                      | Never                           |
-| **Final status**        | COMPLETED                                | Unchanged (stays PENDING)       |
-| **Output**              | Locked, immutable                        | Temporary, mutable              |
-| **Caching**             | Read + Write (cache hit returns verbatim) | Neither                         |
-| **Dataflow updates**    | Always applied                           | Only for PENDING tasks          |
-| **Performance target**  | No constraint                            | < 1ms per task                  |
-| **Telemetry**           | Spans recorded                           | No telemetry                    |
-| **Abort support**       | Full (signal + timeout)                  | No abort support                |
-| **Progress events**     | Emitted                                  | Not emitted                     |
-| **Return semantics**    | Output replaces `runOutputData`           | Non-undefined replaces; `undefined` leaves prior output |
+| Aspect                 | `run()`                                   | `runPreview()`                                          |
+| ---------------------- | ----------------------------------------- | ------------------------------------------------------- |
+| **Purpose**            | Full, authoritative run                   | UI previews                                             |
+| **Method called**      | `execute()` (or `executeStream()`)        | `executePreview()`                                      |
+| **Calls preview?**     | Never                                     | n/a                                                     |
+| **Calls execute?**     | n/a                                       | Never                                                   |
+| **Final status**       | COMPLETED                                 | Unchanged (stays PENDING)                               |
+| **Output**             | Locked, immutable                         | Temporary, mutable                                      |
+| **Caching**            | Read + Write (cache hit returns verbatim) | Neither                                                 |
+| **Dataflow updates**   | Always applied                            | Only for PENDING tasks                                  |
+| **Performance target** | No constraint                             | < 1ms per task                                          |
+| **Telemetry**          | Spans recorded                            | No telemetry                                            |
+| **Abort support**      | Full (signal + timeout)                   | No abort support                                        |
+| **Progress events**    | Emitted                                   | Not emitted                                             |
+| **Return semantics**   | Output replaces `runOutputData`           | Non-undefined replaces; `undefined` leaves prior output |

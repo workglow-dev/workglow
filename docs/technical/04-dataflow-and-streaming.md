@@ -478,8 +478,7 @@ After all events are consumed:
 1. Check if the task was aborted during streaming
 2. Set `task.runOutputData` to the final accumulated output
 3. Emit `stream_end` event with the complete output
-4. Call `executeTaskReactive()` for any reactive overlay
-5. Return the final output
+4. Return the final output
 
 ---
 

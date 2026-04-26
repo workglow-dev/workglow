@@ -24,8 +24,6 @@ The task graph system has two **strictly orthogonal** execution paths:
 
 `run()` never invokes `executePreview()`, and `runPreview()` never invokes `execute()` or `executeStream()`. Cache hits return the cached value verbatim.
 
-> **Migration note.** These paths were previously named `runReactive()` / `executeReactive()` and the runner overlaid the reactive method on top of `execute()` results during full runs. That overlay was removed and the methods renamed. See `docs/technical/02-dual-mode-execution.md` for the full rationale.
-
 ---
 
 ## Task Lifecycle
@@ -236,11 +234,11 @@ TaskA.runOutputData.result → TaskB.runInputData.value
 
 ### When Input is Copied
 
-| Execution Path  | Task Status | Input Copied?             |
-| --------------- | ----------- | ------------------------- |
-| `run()`         | Any         | Yes (always)              |
-| `runPreview()`  | PENDING     | Yes                       |
-| `runPreview()`  | COMPLETED   | **No** (output is locked) |
+| Execution Path | Task Status | Input Copied?             |
+| -------------- | ----------- | ------------------------- |
+| `run()`        | Any         | Yes (always)              |
+| `runPreview()` | PENDING     | Yes                       |
+| `runPreview()` | COMPLETED   | **No** (output is locked) |
 
 ---
 
@@ -477,17 +475,17 @@ class MyTask extends Task {
 
 ## Summary
 
-| Aspect               | `run()`                                  | `runPreview()`                  |
-| -------------------- | ---------------------------------------- | ------------------------------- |
-| **Purpose**          | Full execution                           | UI previews                     |
-| **Method called**    | `execute()` (or `executeStream()`)       | `executePreview()`              |
-| **Calls preview?**   | Never                                    | n/a                             |
-| **Calls execute?**   | n/a                                      | Never                           |
-| **Final status**     | COMPLETED                                | Unchanged                       |
-| **Output**           | Locked/cached                            | Temporary                       |
-| **Dataflow updates** | Always                                   | Only PENDING tasks              |
-| **Performance**      | Can be slow                              | Should be < 1ms                 |
-| **User edits**       | Before run starts                        | Before run starts               |
+| Aspect               | `run()`                            | `runPreview()`     |
+| -------------------- | ---------------------------------- | ------------------ |
+| **Purpose**          | Full execution                     | UI previews        |
+| **Method called**    | `execute()` (or `executeStream()`) | `executePreview()` |
+| **Calls preview?**   | Never                              | n/a                |
+| **Calls execute?**   | n/a                                | Never              |
+| **Final status**     | COMPLETED                          | Unchanged          |
+| **Output**           | Locked/cached                      | Temporary          |
+| **Dataflow updates** | Always                             | Only PENDING tasks |
+| **Performance**      | Can be slow                        | Should be < 1ms    |
+| **User edits**       | Before run starts                  | Before run starts  |
 
 ### Key Takeaways
 
