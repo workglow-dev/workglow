@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function concatStrings(input: Record<string, unknown>): string {
+  return Object.values(input).join("");
+}
 
 const inputSchema = {
   type: "object",
@@ -53,11 +58,18 @@ export class StringConcatTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return { text: concatStrings(input) } as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    return { text: Object.values(input).join("") } as Output;
+    return { text: concatStrings(input) } as Output;
   }
 }
 

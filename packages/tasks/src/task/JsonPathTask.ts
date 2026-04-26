@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -74,6 +75,11 @@ function resolvePath(obj: unknown, segments: readonly string[]): unknown {
   return resolvePath(next, tail);
 }
 
+function extractJsonPath(value: unknown, path: string): unknown {
+  const segments = path.split(".");
+  return resolvePath(value, segments);
+}
+
 export class JsonPathTask<
   Input extends JsonPathTaskInput = JsonPathTaskInput,
   Output extends JsonPathTaskOutput = JsonPathTaskOutput,
@@ -92,13 +98,18 @@ export class JsonPathTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return { result: extractJsonPath(input.value, input.path) } as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const segments = input.path.split(".");
-    const result = resolvePath(input.value, segments);
-    return { result } as Output;
+    return { result: extractJsonPath(input.value, input.path) } as Output;
   }
 }
 

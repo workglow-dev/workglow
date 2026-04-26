@@ -6,12 +6,17 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
 } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
+
+function toUpperCase(text: string): string {
+  return text.toUpperCase();
+}
 
 const inputSchema = {
   type: "object",
@@ -60,11 +65,18 @@ export class StringUpperCaseTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return { text: toUpperCase(input.text) } as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    return { text: input.text.toUpperCase() } as Output;
+    return { text: toUpperCase(input.text) } as Output;
   }
 }
 
