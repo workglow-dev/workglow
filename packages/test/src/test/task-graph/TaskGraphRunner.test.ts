@@ -50,12 +50,12 @@ describe("TaskGraphRunner", () => {
   });
 
   describe("Basic", () => {
-    it("should run runReactive", async () => {
-      const runReactiveSpy = spyOn(nodes[0], "runReactive");
+    it("should run runPreview", async () => {
+      const runPreviewSpy = spyOn(nodes[0], "runPreview");
 
-      await runner.runGraphReactive();
+      await runner.runGraphPreview();
 
-      expect(runReactiveSpy).toHaveBeenCalledTimes(1);
+      expect(runPreviewSpy).toHaveBeenCalledTimes(1);
     });
 
     it("should run the graph with results", async () => {
@@ -96,7 +96,7 @@ describe("TaskGraphRunner", () => {
 
       // Create a task that will throw an error
       errorTask = new FailingTask({ id: "error-source" });
-      errorTask.executeReactive = async () => {
+      errorTask.executePreview = async () => {
         throw new Error("Test error");
       };
 
@@ -155,8 +155,8 @@ describe("TaskGraphRunner", () => {
       graph = new TaskGraph();
       const longRunningTask = new LongRunningTask({ id: "long-running" });
 
-      // Override the executeReactive method to be long-running and check for abort signal
-      longRunningTask.executeReactive = async () => {
+      // Override the executePreview method to be long-running and check for abort signal
+      longRunningTask.executePreview = async () => {
         try {
           await new Promise((resolve, reject) => {
             const timeout = setTimeout(resolve, 1000);
@@ -257,9 +257,9 @@ describe("TaskGraphRunner", () => {
       expect(Array.isArray(results)).toBe(true);
     });
 
-    it("should enforce maxTasks in reactive run via runGraphReactive", async () => {
+    it("should enforce maxTasks in preview run via runGraphPreview", async () => {
       // 3 tasks, limit 1 — should throw TaskConfigurationError
-      await expect(runner.runGraphReactive({}, { maxTasks: 1 })).rejects.toThrow(
+      await expect(runner.runGraphPreview({}, { maxTasks: 1 })).rejects.toThrow(
         TaskConfigurationError
       );
     });

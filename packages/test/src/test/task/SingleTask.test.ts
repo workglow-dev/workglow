@@ -33,23 +33,23 @@ describe("SingleTask", () => {
 
     it("should run the task reactively see input definition defaults", async () => {
       const task = new TestIOTask();
-      const output = await task.runReactive();
+      const output = await task.runPreview();
       expect(output).toEqual({ key: "default", reactiveOnly: true, all: false });
     });
     it("should run the task reactively see defaults", async () => {
       const task = new TestIOTask({ defaults: { key: "givendefault" } }); // pass as defaults
-      const output = await task.runReactive();
+      const output = await task.runPreview();
       expect(output).toEqual({ key: "givendefault", reactiveOnly: true, all: false });
     });
     it("should run the task reactively see setInput", async () => {
       const task = new TestIOTask();
       task.setInput({ key: "setvalue" });
-      const output = await task.runReactive();
+      const output = await task.runPreview();
       expect(output).toEqual({ key: "setvalue", reactiveOnly: true, all: false });
     });
     it("should run the task reactively see inputs as params", async () => {
       const task = new TestIOTask();
-      const output = await task.runReactive({ key: "valueparams" });
+      const output = await task.runPreview({ key: "valueparams" });
       expect(output).toEqual({ key: "valueparams", reactiveOnly: true, all: false });
     });
     it("should use inputSchema default values when no input is provided", async () => {
@@ -92,7 +92,7 @@ describe("SingleTask", () => {
       });
 
       it("should run the task reactively", async () => {
-        const output = await task.runReactive();
+        const output = await task.runPreview();
         expect(output).toEqual({
           processed: false,
           result: "Reactive: default",
@@ -251,13 +251,13 @@ describe("SingleTask", () => {
         task = new Task();
       });
 
-      it("should call runReactive when run is called", async () => {
+      it("should call runPreview when run is called", async () => {
         const executeSpy = spyOn(task, "execute");
-        const executeReactiveSpy = spyOn(task, "executeReactive");
+        const executePreviewSpy = spyOn(task, "executePreview");
 
         await task.run();
         expect(executeSpy).toHaveBeenCalled();
-        expect(executeReactiveSpy).toHaveBeenCalled();
+        expect(executePreviewSpy).toHaveBeenCalled();
       });
 
       it("should update status during task execution", async () => {
