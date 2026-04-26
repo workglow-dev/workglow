@@ -6,7 +6,7 @@
 
 ## Context
 
-A 7-stage image filter chain (`Text → Flip → Sepia → Blur → Posterize → Border → Pixelate`) measured in `runReactive` mode currently takes ~5.2 seconds end-to-end. Per-stage `executeReactive` runs at 500–1300 ms, against a documented target of `< 1 ms`. The gap is 70–185×.
+A 7-stage image filter chain (`Text → Flip → Sepia → Blur → Posterize → Border → Pixelate`) measured in `runPreview` mode currently takes ~5.2 seconds end-to-end. Per-stage `executePreview` runs at 500–1300 ms, against a documented target of `< 1 ms`. The gap is 70–185×.
 
 Root cause:
 
@@ -15,11 +15,11 @@ Root cause:
 - All filters are CPU JS loops on the main thread. `OffscreenCanvas` is wired but only used main-thread. No Worker / WebGPU / WASM is in the image path.
 - `ImagePreview` re-converts pixel-form input on every render and uses `<img src=dataUri>` for the data-URI form, both per-frame work.
 
-The user's reach goal is webcam-style live preview: pull frames continuously and run the same chain reactively at decent rates.
+The user's reach goal is webcam-style live preview: pull frames continuously and run the same chain through `runPreview` at decent rates.
 
 ## Goals
 
-- **30 fps end-to-end** for the 7-stage chain at 720p in browser `runReactive`. Per-task `executeReactive` ≤ 5 ms.
+- **30 fps end-to-end** for the 7-stage chain at 720p in browser `runPreview`. Per-task `executePreview` ≤ 5 ms.
 - Optimize all three runtimes (browser, node, bun). Browser uses WebGPU; node/bun uses sharp's pipeline.
 - Direct GPU → canvas display in the browser preview path. No CPU readback in the hot loop.
 - Single canonical inter-task image type. No dual format, no shims.
@@ -32,7 +32,7 @@ The user's reach goal is webcam-style live preview: pull frames continuously and
 - WebGPU on node (via dawn or similar). Sharp covers node well enough for this round.
 - Migrating non-image media (audio, video frames, tensors). Same patterns will apply but are separate decisions.
 - Caching the encoded byte form alongside the materialized form. One materialized cache entry per output.
-- A "preview at lower resolution" downscale mode. The reactive path runs at full resolution; the GPU is fast enough to make scaling unnecessary.
+- A "preview at lower resolution" downscale mode. The preview path runs at full resolution; the GPU is fast enough to make scaling unnecessary.
 
 ## Approach — single landing
 
@@ -72,17 +72,17 @@ Schema: a new `GpuImageSchema` in `@workglow/util/schema` (JSON Schema with `for
 Files live in `@workglow/util/media/` alongside the existing browser-only image code (e.g. `imageRasterCodecBrowser.ts`), exported only from `browser.ts`. No new subdirectory.
 
 - `gpuDevice.browser.ts` — singleton `GpuDevice` with lazy `requestAdapter` + `requestDevice`. One device per page. If `requestAdapter` returns `null`, image construction falls back to `CpuImage` and the pipeline runs CPU-side. Listens for `device.lost` and invalidates the singleton.
-- `texturePool.browser.ts` — `acquire(w, h, format)` / `release(t)`. Cap each size class at ~8 textures. Lifetime: page session. Bound is what limits VRAM; no per-reactive cleanup.
+- `texturePool.browser.ts` — `acquire(w, h, format)` / `release(t)`. Cap each size class at ~8 textures. Lifetime: page session. Bound is what limits VRAM; no per-preview cleanup.
 - `webGpuImage.browser.ts` — implements `GpuImage`. `apply(shader, uniforms, outSize?)` returns a new `WebGpuImage` and synchronously releases the source texture back to the pool. Encodes one command per `apply`; the GPU pipelines the chain.
 - `shaders/` — `.wgsl` files imported as text. One per filter (`passthrough`, `flip`, `sepia`, `blur`, `posterize`, `border`, `pixelate`, `textOverlay`). Compiled once, cached on the singleton.
 
-Encoder lifecycle: a single `GPUCommandEncoder` per reactive run, submitted at the end (just before the canvas blit) so the entire 7-stage chain is one driver round-trip.
+Encoder lifecycle: a single `GPUCommandEncoder` per preview run, submitted at the end (just before the canvas blit) so the entire 7-stage chain is one driver round-trip.
 
 Disposal:
 - Synchronous `release(sourceTexture)` inside `apply` covers the in-flight chain.
 - `FinalizationRegistry` registers each `WebGpuImage` to release the texture on JS-side GC, best-effort.
 - The existing per-workflow-run dispose hook drains the pool and shader cache.
-- No new per-reactive disposal mechanism.
+- No new per-preview disposal mechanism.
 
 ### 3. Sharp pipeline runtime (node/bun)
 
@@ -136,15 +136,15 @@ abstract class ImageFilterTask<P, In = { image: GpuImage } & P>
   protected abstract readonly op: ImageOp<P>;
   protected abstract opParams(input: In): P;
 
-  private run(input: In) {
+  private runFilter(input: In) {
     return { image: applyOp(input.image, this.op, this.opParams(input)) };
   }
-  async executeReactive(input: In) { return this.run(input); }
-  async execute(input: In)         { return this.run(input); }
+  async execute(input: In)        { return this.runFilter(input); }
+  async executePreview(input: In) { return this.runFilter(input); }
 }
 ```
 
-`executeReactive` and `execute` call the same internal method. The only difference between modes is what the runner does at edges (cache materialization on `execute`, none on `executeReactive`). Filter authors don't think about modes.
+`execute` and `executePreview` call the same internal helper, matching the canonical "shared helper called from both methods" pattern. The only difference between modes is what the runner does at edges (cache materialization on `execute`, none on `executePreview`). Filter authors don't think about modes.
 
 Source tasks (`InputTask` for image schemas, `FetchUrlTask` returning images, etc.) construct a `GpuImage` directly via the appropriate backend. Sink tasks (`ImageOutputTask`) dispatch by destination: canvas → `toCanvas`; download / API → `encode`.
 
@@ -302,7 +302,7 @@ A new benchmark at `packages/test/src/perf/imageChainPerf.ts`. Same 7-stage chai
 
 Targets:
 
-- Browser + WebGPU, 720p, 7-stage `runReactive`: end-to-end ≤ 33 ms (30 fps). Per-task `executeReactive` ≤ 5 ms.
+- Browser + WebGPU, 720p, 7-stage `runPreview`: end-to-end ≤ 33 ms (30 fps). Per-task `executePreview` ≤ 5 ms.
 - Node + sharp, 7-stage `execute`: ≤ 100 ms at 720p.
 - Browser CPU fallback: ≤ 1500 ms at 720p (down from current 5200 ms; the reduction comes from removing the per-stage encode/decode loop, even on CPU).
 
@@ -315,4 +315,4 @@ Run manually (`bun packages/test/src/perf/imageChainPerf.ts`); not in CI by defa
 - WebGPU on node (dawn / similar).
 - Audio / video / tensor pipelines.
 - Encoded-byte cache form alongside materialized form.
-- Reactive-only downscale / preview-resolution mode.
+- Preview-only downscale / preview-resolution mode.
