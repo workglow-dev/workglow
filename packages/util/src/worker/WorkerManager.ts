@@ -13,7 +13,7 @@ export class WorkerManager {
   /** Function names registered on each worker, populated from the ready message. */
   private workerFunctions: Map<string, Set<string>> = new Map();
   private workerStreamFunctions: Map<string, Set<string>> = new Map();
-  private workerReactiveFunctions: Map<string, Set<string>> = new Map();
+  private workerPreviewFunctions: Map<string, Set<string>> = new Map();
   /** Persistent factories for workers that can be recreated after termination. */
   private workerFactories: Map<string, () => Worker> = new Map();
   /** Idle timeout configuration per registered worker. */
@@ -79,7 +79,7 @@ export class WorkerManager {
           worker.removeEventListener("error", handleError);
           this.workerFunctions.set(name, new Set(event.data.functions ?? []));
           this.workerStreamFunctions.set(name, new Set(event.data.streamFunctions ?? []));
-          this.workerReactiveFunctions.set(name, new Set(event.data.reactiveFunctions ?? []));
+          this.workerPreviewFunctions.set(name, new Set(event.data.previewFunctions ?? []));
           resolve();
         }
       };
@@ -188,7 +188,7 @@ export class WorkerManager {
     this.readyWorkers.delete(name);
     this.workerFunctions.delete(name);
     this.workerStreamFunctions.delete(name);
-    this.workerReactiveFunctions.delete(name);
+    this.workerPreviewFunctions.delete(name);
     this.activeCallCounts.delete(name);
     if (worker && "terminate" in worker && typeof worker.terminate === "function") {
       try {
@@ -213,7 +213,7 @@ export class WorkerManager {
       this.readyWorkers.delete(name);
       this.workerFunctions.delete(name);
       this.workerStreamFunctions.delete(name);
-      this.workerReactiveFunctions.delete(name);
+      this.workerPreviewFunctions.delete(name);
       this.activeCallCounts.delete(name);
       try {
         if (worker && "terminate" in worker && typeof worker.terminate === "function") {
@@ -312,16 +312,16 @@ export class WorkerManager {
   }
 
   /**
-   * Call a reactive function on a worker. Returns undefined (rather than throwing)
-   * if the worker has no reactive function registered for the given name, so callers
+   * Call a preview function on a worker. Returns undefined (rather than throwing)
+   * if the worker has no preview function registered for the given name, so callers
    * can treat the result as an optional preview.
    *
    * @param workerName - Registered worker name
-   * @param functionName - Name of the reactive function registered on the worker
+   * @param functionName - Name of the preview function registered on the worker
    * @param args - Arguments to pass: [input, output, model]
-   * @returns The reactive result, or undefined if not registered / on error
+   * @returns The preview result, or undefined if not registered / on error
    */
-  async callWorkerReactiveFunction<T>(
+  async callWorkerPreviewFunction<T>(
     workerName: string,
     functionName: string,
     args: any[]
@@ -332,9 +332,9 @@ export class WorkerManager {
     this.beginWorkerActivity(workerName);
 
     try {
-      // Skip the roundtrip if the worker didn't register a reactive function for this name.
-      const knownReactive = this.workerReactiveFunctions.get(workerName);
-      if (knownReactive && !knownReactive.has(functionName)) return undefined;
+      // Skip the roundtrip if the worker didn't register a preview function for this name.
+      const knownPreview = this.workerPreviewFunctions.get(workerName);
+      if (knownPreview && !knownPreview.has(functionName)) return undefined;
 
       return await new Promise((resolve) => {
         const requestId = crypto.randomUUID();
@@ -347,7 +347,7 @@ export class WorkerManager {
             resolve(data as T | undefined);
           } else if (type === "error") {
             cleanup();
-            getLogger().warn(`Worker ${workerName} reactive function ${functionName} error:`, {
+            getLogger().warn(`Worker ${workerName} preview function ${functionName} error:`, {
               error: data,
             });
             resolve(undefined);
@@ -360,10 +360,10 @@ export class WorkerManager {
 
         worker.addEventListener("message", handleMessage);
 
-        const message = { id: requestId, type: "call", functionName, args, reactive: true };
+        const message = { id: requestId, type: "call", functionName, args, preview: true };
         // Note: No transferables — same reasoning as callWorkerFunction above.
         worker.postMessage(message);
-        getLogger().info(`Worker ${workerName} reactive function ${functionName} called.`);
+        getLogger().info(`Worker ${workerName} preview function ${functionName} called.`);
       });
     } finally {
       this.endWorkerActivity(workerName);

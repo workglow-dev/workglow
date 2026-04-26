@@ -12,7 +12,7 @@ type WorkerEventListener = (event: any) => void;
 interface FakeWorkerOptions {
   readonly functions?: readonly string[];
   readonly streamFunctions?: readonly string[];
-  readonly reactiveFunctions?: readonly string[];
+  readonly previewFunctions?: readonly string[];
   readonly readyMode?: "success" | "never";
 }
 
@@ -21,7 +21,7 @@ class FakeWorker {
   private readonly abortedRequestIds = new Set<string>();
   private readonly functions: readonly string[];
   private readonly streamFunctions: readonly string[];
-  private readonly reactiveFunctions: readonly string[];
+  private readonly previewFunctions: readonly string[];
   private readonly readyMode: "success" | "never";
 
   readonly id: number;
@@ -31,7 +31,7 @@ class FakeWorker {
     this.id = id;
     this.functions = options.functions ?? ["TestTask"];
     this.streamFunctions = options.streamFunctions ?? [];
-    this.reactiveFunctions = options.reactiveFunctions ?? [];
+    this.previewFunctions = options.previewFunctions ?? [];
     this.readyMode = options.readyMode ?? "success";
 
     if (this.readyMode === "success") {
@@ -41,7 +41,7 @@ class FakeWorker {
             type: "ready",
             functions: this.functions,
             streamFunctions: this.streamFunctions,
-            reactiveFunctions: this.reactiveFunctions,
+            previewFunctions: this.previewFunctions,
           },
         });
       });
@@ -67,7 +67,7 @@ class FakeWorker {
     readonly functionName?: string;
     readonly args?: readonly unknown[];
     readonly stream?: boolean;
-    readonly reactive?: boolean;
+    readonly preview?: boolean;
   }): void {
     if (message.type === "abort" && message.id) {
       this.abortedRequestIds.add(message.id);
@@ -362,15 +362,15 @@ describe("WorkerManager idle termination", () => {
     expect(workers[0]?.terminateCallCount).toBe(1);
   });
 
-  test("does not leak idle tracking when reactive functions are unavailable", async () => {
+  test("does not leak idle tracking when preview functions are unavailable", async () => {
     const manager = createManager();
     const workers: FakeWorker[] = [];
 
     manager.registerWorker(
-      "reactive-worker",
+      "preview-worker",
       () => {
         const worker = new FakeWorker(workers.length + 1, {
-          reactiveFunctions: [],
+          previewFunctions: [],
         });
         workers.push(worker);
         return worker as unknown as Worker;
@@ -378,13 +378,13 @@ describe("WorkerManager idle termination", () => {
       { idleTimeoutMs: 50 }
     );
 
-    const reactiveCall = manager.callWorkerReactiveFunction(
-      "reactive-worker",
-      "MissingReactiveTask",
+    const previewCall = manager.callWorkerPreviewFunction(
+      "preview-worker",
+      "MissingPreviewTask",
       []
     );
     await flushAsyncWork();
-    await expect(reactiveCall).resolves.toBeUndefined();
+    await expect(previewCall).resolves.toBeUndefined();
 
     await advanceTime(50);
     expect(workers[0]?.terminateCallCount).toBe(1);
