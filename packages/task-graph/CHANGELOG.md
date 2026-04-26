@@ -1,5 +1,27 @@
 # @workglow/task-graph
 
+## 0.2.17
+
+### Features
+
+#### task-graph,tasks
+
+- split run() from runPreview() and add execute() to concrete tasks
+
+### Bug Fixes
+
+- address code-reviewer feedback
+
+### Refactors
+
+#### libs
+
+- rename executeReactive -> executePreview
+
+### Documentation
+
+- rewrite execution-model documentation for run/runPreview contract
+
 ## 0.2.16
 
 ### Features

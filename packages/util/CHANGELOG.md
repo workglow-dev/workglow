@@ -1,5 +1,21 @@
 # @workglow/util
 
+## 0.2.17
+
+### Bug Fixes
+
+- address code-reviewer feedback
+
+### Refactors
+
+#### util,ai
+
+- rename worker reactive APIs to preview for consistency
+
+### Chores
+
+- format changes
+
 ## 0.2.16
 
 ### Features

@@ -1,5 +1,17 @@
 # @workglow/ai-provider
 
+## 0.2.17
+
+### Refactors
+
+#### libs
+
+- rename executeReactive -> executePreview
+
+### Chores
+
+- format changes
+
 ## 0.2.16
 
 ### Chores
