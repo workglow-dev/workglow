@@ -7,7 +7,7 @@
 import { QueuedAiProvider } from "@workglow/ai";
 import type {
   IAiExecutionStrategy,
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
   AiProviderRegisterOptions,
@@ -102,9 +102,9 @@ export class HuggingFaceTransformersQueuedProvider extends QueuedAiProvider<HfTr
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, HfTransformersOnnxModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, HfTransformersOnnxModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfTransformersOnnxModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, HfTransformersOnnxModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 
   override createSession(_model: ModelConfig): string {

@@ -5,7 +5,7 @@
  */
 
 import { QueuedAiProvider } from "@workglow/ai";
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import type { ModelConfig } from "@workglow/ai";
 import { LOCAL_LLAMACPP } from "./common/LlamaCpp_Constants";
 import type { LlamaCppModelConfig } from "./common/LlamaCpp_ModelSchema";
@@ -35,9 +35,9 @@ export class LlamaCppQueuedProvider extends QueuedAiProvider<LlamaCppModelConfig
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, LlamaCppModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, LlamaCppModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, LlamaCppModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, LlamaCppModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 
   override createSession(_model: ModelConfig): string {

@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { OpenAI_ModelSearch } from "./OpenAI_ModelSearch";
 
 export { loadOpenAISDK, getClient, getModelName } from "./OpenAI_Client";
 
 import { OpenAI_Chat, OpenAI_Chat_Stream } from "./OpenAI_Chat";
-import { OpenAI_CountTokens, OpenAI_CountTokens_Reactive } from "./OpenAI_CountTokens";
+import { OpenAI_CountTokens, OpenAI_CountTokens_Preview } from "./OpenAI_CountTokens";
 import { OpenAI_ModelInfo } from "./OpenAI_ModelInfo";
 import {
   OpenAI_StructuredGeneration,
@@ -48,9 +48,9 @@ export const OPENAI_STREAM_TASKS: Record<
   ToolCallingTask: OpenAI_ToolCalling_Stream,
 };
 
-export const OPENAI_REACTIVE_TASKS: Record<
+export const OPENAI_PREVIEW_TASKS: Record<
   string,
-  AiProviderReactiveRunFn<any, any, OpenAiModelConfig>
+  AiProviderPreviewRunFn<any, any, OpenAiModelConfig>
 > = {
-  CountTokensTask: OpenAI_CountTokens_Reactive,
+  CountTokensTask: OpenAI_CountTokens_Preview,
 };

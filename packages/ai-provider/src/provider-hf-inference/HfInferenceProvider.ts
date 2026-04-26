@@ -6,7 +6,7 @@
 
 import { AiProvider } from "@workglow/ai/worker";
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
 } from "@workglow/ai/worker";
@@ -42,8 +42,8 @@ export class HfInferenceProvider extends AiProvider<HfInferenceModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, HfInferenceModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, HfInferenceModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfInferenceModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, HfInferenceModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

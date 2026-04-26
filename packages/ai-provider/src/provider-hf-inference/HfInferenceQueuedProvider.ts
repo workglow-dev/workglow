@@ -5,7 +5,7 @@
  */
 
 import { AiProvider } from "@workglow/ai";
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { HF_INFERENCE } from "./common/HFI_Constants";
 import type { HfInferenceModelConfig } from "./common/HFI_ModelSchema";
 
@@ -29,8 +29,8 @@ export class HfInferenceQueuedProvider extends AiProvider<HfInferenceModelConfig
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, HfInferenceModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, HfInferenceModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, HfInferenceModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, HfInferenceModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

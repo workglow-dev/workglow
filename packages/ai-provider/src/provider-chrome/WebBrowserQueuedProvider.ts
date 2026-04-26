@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { QueuedAiProvider } from "@workglow/ai";
 import { WEB_BROWSER } from "./common/WebBrowser_Constants";
 import type { WebBrowserModelConfig } from "./common/WebBrowser_ModelSchema";
@@ -29,8 +29,8 @@ export class WebBrowserQueuedProvider extends QueuedAiProvider<WebBrowserModelCo
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, WebBrowserModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, WebBrowserModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, WebBrowserModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, WebBrowserModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

@@ -11,7 +11,7 @@
  */
 
 import { registerProviderWorker } from "../common/registerProvider";
-import { HFT_REACTIVE_TASKS, HFT_STREAM_TASKS, HFT_TASKS } from "./common/HFT_JobRunFns";
+import { HFT_PREVIEW_TASKS, HFT_STREAM_TASKS, HFT_TASKS } from "./common/HFT_JobRunFns";
 import { HuggingFaceTransformersProvider } from "./HuggingFaceTransformersProvider";
 import { loadTransformersSDK } from "./common/HFT_Pipeline";
 
@@ -27,7 +27,7 @@ export async function registerHuggingFaceTransformersWorker(): Promise<void> {
       new HuggingFaceTransformersProvider(
         HFT_TASKS,
         HFT_STREAM_TASKS,
-        HFT_REACTIVE_TASKS
+        HFT_PREVIEW_TASKS
       ).registerOnWorkerServer(ws),
     "HuggingFaceTransformers"
   );

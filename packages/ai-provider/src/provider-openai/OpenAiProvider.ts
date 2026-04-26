@@ -6,7 +6,7 @@
 
 import { AiProvider } from "@workglow/ai/worker";
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
 } from "@workglow/ai/worker";
@@ -44,8 +44,8 @@ export class OpenAiProvider extends AiProvider<OpenAiModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, OpenAiModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, OpenAiModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, OpenAiModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

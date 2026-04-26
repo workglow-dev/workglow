@@ -115,7 +115,7 @@ export class VectorSimilarityTask extends GraphAsTask<
     return SimilarityOutputSchema as DataPortSchema;
   }
 
-  override async executeReactive({ query, vectors, method, topK }: VectorSimilarityTaskInput) {
+  override async executePreview({ query, vectors, method, topK }: VectorSimilarityTaskInput) {
     let similarities = [];
     const fnName = method as keyof typeof similarityFunctions;
     const fn = similarityFunctions[fnName];

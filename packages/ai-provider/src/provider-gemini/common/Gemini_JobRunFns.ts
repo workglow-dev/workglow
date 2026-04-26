@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { Gemini_ModelSearch } from "./Gemini_ModelSearch";
 
@@ -12,7 +12,7 @@ export { loadGeminiSDK, getApiKey, getModelName } from "./Gemini_Client";
 export { sanitizeSchemaForGemini } from "./Gemini_Schema";
 
 import { Gemini_Chat, Gemini_Chat_Stream } from "./Gemini_Chat";
-import { Gemini_CountTokens, Gemini_CountTokens_Reactive } from "./Gemini_CountTokens";
+import { Gemini_CountTokens, Gemini_CountTokens_Preview } from "./Gemini_CountTokens";
 import { Gemini_ModelInfo } from "./Gemini_ModelInfo";
 import {
   Gemini_StructuredGeneration,
@@ -49,9 +49,9 @@ export const GEMINI_STREAM_TASKS: Record<
   ToolCallingTask: Gemini_ToolCalling_Stream,
 };
 
-export const GEMINI_REACTIVE_TASKS: Record<
+export const GEMINI_PREVIEW_TASKS: Record<
   string,
-  AiProviderReactiveRunFn<any, any, GeminiModelConfig>
+  AiProviderPreviewRunFn<any, any, GeminiModelConfig>
 > = {
-  CountTokensTask: Gemini_CountTokens_Reactive,
+  CountTokensTask: Gemini_CountTokens_Preview,
 };
