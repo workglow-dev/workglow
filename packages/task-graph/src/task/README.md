@@ -50,7 +50,8 @@ class MyTask extends Task {
     result: Type.Number(),
   });
 
-  // typically you either override execute or executeReactive, but not both
+  // execute() is called by run(); executePreview() is called by runPreview().
+  // The two paths are strictly separate — run() never invokes executePreview().
   async execute(input: MyTaskInput, { signal, updateProgress }: IExecuteContext) {
     await sleep(1000);
     if (signal.aborted) {
@@ -61,7 +62,7 @@ class MyTask extends Task {
     await sleep(1000);
     return { result: input.input * 2 };
   }
-  async executeReactive(input: MyTaskInput, output: MyTaskOutput) {
+  async executePreview(input: MyTaskInput) {
     return { result: input.input * 2 };
   }
 }
@@ -75,8 +76,8 @@ class MyTask extends Task {
 
 - **Statuses**: `Pending` → `Processing` → (`Completed`|`Failed`|`Aborted`)
 - **Methods**:
-  - `run()`: Full execution with caching, calls the subclass `execute` method
-  - `runReactive()`: Lightweight execution for UI updates, calls the subclass `executeReactive` method
+  - `run()`: Full execution with caching, calls the subclass `execute` method only
+  - `runPreview()`: Lightweight execution for UI updates, calls the subclass `executePreview` method only
   - `abort()`: Cancel running task
 
 ## Event Handling

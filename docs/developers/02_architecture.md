@@ -116,7 +116,7 @@ classDiagram
       static TaskInputDefinition[] inputs$
       static TaskOutputDefinition[] outputs$
       run() TaskOutput
-      runReactive() TaskOutput
+      runPreview() TaskOutput
     }
 
     class GraphAsTask{
@@ -196,7 +196,7 @@ classDiagram
 
   class LambdaTask{
     Function execute
-    Function executeReactive
+    Function executePreview
     TaskInput input
     run() output
   }
@@ -237,7 +237,7 @@ classDiagram
     TaskOutputRepository repository
     assignLayers(Task[] sortedNodes)
     runGraph(TaskInput input) TaskOutput
-    runGraphReactive() TaskOutput
+    runGraphPreview() TaskOutput
   }
 
 ```
@@ -246,7 +246,7 @@ The TaskGraphRunner is responsible for executing tasks in a task graph. Key feat
 
 - **Layer-based Execution**: Tasks are organized into layers based on dependencies, allowing parallel execution of independent tasks
 - **Caching Support**: Can use a TaskOutputRepository to cache task outputs and avoid re-running tasks
-- **Reactive Mode**: Supports reactive execution where tasks can respond to input changes without full re-execution
+- **Preview Mode**: Supports preview execution where tasks can respond to input changes without full re-execution
 - **Smart Task Scheduling**: Automatically determines task execution order based on dependencies
 
 ## Workflow
