@@ -6,7 +6,7 @@
 
 import { AiProvider } from "@workglow/ai/worker";
 import type {
-  AiProviderReactiveRunFn,
+  AiProviderPreviewRunFn,
   AiProviderRunFn,
   AiProviderStreamFn,
 } from "@workglow/ai/worker";
@@ -50,9 +50,9 @@ export class LlamaCppProvider extends AiProvider<LlamaCppModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, LlamaCppModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, LlamaCppModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, LlamaCppModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, LlamaCppModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 
   override createSession(_model: ModelConfig): string {

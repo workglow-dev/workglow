@@ -83,7 +83,7 @@ export class DebugLogTask<
     return outputSchema;
   }
 
-  override async executeReactive(input: Input, output: Output) {
+  override async executePreview(input: Input) {
     const log_level: LogLevel = this.config.log_level ?? DEFAULT_LOG_LEVEL;
     const inputRecord = input as Record<string, unknown>;
     if (log_level === "dir") {
@@ -91,6 +91,9 @@ export class DebugLogTask<
     } else {
       console[log_level](inputRecord);
     }
+    // Phase 0b: runner no longer passes `output` to executePreview; allocate
+    // a fresh object to match the prior runner-allocated semantics.
+    const output = {} as Output;
     Object.assign(output, inputRecord);
     return output;
   }

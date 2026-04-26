@@ -12,7 +12,7 @@
 import { Job } from "@workglow/job-queue";
 import type {
   IExecuteContext,
-  IExecuteReactiveContext,
+  IExecutePreviewContext,
   TaskConfig,
   TaskEntitlement,
   TaskEntitlements,
@@ -211,30 +211,29 @@ export class AiTask<
   }
 
   // ========================================================================
-  // Reactive execution
+  // Preview execution
   // ========================================================================
 
   /**
-   * Delegates to a provider-registered reactive run function if one exists,
-   * otherwise falls back to the default Task.executeReactive().
+   * Delegates to a provider-registered preview run function if one exists,
+   * otherwise falls back to the default Task.executePreview().
    */
-  override async executeReactive(
+  override async executePreview(
     input: Input,
-    output: Output,
-    context: IExecuteReactiveContext
+    context: IExecutePreviewContext
   ): Promise<Output | undefined> {
     const model = input.model as ModelConfig | undefined;
     if (model && typeof model === "object" && model.provider) {
       const taskType = (this.constructor as any).runtype ?? (this.constructor as any).type;
-      const reactiveFn = getAiProviderRegistry().getReactiveRunFn<Input, Output>(
+      const previewFn = getAiProviderRegistry().getPreviewRunFn<Input, Output>(
         model.provider,
         taskType
       );
-      if (reactiveFn) {
-        return reactiveFn(input, output, model);
+      if (previewFn) {
+        return previewFn(input, model);
       }
     }
-    return super.executeReactive(input, output, context);
+    return super.executePreview(input, context);
   }
 
   // ========================================================================

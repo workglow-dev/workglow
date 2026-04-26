@@ -32,7 +32,7 @@ describe("LambdaTask", () => {
         b: 2,
       },
       {
-        executeReactive: async (input) => {
+        executePreview: async (input) => {
           return { output: input.a + input.b };
         },
       }
@@ -42,7 +42,7 @@ describe("LambdaTask", () => {
 
   test("in task mode", async () => {
     const task = new LambdaTask({
-      executeReactive: async () => {
+      executePreview: async () => {
         return { output: "Hello, world!" };
       },
     });
@@ -55,7 +55,7 @@ describe("LambdaTask", () => {
     graph.addTask(
       new LambdaTask({
         id: "lambdaReactiveTest",
-        executeReactive: async () => {
+        executePreview: async () => {
           return { output: "Hello, world!" };
         },
       })
@@ -97,7 +97,7 @@ describe("LambdaTask", () => {
     expect(results).toEqual({ output: 3 });
   });
 
-  test("in task workflow mode with input executeReactive", async () => {
+  test("in task workflow mode with input executePreview", async () => {
     const workflow = new Workflow();
     workflow.lambda(
       {
@@ -105,7 +105,7 @@ describe("LambdaTask", () => {
         b: 2,
       },
       {
-        executeReactive: async (input) => {
+        executePreview: async (input) => {
           return { output: input.a + input.b };
         },
       }

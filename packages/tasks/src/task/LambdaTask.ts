@@ -8,7 +8,7 @@ import {
   CreateWorkflow,
   DATAFLOW_ALL_PORTS,
   IExecuteContext,
-  IExecuteReactiveContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   TaskConfigSchema,
@@ -24,7 +24,7 @@ export const lambdaTaskConfigSchema = {
   properties: {
     ...TaskConfigSchema["properties"],
     execute: {},
-    executeReactive: {},
+    executePreview: {},
   },
   additionalProperties: false,
 } as const satisfies DataPortSchema;
@@ -34,11 +34,10 @@ type LambdaTaskConfig<
   Output extends TaskOutput = TaskOutput,
 > = TaskConfig & {
   execute?: (input: Input, context: IExecuteContext) => Promise<Output>;
-  executeReactive?: (
+  executePreview?: (
     input: Input,
-    output: Output,
-    context: IExecuteReactiveContext
-  ) => Promise<Output>;
+    context: IExecutePreviewContext
+  ) => Promise<Output | undefined>;
 };
 
 const inputSchema = {
@@ -95,9 +94,9 @@ export class LambdaTask<
   }
 
   constructor(config: Partial<Config> = {}) {
-    if (!config.execute && !config.executeReactive) {
+    if (!config.execute && !config.executePreview) {
       throw new TaskConfigurationError(
-        "LambdaTask must have either execute or executeReactive function in config"
+        "LambdaTask must have either execute or executePreview function in config"
       );
     }
     super(config);
@@ -111,14 +110,18 @@ export class LambdaTask<
   }
 
   /**
-   * Executes the provided function with the given input
-   * Throws an error if no function is provided or if the provided value is not callable
+   * Executes the user-provided preview function with the given input. Returns
+   * undefined when no preview function was supplied in the config (the constructor
+   * already validated that at least one of execute / executePreview is present).
    */
-  override async executeReactive(input: Input, output: Output, context: IExecuteReactiveContext) {
-    if (typeof this.config.executeReactive === "function") {
-      return (await this.config.executeReactive(input, output, context)) ?? output;
+  override async executePreview(
+    input: Input,
+    context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
+    if (typeof this.config.executePreview === "function") {
+      return await this.config.executePreview(input, context);
     }
-    return output;
+    return undefined;
   }
 }
 

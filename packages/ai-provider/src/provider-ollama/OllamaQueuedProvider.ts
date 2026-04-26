@@ -5,7 +5,7 @@
  */
 
 import { AiProvider } from "@workglow/ai";
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { OLLAMA } from "./common/Ollama_Constants";
 import type { OllamaModelConfig } from "./common/Ollama_ModelSchema";
 
@@ -29,8 +29,8 @@ export class OllamaQueuedProvider extends AiProvider<OllamaModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, OllamaModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, OllamaModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, OllamaModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, OllamaModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }

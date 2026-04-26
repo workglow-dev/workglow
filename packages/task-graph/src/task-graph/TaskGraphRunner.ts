@@ -39,7 +39,7 @@ import {
 import { TaskInput, TaskOutput, TaskStatus } from "../task/TaskTypes";
 import { DATAFLOW_ALL_PORTS, DATAFLOW_ERROR_PORT } from "./Dataflow";
 import { computeGraphEntitlements } from "./GraphEntitlementUtils";
-import { TaskGraph, TaskGraphRunConfig, TaskGraphRunReactiveConfig } from "./TaskGraph";
+import { TaskGraph, TaskGraphRunConfig, TaskGraphRunPreviewConfig } from "./TaskGraph";
 import { DependencyBasedScheduler, TopologicalScheduler } from "./TaskGraphScheduler";
 
 /**
@@ -105,7 +105,7 @@ export class TaskGraphRunner {
    * Whether the task graph is currently running
    */
   protected running = false;
-  protected reactiveRunning = false;
+  protected previewRunning = false;
 
   /**
    * The task graph to run
@@ -168,13 +168,13 @@ export class TaskGraphRunner {
    * @param graph The task graph to run
    * @param outputCache The task output repository to use for caching task outputs
    * @param processScheduler The scheduler to use for task execution
-   * @param reactiveScheduler The scheduler to use for reactive task execution
+   * @param previewScheduler The scheduler to use for preview task execution
    */
   constructor(
     graph: TaskGraph,
     outputCache?: TaskOutputRepository,
     protected processScheduler = new DependencyBasedScheduler(graph),
-    protected reactiveScheduler = new TopologicalScheduler(graph)
+    protected previewScheduler = new TopologicalScheduler(graph)
   ) {
     this.graph = graph;
     graph.outputCache = outputCache;
@@ -295,33 +295,33 @@ export class TaskGraphRunner {
   }
 
   /**
-   * Runs the task graph in a reactive manner
+   * Runs the task graph in preview mode
    * @param input Optional input to pass to root tasks (tasks with no incoming dataflows)
-   * @param config Optional configuration for the reactive run. Supports overriding the
+   * @param config Optional configuration for the preview run. Supports overriding the
    *   ServiceRegistry (`registry`), providing an output cache (`outputCache`), passing an
    *   abort signal (`parentSignal`), and controlling whether streaming leaf task outputs are
    *   accumulated into the return value (`accumulateLeafOutputs`).
    * @returns A promise that resolves when all tasks are complete
-   * @throws TaskConfigurationError if the graph is already running reactively
+   * @throws TaskConfigurationError if the graph is already running in preview
    */
-  public async runGraphReactive<Output extends TaskOutput>(
+  public async runGraphPreview<Output extends TaskOutput>(
     input: TaskInput = {} as TaskInput,
-    config?: TaskGraphRunReactiveConfig
+    config?: TaskGraphRunPreviewConfig
   ): Promise<GraphResultArray<Output>> {
-    await this.handleStartReactive(config);
+    await this.handleStartPreview(config);
 
-    // runReactive is on the UI preview hot path (fires per keystroke), so
+    // runPreview is on the UI preview hot path (fires per keystroke), so
     // instrumentation only runs when telemetry is enabled. Without the gate,
     // the four performance.now() calls per task and the per-run debug log
     // payload would burn cycles on every preview update.
     const telemetry = getTelemetryProvider();
     const telemetryEnabled = telemetry.isEnabled;
-    const reactiveRunId = telemetryEnabled ? uuid4() : "";
-    let reactiveSpan: ISpan | undefined;
+    const previewRunId = telemetryEnabled ? uuid4() : "";
+    let previewSpan: ISpan | undefined;
     if (telemetryEnabled) {
-      reactiveSpan = telemetry.startSpan("workglow.graph.runReactive", {
+      previewSpan = telemetry.startSpan("workglow.graph.runPreview", {
         attributes: {
-          "workglow.graph.reactive.run_id": reactiveRunId,
+          "workglow.graph.preview.run_id": previewRunId,
           "workglow.graph.task_count": this.graph.getTasks().length,
           "workglow.graph.dataflow_count": this.graph.getDataflows().length,
         },
@@ -332,13 +332,13 @@ export class TaskGraphRunner {
     const taskTimings: Array<{
       id: unknown;
       type: string;
-      runReactiveMs: number;
+      runPreviewMs: number;
       pushOutputMs: number;
     }> = [];
 
     const results: GraphResultArray<Output> = [];
     try {
-      for await (const task of this.reactiveScheduler.tasks()) {
+      for await (const task of this.previewScheduler.tasks()) {
         const isRootTask = this.graph.getSourceDataflows(task.id).length === 0;
 
         if (task.status === TaskStatus.PENDING) {
@@ -365,13 +365,13 @@ export class TaskGraphRunner {
           const taskType = String(
             (task.constructor as any).runtype || (task.constructor as typeof Task).type || "?"
           );
-          const tReactive = performance.now();
-          const taskResult = await task.runReactive(taskInput);
-          const runReactiveMs = performance.now() - tReactive;
+          const tPreview = performance.now();
+          const taskResult = await task.runPreview(taskInput);
+          const runPreviewMs = performance.now() - tPreview;
           const tPush = performance.now();
           await this.pushOutputFromNodeToEdges(task, taskResult);
           const pushOutputMs = performance.now() - tPush;
-          taskTimings.push({ id: task.id, type: taskType, runReactiveMs, pushOutputMs });
+          taskTimings.push({ id: task.id, type: taskType, runPreviewMs, pushOutputMs });
 
           if (this.graph.getTargetDataflows(task.id).length === 0) {
             results.push({
@@ -381,7 +381,7 @@ export class TaskGraphRunner {
             });
           }
         } else {
-          const taskResult = await task.runReactive(taskInput);
+          const taskResult = await task.runPreview(taskInput);
           await this.pushOutputFromNodeToEdges(task, taskResult);
 
           if (this.graph.getTargetDataflows(task.id).length === 0) {
@@ -393,18 +393,18 @@ export class TaskGraphRunner {
           }
         }
       }
-      await this.handleCompleteReactive();
+      await this.handleCompletePreview();
 
-      if (reactiveSpan) {
+      if (previewSpan) {
         const totalMs = performance.now() - t0;
-        reactiveSpan.setAttributes({
-          "workglow.graph.reactive.duration_ms": Math.round(totalMs * 1000) / 1000,
-          "workglow.graph.reactive.tasks_executed": taskTimings.length,
+        previewSpan.setAttributes({
+          "workglow.graph.preview.duration_ms": Math.round(totalMs * 1000) / 1000,
+          "workglow.graph.preview.tasks_executed": taskTimings.length,
         });
-        reactiveSpan.setStatus(SpanStatusCode.OK);
-        reactiveSpan.end();
-        getLogger().debug("task graph runReactive timings", {
-          reactiveRunId,
+        previewSpan.setStatus(SpanStatusCode.OK);
+        previewSpan.end();
+        getLogger().debug("task graph runPreview timings", {
+          previewRunId,
           totalMs: Math.round(totalMs * 1000) / 1000,
           taskTimings,
         });
@@ -412,19 +412,19 @@ export class TaskGraphRunner {
 
       return this.filterLeafResults(results);
     } catch (error) {
-      await this.handleErrorReactive();
+      await this.handleErrorPreview();
 
-      if (reactiveSpan) {
+      if (previewSpan) {
         const totalMs = performance.now() - t0;
         const message = error instanceof Error ? error.message : String(error);
-        reactiveSpan.setAttributes({
-          "workglow.graph.reactive.duration_ms": Math.round(totalMs * 1000) / 1000,
-          "workglow.graph.reactive.tasks_executed": taskTimings.length,
+        previewSpan.setAttributes({
+          "workglow.graph.preview.duration_ms": Math.round(totalMs * 1000) / 1000,
+          "workglow.graph.preview.tasks_executed": taskTimings.length,
         });
-        reactiveSpan.setStatus(SpanStatusCode.ERROR, message);
-        reactiveSpan.end();
-        getLogger().debug("task graph runReactive failed", {
-          reactiveRunId,
+        previewSpan.setStatus(SpanStatusCode.ERROR, message);
+        previewSpan.end();
+        getLogger().debug("task graph runPreview failed", {
+          previewRunId,
           totalMs: Math.round(totalMs * 1000) / 1000,
           taskTimings,
           error,
@@ -1124,7 +1124,7 @@ export class TaskGraphRunner {
     }
 
     // Prevent reentrancy
-    if (this.running || this.reactiveRunning) {
+    if (this.running || this.previewRunning) {
       throw new TaskConfigurationError("Graph is already running");
     }
 
@@ -1224,9 +1224,9 @@ export class TaskGraphRunner {
     this.graph.emit("start");
   }
 
-  protected async handleStartReactive(config?: TaskGraphRunConfig): Promise<void> {
-    if (this.reactiveRunning) {
-      throw new TaskConfigurationError("Graph is already running reactively");
+  protected async handleStartPreview(config?: TaskGraphRunConfig): Promise<void> {
+    if (this.previewRunning) {
+      throw new TaskConfigurationError("Graph is already running in preview");
     }
 
     // Use explicit registry if provided; otherwise keep the existing one
@@ -1245,12 +1245,12 @@ export class TaskGraphRunner {
       }
     }
 
-    // Note: `timeout` is not enforced for reactive runs. Reactive execution is
+    // Note: `timeout` is not enforced for preview runs. Preview execution is
     // event-driven with no single completion point, so a graph-level timeout
     // does not apply. Use per-task timeouts for individual task time limits.
 
-    this.reactiveScheduler.reset();
-    this.reactiveRunning = true;
+    this.previewScheduler.reset();
+    this.previewRunning = true;
   }
 
   /**
@@ -1280,8 +1280,8 @@ export class TaskGraphRunner {
     this.graph.emit("complete");
   }
 
-  protected async handleCompleteReactive(): Promise<void> {
-    this.reactiveRunning = false;
+  protected async handleCompletePreview(): Promise<void> {
+    this.previewRunning = false;
   }
 
   /**
@@ -1309,8 +1309,8 @@ export class TaskGraphRunner {
     this.graph.emit("error", error);
   }
 
-  protected async handleErrorReactive(): Promise<void> {
-    this.reactiveRunning = false;
+  protected async handleErrorPreview(): Promise<void> {
+    this.previewRunning = false;
   }
 
   /**
@@ -1338,8 +1338,8 @@ export class TaskGraphRunner {
     this.graph.emit("abort");
   }
 
-  protected async handleAbortReactive(): Promise<void> {
-    this.reactiveRunning = false;
+  protected async handleAbortPreview(): Promise<void> {
+    this.previewRunning = false;
   }
 
   /**

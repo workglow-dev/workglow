@@ -35,7 +35,7 @@ export class IteratorTaskRunner<
   private mapPartialIterationCount = 0;
 
   /**
-   * For iterator tasks, reactive runs use full execution for correctness.
+   * For iterator tasks, preview runs use full execution for correctness.
    */
 
   protected override async executeTask(input: Input): Promise<Output | undefined> {
@@ -51,22 +51,22 @@ export class IteratorTaskRunner<
 
     if (analysis.iterationCount === 0) {
       const emptyResult = this.task.getEmptyResult();
-      return this.executeTaskReactive(input, emptyResult as Output);
+      return this.executeTaskPreview(input, emptyResult as Output);
     }
 
     const result = this.task.isReduceTask()
       ? await this.executeReduceIterations(analysis)
       : await this.executeCollectIterations(analysis);
 
-    return this.executeTaskReactive(input, result as Output);
+    return this.executeTaskPreview(input, result as Output);
   }
 
   /**
-   * Iterator tasks should only run the task's reactive hook here.
+   * Iterator tasks should only run the task's preview hook here.
    */
-  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
-    const reactiveResult = await this.task.executeReactive(input, output, { own: this.own });
-    return Object.assign({}, output, reactiveResult ?? {}) as Output;
+  public override async executeTaskPreview(input: Input, output: Output): Promise<Output> {
+    const previewResult = await this.task.executePreview?.(input, { own: this.own });
+    return Object.assign({}, output, previewResult ?? {}) as Output;
   }
 
   protected async executeCollectIterations(analysis: IterationAnalysisResult): Promise<Output> {

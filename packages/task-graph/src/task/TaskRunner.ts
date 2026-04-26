@@ -51,7 +51,7 @@ export class TaskRunner<
    * Whether the task is currently running
    */
   protected running = false;
-  protected reactiveRunning = false;
+  protected previewRunning = false;
 
   /**
    * The task to run
@@ -195,9 +195,9 @@ export class TaskRunner<
             this.task.emit("stream_start");
             this.task.emit("stream_chunk", { type: "finish", data: outputs } as StreamEvent);
             this.task.emit("stream_end", outputs);
-            this.task.runOutputData = await this.executeTaskReactive(inputs, outputs);
+            this.task.runOutputData = await this.executeTaskPreview(inputs, outputs);
           } else {
-            this.task.runOutputData = await this.executeTaskReactive(inputs, outputs);
+            this.task.runOutputData = await this.executeTaskPreview(inputs, outputs);
           }
         }
       }
@@ -225,11 +225,11 @@ export class TaskRunner<
   }
 
   /**
-   * Runs the task in reactive mode
+   * Runs the task in preview mode
    * @param overrides Optional input overrides
    * @returns The task output
    */
-  public async runReactive(overrides: Partial<Input> = {}): Promise<Output> {
+  public async runPreview(overrides: Partial<Input> = {}): Promise<Output> {
     if (this.task.status === TaskStatus.PROCESSING) {
       return this.task.runOutputData as Output;
     }
@@ -255,7 +255,7 @@ export class TaskRunner<
       { registry: this.registry }
     )) as Input;
 
-    await this.handleStartReactive();
+    await this.handleStartPreview();
 
     try {
       const inputs: Input = this.task.runInputData as Input;
@@ -264,16 +264,16 @@ export class TaskRunner<
         throw new TaskInvalidInputError("Invalid input data");
       }
 
-      const resultReactive = await this.executeTaskReactive(
+      const previewResult = await this.executeTaskPreview(
         inputs,
         this.task.runOutputData as Output
       );
 
-      this.task.runOutputData = resultReactive;
+      this.task.runOutputData = previewResult;
 
-      await this.handleCompleteReactive();
+      await this.handleCompletePreview();
     } catch (err: any) {
-      await this.handleErrorReactive();
+      await this.handleErrorPreview();
     } finally {
       return this.task.runOutputData as Output;
     }
@@ -325,15 +325,15 @@ export class TaskRunner<
       registry: this.registry,
       resourceScope: this.resourceScope,
     });
-    return await this.executeTaskReactive(input, result || ({} as Output));
+    return await this.executeTaskPreview(input, result || ({} as Output));
   }
 
   /**
-   * Protected method for reactive execution delegation
+   * Protected method for preview execution delegation
    */
-  protected async executeTaskReactive(input: Input, output: Output): Promise<Output> {
-    const reactiveResult = await this.task.executeReactive(input, output, { own: this.own });
-    return Object.assign({}, output, reactiveResult ?? {}) as Output;
+  protected async executeTaskPreview(input: Input, output: Output): Promise<Output> {
+    const previewResult = await this.task.executePreview?.(input, { own: this.own });
+    return Object.assign({}, output, previewResult ?? {}) as Output;
   }
 
   /**
@@ -494,11 +494,11 @@ export class TaskRunner<
 
     this.task.emit("stream_end", this.task.runOutputData as Output);
 
-    const reactiveResult = await this.executeTaskReactive(
+    const previewResult = await this.executeTaskPreview(
       input,
       (this.task.runOutputData as Output) || ({} as Output)
     );
-    return reactiveResult;
+    return previewResult;
   }
 
   // ========================================================================
@@ -593,8 +593,8 @@ export class TaskRunner<
     ..._args: any[]
   ) => {};
 
-  protected async handleStartReactive(): Promise<void> {
-    this.reactiveRunning = true;
+  protected async handleStartPreview(): Promise<void> {
+    this.previewRunning = true;
   }
 
   /**
@@ -641,8 +641,8 @@ export class TaskRunner<
     this.task.emit("status", this.task.status);
   }
 
-  protected async handleAbortReactive(): Promise<void> {
-    this.reactiveRunning = false;
+  protected async handleAbortPreview(): Promise<void> {
+    this.previewRunning = false;
   }
 
   /**
@@ -668,8 +668,8 @@ export class TaskRunner<
     this.task.emit("status", this.task.status);
   }
 
-  protected async handleCompleteReactive(): Promise<void> {
-    this.reactiveRunning = false;
+  protected async handleCompletePreview(): Promise<void> {
+    this.previewRunning = false;
   }
 
   protected async handleDisable(): Promise<void> {
@@ -727,8 +727,8 @@ export class TaskRunner<
     this.task.emit("status", this.task.status);
   }
 
-  protected async handleErrorReactive(): Promise<void> {
-    this.reactiveRunning = false;
+  protected async handleErrorPreview(): Promise<void> {
+    this.previewRunning = false;
   }
 
   /**

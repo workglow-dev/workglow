@@ -118,7 +118,7 @@ export class VectorQuantizeTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
-  override async executeReactive(
+  override async executePreview(
     input: VectorQuantizeTaskInput
   ): Promise<VectorQuantizeTaskOutput> {
     const { vector, targetType, normalize = true } = input;

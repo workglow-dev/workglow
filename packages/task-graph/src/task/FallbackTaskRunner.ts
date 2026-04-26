@@ -35,12 +35,12 @@ export class FallbackTaskRunner<
   }
 
   /**
-   * For FallbackTask, reactive runs use the task's reactive hook only,
+   * For FallbackTask, preview runs use the task's preview hook only,
    * bypassing GraphAsTaskRunner's child-merging logic.
    */
-  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
-    const reactiveResult = await this.task.executeReactive(input, output, { own: this.own });
-    return Object.assign({}, output, reactiveResult ?? {}) as Output;
+  public override async executeTaskPreview(input: Input, output: Output): Promise<Output> {
+    const previewResult = await this.task.executePreview?.(input, { own: this.own });
+    return Object.assign({}, output, previewResult ?? {}) as Output;
   }
 
   // ========================================================================
@@ -85,8 +85,8 @@ export class FallbackTaskRunner<
           `Alternative ${attemptNumber}/${totalAttempts} succeeded: ${alternativeTask.type}`
         );
 
-        // Apply reactive post-processing
-        return (await this.executeTaskReactive(input, result as Output)) as Output;
+        // Apply preview post-processing
+        return (await this.executeTaskPreview(input, result as Output)) as Output;
       } catch (error) {
         // Aborts (non-timeout) are not retryable — propagate immediately
         if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {
@@ -180,8 +180,8 @@ export class FallbackTaskRunner<
             `Data alternative ${attemptNumber}/${totalAttempts} succeeded`
           );
 
-          // Apply reactive post-processing
-          return (await this.executeTaskReactive(input, mergedOutput)) as Output;
+          // Apply preview post-processing
+          return (await this.executeTaskPreview(input, mergedOutput)) as Output;
         } catch (error) {
           // Aborts (non-timeout) are not retryable — propagate immediately
           if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {

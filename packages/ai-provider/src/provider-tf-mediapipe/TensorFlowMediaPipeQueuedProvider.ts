@@ -5,7 +5,7 @@
  */
 
 import { AiProvider } from "@workglow/ai";
-import type { AiProviderReactiveRunFn, AiProviderRunFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn } from "@workglow/ai";
 import { TENSORFLOW_MEDIAPIPE, TFMP_DEFAULT_TASK_TYPES } from "./common/TFMP_Constants";
 import type { TFMPModelConfig } from "./common/TFMP_ModelSchema";
 
@@ -20,8 +20,8 @@ export class TensorFlowMediaPipeQueuedProvider extends AiProvider<TFMPModelConfi
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, TFMPModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, TFMPModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, TFMPModelConfig>>
   ) {
-    super(tasks, undefined, reactiveTasks);
+    super(tasks, undefined, previewTasks);
   }
 }

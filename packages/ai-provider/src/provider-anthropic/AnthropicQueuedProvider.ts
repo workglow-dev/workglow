@@ -5,7 +5,7 @@
  */
 
 import { AiProvider } from "@workglow/ai";
-import type { AiProviderReactiveRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import { ANTHROPIC } from "./common/Anthropic_Constants";
 import type { AnthropicModelConfig } from "./common/Anthropic_ModelSchema";
 
@@ -30,8 +30,8 @@ export class AnthropicQueuedProvider extends AiProvider<AnthropicModelConfig> {
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, AnthropicModelConfig>>,
     streamTasks?: Record<string, AiProviderStreamFn<any, any, AnthropicModelConfig>>,
-    reactiveTasks?: Record<string, AiProviderReactiveRunFn<any, any, AnthropicModelConfig>>
+    previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, AnthropicModelConfig>>
   ) {
-    super(tasks, streamTasks, reactiveTasks);
+    super(tasks, streamTasks, previewTasks);
   }
 }
