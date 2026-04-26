@@ -118,9 +118,9 @@ export class JavaScriptTask extends Task<
   }
 
   override async executePreview(input: JavaScriptTaskInput) {
-    // Phase 0b: previously mutated the `output` parameter; now mutate
-    // `this.runOutputData` directly since executePreview no longer receives output.
-    const output = (this.runOutputData ?? {}) as JavaScriptTaskOutput;
+    // Phase 0b: runner no longer passes `output` to executePreview; allocate
+    // a fresh object to match the prior runner-allocated semantics.
+    const output = {} as JavaScriptTaskOutput;
     const code = input.javascript_code || this.config.javascript_code;
     if (code) {
       try {

@@ -103,7 +103,6 @@ export abstract class ArrayTask<
    * Merges the preview results into the output
    * @param input The input to the task
    * @param output The output of the task
-   * @param previewResults The preview results from the subtasks
    * @returns The merged output
    */
   public executeMerge(_input: Input, output: Output): Output {

@@ -91,9 +91,9 @@ export class DebugLogTask<
     } else {
       console[log_level](inputRecord);
     }
-    // Phase 0b: previously mutated the `output` parameter; now mutate
-    // `this.runOutputData` directly since executePreview no longer receives output.
-    const output = (this.runOutputData ?? {}) as Output;
+    // Phase 0b: runner no longer passes `output` to executePreview; allocate
+    // a fresh object to match the prior runner-allocated semantics.
+    const output = {} as Output;
     Object.assign(output, inputRecord);
     return output;
   }

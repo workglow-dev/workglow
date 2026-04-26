@@ -110,10 +110,14 @@ export class LambdaTask<
   }
 
   /**
-   * Executes the provided function with the given input
-   * Throws an error if no function is provided or if the provided value is not callable
+   * Executes the user-provided preview function with the given input. Returns
+   * undefined when no preview function was supplied in the config (the constructor
+   * already validated that at least one of execute / executePreview is present).
    */
-  override async executePreview(input: Input, context: IExecutePreviewContext) {
+  override async executePreview(
+    input: Input,
+    context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
     if (typeof this.config.executePreview === "function") {
       return await this.config.executePreview(input, context);
     }
