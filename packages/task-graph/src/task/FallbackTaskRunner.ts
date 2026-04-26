@@ -38,9 +38,8 @@ export class FallbackTaskRunner<
    * For FallbackTask, preview runs use the task's preview hook only,
    * bypassing GraphAsTaskRunner's child-merging logic.
    */
-  public override async executeTaskPreview(input: Input, output: Output): Promise<Output> {
-    const previewResult = await this.task.executePreview?.(input, { own: this.own });
-    return Object.assign({}, output, previewResult ?? {}) as Output;
+  public override async executeTaskPreview(input: Input): Promise<Output | undefined> {
+    return this.task.executePreview?.(input, { own: this.own });
   }
 
   // ========================================================================
@@ -85,8 +84,7 @@ export class FallbackTaskRunner<
           `Alternative ${attemptNumber}/${totalAttempts} succeeded: ${alternativeTask.type}`
         );
 
-        // Apply preview post-processing
-        return (await this.executeTaskPreview(input, result as Output)) as Output;
+        return result as Output;
       } catch (error) {
         // Aborts (non-timeout) are not retryable — propagate immediately
         if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {
@@ -180,8 +178,7 @@ export class FallbackTaskRunner<
             `Data alternative ${attemptNumber}/${totalAttempts} succeeded`
           );
 
-          // Apply preview post-processing
-          return (await this.executeTaskPreview(input, mergedOutput)) as Output;
+          return mergedOutput as Output;
         } catch (error) {
           // Aborts (non-timeout) are not retryable — propagate immediately
           if (error instanceof TaskAbortedError && !(error instanceof TaskTimeoutError)) {
