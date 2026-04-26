@@ -159,25 +159,29 @@ a model string ID resolves to a `ModelConfig` whose `tasks` array does not inclu
 type, the model field is set to `undefined`. This enables UI editors to display only compatible
 models in dropdowns.
 
-### Reactive Execution
+### Preview Execution
 
-`AiTask` overrides `executeReactive()` to delegate to a provider-registered reactive function if
-one exists. Reactive execution is lightweight and intended for UI previews (e.g., counting tokens
-as the user types). If no reactive function is registered for the provider and task type, it falls
-back to the base `Task.executeReactive()`:
+`AiTask` overrides `executePreview()` to delegate to a provider-registered preview run function if
+one exists. Preview execution is lightweight and intended for UI previews (e.g., counting tokens
+as the user types). If no preview function is registered for the provider and task type, it falls
+back to the base `Task.executePreview()`:
 
 ```typescript
-override async executeReactive(
-  input: Input, output: Output, context: IExecuteReactiveContext
+override async executePreview(
+  input: Input, context: IExecutePreviewContext
 ): Promise<Output | undefined> {
   const model = input.model as ModelConfig | undefined;
   if (model && typeof model === "object" && model.provider) {
-    const reactiveFn = getAiProviderRegistry().getReactiveRunFn(model.provider, taskType);
-    if (reactiveFn) return reactiveFn(input, output, model);
+    const previewFn = getAiProviderRegistry().getPreviewRunFn(model.provider, taskType);
+    if (previewFn) return previewFn(input, model);
   }
-  return super.executeReactive(input, output, context);
+  return super.executePreview(input, context);
 }
 ```
+
+`executePreview()` is invoked only by `runPreview()`. It is never called as part of `run()` (no
+post-execute overlay, no second stage). The two paths are strictly orthogonal: `run()` invokes
+`execute()` (or `executeStream()`); `runPreview()` invokes `executePreview()`.
 
 ---
 
@@ -493,7 +497,7 @@ performs the actual inference.
 | `static entitlements()` | `TaskEntitlements` | Base AI inference entitlement |
 | `entitlements()` | `TaskEntitlements` | Instance entitlements including model ID |
 | `execute(input, context)` | `Promise<Output>` | Resolves strategy and delegates |
-| `executeReactive(input, output, context)` | `Promise<Output>` | Delegates to provider reactive fn |
+| `executePreview(input, context)` | `Promise<Output>` | Delegates to provider preview fn |
 | `validateInput(input)` | `Promise<boolean>` | Validates model resolution and compatibility |
 | `narrowInput(input, registry)` | `Promise<Input>` | Filters incompatible models |
 | `getJobInput(input)` | `Promise<AiJobInput>` | Constructs job envelope (protected) |

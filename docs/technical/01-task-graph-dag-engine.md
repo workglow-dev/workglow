@@ -41,7 +41,7 @@ The TaskGraph provides:
 - Node management (`addTask`, `removeTask`, `getTask`, `getTasks`)
 - Edge management (`addDataflow`, `removeDataflow`, `getDataflow`, `getDataflows`)
 - Topological ordering (`topologicallySortedNodes`)
-- Execution (`run`, `runReactive`)
+- Execution (`run`, `runPreview`)
 - Serialization (`toJSON`, `toDependencyJSON`)
 - Event subscription (`subscribe`, `subscribeToTaskStatus`, `subscribeToTaskProgress`, `subscribeToDataflowStatus`, `subscribeToTaskStreaming`)
 
@@ -153,22 +153,23 @@ async execute(input: Input, context: IExecuteContext): Promise<Output | undefine
 
 If the task returns `undefined`, the output is treated as an empty object `{}`.
 
-### The executeReactive() Method
+### The executePreview() Method
 
-Tasks may optionally override `executeReactive()` for lightweight, sub-millisecond preview updates:
+Tasks may optionally override `executePreview()` for lightweight, sub-millisecond preview updates:
 
 ```typescript
-async executeReactive(
+async executePreview(
   input: Input,
-  output: Output,
-  context: IExecuteReactiveContext
+  context: IExecutePreviewContext
 ): Promise<Output | undefined> {
   // Return a quick preview based on input
-  return { ...output, preview: input.text.substring(0, 100) };
+  return { preview: input.text.substring(0, 100) };
 }
 ```
 
-This method is called during `runReactive()` and must complete in under 1 millisecond. Heavy computation belongs exclusively in `execute()`.
+This method is called only by `runPreview()` and must complete in under 1 millisecond. Heavy computation belongs exclusively in `execute()`.
+
+`run()` and `runPreview()` are strictly orthogonal paths: `run()` invokes `execute()` (or `executeStream()`) and never calls `executePreview()`; `runPreview()` invokes `executePreview()` and never calls `execute()` or `executeStream()`. There is no post-`execute()` overlay, and cache hits during `run()` return the cached value verbatim.
 
 ---
 
@@ -240,8 +241,8 @@ const results = await graph.run<MyOutput>(
   }
 );
 
-// Reactive execution (previews)
-const previews = await graph.runReactive<MyOutput>(
+// Preview execution (lightweight UI updates)
+const previews = await graph.runPreview<MyOutput>(
   { text: "hello world" }
 );
 ```
@@ -340,7 +341,7 @@ PENDING --> DISABLED
 
 ### Immutability After Completion
 
-Once a task reaches `COMPLETED`, its `runOutputData` is considered immutable. This is a core invariant of the engine. Reactive execution (`runReactive`) will not modify a completed task's output -- it returns the cached result unchanged.
+Once a task reaches `COMPLETED`, its `runOutputData` is considered immutable. This is a core invariant of the engine. Preview execution (`runPreview`) will not modify a completed task's output -- it returns the locked output unchanged without invoking `executePreview()`.
 
 ---
 
@@ -375,7 +376,7 @@ const results = await workflow.run();
 | `while(config)`             | Start a conditional loop                              |
 | `endWhile()`                | Close the while loop                                  |
 | `run(input?, config?)`      | Build the graph and execute                           |
-| `runReactive(input?)`       | Build the graph and execute reactively                |
+| `runPreview(input?)`        | Build the graph and run preview-only execution        |
 
 ---
 

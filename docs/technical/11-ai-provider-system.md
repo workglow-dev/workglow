@@ -81,9 +81,9 @@ The constructor accepts three optional maps of run functions:
 
 ```typescript
 constructor(
-  tasks?: Record<string, AiProviderRunFn>,         // Standard execution
-  streamTasks?: Record<string, AiProviderStreamFn>, // Streaming execution
-  reactiveTasks?: Record<string, AiProviderReactiveRunFn> // Reactive previews
+  tasks?: Record<string, AiProviderRunFn>,           // Standard execution (run path)
+  streamTasks?: Record<string, AiProviderStreamFn>,  // Streaming execution (run path)
+  previewTasks?: Record<string, AiProviderPreviewRunFn> // Preview-only path (runPreview)
 )
 ```
 
@@ -111,10 +111,11 @@ type AiProviderStreamFn<Input, Output, Model> = (
   outputSchema?: JsonSchema
 ) => AsyncIterable<StreamEvent<Output>>;
 
-// Reactive run function -- lightweight preview, no signal/progress
-type AiProviderReactiveRunFn<Input, Output, Model> = (
+// Preview run function -- lightweight, computes a fast preview from input alone.
+// Called only by AiTask.executePreview() on the runPreview() path.
+// No `signal` / `update_progress` -- preview execution is lightweight and synchronous-ish.
+type AiProviderPreviewRunFn<Input, Output, Model> = (
   input: Input,
-  output: Output,
   model: Model | undefined
 ) => Promise<Output | undefined>;
 ```
@@ -132,14 +133,14 @@ cloud API providers where the "heavy" dependency is just an HTTP SDK:
 import {
   ANTHROPIC_TASKS,
   ANTHROPIC_STREAM_TASKS,
-  ANTHROPIC_REACTIVE_TASKS,
+  ANTHROPIC_PREVIEW_TASKS,
 } from "./common/Anthropic_JobRunFns";
 import { AnthropicQueuedProvider } from "./AnthropicQueuedProvider";
 
 await new AnthropicQueuedProvider(
   ANTHROPIC_TASKS,
   ANTHROPIC_STREAM_TASKS,
-  ANTHROPIC_REACTIVE_TASKS
+  ANTHROPIC_PREVIEW_TASKS
 ).register();
 ```
 
@@ -156,6 +157,11 @@ await new HuggingFaceTransformersQueuedProvider().register({
   queue: { concurrency: { gpu: 1, cpu: 4 } },
 });
 ```
+
+When the provider is registered in worker mode, `AiProvider.register()` automatically creates
+worker proxies for all three function kinds (`registerAsWorkerRunFn`, `registerAsWorkerStreamFn`,
+`registerAsWorkerPreviewRunFn`) so that calls from the main thread are dispatched into the worker
+without the worker's heavy ML imports being loaded on the main thread.
 
 On the worker side, the provider is constructed with tasks and registered on a `WorkerServer`:
 
@@ -256,7 +262,7 @@ The registry maintains three two-level `Map` structures, keyed by task type then
 class AiProviderRegistry {
   runFnRegistry: Map<string, Map<string, AiProviderRunFn>>; // taskType -> provider -> fn
   streamFnRegistry: Map<string, Map<string, AiProviderStreamFn>>;
-  reactiveRunFnRegistry: Map<string, Map<string, AiProviderReactiveRunFn>>;
+  previewRunFnRegistry: Map<string, Map<string, AiProviderPreviewRunFn>>;
   private providers: Map<string, AiProvider>;
   private strategyResolvers: Map<string, AiStrategyResolver>;
   private defaultStrategy: IAiExecutionStrategy | undefined;
@@ -307,7 +313,7 @@ The complete lifecycle of a provider from registration to execution:
 
 ```
 1. Construction
-   new MyProvider(tasks?, streamTasks?, reactiveTasks?)
+   new MyProvider(tasks?, streamTasks?, previewTasks?)
 
 2. Registration (main thread)
    await provider.register({ worker?, queue? })
@@ -509,7 +515,7 @@ Add the provider to `package.json` `exports` and the build scripts.
 | `dispose()`                      | `Promise<void>`                        | Cleanup resources              |
 | `getRunFn(taskType)`             | `AiProviderRunFn \| undefined`         | Get run function for task type |
 | `getStreamFn(taskType)`          | `AiProviderStreamFn \| undefined`      | Get stream function            |
-| `getReactiveRunFn(taskType)`     | `AiProviderReactiveRunFn \| undefined` | Get reactive function          |
+| `getPreviewRunFn(taskType)`      | `AiProviderPreviewRunFn \| undefined`  | Get preview run function       |
 
 ### QueuedAiProvider (abstract)
 
@@ -531,13 +537,13 @@ Add the provider to `package.json` `exports` and the build scripts.
 | `getProviderIdsForTask(taskType)`                   | Providers supporting a task type            |
 | `registerRunFn(provider, taskType, fn)`             | Register a direct run function              |
 | `registerStreamFn(provider, taskType, fn)`          | Register a stream function                  |
-| `registerReactiveRunFn(provider, taskType, fn)`     | Register a reactive function                |
+| `registerPreviewRunFn(provider, taskType, fn)`      | Register a preview run function             |
 | `registerAsWorkerRunFn(provider, taskType)`         | Register a worker-proxied run function      |
 | `registerAsWorkerStreamFn(provider, taskType)`      | Register a worker-proxied stream function   |
-| `registerAsWorkerReactiveRunFn(provider, taskType)` | Register a worker-proxied reactive function |
+| `registerAsWorkerPreviewRunFn(provider, taskType)`  | Register a worker-proxied preview function  |
 | `getDirectRunFn(provider, taskType)`                | Get run function (throws if missing)        |
 | `getStreamFn(provider, taskType)`                   | Get stream function (returns undefined)     |
-| `getReactiveRunFn(provider, taskType)`              | Get reactive function (returns undefined)   |
+| `getPreviewRunFn(provider, taskType)`               | Get preview function (returns undefined)    |
 | `registerStrategyResolver(provider, resolver)`      | Register a strategy resolver                |
 | `getStrategy(model)`                                | Resolve execution strategy for a model      |
 
