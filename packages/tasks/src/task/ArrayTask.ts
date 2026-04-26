@@ -274,8 +274,8 @@ class ArrayTaskRunner<
     return this.task.subGraph!.runPreview<Output>({});
   }
 
-  public override async executeTaskPreview(input: Input, output: Output): Promise<Output> {
-    await super.executeTaskPreview(input, output);
+  public override async executeTaskPreview(input: Input): Promise<Output | undefined> {
+    await super.executeTaskPreview(input);
     if (this.task.hasChildren()) {
       this.task.runOutputData = this.task.executeMerge(input, this.task.runOutputData as Output);
     }

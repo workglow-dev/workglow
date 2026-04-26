@@ -139,6 +139,7 @@ export class TaskRunner<
     const proto = Object.getPrototypeOf(this.task);
     if (
       proto.execute === Task.prototype.execute &&
+      typeof proto.executeStream !== "function" &&
       proto.executePreview !== Task.prototype.executePreview
     ) {
       throw new TaskConfigurationError(
