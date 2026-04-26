@@ -6,7 +6,7 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -65,11 +65,10 @@ export class StringIncludesTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
     return { included: input.text.includes(input.search) } as Output;
   }
 }

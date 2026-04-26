@@ -62,7 +62,7 @@ export class SplitTask<
     return outputSchema;
   }
 
-  override async executeReactive(input: Input): Promise<Output> {
+  override async executePreview(input: Input): Promise<Output | undefined> {
     const inputValue = input.input;
     const output = {} as Output;
 

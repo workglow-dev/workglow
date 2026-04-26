@@ -47,7 +47,7 @@ export class OutputTask extends Task<OutputTaskInput, OutputTaskOutput, OutputTa
     return this.config?.outputSchema ?? (this.constructor as typeof OutputTask).outputSchema();
   }
 
-  public override async executeReactive(input: OutputTaskInput) {
+  public override async executePreview(input: OutputTaskInput) {
     return input as OutputTaskOutput;
   }
 

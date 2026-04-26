@@ -6,7 +6,7 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -74,11 +74,10 @@ export class TemplateTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
     const result = input.template.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
       const [path, defaultValue] = expr.split("|").map((s: string) => s.trim());
       const segments = path.split(".");

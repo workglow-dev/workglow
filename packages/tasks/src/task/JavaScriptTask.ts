@@ -117,7 +117,10 @@ export class JavaScriptTask extends Task<
     return inputSchema;
   }
 
-  override async executeReactive(input: JavaScriptTaskInput, output: JavaScriptTaskOutput) {
+  override async executePreview(input: JavaScriptTaskInput) {
+    // Phase 0b: previously mutated the `output` parameter; now mutate
+    // `this.runOutputData` directly since executePreview no longer receives output.
+    const output = (this.runOutputData ?? {}) as JavaScriptTaskOutput;
     const code = input.javascript_code || this.config.javascript_code;
     if (code) {
       try {

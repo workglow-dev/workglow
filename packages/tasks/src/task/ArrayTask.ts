@@ -100,10 +100,10 @@ export abstract class ArrayTask<
   }
 
   /**
-   * Merges the reactive results into the output
+   * Merges the preview results into the output
    * @param input The input to the task
    * @param output The output of the task
-   * @param reactiveResults The reactive results from the subtasks
+   * @param previewResults The preview results from the subtasks
    * @returns The merged output
    */
   public executeMerge(_input: Input, output: Output): Output {
@@ -267,16 +267,16 @@ class ArrayTaskRunner<
   }
 
   /**
-   * Override to pass empty input to subgraph for reactive execution.
+   * Override to pass empty input to subgraph for preview execution.
    * Child tasks will use their defaults instead of parent input.
    */
-  protected override async executeTaskChildrenReactive(): Promise<GraphResultArray<Output>> {
+  protected override async executeTaskChildrenPreview(): Promise<GraphResultArray<Output>> {
     // Don't pass parent input - child tasks have their input set via defaults during creation
-    return this.task.subGraph!.runReactive<Output>({});
+    return this.task.subGraph!.runPreview<Output>({});
   }
 
-  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
-    await super.executeTaskReactive(input, output);
+  public override async executeTaskPreview(input: Input, output: Output): Promise<Output> {
+    await super.executeTaskPreview(input, output);
     if (this.task.hasChildren()) {
       this.task.runOutputData = this.task.executeMerge(input, this.task.runOutputData as Output);
     }

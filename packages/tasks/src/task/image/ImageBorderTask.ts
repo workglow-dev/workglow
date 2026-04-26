@@ -6,7 +6,7 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -63,11 +63,10 @@ export class ImageBorderTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
     const { borderWidth: bw = 1 } = input;
     const color = resolveColor(input.color);
     const image = await produceImageOutput(input.image, (img) => {

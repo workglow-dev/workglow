@@ -6,7 +6,7 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   TaskInvalidInputError,
@@ -92,11 +92,10 @@ export class RegexTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
     const bracketCount = (input.pattern.match(/\[/g) ?? []).length;
     if (bracketCount > MAX_BRACKET_COUNT) {
       throw new TaskInvalidInputError(

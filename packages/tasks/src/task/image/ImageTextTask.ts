@@ -8,7 +8,7 @@ import {
   CreateWorkflow,
   Task,
   Workflow,
-  type IExecuteReactiveContext,
+  type IExecutePreviewContext,
   type TaskConfig,
 } from "@workglow/task-graph";
 import type { RgbaImageBinary } from "@workglow/util/media";
@@ -237,11 +237,10 @@ export class ImageTextTask<
     return defaults as Partial<Input>;
   }
 
-  override async executeReactive(
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
     const color = resolveColor(input.color);
     const fontSize = input.fontSize ?? 24;
     const font = input.font ?? "sans-serif";

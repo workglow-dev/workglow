@@ -6,7 +6,7 @@
 
 import {
   CreateWorkflow,
-  IExecuteReactiveContext,
+  IExecutePreviewContext,
   Task,
   TaskConfig,
   Workflow,
@@ -58,11 +58,10 @@ export class ImageCropTask<
     return outputSchema;
   }
 
-  override async executeReactive(
+  override async executePreview(
     input: Input,
-    _output: Output,
-    _context: IExecuteReactiveContext
-  ): Promise<Output> {
+    _context: IExecutePreviewContext
+  ): Promise<Output | undefined> {
     const { x: rawX, y: rawY, width: rawW, height: rawH } = input;
     const image = await produceImageOutput(input.image, (img) => {
       const { data: src, width: srcW, height: srcH, channels } = img;
