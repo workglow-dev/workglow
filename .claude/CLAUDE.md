@@ -99,7 +99,7 @@ All source files: `@license Copyright 2025 Steven Roussey ... SPDX-License-Ident
 
 The heart of the library. See `packages/task-graph/README.md` and `src/EXECUTION_MODEL.md`.
 
-**Task** — base class for all pipeline nodes. Subclass and implement `execute()` and optionally `executeReactive()`:
+**Task** — base class for all pipeline nodes. Subclass and implement `execute()` and optionally `executePreview()`:
 
 ```ts
 class MyTask extends Task<MyInput, MyOutput> {
@@ -113,7 +113,7 @@ class MyTask extends Task<MyInput, MyOutput> {
 
 Required static properties: `type`, `category`, `title`, `description`, `cacheable`, `inputSchema()`, `outputSchema()`.
 
-**TaskGraph** — low-level DAG: `addTask`, `addDataflow`, `run`, `runReactive`.
+**TaskGraph** — low-level DAG: `addTask`, `addDataflow`, `run`, `runPreview`.
 
 **Workflow** — high-level builder: `addTask`, `pipe(...tasks)`, `parallel(tasks)`, `run`.
 
@@ -122,7 +122,7 @@ Required static properties: `type`, `category`, `title`, `description`, `cacheab
 **Execution model**:
 
 - `run()` → `execute()` — full run, cached, sets task to COMPLETED
-- `runReactive()` → `executeReactive()` — lightweight, UI previews only, keeps PENDING, must be <1ms
+- `runPreview()` → `executePreview()` — lightweight, UI previews only, keeps PENDING, must be <1ms
 - Lifecycle: `PENDING → PROCESSING → COMPLETED | FAILED | ABORTED`
 
 **Schema conventions**: JSON Schema objects. Properties can have `format` annotations for runtime type resolution: `format: "model"`, `format: "model:EmbeddingTask"`, `format: "storage:tabular"`, `format: "knowledge-base"`. Properties with `x-ui-manual: true` are user-added ports.

@@ -319,7 +319,7 @@ export class AiProviderRegistry {
       model: ModelConfig | undefined
     ) => {
       const workerManager = globalServiceRegistry.get(WORKER_MANAGER);
-      return workerManager.callWorkerReactiveFunction<Output>(modelProvider, taskType, [
+      return workerManager.callWorkerPreviewFunction<Output>(modelProvider, taskType, [
         input,
         model,
       ]);

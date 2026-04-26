@@ -305,7 +305,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
     }
     if (this.previewTasks) {
       for (const [taskType, fn] of Object.entries(this.previewTasks)) {
-        workerServer.registerReactiveFunction(taskType, fn);
+        workerServer.registerPreviewFunction(taskType, fn);
       }
     }
   }
