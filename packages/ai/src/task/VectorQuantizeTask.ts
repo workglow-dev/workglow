@@ -123,9 +123,7 @@ export class VectorQuantizeTask extends Task<
     return this.executePreview(input);
   }
 
-  override async executePreview(
-    input: VectorQuantizeTaskInput
-  ): Promise<VectorQuantizeTaskOutput> {
+  override async executePreview(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
     const { vector, targetType, normalize = true } = input;
     const isArray = Array.isArray(vector);
     const vectors = isArray ? vector : [vector];

@@ -97,10 +97,7 @@ export class ImageRotateTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return (await rotateImage(input)) as Output;
   }
 

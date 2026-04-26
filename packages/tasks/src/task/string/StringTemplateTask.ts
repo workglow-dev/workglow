@@ -80,10 +80,7 @@ export class StringTemplateTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return { text: renderStringTemplate(input.template, input.values) } as Output;
   }
 

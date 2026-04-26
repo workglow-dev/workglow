@@ -148,10 +148,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
    * Injected via constructor alongside `tasks`. Only needed for tasks that
    * provide lightweight previews via executePreview().
    */
-  protected readonly previewTasks?: Record<
-    string,
-    AiProviderPreviewRunFn<any, any, TModelConfig>
-  >;
+  protected readonly previewTasks?: Record<string, AiProviderPreviewRunFn<any, any, TModelConfig>>;
 
   constructor(
     tasks?: Record<string, AiProviderRunFn<any, any, TModelConfig>>,
@@ -198,9 +195,7 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   getPreviewRunFn<I extends TaskInput = TaskInput, O extends TaskOutput = TaskOutput>(
     taskType: string
   ): AiProviderPreviewRunFn<I, O, TModelConfig> | undefined {
-    return this.previewTasks?.[taskType] as
-      | AiProviderPreviewRunFn<I, O, TModelConfig>
-      | undefined;
+    return this.previewTasks?.[taskType] as AiProviderPreviewRunFn<I, O, TModelConfig> | undefined;
   }
 
   /**

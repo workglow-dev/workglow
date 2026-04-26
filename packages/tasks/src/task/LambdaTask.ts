@@ -34,10 +34,7 @@ type LambdaTaskConfig<
   Output extends TaskOutput = TaskOutput,
 > = TaskConfig & {
   execute?: (input: Input, context: IExecuteContext) => Promise<Output>;
-  executePreview?: (
-    input: Input,
-    context: IExecutePreviewContext
-  ) => Promise<Output | undefined>;
+  executePreview?: (input: Input, context: IExecutePreviewContext) => Promise<Output | undefined>;
 };
 
 const inputSchema = {

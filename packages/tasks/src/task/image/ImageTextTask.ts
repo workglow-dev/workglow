@@ -289,10 +289,7 @@ export class ImageTextTask<
     return defaults as Partial<Input>;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return (await renderImageText(input)) as Output;
   }
 

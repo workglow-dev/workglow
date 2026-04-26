@@ -89,10 +89,7 @@ export class ImageBrightnessTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return (await applyBrightness(input)) as Output;
   }
 

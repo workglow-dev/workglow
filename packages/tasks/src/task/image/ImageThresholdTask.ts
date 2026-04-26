@@ -86,10 +86,7 @@ export class ImageThresholdTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return (await applyThreshold(input)) as Output;
   }
 

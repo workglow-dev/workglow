@@ -134,10 +134,7 @@ export class ImageWatermarkTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return (await applyWatermark(input)) as Output;
   }
 

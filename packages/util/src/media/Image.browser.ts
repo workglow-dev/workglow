@@ -119,9 +119,11 @@ Image.prototype.getOffscreenCanvas = async function getOffscreenCanvas(
 };
 
 // Internal hook used by base `toFirstSupported` for browser-only tokens.
-(Image.prototype as unknown as {
-  toFirstSupportedBrowser: (want: ImageDataSupport) => Promise<unknown>;
-}).toFirstSupportedBrowser = async function toFirstSupportedBrowser(
+(
+  Image.prototype as unknown as {
+    toFirstSupportedBrowser: (want: ImageDataSupport) => Promise<unknown>;
+  }
+).toFirstSupportedBrowser = async function toFirstSupportedBrowser(
   this: Image,
   want: ImageDataSupport
 ): Promise<unknown> {

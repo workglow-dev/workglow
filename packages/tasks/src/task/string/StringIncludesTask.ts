@@ -70,10 +70,7 @@ export class StringIncludesTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return { included: stringIncludes(input.text, input.search) } as Output;
   }
 

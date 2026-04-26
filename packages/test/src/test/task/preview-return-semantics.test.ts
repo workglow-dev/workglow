@@ -5,11 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-  IExecutePreviewContext,
-  Task,
-  TaskConfig,
-} from "@workglow/task-graph";
+import { IExecutePreviewContext, Task, TaskConfig } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 
 const schema = {
@@ -21,11 +17,7 @@ const schema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-class ReplaceTask extends Task<
-  { a?: string; b?: string },
-  { a?: string; b?: string },
-  TaskConfig
-> {
+class ReplaceTask extends Task<{ a?: string; b?: string }, { a?: string; b?: string }, TaskConfig> {
   public static override readonly type = "ReplaceTask";
   public static override inputSchema(): DataPortSchema {
     return schema;
@@ -33,10 +25,7 @@ class ReplaceTask extends Task<
   public static override outputSchema(): DataPortSchema {
     return schema;
   }
-  override async executePreview(
-    _input: { a?: string; b?: string },
-    _ctx: IExecutePreviewContext
-  ) {
+  override async executePreview(_input: { a?: string; b?: string }, _ctx: IExecutePreviewContext) {
     return { a: "new" };
   }
 }

@@ -75,10 +75,7 @@ export class StringSliceTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return { text: sliceString(input.text, input.start, input.end) } as Output;
   }
 

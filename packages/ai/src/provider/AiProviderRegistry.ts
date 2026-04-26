@@ -331,10 +331,7 @@ export class AiProviderRegistry {
    * Registers a preview execution function for a specific task type and model provider.
    * Called by AiTask.executePreview() to provide a fast, lightweight preview without a network call.
    */
-  registerPreviewRunFn<
-    Input extends TaskInput = TaskInput,
-    Output extends TaskOutput = TaskOutput,
-  >(
+  registerPreviewRunFn<Input extends TaskInput = TaskInput, Output extends TaskOutput = TaskOutput>(
     modelProvider: string,
     taskType: string,
     previewRunFn: AiProviderPreviewRunFn<Input, Output>

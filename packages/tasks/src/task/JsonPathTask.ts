@@ -98,10 +98,7 @@ export class JsonPathTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return { result: extractJsonPath(input.value, input.path) } as Output;
   }
 

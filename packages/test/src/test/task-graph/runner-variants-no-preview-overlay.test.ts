@@ -30,16 +30,10 @@ import type { DataPortSchema } from "@workglow/util/schema";
  * (and re-instantiates each child task) per iteration, so instance-level spies
  * on the original child reference would never observe calls.
  */
-class IterChildSpyTask extends Task<
-  { value: number },
-  { out: number },
-  TaskConfig
-> {
-  public static executeSpy = vi.fn(
-    async (input: { value: number }, _ctx: IExecuteContext) => ({
-      out: input.value * 10,
-    })
-  );
+class IterChildSpyTask extends Task<{ value: number }, { out: number }, TaskConfig> {
+  public static executeSpy = vi.fn(async (input: { value: number }, _ctx: IExecuteContext) => ({
+    out: input.value * 10,
+  }));
   public static previewSpy = vi.fn(
     async (input: { value: number }, _ctx: IExecutePreviewContext) => ({
       out: input.value * -1,
@@ -66,10 +60,7 @@ class IterChildSpyTask extends Task<
   override async execute(input: { value: number }, ctx: IExecuteContext) {
     return IterChildSpyTask.executeSpy(input, ctx);
   }
-  override async executePreview(
-    input: { value: number },
-    ctx: IExecutePreviewContext
-  ) {
+  override async executePreview(input: { value: number }, ctx: IExecutePreviewContext) {
     return IterChildSpyTask.previewSpy(input, ctx);
   }
 }
@@ -79,11 +70,7 @@ class IterChildSpyTask extends Task<
  * spy behaviour as IterChildSpyTask but with `additionalProperties: true` so
  * compound-task plumbing (e.g. `_iterations` on While) doesn't fail validation.
  */
-class ScalarChildSpyTask extends Task<
-  { value: number },
-  { out: number },
-  TaskConfig
-> {
+class ScalarChildSpyTask extends Task<{ value: number }, { out: number }, TaskConfig> {
   public static override readonly type = "RunnerVariants_ScalarChildSpyTask";
   public static override inputSchema(): DataPortSchema {
     return {
@@ -101,23 +88,16 @@ class ScalarChildSpyTask extends Task<
       additionalProperties: true,
     } as const satisfies DataPortSchema;
   }
-  executeSpy = vi.fn(
-    async (input: { value: number }, _ctx: IExecuteContext) => ({
-      out: (input.value ?? 0) * 10,
-    })
-  );
-  previewSpy = vi.fn(
-    async (input: { value: number }, _ctx: IExecutePreviewContext) => ({
-      out: (input.value ?? 0) * -1,
-    })
-  );
+  executeSpy = vi.fn(async (input: { value: number }, _ctx: IExecuteContext) => ({
+    out: (input.value ?? 0) * 10,
+  }));
+  previewSpy = vi.fn(async (input: { value: number }, _ctx: IExecutePreviewContext) => ({
+    out: (input.value ?? 0) * -1,
+  }));
   override async execute(input: { value: number }, ctx: IExecuteContext) {
     return this.executeSpy(input, ctx);
   }
-  override async executePreview(
-    input: { value: number },
-    ctx: IExecutePreviewContext
-  ) {
+  override async executePreview(input: { value: number }, ctx: IExecutePreviewContext) {
     return this.previewSpy(input, ctx);
   }
 }

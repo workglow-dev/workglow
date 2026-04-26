@@ -65,10 +65,7 @@ export class StringTrimTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return { text: trimString(input.text) } as Output;
   }
 

@@ -20,11 +20,7 @@ const schema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-class PreviewOnlyTask extends Task<
-  { value: string },
-  { value: string },
-  TaskConfig
-> {
+class PreviewOnlyTask extends Task<{ value: string }, { value: string }, TaskConfig> {
   public static override readonly type = "PreviewOnlyTask";
   public static override inputSchema(): DataPortSchema {
     return schema;
@@ -32,19 +28,12 @@ class PreviewOnlyTask extends Task<
   public static override outputSchema(): DataPortSchema {
     return schema;
   }
-  override async executePreview(
-    input: { value: string },
-    _ctx: IExecutePreviewContext
-  ) {
+  override async executePreview(input: { value: string }, _ctx: IExecutePreviewContext) {
     return { value: `preview:${input.value}` };
   }
 }
 
-class ExecuteOnlyTask extends Task<
-  { value: string },
-  { value: string },
-  TaskConfig
-> {
+class ExecuteOnlyTask extends Task<{ value: string }, { value: string }, TaskConfig> {
   public static override readonly type = "ExecuteOnlyTask";
   public static override inputSchema(): DataPortSchema {
     return schema;
@@ -57,11 +46,7 @@ class ExecuteOnlyTask extends Task<
   }
 }
 
-class BothTask extends Task<
-  { value: string },
-  { value: string },
-  TaskConfig
-> {
+class BothTask extends Task<{ value: string }, { value: string }, TaskConfig> {
   public static override readonly type = "BothTask";
   public static override inputSchema(): DataPortSchema {
     return schema;
@@ -77,11 +62,7 @@ class BothTask extends Task<
   }
 }
 
-class NeitherTask extends Task<
-  { value: string },
-  { value: string },
-  TaskConfig
-> {
+class NeitherTask extends Task<{ value: string }, { value: string }, TaskConfig> {
   public static override readonly type = "NeitherTask";
   public static override inputSchema(): DataPortSchema {
     return schema;

@@ -5,11 +5,7 @@
  */
 
 import { registerProviderWorker } from "../common/registerProvider";
-import {
-  GEMINI_PREVIEW_TASKS,
-  GEMINI_STREAM_TASKS,
-  GEMINI_TASKS,
-} from "./common/Gemini_JobRunFns";
+import { GEMINI_PREVIEW_TASKS, GEMINI_STREAM_TASKS, GEMINI_TASKS } from "./common/Gemini_JobRunFns";
 import { GoogleGeminiProvider } from "./GoogleGeminiProvider";
 
 export async function registerGeminiWorker(): Promise<void> {

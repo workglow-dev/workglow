@@ -38,8 +38,7 @@ async function applyBlur(input: ImageBlurTaskInput): Promise<ImageBlurTaskOutput
         for (let x = 1; x < width; x++) {
           const addX = Math.min(x + radius, width - 1);
           const removeX = Math.max(x - radius - 1, 0);
-          sum +=
-            src[(y * width + addX) * channels + c] - src[(y * width + removeX) * channels + c];
+          sum += src[(y * width + addX) * channels + c] - src[(y * width + removeX) * channels + c];
           tmp[(y * width + x) * channels + c] = (sum / kernelSize + 0.5) | 0;
         }
       }
@@ -59,8 +58,7 @@ async function applyBlur(input: ImageBlurTaskInput): Promise<ImageBlurTaskOutput
         for (let y = 1; y < height; y++) {
           const addY = Math.min(y + radius, height - 1);
           const removeY = Math.max(y - radius - 1, 0);
-          sum +=
-            tmp[(addY * width + x) * channels + c] - tmp[(removeY * width + x) * channels + c];
+          sum += tmp[(addY * width + x) * channels + c] - tmp[(removeY * width + x) * channels + c];
           dst[(y * width + x) * channels + c] = (sum / kernelSize + 0.5) | 0;
         }
       }
@@ -118,10 +116,7 @@ export class ImageBlurTask<
     return outputSchema;
   }
 
-  override async execute(
-    input: Input,
-    _context: IExecuteContext
-  ): Promise<Output | undefined> {
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
     return (await applyBlur(input)) as Output;
   }
 

@@ -31,7 +31,8 @@ const inputSchema = {
     doc_id: {
       type: "string",
       title: "Document ID",
-      description: "Optional document ID stamped onto each chunk. When omitted, chunks are emitted without a doc_id and the output also has no doc_id.",
+      description:
+        "Optional document ID stamped onto each chunk. When omitted, chunks are emitted without a doc_id and the output also has no doc_id.",
     },
     chunkSize: {
       type: "number",
@@ -152,9 +153,7 @@ export class TextChunkerTask extends Task<
 
     const nodePath = doc_id ? [doc_id] : [];
     const chunks: ChunkRecord[] = rawChunks.map((raw, index) => ({
-      chunkId: doc_id
-        ? `${doc_id}:${index}`
-        : `chunk:${index}:${raw.startChar}`,
+      chunkId: doc_id ? `${doc_id}:${index}` : `chunk:${index}:${raw.startChar}`,
       doc_id: doc_id ?? "",
       text: raw.text,
       nodePath,

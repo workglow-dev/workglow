@@ -5,12 +5,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  IExecuteContext,
-  IExecutePreviewContext,
-  Task,
-  TaskConfig,
-} from "@workglow/task-graph";
+import { IExecuteContext, IExecutePreviewContext, Task, TaskConfig } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 
 import { InMemoryTaskOutputRepository } from "../../binding/InMemoryTaskOutputRepository";
@@ -29,11 +24,7 @@ const outputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-class IsolationTestTask extends Task<
-  { value: string },
-  { out: string },
-  TaskConfig
-> {
+class IsolationTestTask extends Task<{ value: string }, { out: string }, TaskConfig> {
   public static override readonly type = "IsolationTestTask";
   public static override inputSchema(): DataPortSchema {
     return inputSchema;
@@ -41,23 +32,16 @@ class IsolationTestTask extends Task<
   public static override outputSchema(): DataPortSchema {
     return outputSchema;
   }
-  executeSpy = vi.fn(
-    async (input: { value: string }, _ctx: IExecuteContext) => ({
-      out: `executed:${input.value}`,
-    })
-  );
-  previewSpy = vi.fn(
-    async (input: { value: string }, _ctx: IExecutePreviewContext) => ({
-      out: `previewed:${input.value}`,
-    })
-  );
+  executeSpy = vi.fn(async (input: { value: string }, _ctx: IExecuteContext) => ({
+    out: `executed:${input.value}`,
+  }));
+  previewSpy = vi.fn(async (input: { value: string }, _ctx: IExecutePreviewContext) => ({
+    out: `previewed:${input.value}`,
+  }));
   override async execute(input: { value: string }, ctx: IExecuteContext) {
     return this.executeSpy(input, ctx);
   }
-  override async executePreview(
-    input: { value: string },
-    ctx: IExecutePreviewContext
-  ) {
+  override async executePreview(input: { value: string }, ctx: IExecutePreviewContext) {
     return this.previewSpy(input, ctx);
   }
 }
