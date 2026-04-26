@@ -104,4 +104,25 @@ describe("TemplateTask", () => {
     });
     expect(result.result).toBe("No placeholders here");
   });
+
+  it("should leave nested braces intact without backtracking", async () => {
+    // Adversarial input: many "{{|" with no closing "}}" used to cause
+    // polynomial backtracking in /\{\{([^}]+)\}\}/g — the [^{}] fix bounds
+    // matching cost to O(n).
+    const adversarial = "{{|".repeat(50_000);
+    const start = Date.now();
+    const result = await task.run({ template: adversarial, values: {} });
+    expect(Date.now() - start).toBeLessThan(1000);
+    expect(result.result).toBe(adversarial);
+  });
+
+  it("should not match a placeholder that contains an inner {{", async () => {
+    const result = await task.run({
+      template: "{{outer{{inner}}}}",
+      values: { inner: "X" },
+    });
+    // Inner placeholder still resolves; the outer "{{outer..." has an
+    // unbalanced "{{" so it is left as literal text.
+    expect(result.result).toBe("{{outerX}}");
+  });
 });

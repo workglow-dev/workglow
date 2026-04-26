@@ -15,7 +15,7 @@ import {
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 function renderTemplate(template: string, values: Record<string, unknown>): string {
-  return template.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
+  return template.replace(/\{\{([^{}]+)\}\}/g, (_match, expr: string) => {
     const [path, defaultValue] = expr.split("|").map((s: string) => s.trim());
     const segments = path.split(".");
     let current: unknown = values;
