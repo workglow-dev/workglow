@@ -39,10 +39,10 @@ export class WhileTaskRunner<
   }
 
   /**
-   * For WhileTask, reactive runs use the task's reactive hook only.
+   * For WhileTask, preview runs use the task's preview hook only.
    */
-  public override async executeTaskReactive(input: Input, output: Output): Promise<Output> {
-    const reactiveResult = await this.task.executeReactive(input, output, { own: this.own });
-    return Object.assign({}, output, reactiveResult ?? {}) as Output;
+  public override async executeTaskPreview(input: Input, output: Output): Promise<Output> {
+    const previewResult = await this.task.executePreview?.(input, { own: this.own });
+    return Object.assign({}, output, previewResult ?? {}) as Output;
   }
 }

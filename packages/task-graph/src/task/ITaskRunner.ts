@@ -29,10 +29,10 @@ export interface ITaskRunner<
   run(overrides?: Partial<Input>): Promise<Output>;
 
   /**
-   * Runs the task in reactive mode
+   * Runs the task in preview mode
    * @param overrides Optional input overrides
    */
-  runReactive(overrides?: Partial<Input>): Promise<Output>;
+  runPreview(overrides?: Partial<Input>): Promise<Output>;
 
   /**
    * Aborts the task execution
