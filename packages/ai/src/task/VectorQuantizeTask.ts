@@ -118,6 +118,11 @@ export class VectorQuantizeTask extends Task<
     return outputSchema as DataPortSchema;
   }
 
+  override async execute(input: VectorQuantizeTaskInput): Promise<VectorQuantizeTaskOutput> {
+    // Quantization is a pure transform; preview and full-run share implementation.
+    return this.executePreview(input);
+  }
+
   override async executePreview(
     input: VectorQuantizeTaskInput
   ): Promise<VectorQuantizeTaskOutput> {

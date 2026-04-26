@@ -372,6 +372,15 @@ export class TestSquareTask extends Task<TestSquareTaskInput, TestSquareTaskOutp
   }
 
   /**
+   * Squares the input number (full run).
+   */
+  override async execute(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+    return {
+      output: input.input * input.input,
+    };
+  }
+
+  /**
    * Preview implementation that squares the input number
    */
   override async executePreview(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
@@ -469,6 +478,15 @@ export class TestDoubleTask extends Task<TestDoubleTaskInput, TestDoubleTaskOutp
   }
 
   /**
+   * Doubles the input number (full run).
+   */
+  override async execute(input: TestDoubleTaskInput): Promise<TestDoubleTaskOutput> {
+    return {
+      output: input.input * 2,
+    };
+  }
+
+  /**
    * Preview implementation that doubles the input number
    */
   override async executePreview(input: TestDoubleTaskInput): Promise<TestDoubleTaskOutput> {
@@ -512,9 +530,16 @@ export class TestSquareErrorTask extends Task<TestSquareTaskInput, TestSquareTas
   }
 
   /**
+   * Always throws an error to test error handling (full run).
+   */
+  override async execute(_input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+    throw new TaskError("Test error");
+  }
+
+  /**
    * Always throws an error to test error handling
    */
-  override async executePreview(input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
+  override async executePreview(_input: TestSquareTaskInput): Promise<TestSquareTaskOutput> {
     throw new TaskError("Test error");
   }
 }
@@ -691,6 +716,13 @@ export class StringTask extends Task<{ input: string }, { output: string }, Task
   }
 
   /**
+   * Returns the input string as output (full run).
+   */
+  override async execute(input: { input: string }): Promise<{ output: string }> {
+    return { output: input.input };
+  }
+
+  /**
    * Returns the input string as output
    */
   override async executePreview(input: { input: string }): Promise<{ output: string }> {
@@ -832,6 +864,15 @@ export class TestAddTask extends Task<TestAddTaskInput, TestAddTaskOutput> {
       },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
+  }
+
+  /**
+   * Adds the two input numbers (full run).
+   */
+  override async execute(input: TestAddTaskInput) {
+    return {
+      output: input.a + input.b,
+    };
   }
 
   /**

@@ -829,11 +829,13 @@ describe("ArrayTask", () => {
   });
 
   test("QueryAppendTask with single string input", async () => {
+    // After the run/runPreview split, run() returns execute() output verbatim
+    // (no longer overlays executePreview on top).
     const task = new QueryAppendTask({
       defaults: { query: "test", val: 1 },
     });
     const results = await task.run();
-    expect(results).toEqual({ result: "test-output-reactive", val: 1 });
+    expect(results).toEqual({ result: "test-output", val: 1 });
   });
 
   test("QueryAppendTask with array string input", async () => {
@@ -841,6 +843,6 @@ describe("ArrayTask", () => {
       defaults: { query: ["test1", "test2"], val: 2 },
     });
     const results = await task.run();
-    expect(results).toEqual({ result: ["test1-output-reactive", "test2-output-reactive"], val: 2 });
+    expect(results).toEqual({ result: ["test1-output", "test2-output"], val: 2 });
   });
 });

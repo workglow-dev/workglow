@@ -25,32 +25,30 @@ describe("LambdaTask", () => {
     expect(results).toEqual({ output: "Hello, world!" });
   });
 
-  test("in command mode with reactive with input", async () => {
-    const results = await lambda(
-      {
-        a: 1,
-        b: 2,
+  test("in task preview mode with input", async () => {
+    // After the run/runPreview split, executePreview-only configs must be
+    // invoked via runPreview(); demonstrate that contract directly.
+    const task = new LambdaTask({
+      defaults: { a: 1, b: 2 },
+      executePreview: async (input) => {
+        return { output: input.a + input.b };
       },
-      {
-        executePreview: async (input) => {
-          return { output: input.a + input.b };
-        },
-      }
-    );
+    });
+    const results = await task.runPreview();
     expect(results).toEqual({ output: 3 });
   });
 
-  test("in task mode", async () => {
+  test("in task preview mode", async () => {
     const task = new LambdaTask({
       executePreview: async () => {
         return { output: "Hello, world!" };
       },
     });
-    const results = await task.run();
+    const results = await task.runPreview();
     expect(results).toEqual({ output: "Hello, world!" });
   });
 
-  test("in task graph mode", async () => {
+  test("in task graph preview mode", async () => {
     const graph = new TaskGraph();
     graph.addTask(
       new LambdaTask({
@@ -60,7 +58,7 @@ describe("LambdaTask", () => {
         },
       })
     );
-    const results = await graph.run();
+    const results = await graph.runPreview();
     expect(results[0].data).toEqual({ output: "Hello, world!" });
   });
 
@@ -97,7 +95,9 @@ describe("LambdaTask", () => {
     expect(results).toEqual({ output: 3 });
   });
 
-  test("in task workflow mode with input executePreview", async () => {
+  test("in task workflow mode with input executePreview returns empty from run()", async () => {
+    // After the run/runPreview split, run() invokes execute() only. A LambdaTask
+    // configured with only executePreview returns {} when run() is invoked.
     const workflow = new Workflow();
     workflow.lambda(
       {
@@ -111,7 +111,7 @@ describe("LambdaTask", () => {
       }
     );
     const results = await workflow.run();
-    expect(results).toEqual({ output: 3 });
+    expect(results).toEqual({});
   });
 
   test("with updateProgress", async () => {
