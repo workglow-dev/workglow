@@ -6,6 +6,7 @@
 
 import {
   CreateWorkflow,
+  IExecuteContext,
   IExecutePreviewContext,
   Task,
   TaskConfig,
@@ -14,6 +15,38 @@ import {
 import { DataPortSchema } from "@workglow/util/schema";
 import { ImageBinaryOrDataUriSchema, ImageFromSchema } from "./ImageSchemas";
 import { produceImageOutput } from "./imageTaskIo";
+
+async function applyContrast(input: ImageContrastTaskInput): Promise<ImageContrastTaskOutput> {
+  const amount = input.amount ?? 0;
+  const image = await produceImageOutput(input.image, (img) => {
+    const { data: src, width, height, channels } = img;
+
+    // Precompute 256-entry lookup table
+    const factor = (259 * (amount + 255)) / (255 * (259 - amount));
+    const lut = new Uint8ClampedArray(256);
+    for (let i = 0; i < 256; i++) {
+      lut[i] = factor * (i - 128) + 128;
+    }
+
+    const dst = new Uint8ClampedArray(src.length);
+
+    if (channels === 4) {
+      for (let i = 0; i < src.length; i += 4) {
+        dst[i] = lut[src[i]!]!;
+        dst[i + 1] = lut[src[i + 1]!]!;
+        dst[i + 2] = lut[src[i + 2]!]!;
+        dst[i + 3] = src[i + 3]!; // preserve alpha
+      }
+    } else {
+      for (let i = 0; i < src.length; i++) {
+        dst[i] = lut[src[i]!]!;
+      }
+    }
+
+    return { data: dst, width, height, channels };
+  });
+  return { image };
+}
 
 const inputSchema = {
   type: "object",
@@ -62,39 +95,18 @@ export class ImageContrastTask<
     return outputSchema;
   }
 
+  override async execute(
+    input: Input,
+    _context: IExecuteContext
+  ): Promise<Output | undefined> {
+    return (await applyContrast(input)) as Output;
+  }
+
   override async executePreview(
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const amount = input.amount ?? 0;
-    const image = await produceImageOutput(input.image, (img) => {
-      const { data: src, width, height, channels } = img;
-
-      // Precompute 256-entry lookup table
-      const factor = (259 * (amount + 255)) / (255 * (259 - amount));
-      const lut = new Uint8ClampedArray(256);
-      for (let i = 0; i < 256; i++) {
-        lut[i] = factor * (i - 128) + 128;
-      }
-
-      const dst = new Uint8ClampedArray(src.length);
-
-      if (channels === 4) {
-        for (let i = 0; i < src.length; i += 4) {
-          dst[i] = lut[src[i]!]!;
-          dst[i + 1] = lut[src[i + 1]!]!;
-          dst[i + 2] = lut[src[i + 2]!]!;
-          dst[i + 3] = src[i + 3]!; // preserve alpha
-        }
-      } else {
-        for (let i = 0; i < src.length; i++) {
-          dst[i] = lut[src[i]!]!;
-        }
-      }
-
-      return { data: dst, width, height, channels };
-    });
-    return { image } as Output;
+    return (await applyContrast(input)) as Output;
   }
 }
 
