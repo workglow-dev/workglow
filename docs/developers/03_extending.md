@@ -12,7 +12,7 @@ This document covers how to write your own tasks. For a more practical guide to 
   - [Creating Custom Format Resolvers](#creating-custom-format-resolvers)
 - [Job Queues and LLM tasks](#job-queues-and-llm-tasks)
 - [Write a new Compound Task](#write-a-new-compound-task)
-- [Reactive Task UIs](#reactive-task-uis)
+- [Preview Task UIs](#preview-task-uis)
 - [AI and RAG Tasks](#ai-and-rag-tasks)
   - [Document Processing Tasks](#document-processing-tasks)
   - [Vector and Embedding Tasks](#vector-and-embedding-tasks)
@@ -195,8 +195,8 @@ export class MyTask extends Task<MyTaskInput> {
   static readonly type = "MyTask";
   static inputSchema = () => MyTaskInputSchema;
 
-  async executeReactive(input: MyTaskInput) {
-    // By the time execute runs, model is a ModelConfig object
+  async executePreview(input: MyTaskInput, ctx: IExecutePreviewContext): Promise<MyTaskOutput | undefined> {
+    // By the time executePreview runs, model is a ModelConfig object
     // and dataSource is an ITabularStorage instance
     const { model, dataSource, prompt } = input;
     // ...
@@ -258,9 +258,11 @@ You can organize a group of tasks to look like one task (think of a grouping UI 
 
 Compound Tasks are not cached (though any or all of their children may be).
 
-## Reactive Task UIs
+## Preview Task UIs
 
-Tasks can be reactive at a certain level. This means that they can be triggered by changes in the data they depend on, without "running" the expensive job based task runs. This is useful for a UI node editor. For example, you change a color in one task and it is propagated downstream without incurring costs for re-running the entire graph. It is like a spreadsheet where changing a cell can trigger a recalculation of other cells. This is implemented via a `runReactive()` method that is called when the data changes. Typically, the `run()` will call `runReactive()` on itself at the end of the method.
+Tasks can also be made previewable. Preview mode is for UI editors — when the user edits a task input, the editor calls `runPreview()` to propagate a low-fidelity result through the graph without running the expensive `execute()` work. This is useful for a UI node editor: change a color in one task and it is propagated downstream without incurring costs for re-running the entire graph, like a spreadsheet where changing a cell triggers recalculation of dependent cells.
+
+Tasks implement preview by overriding `executePreview()`, which is called only by `runPreview()` and never by `run()`. The two paths are strictly orthogonal: `run()` produces the committed result via `execute()` (or `executeStream()`), and `runPreview()` produces a preview via `executePreview()`. Most tasks share a pure helper between the two, so preview behavior matches execute when both are cheap.
 
 ## AI and RAG Tasks
 
