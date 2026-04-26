@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateWorkflow, Task, TaskConfig, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, IExecuteContext, Task, TaskConfig, Workflow } from "@workglow/task-graph";
 import { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 const inputSchema = {
@@ -26,6 +26,22 @@ const outputSchema = {
 
 export type SplitTaskInput = FromSchema<typeof inputSchema>;
 export type SplitTaskOutput = FromSchema<typeof outputSchema>;
+
+function fanoutToIndexedOutputs<Output extends SplitTaskOutput>(inputValue: unknown): Output {
+  const output = {} as Output;
+
+  // Handle array input
+  if (Array.isArray(inputValue)) {
+    inputValue.forEach((item, index) => {
+      (output as any)[`output_${index}`] = item;
+    });
+  } else {
+    // Handle single value as a single-element array
+    (output as any).output_0 = inputValue;
+  }
+
+  return output;
+}
 
 /**
  * SplitTask takes an array or single value as input and creates
@@ -62,21 +78,12 @@ export class SplitTask<
     return outputSchema;
   }
 
+  override async execute(input: Input, _context: IExecuteContext): Promise<Output | undefined> {
+    return fanoutToIndexedOutputs<Output>(input.input);
+  }
+
   override async executePreview(input: Input): Promise<Output | undefined> {
-    const inputValue = input.input;
-    const output = {} as Output;
-
-    // Handle array input
-    if (Array.isArray(inputValue)) {
-      inputValue.forEach((item, index) => {
-        (output as any)[`output_${index}`] = item;
-      });
-    } else {
-      // Handle single value as a single-element array
-      (output as any).output_0 = inputValue;
-    }
-
-    return output;
+    return fanoutToIndexedOutputs<Output>(input.input);
   }
 }
 
