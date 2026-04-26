@@ -8,13 +8,17 @@
 
 ## Overview
 
-The Workglow task graph engine provides two distinct execution modes that serve fundamentally different purposes:
+The Workglow task graph engine provides two distinct, **strictly orthogonal** execution paths that serve fundamentally different purposes:
 
-1. **Full Execution (`run`)** -- Runs the task's `execute()` method, produces cached and immutable results, and transitions the task to `COMPLETED` status. This is the primary execution path for production workloads.
+1. **Full Execution (`run`)** -- Runs the task's `execute()` (or `executeStream()`) method, produces cached and immutable results, and transitions the task to `COMPLETED` status. This is the only path that produces committed output.
 
-2. **Reactive Execution (`runReactive`)** -- Runs the task's `executeReactive()` method for lightweight, sub-millisecond UI previews. Tasks remain in their current status (typically `PENDING`), and output is treated as temporary and mutable.
+2. **Preview Execution (`runPreview`)** -- Runs the task's `executePreview()` method for lightweight, sub-millisecond UI previews. Tasks remain in their current status (typically `PENDING`), and the output is treated as temporary and mutable.
 
-This dual-mode architecture allows the same task graph to serve both batch processing and interactive UI scenarios. A user editing an input node in a visual builder sees instant preview updates via `runReactive()`, while the final "Run" button triggers `run()` to produce the authoritative, cached output.
+There is no overlap and no overlay. `run()` never invokes `executePreview()`. `runPreview()` never invokes `execute()` or `executeStream()`. Cache hits return cached output verbatim — no preview pass runs on top.
+
+This dual-path architecture allows the same task graph to serve both batch processing and interactive UI scenarios. A user editing an input node in a visual builder sees instant preview updates via `runPreview()`, while the final "Run" button triggers `run()` to produce the authoritative, cached output.
+
+> **Migration note.** Earlier versions of this engine called these paths `runReactive()` / `executeReactive()` and overlaid the reactive method on top of `execute()` results during full runs. That overlay has been removed; the methods have been renamed to `runPreview()` / `executePreview()` to describe intent rather than implementation.
 
 ---
 
@@ -24,7 +28,7 @@ This dual-mode architecture allows the same task graph to serve both batch proce
 
 Full execution is the authoritative execution path. It:
 
-- Invokes the task's `execute()` method with full input validation
+- Invokes the task's `execute()` (or `executeStream()`) method with full input validation
 - Produces deterministic, cacheable results
 - Transitions the task to `COMPLETED` status
 - Locks the output as immutable
@@ -72,13 +76,13 @@ TaskRunner.run(overrides, config)
   v
 7. Check cache (if cacheable)
    - Look up cached output by (task.type, input)
-   - If found: use cached result, call executeReactive for UI state, skip execute()
+   - If found: assign cached result to runOutputData and return. No preview overlay.
   |
   v
 8. Execute
    - If streamable: executeStreamingTask(input) -- consume executeStream() async iterable
    - Otherwise: executeTask(input) -- call task.execute(input, context)
-   - Then: executeTaskReactive(input, output) -- merge reactive overlay
+   - execute() (or executeStream()) is the only path called by run(). There is no preview overlay.
   |
   v
 9. Store in cache (if cacheable and output is new)
@@ -152,15 +156,51 @@ When the timeout elapses, the TaskRunner aborts the task and throws a `TaskTimeo
 
 ---
 
-## Reactive Execution: runReactive()
+## Why preview is not called by run()
+
+Earlier versions of this engine called `executeReactive()` automatically after `execute()` finished, merging its result on top of the committed output. That overlay was removed for three reasons:
+
+1. **Single responsibility.** `run()` should produce exactly one thing: the committed output of `execute()` (or `executeStream()`). A second hidden stage made it ambiguous which method was actually responsible for any given field in the result.
+2. **No hidden second stage on cache hits.** Under the old model, a cache hit still ran the reactive overlay on top of the cached value, so the value returned to callers could differ from the value stored in the cache. Under the new model, a cache hit returns the cached output verbatim — the cache is the source of truth.
+3. **Debuggability.** When something goes wrong in a full run, the failure is in one place — `execute()` or `executeStream()`. There is no "did the preview method clobber a field?" branch to investigate.
+
+The price is that tasks which previously implemented only `executePreview()` and relied on the overlay to make `run()` work no longer do so. The runtime guard below catches those cases loudly the first time `run()` is called.
+
+---
+
+## Runtime guard for preview-only tasks
+
+`TaskRunner.run()` checks at the start of execution whether the task has overridden `executePreview()` but not `execute()`. If so, it throws a `TaskConfigurationError`:
+
+```typescript
+const proto = Object.getPrototypeOf(this.task);
+if (
+  proto.execute === Task.prototype.execute &&
+  proto.executePreview !== Task.prototype.executePreview
+) {
+  throw new TaskConfigurationError(
+    `Task "${this.task.type}" implements only executePreview() and cannot be run via run(). ` +
+      `After the run/runPreview split, run() requires execute() (or executeStream()). ` +
+      `See docs/technical/02-dual-mode-execution.md.`,
+  );
+}
+```
+
+The check fires on `run()`, not on construction. `runPreview()` does not trigger the guard — preview-only tasks are valid for preview-only callers.
+
+If you hit this error, add an `execute()` method that produces the committed output. The shared-helper pattern below shows the canonical structure.
+
+---
+
+## Preview Execution: runPreview()
 
 ### Purpose
 
-Reactive execution exists for **UI previews and interactive feedback**. When a user edits a task's input in a visual builder, the system calls `runReactive()` to propagate lightweight updates through the graph without running heavy computation.
+Preview execution exists for **UI previews and interactive feedback**. When a user edits a task's input in a visual builder, the system calls `runPreview()` to propagate lightweight updates through the graph without running heavy computation.
 
 Key characteristics:
 
-- Calls `executeReactive()` instead of `execute()`
+- Calls `executePreview()` instead of `execute()`
 - Does **not** change the task's status (PENDING stays PENDING)
 - Output is temporary and mutable (not cached)
 - Only affects `PENDING` tasks; `COMPLETED` tasks return cached output unchanged
@@ -169,7 +209,7 @@ Key characteristics:
 ### Task-Level Flow
 
 ```
-TaskRunner.runReactive(overrides)
+TaskRunner.runPreview(overrides)
   |
   v
 1. Guard: if status == PROCESSING, return existing output (no re-entry)
@@ -183,35 +223,36 @@ TaskRunner.runReactive(overrides)
    - Same resolution as full run (models, repositories, etc.)
   |
   v
-4. handleStartReactive()
-   - Mark reactiveRunning = true (internal flag, no status change)
+4. handleStartPreview()
+   - Mark previewRunning = true (internal flag, no status change)
   |
   v
 5. validateInput()
    - Validate against input schema
   |
   v
-6. executeTaskReactive(input, output)
-   - Call task.executeReactive(input, output, context)
-   - Merge result with existing output: Object.assign({}, output, reactiveResult)
+6. executeTaskPreview(input)
+   - Call task.executePreview(input, context)
+   - If the result is non-undefined, replace runOutputData entirely (no merge)
+   - If the result is undefined, leave runOutputData unchanged
   |
   v
-7. handleCompleteReactive()
-   - Mark reactiveRunning = false
+7. handleCompletePreview()
+   - Mark previewRunning = false
   |
   v
 Return runOutputData (temporary, mutable)
 ```
 
-### Graph-Level Reactive Flow
+### Graph-Level Preview Flow
 
-The graph-level reactive execution has critical differences from the full run:
+The graph-level preview execution has critical differences from the full run:
 
 ```
-TaskGraph.runReactive(input, config)
+TaskGraph.runPreview(input, config)
   |
   v
-TaskGraphRunner.runGraphReactive(input, config)
+TaskGraphRunner.runGraphPreview(input, config)
   |
   v
 For each task in topological order:
@@ -230,7 +271,7 @@ For each task in topological order:
     taskInput = {}
   |
   v
-  task.runReactive(taskInput)
+  task.runPreview(taskInput)
   |
   v
   pushOutputFromNodeToEdges()            -- Push output to dataflows
@@ -241,7 +282,7 @@ Return results from ending nodes
 
 ### The Less-Than-1ms Constraint
 
-The `executeReactive()` method must be extremely fast. Its contract:
+The `executePreview()` method must be extremely fast. Its contract:
 
 - **Target**: Complete in under 1 millisecond
 - **Allowed**: Simple transformations, string formatting, preview generation
@@ -249,46 +290,55 @@ The `executeReactive()` method must be extremely fast. Its contract:
 
 ```typescript
 // CORRECT: Quick preview computation
-async executeReactive(input, output, context) {
-  return { ...output, preview: input.text.substring(0, 200) };
+async executePreview(input, context) {
+  return { preview: input.text.substring(0, 200) };
 }
 
-// INCORRECT: Heavy computation in reactive path
-async executeReactive(input, output, context) {
+// INCORRECT: Heavy computation in preview path
+async executePreview(input, context) {
   // This takes 30 seconds and violates the contract
   const result = await this.trainNeuralNetwork(input);
   return { result };
 }
 ```
 
-The default implementation simply returns the existing output unchanged:
+The default implementation returns `undefined`, leaving the existing output unchanged:
 
 ```typescript
-async executeReactive(input, output, context) {
-  return output;
+async executePreview(input, context) {
+  return undefined;
 }
 ```
 
 Tasks that do not need preview updates can leave this default in place.
 
+### Return-value semantics
+
+`executePreview()` has explicit, non-merging semantics:
+
+- **Returning `Output`** — replaces `runOutputData` entirely. There is no `Object.assign` merge with the previous output. Any field you want preserved must be present in your returned object.
+- **Returning `undefined`** — leaves `runOutputData` unchanged.
+
+Tasks that need to read the prior output can read `this.runOutputData` directly inside `executePreview()`.
+
 ---
 
 ## The Immutability Invariant
 
-The most important invariant in the dual-mode system is: **COMPLETED tasks are immutable**.
+The most important invariant in the dual-path system is: **COMPLETED tasks are immutable**.
 
 Once `run()` finishes and a task transitions to `COMPLETED`:
 
 1. `runOutputData` is locked and cached
 2. `runInputData` must not be modified
-3. `runReactive()` returns the cached output without calling `executeReactive()`
+3. `runPreview()` returns the cached output without calling `executePreview()`
 4. Dataflows from COMPLETED tasks carry fixed values
 
 This invariant enables several guarantees:
 
 - **Cache correctness**: The mapping from `(type, input)` to `output` is stable.
-- **Determinism**: Re-running reactive execution on a partially-completed graph produces consistent results.
-- **UI consistency**: COMPLETED nodes in a visual builder show their final, authoritative output regardless of how many reactive passes occur.
+- **Determinism**: Re-running preview execution on a partially-completed graph produces consistent results.
+- **UI consistency**: COMPLETED nodes in a visual builder show their final, authoritative output regardless of how many preview passes occur.
 
 ### Mixed COMPLETED/PENDING States
 
@@ -298,11 +348,11 @@ In interactive scenarios, a graph often contains a mix of COMPLETED and PENDING 
 [TaskA: COMPLETED] --> [TaskB: COMPLETED] --> [TaskC: PENDING]
 ```
 
-If the user edits TaskC's input and triggers `runReactive()`:
+If the user edits TaskC's input and triggers `runPreview()`:
 
 - **TaskA** (COMPLETED): Input is not modified. Returns cached output. Dataflow carries the locked value.
 - **TaskB** (COMPLETED): Same behavior -- returns cached output unchanged.
-- **TaskC** (PENDING): Input is reset to defaults, then dataflow from TaskB populates it. `executeReactive()` runs with the new data.
+- **TaskC** (PENDING): Input is reset to defaults, then dataflow from TaskB populates it. `executePreview()` runs with the new data.
 
 If the user edits TaskA's defaults and wants to re-run the entire pipeline, the graph must first be reset (`resetGraph()`) to return all tasks to PENDING.
 
@@ -315,19 +365,15 @@ If the user edits TaskA's defaults and wants to re-run the entire pipeline, the 
 The output cache is a `TaskOutputRepository` that maps `(taskType, input)` to `output`. During `run()`:
 
 ```typescript
-// Check cache
 if (task.cacheable) {
   const cached = await outputCache.getOutput(task.type, inputs);
   if (cached) {
-    // Cache hit: use cached result, skip execute()
+    // Cache hit: return cached output verbatim. No preview overlay.
     task.runOutputData = cached;
-    // Still call executeReactive() for UI state update
-    task.runOutputData = await executeTaskReactive(inputs, cached);
     return;
   }
 }
 
-// Cache miss: execute and store
 const result = await task.execute(input, context);
 if (task.cacheable && result !== undefined) {
   await outputCache.saveOutput(task.type, inputs, result);
@@ -363,9 +409,9 @@ The precedence order (highest to lowest):
 2. `config.cacheable` (instance-level)
 3. `static cacheable` (class-level)
 
-### Cache and Reactive Execution
+### Cache and Preview Execution
 
-Reactive execution never reads from or writes to the cache. It operates purely on temporary in-memory state.
+Preview execution never reads from or writes to the cache. It operates purely on temporary in-memory state. Conversely, full-run cache hits return the cached value verbatim — `executePreview()` is never invoked as part of the full-run path.
 
 ---
 
@@ -389,26 +435,26 @@ async execute(input, context) {
 }
 ```
 
-### For executeReactive() (Reactive Mode)
+### For executePreview() (Preview Mode)
 
 - **Must complete in under 1 millisecond**
 - No async I/O, no network calls, no heavy computation
-- Return previews, summaries, or the existing output unchanged
+- Return previews, summaries, or `undefined` to leave the prior output unchanged
 - Use synchronous operations only when possible
 
 ```typescript
-async executeReactive(input, output, context) {
+async executePreview(input, context) {
   // Quick string preview: microseconds
   if (input.text) {
-    return { ...output, preview: `${input.text.length} characters` };
+    return { preview: `${input.text.length} characters` };
   }
-  return output;
+  return undefined;
 }
 ```
 
 ### For Graph-Level Operations
 
-- Use `runReactive()` for interactive feedback during editing
+- Use `runPreview()` for interactive feedback during editing
 - Call `run()` only when the user explicitly requests execution
 - Use `graph.subscribeToTaskProgress()` to show a progress bar
 - Set `timeout` and `maxTasks` to prevent runaway execution
@@ -419,37 +465,38 @@ async executeReactive(input, output, context) {
 
 ### Task Methods
 
-| Method                                      | Mode     | Description                                         |
-|---------------------------------------------|----------|-----------------------------------------------------|
-| `task.run(overrides?, runConfig?)`           | Full     | Execute and return immutable output                 |
-| `task.runReactive(overrides?)`              | Reactive | Execute reactive preview and return temporary output |
-| `task.execute(input, context)`              | Full     | Override this to implement task logic                |
-| `task.executeReactive(input, output, ctx)`  | Reactive | Override for sub-1ms preview logic                   |
-| `task.abort()`                              | Both     | Abort the task via its AbortController              |
-| `task.disable()`                            | Both     | Set task to DISABLED status                         |
-| `task.resetInputData()`                     | Both     | Reset runInputData to construction defaults         |
-| `task.setInput(partial)`                    | Both     | Merge partial input into runInputData               |
-| `task.setDefaults(partial)`                 | Both     | Update default input values                         |
-| `task.validateInput(input)`                 | Both     | Validate input against compiled schema              |
+| Method                                  | Mode    | Description                                                  |
+| --------------------------------------- | ------- | ------------------------------------------------------------ |
+| `task.run(overrides?, runConfig?)`       | Full    | Execute and return immutable output                          |
+| `task.runPreview(overrides?)`           | Preview | Execute preview and return temporary output                   |
+| `task.execute(input, context)`          | Full    | Override this to implement task logic                         |
+| `task.executeStream(input, context)`    | Full    | Optional override for streamed full execution                 |
+| `task.executePreview(input, ctx)`       | Preview | Override for sub-1ms preview logic                            |
+| `task.abort()`                          | Both    | Abort the task via its AbortController                        |
+| `task.disable()`                        | Both    | Set task to DISABLED status                                   |
+| `task.resetInputData()`                 | Both    | Reset runInputData to construction defaults                   |
+| `task.setInput(partial)`                | Both    | Merge partial input into runInputData                         |
+| `task.setDefaults(partial)`             | Both    | Update default input values                                   |
+| `task.validateInput(input)`             | Both    | Validate input against compiled schema                        |
 
 ### TaskGraph Methods
 
-| Method                                      | Mode     | Description                                         |
-|---------------------------------------------|----------|-----------------------------------------------------|
-| `graph.run(input?, config?)`                | Full     | Execute all tasks in topological order              |
-| `graph.runReactive(input?, config?)`        | Reactive | Reactive execution for UI previews                  |
-| `graph.abort()`                             | Both     | Abort all running tasks                             |
-| `graph.resetGraph()`                        | Both     | Reset all tasks to PENDING                          |
+| Method                                  | Mode    | Description                                                  |
+| --------------------------------------- | ------- | ------------------------------------------------------------ |
+| `graph.run(input?, config?)`            | Full    | Execute all tasks in topological order                       |
+| `graph.runPreview(input?, config?)`     | Preview | Preview execution for UI updates                              |
+| `graph.abort()`                         | Both    | Abort all running tasks                                       |
+| `graph.resetGraph()`                    | Both    | Reset all tasks to PENDING                                    |
 
 ### TaskRunner Properties
 
-| Property          | Type                    | Description                                    |
-|-------------------|-------------------------|------------------------------------------------|
-| `running`         | `boolean`               | Whether a full run is in progress              |
-| `reactiveRunning` | `boolean`               | Whether a reactive run is in progress          |
-| `task`            | `ITask`                 | The task being managed                         |
-| `inputStreams`    | `Map<string, Stream>`   | Input streams for pass-through streaming       |
-| `shouldAccumulate`| `boolean`               | Whether to accumulate streaming deltas         |
+| Property         | Type                  | Description                                  |
+| ---------------- | --------------------- | -------------------------------------------- |
+| `running`        | `boolean`             | Whether a full run is in progress            |
+| `previewRunning` | `boolean`             | Whether a preview run is in progress         |
+| `task`           | `ITask`               | The task being managed                       |
+| `inputStreams`   | `Map<string, Stream>` | Input streams for pass-through streaming     |
+| `shouldAccumulate` | `boolean`           | Whether to accumulate streaming deltas       |
 
 ### IExecuteContext
 
@@ -465,12 +512,12 @@ interface IExecuteContext {
 }
 ```
 
-### IExecuteReactiveContext
+### IExecutePreviewContext
 
-Provided to `executeReactive()`:
+Provided to `executePreview()`:
 
 ```typescript
-interface IExecuteReactiveContext {
+interface IExecutePreviewContext {
   own: <T>(task: T) => T;  // Register child task
 }
 ```
@@ -479,39 +526,58 @@ interface IExecuteReactiveContext {
 
 ## Common Patterns
 
-### Pattern: Progressive Preview
+### Pattern: Preview parity via a shared helper
 
-Update the preview as the user types, then run full execution on submit:
+For tasks where the preview computes the same data as `execute()`, just faster (or only the cheap subset). Output fields the preview cannot populate should be declared optional in the task's output schema.
 
 ```typescript
-class TextAnalysisTask extends Task<{ text: string }, { wordCount: number; analysis: string }> {
-  // Full execution: call an AI model
-  async execute(input, context) {
-    const analysis = await callAIModel(input.text, { signal: context.signal });
-    return { wordCount: input.text.split(/\s+/).length, analysis };
+// shared helper — pure, fast
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+// Note: `analysis` is optional in the schema — preview can't compute it.
+class TextAnalysisTask extends Task<{ text: string }, { wordCount: number; analysis?: string }> {
+  async execute(input, ctx) {
+    return {
+      wordCount: countWords(input.text),
+      analysis: await callAIModel(input.text, { signal: ctx.signal }),
+    };
   }
 
-  // Reactive preview: instant word count, placeholder analysis
-  async executeReactive(input, output) {
-    return {
-      wordCount: (input.text || "").split(/\s+/).filter(Boolean).length,
-      analysis: output.analysis ?? "Run to generate analysis...",
-    };
+  async executePreview(input, ctx) {
+    return { wordCount: countWords(input.text) };
   }
 }
 ```
 
-### Pattern: Conditional Reactive Behavior
+### Pattern: Lighter approximation in preview
 
-Only compute a preview when the input has actually changed:
+For tasks where the preview is a genuinely different (lighter) approximation of `execute()`:
+
+```typescript
+class ImageBlurTask extends Task<{ image: ImageBitmap; radius: number }, { image: ImageBitmap }> {
+  async execute(input, ctx) {
+    return { image: await fullQualityBlur(input.image, input.radius) };
+  }
+
+  async executePreview(input, ctx) {
+    return { image: fastApproximateBlur(input.image, input.radius) };
+  }
+}
+```
+
+### Pattern: Conditional preview behavior
+
+Skip recomputing the preview when the input has not changed by returning `undefined`:
 
 ```typescript
 class ImageFilterTask extends Task<{ image: Blob; filter: string }, { preview: string }> {
   private lastFilter: string | undefined;
 
-  async executeReactive(input, output) {
+  async executePreview(input) {
     if (input.filter === this.lastFilter) {
-      return output; // No change, return existing output
+      return undefined; // No change — leave the prior output in place
     }
     this.lastFilter = input.filter;
     return { preview: `Preview: ${input.filter} applied` };
@@ -541,17 +607,20 @@ await graph.run({ text: "hello world" });
 
 ---
 
-## Summary: run() vs runReactive()
+## Summary: run() vs runPreview()
 
-| Aspect                | `run()`                 | `runReactive()`          |
-|-----------------------|-------------------------|--------------------------|
-| **Purpose**           | Full, authoritative run | UI previews              |
-| **Method called**     | `execute()`             | `executeReactive()`      |
-| **Final status**      | COMPLETED               | Unchanged (stays PENDING)|
-| **Output**            | Locked, immutable       | Temporary, mutable       |
-| **Caching**           | Read + Write            | Neither                  |
-| **Dataflow updates**  | Always applied          | Only for PENDING tasks   |
-| **Performance target**| No constraint           | < 1ms per task           |
-| **Telemetry**         | Spans recorded          | No telemetry             |
-| **Abort support**     | Full (signal + timeout) | No abort support         |
-| **Progress events**   | Emitted                 | Not emitted              |
+| Aspect                  | `run()`                                  | `runPreview()`                  |
+| ----------------------- | ---------------------------------------- | ------------------------------- |
+| **Purpose**             | Full, authoritative run                  | UI previews                     |
+| **Method called**       | `execute()` (or `executeStream()`)       | `executePreview()`              |
+| **Calls preview?**      | Never                                    | n/a                             |
+| **Calls execute?**      | n/a                                      | Never                           |
+| **Final status**        | COMPLETED                                | Unchanged (stays PENDING)       |
+| **Output**              | Locked, immutable                        | Temporary, mutable              |
+| **Caching**             | Read + Write (cache hit returns verbatim) | Neither                         |
+| **Dataflow updates**    | Always applied                           | Only for PENDING tasks          |
+| **Performance target**  | No constraint                            | < 1ms per task                  |
+| **Telemetry**           | Spans recorded                           | No telemetry                    |
+| **Abort support**       | Full (signal + timeout)                  | No abort support                |
+| **Progress events**     | Emitted                                  | Not emitted                     |
+| **Return semantics**    | Output replaces `runOutputData`           | Non-undefined replaces; `undefined` leaves prior output |
