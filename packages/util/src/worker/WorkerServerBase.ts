@@ -87,8 +87,7 @@ export class WorkerServerBase {
 
   private functions: Record<string, (...args: any[]) => Promise<any>> = {};
   private streamFunctions: Record<string, (...args: any[]) => AsyncIterable<any>> = {};
-  private previewFunctions: Record<string, (input: any, output: any, model: any) => Promise<any>> =
-    {};
+  private previewFunctions: Record<string, (input: any, model: any) => Promise<any>> = {};
 
   // Keep track of each request's AbortController
   private requestControllers = new Map<string, AbortController>();
@@ -150,16 +149,13 @@ export class WorkerServerBase {
 
   /**
    * Register a preview function for lightweight preview execution.
-   * Preview functions receive (input, output, model) and return a fast preview
+   * Preview functions receive (input, model) and return a fast preview
    * without progress tracking or abort signals.
    *
    * @param name - The function name (e.g., task type identifier)
-   * @param fn - Async function: (input, output, model) => Promise<output | undefined>
+   * @param fn - Async function: (input, model) => Promise<output | undefined>
    */
-  registerPreviewFunction(
-    name: string,
-    fn: (input: any, output: any, model: any) => Promise<any>
-  ) {
+  registerPreviewFunction(name: string, fn: (input: any, model: any) => Promise<any>) {
     this.previewFunctions[name] = fn;
   }
 
@@ -208,18 +204,14 @@ export class WorkerServerBase {
    * Handle a preview call. Returns undefined (non-error) if the preview
    * function is not registered, since not all task types expose a preview fn.
    */
-  async handlePreviewCall(
-    id: string,
-    functionName: string,
-    [input, output, model]: [any, any, any]
-  ) {
+  async handlePreviewCall(id: string, functionName: string, [input, model]: [any, any]) {
     if (!(functionName in this.previewFunctions)) {
       this.postResult(id, undefined);
       return;
     }
     try {
       const fn = this.previewFunctions[functionName];
-      const result = await fn(input, output, model);
+      const result = await fn(input, model);
       this.postResult(id, result);
     } catch (error) {
       this.postError(id, error);
