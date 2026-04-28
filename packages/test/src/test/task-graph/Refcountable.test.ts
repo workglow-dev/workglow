@@ -8,7 +8,15 @@ import {
   registerRefcountablePredicate,
   asRefcountable,
   _resetRefcountablePredicatesForTests,
+  type Refcountable,
 } from "@workglow/task-graph";
+
+// Test fake matching the Refcountable contract (retain returns Refcountable).
+class FakeRefcounted implements Refcountable {
+  marker = true;
+  retain(_n: number = 1): Refcountable { return this; }
+  release(): void {}
+}
 
 describe("refcountable registry", () => {
   beforeEach(() => {
@@ -16,26 +24,25 @@ describe("refcountable registry", () => {
   });
 
   test("asRefcountable returns null when no predicates are registered", () => {
-    const v = { retain() {}, release() {} };
+    const v = new FakeRefcounted();
     expect(asRefcountable(v)).toBeNull();
   });
 
   test("asRefcountable returns the value when a registered predicate matches", () => {
-    type Marker = { mark: true; retain(): void; release(): void };
-    registerRefcountablePredicate((v): v is Marker =>
-      !!v && typeof v === "object" && "mark" in (v as object)
+    registerRefcountablePredicate(
+      (v): v is FakeRefcounted => v instanceof FakeRefcounted,
     );
-    const v: Marker = { mark: true, retain() {}, release() {} };
+    const v = new FakeRefcounted();
     expect(asRefcountable(v)).toBe(v);
   });
 
   test("asRefcountable returns null when the predicate rejects", () => {
-    registerRefcountablePredicate((_v): _v is { retain(): void; release(): void } => false);
+    registerRefcountablePredicate((_v): _v is FakeRefcounted => false);
     expect(asRefcountable({})).toBeNull();
   });
 
   test("asRefcountable handles non-object values without throwing", () => {
-    registerRefcountablePredicate((_v): _v is { retain(): void; release(): void } => false);
+    registerRefcountablePredicate((_v): _v is FakeRefcounted => false);
     expect(asRefcountable(null)).toBeNull();
     expect(asRefcountable(undefined)).toBeNull();
     expect(asRefcountable("string")).toBeNull();
@@ -45,11 +52,11 @@ describe("refcountable registry", () => {
   test("multiple predicates short-circuit on first match", () => {
     let firstCalled = 0;
     let secondCalled = 0;
-    registerRefcountablePredicate((_v): _v is { retain(): void; release(): void } => {
+    registerRefcountablePredicate((_v): _v is FakeRefcounted => {
       firstCalled++;
       return true;
     });
-    registerRefcountablePredicate((_v): _v is { retain(): void; release(): void } => {
+    registerRefcountablePredicate((_v): _v is FakeRefcounted => {
       secondCalled++;
       return true;
     });

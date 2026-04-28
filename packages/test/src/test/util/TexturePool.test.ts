@@ -97,6 +97,52 @@ describe("TexturePool", () => {
     expect(() => pool.release(fake)).not.toThrow();
   });
 
+  test("double-release of the same texture is idempotent (no duplicate entries)", () => {
+    const destroyed: FakeTexture[] = [];
+    const fakeDevice = {
+      createTexture: () => {
+        const t: FakeTexture = {
+          w: 8, h: 8, destroyed: false,
+          destroy() { this.destroyed = true; destroyed.push(this); },
+        };
+        return t;
+      },
+    } as unknown as GPUDevice;
+    const pool = createTexturePool(fakeDevice, { capacityPerSize: 8 });
+    const a = pool.acquire(8, 8, "rgba8unorm");
+    pool.release(a);
+    pool.release(a);
+    pool.release(a);
+    // drain should only destroy one entry, not three
+    pool.drain();
+    expect(destroyed).toHaveLength(1);
+  });
+
+  test("releasing a capacity-evicted texture again is a no-op (no double-destroy push)", () => {
+    const destroyed: FakeTexture[] = [];
+    const fakeDevice = {
+      createTexture: () => {
+        const t: FakeTexture = {
+          w: 8, h: 8, destroyed: false,
+          destroy() { this.destroyed = true; destroyed.push(this); },
+        };
+        return t;
+      },
+    } as unknown as GPUDevice;
+    const pool = createTexturePool(fakeDevice, { capacityPerSize: 1 });
+    const a = pool.acquire(8, 8, "rgba8unorm");
+    const b = pool.acquire(8, 8, "rgba8unorm");
+    pool.release(a); // pooled
+    pool.release(b); // exceeds cap → destroyed
+    expect(destroyed).toHaveLength(1);
+    // releasing b again must not re-destroy nor push
+    pool.release(b);
+    expect(destroyed).toHaveLength(1);
+    // after drain, only a is destroyed (one new entry)
+    pool.drain();
+    expect(destroyed).toHaveLength(2);
+  });
+
   test("drain destroys all pooled textures and clears the pool", () => {
     const destroyed: FakeTexture[] = [];
     const fakeDevice = {

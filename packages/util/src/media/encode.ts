@@ -6,13 +6,17 @@
 import type { ImageBinary } from "./imageTypes";
 import { getImageRasterCodec } from "./imageRasterCodecRegistry";
 
-export async function encodeImageBinaryToPng(bin: ImageBinary): Promise<Uint8Array> {
-  const dataUri = await getImageRasterCodec().encodeDataUri(bin, "image/png");
+async function encodeImageBinaryBytes(bin: ImageBinary, mimeType: string): Promise<Uint8Array> {
+  const dataUri = await getImageRasterCodec().encodeDataUri(bin, mimeType);
   const b64 = dataUri.slice(dataUri.indexOf(",") + 1);
   const decoded = atob(b64);
   const bytes = new Uint8Array(decoded.length);
   for (let i = 0; i < decoded.length; i++) bytes[i] = decoded.charCodeAt(i);
   return bytes;
+}
+
+export async function encodeImageBinaryToPng(bin: ImageBinary): Promise<Uint8Array> {
+  return encodeImageBinaryBytes(bin, "image/png");
 }
 
 export async function imageBinaryToBase64Png(bin: ImageBinary): Promise<string> {
@@ -25,6 +29,6 @@ export async function imageBinaryToDataUri(bin: ImageBinary, mimeType = "image/p
 }
 
 export async function imageBinaryToBlob(bin: ImageBinary, mimeType = "image/png"): Promise<Blob> {
-  const bytes = await encodeImageBinaryToPng(bin);
+  const bytes = await encodeImageBinaryBytes(bin, mimeType);
   return new Blob([bytes.buffer as ArrayBuffer], { type: mimeType });
 }

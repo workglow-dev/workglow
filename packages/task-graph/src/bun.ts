@@ -6,16 +6,21 @@
 
 export * from "./common";
 
-import { registerRefcountablePredicate } from "./refcountable";
-import { CpuImage, SharpImage } from "@workglow/util/media";
+import { registerRefcountablePredicate, type Refcountable } from "./refcountable";
 
 // Register the refcountable predicate so TaskGraphRunner applies fanout
 // retain to GpuImage values flowing across dataflow edges. Lives here
 // (rather than inside @workglow/util/media) because util cannot import
-// from task-graph. SharpImage and CpuImage have no-op retain/release
-// (their resources are JS-managed); registering them keeps the predicate
-// symmetric across backends so future code paths don't have to branch.
+// from task-graph.
+//
+// Duck-typed for cross-bundle safety and to keep the typecheck off the
+// WebGpuImage value (which is a type-only re-export here).
 registerRefcountablePredicate(
-  (v): v is CpuImage | SharpImage =>
-    v instanceof CpuImage || v instanceof SharpImage,
+  (v): v is Refcountable =>
+    !!v &&
+    typeof v === "object" &&
+    "backend" in v &&
+    "retain" in v &&
+    "release" in v &&
+    "materialize" in v,
 );

@@ -19,6 +19,7 @@ interface PooledTexture {
   width: number;
   height: number;
   format: GPUTextureFormat;
+  inPool: boolean;
 }
 
 const DEFAULT_CAPACITY_PER_SIZE = 8;
@@ -37,6 +38,7 @@ export function createTexturePool(device: GPUDevice, opts: TexturePoolOptions = 
       const bucket = buckets.get(k);
       if (bucket && bucket.length > 0) {
         const reused = bucket.pop()!;
+        reused.inPool = false;
         return reused.texture;
       }
       const texture = device.createTexture({
@@ -44,7 +46,7 @@ export function createTexturePool(device: GPUDevice, opts: TexturePoolOptions = 
         format,
         usage: TEXTURE_USAGE,
       });
-      const entry: PooledTexture = { texture, width, height, format };
+      const entry: PooledTexture = { texture, width, height, format, inPool: false };
       owners.set(texture, entry);
       return texture;
     },
@@ -52,6 +54,7 @@ export function createTexturePool(device: GPUDevice, opts: TexturePoolOptions = 
     release(texture) {
       const entry = owners.get(texture);
       if (!entry) return;
+      if (entry.inPool) return;
       const k = sizeClassKey(entry.width, entry.height, entry.format);
       let bucket = buckets.get(k);
       if (!bucket) {
@@ -59,15 +62,20 @@ export function createTexturePool(device: GPUDevice, opts: TexturePoolOptions = 
         buckets.set(k, bucket);
       }
       if (bucket.length >= capacity) {
+        owners.delete(texture);
         texture.destroy();
         return;
       }
+      entry.inPool = true;
       bucket.push(entry);
     },
 
     drain() {
       for (const bucket of buckets.values()) {
-        for (const entry of bucket) entry.texture.destroy();
+        for (const entry of bucket) {
+          owners.delete(entry.texture);
+          entry.texture.destroy();
+        }
       }
       buckets.clear();
     },

@@ -87,7 +87,7 @@ export const TypeImageInput = {
   type: "object",
   properties: {},
   title: "Image",
-  description: "Image as URL, data URI, ImageBitmap, ImageBinary, or GpuImage — hydrated by the runner",
+  description: "Image as data URI, Blob, ImageBitmap, ImageBinary, or GpuImage — hydrated to GpuImage by the runner",
   format: "image",
 } as const satisfies JsonSchema;
 

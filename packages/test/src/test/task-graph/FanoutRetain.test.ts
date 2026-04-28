@@ -10,7 +10,6 @@ import {
   TaskGraph,
   registerRefcountablePredicate,
   _resetRefcountablePredicatesForTests,
-  type IExecuteContext,
 } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 
