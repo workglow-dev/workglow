@@ -22,7 +22,6 @@ import {
   ImageThresholdTask,
   ImageTintTask,
   ImageTransparencyTask,
-  ImageWatermarkTask,
 } from "@workglow/tasks";
 import { setLogger } from "@workglow/util";
 import { CpuImage, type GpuImage, type ImageBinary } from "@workglow/util/media";
@@ -352,45 +351,6 @@ describe("ImageTask", () => {
       for (let i = 0; i < out.data.length; i++) {
         expect(out.data[i]).toBe(128);
       }
-    });
-  });
-
-  describe("ImageWatermarkTask", () => {
-    test("preserves dimensions", async () => {
-      const bin = createTestImage(64, 64, 3, [100, 100, 100]);
-      const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
-      const task = new ImageWatermarkTask();
-      const result = (await task.run({
-        image,
-        spacing: 16,
-        opacity: 0.3,
-        pattern: "diagonal-lines",
-      })) as { image: GpuImage };
-      const out = await result.image.materialize();
-      expect(out.width).toBe(64);
-      expect(out.height).toBe(64);
-      expect(out.channels).toBe(4);
-    });
-
-    test("modifies some pixels", async () => {
-      const bin = createTestImage(32, 32, 3, [100, 100, 100]);
-      const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
-      const task = new ImageWatermarkTask();
-      const result = (await task.run({
-        image,
-        spacing: 8,
-        opacity: 0.5,
-        pattern: "grid",
-      })) as { image: GpuImage };
-      const out = await result.image.materialize();
-      let hasModified = false;
-      for (let i = 0; i < out.data.length; i += 4) {
-        if (out.data[i] !== 100) {
-          hasModified = true;
-          break;
-        }
-      }
-      expect(hasModified).toBe(true);
     });
   });
 

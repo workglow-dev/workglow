@@ -50,7 +50,6 @@ export * from "./task/image/text/ImageTextTask";
 export * from "./task/image/threshold/ImageThresholdTask";
 export * from "./task/image/tint/ImageTintTask";
 export * from "./task/image/transparency/ImageTransparencyTask";
-export * from "./task/image/watermark/ImageWatermarkTask";
 export * from "./task/InputTask";
 export * from "./task/JavaScriptTask";
 export * from "./task/JsonPathTask";
@@ -126,7 +125,6 @@ import { ImageTextTask } from "./task/image/text/ImageTextTask";
 import { ImageThresholdTask } from "./task/image/threshold/ImageThresholdTask";
 import { ImageTintTask } from "./task/image/tint/ImageTintTask";
 import { ImageTransparencyTask } from "./task/image/transparency/ImageTransparencyTask";
-import { ImageWatermarkTask } from "./task/image/watermark/ImageWatermarkTask";
 import { InputTask } from "./task/InputTask";
 import { JavaScriptTask } from "./task/JavaScriptTask";
 import { JsonPathTask } from "./task/JsonPathTask";
@@ -237,7 +235,6 @@ export let registerCommonTasks = () => {
     ImageBorderTask,
     ImageTransparencyTask,
     ImageBlurTask,
-    ImageWatermarkTask,
     ImagePixelateTask,
     ImageInvertTask,
     ImageBrightnessTask,
