@@ -66,5 +66,10 @@ export function previewSource(image: GpuImage): GpuImage {
   const ratio = budget / long;
   const resize = getPreviewResizeFn();
   if (!resize) return image;
-  return resize(image, Math.round(image.width * ratio), Math.round(image.height * ratio));
+  const result = resize(image, Math.round(image.width * ratio), Math.round(image.height * ratio));
+  // Compose: newScale = inputScale × downscaleRatio. The resize op produces an
+  // image whose previewScale equals input's (apply() propagation rule). We
+  // override it here — previewSource is the only place that *changes* previewScale.
+  const composed = image.previewScale * ratio;
+  return (result as unknown as { _setPreviewScale(s: number): GpuImage })._setPreviewScale(composed);
 }
