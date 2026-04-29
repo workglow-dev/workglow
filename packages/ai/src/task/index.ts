@@ -14,8 +14,10 @@ import { CountTokensTask } from "./CountTokensTask";
 import { DocumentEnricherTask } from "./DocumentEnricherTask";
 import { DocumentUpsertTask } from "./DocumentUpsertTask";
 import { DownloadModelTask } from "./DownloadModelTask";
+import { EditImageTask } from "./generation/EditImageTask";
 import { FaceDetectorTask } from "./FaceDetectorTask";
 import { FaceLandmarkerTask } from "./FaceLandmarkerTask";
+import { GenerateImageTask } from "./generation/GenerateImageTask";
 import { GestureRecognizerTask } from "./GestureRecognizerTask";
 import { HandLandmarkerTask } from "./HandLandmarkerTask";
 import { HierarchicalChunkerTask } from "./HierarchicalChunkerTask";
@@ -64,8 +66,10 @@ export const registerAiTasks = () => {
     ChunkRetrievalTask,
     ChunkVectorUpsertTask,
     DownloadModelTask,
+    EditImageTask,
     FaceDetectorTask,
     FaceLandmarkerTask,
+    GenerateImageTask,
     GestureRecognizerTask,
     HandLandmarkerTask,
     HierarchicalChunkerTask,
@@ -118,8 +122,10 @@ export * from "./CountTokensTask";
 export * from "./DocumentEnricherTask";
 export * from "./DocumentUpsertTask";
 export * from "./DownloadModelTask";
+export * from "./generation/EditImageTask";
 export * from "./FaceDetectorTask";
 export * from "./FaceLandmarkerTask";
+export * from "./generation/GenerateImageTask";
 export * from "./GestureRecognizerTask";
 export * from "./HandLandmarkerTask";
 export * from "./HierarchicalChunkerTask";
