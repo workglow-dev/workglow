@@ -4,7 +4,12 @@
  * All Rights Reserved
  */
 import { describe, expect, test, vi } from "vitest";
-import { registerFilterOp, applyFilter } from "@workglow/tasks";
+import {
+  registerFilterOp,
+  applyFilter,
+  hasFilterOp,
+  _resetFilterRegistryForTests,
+} from "@workglow/tasks";
 import { CpuImage, type GpuImage } from "@workglow/util/media";
 
 describe("applyFilter", () => {
@@ -42,7 +47,21 @@ describe("applyFilter", () => {
       channels: 4,
     }) as unknown as GpuImage;
     expect(() => applyFilter(img, "__nonexistent__", undefined)).toThrow(
-      /No "cpu" implementation registered for filter "__nonexistent__"/,
+      /applyFilter\("__nonexistent__"\) on backend "cpu": no implementation registered/,
     );
+  });
+});
+
+describe("hasFilterOp", () => {
+  test("returns false when no op registered for (backend, filter)", () => {
+    _resetFilterRegistryForTests();
+    expect(hasFilterOp("webgpu", "__nope__")).toBe(false);
+  });
+
+  test("returns true after registerFilterOp for that key", () => {
+    _resetFilterRegistryForTests();
+    registerFilterOp<undefined>("webgpu", "__yes__", (img) => img);
+    expect(hasFilterOp("webgpu", "__yes__")).toBe(true);
+    expect(hasFilterOp("cpu", "__yes__")).toBe(false);
   });
 });

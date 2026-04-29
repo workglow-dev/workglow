@@ -21,7 +21,12 @@ export * from "./task/DelayTask";
 export * from "./task/FetchUrlTask";
 export * from "./task/HumanApprovalTask";
 export * from "./task/HumanInputTask";
-export { registerFilterOp, applyFilter, _resetFilterRegistryForTests } from "./task/image/imageOp";
+export {
+  registerFilterOp,
+  applyFilter,
+  hasFilterOp,
+  _resetFilterRegistryForTests,
+} from "./task/image/imageOp";
 export type { FilterOpFn } from "./task/image/imageOp";
 export { ImageFilterTask } from "./task/image/ImageFilterTask";
 export type { ImageFilterInput, ImageFilterOutput } from "./task/image/ImageFilterTask";

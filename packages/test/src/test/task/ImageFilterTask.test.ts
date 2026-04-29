@@ -329,3 +329,87 @@ describe("ImageFilterTask refcount behavior", () => {
     ).rejects.toThrow(/WeirdShape.*foo.*bar/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Backend fallback: when the input's backend has no registered arm for the
+// requested filter, ImageFilterTask.execute materializes to CpuImage and
+// dispatches the cpu arm. Uses a unique filter name so it doesn't conflict
+// with any codec-registered ops, avoiding the need to reset the registry.
+// ---------------------------------------------------------------------------
+describe("ImageFilterTask execute fallback", () => {
+  class FakeFilterTask extends ImageFilterTask<undefined> {
+    static override readonly type = "FakeFilterTask";
+    static override readonly category = "Test";
+    static override readonly cacheable = false;
+    static override inputSchema(): DataPortSchema {
+      return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as const satisfies DataPortSchema;
+    }
+    static override outputSchema(): DataPortSchema {
+      return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as const satisfies DataPortSchema;
+    }
+    protected readonly filterName = "fake_filter_for_fallback_test";
+    protected opParams() { return undefined; }
+  }
+
+  test("execute falls back to cpu when image's backend has no registered arm", async () => {
+    let cpuRan = false;
+    registerFilterOp<undefined>("cpu", "fake_filter_for_fallback_test", (img) => {
+      cpuRan = true;
+      return img;
+    });
+
+    const bin = { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4 as const };
+    let releasedSource = false;
+    const stub = {
+      backend: "webgpu" as const,
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+      materialize: async () => bin,
+      retain() { return this; },
+      release() { releasedSource = true; },
+      toCanvas: async () => { throw new Error("unused"); },
+      encode: async () => { throw new Error("unused"); },
+    };
+
+    const task = new FakeFilterTask({ id: "t1" });
+    const out = await task.execute(
+      { image: stub as never },
+      { resourceScope: undefined } as never,
+    );
+
+    expect(cpuRan).toBe(true);
+    expect(releasedSource).toBe(true);
+    expect(out!.image).toBeDefined();
+  });
+
+  test("executePreview falls back AFTER previewSource so over-budget images still downscale", async () => {
+    registerFilterOp<undefined>("cpu", "fake_filter_for_preview_fallback", (img) => img);
+
+    const bin = { data: new Uint8ClampedArray([10, 20, 30, 255]), width: 1, height: 1, channels: 4 as const };
+    let materializeCalls = 0;
+    const stub = {
+      backend: "webgpu" as const,
+      width: 1, height: 1, channels: 4 as const,
+      materialize: async () => { materializeCalls++; return bin; },
+      retain() { return this; },
+      release() {},
+      toCanvas: async () => { throw new Error("unused"); },
+      encode: async () => { throw new Error("unused"); },
+    };
+
+    class FakePreviewTask extends ImageFilterTask<undefined> {
+      static override readonly type = "FakePreviewTask";
+      protected readonly filterName = "fake_filter_for_preview_fallback";
+      protected opParams() { return undefined; }
+      static override inputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+      static override outputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+    }
+
+    const task = new FakePreviewTask({ id: "p1" });
+    const out = await task.executePreview({ image: stub as never }, {} as never);
+    expect(out!.image).toBeDefined();
+    // 1 materialize from the fallback (input is small, previewSource is a no-op).
+    expect(materializeCalls).toBe(1);
+  });
+});

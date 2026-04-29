@@ -26,11 +26,16 @@ export function applyFilter<P>(image: GpuImage, filter: string, params: P): GpuI
   const fn = registry.get(key(image.backend, filter));
   if (!fn) {
     throw new Error(
-      `No "${image.backend}" implementation registered for filter "${filter}". ` +
+      `applyFilter("${filter}") on backend "${image.backend}": no implementation registered. ` +
+        `Task-layer fallback should have routed this to "cpu" first; this means even the cpu arm is missing. ` +
         `Ensure the codec side-effect entry is imported via \`import "@workglow/tasks/codec"\`.`,
     );
   }
   return fn(image, params);
+}
+
+export function hasFilterOp(backend: GpuImageBackend, filter: string): boolean {
+  return registry.has(key(backend, filter));
 }
 
 /** @internal — test affordance only. */

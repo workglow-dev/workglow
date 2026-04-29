@@ -9,8 +9,8 @@ import {
   type IExecutePreviewContext,
   type TaskConfig,
 } from "@workglow/task-graph";
-import { type GpuImage, GpuImageFactory, getGpuImageFactory, previewSource } from "@workglow/util/media";
-import { applyFilter } from "./imageOp";
+import { type GpuImage, GpuImageFactory, getGpuImageFactory, previewSource, CpuImage } from "@workglow/util/media";
+import { applyFilter, hasFilterOp } from "./imageOp";
 
 export interface ImageFilterInput { image: GpuImage; }
 export interface ImageFilterOutput { image: GpuImage; }
@@ -107,7 +107,19 @@ export abstract class ImageFilterTask<
   }
 
   override async execute(input: Input, ctx: IExecuteContext): Promise<Output | undefined> {
-    const inputImage = await this.hydrateInput(input.image);
+    let inputImage = await this.hydrateInput(input.image);
+    // Fallback pre-flight: if the input image's backend has no registered op for
+    // this filter (e.g., a WebGpuImage for a filter whose WGSL hasn't been
+    // written yet), materialize to CPU and dispatch the cpu arm instead. This
+    // releases the original GPU/Sharp ref and swaps in a fresh CpuImage; the
+    // final inputImage.release() below remains correct because CpuImage's
+    // retain/release are no-ops.
+    if (!hasFilterOp(inputImage.backend, this.filterName)) {
+      const bin = await inputImage.materialize();
+      const cpu = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
+      inputImage.release();
+      inputImage = cpu;
+    }
     // If applyFilter throws, this task's ref of inputImage is leaked until
     // FinalizationRegistry catches it. The leak is bounded — upstream tasks'
     // resourceScope disposers cover the input via their own output registration.
@@ -139,7 +151,15 @@ export abstract class ImageFilterTask<
     // Scale-then-effect: the first filter in a chain pays a single resize when
     // the input is over the preview budget. Downstream filters see already-small
     // images and previewSource is a no-op (returns the input unchanged).
-    const sourced = previewSource(inputImage);
+    let sourced = previewSource(inputImage);
+    // Fallback runs AFTER previewSource so a missing webgpu arm doesn't defeat
+    // the preview budget by materializing a full-resolution image.
+    if (!hasFilterOp(sourced.backend, this.filterName)) {
+      const bin = await sourced.materialize();
+      const cpu = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
+      if (sourced !== inputImage) sourced.release();
+      sourced = cpu;
+    }
     const out = applyFilter(sourced, this.filterName, this.opParams(input));
     // Release the resize transient when one was created; not the original input
     // (the builder's useGpuImage hook holds a ref through display, and other
