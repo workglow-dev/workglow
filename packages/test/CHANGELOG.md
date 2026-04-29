@@ -1,5 +1,13 @@
 # @workglow/test
 
+## 0.2.19
+
+### Features
+
+#### task-graph
+
+- introduce runWithPreviews flag for subgraph execution
+
 ## 0.2.18
 
 ### Features
