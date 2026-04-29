@@ -123,6 +123,12 @@ export class TaskGraphRunner {
    */
   protected accumulateLeafOutputs: boolean = true;
   /**
+   * When true, refcountable task outputs keep an extra "display retain" so
+   * they remain readable on `task.runOutputData` after the run completes.
+   * See {@link TaskGraphRunConfig.runWithPreviews}.
+   */
+  protected runWithPreviews: boolean = false;
+  /**
    * Service registry for this graph run
    */
   protected registry: ServiceRegistry = globalServiceRegistry;
@@ -559,10 +565,17 @@ export class TaskGraphRunner {
   protected async pushOutputFromNodeToEdges(node: ITask, results: TaskOutput) {
     const dataflows = this.graph.getTargetDataflows(node.id);
 
-    // Fanout retain: count consumers per source port. For any port whose
-    // value is refcountable AND has > 1 consumer, retain(count - 1) so each
-    // downstream release() decrements correctly. Without this, the first
-    // consumer's release() would reclaim resources still in use elsewhere.
+    // Fanout retain: count consumers per source port. For any refcountable
+    // value, retain enough so each downstream release() decrements correctly.
+    //
+    //   - default (runWithPreviews=false): retain(count - 1). The initial
+    //     refcount of 1 is consumed by the first consumer's release(); the
+    //     rest balance out one-for-one. Refcount hits 0 after the last
+    //     consumer (texture reclaimed).
+    //   - runWithPreviews=true: retain(count). Leaves the initial 1 intact
+    //     as a "display retain" held by `runOutputData`, so the value
+    //     survives all consumer releases. Refcount lands at 1 after the
+    //     last consumer; resetTask releases it on the next run.
     if (Object.keys(results).length > 0) {
       const consumerCounts = new Map<string, number>();
       for (const dataflow of dataflows) {
@@ -571,10 +584,11 @@ export class TaskGraphRunner {
         consumerCounts.set(port, (consumerCounts.get(port) ?? 0) + 1);
       }
       for (const [port, count] of consumerCounts) {
-        if (count <= 1) continue;
+        const extra = this.runWithPreviews ? count : count - 1;
+        if (extra <= 0) continue;
         const value = results[port];
         const ref = asRefcountable(value);
-        if (ref) ref.retain(count - 1);
+        if (ref) ref.retain(extra);
       }
     }
 
@@ -883,6 +897,7 @@ export class TaskGraphRunner {
         await this.handleProgress(task, progress, message, ...args),
       registry: this.registry,
       resourceScope: this.resourceScope,
+      runWithPreviews: this.runWithPreviews,
     });
 
     await this.pushOutputFromNodeToEdges(task, results);
@@ -972,6 +987,7 @@ export class TaskGraphRunner {
           await this.handleProgress(task, progress, message, ...args),
         registry: this.registry,
         resourceScope: this.resourceScope,
+        runWithPreviews: this.runWithPreviews,
       });
 
       await this.pushOutputFromNodeToEdges(task, results);
@@ -1084,6 +1100,25 @@ export class TaskGraphRunner {
    * @param runId The run ID
    */
   protected resetTask(graph: TaskGraph, task: ITask, runId: string) {
+    // Release any "display retains" added by the previous run's
+    // pushOutputFromNodeToEdges when runWithPreviews was true. The runner
+    // doesn't track per-run retains separately, so we always attempt the
+    // release here — for already-released values (the runWithPreviews=false
+    // path) the throw is swallowed; for no-op refcountables (CpuImage,
+    // SharpImage) it's harmless. This balances exactly one retain per
+    // refcountable port that runWithPreviews=true added.
+    const previous = task.runOutputData;
+    if (previous) {
+      for (const port of Object.keys(previous)) {
+        const ref = asRefcountable((previous as Record<string, unknown>)[port]);
+        if (!ref) continue;
+        try {
+          ref.release();
+        } catch {
+          // already released elsewhere (runWithPreviews=false path) — fine
+        }
+      }
+    }
     task.status = TaskStatus.PENDING;
     task.resetInputData();
     task.runOutputData = {};
@@ -1130,6 +1165,7 @@ export class TaskGraphRunner {
     }
 
     this.accumulateLeafOutputs = config?.accumulateLeafOutputs !== false;
+    this.runWithPreviews = config?.runWithPreviews === true;
 
     if (config?.outputCache !== undefined) {
       if (typeof config.outputCache === "boolean") {
@@ -1269,6 +1305,12 @@ export class TaskGraphRunner {
     // Note: `timeout` is not enforced for preview runs. Preview execution is
     // event-driven with no single completion point, so a graph-level timeout
     // does not apply. Use per-task timeouts for individual task time limits.
+
+    // Preview already keeps intermediate outputs alive (filter tasks skip the
+    // input.release() they do in execute()), so the display retain that
+    // run mode needs is redundant here. Reset the flag so a prior full run
+    // with runWithPreviews=true doesn't bleed retain semantics into preview.
+    this.runWithPreviews = false;
 
     this.previewScheduler.reset();
     this.previewRunning = true;

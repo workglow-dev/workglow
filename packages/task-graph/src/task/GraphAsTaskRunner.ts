@@ -38,6 +38,7 @@ export class GraphAsTaskRunner<
       outputCache: this.outputCache,
       registry: this.registry,
       resourceScope: this.resourceScope,
+      runWithPreviews: this.runWithPreviews,
     });
     unsubscribe();
     return results;

@@ -623,6 +623,7 @@ export class Workflow<
         outputCache: this._outputCache,
         registry: config?.registry ?? this._registry,
         resourceScope: config?.resourceScope,
+        runWithPreviews: config?.runWithPreviews,
       });
       const results = this.graph.mergeExecuteOutputsToRunOutput<Output, typeof PROPERTY_ARRAY>(
         output,

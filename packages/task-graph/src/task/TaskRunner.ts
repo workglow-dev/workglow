@@ -159,6 +159,13 @@ export class TaskRunner<
   protected shouldAccumulate: boolean = true;
 
   /**
+   * Threaded down from `TaskGraphRunConfig.runWithPreviews` so subgraph
+   * runners (GraphAsTaskRunner) can forward the flag to nested
+   * `subGraph.run` calls. Read by handleStart from IRunConfig.
+   */
+  protected runWithPreviews: boolean = false;
+
+  /**
    * Active telemetry span for the current task run.
    */
   protected telemetrySpan?: ISpan;
@@ -608,6 +615,7 @@ export class TaskRunner<
 
     // shouldAccumulate defaults to true (backward-compatible for standalone runs)
     this.shouldAccumulate = config.shouldAccumulate !== false;
+    this.runWithPreviews = config.runWithPreviews === true;
 
     if (config.updateProgress) {
       this.updateProgress = config.updateProgress;

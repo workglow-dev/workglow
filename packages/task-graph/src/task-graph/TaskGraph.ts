@@ -73,6 +73,18 @@ export interface TaskGraphRunConfig {
    * Threaded to all tasks via IExecuteContext. The caller controls disposal.
    */
   resourceScope?: ResourceScope;
+  /**
+   * When true, refcountable task outputs (e.g. WebGpuImage) keep an extra
+   * "display retain" so they survive consumer `release()` calls and remain
+   * readable via `task.runOutputData` after the run completes. Lets UIs
+   * render preview canvases for intermediate task outputs without losing
+   * the underlying GPU texture mid-run. The display retain is released by
+   * `resetTask` on the next run (or graph reset).
+   *
+   * Default: false (memory-efficient; intermediate outputs are reclaimed
+   * as soon as their consumers are done with them).
+   */
+  runWithPreviews?: boolean;
 }
 
 export interface TaskGraphRunPreviewConfig extends Omit<
@@ -150,6 +162,7 @@ export class TaskGraph implements ITaskGraph {
       timeout: config?.timeout,
       maxTasks: config?.maxTasks,
       resourceScope: config?.resourceScope,
+      runWithPreviews: config?.runWithPreviews,
     });
   }
 

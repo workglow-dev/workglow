@@ -14,6 +14,8 @@ export interface WorkflowRunConfig {
   readonly registry?: ServiceRegistry;
   /** Resource scope for collecting heavyweight resource disposers. */
   readonly resourceScope?: ResourceScope;
+  /** See {@link TaskGraphRunConfig.runWithPreviews}. */
+  readonly runWithPreviews?: boolean;
 }
 
 export interface IWorkflow<
