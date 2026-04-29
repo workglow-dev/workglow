@@ -5,7 +5,7 @@
  */
 
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { createServiceToken, makeFingerprint, uuid4 } from "@workglow/util";
+import { createServiceToken, deepEqual, makeFingerprint, uuid4 } from "@workglow/util";
 import { PollingSubscriptionManager } from "../util/PollingSubscriptionManager";
 import {
   IQueueStorage,
@@ -843,7 +843,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
           const jobs = await this.getAllJobs();
           return new Map(jobs.map((j) => [j.id, j]));
         },
-        (a, b) => JSON.stringify(a) === JSON.stringify(b),
+        (a, b) => deepEqual(a, b),
         {
           insert: (item) => ({ type: "INSERT" as const, new: item }),
           update: (oldItem, newItem) => ({ type: "UPDATE" as const, old: oldItem, new: newItem }),
@@ -878,7 +878,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
           const old = lastKnownJobs.get(id);
           if (!old) {
             callback({ type: "INSERT", new: job });
-          } else if (JSON.stringify(old) !== JSON.stringify(job)) {
+          } else if (!deepEqual(old, job)) {
             callback({ type: "UPDATE", old, new: job });
           }
         }

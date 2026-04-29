@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createServiceToken, deepEqual, makeFingerprint, uuid4 } from "@workglow/util";
 import { DataPortSchemaObject, FromSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
-import { createServiceToken, makeFingerprint, uuid4 } from "@workglow/util";
 import { HybridSubscriptionManager } from "../util/HybridSubscriptionManager";
 import {
   ensureIndexedDbTable,
@@ -34,6 +34,30 @@ import {
 export const IDB_TABULAR_REPOSITORY = createServiceToken<AnyTabularStorage>(
   "storage.tabularRepository.indexedDb"
 );
+
+/**
+ * Polling change-detection comparator for the hybrid subscription manager.
+ *
+ * Naively comparing entities via serialized equality is correct but
+ * O(size-of-entity) per poll. That falls apart for tables
+ * holding large blobs — e.g. an `activities` row whose `output_data` carries
+ * a multi-megabyte `Uint8ClampedArray`: each poll cycle (default 1 s) would
+ * stringify ~16 MB per row × N rows, locking the main thread.
+ *
+ * Fast path: if both rows expose a string `updated_at`, compare just those.
+ * The repositories in this codebase bump `updated_at` on every write (see
+ * `ActivityRepository.updateActivity`), so the timestamp is a sufficient
+ * change witness. Fall back to the structural compare for tables that don't
+ * follow that convention so correctness is preserved everywhere.
+ */
+function compareEntitiesForChange<T>(a: T, b: T): boolean {
+  const au = (a as { updated_at?: unknown })?.updated_at;
+  const bu = (b as { updated_at?: unknown })?.updated_at;
+  if (typeof au === "string" && typeof bu === "string") {
+    return au === bu;
+  }
+  return deepEqual(a, b);
+}
 
 /**
  * A tabular repository implementation using IndexedDB for browser-based storage.
@@ -698,7 +722,7 @@ export class IndexedDbTabularStorage<
           }
           return map;
         },
-        (a, b) => JSON.stringify(a) === JSON.stringify(b),
+        compareEntitiesForChange,
         {
           insert: (item) => ({ type: "INSERT" as const, new: item }),
           update: (oldItem, newItem) => ({ type: "UPDATE" as const, old: oldItem, new: newItem }),

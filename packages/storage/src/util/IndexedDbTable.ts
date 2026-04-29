@@ -8,6 +8,8 @@
 // Handles schema evolution without data loss by incrementally migrating the database
 // structure and transforming existing data as needed.
 
+import { deepEqual } from "@workglow/util";
+
 export interface ExpectedIndexDefinition {
   name: string;
   keyPath: string | string[];
@@ -168,7 +170,7 @@ function compareSchemas(
     : expectedPrimaryKey;
   const normalizedActual = Array.isArray(actualKeyPath) ? actualKeyPath : actualKeyPath;
 
-  if (JSON.stringify(normalizedExpected) !== JSON.stringify(normalizedActual)) {
+  if (!deepEqual(normalizedExpected, normalizedActual)) {
     diff.primaryKeyChanged = true;
     diff.needsObjectStoreRecreation = true;
     return diff; // If primary key changed, we need full recreation
@@ -196,7 +198,7 @@ function compareSchemas(
         ? existingIdx.keyPath
         : [existingIdx.keyPath];
 
-      const keyPathChanged = JSON.stringify(expectedKeyPath) !== JSON.stringify(actualKeyPath);
+      const keyPathChanged = !deepEqual(expectedKeyPath, actualKeyPath);
       const uniqueChanged = existingIdx.unique !== (expectedIdx.options?.unique ?? false);
       const multiEntryChanged =
         existingIdx.multiEntry !== (expectedIdx.options?.multiEntry ?? false);
