@@ -13,6 +13,7 @@ import {
   setPreviewBudget,
   CpuImage,
   type GpuImage,
+  type GpuImageBackend,
 } from "@workglow/util/media";
 import {
   ImageFilterTask,
@@ -29,12 +30,12 @@ import type { DataPortSchema } from "@workglow/util/schema";
 // CountingImage — tracks retain/release for refcount assertions.
 // ---------------------------------------------------------------------------
 class CountingImage implements GpuImage {
-  backend: "cpu" | "webgpu" = "cpu";
+  backend: GpuImageBackend = "cpu";
   readonly width: number;
   readonly height: number;
   readonly channels = 4 as const;
   refs = 1;
-  constructor(w: number, h: number, backend: "cpu" | "webgpu" = "cpu") {
+  constructor(w: number, h: number, backend: GpuImageBackend = "cpu") {
     this.width = w;
     this.height = h;
     this.backend = backend;
@@ -254,5 +255,77 @@ describe("ImageFilterTask refcount behavior", () => {
 
     expect(resizeCalls).toBe(1);
     expect(filterCalls).toBe(3);
+  });
+
+  test("execute hydrates a raw ImageBinary input via the async factory before filtering", async () => {
+    let receivedBackend: string | undefined;
+    // Register for all backends that the async factory may produce:
+    // - "sharp" on node (fromImageBinaryAsync → SharpImage)
+    // - "webgpu" on browser with GPU, "cpu" on browser without GPU / fallback
+    const captureOp: FilterOpFn = (image) => {
+      receivedBackend = image.backend;
+      return new CountingImage(image.width, image.height, image.backend);
+    };
+    registerFilterOp("cpu", "test-filter", captureOp);
+    registerFilterOp("sharp", "test-filter", captureOp);
+    registerFilterOp("webgpu", "test-filter", captureOp);
+
+    // Plain ImageBinary shape — exactly what an unhydrated upstream produces.
+    const rawBinary = {
+      data: new Uint8ClampedArray(4),
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+    };
+
+    const task = new TestFilterTask({ id: "t1" });
+    await task.execute({ image: rawBinary as unknown as GpuImage }, makeContext());
+
+    // Hydration routes to the platform's preferred backend.
+    // On node: "sharp" (fromImageBinaryAsync → SharpImage).
+    // On browser with GPU: "webgpu". Without GPU or in fallback: "cpu".
+    expect(["cpu", "sharp", "webgpu"]).toContain(receivedBackend);
+  });
+
+  test("executePreview hydrates a raw ImageBinary input via the async factory before filtering", async () => {
+    let receivedBackend: string | undefined;
+    const captureOp: FilterOpFn = (image) => {
+      receivedBackend = image.backend;
+      return new CountingImage(image.width, image.height, image.backend);
+    };
+    registerFilterOp("cpu", "test-filter", captureOp);
+    registerFilterOp("sharp", "test-filter", captureOp);
+    registerFilterOp("webgpu", "test-filter", captureOp);
+
+    const rawBinary = {
+      data: new Uint8ClampedArray(4),
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+    };
+
+    const task = new TestFilterTask({ id: "t1" });
+    await task.executePreview({ image: rawBinary as unknown as GpuImage }, previewCtx);
+
+    expect(["cpu", "sharp", "webgpu"]).toContain(receivedBackend);
+  });
+
+  test("hydrateInput throws on values that are neither GpuImage nor ImageBinary", async () => {
+    registerFilterOp("cpu", "test-filter", (image) => new CountingImage(image.width, image.height));
+
+    const task = new TestFilterTask({ id: "t1" });
+    await expect(
+      task.execute({ image: "not an image" as unknown as GpuImage }, makeContext()),
+    ).rejects.toThrow(/ImageBinary/);
+  });
+
+  test("hydrateInput throws with constructor name and keys for unrecognized shapes", async () => {
+    registerFilterOp("cpu", "test-filter", (image) => new CountingImage(image.width, image.height));
+
+    const task = new TestFilterTask({ id: "t1" });
+    class WeirdShape { foo = 1; bar = 2; }
+    await expect(
+      task.execute({ image: new WeirdShape() as unknown as GpuImage }, makeContext()),
+    ).rejects.toThrow(/WeirdShape.*foo.*bar/);
   });
 });

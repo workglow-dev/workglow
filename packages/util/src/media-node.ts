@@ -9,7 +9,7 @@ export * from "./media/color";
 export * from "./media/imageRasterCodecRegistry";
 export * from "./media/MediaRawImage";
 export type { GpuImage, GpuImageBackend, GpuImageEncodeFormat, GpuImageStatic } from "./media/gpuImage";
-export { GpuImage as GpuImageFactory, registerGpuImageFactory } from "./media/gpuImage";
+export { GpuImage as GpuImageFactory, registerGpuImageFactory, getGpuImageFactory } from "./media/gpuImage";
 export { GpuImageSchema } from "./media/gpuImageSchema";
 export { CpuImage } from "./media/cpuImage";
 export { encodeImageBinaryToPng, imageBinaryToBase64Png, imageBinaryToDataUri, imageBinaryToBlob } from "./media/encode";
@@ -30,6 +30,8 @@ import "./media/imageCacheCodec";
 import { SharpImage as _SharpImage } from "./media/sharpImage.node";
 import { getImageRasterCodec as _getImageRasterCodec } from "./media/imageRasterCodecRegistry";
 import { registerGpuImageFactory as _registerGpuImageFactory } from "./media/gpuImage";
+
+_registerGpuImageFactory("fromImageBinaryAsync", (bin) => _SharpImage.fromImageBinary(bin));
 
 _registerGpuImageFactory("fromDataUri", async (dataUri: string) => {
   const bin = await _getImageRasterCodec().decodeDataUri(dataUri);

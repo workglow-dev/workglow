@@ -32,6 +32,7 @@ export interface GpuImage {
 
 export interface GpuImageStatic {
   fromImageBinary(bin: ImageBinary): GpuImage;
+  fromImageBinaryAsync?(bin: ImageBinary): Promise<GpuImage>;
   fromDataUri(dataUri: string): Promise<GpuImage>;
   fromBlob(blob: Blob): Promise<GpuImage>;
   fromImageBitmap?(bitmap: ImageBitmap): Promise<GpuImage>;
@@ -53,6 +54,18 @@ export function registerGpuImageFactory<K extends keyof GpuImageStatic>(
   fn: GpuImageStatic[K],
 ): void {
   factory[key] = fn;
+}
+
+/**
+ * Returns the registered factory function for `key`, or `undefined` if it
+ * has not been registered. Prefer this over accessing `GpuImage[key]` directly
+ * when the factory is optional — the Proxy throws on missing registrations.
+ */
+export function getGpuImageFactory<K extends keyof GpuImageStatic>(
+  key: K,
+): GpuImageStatic[K] | undefined {
+  const fn = factory[key];
+  return typeof fn === "function" ? (fn as GpuImageStatic[K]) : undefined;
 }
 
 export const GpuImage: GpuImageStatic = new Proxy({} as GpuImageStatic, {
