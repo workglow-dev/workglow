@@ -8,13 +8,14 @@ import { registerFilterOp } from "../imageOp";
 import type { RotateParams } from "./rotate.cpu";
 
 registerFilterOp<RotateParams>("webgpu", "rotate", (image, { angle }) => {
-  const gpu = image as WebGpuImage;
+  const w = (image as WebGpuImage).width;
+  const h = (image as WebGpuImage).height;
   const swap = angle === 90 || angle === 270;
-  const outW = swap ? gpu.height : gpu.width;
-  const outH = swap ? gpu.width : gpu.height;
-  return gpu.apply({
+  const buf = new ArrayBuffer(16);
+  new Uint32Array(buf, 0, 1)[0] = angle;
+  return (image as WebGpuImage).apply({
     shader: "rotate",
-    uniforms: new Float32Array([angle, 0, 0, 0]).buffer,
-    outSize: { width: outW, height: outH },
+    uniforms: buf,
+    outSize: { width: swap ? h : w, height: swap ? w : h },
   });
 });

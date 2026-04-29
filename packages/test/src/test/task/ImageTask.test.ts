@@ -253,26 +253,37 @@ describe("ImageTask", () => {
   });
 
   describe("ImageGrayscaleTask", () => {
-    test("converts RGB to grayscale", async () => {
+    test("converts RGB to 4-channel grayscale with replicated luma", async () => {
       const bin = createTestImage(2, 2, 3, [255, 0, 0]); // pure red
       const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
       const task = new ImageGrayscaleTask();
       const result = (await task.run({ image })) as { image: GpuImage };
       const out = await result.image.materialize();
-      expect(out.channels).toBe(1);
-      expect(out.data.length).toBe(4);
-      // Red luminance: (255*77) >> 8 = 76
-      expect(out.data[0]).toBe(76);
+      expect(out.channels).toBe(4);
+      expect(out.data.length).toBe(2 * 2 * 4);
+      // Red luminance: (255*77) >> 8 = 76; alpha defaults to 255 for RGB input.
+      expect(getPixel(out, 0, 0)).toEqual([76, 76, 76, 255]);
     });
 
-    test("passes through 1-channel image", async () => {
+    test("expands 1-channel image to 4-channel grayscale with full alpha", async () => {
       const bin = createTestImage(2, 2, 1, [128]);
       const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
       const task = new ImageGrayscaleTask();
       const result = (await task.run({ image })) as { image: GpuImage };
       const out = await result.image.materialize();
-      expect(out.channels).toBe(1);
-      expect(out.data[0]).toBe(128);
+      expect(out.channels).toBe(4);
+      expect(getPixel(out, 0, 0)).toEqual([128, 128, 128, 255]);
+    });
+
+    test("preserves alpha channel from RGBA input", async () => {
+      const bin = createTestImage(1, 1, 4, [200, 100, 50, 42]);
+      const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
+      const task = new ImageGrayscaleTask();
+      const result = (await task.run({ image })) as { image: GpuImage };
+      const out = await result.image.materialize();
+      // (200*77 + 100*150 + 50*29) >> 8 = 124
+      expect(out.channels).toBe(4);
+      expect(getPixel(out, 0, 0)).toEqual([124, 124, 124, 42]);
     });
   });
 

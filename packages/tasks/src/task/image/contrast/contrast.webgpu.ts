@@ -7,6 +7,8 @@ import { WebGpuImage } from "@workglow/util/media";
 import { registerFilterOp } from "../imageOp";
 import type { ContrastParams } from "./contrast.cpu";
 
-registerFilterOp<ContrastParams>("webgpu", "contrast", (image, _params) => {
-  return (image as WebGpuImage).apply({ shader: "contrast", uniforms: undefined });
+registerFilterOp<ContrastParams>("webgpu", "contrast", (image, { amount }) => {
+  const buf = new ArrayBuffer(16); // std140 alignment: scalar in 16-byte slot
+  new Float32Array(buf, 0, 1)[0] = amount;
+  return (image as WebGpuImage).apply({ shader: "contrast", uniforms: buf });
 });
