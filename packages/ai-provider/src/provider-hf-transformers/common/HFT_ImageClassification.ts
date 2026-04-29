@@ -13,6 +13,8 @@ import type {
   ImageClassificationTaskInput,
   ImageClassificationTaskOutput,
 } from "@workglow/ai";
+import type { ImageBinary } from "@workglow/util/media";
+import { imageBinaryToBlob } from "@workglow/util/media";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline } from "./HFT_Pipeline";
 
@@ -36,8 +38,9 @@ export const HFT_ImageClassification: AiProviderRunFn<
       {},
       signal
     );
+    const imageArg = await imageBinaryToBlob(input.image as unknown as ImageBinary);
     const result = await zeroShotClassifier(
-      input.image as string,
+      imageArg,
       input.categories! as string[],
       {}
     );
@@ -53,7 +56,8 @@ export const HFT_ImageClassification: AiProviderRunFn<
   }
 
   const classifier: ImageClassificationPipeline = await getPipeline(model!, onProgress, {}, signal);
-  const result = await classifier(input.image as string, {
+  const imageArg = await imageBinaryToBlob(input.image as unknown as ImageBinary);
+  const result = await classifier(imageArg, {
     top_k: input.maxCategories,
   });
 

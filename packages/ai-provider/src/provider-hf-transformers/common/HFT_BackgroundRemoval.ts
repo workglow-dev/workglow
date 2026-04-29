@@ -10,6 +10,8 @@ import type {
   BackgroundRemovalTaskInput,
   BackgroundRemovalTaskOutput,
 } from "@workglow/ai";
+import type { ImageBinary } from "@workglow/util/media";
+import { imageBinaryToBlob } from "@workglow/util/media";
 import { imageToBase64 } from "./HFT_ImageHelpers";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { getPipeline } from "./HFT_Pipeline";
@@ -23,8 +25,8 @@ export const HFT_BackgroundRemoval: AiProviderRunFn<
   HfTransformersOnnxModelConfig
 > = async (input, model, onProgress, signal) => {
   const remover: BackgroundRemovalPipeline = await getPipeline(model!, onProgress, {}, signal);
-
-  const result = await remover(input.image as string);
+  const imageArg = await imageBinaryToBlob(input.image as unknown as ImageBinary);
+  const result = await remover(imageArg);
 
   const resultImage = Array.isArray(result) ? result[0] : result;
 

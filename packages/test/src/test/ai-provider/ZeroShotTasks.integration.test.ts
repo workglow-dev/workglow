@@ -4,6 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Side-effect: registers the image raster codec so the format:"image" input
+// resolver can hydrate data URI strings (passed below as TEST_IMAGE_BASE64)
+// to GpuImage before the vision tasks see them.
+import "@workglow/tasks";
+
 import {
   AiJob,
   getGlobalModelRepository,
@@ -148,7 +153,7 @@ describe("Zero-Shot Classification Tasks", () => {
       await server.start();
 
       const result = await imageClassification({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
         maxCategories: 3,
       });
@@ -205,7 +210,7 @@ describe("Zero-Shot Classification Tasks", () => {
       await server.start();
 
       const result = await imageClassification({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
         categories: ["cat", "dog", "bird", "car"],
       });
@@ -272,7 +277,7 @@ describe("Zero-Shot Classification Tasks", () => {
       await server.start();
 
       const result = await objectDetection({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
         labels: ["person", "car", "dog"],
         threshold: 0.1,

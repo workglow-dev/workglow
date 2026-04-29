@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { AiProviderRunFn } from "@workglow/ai";
+import type { TFMPModelConfig } from "./TFMP_ModelSchema";
 import { TFMP_ModelSearch } from "./TFMP_ModelSearch";
 
 import { TFMP_Download } from "./TFMP_Download";
@@ -24,7 +26,7 @@ import { TFMP_Unload } from "./TFMP_Unload";
 
 export { loadTfmpTasksTextSDK, loadTfmpTasksVisionSDK } from "./TFMP_Client";
 
-export const TFMP_TASKS = {
+export const TFMP_TASKS: Record<string, AiProviderRunFn<any, any, TFMPModelConfig>> = {
   DownloadModelTask: TFMP_Download,
   UnloadModelTask: TFMP_Unload,
   ModelInfoTask: TFMP_ModelInfo,
@@ -41,4 +43,4 @@ export const TFMP_TASKS = {
   FaceLandmarkerTask: TFMP_FaceLandmarker,
   PoseLandmarkerTask: TFMP_PoseLandmarker,
   ModelSearchTask: TFMP_ModelSearch,
-} as const;
+};

@@ -166,6 +166,13 @@ export class Container {
 }
 
 /**
- * Global container instance
+ * Global container instance — shared across all bundle copies of this module
+ * via a Symbol.for key so that split entry points (e.g. @workglow/util/media)
+ * resolve to the same DI registry as @workglow/util.
  */
-export const globalContainer = new Container();
+const GLOBAL_CONTAINER_KEY = Symbol.for("@workglow/util/di/globalContainer");
+const _g = globalThis as Record<symbol, unknown>;
+if (!_g[GLOBAL_CONTAINER_KEY]) {
+  _g[GLOBAL_CONTAINER_KEY] = new Container();
+}
+export const globalContainer = _g[GLOBAL_CONTAINER_KEY] as Container;

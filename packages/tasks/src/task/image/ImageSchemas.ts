@@ -4,83 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ColorObject, ImageBinary } from "@workglow/util/media";
+import type { ColorObject } from "@workglow/util/media";
 import type { JsonSchema } from "@workglow/util/schema";
 import { FromSchema, FromSchemaDefaultOptions, FromSchemaOptions } from "@workglow/util/schema";
-
-// Type-only value for use in deserialize patterns
-const ImageBinaryType = null as any as ImageBinary;
-
-export const ImageBinarySchemaOptions = {
-  ...FromSchemaDefaultOptions,
-  deserialize: [
-    {
-      pattern: { type: "object", format: "image:ImageBinary" },
-      output: ImageBinaryType,
-    },
-  ],
-} as const satisfies FromSchemaOptions;
-
-export type ImageBinarySchemaOptions = typeof ImageBinarySchemaOptions;
-
-export type ImageFromSchema<SCHEMA extends JsonSchema> = FromSchema<
-  SCHEMA,
-  ImageBinarySchemaOptions
->;
-
-export const ImageBinarySchema = (annotations: Record<string, unknown> = {}) =>
-  ({
-    type: "object",
-    properties: {
-      data: {
-        type: "array",
-        items: { type: "number", format: "Uint8Clamped" },
-        format: "Uint8ClampedArray",
-        title: "Data",
-        description: "Pixel data of the image",
-      },
-      width: {
-        type: "integer",
-        minimum: 1,
-        title: "Width",
-        description: "Width in pixels",
-      },
-      height: {
-        type: "integer",
-        minimum: 1,
-        title: "Height",
-        description: "Height in pixels",
-      },
-      channels: {
-        type: "integer",
-        enum: [1, 3, 4],
-        title: "Channels",
-        description: "1 (gray), 3 (RGB), or 4 (RGBA)",
-      },
-    },
-    additionalProperties: false,
-    required: ["data", "width", "height", "channels"],
-    format: "image:ImageBinary",
-    title: "Image",
-    description: "Raw pixel image data",
-    ...annotations,
-  }) as const;
-
-/** Accept {@link ImageBinary} or a `data:image/...;base64,...` URI; output matches the input form. */
-export const ImageBinaryOrDataUriSchema = (annotations: Record<string, unknown> = {}) =>
-  ({
-    oneOf: [
-      ImageBinarySchema(annotations),
-      {
-        type: "string",
-        format: "image:data-uri",
-        title: (annotations.title as string | undefined) ?? "Image",
-        description:
-          (annotations.description as string | undefined) ??
-          "Image as ImageBinary or data URI (data:image/png;base64,...)",
-      },
-    ],
-  }) as const;
 
 export const ColorSchema = (annotations: Record<string, unknown> = {}) =>
   ({

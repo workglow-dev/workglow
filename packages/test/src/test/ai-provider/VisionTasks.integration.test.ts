@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// Side-effect: registers the image raster codec for AiVisionTask image decoding.
+// Side-effect: registers the image raster codec, GpuImage factory, and image
+// input resolver so AiVisionTask can hydrate data URIs to GpuImage.
 import "@workglow/tasks";
 
 import {
@@ -66,7 +67,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       await getGlobalModelRepository().addModel(model);
 
       const result = await imageSegmentation({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
       });
 
@@ -100,7 +101,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       await getGlobalModelRepository().addModel(model);
 
       const result = await imageClassification({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
         maxCategories: 5,
       });
@@ -132,7 +133,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       await getGlobalModelRepository().addModel(model);
 
       const result = await imageClassification({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
         categories: ["cat", "dog", "bird"],
       });
@@ -163,7 +164,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       await getGlobalModelRepository().addModel(model);
 
       const result = await imageEmbedding({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
       });
 
@@ -192,7 +193,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       const images = [TEST_IMAGE_BASE64, TEST_IMAGE_BASE64];
 
       const result = await imageEmbedding({
-        image: images,
+        image: images as never,
         model: "onnx:Xenova/clip-vit-base-patch32:q8",
       });
 
@@ -227,7 +228,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       await getGlobalModelRepository().addModel(model);
 
       const result = await objectDetection({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
         threshold: 0.5,
       });
@@ -257,7 +258,7 @@ describe("Vision Tasks - HuggingFace Transformers", () => {
       await getGlobalModelRepository().addModel(model);
 
       const result = await imageToText({
-        image: TEST_IMAGE_BASE64,
+        image: TEST_IMAGE_BASE64 as never,
         model: model.model_id,
         maxTokens: 50,
       });

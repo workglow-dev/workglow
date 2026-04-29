@@ -313,6 +313,9 @@
         "@sroussey/json-schema-library": "^11.4.0",
         "@sroussey/json-schema-to-ts": "3.1.4",
       },
+      "optionalDependencies": {
+        "sharp": "^0.34.5",
+      },
     },
     "packages/workglow": {
       "name": "workglow",
