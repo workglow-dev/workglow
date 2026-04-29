@@ -81,83 +81,14 @@ export function TypeSingleOrArray<const T extends DataPortSchemaNonBoolean>(type
 export type ImageSource = ImageBitmap | OffscreenCanvas | VideoFrame;
 
 /**
- * Image input schema supporting URIs and base64-encoded images in multiple formats
+ * Image input schema — hydrated to GpuImage by the runner via the image input resolver.
  */
 export const TypeImageInput = {
-  oneOf: [
-    {
-      type: "string",
-      title: "Image Data",
-      description: "Image as data-uri",
-      format: "image:data-uri",
-    },
-    {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        data: {
-          oneOf: [
-            {
-              type: "object",
-              format: "image:ImageBitmap",
-              title: "ImageBitmap",
-            },
-            {
-              type: "object",
-              format: "image:OffscreenCanvas",
-              title: "OffscreenCanvas",
-            },
-            {
-              type: "object",
-              format: "image:VideoFrame",
-              title: "VideoFrame",
-            },
-            {
-              type: "object",
-              properties: {
-                data: {
-                  type: "array",
-                  items: { type: "number", format: "Uint8Clamped" },
-                  format: "Uint8ClampedArray",
-                  title: "Data",
-                  description: "Data of the image",
-                },
-                width: { type: "number", title: "Width", description: "Width of the image" },
-                height: { type: "number", title: "Height", description: "Height of the image" },
-                channels: {
-                  type: "number",
-                  title: "Channels",
-                  description: "Channels of the image",
-                },
-                rawChannels: {
-                  type: "number",
-                  title: "Raw Channels",
-                  description: "Raw channels of the image",
-                },
-              },
-              additionalProperties: false,
-              required: ["data", "width", "height", "channels"],
-              format: "image:ImageBinary",
-              title: "ImageBinary",
-            },
-          ],
-        },
-        width: { type: "number", title: "Width", description: "Width of the image" },
-        height: { type: "number", title: "Height", description: "Height of the image" },
-        channels: {
-          type: "number",
-          title: "Channels",
-          description: "Channels of the image",
-          minimum: 1,
-          maximum: 4,
-        },
-      },
-      required: ["data", "width", "height", "channels"],
-    },
-  ],
+  type: "object",
+  properties: {},
   title: "Image",
+  description: "Image as data URI, Blob, ImageBitmap, ImageBinary, or GpuImage — hydrated to GpuImage by the runner",
   format: "image",
-  description: "Image as URL or base64-encoded data",
 } as const satisfies JsonSchema;
 
 /**

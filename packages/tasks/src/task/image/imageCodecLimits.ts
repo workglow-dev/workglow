@@ -28,13 +28,17 @@ export const MAX_INPUT_BYTES_NODE = 64 * 1024 * 1024;
 /**
  * Maximum raw byte size of an incoming data URI on the browser codec.
  *
- * The browser codec uses a stricter ceiling than {@link MAX_INPUT_BYTES_NODE}
- * because `createImageBitmap` eagerly decompresses before we can observe the
- * bitmap's dimensions. Bounding the compressed input is the primary defense;
- * the post-bitmap `assertWithinPixelBudget` check only avoids the subsequent
+ * `createImageBitmap` eagerly decompresses before we can observe the bitmap's
+ * dimensions, so bounding the compressed input is the primary defense — the
+ * post-bitmap `assertWithinPixelBudget` check only avoids the subsequent
  * canvas + ImageData allocations.
+ *
+ * Sized to fit a worst-case 4K PNG (3840×2160 RGBA = ~32 MiB raw, which a
+ * maximum-entropy lossless encode can approach byte-for-byte). Routine 4K
+ * photos sit at 10–20 MiB. Anything larger than this is either an 8K image
+ * or a malformed input and should be downscaled before upload.
  */
-export const MAX_INPUT_BYTES_BROWSER = 8 * 1024 * 1024;
+export const MAX_INPUT_BYTES_BROWSER = 32 * 1024 * 1024;
 
 /**
  * Mime types rejected at decode time because rasterization would silently lose

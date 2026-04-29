@@ -5,7 +5,7 @@
  */
 
 import { ImageBorderTask, ImageTextTask, ImageTintTask } from "@workglow/tasks";
-import type { ImageBinary } from "@workglow/util/media";
+import { CpuImage, type GpuImage, type ImageBinary } from "@workglow/util/media";
 import { describe, expect, it } from "vitest";
 
 function makeImage(width: number, height: number): ImageBinary {
@@ -21,16 +21,19 @@ function makeImage(width: number, height: number): ImageBinary {
   return { data, width, height, channels };
 }
 
-function assertSameImage(a: ImageBinary, b: ImageBinary): void {
-  expect(a.width).toBe(b.width);
-  expect(a.height).toBe(b.height);
-  expect(a.channels).toBe(b.channels);
-  expect(Array.from(a.data)).toEqual(Array.from(b.data));
+async function assertSameImage(a: GpuImage | ImageBinary, b: GpuImage | ImageBinary): Promise<void> {
+  const abin = "materialize" in a ? await (a as GpuImage).materialize() : a as ImageBinary;
+  const bbin = "materialize" in b ? await (b as GpuImage).materialize() : b as ImageBinary;
+  expect(abin.width).toBe(bbin.width);
+  expect(abin.height).toBe(bbin.height);
+  expect(abin.channels).toBe(bbin.channels);
+  expect(Array.from(abin.data)).toEqual(Array.from(bbin.data));
 }
 
 describe("ImageTintTask accepts both color wire forms", () => {
   it("produces identical pixels for hex and object color input", async () => {
-    const image = makeImage(4, 4);
+    const bin = makeImage(4, 4);
+    const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
     const objTask = new ImageTintTask();
     const hexTask = new ImageTintTask();
 
@@ -45,13 +48,14 @@ describe("ImageTintTask accepts both color wire forms", () => {
       amount: 0.5,
     });
 
-    assertSameImage(fromObject.image as ImageBinary, fromHex.image as ImageBinary);
+    await assertSameImage(fromObject.image as unknown as GpuImage, fromHex.image as unknown as GpuImage);
   });
 });
 
 describe("ImageBorderTask accepts both color wire forms", () => {
   it("produces identical pixels for hex and object color input", async () => {
-    const image = makeImage(6, 6);
+    const bin = makeImage(6, 6);
+    const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
     const objTask = new ImageBorderTask();
     const hexTask = new ImageBorderTask();
 
@@ -66,7 +70,7 @@ describe("ImageBorderTask accepts both color wire forms", () => {
       borderWidth: 1,
     });
 
-    assertSameImage(fromObject.image as ImageBinary, fromHex.image as ImageBinary);
+    await assertSameImage(fromObject.image as unknown as GpuImage, fromHex.image as unknown as GpuImage);
   });
 });
 
@@ -88,6 +92,6 @@ describe("ImageTextTask accepts both color wire forms", () => {
       height: 32,
     });
 
-    assertSameImage(fromObject.image as ImageBinary, fromHex.image as ImageBinary);
+    await assertSameImage(fromObject.image as unknown as ImageBinary, fromHex.image as unknown as ImageBinary);
   });
 });

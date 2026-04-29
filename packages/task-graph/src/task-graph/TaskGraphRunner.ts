@@ -16,6 +16,7 @@ import {
   SpanStatusCode,
   uuid4,
 } from "@workglow/util";
+import { asRefcountable } from "../refcountable";
 import { TASK_OUTPUT_REPOSITORY, TaskOutputRepository } from "../storage/TaskOutputRepository";
 import { ConditionalTask } from "../task/ConditionalTask";
 import type { IEntitlementEnforcer } from "../task/EntitlementEnforcer";
@@ -557,6 +558,26 @@ export class TaskGraphRunner {
    */
   protected async pushOutputFromNodeToEdges(node: ITask, results: TaskOutput) {
     const dataflows = this.graph.getTargetDataflows(node.id);
+
+    // Fanout retain: count consumers per source port. For any port whose
+    // value is refcountable AND has > 1 consumer, retain(count - 1) so each
+    // downstream release() decrements correctly. Without this, the first
+    // consumer's release() would reclaim resources still in use elsewhere.
+    if (Object.keys(results).length > 0) {
+      const consumerCounts = new Map<string, number>();
+      for (const dataflow of dataflows) {
+        if (dataflow.stream !== undefined) continue; // streams handle materialization separately
+        const port = dataflow.sourceTaskPortId;
+        consumerCounts.set(port, (consumerCounts.get(port) ?? 0) + 1);
+      }
+      for (const [port, count] of consumerCounts) {
+        if (count <= 1) continue;
+        const value = results[port];
+        const ref = asRefcountable(value);
+        if (ref) ref.retain(count - 1);
+      }
+    }
+
     for (const dataflow of dataflows) {
       // Edges with an active stream have their final value materialised by the
       // downstream task's awaitStreamInputs (which uses Dataflow.awaitStreamValue

@@ -12,6 +12,11 @@ export interface ColorObject {
 }
 
 const HEX_PATTERN = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const CSS_RGB_CHANNEL = "(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)";
+const CSS_RGB_ALPHA = "(?:0(?:\\.\\d+)?|1(?:\\.0+)?)";
+const CSS_RGB_PATTERN = new RegExp(
+  `^rgba?\\(\\s*(${CSS_RGB_CHANNEL})\\s*,\\s*(${CSS_RGB_CHANNEL})\\s*,\\s*(${CSS_RGB_CHANNEL})\\s*(?:,\\s*(${CSS_RGB_ALPHA}))?\\s*\\)$`
+);
 
 /**
  * Parse a `#RGB` / `#RGBA` / `#RRGGBB` / `#RRGGBBAA` hex color into a {@link ColorObject}.
@@ -100,15 +105,37 @@ export function isHexColor(value: unknown): value is string {
   return typeof value === "string" && HEX_PATTERN.test(value);
 }
 
+function parseCssRgbColor(value: string): ColorObject {
+  const match = CSS_RGB_PATTERN.exec(value);
+  if (!match) {
+    throw new Error(`Invalid CSS rgb color: ${String(value)}`);
+  }
+
+  const r = Number.parseInt(match[1] ?? "", 10);
+  const g = Number.parseInt(match[2] ?? "", 10);
+  const b = Number.parseInt(match[3] ?? "", 10);
+  const alpha = match[4] === undefined ? 1 : Number.parseFloat(match[4]);
+  assertChannel("r", r);
+  assertChannel("g", g);
+  assertChannel("b", b);
+  if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) {
+    throw new Error(`Color alpha out of range (0-1 number): ${match[4]}`);
+  }
+  return { r, g, b, a: Math.round(alpha * 255) };
+}
+
 /**
- * Normalize either wire form to a full {@link ColorObject}. Object inputs default
- * `a` to 255. Throws on anything that's neither a valid hex string nor a valid
- * color object.
+ * Normalize any accepted wire form to a full {@link ColorObject}. Object inputs
+ * default `a` to 255; CSS `rgb(...)` / `rgba(...)` strings use 0-1 alpha.
+ * Throws on anything that's not an accepted color value.
  */
 export function resolveColor(
   value: string | { r: number; g: number; b: number; a?: number }
 ): ColorObject {
-  if (typeof value === "string") return parseHexColor(value);
+  if (typeof value === "string") {
+    if (isHexColor(value)) return parseHexColor(value);
+    return parseCssRgbColor(value);
+  }
   if (!isColorObject(value)) {
     throw new Error(`Invalid color value: ${JSON.stringify(value)}`);
   }

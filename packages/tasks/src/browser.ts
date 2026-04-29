@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import "./task/image/registerImageRasterCodec.browser";
+import "./codec.browser";
 import "./task/image/registerImageTextRenderer.browser";
 
 export * from "./common";

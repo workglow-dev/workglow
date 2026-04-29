@@ -25,9 +25,18 @@ export * from "./task-graph/TransformTypes";
 export * from "./task-graph/transforms";
 export * from "./task-graph/autoConnect";
 
+export {
+  registerRefcountablePredicate,
+  asRefcountable,
+  _resetRefcountablePredicatesForTests,
+  type Refcountable,
+} from "./refcountable";
+
 export * from "./task";
 
 export * from "./storage/TaskGraphRepository";
 export * from "./storage/TaskGraphTabularRepository";
 export * from "./storage/TaskOutputRepository";
 export * from "./storage/TaskOutputTabularRepository";
+export { registerPortCodec, getPortCodec, _resetPortCodecsForTests } from "./storage/PortCodecRegistry";
+export type { PortCodec } from "./storage/PortCodecRegistry";

@@ -15,6 +15,11 @@ export interface InputResolverConfig {
   readonly registry: ServiceRegistry;
 }
 
+function isPlainObject(value: object): boolean {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 /**
  * Extracts the format string from a schema, handling oneOf/anyOf wrappers.
  */
@@ -164,6 +169,7 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
 
     // Phase 1: Resolve format-annotated string values
     const format = getSchemaFormat(propSchema);
+    let phase1Transformed = false;
     if (format) {
       let resolver = resolvers.get(format);
       if (!resolver) {
@@ -176,6 +182,7 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
         if (typeof value === "string") {
           value = await resolver(value, format, config.registry);
           resolved[key] = value;
+          phase1Transformed = true;
         }
         // Handle arrays - resolve string elements and pass through non-string elements unchanged
         else if (Array.isArray(value) && value.some((item) => typeof item === "string")) {
@@ -186,16 +193,32 @@ export async function resolveSchemaInputs<T extends Record<string, unknown>>(
           );
           value = results.filter((result) => result !== undefined);
           resolved[key] = value;
+          phase1Transformed = true;
         }
       }
     }
 
-    // Phase 2: Recurse into object values if the schema defines nested properties
+    // Phase 2: Recurse into object values if the schema defines nested properties.
+    // Skip class instances (non-plain objects like GpuImage) — recursing would
+    // spread them into plain records and lose prototype methods. Plain objects
+    // (including those returned by Phase 1 resolvers) still recurse so nested
+    // format annotations get a chance to resolve.
+    // Skip recursion when a format resolver owns the property AND Phase 1 did
+    // NOT transform the value — those plain objects are raw forms (e.g. ImageBinary
+    // for format:"image") that must pass through to the task as-is; spreading them
+    // loses reference identity. When Phase 1 DID transform (string → object), the
+    // resulting plain object still recurses so nested format annotations resolve.
+    const hasFormatResolver = format
+      ? !!(resolvers.get(format) ?? resolvers.get(getFormatPrefix(format)))
+      : false;
+    const skipPhase2 = hasFormatResolver && !phase1Transformed;
     if (
+      !skipPhase2 &&
       value !== null &&
       value !== undefined &&
       typeof value === "object" &&
-      !Array.isArray(value)
+      !Array.isArray(value) &&
+      isPlainObject(value)
     ) {
       const objectSchema = getObjectSchema(propSchema);
       if (objectSchema && !visited.has(objectSchema)) {

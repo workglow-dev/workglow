@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ColorSchema, ColorValueSchema, HexColorSchema } from "@workglow/tasks";
+import { ColorSchema, ColorValueSchema, CssRgbColorSchema, HexColorSchema } from "@workglow/tasks";
 import { compileSchema } from "@workglow/util/schema";
 import { describe, expect, it } from "vitest";
 
@@ -36,6 +36,25 @@ describe("HexColorSchema", () => {
   });
 });
 
+describe("CssRgbColorSchema", () => {
+  const schema = CssRgbColorSchema();
+
+  it("accepts rgb and rgba strings", () => {
+    expect(compileSchema(schema).validate("rgb(10, 20, 30)").valid).toBe(true);
+    expect(compileSchema(schema).validate("rgba(10, 20, 30, 0.25)").valid).toBe(true);
+  });
+
+  it("rejects non-rgb color strings", () => {
+    expect(compileSchema(schema).validate("#ff0000").valid).toBe(false);
+    expect(compileSchema(schema).validate("hsl(0, 100%, 50%)").valid).toBe(false);
+  });
+
+  it("rejects out-of-range rgb channels and alpha", () => {
+    expect(compileSchema(schema).validate("rgb(256, 0, 0)").valid).toBe(false);
+    expect(compileSchema(schema).validate("rgba(0, 0, 0, 1.5)").valid).toBe(false);
+  });
+});
+
 describe("ColorValueSchema", () => {
   const schema = ColorValueSchema();
 
@@ -51,6 +70,11 @@ describe("ColorValueSchema", () => {
     expect(validate(schema, "#ff0000").valid).toBe(true);
     expect(validate(schema, "#f00").valid).toBe(true);
     expect(validate(schema, "#ff000080").valid).toBe(true);
+  });
+
+  it("accepts a CSS rgb or rgba string", () => {
+    expect(validate(schema, "rgb(10, 20, 30)").valid).toBe(true);
+    expect(validate(schema, "rgba(10, 20, 30, 0.25)").valid).toBe(true);
   });
 
   it("rejects a hex string without leading #", () => {

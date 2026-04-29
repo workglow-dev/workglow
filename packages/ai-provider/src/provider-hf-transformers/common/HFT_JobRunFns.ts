@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AiProviderPreviewRunFn, AiProviderStreamFn } from "@workglow/ai";
+import type { AiProviderPreviewRunFn, AiProviderRunFn, AiProviderStreamFn } from "@workglow/ai";
 import type { HfTransformersOnnxModelConfig } from "./HFT_ModelSchema";
 import { HFT_ModelSearch } from "./HFT_ModelSearch";
 
@@ -40,7 +40,7 @@ import { HFT_Unload } from "./HFT_Unload";
  * Used by `@workglow/ai-provider/hf-transformers/runtime` (inline + worker registration) and custom worker scripts when the
  * actual run function implementations are needed (inline mode, worker server).
  */
-export const HFT_TASKS = {
+export const HFT_TASKS: Record<string, AiProviderRunFn<any, any, HfTransformersOnnxModelConfig>> = {
   AiChatTask: HFT_Chat,
   DownloadModelTask: HFT_Download,
   UnloadModelTask: HFT_Unload,
@@ -65,7 +65,7 @@ export const HFT_TASKS = {
   ToolCallingTask: HFT_ToolCalling,
   StructuredGenerationTask: HFT_StructuredGeneration,
   ModelSearchTask: HFT_ModelSearch,
-} as const;
+};
 
 /**
  * Streaming variants of HuggingFace Transformers task run functions.

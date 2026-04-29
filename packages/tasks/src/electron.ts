@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import "./task/image/registerImageRasterCodec.node";
+import "./codec.node";
 import "./task/image/registerImageTextRenderer.node";
 import "./util/SafeFetch.server";
 

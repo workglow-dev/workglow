@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import "./task/image/registerImageRasterCodec.node";
+import "./codec.node";
 import "./task/image/registerImageTextRenderer.node";
 // Install the DNS-resolving, connection-pinning SafeFetch implementation.
 // This side-effect import must happen before FetchUrlTask is used.

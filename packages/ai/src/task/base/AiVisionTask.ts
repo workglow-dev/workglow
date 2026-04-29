@@ -5,7 +5,7 @@
  */
 
 import type { TaskConfig, TaskOutput } from "@workglow/task-graph";
-import { Image, ImageDataSupport } from "@workglow/util/media";
+import type { GpuImage } from "@workglow/util/media";
 
 import { AiJobInput } from "../../job/AiJob";
 import type { ModelConfig } from "../../model/ModelSchema";
@@ -13,7 +13,8 @@ import { AiTask, AiTaskInput } from "./AiTask";
 
 /**
  * A base class for AI vision tasks.
- * Handles image format conversion based on the target provider's capabilities.
+ * Materializes GpuImage to raw pixels/bitmap at the worker boundary so the
+ * worker (which doesn't import GPU code) receives transferable binary data.
  */
 export class AiVisionTask<
   Input extends AiTaskInput = AiTaskInput,
@@ -22,46 +23,32 @@ export class AiVisionTask<
 > extends AiTask<Input, Output, Config> {
   public static override type: string = "AiVisionTask";
 
-  /**
-   * Get the input to submit for execution.
-   * Converts image data to a format supported by the target provider.
-   */
   protected override async getJobInput(input: Input): Promise<AiJobInput<Input>> {
     const jobInput = await super.getJobInput(input);
-    const providerName = (input.model as ModelConfig).provider;
+    if (!input.image) return jobInput;
 
-    // Image format support by model type and platform, that are transferable:
-    // ┌─────────────────────────┬──────────────────────────────────────────────────────────────┬────────────────────────────────────────────┐
-    // │ Model Type              │ Web Support                                                  │ Node Support                               │
-    // ├─────────────────────────┼──────────────────────────────────────────────────────────────┼────────────────────────────────────────────┤
-    // │ TENSORFLOW_MEDIAPIPE    │ Blob, ImageBitmap, VideoFrame,                               │ (none)                                     │
-    // │                         │ OffscreenCanvas (no rendering ctx)                           │                                            │
-    // ├─────────────────────────┼──────────────────────────────────────────────────────────────┼────────────────────────────────────────────┤
-    // │ HF_TRANSFORMERS_ONNX    │ Blob, OffscreenCanvas (no rendering ctx),                    │ Blob, Tensor, ImageBinary,                 │
-    // │                         │ ImageBinary, Tensor, DataUri                                 │ DataUri, Sharp                             │
-    // └─────────────────────────┴──────────────────────────────────────────────────────────────┴────────────────────────────────────────────┘
-    const supports: ImageDataSupport[] = ["Blob"];
-    if (input.image) {
-      if (
-        typeof providerName === "string" &&
-        providerName.startsWith("TENSORFLOW_MEDIAPIPE") &&
-        "ImageBitmap" in globalThis
-      ) {
-        supports.push("ImageBitmap");
-      } else if (
-        typeof providerName === "string" &&
-        providerName.startsWith("TENSORFLOW_MEDIAPIPE") &&
-        "VideoFrame" in globalThis
-      ) {
-        supports.push("VideoFrame");
+    const provider = (input.model as ModelConfig).provider as string | undefined;
+    const wantsBitmap =
+      typeof provider === "string" &&
+      provider.startsWith("TENSORFLOW_MEDIAPIPE") &&
+      typeof ImageBitmap !== "undefined";
+
+    const materializeOne = async (img: GpuImage): Promise<unknown> => {
+      if (wantsBitmap) {
+        const bin = await img.materialize();
+        const id = new ImageData(bin.data as unknown as Uint8ClampedArray<ArrayBuffer>, bin.width, bin.height);
+        return createImageBitmap(id);
       }
-      const toSupported = (img: unknown) => Image.from(img).toFirstSupported(supports);
-      const image = Array.isArray(input.image)
-        ? await Promise.all(input.image.map(toSupported))
-        : await toSupported(input.image);
-      // @ts-ignore
-      jobInput.taskInput.image = image;
-    }
+      return img.materialize();
+    };
+
+    const value = input.image as GpuImage | GpuImage[];
+    const materialized = Array.isArray(value)
+      ? await Promise.all(value.map(materializeOne))
+      : await materializeOne(value);
+
+    // @ts-expect-error narrowing across the worker boundary
+    jobInput.taskInput.image = materialized;
     return jobInput;
   }
 }

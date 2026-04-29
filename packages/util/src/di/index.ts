@@ -7,4 +7,5 @@
 export * from "./Container";
 export * from "./InputCompactorRegistry";
 export * from "./InputResolverRegistry";
+export * from "./PortCodecRegistry";
 export * from "./ServiceRegistry";

@@ -122,7 +122,7 @@ Required static properties: `type`, `category`, `title`, `description`, `cacheab
 **Execution model**:
 
 - `run()` → `execute()` — full run, cached, sets task to COMPLETED
-- `runPreview()` → `executePreview()` — lightweight, UI previews only, keeps PENDING, must be <1ms
+- `runPreview()` → `executePreview()` — lightweight, UI previews only, keeps PENDING, must be fast
 - Lifecycle: `PENDING → PROCESSING → COMPLETED | FAILED | ABORTED`
 
 **Schema conventions**: JSON Schema objects. Properties can have `format` annotations for runtime type resolution: `format: "model"`, `format: "model:EmbeddingTask"`, `format: "storage:tabular"`, `format: "knowledge-base"`. Properties with `x-ui-manual: true` are user-added ports.

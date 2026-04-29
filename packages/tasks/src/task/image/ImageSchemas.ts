@@ -4,83 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ColorObject, ImageBinary } from "@workglow/util/media";
+import type { ColorObject } from "@workglow/util/media";
 import type { JsonSchema } from "@workglow/util/schema";
 import { FromSchema, FromSchemaDefaultOptions, FromSchemaOptions } from "@workglow/util/schema";
 
-// Type-only value for use in deserialize patterns
-const ImageBinaryType = null as any as ImageBinary;
-
-export const ImageBinarySchemaOptions = {
-  ...FromSchemaDefaultOptions,
-  deserialize: [
-    {
-      pattern: { type: "object", format: "image:ImageBinary" },
-      output: ImageBinaryType,
-    },
-  ],
-} as const satisfies FromSchemaOptions;
-
-export type ImageBinarySchemaOptions = typeof ImageBinarySchemaOptions;
-
-export type ImageFromSchema<SCHEMA extends JsonSchema> = FromSchema<
-  SCHEMA,
-  ImageBinarySchemaOptions
->;
-
-export const ImageBinarySchema = (annotations: Record<string, unknown> = {}) =>
-  ({
-    type: "object",
-    properties: {
-      data: {
-        type: "array",
-        items: { type: "number", format: "Uint8Clamped" },
-        format: "Uint8ClampedArray",
-        title: "Data",
-        description: "Pixel data of the image",
-      },
-      width: {
-        type: "integer",
-        minimum: 1,
-        title: "Width",
-        description: "Width in pixels",
-      },
-      height: {
-        type: "integer",
-        minimum: 1,
-        title: "Height",
-        description: "Height in pixels",
-      },
-      channels: {
-        type: "integer",
-        enum: [1, 3, 4],
-        title: "Channels",
-        description: "1 (gray), 3 (RGB), or 4 (RGBA)",
-      },
-    },
-    additionalProperties: false,
-    required: ["data", "width", "height", "channels"],
-    format: "image:ImageBinary",
-    title: "Image",
-    description: "Raw pixel image data",
-    ...annotations,
-  }) as const;
-
-/** Accept {@link ImageBinary} or a `data:image/...;base64,...` URI; output matches the input form. */
-export const ImageBinaryOrDataUriSchema = (annotations: Record<string, unknown> = {}) =>
-  ({
-    oneOf: [
-      ImageBinarySchema(annotations),
-      {
-        type: "string",
-        format: "image:data-uri",
-        title: (annotations.title as string | undefined) ?? "Image",
-        description:
-          (annotations.description as string | undefined) ??
-          "Image as ImageBinary or data URI (data:image/png;base64,...)",
-      },
-    ],
-  }) as const;
+const cssRgbChannelPattern = "(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)";
+const cssRgbAlphaPattern = "(?:0(?:\\.\\d+)?|1(?:\\.0+)?)";
+const cssRgbColorPattern =
+  `^rgba?\\(\\s*${cssRgbChannelPattern}\\s*,\\s*${cssRgbChannelPattern}\\s*,\\s*` +
+  `${cssRgbChannelPattern}\\s*(?:,\\s*${cssRgbAlphaPattern})?\\s*\\)$`;
 
 export const ColorSchema = (annotations: Record<string, unknown> = {}) =>
   ({
@@ -107,7 +39,17 @@ export const HexColorSchema = (annotations: Record<string, unknown> = {}) =>
     ...annotations,
   }) as const;
 
-/** Accept a {@link ColorObject} or a `#RRGGBB[AA]`/`#RGB[A]` hex string. */
+export const CssRgbColorSchema = (annotations: Record<string, unknown> = {}) =>
+  ({
+    type: "string",
+    format: "color",
+    pattern: cssRgbColorPattern,
+    title: "Color (RGB)",
+    description: "Color as a CSS `rgb(r,g,b)` or `rgba(r,g,b,a)` string",
+    ...annotations,
+  }) as const;
+
+/** Accept a {@link ColorObject}, hex string, or CSS `rgb(...)` / `rgba(...)` string. */
 export const ColorValueSchema = (annotations: Record<string, unknown> = {}) =>
   ({
     oneOf: [
@@ -116,8 +58,9 @@ export const ColorValueSchema = (annotations: Record<string, unknown> = {}) =>
         title: (annotations.title as string | undefined) ?? "Color",
         description:
           (annotations.description as string | undefined) ??
-          "Color as {r,g,b,a} object or `#RRGGBB[AA]` / `#RGB[A]` hex string",
+          "Color as {r,g,b,a} object, `#RRGGBB[AA]` / `#RGB[A]` hex string, or CSS `rgb(...)` / `rgba(...)` string",
       }),
+      CssRgbColorSchema(),
     ],
     ...annotations,
   }) as const;
