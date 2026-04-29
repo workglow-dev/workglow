@@ -3,18 +3,7 @@
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-import { describe, expect, test, beforeEach } from "vitest";
-import { ResourceScope } from "@workglow/util";
-import {
-  type IExecuteContext,
-  type IExecutePreviewContext,
-} from "@workglow/task-graph";
-import {
-  setPreviewBudget,
-  CpuImage,
-  type GpuImage,
-  type GpuImageBackend,
-} from "@workglow/util/media";
+import { type IExecuteContext, type IExecutePreviewContext } from "@workglow/task-graph";
 import {
   ImageFilterTask,
   _resetFilterRegistryForTests,
@@ -24,7 +13,15 @@ import {
   type ImageFilterOutput,
 } from "@workglow/tasks";
 import "@workglow/tasks/codec"; // registers previewResizeFn → applyFilter("resize") so previewSource works
+import { ResourceScope } from "@workglow/util";
+import {
+  CpuImage,
+  setPreviewBudget,
+  type GpuImage,
+  type GpuImageBackend,
+} from "@workglow/util/media";
 import type { DataPortSchema } from "@workglow/util/schema";
+import { beforeEach, describe, expect, test } from "vitest";
 
 // ---------------------------------------------------------------------------
 // CountingImage — tracks retain/release for refcount assertions.
@@ -41,12 +38,29 @@ class CountingImage implements GpuImage {
     this.height = h;
     this.backend = backend;
   }
-  retain(n: number = 1) { this.refs += n; return this; }
-  release(): void { this.refs -= 1; }
-  _setPreviewScale(s: number): this { this.previewScale = s; return this; }
-  async materialize() { return { data: new Uint8ClampedArray(this.width * this.height * 4), width: this.width, height: this.height, channels: 4 as const }; }
+  retain(n: number = 1) {
+    this.refs += n;
+    return this;
+  }
+  release(): void {
+    this.refs -= 1;
+  }
+  _setPreviewScale(s: number): this {
+    this.previewScale = s;
+    return this;
+  }
+  async materialize() {
+    return {
+      data: new Uint8ClampedArray(this.width * this.height * 4),
+      width: this.width,
+      height: this.height,
+      channels: 4 as const,
+    };
+  }
   async toCanvas() {}
-  async encode() { return new Uint8Array(); }
+  async encode() {
+    return new Uint8Array();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -57,13 +71,21 @@ class TestFilterTask extends ImageFilterTask<{}> {
   static override readonly category = "Test";
   static override readonly cacheable = false;
   static override inputSchema(): DataPortSchema {
-    return { type: "object", properties: { image: { type: "object" } } } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { image: { type: "object" } },
+    } as const satisfies DataPortSchema;
   }
   static override outputSchema(): DataPortSchema {
-    return { type: "object", properties: { image: { type: "object" } } } as const satisfies DataPortSchema;
+    return {
+      type: "object",
+      properties: { image: { type: "object" } },
+    } as const satisfies DataPortSchema;
   }
   protected readonly filterName = "test-filter";
-  protected opParams() { return {}; }
+  protected opParams() {
+    return {};
+  }
 }
 
 function makeContext(scope?: ResourceScope): IExecuteContext {
@@ -81,7 +103,9 @@ const previewCtx: IExecutePreviewContext = { own: <T>(t: T) => t };
 // ---------------------------------------------------------------------------
 // Existing filter / task wiring for the original functional tests.
 // ---------------------------------------------------------------------------
-interface BumpParams { delta: number; }
+interface BumpParams {
+  delta: number;
+}
 
 function registerTestBumpOps() {
   const bump: FilterOpFn<BumpParams> = (image, { delta }) => {
@@ -96,13 +120,17 @@ function registerTestBumpOps() {
 
 registerTestBumpOps();
 
-interface BumpInput extends ImageFilterInput, Record<string, unknown> { delta: number; }
+interface BumpInput extends ImageFilterInput, Record<string, unknown> {
+  delta: number;
+}
 
 class BumpTask extends ImageFilterTask<BumpParams, BumpInput> {
   static override readonly type = "BumpTask";
   static override readonly category = "Image";
   protected readonly filterName = "__test_bump__";
-  protected opParams(input: BumpInput): BumpParams { return { delta: input.delta }; }
+  protected opParams(input: BumpInput): BumpParams {
+    return { delta: input.delta };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +140,9 @@ describe("ImageFilterTask", () => {
   test("execute and executePreview produce identical results via the same filter", async () => {
     const image = CpuImage.fromImageBinary({
       data: new Uint8ClampedArray([10, 0, 0, 255]),
-      width: 1, height: 1, channels: 4,
+      width: 1,
+      height: 1,
+      channels: 4,
     }) as unknown as GpuImage;
 
     const t = new BumpTask();
@@ -120,7 +150,9 @@ describe("ImageFilterTask", () => {
     // Provide a fresh image for preview since execute released the original ref.
     const image2 = CpuImage.fromImageBinary({
       data: new Uint8ClampedArray([10, 0, 0, 255]),
-      width: 1, height: 1, channels: 4,
+      width: 1,
+      height: 1,
+      channels: 4,
     }) as unknown as GpuImage;
     const prev = await t.executePreview({ image: image2, delta: 5 } as BumpInput, previewCtx);
 
@@ -138,11 +170,16 @@ describe("ImageFilterTask", () => {
       static override readonly type = "CaptureTask";
       static override readonly category = "Image";
       protected readonly filterName = "__test_capture__";
-      protected opParams(input: BumpInput): BumpParams { captured = input; return { delta: input.delta }; }
+      protected opParams(input: BumpInput): BumpParams {
+        captured = input;
+        return { delta: input.delta };
+      }
     }
     const image = CpuImage.fromImageBinary({
       data: new Uint8ClampedArray(4),
-      width: 1, height: 1, channels: 4,
+      width: 1,
+      height: 1,
+      channels: 4,
     }) as unknown as GpuImage;
     const t = new Capture();
     await t.execute({ image, delta: 7 } as BumpInput, makeContext());
@@ -317,7 +354,7 @@ describe("ImageFilterTask refcount behavior", () => {
 
     const task = new TestFilterTask({ id: "t1" });
     await expect(
-      task.execute({ image: "not an image" as unknown as GpuImage }, makeContext()),
+      task.execute({ image: "not an image" as unknown as GpuImage }, makeContext())
     ).rejects.toThrow(/ImageBinary/);
   });
 
@@ -325,9 +362,12 @@ describe("ImageFilterTask refcount behavior", () => {
     registerFilterOp("cpu", "test-filter", (image) => new CountingImage(image.width, image.height));
 
     const task = new TestFilterTask({ id: "t1" });
-    class WeirdShape { foo = 1; bar = 2; }
+    class WeirdShape {
+      foo = 1;
+      bar = 2;
+    }
     await expect(
-      task.execute({ image: new WeirdShape() as unknown as GpuImage }, makeContext()),
+      task.execute({ image: new WeirdShape() as unknown as GpuImage }, makeContext())
     ).rejects.toThrow(/WeirdShape.*foo.*bar/);
   });
 });
@@ -344,13 +384,23 @@ describe("ImageFilterTask execute fallback", () => {
     static override readonly category = "Test";
     static override readonly cacheable = false;
     static override inputSchema(): DataPortSchema {
-      return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as const satisfies DataPortSchema;
+      return {
+        type: "object",
+        properties: { image: { type: "object" } },
+        required: ["image"],
+      } as const satisfies DataPortSchema;
     }
     static override outputSchema(): DataPortSchema {
-      return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as const satisfies DataPortSchema;
+      return {
+        type: "object",
+        properties: { image: { type: "object" } },
+        required: ["image"],
+      } as const satisfies DataPortSchema;
     }
     protected readonly filterName = "fake_filter_for_fallback_test";
-    protected opParams() { return undefined; }
+    protected opParams() {
+      return undefined;
+    }
   }
 
   test("execute falls back to cpu when image's backend has no registered arm", async () => {
@@ -360,7 +410,12 @@ describe("ImageFilterTask execute fallback", () => {
       return img;
     });
 
-    const bin = { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4 as const };
+    const bin = {
+      data: new Uint8ClampedArray([1, 2, 3, 255]),
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+    };
     let releasedSource = false;
     const stub = {
       backend: "webgpu" as const,
@@ -368,17 +423,22 @@ describe("ImageFilterTask execute fallback", () => {
       height: 1,
       channels: 4 as const,
       materialize: async () => bin,
-      retain() { return this; },
-      release() { releasedSource = true; },
-      toCanvas: async () => { throw new Error("unused"); },
-      encode: async () => { throw new Error("unused"); },
+      retain() {
+        return this;
+      },
+      release() {
+        releasedSource = true;
+      },
+      toCanvas: async () => {
+        throw new Error("unused");
+      },
+      encode: async () => {
+        throw new Error("unused");
+      },
     };
 
     const task = new FakeFilterTask({ id: "t1" });
-    const out = await task.execute(
-      { image: stub as never },
-      { resourceScope: undefined } as never,
-    );
+    const out = await task.execute({ image: stub as never }, { resourceScope: undefined } as never);
 
     expect(cpuRan).toBe(true);
     expect(releasedSource).toBe(true);
@@ -388,24 +448,54 @@ describe("ImageFilterTask execute fallback", () => {
   test("executePreview falls back AFTER previewSource so over-budget images still downscale", async () => {
     registerFilterOp<undefined>("cpu", "fake_filter_for_preview_fallback", (img) => img);
 
-    const bin = { data: new Uint8ClampedArray([10, 20, 30, 255]), width: 1, height: 1, channels: 4 as const };
+    const bin = {
+      data: new Uint8ClampedArray([10, 20, 30, 255]),
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+    };
     let materializeCalls = 0;
     const stub = {
       backend: "webgpu" as const,
-      width: 1, height: 1, channels: 4 as const,
-      materialize: async () => { materializeCalls++; return bin; },
-      retain() { return this; },
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+      materialize: async () => {
+        materializeCalls++;
+        return bin;
+      },
+      retain() {
+        return this;
+      },
       release() {},
-      toCanvas: async () => { throw new Error("unused"); },
-      encode: async () => { throw new Error("unused"); },
+      toCanvas: async () => {
+        throw new Error("unused");
+      },
+      encode: async () => {
+        throw new Error("unused");
+      },
     };
 
     class FakePreviewTask extends ImageFilterTask<undefined> {
       static override readonly type = "FakePreviewTask";
       protected readonly filterName = "fake_filter_for_preview_fallback";
-      protected opParams() { return undefined; }
-      static override inputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
-      static override outputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+      protected opParams() {
+        return undefined;
+      }
+      static override inputSchema() {
+        return {
+          type: "object",
+          properties: { image: { type: "object" } },
+          required: ["image"],
+        } as never;
+      }
+      static override outputSchema() {
+        return {
+          type: "object",
+          properties: { image: { type: "object" } },
+          required: ["image"],
+        } as never;
+      }
     }
 
     const task = new FakePreviewTask({ id: "p1" });
@@ -422,13 +512,22 @@ describe("ImageFilterTask execute fallback", () => {
       return img;
     });
 
-    const bin = { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4 as const };
+    const bin = {
+      data: new Uint8ClampedArray([1, 2, 3, 255]),
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+    };
     const stub = {
       backend: "cpu" as const,
-      width: 1, height: 1, channels: 4 as const,
+      width: 1,
+      height: 1,
+      channels: 4 as const,
       previewScale: 0.25,
       materialize: async () => bin,
-      retain() { return this; },
+      retain() {
+        return this;
+      },
       release() {},
       toCanvas: async () => {},
       encode: async () => new Uint8Array(0),
@@ -437,12 +536,26 @@ describe("ImageFilterTask execute fallback", () => {
     class ScaleAwareTask extends ImageFilterTask<{ radius: number }> {
       static override readonly type = "ScaleAwareTask";
       protected readonly filterName = "fake_scale_test_filter";
-      protected opParams() { return { radius: 8 }; }
-      protected scalePreviewParams(p: { radius: number }, s: number): { radius: number } {
+      protected opParams() {
+        return { radius: 8 };
+      }
+      protected override scalePreviewParams(p: { radius: number }, s: number): { radius: number } {
         return { radius: Math.max(1, Math.round(p.radius * s)) };
       }
-      static override inputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
-      static override outputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+      static override inputSchema() {
+        return {
+          type: "object",
+          properties: { image: { type: "object" } },
+          required: ["image"],
+        } as never;
+      }
+      static override outputSchema() {
+        return {
+          type: "object",
+          properties: { image: { type: "object" } },
+          required: ["image"],
+        } as never;
+      }
     }
 
     const task = new ScaleAwareTask({ id: "s1" });
@@ -458,13 +571,22 @@ describe("ImageFilterTask execute fallback", () => {
       return img;
     });
 
-    const bin = { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4 as const };
+    const bin = {
+      data: new Uint8ClampedArray([1, 2, 3, 255]),
+      width: 1,
+      height: 1,
+      channels: 4 as const,
+    };
     const stub = {
       backend: "webgpu" as const,
-      width: 1, height: 1, channels: 4 as const,
+      width: 1,
+      height: 1,
+      channels: 4 as const,
       previewScale: 0.3,
       materialize: async () => bin,
-      retain() { return this; },
+      retain() {
+        return this;
+      },
       release() {},
       toCanvas: async () => {},
       encode: async () => new Uint8Array(0),
@@ -473,9 +595,23 @@ describe("ImageFilterTask execute fallback", () => {
     class FallbackScaleTask extends ImageFilterTask<undefined> {
       static override readonly type = "FallbackScaleTask";
       protected readonly filterName = "fake_scale_fallback_filter";
-      protected opParams() { return undefined; }
-      static override inputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
-      static override outputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+      protected opParams() {
+        return undefined;
+      }
+      static override inputSchema() {
+        return {
+          type: "object",
+          properties: { image: { type: "object" } },
+          required: ["image"],
+        } as never;
+      }
+      static override outputSchema() {
+        return {
+          type: "object",
+          properties: { image: { type: "object" } },
+          required: ["image"],
+        } as never;
+      }
     }
 
     const task = new FallbackScaleTask({ id: "s2" });
