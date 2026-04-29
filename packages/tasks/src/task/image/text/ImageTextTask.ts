@@ -11,11 +11,17 @@ import {
   type IExecutePreviewContext,
   type TaskConfig,
 } from "@workglow/task-graph";
-import { CpuImage, GpuImageSchema, type GpuImage, type RgbaImageBinary } from "@workglow/util/media";
+import {
+  CpuImage,
+  getPreviewBudget,
+  GpuImageSchema,
+  resolveColor,
+  type GpuImage,
+  type RgbaImageBinary,
+} from "@workglow/util/media";
 import type { DataPortSchema } from "@workglow/util/schema";
 import { FromSchema } from "@workglow/util/schema";
 import { ColorValueSchema } from "../ImageSchemas";
-import { resolveColor } from "@workglow/util/media";
 import {
   IMAGE_TEXT_ANCHOR_POSITIONS,
   renderImageTextToRgba,
@@ -281,7 +287,66 @@ export class ImageTextTask<
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    return (await runText(input)) as Output;
+    const color = resolveColor(input.color);
+    const fontSize = input.fontSize ?? 24;
+    const font = input.font ?? "sans-serif";
+    const bold = input.bold ?? false;
+    const italic = input.italic ?? false;
+    const position = (input.position ?? "middle-center") as ImageTextAnchorPosition;
+    const backgroundImage = "image" in input ? (input.image as GpuImage | undefined) : undefined;
+
+    if (backgroundImage != null) {
+      // With-background case: inherit scale from the background image and apply
+      // it to the user-provided fontSize so glyph stroke widths match the
+      // already-downscaled background.
+      const s = backgroundImage.previewScale;
+      const background = await backgroundImage.materialize();
+      const scaledFontSize = Math.max(1, Math.round(fontSize * s));
+      const overlay = await renderImageTextToRgba({
+        text: input.text,
+        font,
+        fontSize: scaledFontSize,
+        bold,
+        italic,
+        color,
+        width: background.width,
+        height: background.height,
+        position,
+      });
+      const composited = compositeTextOverBackground(background, overlay);
+      return { image: CpuImage.fromImageBinary(composited, s) as unknown as GpuImage } as Output;
+    }
+
+    // Without-background source case: this task IS the source, so apply the
+    // preview budget here against the user-supplied output dimensions.
+    if (
+      !("width" in input) ||
+      !("height" in input) ||
+      typeof input.width !== "number" ||
+      typeof input.height !== "number"
+    ) {
+      throw new Error(
+        "ImageTextTask: width and height are required when no background image is provided"
+      );
+    }
+    const longEdge = Math.max(input.width, input.height);
+    const budget = getPreviewBudget();
+    const s = longEdge > budget ? budget / longEdge : 1.0;
+    const scaledFontSize = Math.max(1, Math.round(fontSize * s));
+    const scaledWidth = Math.max(1, Math.round(input.width * s));
+    const scaledHeight = Math.max(1, Math.round(input.height * s));
+    const textBinary = await renderImageTextToRgba({
+      text: input.text,
+      font,
+      fontSize: scaledFontSize,
+      bold,
+      italic,
+      color,
+      width: scaledWidth,
+      height: scaledHeight,
+      position,
+    });
+    return { image: CpuImage.fromImageBinary(textBinary, s) as unknown as GpuImage } as Output;
   }
 }
 
