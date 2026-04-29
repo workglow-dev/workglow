@@ -45,13 +45,12 @@ import "./task/image/sepia/sepia.sharp";
 import "./task/image/threshold/threshold.sharp";
 import "./task/image/tint/tint.sharp";
 
-// Wire previewSource (in @workglow/util/media) to the local applyFilter so
-// preview-mode chains can downscale at the head. Registered here rather than
-// inside util/media to avoid the cycle (tasks → util only). previewSource
-// short-circuits non-webgpu inputs, so this callback is only invoked when a
-// WebGpuImage exceeds the budget.
-import { registerPreviewResizeFn } from "@workglow/util/media";
-import { applyFilter } from "./task/image/imageOp";
+// Opt-in wiring: previewSource (in @workglow/util/media) is a no-op until
+// some consumer registers a resize callback. Registering it here, alongside
+// the filter-arm side-effects above, ensures that any context that loads
+// this codec entry gets preview-time downscale for WebGpuImage inputs that
+// exceed the budget. previewSource short-circuits non-webgpu inputs.
+import { applyFilter, registerPreviewResizeFn } from "@workglow/util/media";
 
 registerPreviewResizeFn((image, width, height) =>
   applyFilter(image, "resize", { width, height })

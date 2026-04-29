@@ -3,8 +3,7 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { SharpImage, resolveColor } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { SharpImage, registerFilterOp, resolveColor } from "@workglow/util/media";
 import type { BorderParams } from "./border.cpu";
 
 registerFilterOp<BorderParams>("sharp", "border", (image, { borderWidth: bw, color }) => {
@@ -13,13 +12,14 @@ registerFilterOp<BorderParams>("sharp", "border", (image, { borderWidth: bw, col
   const outW = sharp.width + bw * 2;
   const outH = sharp.height + bw * 2;
   return sharp.apply(
-    (p) => p.extend({
-      top: bw,
-      bottom: bw,
-      left: bw,
-      right: bw,
-      background: { r: resolved.r, g: resolved.g, b: resolved.b, alpha: resolved.a / 255 },
-    }),
-    { width: outW, height: outH },
+    (p) =>
+      p.extend({
+        top: bw,
+        bottom: bw,
+        left: bw,
+        right: bw,
+        background: { r: resolved.r, g: resolved.g, b: resolved.b, alpha: resolved.a / 255 },
+      }),
+    { width: outW, height: outH }
   );
 });

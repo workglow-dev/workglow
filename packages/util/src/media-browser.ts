@@ -4,32 +4,68 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./media/imageTypes";
+import "./media/imageCacheCodec";
+import "./media/imageHydrationResolver";
+
 export * from "./media/color";
-export * from "./media/imageRasterCodecRegistry";
-export * from "./media/MediaRawImage";
-export type { GpuImage, GpuImageBackend, GpuImageEncodeFormat, GpuImageStatic } from "./media/gpuImage";
-export { GpuImage as GpuImageFactory, registerGpuImageFactory, getGpuImageFactory } from "./media/gpuImage";
-export { GpuImageSchema } from "./media/gpuImageSchema";
 export { CpuImage } from "./media/cpuImage";
-export { encodeImageBinaryToPng, imageBinaryToBase64Png, imageBinaryToDataUri, imageBinaryToBlob } from "./media/encode";
-export { getPreviewBudget, setPreviewBudget, previewSource, registerPreviewResizeFn } from "./media/previewBudget";
+export {
+  encodeImageBinaryToPng,
+  imageBinaryToBase64Png,
+  imageBinaryToBlob,
+  imageBinaryToDataUri,
+} from "./media/encode";
+export {
+  _resetFilterRegistryForTests,
+  applyFilter,
+  hasFilterOp,
+  registerFilterOp,
+} from "./media/filterRegistry";
+export type { FilterOpFn } from "./media/filterRegistry";
 export { getGpuDevice, resetGpuDeviceForTests } from "./media/gpuDevice.browser";
-export { createTexturePool, getTexturePool, resetTexturePoolForTests } from "./media/texturePool.browser";
-export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";
-export { createShaderCache, getShaderCache, VERTEX_PRELUDE, PASSTHROUGH_SHADER_SRC } from "./media/shaderRegistry.browser";
+export {
+  getGpuImageFactory,
+  GpuImage as GpuImageFactory,
+  registerGpuImageFactory,
+} from "./media/gpuImage";
+export type {
+  GpuImage,
+  GpuImageBackend,
+  GpuImageEncodeFormat,
+  GpuImageStatic,
+} from "./media/gpuImage";
+export { GpuImageSchema } from "./media/gpuImageSchema";
+export * from "./media/imageRasterCodecRegistry";
+export * from "./media/imageTypes";
+export * from "./media/MediaRawImage";
+export {
+  getPreviewBudget,
+  previewSource,
+  registerPreviewResizeFn,
+  setPreviewBudget,
+} from "./media/previewBudget";
+export {
+  createShaderCache,
+  getShaderCache,
+  PASSTHROUGH_SHADER_SRC,
+  VERTEX_PRELUDE,
+} from "./media/shaderRegistry.browser";
 export type { ShaderCache } from "./media/shaderRegistry.browser";
+export {
+  createTexturePool,
+  getTexturePool,
+  resetTexturePoolForTests,
+} from "./media/texturePool.browser";
+export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";
 export { WebGpuImage } from "./media/webGpuImage.browser";
 export type { ApplyParams } from "./media/webGpuImage.browser";
 
-import "./media/imageHydrationResolver";
-import "./media/imageCacheCodec";
 import { CpuImage as _CpuImage } from "./media/cpuImage";
-import { WebGpuImage as _WebGpuImage } from "./media/webGpuImage.browser";
 import { getGpuDevice as _getGpuDevice } from "./media/gpuDevice.browser";
-import { getImageRasterCodec as _getImageRasterCodec } from "./media/imageRasterCodecRegistry";
 import { registerGpuImageFactory as _registerGpuImageFactory } from "./media/gpuImage";
+import { getImageRasterCodec as _getImageRasterCodec } from "./media/imageRasterCodecRegistry";
 import type { ImageBinary as _ImageBinary } from "./media/imageTypes";
+import { WebGpuImage as _WebGpuImage } from "./media/webGpuImage.browser";
 
 async function _preferGpu(bin: _ImageBinary) {
   const dev = await _getGpuDevice();

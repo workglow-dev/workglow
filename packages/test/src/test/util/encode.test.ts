@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from "vitest";
 import "@workglow/util/media";
-import "@workglow/tasks/codec";
+import "@workglow/tasks";
 import { imageBinaryToBlob, imageBinaryToDataUri } from "@workglow/util/media";
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47];

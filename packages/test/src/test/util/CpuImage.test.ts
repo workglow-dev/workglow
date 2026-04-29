@@ -4,7 +4,7 @@
  * All Rights Reserved
  */
 import { describe, expect, test } from "vitest";
-import "@workglow/tasks/codec";
+import "@workglow/tasks";
 import { CpuImage } from "@workglow/util/media";
 
 function makeBinary(w: number, h: number) {

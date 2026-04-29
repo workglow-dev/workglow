@@ -3,12 +3,22 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { CpuImage, registerFilterOp, type ImageBinary } from "@workglow/util/media";
 
-export interface CropParams { left: number; top: number; width: number; height: number; }
+export interface CropParams {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
-function cpuCrop(bin: ImageBinary, left: number, top: number, width: number, height: number): ImageBinary {
+function cpuCrop(
+  bin: ImageBinary,
+  left: number,
+  top: number,
+  width: number,
+  height: number
+): ImageBinary {
   const { data: src, width: srcW, height: srcH, channels } = bin;
 
   if (srcW < 1 || srcH < 1) {
@@ -35,5 +45,7 @@ function cpuCrop(bin: ImageBinary, left: number, top: number, width: number, hei
 }
 
 registerFilterOp<CropParams>("cpu", "crop", (image, { left, top, width, height }) => {
-  return CpuImage.fromImageBinary(cpuCrop((image as CpuImage).getBinary(), left, top, width, height));
+  return CpuImage.fromImageBinary(
+    cpuCrop((image as CpuImage).getBinary(), left, top, width, height)
+  );
 });

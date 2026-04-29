@@ -26,8 +26,8 @@ export {
   applyFilter,
   hasFilterOp,
   _resetFilterRegistryForTests,
-} from "./task/image/imageOp";
-export type { FilterOpFn } from "./task/image/imageOp";
+} from "@workglow/util/media";
+export type { FilterOpFn } from "@workglow/util/media";
 export { ImageFilterTask } from "./task/image/ImageFilterTask";
 export type { ImageFilterInput, ImageFilterOutput } from "./task/image/ImageFilterTask";
 export * from "./task/image/blur/ImageBlurTask";

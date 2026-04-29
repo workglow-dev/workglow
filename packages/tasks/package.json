@@ -47,18 +47,6 @@
     "./electron": {
       "types": "./dist/electron.d.ts",
       "import": "./dist/electron.js"
-    },
-    "./codec": {
-      "react-native": {
-        "types": "./dist/codec.browser.d.ts",
-        "import": "./dist/codec.browser.js"
-      },
-      "browser": {
-        "types": "./dist/codec.browser.d.ts",
-        "import": "./dist/codec.browser.js"
-      },
-      "types": "./dist/codec.node.d.ts",
-      "import": "./dist/codec.node.js"
     }
   },
   "files": [

@@ -4,7 +4,7 @@
  * All Rights Reserved
  */
 import { describe, expect, test } from "vitest";
-import "@workglow/tasks/codec";
+import "@workglow/tasks";
 import type { GpuImage, GpuImageBackend } from "@workglow/util/media";
 import { GpuImageFactory } from "@workglow/util/media";
 

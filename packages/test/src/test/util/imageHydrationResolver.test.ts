@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from "vitest";
 import "@workglow/util/media";  // side-effect: register the resolver
-import "@workglow/tasks/codec";  // side-effect: register the raster codec (lean — no undici)
+import "@workglow/tasks";  // side-effect: register the raster codec (lean — no undici)
 import { resolveSchemaInputs } from "@workglow/task-graph";
 import { GpuImageSchema, type GpuImage } from "@workglow/util/media";
 

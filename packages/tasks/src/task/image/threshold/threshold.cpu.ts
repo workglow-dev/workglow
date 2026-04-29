@@ -3,10 +3,11 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { CpuImage, registerFilterOp, type ImageBinary } from "@workglow/util/media";
 
-export interface ThresholdParams { value: number; }
+export interface ThresholdParams {
+  value: number;
+}
 
 function cpuThreshold(bin: ImageBinary, value: number): ImageBinary {
   const { data: src, width, height, channels } = bin;

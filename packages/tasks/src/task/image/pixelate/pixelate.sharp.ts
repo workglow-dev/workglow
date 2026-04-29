@@ -3,8 +3,7 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { SharpImage } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { registerFilterOp, SharpImage } from "@workglow/util/media";
 import type { PixelateParams } from "./pixelate.cpu";
 
 registerFilterOp<PixelateParams>("sharp", "pixelate", (image, { blockSize }) => {

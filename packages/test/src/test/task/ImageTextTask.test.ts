@@ -4,7 +4,7 @@
  * All Rights Reserved
  */
 import { describe, expect, test } from "vitest";
-import "@workglow/tasks/codec";
+import "@workglow/tasks";
 import { ImageTextTask } from "@workglow/tasks";
 import { CpuImage, getPreviewBudget, setPreviewBudget } from "@workglow/util/media";
 

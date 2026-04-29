@@ -3,10 +3,12 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { CpuImage, registerFilterOp, type ImageBinary } from "@workglow/util/media";
 
-export interface RotateParams { angle: 90 | 180 | 270; background?: string; }
+export interface RotateParams {
+  angle: 90 | 180 | 270;
+  background?: string;
+}
 
 function cpuRotate(bin: ImageBinary, angle: 90 | 180 | 270): ImageBinary {
   const { data: src, width: srcW, height: srcH, channels } = bin;

@@ -3,8 +3,7 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { SharpImage } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { registerFilterOp, SharpImage } from "@workglow/util/media";
 import type { RotateParams } from "./rotate.cpu";
 
 registerFilterOp<RotateParams>("sharp", "rotate", (image, { angle, background }) => {
@@ -12,8 +11,8 @@ registerFilterOp<RotateParams>("sharp", "rotate", (image, { angle, background })
   const swap = angle === 90 || angle === 270;
   const outW = swap ? sharp.height : sharp.width;
   const outH = swap ? sharp.width : sharp.height;
-  return sharp.apply(
-    (p) => p.rotate(angle, background ? { background } : undefined),
-    { width: outW, height: outH },
-  );
+  return sharp.apply((p) => p.rotate(angle, background ? { background } : undefined), {
+    width: outW,
+    height: outH,
+  });
 });

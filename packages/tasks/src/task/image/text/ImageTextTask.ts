@@ -26,6 +26,7 @@ import {
   IMAGE_TEXT_ANCHOR_POSITIONS,
   renderImageTextToRgba,
   type ImageTextAnchorPosition,
+  type ImageTextRenderColor,
 } from "../imageTextRender";
 
 function toRgbaImage(image: {
@@ -200,33 +201,32 @@ const outputSchema = {
 export type ImageTextTaskInput = FromSchema<typeof inputSchema>;
 export type ImageTextTaskOutput = { image: GpuImage };
 
-async function runText(input: ImageTextTaskInput): Promise<ImageTextTaskOutput> {
-  const color = resolveColor(input.color);
-  const fontSize = input.fontSize ?? 24;
-  const font = input.font ?? "sans-serif";
-  const bold = input.bold ?? false;
-  const italic = input.italic ?? false;
-  const position = (input.position ?? "middle-center") as ImageTextAnchorPosition;
+interface ResolvedTextParams {
+  readonly text: string;
+  readonly font: string;
+  readonly fontSize: number;
+  readonly bold: boolean;
+  readonly italic: boolean;
+  readonly color: ImageTextRenderColor;
+  readonly position: ImageTextAnchorPosition;
+}
 
-  const backgroundImage = "image" in input ? (input.image as GpuImage | undefined) : undefined;
+function resolveTextParams(input: ImageTextTaskInput): ResolvedTextParams {
+  return {
+    text: input.text,
+    font: input.font ?? "sans-serif",
+    fontSize: input.fontSize ?? 24,
+    bold: input.bold ?? false,
+    italic: input.italic ?? false,
+    color: resolveColor(input.color),
+    position: (input.position ?? "middle-center") as ImageTextAnchorPosition,
+  };
+}
 
-  if (backgroundImage != null) {
-    const background = await backgroundImage.materialize();
-    const overlay = await renderImageTextToRgba({
-      text: input.text,
-      font,
-      fontSize,
-      bold,
-      italic,
-      color,
-      width: background.width,
-      height: background.height,
-      position,
-    });
-    const composited = compositeTextOverBackground(background, overlay);
-    return { image: CpuImage.fromImageBinary(composited) as unknown as GpuImage };
-  }
-
+function requireStandaloneDims(input: ImageTextTaskInput): {
+  readonly width: number;
+  readonly height: number;
+} {
   if (
     !("width" in input) ||
     !("height" in input) ||
@@ -237,19 +237,62 @@ async function runText(input: ImageTextTaskInput): Promise<ImageTextTaskOutput> 
       "ImageTextTask: width and height are required when no background image is provided"
     );
   }
+  return { width: input.width, height: input.height };
+}
 
-  const textBinary = await renderImageTextToRgba({
-    text: input.text,
-    font,
-    fontSize,
-    bold,
-    italic,
-    color,
-    width: input.width,
-    height: input.height,
-    position,
+async function renderTextOverBackground(
+  params: ResolvedTextParams,
+  backgroundImage: GpuImage,
+  previewScale: number
+): Promise<ImageTextTaskOutput> {
+  const background = await backgroundImage.materialize();
+  const overlay = await renderImageTextToRgba({
+    text: params.text,
+    font: params.font,
+    fontSize: Math.max(1, Math.round(params.fontSize * previewScale)),
+    bold: params.bold,
+    italic: params.italic,
+    color: params.color,
+    width: background.width,
+    height: background.height,
+    position: params.position,
   });
-  return { image: CpuImage.fromImageBinary(textBinary) as unknown as GpuImage };
+  const composited = compositeTextOverBackground(background, overlay);
+  return {
+    image: CpuImage.fromImageBinary(composited, previewScale) as unknown as GpuImage,
+  };
+}
+
+async function renderTextStandalone(
+  params: ResolvedTextParams,
+  width: number,
+  height: number,
+  previewScale: number
+): Promise<ImageTextTaskOutput> {
+  const textBinary = await renderImageTextToRgba({
+    text: params.text,
+    font: params.font,
+    fontSize: Math.max(1, Math.round(params.fontSize * previewScale)),
+    bold: params.bold,
+    italic: params.italic,
+    color: params.color,
+    width: Math.max(1, Math.round(width * previewScale)),
+    height: Math.max(1, Math.round(height * previewScale)),
+    position: params.position,
+  });
+  return {
+    image: CpuImage.fromImageBinary(textBinary, previewScale) as unknown as GpuImage,
+  };
+}
+
+async function runText(input: ImageTextTaskInput): Promise<ImageTextTaskOutput> {
+  const params = resolveTextParams(input);
+  const backgroundImage = "image" in input ? (input.image as GpuImage | undefined) : undefined;
+  if (backgroundImage != null) {
+    return renderTextOverBackground(params, backgroundImage, 1.0);
+  }
+  const { width, height } = requireStandaloneDims(input);
+  return renderTextStandalone(params, width, height, 1.0);
 }
 
 export class ImageTextTask<
@@ -287,66 +330,26 @@ export class ImageTextTask<
     input: Input,
     _context: IExecutePreviewContext
   ): Promise<Output | undefined> {
-    const color = resolveColor(input.color);
-    const fontSize = input.fontSize ?? 24;
-    const font = input.font ?? "sans-serif";
-    const bold = input.bold ?? false;
-    const italic = input.italic ?? false;
-    const position = (input.position ?? "middle-center") as ImageTextAnchorPosition;
+    const params = resolveTextParams(input);
     const backgroundImage = "image" in input ? (input.image as GpuImage | undefined) : undefined;
 
     if (backgroundImage != null) {
-      // With-background case: inherit scale from the background image and apply
-      // it to the user-provided fontSize so glyph stroke widths match the
+      // Inherit scale from the background so glyph stroke widths match the
       // already-downscaled background.
-      const s = backgroundImage.previewScale;
-      const background = await backgroundImage.materialize();
-      const scaledFontSize = Math.max(1, Math.round(fontSize * s));
-      const overlay = await renderImageTextToRgba({
-        text: input.text,
-        font,
-        fontSize: scaledFontSize,
-        bold,
-        italic,
-        color,
-        width: background.width,
-        height: background.height,
-        position,
-      });
-      const composited = compositeTextOverBackground(background, overlay);
-      return { image: CpuImage.fromImageBinary(composited, s) as unknown as GpuImage } as Output;
+      return (await renderTextOverBackground(
+        params,
+        backgroundImage,
+        backgroundImage.previewScale
+      )) as Output;
     }
 
     // Without-background source case: this task IS the source, so apply the
     // preview budget here against the user-supplied output dimensions.
-    if (
-      !("width" in input) ||
-      !("height" in input) ||
-      typeof input.width !== "number" ||
-      typeof input.height !== "number"
-    ) {
-      throw new Error(
-        "ImageTextTask: width and height are required when no background image is provided"
-      );
-    }
-    const longEdge = Math.max(input.width, input.height);
+    const { width, height } = requireStandaloneDims(input);
+    const longEdge = Math.max(width, height);
     const budget = getPreviewBudget();
     const s = longEdge > budget ? budget / longEdge : 1.0;
-    const scaledFontSize = Math.max(1, Math.round(fontSize * s));
-    const scaledWidth = Math.max(1, Math.round(input.width * s));
-    const scaledHeight = Math.max(1, Math.round(input.height * s));
-    const textBinary = await renderImageTextToRgba({
-      text: input.text,
-      font,
-      fontSize: scaledFontSize,
-      bold,
-      italic,
-      color,
-      width: scaledWidth,
-      height: scaledHeight,
-      position,
-    });
-    return { image: CpuImage.fromImageBinary(textBinary, s) as unknown as GpuImage } as Output;
+    return (await renderTextStandalone(params, width, height, s)) as Output;
   }
 }
 

@@ -4,7 +4,7 @@
  * All Rights Reserved
  */
 import { describe, expect, test } from "vitest";
-import "@workglow/tasks/codec";
+import "@workglow/tasks";
 import {
   ImageBlurTask,
   ImagePixelateTask,

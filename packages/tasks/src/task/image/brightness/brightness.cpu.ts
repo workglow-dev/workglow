@@ -3,10 +3,11 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { CpuImage, registerFilterOp, type ImageBinary } from "@workglow/util/media";
 
-export interface BrightnessParams { amount: number; }
+export interface BrightnessParams {
+  amount: number;
+}
 
 function cpuBrightness(bin: ImageBinary, amount: number): ImageBinary {
   const { data: src, width, height, channels } = bin;

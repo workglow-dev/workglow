@@ -3,10 +3,11 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { CpuImage, registerFilterOp, type ImageBinary } from "@workglow/util/media";
 
-export interface BlurParams { radius: number; }
+export interface BlurParams {
+  radius: number;
+}
 
 function cpuBoxBlur(bin: ImageBinary, radius: number): ImageBinary {
   const { data: src, width, height, channels } = bin;
@@ -54,5 +55,7 @@ function cpuBoxBlur(bin: ImageBinary, radius: number): ImageBinary {
 }
 
 registerFilterOp<BlurParams>("cpu", "blur", (image, { radius }) => {
-  return CpuImage.fromImageBinary(cpuBoxBlur((image as CpuImage).getBinary(), Math.max(1, radius | 0)));
+  return CpuImage.fromImageBinary(
+    cpuBoxBlur((image as CpuImage).getBinary(), Math.max(1, radius | 0))
+  );
 });

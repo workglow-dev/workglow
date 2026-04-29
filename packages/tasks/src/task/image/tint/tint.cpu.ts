@@ -3,12 +3,26 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, resolveColor, type ColorObject, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import {
+  CpuImage,
+  registerFilterOp,
+  resolveColor,
+  type ColorObject,
+  type ImageBinary,
+} from "@workglow/util/media";
 
-export interface TintParams { color: ColorObject | string; amount: number; }
+export interface TintParams {
+  color: ColorObject | string;
+  amount: number;
+}
 
-function cpuTint(bin: ImageBinary, tr: number, tg: number, tb: number, amount: number): ImageBinary {
+function cpuTint(
+  bin: ImageBinary,
+  tr: number,
+  tg: number,
+  tb: number,
+  amount: number
+): ImageBinary {
   const { data: src, width, height, channels } = bin;
   const invAmount = 1 - amount;
   const tintR = tr * amount;

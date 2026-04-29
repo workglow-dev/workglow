@@ -81,7 +81,7 @@ describe("previewSource", () => {
 
   test("previewSource returns a smaller image after the codec is loaded", async () => {
     // The codec entry registers the resize fn at module-init.
-    await import("@workglow/tasks/codec");
+    await import("@workglow/tasks");
     // CPU backend short-circuits regardless of registration; this test only
     // confirms the wiring exists. The actual webgpu resize is exercised in
     // chain integration tests (Task 10).

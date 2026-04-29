@@ -3,8 +3,7 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { SharpImage, resolveColor } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { SharpImage, registerFilterOp, resolveColor } from "@workglow/util/media";
 import type { TintParams } from "./tint.cpu";
 
 registerFilterOp<TintParams>("sharp", "tint", (image, { color }) => {

@@ -3,10 +3,14 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { CpuImage, registerFilterOp, type ImageBinary } from "@workglow/util/media";
 
-export interface ResizeParams { width: number; height: number; fit?: string; kernel?: string; }
+export interface ResizeParams {
+  width: number;
+  height: number;
+  fit?: string;
+  kernel?: string;
+}
 
 function cpuResize(bin: ImageBinary, dstW: number, dstH: number): ImageBinary {
   const { data: src, width: srcW, height: srcH, channels } = bin;

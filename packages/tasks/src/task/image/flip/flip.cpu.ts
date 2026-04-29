@@ -3,10 +3,11 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { CpuImage, type ImageBinary } from "@workglow/util/media";
-import { registerFilterOp } from "../imageOp";
+import { CpuImage, registerFilterOp, type ImageBinary } from "@workglow/util/media";
 
-export interface FlipParams { direction: "horizontal" | "vertical"; }
+export interface FlipParams {
+  direction: "horizontal" | "vertical";
+}
 
 function cpuFlip(bin: ImageBinary, direction: "horizontal" | "vertical"): ImageBinary {
   const { data: src, width, height, channels } = bin;

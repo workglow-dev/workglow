@@ -4,32 +4,72 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from "./media/imageTypes";
+import "./media/imageCacheCodec";
+import "./media/imageHydrationResolver";
+
 export * from "./media/color";
-export * from "./media/imageRasterCodecRegistry";
-export * from "./media/MediaRawImage";
-export type { GpuImage, GpuImageBackend, GpuImageEncodeFormat, GpuImageStatic } from "./media/gpuImage";
-export { GpuImage as GpuImageFactory, registerGpuImageFactory, getGpuImageFactory } from "./media/gpuImage";
-export { GpuImageSchema } from "./media/gpuImageSchema";
 export { CpuImage } from "./media/cpuImage";
-export { encodeImageBinaryToPng, imageBinaryToBase64Png, imageBinaryToDataUri, imageBinaryToBlob } from "./media/encode";
-export { getPreviewBudget, setPreviewBudget, previewSource, registerPreviewResizeFn } from "./media/previewBudget";
-export async function getGpuDevice(): Promise<null> { return null; }
+export {
+  encodeImageBinaryToPng,
+  imageBinaryToBase64Png,
+  imageBinaryToBlob,
+  imageBinaryToDataUri,
+} from "./media/encode";
+export {
+  _resetFilterRegistryForTests,
+  applyFilter,
+  hasFilterOp,
+  registerFilterOp,
+} from "./media/filterRegistry";
+export type { FilterOpFn } from "./media/filterRegistry";
+export {
+  getGpuImageFactory,
+  GpuImage as GpuImageFactory,
+  registerGpuImageFactory,
+} from "./media/gpuImage";
+export type {
+  GpuImage,
+  GpuImageBackend,
+  GpuImageEncodeFormat,
+  GpuImageStatic,
+} from "./media/gpuImage";
+export { GpuImageSchema } from "./media/gpuImageSchema";
+export * from "./media/imageRasterCodecRegistry";
+export * from "./media/imageTypes";
+export * from "./media/MediaRawImage";
+export {
+  getPreviewBudget,
+  previewSource,
+  registerPreviewResizeFn,
+  setPreviewBudget,
+} from "./media/previewBudget";
+export async function getGpuDevice(): Promise<null> {
+  return null;
+}
 export function resetGpuDeviceForTests(): void {}
-export { createTexturePool, getTexturePool, resetTexturePoolForTests } from "./media/texturePool.browser";
-export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";
-export { createShaderCache, getShaderCache, VERTEX_PRELUDE, PASSTHROUGH_SHADER_SRC } from "./media/shaderRegistry.browser";
+export {
+  createShaderCache,
+  getShaderCache,
+  PASSTHROUGH_SHADER_SRC,
+  VERTEX_PRELUDE,
+} from "./media/shaderRegistry.browser";
 export type { ShaderCache } from "./media/shaderRegistry.browser";
+export {
+  createTexturePool,
+  getTexturePool,
+  resetTexturePoolForTests,
+} from "./media/texturePool.browser";
+export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";
 // WebGpuImage is browser-only at runtime; type-only re-export lets
 // browser-targeted filter files (*.webgpu.ts) type-check under node tsc.
-export type { WebGpuImage, ApplyParams } from "./media/webGpuImage.browser";
 export { SharpImage } from "./media/sharpImage.node";
+export type { ApplyParams, WebGpuImage } from "./media/webGpuImage.browser";
 
-import "./media/imageHydrationResolver";
-import "./media/imageCacheCodec";
-import { SharpImage as _SharpImage } from "./media/sharpImage.node";
-import { getImageRasterCodec as _getImageRasterCodec } from "./media/imageRasterCodecRegistry";
 import { registerGpuImageFactory as _registerGpuImageFactory } from "./media/gpuImage";
+import "./media/imageCacheCodec";
+import "./media/imageHydrationResolver";
+import { getImageRasterCodec as _getImageRasterCodec } from "./media/imageRasterCodecRegistry";
+import { SharpImage as _SharpImage } from "./media/sharpImage.node";
 
 _registerGpuImageFactory("fromImageBinaryAsync", (bin) => _SharpImage.fromImageBinary(bin));
 

@@ -3,20 +3,16 @@
  * Copyright 2025 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { type IExecuteContext, type IExecutePreviewContext } from "@workglow/task-graph";
-import {
-  ImageFilterTask,
-  _resetFilterRegistryForTests,
-  registerFilterOp,
-  type FilterOpFn,
-  type ImageFilterInput,
-  type ImageFilterOutput,
-} from "@workglow/tasks";
-import "@workglow/tasks/codec"; // registers previewResizeFn → applyFilter("resize") so previewSource works
+import { ImageFilterTask, type ImageFilterInput, type ImageFilterOutput } from "@workglow/tasks";
 import { ResourceScope } from "@workglow/util";
 import {
+  _resetFilterRegistryForTests,
   CpuImage,
+  registerFilterOp,
   setPreviewBudget,
+  type FilterOpFn,
   type GpuImage,
   type GpuImageBackend,
 } from "@workglow/util/media";

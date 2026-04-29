@@ -9,8 +9,15 @@ import {
   type IExecutePreviewContext,
   type TaskConfig,
 } from "@workglow/task-graph";
-import { type GpuImage, GpuImageFactory, getGpuImageFactory, previewSource, CpuImage } from "@workglow/util/media";
-import { applyFilter, hasFilterOp } from "./imageOp";
+import {
+  applyFilter,
+  CpuImage,
+  type GpuImage,
+  GpuImageFactory,
+  getGpuImageFactory,
+  hasFilterOp,
+  previewSource,
+} from "@workglow/util/media";
 
 export interface ImageFilterInput { image: GpuImage; }
 export interface ImageFilterOutput { image: GpuImage; }
