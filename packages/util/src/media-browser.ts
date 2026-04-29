@@ -13,6 +13,7 @@ export { GpuImage as GpuImageFactory, registerGpuImageFactory } from "./media/gp
 export { GpuImageSchema } from "./media/gpuImageSchema";
 export { CpuImage } from "./media/cpuImage";
 export { encodeImageBinaryToPng, imageBinaryToBase64Png, imageBinaryToDataUri, imageBinaryToBlob } from "./media/encode";
+export { getPreviewBudget, setPreviewBudget, previewSource, registerPreviewResizeFn } from "./media/previewBudget";
 export { getGpuDevice, resetGpuDeviceForTests } from "./media/gpuDevice.browser";
 export { createTexturePool, getTexturePool, resetTexturePoolForTests } from "./media/texturePool.browser";
 export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";

@@ -45,3 +45,15 @@ import "./task/image/sepia/sepia.webgpu";
 import "./task/image/threshold/threshold.webgpu";
 import "./task/image/tint/tint.webgpu";
 import "./task/image/transparency/transparency.webgpu";
+
+// Wire previewSource (in @workglow/util/media) to the local applyFilter so
+// preview-mode chains can downscale at the head. Registered here rather than
+// inside util/media to avoid the cycle (tasks → util only). previewSource
+// short-circuits non-webgpu inputs, so this callback is only invoked when a
+// WebGpuImage exceeds the budget.
+import { registerPreviewResizeFn } from "@workglow/util/media";
+import { applyFilter } from "./task/image/imageOp";
+
+registerPreviewResizeFn((image, width, height) =>
+  applyFilter(image, "resize", { width, height })
+);

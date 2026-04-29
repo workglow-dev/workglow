@@ -13,6 +13,7 @@ export { GpuImage as GpuImageFactory, registerGpuImageFactory } from "./media/gp
 export { GpuImageSchema } from "./media/gpuImageSchema";
 export { CpuImage } from "./media/cpuImage";
 export { encodeImageBinaryToPng, imageBinaryToBase64Png, imageBinaryToDataUri, imageBinaryToBlob } from "./media/encode";
+export { getPreviewBudget, setPreviewBudget, previewSource, registerPreviewResizeFn } from "./media/previewBudget";
 export async function getGpuDevice(): Promise<null> { return null; }
 export function resetGpuDeviceForTests(): void {}
 export { createTexturePool, getTexturePool, resetTexturePoolForTests } from "./media/texturePool.browser";
