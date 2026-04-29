@@ -553,6 +553,20 @@ export class TaskRunner<
                 merged[port] = obj;
               }
             }
+            // For replace-mode streams, finish carries data: {} by convention.
+            // Fall back to the last snapshot (runOutputData) so the final output
+            // is not silently cleared when the finish payload is empty.
+            if (streamMode === "replace" && Object.keys(merged).length === 0) {
+              const lastSnapshot = this.task.runOutputData;
+              if (lastSnapshot && Object.keys(lastSnapshot).length > 0) {
+                finalOutput = lastSnapshot as Output;
+                this.task.emit("stream_chunk", {
+                  type: "finish",
+                  data: lastSnapshot,
+                } as StreamEvent);
+                break;
+              }
+            }
             finalOutput = merged as unknown as Output;
             this.task.emit("stream_chunk", { type: "finish", data: merged } as StreamEvent);
           } else {

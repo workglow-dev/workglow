@@ -69,37 +69,35 @@ describe("AiImageOutputTask", () => {
   });
 
   describe("streaming accumulator (snapshot retain/release)", () => {
-    it("retains each new partial and releases the previous one", async () => {
+    it("releases the previous partial when a new one is ingested", async () => {
       const a = fakeGpuImage("a");
       const b = fakeGpuImage("b");
       const c = fakeGpuImage("c");
-      const retainSpyA = vi.spyOn(a, "retain");
       const releaseSpyA = vi.spyOn(a, "release");
-      const retainSpyB = vi.spyOn(b, "retain");
       const releaseSpyB = vi.spyOn(b, "release");
-      const retainSpyC = vi.spyOn(c, "retain");
 
       const task = new _TestImageTask({});
       // Drive the accumulator directly via the protected hook (exposed for tests).
-      // ingestPartial() is defined on AiImageOutputTask in Task 3.
+      // ingestPartial() does NOT retain — the provider donates the ref.
       (task as any).ingestPartial(a);
-      expect(retainSpyA).toHaveBeenCalledTimes(1);
+      // No retain: a's count stays at 1.
 
       (task as any).ingestPartial(b);
-      expect(retainSpyB).toHaveBeenCalledTimes(1);
+      // Prior (a) is released when b arrives.
       expect(releaseSpyA).toHaveBeenCalledTimes(1);
 
       (task as any).ingestPartial(c);
-      expect(retainSpyC).toHaveBeenCalledTimes(1);
+      // Prior (b) is released when c arrives.
       expect(releaseSpyB).toHaveBeenCalledTimes(1);
     });
 
-    it("clears the buffer on finalize", () => {
+    it("clears the buffer on finalize without releasing", () => {
       const a = fakeGpuImage("a");
       const releaseSpy = vi.spyOn(a, "release");
       const task = new _TestImageTask({});
       (task as any).ingestPartial(a);
-      // finalize() hands the partial out to the consumer (transfers retain), so no release.
+      // takeFinalPartial() clears _latestPartial without releasing —
+      // the final partial is owned by runOutputData (which the runner holds).
       const out = (task as any).takeFinalPartial();
       expect(out).toBe(a);
       expect((task as any)._latestPartial).toBeUndefined();

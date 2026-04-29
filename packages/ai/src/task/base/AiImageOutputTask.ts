@@ -12,8 +12,10 @@
  * (and the final), then `{ type: "finish", data: {} }`.
  *
  * This base class:
- * - Retains each incoming partial GpuImage and releases the previous one
- *   (refcount discipline aligned with the GpuImage refcount system).
+ * - Tracks the latest partial in `_latestPartial` WITHOUT retaining — the
+ *   provider donates the reference, which is jointly held by `_latestPartial`
+ *   and `runOutputData`. When a new snapshot replaces both slots, the prior
+ *   partial is released.
  * - Exposes the latest partial via `executePreview()` so downstream image
  *   tasks can refresh their preview chains live as the image refines.
  * - Renders a placeholder GpuImage when no partial is available (no API call).
@@ -21,7 +23,7 @@
  *   image generation without a seed is non-deterministic.
  */
 
-import type { TaskConfig, IExecutePreviewContext, TaskOutput } from "@workglow/task-graph";
+import type { TaskConfig, IExecutePreviewContext, IExecuteContext, StreamEvent, TaskOutput } from "@workglow/task-graph";
 import type { GpuImage } from "@workglow/util/media";
 
 import { StreamingAiTask } from "./StreamingAiTask";
@@ -64,11 +66,12 @@ export class AiImageOutputTask<
 
   /**
    * Called by executeStream() (or directly by tests) for each partial image
-   * delivered by the provider. Retains the new image and releases the prior
-   * `_latestPartial`. Safe to call repeatedly.
+   * delivered by the provider. Releases the prior `_latestPartial` (if any) and
+   * stores the new image. Does NOT retain — the provider donates the reference,
+   * which is then jointly held by `_latestPartial` and `runOutputData`. When a
+   * subsequent snapshot replaces both slots, this method releases the prior.
    */
   protected ingestPartial(image: GpuImage): void {
-    image.retain();
     if (this._latestPartial !== undefined && this._latestPartial !== image) {
       this._latestPartial.release();
     }
@@ -93,6 +96,39 @@ export class AiImageOutputTask<
     if (this._latestPartial !== undefined) {
       this._latestPartial.release();
       this._latestPartial = undefined;
+    }
+  }
+
+  // --------------------------------------------------------------------
+  // executeStream override
+  // --------------------------------------------------------------------
+
+  /**
+   * Wraps the StreamingAiTask stream to track partial images via ingestPartial,
+   * so executePreview() can surface the latest partial mid-stream and refcounts
+   * are released correctly when partials are replaced.
+   *
+   * Providers yield `{ type: "snapshot", data: { image: GpuImage } }` for each
+   * partial (and the final). On `finish`, we clear `_latestPartial` without
+   * releasing — the final partial is owned by `runOutputData`.
+   */
+  override async *executeStream(
+    input: Input,
+    context: IExecuteContext,
+  ): AsyncIterable<StreamEvent<AiImageOutput>> {
+    for await (const event of super.executeStream(input, context)) {
+      if (event.type === "snapshot") {
+        const newImage = (event.data as AiImageOutput | undefined)?.image;
+        if (newImage) {
+          this.ingestPartial(newImage);
+        }
+        yield event;
+      } else if (event.type === "finish") {
+        this._latestPartial = undefined;
+        yield event;
+      } else {
+        yield event;
+      }
     }
   }
 
