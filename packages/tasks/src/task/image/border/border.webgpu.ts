@@ -3,9 +3,30 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import { WebGpuImage, resolveColor } from "@workglow/util/media";
+import { WebGpuImage, VERTEX_PRELUDE, resolveColor } from "@workglow/util/media";
 import { registerFilterOp } from "../imageOp";
 import type { BorderParams } from "./border.cpu";
+
+const SHADER_SRC = `${VERTEX_PRELUDE}
+struct U { color: vec4f, borderWidth: f32, srcWidth: f32, srcHeight: f32, _pad: f32 };
+@group(0) @binding(2) var<uniform> u: U;
+
+@fragment
+fn fs(in: VsOut) -> @location(0) vec4f {
+  let outW = u.srcWidth + 2.0 * u.borderWidth;
+  let outH = u.srcHeight + 2.0 * u.borderWidth;
+  let px = in.uv.x * outW;
+  let py = in.uv.y * outH;
+  let inside = px >= u.borderWidth && px < (u.borderWidth + u.srcWidth)
+            && py >= u.borderWidth && py < (u.borderWidth + u.srcHeight);
+  if (!inside) {
+    return u.color;
+  }
+  let sx = (px - u.borderWidth) / u.srcWidth;
+  let sy = (py - u.borderWidth) / u.srcHeight;
+  return textureSample(src, src_sampler, vec2f(sx, sy));
+}
+`;
 
 registerFilterOp<BorderParams>("webgpu", "border", (image, { borderWidth, color }) => {
   const w = (image as WebGpuImage).width;
@@ -21,7 +42,7 @@ registerFilterOp<BorderParams>("webgpu", "border", (image, { borderWidth, color 
   f[5] = w;
   f[6] = h;
   return (image as WebGpuImage).apply({
-    shader: "border",
+    shader: SHADER_SRC,
     uniforms: buf,
     outSize: { width: w + 2 * borderWidth, height: h + 2 * borderWidth },
   });

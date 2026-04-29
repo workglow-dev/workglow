@@ -17,8 +17,8 @@ export { getPreviewBudget, setPreviewBudget, previewSource, registerPreviewResiz
 export { getGpuDevice, resetGpuDeviceForTests } from "./media/gpuDevice.browser";
 export { createTexturePool, getTexturePool, resetTexturePoolForTests } from "./media/texturePool.browser";
 export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";
-export { createShaderCache, getShaderCache, SHADER_SRC } from "./media/shaderRegistry.browser";
-export type { ShaderCache, ShaderName } from "./media/shaderRegistry.browser";
+export { createShaderCache, getShaderCache, VERTEX_PRELUDE, PASSTHROUGH_SHADER_SRC } from "./media/shaderRegistry.browser";
+export type { ShaderCache } from "./media/shaderRegistry.browser";
 export { WebGpuImage } from "./media/webGpuImage.browser";
 export type { ApplyParams } from "./media/webGpuImage.browser";
 

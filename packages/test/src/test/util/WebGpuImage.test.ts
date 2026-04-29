@@ -6,6 +6,7 @@
 import { describe, expect, test, beforeEach } from "vitest";
 import {
   getGpuDevice,
+  PASSTHROUGH_SHADER_SRC,
   resetGpuDeviceForTests,
   resetTexturePoolForTests,
   type ApplyParams,
@@ -29,8 +30,8 @@ describe("WebGpuImage (API surface)", () => {
   });
 
   test("ApplyParams type is structurally exported (compile-time)", () => {
-    const p: ApplyParams = { shader: "passthrough", uniforms: undefined };
-    expect(p.shader).toBe("passthrough");
+    const p: ApplyParams = { shader: PASSTHROUGH_SHADER_SRC, uniforms: undefined };
+    expect(p.shader).toBe(PASSTHROUGH_SHADER_SRC);
   });
 });
 
@@ -61,7 +62,7 @@ describe.skipIf(typeof navigator === "undefined" || !("gpu" in navigator))("WebG
     if (!dev) return;
     const data = new Uint8ClampedArray([10, 20, 30, 255]);
     const img = await WebGpuImage.fromImageBinary({ data, width: 1, height: 1, channels: 4 });
-    const out = img.apply({ shader: "passthrough", uniforms: undefined });
+    const out = img.apply({ shader: PASSTHROUGH_SHADER_SRC, uniforms: undefined });
     expect(out).not.toBe(img);
     const bin = await out.materialize();
     expect(Array.from(bin.data)).toEqual([10, 20, 30, 255]);

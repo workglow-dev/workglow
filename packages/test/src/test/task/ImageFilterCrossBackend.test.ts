@@ -79,7 +79,7 @@ const KNOWN_SHARP_GAPS = new Set([
 // rounding vs cpu integer math.
 const KNOWN_GPU_GAPS = new Set([
   "resize",   // GPU bilinear sampler vs cpu nearest-neighbor
-  "pixelate", // GPU bilinear sampler at the snapped UV vs cpu nearest-neighbor
+  "pixelate", // GPU float averaging vs cpu integer averaging — borderline pixels can differ by ≤1/255
   "tint",     // GPU float multiply vs cpu integer multiply rounding
   "threshold",// GPU luma weights are float; cpu uses integer shift — borderline pixels can flip
 ]);

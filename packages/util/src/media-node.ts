@@ -18,8 +18,8 @@ export async function getGpuDevice(): Promise<null> { return null; }
 export function resetGpuDeviceForTests(): void {}
 export { createTexturePool, getTexturePool, resetTexturePoolForTests } from "./media/texturePool.browser";
 export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";
-export { createShaderCache, getShaderCache, SHADER_SRC } from "./media/shaderRegistry.browser";
-export type { ShaderCache, ShaderName } from "./media/shaderRegistry.browser";
+export { createShaderCache, getShaderCache, VERTEX_PRELUDE, PASSTHROUGH_SHADER_SRC } from "./media/shaderRegistry.browser";
+export type { ShaderCache } from "./media/shaderRegistry.browser";
 // WebGpuImage is browser-only at runtime; type-only re-export lets
 // browser-targeted filter files (*.webgpu.ts) type-check under node tsc.
 export type { WebGpuImage, ApplyParams } from "./media/webGpuImage.browser";

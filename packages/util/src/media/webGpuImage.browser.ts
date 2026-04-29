@@ -7,7 +7,7 @@ import type { ImageBinary, ImageChannels } from "./imageTypes";
 import type { GpuImage as IGpuImage, GpuImageEncodeFormat } from "./gpuImage";
 import { getGpuDevice } from "./gpuDevice.browser";
 import { getTexturePool } from "./texturePool.browser";
-import { getShaderCache, SHADER_SRC, type ShaderName } from "./shaderRegistry.browser";
+import { getShaderCache, PASSTHROUGH_SHADER_SRC } from "./shaderRegistry.browser";
 
 const TEX_FORMAT: GPUTextureFormat = "rgba8unorm";
 
@@ -18,7 +18,7 @@ const finalizers = typeof FinalizationRegistry !== "undefined"
   : undefined;
 
 export interface ApplyParams {
-  shader: ShaderName;
+  shader: string;
   uniforms: ArrayBuffer | undefined;
   outSize?: { width: number; height: number };
 }
@@ -91,7 +91,7 @@ export class WebGpuImage implements IGpuImage {
     const outW = params.outSize?.width ?? this.width;
     const outH = params.outSize?.height ?? this.height;
     const out = getTexturePool(this.device).acquire(outW, outH, TEX_FORMAT);
-    const shaderModule = getShaderCache(this.device).get(SHADER_SRC[params.shader]);
+    const shaderModule = getShaderCache(this.device).get(params.shader);
     const pipeline = this.device.createRenderPipeline({
       layout: "auto",
       vertex: { module: shaderModule, entryPoint: "vs" },
@@ -178,7 +178,7 @@ export class WebGpuImage implements IGpuImage {
     ctx.configure({ device: this.device, format: presentationFormat, alphaMode: "premultiplied" });
     const view = ctx.getCurrentTexture().createView();
 
-    const shaderModule = getShaderCache(this.device).get(SHADER_SRC.passthrough);
+    const shaderModule = getShaderCache(this.device).get(PASSTHROUGH_SHADER_SRC);
     const pipeline = this.device.createRenderPipeline({
       layout: "auto",
       vertex: { module: shaderModule, entryPoint: "vs" },
