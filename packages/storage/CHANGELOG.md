@@ -1,5 +1,13 @@
 # @workglow/storage
 
+## 0.2.20
+
+### Chores
+
+#### util,storage
+
+- introduce fast deepEqual; replace JSON.stringify equality
+
 ## 0.2.19
 
 ## 0.2.18
