@@ -19,6 +19,11 @@ import { getLogger } from "@workglow/util/worker";
 import type { JsonSchema } from "@workglow/util/schema";
 import type { ModelConfig } from "../model/ModelSchema";
 import { getAiProviderRegistry } from "../provider/AiProviderRegistry";
+import {
+  ImageGenerationContentPolicyError,
+  ImageGenerationProviderError,
+  ProviderUnsupportedFeatureError,
+} from "../errors/ImageGenerationErrors";
 
 /** Default timeout for provider API calls (2 minutes). */
 const DEFAULT_AI_TIMEOUT_MS = 120_000;
@@ -56,13 +61,25 @@ export interface AiJobInput<Input extends TaskInput = TaskInput> {
  * Returns a RetryableJobError for transient issues (rate limits, network errors,
  * server errors) and a PermanentJobError for non-recoverable issues (auth, not found).
  */
-function classifyProviderError(err: unknown, taskType: string, provider: string): Error {
+export function classifyProviderError(err: unknown, taskType: string, provider: string): Error {
   if (
     err instanceof PermanentJobError ||
     err instanceof RetryableJobError ||
     err instanceof AbortSignalJobError
   ) {
     return err;
+  }
+
+  if (
+    err instanceof ProviderUnsupportedFeatureError ||
+    err instanceof ImageGenerationContentPolicyError
+  ) {
+    return new PermanentJobError(err.message);
+  }
+  if (err instanceof ImageGenerationProviderError) {
+    return err.retryable
+      ? new RetryableJobError(err.message)
+      : new PermanentJobError(err.message);
   }
 
   const message = err instanceof Error ? err.message : String(err);
