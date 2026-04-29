@@ -107,6 +107,7 @@ export const registerAiTasks = () => {
 export * from "./AiChatTask";
 export * from "./ChatMessage";
 export * from "./BackgroundRemovalTask";
+export * from "./base/AiImageOutputTask";
 export * from "./base/AiTask";
 export * from "./base/AiTaskSchemas";
 export * from "./base/StreamingAiTask";
