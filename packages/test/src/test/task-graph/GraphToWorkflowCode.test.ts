@@ -14,7 +14,7 @@ import {
   WhileTask,
   Workflow,
 } from "@workglow/task-graph";
-import { setLogger } from "@workglow/util";
+import { deepEqual, setLogger } from "@workglow/util";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getTestingLogger } from "../../binding/TestingLogger";
 import {
@@ -41,7 +41,7 @@ export const registerTasks = () => {
 };
 
 /**
- * Helper: compare two graphs by their JSON serialization (without boundary nodes).
+ * Helper: compare two graphs by their JSON representation (without boundary nodes).
  * Normalizes task IDs and focuses on structure + dataflow topology.
  */
 function compareGraphStructure(
@@ -53,7 +53,7 @@ function compareGraphStructure(
 
   const typesA = jsonA.tasks.map((t) => t.type);
   const typesB = jsonB.tasks.map((t) => t.type);
-  const tasksMatch = JSON.stringify(typesA) === JSON.stringify(typesB);
+  const tasksMatch = deepEqual(typesA, typesB);
 
   // Normalize dataflows by mapping task IDs to indices
   const idToIndexA = new Map(jsonA.tasks.map((t, i) => [t.id, i]));
@@ -77,7 +77,7 @@ function compareGraphStructure(
 
   const dfNormA = normalizeDataflows(jsonA.dataflows, idToIndexA);
   const dfNormB = normalizeDataflows(jsonB.dataflows, idToIndexB);
-  const dataflowsMatch = JSON.stringify(dfNormA) === JSON.stringify(dfNormB);
+  const dataflowsMatch = deepEqual(dfNormA, dfNormB);
 
   return { tasksMatch, dataflowsMatch };
 }
