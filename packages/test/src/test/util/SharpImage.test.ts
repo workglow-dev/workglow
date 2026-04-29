@@ -63,4 +63,11 @@ describe.skipIf(isBrowser)("SharpImage", () => {
     const img = await SharpImage.fromImageBinary({ data, width: 1, height: 1, channels: 4 });
     expect(() => img.release()).not.toThrow();
   });
+
+  test("retain/release are no-ops and do not throw", async () => {
+    const img = await SharpImage.fromImageBinary({
+      data: new Uint8ClampedArray(4), width: 1, height: 1, channels: 4,
+    });
+    expect(() => { img.retain(); img.release(); img.release(); img.retain(); }).not.toThrow();
+  });
 });

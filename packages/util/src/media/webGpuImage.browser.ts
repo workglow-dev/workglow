@@ -21,16 +21,6 @@ export interface ApplyParams {
   shader: ShaderName;
   uniforms: ArrayBuffer | undefined;
   outSize?: { width: number; height: number };
-  /**
-   * If true, release the source texture (this) back to the pool after the
-   * GPU command is submitted. Use in production execute() chains where the
-   * source isn't observed downstream — frees pool slots immediately.
-   *
-   * Default false: source stays alive so callers (builder UI, debug viewers)
-   * can render or materialize it post-chain. Cleanup falls back to
-   * FinalizationRegistry on GC.
-   */
-  releaseSource?: boolean;
 }
 
 function expandToRgba(bin: ImageBinary): Uint8ClampedArray {
@@ -63,6 +53,9 @@ function align(n: number, m: number): number {
 export class WebGpuImage implements IGpuImage {
   readonly backend = "webgpu" as const;
   readonly channels: ImageChannels = 4;
+
+  /** Internal refcount. Initialized to 1 in fromImageBinary/apply. Reclaim at 0. */
+  private refcount = 1;
 
   private constructor(
     private device: GPUDevice,
@@ -139,19 +132,9 @@ export class WebGpuImage implements IGpuImage {
     pass.end();
     this.device.queue.submit([enc.finish()]);
 
-    if (params.releaseSource) {
-      // Production-mode chains opt in here: the source isn't observed by
-      // any UI, so reclaim its texture immediately for the pool.
-      const releasedSource = this.texture;
-      this.texture = null;
-      if (finalizers) finalizers.unregister(this);
-      getTexturePool(this.device).release(releasedSource);
-    }
-    // Without releaseSource, the source texture is left intact for callers
-    // (builder UI's ImagePreview, debug viewers) that keep references to
-    // intermediate task outputs to display after the chain completes.
-    // Cleanup then happens via release() (explicit) or FinalizationRegistry
-    // (on GC) — see constructor.
+    // Source texture stays alive; the caller owns its refcount and is
+    // responsible for `input.release()` when done. The new image returned
+    // here starts at refcount 1 and is owned by the caller.
     return new WebGpuImage(this.device, out, outW, outH);
   }
 
@@ -234,7 +217,20 @@ export class WebGpuImage implements IGpuImage {
     return new Uint8Array(await blob.arrayBuffer());
   }
 
+  retain(n: number = 1): this {
+    if (this.refcount <= 0) {
+      throw new Error("WebGpuImage.retain called on a released image");
+    }
+    this.refcount += n;
+    return this;
+  }
+
   release(): void {
+    if (this.refcount <= 0) {
+      throw new Error("WebGpuImage.release called on a released image");
+    }
+    this.refcount -= 1;
+    if (this.refcount > 0) return;
     if (this.texture) {
       const tex = this.texture;
       this.texture = null;

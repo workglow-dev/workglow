@@ -113,6 +113,11 @@ export class SharpImage implements IGpuImage {
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   }
 
+  retain(_n: number = 1): this {
+    // Sharp manages its own buffers via libuv; no explicit retain.
+    return this;
+  }
+
   release(): void {
     // Sharp manages its own buffers via libuv; no explicit release.
   }

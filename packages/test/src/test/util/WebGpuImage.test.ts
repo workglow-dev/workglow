@@ -55,7 +55,7 @@ describe.skipIf(typeof navigator === "undefined" || !("gpu" in navigator))("WebG
     img.release();
   });
 
-  test("apply(passthrough) returns a new texture and releases the source", async () => {
+  test("apply(passthrough) returns a new texture without disturbing the source", async () => {
     const WebGpuImage = await getWebGpuImage();
     const dev = await getGpuDevice();
     if (!dev) return;
@@ -79,5 +79,59 @@ describe.skipIf(typeof navigator === "undefined" || !("gpu" in navigator))("WebG
     expect(bytes[0]).toBe(0x89);
     expect(bytes[1]).toBe(0x50);
     img.release();
+  });
+
+  describe("refcount", () => {
+    test("release after retain still keeps the texture alive", async () => {
+      const WebGpuImage = await getWebGpuImage();
+      const dev = await getGpuDevice();
+      if (!dev) return;
+      const img = await WebGpuImage.fromImageBinary({
+        data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4,
+      });
+      img.retain();          // count: 2
+      img.release();         // count: 1 — texture still alive
+      const bin = await img.materialize();
+      expect(Array.from(bin.data)).toEqual([1, 2, 3, 255]);
+      img.release();         // count: 0 — pool reclaim
+    });
+
+    test("retain(n) increments by n", async () => {
+      const WebGpuImage = await getWebGpuImage();
+      const dev = await getGpuDevice();
+      if (!dev) return;
+      const img = await WebGpuImage.fromImageBinary({
+        data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4,
+      });
+      img.retain(3);         // count: 4
+      img.release();         // 3
+      img.release();         // 2
+      img.release();         // 1
+      const bin = await img.materialize();
+      expect(bin.width).toBe(1);
+      img.release();         // 0
+    });
+
+    test("double-release after count hits 0 throws", async () => {
+      const WebGpuImage = await getWebGpuImage();
+      const dev = await getGpuDevice();
+      if (!dev) return;
+      const img = await WebGpuImage.fromImageBinary({
+        data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4,
+      });
+      img.release();         // 0
+      expect(() => img.release()).toThrow(/released/);
+    });
+
+    test("retain after release-to-zero throws", async () => {
+      const WebGpuImage = await getWebGpuImage();
+      const dev = await getGpuDevice();
+      if (!dev) return;
+      const img = await WebGpuImage.fromImageBinary({
+        data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4,
+      });
+      img.release();
+      expect(() => img.retain()).toThrow(/released/);
+    });
   });
 });

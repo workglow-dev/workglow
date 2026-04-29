@@ -95,6 +95,11 @@ export class CpuImage implements IGpuImage {
     return dataUriToBytes(dataUri);
   }
 
+  retain(_n: number = 1): this {
+    // No-op: CpuImage owns no GPU/native resources.
+    return this;
+  }
+
   release(): void {
     // No-op: CpuImage owns no GPU/native resources.
   }

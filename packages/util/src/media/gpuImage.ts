@@ -16,6 +16,17 @@ export interface GpuImage {
   materialize(): Promise<ImageBinary>;
   toCanvas(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<void>;
   encode(format: GpuImageEncodeFormat, quality?: number): Promise<Uint8Array>;
+  /**
+   * Increment the refcount by `n` (default 1). Returns `this` for chaining.
+   * No-op for backends without external resource lifetime (CpuImage, SharpImage).
+   * Throws if the resource has already been reclaimed (count was already 0).
+   */
+  retain(n?: number): this;
+  /**
+   * Decrement the refcount by 1. When it hits 0, reclaim the underlying resource
+   * (e.g., return the GPU texture to the pool). Throws on release-after-reclaim.
+   * No-op for backends without external resource lifetime.
+   */
   release(): void;
 }
 

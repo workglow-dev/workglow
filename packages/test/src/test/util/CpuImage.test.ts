@@ -62,4 +62,11 @@ describe("CpuImage", () => {
     const img = CpuImage.fromImageBinary(makeBinary(1, 1));
     expect(() => img.release()).not.toThrow();
   });
+
+  test("retain/release are no-ops and do not throw", () => {
+    const cpu = CpuImage.fromImageBinary({
+      data: new Uint8ClampedArray(4), width: 1, height: 1, channels: 4,
+    });
+    expect(() => { cpu.retain(); cpu.release(); cpu.release(); cpu.retain(); }).not.toThrow();
+  });
 });

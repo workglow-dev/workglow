@@ -5,30 +5,10 @@
  */
 import type { GpuImage, GpuImageBackend } from "@workglow/util/media";
 
-/**
- * Per-call hints passed from `applyFilter` to the backend op. The op decides
- * how to honor them (e.g. WebGpuImage.apply releases its source texture
- * when `releaseSource` is set; CpuImage and SharpImage ops typically
- * ignore the flag because their sources are JS-managed).
- */
-export interface FilterOpOptions {
-  /**
-   * If true, the op may release the source image's resources (GPU texture,
-   * etc.) after the operation. Set in production `execute()` chains; never
-   * set in `executePreview()` because the builder UI keeps references to
-   * intermediate task outputs for debug-display.
-   */
-  releaseSource?: boolean;
-}
-
 // A backend-specific implementation of one filter, keyed by (backend, filterName).
-// The Map's value type is intentionally loose; per-filter typed wrappers
-// (see ImageFilterTask.runFilter) restore type safety at the call site.
-export type FilterOpFn<P = unknown> = (
-  image: GpuImage,
-  params: P,
-  opts: FilterOpOptions,
-) => GpuImage;
+// The Map's value type is intentionally loose; the registerFilterOp<P> generic
+// restores per-filter type safety at registration.
+export type FilterOpFn<P = unknown> = (image: GpuImage, params: P) => GpuImage;
 
 const registry = new Map<string, FilterOpFn<unknown>>();
 
@@ -42,12 +22,7 @@ export function registerFilterOp<P>(
   registry.set(key(backend, filter), fn as FilterOpFn<unknown>);
 }
 
-export function applyFilter<P>(
-  image: GpuImage,
-  filter: string,
-  params: P,
-  opts: FilterOpOptions = {},
-): GpuImage {
+export function applyFilter<P>(image: GpuImage, filter: string, params: P): GpuImage {
   const fn = registry.get(key(image.backend, filter));
   if (!fn) {
     throw new Error(
@@ -55,7 +30,7 @@ export function applyFilter<P>(
         `Ensure the codec side-effect entry is imported via \`import "@workglow/tasks/codec"\`.`,
     );
   }
-  return fn(image, params, opts);
+  return fn(image, params);
 }
 
 /** @internal — test affordance only. */
