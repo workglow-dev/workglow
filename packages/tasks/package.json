@@ -30,35 +30,35 @@
   "exports": {
     ".": {
       "react-native": {
-        "types": "./src/browser.ts",
-        "import": "./src/browser.ts"
+        "types": "./dist/browser.d.ts",
+        "import": "./dist/browser.js"
       },
       "browser": {
-        "types": "./src/browser.ts",
-        "import": "./src/browser.ts"
+        "types": "./dist/browser.d.ts",
+        "import": "./dist/browser.js"
       },
       "bun": {
-        "types": "./src/bun.ts",
-        "import": "./src/bun.ts"
+        "types": "./dist/bun.d.ts",
+        "import": "./dist/bun.js"
       },
-      "types": "./src/node.ts",
-      "import": "./src/node.ts"
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
     },
     "./electron": {
-      "types": "./src/electron.ts",
-      "import": "./src/electron.ts"
+      "types": "./dist/electron.d.ts",
+      "import": "./dist/electron.js"
     },
     "./codec": {
       "react-native": {
-        "types": "./src/codec.browser.ts",
-        "import": "./src/codec.browser.ts"
+        "types": "./dist/codec.browser.d.ts",
+        "import": "./dist/codec.browser.js"
       },
       "browser": {
-        "types": "./src/codec.browser.ts",
-        "import": "./src/codec.browser.ts"
+        "types": "./dist/codec.browser.d.ts",
+        "import": "./dist/codec.browser.js"
       },
-      "types": "./src/codec.node.ts",
-      "import": "./src/codec.node.ts"
+      "types": "./dist/codec.node.d.ts",
+      "import": "./dist/codec.node.js"
     }
   },
   "files": [

@@ -138,9 +138,19 @@ describe("resolveColor", () => {
     expect(resolveColor("#00000080")).toEqual({ r: 0, g: 0, b: 0, a: 128 });
   });
 
+  it("parses CSS rgb and rgba string inputs", () => {
+    expect(resolveColor("rgb(10, 20, 30)")).toEqual({ r: 10, g: 20, b: 30, a: 255 });
+    expect(resolveColor("rgba(10, 20, 30, 0.25)")).toEqual({ r: 10, g: 20, b: 30, a: 64 });
+  });
+
   it("throws on invalid hex", () => {
     expect(() => resolveColor("ff0000")).toThrow();
     expect(() => resolveColor("#zzzzzz")).toThrow();
+  });
+
+  it("throws on invalid CSS rgb values", () => {
+    expect(() => resolveColor("rgb(256, 0, 0)")).toThrow();
+    expect(() => resolveColor("rgba(0, 0, 0, 1.5)")).toThrow();
   });
 
   it("throws on out-of-range object channels", () => {

@@ -8,6 +8,12 @@ import type { ColorObject } from "@workglow/util/media";
 import type { JsonSchema } from "@workglow/util/schema";
 import { FromSchema, FromSchemaDefaultOptions, FromSchemaOptions } from "@workglow/util/schema";
 
+const cssRgbChannelPattern = "(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)";
+const cssRgbAlphaPattern = "(?:0(?:\\.\\d+)?|1(?:\\.0+)?)";
+const cssRgbColorPattern =
+  `^rgba?\\(\\s*${cssRgbChannelPattern}\\s*,\\s*${cssRgbChannelPattern}\\s*,\\s*` +
+  `${cssRgbChannelPattern}\\s*(?:,\\s*${cssRgbAlphaPattern})?\\s*\\)$`;
+
 export const ColorSchema = (annotations: Record<string, unknown> = {}) =>
   ({
     type: "object",
@@ -33,7 +39,17 @@ export const HexColorSchema = (annotations: Record<string, unknown> = {}) =>
     ...annotations,
   }) as const;
 
-/** Accept a {@link ColorObject} or a `#RRGGBB[AA]`/`#RGB[A]` hex string. */
+export const CssRgbColorSchema = (annotations: Record<string, unknown> = {}) =>
+  ({
+    type: "string",
+    format: "color",
+    pattern: cssRgbColorPattern,
+    title: "Color (RGB)",
+    description: "Color as a CSS `rgb(r,g,b)` or `rgba(r,g,b,a)` string",
+    ...annotations,
+  }) as const;
+
+/** Accept a {@link ColorObject}, hex string, or CSS `rgb(...)` / `rgba(...)` string. */
 export const ColorValueSchema = (annotations: Record<string, unknown> = {}) =>
   ({
     oneOf: [
@@ -42,8 +58,9 @@ export const ColorValueSchema = (annotations: Record<string, unknown> = {}) =>
         title: (annotations.title as string | undefined) ?? "Color",
         description:
           (annotations.description as string | undefined) ??
-          "Color as {r,g,b,a} object or `#RRGGBB[AA]` / `#RGB[A]` hex string",
+          "Color as {r,g,b,a} object, `#RRGGBB[AA]` / `#RGB[A]` hex string, or CSS `rgb(...)` / `rgba(...)` string",
       }),
+      CssRgbColorSchema(),
     ],
     ...annotations,
   }) as const;

@@ -63,6 +63,14 @@ function countTextishPixels(image: ImageBinary, alphaThreshold = 8): number {
   return n;
 }
 
+function getMaxAlpha(image: ImageBinary): number {
+  let max = 0;
+  for (let i = 3; i < image.data.length; i += image.channels) {
+    max = Math.max(max, image.data[i] ?? 0);
+  }
+  return max;
+}
+
 function getAlphaBounds(
   image: ImageBinary,
   alphaThreshold = 8
@@ -167,7 +175,9 @@ describe("ImageTask", () => {
       const bin = createTestImage(4, 4, 3, [100, 150, 200]);
       const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
       const task = new ImageCropTask();
-      const result = (await task.run({ image, left: 1, top: 1, width: 2, height: 2 })) as { image: GpuImage };
+      const result = (await task.run({ image, left: 1, top: 1, width: 2, height: 2 })) as {
+        image: GpuImage;
+      };
       const out = await result.image.materialize();
       expect(out.width).toBe(2);
       expect(out.height).toBe(2);
@@ -178,7 +188,9 @@ describe("ImageTask", () => {
       const bin = createTestImage(4, 4, 3, [100, 150, 200]);
       const image = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
       const task = new ImageCropTask();
-      const result = (await task.run({ image, left: 3, top: 3, width: 10, height: 10 })) as { image: GpuImage };
+      const result = (await task.run({ image, left: 3, top: 3, width: 10, height: 10 })) as {
+        image: GpuImage;
+      };
       const out = await result.image.materialize();
       expect(out.width).toBe(1);
       expect(out.height).toBe(1);
@@ -599,7 +611,9 @@ describe("ImageTask", () => {
 
     test("accepts the image branch without width and height", async () => {
       const task = new ImageTextTask();
-      const bg = CpuImage.fromImageBinary(createTestImage(96, 64, 3, [40, 80, 120])) as unknown as GpuImage;
+      const bg = CpuImage.fromImageBinary(
+        createTestImage(96, 64, 3, [40, 80, 120])
+      ) as unknown as GpuImage;
 
       const result = (await task.run({
         ...baseWithBackground,
@@ -654,7 +668,9 @@ describe("ImageTask", () => {
 
     test("outputs RGBA image with requested dimensions", async () => {
       const task = new ImageTextTask();
-      const result = (await task.run({ ...base, position: "middle-center" })) as { image: GpuImage };
+      const result = (await task.run({ ...base, position: "middle-center" })) as {
+        image: GpuImage;
+      };
       const out = await result.image.materialize();
       expect(out.width).toBe(160);
       expect(out.height).toBe(160);
@@ -687,7 +703,9 @@ describe("ImageTask", () => {
     test("top-left anchor places ink nearer the upper-left than bottom-right anchor", async () => {
       const task = new ImageTextTask();
       const tlResult = (await task.run({ ...base, position: "top-left" })) as { image: GpuImage };
-      const brResult = (await task.run({ ...base, position: "bottom-right" })) as { image: GpuImage };
+      const brResult = (await task.run({ ...base, position: "bottom-right" })) as {
+        image: GpuImage;
+      };
       const tl = await tlResult.image.materialize();
       const br = await brResult.image.materialize();
       const b1 = getAlphaBounds(tl);
@@ -717,10 +735,33 @@ describe("ImageTask", () => {
       expect(px[2]).toBeLessThan(80);
     });
 
+    test("applies text color alpha to rendered pixels", async () => {
+      const task = new ImageTextTask();
+      const result = (await task.run({
+        ...base,
+        text: "M",
+        fontSize: 72,
+        color: "rgba(200, 10, 30, 0.25)",
+        position: "middle-center",
+      })) as { image: GpuImage };
+      const out = await result.image.materialize();
+
+      expect(getMaxAlpha(out)).toBeGreaterThan(20);
+      expect(getMaxAlpha(out)).toBeLessThanOrEqual(76);
+    });
+
     test("larger font size paints more pixels than a smaller one", async () => {
       const task = new ImageTextTask();
-      const smallResult = (await task.run({ ...base, fontSize: 14, position: "middle-center" })) as { image: GpuImage };
-      const largeResult = (await task.run({ ...base, fontSize: 42, position: "middle-center" })) as { image: GpuImage };
+      const smallResult = (await task.run({
+        ...base,
+        fontSize: 14,
+        position: "middle-center",
+      })) as { image: GpuImage };
+      const largeResult = (await task.run({
+        ...base,
+        fontSize: 42,
+        position: "middle-center",
+      })) as { image: GpuImage };
       const small = await smallResult.image.materialize();
       const large = await largeResult.image.materialize();
       expect(countTextishPixels(large)).toBeGreaterThan(countTextishPixels(small));
@@ -728,7 +769,9 @@ describe("ImageTask", () => {
 
     test("renders onto an existing background image", async () => {
       const task = new ImageTextTask();
-      const bg = CpuImage.fromImageBinary(createTestImage(160, 160, 3, [40, 80, 120])) as unknown as GpuImage;
+      const bg = CpuImage.fromImageBinary(
+        createTestImage(160, 160, 3, [40, 80, 120])
+      ) as unknown as GpuImage;
       const result = (await task.run({
         ...baseWithBackground,
         image: bg,
@@ -744,7 +787,9 @@ describe("ImageTask", () => {
 
     test("renders text over a background image using the image dimensions", async () => {
       const task = new ImageTextTask();
-      const bg = CpuImage.fromImageBinary(createTestImage(96, 64, 3, [40, 80, 120])) as unknown as GpuImage;
+      const bg = CpuImage.fromImageBinary(
+        createTestImage(96, 64, 3, [40, 80, 120])
+      ) as unknown as GpuImage;
       const result = (await task.run({
         text: base.text,
         font: base.font,
