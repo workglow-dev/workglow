@@ -5,13 +5,13 @@
  */
 
 import {
-  forceArray,
-  sleep,
   collectPropertyValues,
-  toSQLiteTimestamp,
   deepEqual,
-  sortObject,
+  forceArray,
   serialize,
+  sleep,
+  sortObject,
+  toSQLiteTimestamp,
 } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -117,6 +117,16 @@ describe("deepEqual", () => {
     expect(deepEqual(null, undefined)).toBe(false);
     expect(deepEqual(null, {})).toBe(false);
   });
+
+  it("should compare array buffer views by their bytes", () => {
+    expect(deepEqual(new Uint8Array([1, 2]), new Uint8Array([1, 2]))).toBe(true);
+    expect(deepEqual(new Uint8Array([1, 2]), new Uint8Array([1, 3]))).toBe(false);
+
+    const first = new DataView(new Uint8Array([1, 2]).buffer);
+    const second = new DataView(new Uint8Array([1, 3]).buffer);
+
+    expect(deepEqual(first, second)).toBe(false);
+  });
 });
 
 describe("sortObject", () => {
@@ -139,6 +149,7 @@ describe("serialize", () => {
   });
 
   it("should produce consistent output regardless of key order", () => {
-    expect(serialize({ b: 2, a: 1 })).toBe(serialize({ a: 1, b: 2 }));
+    expect(serialize({ b: 2, a: 1 })).toBe('{"a":1,"b":2}');
+    expect(serialize({ a: 1, b: 2 })).toBe('{"a":1,"b":2}');
   });
 });
