@@ -1,5 +1,19 @@
 # @workglow/ai
 
+## 0.2.18
+
+### Features
+
+#### util/media, tasks/image, ai, task-graph
+
+- GpuImage pipeline (Phases 1-8)
+
+### Refactors
+
+#### task-graph, util/media
+
+- unify refcountable predicate registration and enhance image handling
+
 ## 0.2.17
 
 ### Features

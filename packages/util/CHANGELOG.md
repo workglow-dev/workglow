@@ -1,5 +1,51 @@
 # @workglow/util
 
+## 0.2.18
+
+### Features
+
+#### util/media
+
+- previewSource composes scale via _setPreviewScale
+- GpuImage carries previewScale; backends implement; apply() propagates
+
+#### tasks/image
+
+- add CSS rgb/rgba color schema and validation
+
+#### util/media, tasks/image
+
+- real WGSL shaders for 16 image filters
+- refcount-based GpuImage lifecycle; eliminate releaseSource
+
+#### util/media, tasks
+
+- previewSource downscales WebGPU images at the chain head
+
+#### util/media, tasks/image, ai, task-graph
+
+- GpuImage pipeline (Phases 1-8)
+
+### Bug Fixes
+
+#### tasks/image
+
+- hydrateInput handles ImageBinary, Blob, ImageBitmap, and data: URIs
+
+### Refactors
+
+#### tasks/image
+
+- consolidate image filter operations and update imports
+
+#### util/media, tasks/image
+
+- colocate WGSL per filter; apply.shader is raw string
+
+#### task-graph, util/media
+
+- unify refcountable predicate registration and enhance image handling
+
 ## 0.2.17
 
 ### Bug Fixes

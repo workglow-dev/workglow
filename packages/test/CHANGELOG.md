@@ -1,5 +1,62 @@
 # @workglow/test
 
+## 0.2.18
+
+### Features
+
+#### tasks/image
+
+- ImageTextTask.executePreview applies preview-scale to fontSize/dims
+- scalePreviewParams hook + 5 filter overrides; fallback preserves previewScale
+- add CSS rgb/rgba color schema and validation
+- task-layer CPU fallback when backend filter arm is missing
+- per-mode lifecycle in ImageFilterTask; resourceScope output disposer
+
+#### util/media
+
+- previewSource composes scale via _setPreviewScale
+- GpuImage carries previewScale; backends implement; apply() propagates
+
+#### util/media, tasks/image
+
+- real WGSL shaders for 16 image filters
+- refcount-based GpuImage lifecycle; eliminate releaseSource
+
+#### task-graph
+
+- refcountable predicate registry; runner retains for fanout safety
+
+#### util/media, tasks
+
+- previewSource downscales WebGPU images at the chain head
+
+#### util/media, tasks/image, ai, task-graph
+
+- GpuImage pipeline (Phases 1-8)
+
+### Bug Fixes
+
+- test
+
+#### tasks/image
+
+- hydrateInput handles ImageBinary, Blob, ImageBitmap, and data: URIs
+
+### Refactors
+
+#### tasks/image
+
+- consolidate image filter operations and update imports
+- remove ImageWatermarkTask
+
+#### util/media, tasks/image
+
+- colocate WGSL per filter; apply.shader is raw string
+
+#### task-graph, util/media
+
+- unify refcountable predicate registration and enhance image handling
+
 ## 0.2.17
 
 ### Features

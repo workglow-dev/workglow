@@ -1,5 +1,27 @@
 # @workglow/task-graph
 
+## 0.2.18
+
+### Features
+
+#### task-graph
+
+- refcountable predicate registry; runner retains for fanout safety
+
+#### util/media, tasks/image, ai, task-graph
+
+- GpuImage pipeline (Phases 1-8)
+
+### Bug Fixes
+
+- test
+
+### Refactors
+
+#### task-graph, util/media
+
+- unify refcountable predicate registration and enhance image handling
+
 ## 0.2.17
 
 ### Features

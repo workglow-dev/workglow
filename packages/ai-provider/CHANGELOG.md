@@ -1,5 +1,13 @@
 # @workglow/ai-provider
 
+## 0.2.18
+
+### Features
+
+#### util/media, tasks/image, ai, task-graph
+
+- GpuImage pipeline (Phases 1-8)
+
 ## 0.2.17
 
 ### Refactors
