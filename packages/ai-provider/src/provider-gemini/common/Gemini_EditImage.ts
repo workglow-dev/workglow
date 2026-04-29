@@ -33,10 +33,18 @@ async function decodeInlineImage(mimeType: string, data: string) {
   return GpuImageFactory.fromDataUri(`data:${mimeType};base64,${data}`);
 }
 
-/** Encode a GpuImage as base64 PNG for use in an inlineData Part. */
+/**
+ * Encode a GpuImage (or a data URI string materialized at the worker boundary)
+ * as base64 PNG for use in an inlineData Part.
+ */
 async function gpuImageToInlinePart(
-  image: GpuImage,
+  image: GpuImage | string,
 ): Promise<{ inlineData: { mimeType: string; data: string } }> {
+  if (typeof image === "string") {
+    // Data URI materialized by AiImageOutputTask.getJobInput — extract base64 directly.
+    const base64 = image.replace(/^data:[^;]+;base64,/, "");
+    return { inlineData: { mimeType: "image/png", data: base64 } };
+  }
   const bytes: Uint8Array = await image.encode("png");
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) {
@@ -62,12 +70,14 @@ export const Gemini_EditImage: AiProviderRunFn<
   const modelName = getModelName(model);
   const genModel = genAI.getGenerativeModel({ model: modelName });
 
-  const primaryPart = await gpuImageToInlinePart(input.image as unknown as GpuImage);
+  // image/additionalImages may be data URI strings when the input crossed
+  // the worker boundary via AiImageOutputTask.getJobInput materialization.
+  const primaryPart = await gpuImageToInlinePart(input.image as unknown as GpuImage | string);
 
   const additionalParts: Array<{ inlineData: { mimeType: string; data: string } }> =
-    input.additionalImages && (input.additionalImages as GpuImage[]).length > 0
+    input.additionalImages && (input.additionalImages as Array<GpuImage | string>).length > 0
       ? await Promise.all(
-          (input.additionalImages as GpuImage[]).map((g) => gpuImageToInlinePart(g)),
+          (input.additionalImages as Array<GpuImage | string>).map((g) => gpuImageToInlinePart(g)),
         )
       : [];
 

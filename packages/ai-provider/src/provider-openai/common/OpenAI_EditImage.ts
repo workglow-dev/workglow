@@ -41,12 +41,26 @@ function modelIdOf(model: ModelConfig | undefined): string {
 }
 
 /**
- * Encode a GpuImage to PNG bytes wrapped in a File suitable for the OpenAI
- * multipart upload. Uses `OpenAI.toFile` when available (SDK v4+), otherwise
- * falls back to `new File(...)`.
+ * Encode a GpuImage (or a serialized data URI from the worker boundary) to PNG
+ * bytes wrapped in a File suitable for the OpenAI multipart upload. Uses
+ * `OpenAI.toFile` when available (SDK v4+), otherwise falls back to `new File(...)`.
+ *
+ * Accepts a data URI string when the image was materialized by AiImageOutputTask
+ * during worker-boundary serialization.
  */
-async function gpuImageToOpenAiFile(image: GpuImage, name: string): Promise<unknown> {
-  const bytes = await image.encode("png");
+async function gpuImageToOpenAiFile(image: GpuImage | string, name: string): Promise<unknown> {
+  let bytes: Uint8Array;
+  if (typeof image === "string") {
+    // Data URI materialized at the worker boundary — decode base64 to bytes.
+    const base64 = image.replace(/^data:[^;]+;base64,/, "");
+    const binaryStr = atob(base64);
+    bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+  } else {
+    bytes = await image.encode("png");
+  }
   // Copy to a plain ArrayBuffer to avoid SharedArrayBuffer typing issues with BlobPart.
   const buffer: ArrayBuffer = bytes.buffer instanceof ArrayBuffer
     ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
@@ -69,11 +83,13 @@ async function buildEditPayload(
   model: OpenAiModelConfig | undefined,
 ): Promise<Record<string, unknown>> {
   const modelName = getModelName(model);
-  const primary = await gpuImageToOpenAiFile(input.image as unknown as GpuImage, "image.png");
+  // image/mask/additionalImages may be data URI strings when the input crossed
+  // the worker boundary via AiImageOutputTask.getJobInput materialization.
+  const primary = await gpuImageToOpenAiFile(input.image as unknown as GpuImage | string, "image.png");
   const additionalFiles =
-    input.additionalImages && (input.additionalImages as GpuImage[]).length > 0
+    input.additionalImages && (input.additionalImages as Array<GpuImage | string>).length > 0
       ? await Promise.all(
-          (input.additionalImages as GpuImage[]).map((g, i) =>
+          (input.additionalImages as Array<GpuImage | string>).map((g, i) =>
             gpuImageToOpenAiFile(g, `image-${i + 1}.png`),
           ),
         )
@@ -90,7 +106,7 @@ async function buildEditPayload(
     ...(input.providerOptions ?? {}),
   };
   if (input.mask) {
-    payload.mask = await gpuImageToOpenAiFile(input.mask as unknown as GpuImage, "mask.png");
+    payload.mask = await gpuImageToOpenAiFile(input.mask as unknown as GpuImage | string, "mask.png");
   }
   return payload;
 }

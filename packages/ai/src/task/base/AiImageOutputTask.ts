@@ -26,6 +26,7 @@
 import type { TaskConfig, IExecutePreviewContext, IExecuteContext, StreamEvent, TaskOutput } from "@workglow/task-graph";
 import type { GpuImage } from "@workglow/util/media";
 
+import type { AiJobInput } from "../../job/AiJob";
 import { StreamingAiTask } from "./StreamingAiTask";
 import type { AiTaskInput } from "./AiTask";
 import type { ModelConfig } from "../../model/ModelSchema";
@@ -58,6 +59,53 @@ export class AiImageOutputTask<
     const seed = (this.runInputData as { seed?: number } | undefined)?.seed;
     if (seed === undefined || seed === null) return false;
     return super.cacheable;
+  }
+
+  // --------------------------------------------------------------------
+  // Worker-boundary materialization
+  // --------------------------------------------------------------------
+
+  /**
+   * Converts a GpuImage to a structured-clone-safe data URI (base64 PNG) so
+   * image/mask/additionalImages inputs survive the worker boundary when
+   * EditImageTask runs via the queued execution strategy. GenerateImageTask
+   * has no image inputs, so the guards below make this a no-op for it.
+   *
+   * On the worker side, providers call GpuImageFactory.fromDataUri() (already
+   * used in e.g. OpenAI's decodeB64Png helper) or the imageEncodeHelper
+   * wrappers accept a data URI string directly.
+   */
+  protected override async getJobInput(input: Input): Promise<AiJobInput<Input>> {
+    const jobInput = await super.getJobInput(input);
+    const taskInput = jobInput.taskInput as Record<string, unknown>;
+
+    const toDataUri = async (img: GpuImage): Promise<string> => {
+      const bytes = await img.encode("png");
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return `data:image/png;base64,${btoa(binary)}`;
+    };
+
+    const isGpuImage = (v: unknown): v is GpuImage =>
+      v !== null && typeof v === "object" && typeof (v as GpuImage).encode === "function";
+
+    if (isGpuImage(taskInput.image)) {
+      taskInput.image = await toDataUri(taskInput.image);
+    }
+    if (isGpuImage(taskInput.mask)) {
+      taskInput.mask = await toDataUri(taskInput.mask);
+    }
+    if (Array.isArray(taskInput.additionalImages)) {
+      taskInput.additionalImages = await Promise.all(
+        (taskInput.additionalImages as unknown[]).map((g) =>
+          isGpuImage(g) ? toDataUri(g) : g,
+        ),
+      );
+    }
+
+    return jobInput;
   }
 
   // --------------------------------------------------------------------
@@ -116,19 +164,27 @@ export class AiImageOutputTask<
     input: Input,
     context: IExecuteContext,
   ): AsyncIterable<StreamEvent<AiImageOutput>> {
-    for await (const event of super.executeStream(input, context)) {
-      if (event.type === "snapshot") {
-        const newImage = (event.data as AiImageOutput | undefined)?.image;
-        if (newImage) {
-          this.ingestPartial(newImage);
+    try {
+      for await (const event of super.executeStream(input, context)) {
+        if (event.type === "snapshot") {
+          const newImage = (event.data as AiImageOutput | undefined)?.image;
+          if (newImage) {
+            this.ingestPartial(newImage);
+          }
+          yield event;
+        } else if (event.type === "finish") {
+          this._latestPartial = undefined;
+          yield event;
+        } else {
+          yield event;
         }
-        yield event;
-      } else if (event.type === "finish") {
-        this._latestPartial = undefined;
-        yield event;
-      } else {
-        yield event;
       }
+    } catch (err) {
+      // Release any retained partial on error so refcounts don't leak.
+      // The normal completion path clears _latestPartial in the "finish" branch,
+      // so this only fires when an exception escapes the loop.
+      this.discardPartial();
+      throw err;
     }
   }
 
@@ -175,7 +231,8 @@ export class AiImageOutputTask<
   // --------------------------------------------------------------------
 
   /**
-   * Called by the runner on abort/error. Releases any retained partial.
+   * Called by the runner on abort. Releases any retained partial.
+   * Errors during executeStream are handled inline via the catch block.
    */
   async cleanup(): Promise<void> {
     this.discardPartial();

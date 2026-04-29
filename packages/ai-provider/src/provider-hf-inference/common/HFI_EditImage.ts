@@ -29,7 +29,21 @@ function modelIdOf(model: ModelConfig | undefined): string {
   );
 }
 
-async function gpuImageToBlob(image: GpuImage): Promise<Blob> {
+/**
+ * Convert a GpuImage (or a data URI string materialized at the worker boundary)
+ * to a PNG Blob.
+ */
+async function gpuImageToBlob(image: GpuImage | string): Promise<Blob> {
+  if (typeof image === "string") {
+    // Data URI materialized by AiImageOutputTask.getJobInput — decode base64 to bytes.
+    const base64 = image.replace(/^data:[^;]+;base64,/, "");
+    const binaryStr = atob(base64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    return new Blob([bytes.buffer as ArrayBuffer], { type: "image/png" });
+  }
   const bytes = await image.encode("png");
   return new Blob([bytes.buffer as ArrayBuffer], { type: "image/png" });
 }
@@ -49,7 +63,9 @@ export const HFI_EditImage: AiProviderRunFn<
     const modelName = getModelName(model);
     const dims = resolveHfImageDims(modelName, (input.aspectRatio as any) ?? "1:1");
 
-    const inputBlob = await gpuImageToBlob(input.image as unknown as GpuImage);
+    // image/mask may be data URI strings when the input crossed the worker
+    // boundary via AiImageOutputTask.getJobInput materialization.
+    const inputBlob = await gpuImageToBlob(input.image as unknown as GpuImage | string);
     const params: Record<string, unknown> = {
       width: dims.width,
       height: dims.height,
@@ -60,15 +76,18 @@ export const HFI_EditImage: AiProviderRunFn<
     };
     if (input.mask) {
       // Validator (Task 17) rejects masks on non-inpainting models before this code runs.
-      const maskBlob = await gpuImageToBlob(input.mask as unknown as GpuImage);
+      const maskBlob = await gpuImageToBlob(input.mask as unknown as GpuImage | string);
       params.mask_image = maskBlob;
     }
 
-    const blob: Blob = await client.imageToImage({
-      model: modelName,
-      inputs: inputBlob,
-      parameters: params,
-    });
+    const blob: Blob = await client.imageToImage(
+      {
+        model: modelName,
+        inputs: inputBlob,
+        parameters: params,
+      },
+      { signal },
+    );
     const image = await GpuImageFactory.fromBlob(blob);
     update_progress(100, "Completed HF image edit");
     logger.timeEnd(timer);

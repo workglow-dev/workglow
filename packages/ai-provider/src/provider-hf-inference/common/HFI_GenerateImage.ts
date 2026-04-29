@@ -55,7 +55,7 @@ export const HFI_GenerateImage: AiProviderRunFn<
           ...(input.providerOptions ?? {}),
         },
       },
-      { outputType: "blob" as const },
+      { outputType: "blob" as const, signal },
     );
     const image = await GpuImageFactory.fromBlob(blob);
     update_progress(100, "Completed HF image generation");
