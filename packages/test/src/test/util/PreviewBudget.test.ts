@@ -61,6 +61,24 @@ describe("previewSource", () => {
     expect(out).toBe(cpu);
   });
 
+  test("previewSource returns same reference when below budget on webgpu backend", () => {
+    // The non-webgpu short-circuit is already covered by the cpu test; this
+    // confirms referential equality holds even when the backend WOULD trigger
+    // resize but the size doesn't.
+    const small = {
+      backend: "webgpu" as const,
+      width: 100,
+      height: 100,
+      channels: 4 as const,
+      materialize: async () => ({ data: new Uint8ClampedArray(0), width: 0, height: 0, channels: 4 as const }),
+      toCanvas: async () => {},
+      encode: async () => new Uint8Array(),
+      retain() { return this; },
+      release() {},
+    };
+    expect(previewSource(small as unknown as import("@workglow/util/media").GpuImage)).toBe(small);
+  });
+
   test("previewSource returns a smaller image after the codec is loaded", async () => {
     // The codec entry registers the resize fn at module-init.
     await import("@workglow/tasks/codec");
