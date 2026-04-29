@@ -57,12 +57,16 @@ export class WebGpuImage implements IGpuImage {
   /** Internal refcount. Initialized to 1 in fromImageBinary/apply. Reclaim at 0. */
   private refcount = 1;
 
+  private _previewScale: number;
+
   private constructor(
     private device: GPUDevice,
     private texture: GPUTexture | null,
     readonly width: number,
     readonly height: number,
+    previewScale: number = 1.0,
   ) {
+    this._previewScale = previewScale;
     if (finalizers && texture) {
       const dev = device;
       const tex = texture;
@@ -70,6 +74,18 @@ export class WebGpuImage implements IGpuImage {
         try { getTexturePool(dev).release(tex); } catch { /* device lost */ }
       }, this);
     }
+  }
+
+  get previewScale(): number {
+    return this._previewScale;
+  }
+
+  /** @internal — only previewSource and ImageTextTask.executePreview (without-
+   *  background source case) may call this. Mutates previewScale on this
+   *  instance and returns this for chaining. */
+  _setPreviewScale(scale: number): this {
+    this._previewScale = scale;
+    return this;
   }
 
   static async fromImageBinary(bin: ImageBinary): Promise<WebGpuImage> {
@@ -135,7 +151,7 @@ export class WebGpuImage implements IGpuImage {
     // Source texture stays alive; the caller owns its refcount and is
     // responsible for `input.release()` when done. The new image returned
     // here starts at refcount 1 and is owned by the caller.
-    return new WebGpuImage(this.device, out, outW, outH);
+    return new WebGpuImage(this.device, out, outW, outH, this._previewScale);
   }
 
   async materialize(): Promise<ImageBinary> {

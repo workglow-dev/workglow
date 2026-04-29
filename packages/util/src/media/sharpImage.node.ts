@@ -47,20 +47,36 @@ async function loadSharp(): Promise<SharpModule> {
 export class SharpImage implements IGpuImage {
   readonly backend = "sharp" as const;
 
+  private _previewScale: number;
+
   private constructor(
     private pipeline: Sharp,
     readonly width: number,
     readonly height: number,
     readonly channels: ImageChannels,
-  ) {}
+    previewScale: number = 1.0,
+  ) {
+    this._previewScale = previewScale;
+  }
 
-  static async fromImageBinary(bin: ImageBinary): Promise<SharpImage> {
+  get previewScale(): number {
+    return this._previewScale;
+  }
+
+  /** @internal — only previewSource and ImageTextTask.executePreview (without-
+   *  background source case) may call this. */
+  _setPreviewScale(scale: number): this {
+    this._previewScale = scale;
+    return this;
+  }
+
+  static async fromImageBinary(bin: ImageBinary, previewScale: number = 1.0): Promise<SharpImage> {
     const sharp = await loadSharp();
     const buf = Buffer.from(bin.data.buffer, bin.data.byteOffset, bin.data.byteLength);
     const pipeline = sharp(buf, {
       raw: { width: bin.width, height: bin.height, channels: bin.channels as 1 | 2 | 3 | 4 },
     });
-    return new SharpImage(pipeline, bin.width, bin.height, bin.channels);
+    return new SharpImage(pipeline, bin.width, bin.height, bin.channels, previewScale);
   }
 
   static async fromBuffer(buf: Buffer): Promise<SharpImage> {
@@ -80,6 +96,7 @@ export class SharpImage implements IGpuImage {
       outSize?.width ?? this.width,
       outSize?.height ?? this.height,
       outSize?.channels ?? this.channels,
+      this._previewScale,
     );
   }
 

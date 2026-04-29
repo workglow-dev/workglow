@@ -13,6 +13,11 @@ export interface GpuImage {
   readonly height: number;
   readonly channels: ImageChannels;
   readonly backend: GpuImageBackend;
+  /** Ratio of current dims to user's intended (pre-preview-downscale) dims.
+   *  1.0 in run mode and any image not derived from a previewSource downscale.
+   *  < 1.0 after previewSource has fired. Pixel-space task params are
+   *  multiplied by this before dispatch in preview mode (no-op at 1.0). */
+  readonly previewScale: number;
   materialize(): Promise<ImageBinary>;
   toCanvas(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<void>;
   encode(format: GpuImageEncodeFormat, quality?: number): Promise<Uint8Array>;

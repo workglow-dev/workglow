@@ -52,7 +52,11 @@ function expandToRgba(bin: ImageBinary): Uint8ClampedArray {
 export class CpuImage implements IGpuImage {
   readonly backend = "cpu" as const;
 
-  private constructor(private readonly bin: ImageBinary) {}
+  private _previewScale: number;
+
+  private constructor(private readonly bin: ImageBinary, previewScale: number = 1.0) {
+    this._previewScale = previewScale;
+  }
 
   get width(): number {
     return this.bin.width;
@@ -62,6 +66,17 @@ export class CpuImage implements IGpuImage {
   }
   get channels(): ImageBinary["channels"] {
     return this.bin.channels;
+  }
+
+  get previewScale(): number {
+    return this._previewScale;
+  }
+
+  /** @internal — only previewSource and ImageTextTask.executePreview (without-
+   *  background source case) may call this. */
+  _setPreviewScale(scale: number): this {
+    this._previewScale = scale;
+    return this;
   }
 
   async materialize(): Promise<ImageBinary> {
@@ -104,8 +119,8 @@ export class CpuImage implements IGpuImage {
     // No-op: CpuImage owns no GPU/native resources.
   }
 
-  static fromImageBinary(bin: ImageBinary): CpuImage {
-    return new CpuImage(bin);
+  static fromImageBinary(bin: ImageBinary, previewScale: number = 1.0): CpuImage {
+    return new CpuImage(bin, previewScale);
   }
 }
 
