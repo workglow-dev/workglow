@@ -64,6 +64,17 @@ export class ImageResizeTask extends ImageFilterTask<ResizeParams, ImageResizeTa
       kernel: input.kernel as string | undefined,
     };
   }
+
+  protected override scalePreviewParams(
+    { width, height, fit, kernel }: ResizeParams, s: number,
+  ): ResizeParams {
+    return {
+      width: Math.max(1, Math.round(width * s)),
+      height: Math.max(1, Math.round(height * s)),
+      fit,
+      kernel,
+    };
+  }
 }
 
 declare module "@workglow/task-graph" {

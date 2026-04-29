@@ -54,6 +54,17 @@ export class ImageCropTask extends ImageFilterTask<CropParams, ImageCropTaskInpu
       height: input.height as number,
     };
   }
+
+  protected override scalePreviewParams(
+    { left, top, width, height }: CropParams, s: number,
+  ): CropParams {
+    return {
+      left: Math.round(left * s),
+      top: Math.round(top * s),
+      width: Math.max(1, Math.round(width * s)),
+      height: Math.max(1, Math.round(height * s)),
+    };
+  }
 }
 
 declare module "@workglow/task-graph" {

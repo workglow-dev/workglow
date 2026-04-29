@@ -50,6 +50,12 @@ export class ImageBlurTask extends ImageFilterTask<BlurParams, ImageBlurTaskInpu
   protected opParams(input: ImageBlurTaskInput & Record<string, unknown>): BlurParams {
     return { radius: (input.radius as number | undefined) ?? 1 };
   }
+
+  protected override scalePreviewParams(
+    { radius }: BlurParams, s: number,
+  ): BlurParams {
+    return { radius: Math.max(1, Math.round(radius * s)) };
+  }
 }
 
 declare module "@workglow/task-graph" {

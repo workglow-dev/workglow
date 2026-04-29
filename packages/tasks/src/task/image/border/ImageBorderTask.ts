@@ -72,6 +72,12 @@ export class ImageBorderTask extends ImageFilterTask<BorderParams, ImageBorderTa
       color: (input.color as string | { r: number; g: number; b: number; a?: number }),
     };
   }
+
+  protected override scalePreviewParams(
+    { borderWidth, color }: BorderParams, s: number,
+  ): BorderParams {
+    return { borderWidth: Math.max(1, Math.round(borderWidth * s)), color };
+  }
 }
 
 declare module "@workglow/task-graph" {

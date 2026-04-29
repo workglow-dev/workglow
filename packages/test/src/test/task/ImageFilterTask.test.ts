@@ -34,6 +34,7 @@ class CountingImage implements GpuImage {
   readonly width: number;
   readonly height: number;
   readonly channels = 4 as const;
+  previewScale: number = 1.0;
   refs = 1;
   constructor(w: number, h: number, backend: GpuImageBackend = "cpu") {
     this.width = w;
@@ -42,6 +43,7 @@ class CountingImage implements GpuImage {
   }
   retain(n: number = 1) { this.refs += n; return this; }
   release(): void { this.refs -= 1; }
+  _setPreviewScale(s: number): this { this.previewScale = s; return this; }
   async materialize() { return { data: new Uint8ClampedArray(this.width * this.height * 4), width: this.width, height: this.height, channels: 4 as const }; }
   async toCanvas() {}
   async encode() { return new Uint8Array(); }
@@ -411,5 +413,73 @@ describe("ImageFilterTask execute fallback", () => {
     expect(out!.image).toBeDefined();
     // 1 materialize from the fallback (input is small, previewSource is a no-op).
     expect(materializeCalls).toBe(1);
+  });
+
+  test("scalePreviewParams hook is invoked with image.previewScale", async () => {
+    let captured: { radius: number } | undefined;
+    registerFilterOp<{ radius: number }>("cpu", "fake_scale_test_filter", (img, params) => {
+      captured = params;
+      return img;
+    });
+
+    const bin = { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4 as const };
+    const stub = {
+      backend: "cpu" as const,
+      width: 1, height: 1, channels: 4 as const,
+      previewScale: 0.25,
+      materialize: async () => bin,
+      retain() { return this; },
+      release() {},
+      toCanvas: async () => {},
+      encode: async () => new Uint8Array(0),
+    };
+
+    class ScaleAwareTask extends ImageFilterTask<{ radius: number }> {
+      static override readonly type = "ScaleAwareTask";
+      protected readonly filterName = "fake_scale_test_filter";
+      protected opParams() { return { radius: 8 }; }
+      protected scalePreviewParams(p: { radius: number }, s: number): { radius: number } {
+        return { radius: Math.max(1, Math.round(p.radius * s)) };
+      }
+      static override inputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+      static override outputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+    }
+
+    const task = new ScaleAwareTask({ id: "s1" });
+    await task.execute({ image: stub as never }, { resourceScope: undefined } as never);
+    // 8 * 0.25 = 2.
+    expect(captured!.radius).toBe(2);
+  });
+
+  test("fallback path preserves previewScale on the swapped CpuImage", async () => {
+    let capturedScale: number | undefined;
+    registerFilterOp<undefined>("cpu", "fake_scale_fallback_filter", (img) => {
+      capturedScale = img.previewScale;
+      return img;
+    });
+
+    const bin = { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, channels: 4 as const };
+    const stub = {
+      backend: "webgpu" as const,
+      width: 1, height: 1, channels: 4 as const,
+      previewScale: 0.3,
+      materialize: async () => bin,
+      retain() { return this; },
+      release() {},
+      toCanvas: async () => {},
+      encode: async () => new Uint8Array(0),
+    };
+
+    class FallbackScaleTask extends ImageFilterTask<undefined> {
+      static override readonly type = "FallbackScaleTask";
+      protected readonly filterName = "fake_scale_fallback_filter";
+      protected opParams() { return undefined; }
+      static override inputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+      static override outputSchema() { return { type: "object", properties: { image: { type: "object" } }, required: ["image"] } as never; }
+    }
+
+    const task = new FallbackScaleTask({ id: "s2" });
+    await task.execute({ image: stub as never }, { resourceScope: undefined } as never);
+    expect(capturedScale).toBe(0.3);
   });
 });

@@ -50,6 +50,12 @@ export class ImagePixelateTask extends ImageFilterTask<PixelateParams, ImagePixe
   protected opParams(input: ImagePixelateTaskInput & Record<string, unknown>): PixelateParams {
     return { blockSize: (input.blockSize as number | undefined) ?? 4 };
   }
+
+  protected override scalePreviewParams(
+    { blockSize }: PixelateParams, s: number,
+  ): PixelateParams {
+    return { blockSize: Math.max(1, Math.round(blockSize * s)) };
+  }
 }
 
 declare module "@workglow/task-graph" {

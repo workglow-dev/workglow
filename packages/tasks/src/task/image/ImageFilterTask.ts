@@ -24,6 +24,12 @@ export abstract class ImageFilterTask<
   protected abstract readonly filterName: string;
   protected abstract opParams(input: Input): P;
 
+  /** Override in subclasses with pixel-space params. Default is identity.
+   *  Always called before applyFilter; multiply-by-1 in run mode is a no-op. */
+  protected scalePreviewParams(params: P, _scale: number): P {
+    return params;
+  }
+
   /**
    * Ensure `input.image` is a real GpuImage instance. The format:"image"
    * input resolver in @workglow/util/media is string-only, and the
@@ -116,14 +122,15 @@ export abstract class ImageFilterTask<
     // retain/release are no-ops.
     if (!hasFilterOp(inputImage.backend, this.filterName)) {
       const bin = await inputImage.materialize();
-      const cpu = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
+      const cpu = CpuImage.fromImageBinary(bin, inputImage.previewScale) as unknown as GpuImage;
       inputImage.release();
       inputImage = cpu;
     }
     // If applyFilter throws, this task's ref of inputImage is leaked until
     // FinalizationRegistry catches it. The leak is bounded — upstream tasks'
     // resourceScope disposers cover the input via their own output registration.
-    const out = applyFilter(inputImage, this.filterName, this.opParams(input));
+    const params = this.scalePreviewParams(this.opParams(input), inputImage.previewScale);
+    const out = applyFilter(inputImage, this.filterName, params);
     // Refcount: this task held one ref of inputImage (delivered by the runner);
     // applyFilter is done with it, so decrement. Other consumers of the same
     // upstream output still have their own refs (runner's fanout retain).
@@ -156,11 +163,12 @@ export abstract class ImageFilterTask<
     // the preview budget by materializing a full-resolution image.
     if (!hasFilterOp(sourced.backend, this.filterName)) {
       const bin = await sourced.materialize();
-      const cpu = CpuImage.fromImageBinary(bin) as unknown as GpuImage;
+      const cpu = CpuImage.fromImageBinary(bin, sourced.previewScale) as unknown as GpuImage;
       if (sourced !== inputImage) sourced.release();
       sourced = cpu;
     }
-    const out = applyFilter(sourced, this.filterName, this.opParams(input));
+    const params = this.scalePreviewParams(this.opParams(input), sourced.previewScale);
+    const out = applyFilter(sourced, this.filterName, params);
     // Release the resize transient when one was created; not the original input
     // (the builder's useGpuImage hook holds a ref through display, and other
     // consumers — property viewers, downstream filters — also retain).
