@@ -257,8 +257,8 @@ const result = await task.run();
 
 Two AI tasks produce a `GpuImage` from a text prompt:
 
-- **`GenerateImageTask`** — text-to-image.
-- **`EditImageTask`** — prompt-guided edit of an input image, with optional mask (inpaint) and optional `additionalImages` (multi-image compositing).
+- **`ImageGenerateTask`** — text-to-image.
+- **`ImageEditTask`** — prompt-guided edit of an input image, with optional mask (inpaint) and optional `additionalImages` (multi-image compositing).
 
 Both extend a shared `AiImageOutputTask` base (which extends `StreamingAiTask`) and follow the standard streaming convention: providers yield `snapshot` events for each partial image (and the final), then a `finish` event. The base class retains/releases partials with the GpuImage refcount system, exposes the latest partial via `executePreview()` so downstream image tasks (`ImageGrayscaleTask`, `ImageResizeTask`, etc.) refresh live as the image refines, and overrides `cacheable` to be seed-aware (without a seed, generation is non-deterministic, so the task is treated as not cacheable).
 

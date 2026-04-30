@@ -6,7 +6,7 @@
 
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { registerGeminiImageValidator } from "@workglow/ai-provider/gemini";
-import { AiImageOutputTask, EditImageTask, ProviderUnsupportedFeatureError } from "@workglow/ai";
+import { AiImageOutputTask, ImageEditTask, ProviderUnsupportedFeatureError } from "@workglow/ai";
 
 describe("Gemini image validator", () => {
   beforeEach(() => {
@@ -17,8 +17,8 @@ describe("Gemini image validator", () => {
     AiImageOutputTask.unregisterProviderImageValidator("GOOGLE_GEMINI");
   });
 
-  it("rejects EditImageTask with mask", async () => {
-    const task = new EditImageTask({
+  it("rejects ImageEditTask with mask", async () => {
+    const task = new ImageEditTask({
       defaults: {
         prompt: "x",
         model: {
@@ -26,7 +26,7 @@ describe("Gemini image validator", () => {
           provider: "GOOGLE_GEMINI",
           title: "",
           description: "",
-          tasks: ["EditImageTask"],
+          tasks: ["ImageEditTask"],
           provider_config: { model_name: "gemini-2.5-flash-preview-05-20" },
           metadata: {},
         } as any,
@@ -39,8 +39,8 @@ describe("Gemini image validator", () => {
     );
   });
 
-  it("accepts EditImageTask without mask", async () => {
-    const task = new EditImageTask({
+  it("accepts ImageEditTask without mask", async () => {
+    const task = new ImageEditTask({
       defaults: {
         prompt: "x",
         model: {
@@ -48,7 +48,7 @@ describe("Gemini image validator", () => {
           provider: "GOOGLE_GEMINI",
           title: "",
           description: "",
-          tasks: ["EditImageTask"],
+          tasks: ["ImageEditTask"],
           provider_config: { model_name: "gemini-2.5-flash-preview-05-20" },
           metadata: {},
         } as any,

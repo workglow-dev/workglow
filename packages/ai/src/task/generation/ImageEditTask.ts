@@ -6,7 +6,7 @@
 
 import { CreateWorkflow, Workflow } from "@workglow/task-graph";
 import type { TaskConfig } from "@workglow/task-graph";
-import { GpuImageSchema } from "@workglow/util/media";
+import { ImageValueSchema } from "@workglow/util/media";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 
 import { TypeModel } from "../base/AiTaskSchemas";
@@ -14,9 +14,9 @@ import { AiImageOutputTask } from "../base/AiImageOutputTask";
 import type { AiImageOutput } from "../base/AiImageOutputTask";
 import { AiImageOptionsProperties, AiImageOutputSchema } from "./AiImageSchemas";
 
-const modelSchema = TypeModel("model:EditImageTask");
+const modelSchema = TypeModel("model:ImageEditTask");
 
-export const EditImageInputSchema = {
+export const ImageEditInputSchema = {
   type: "object",
   properties: {
     model: modelSchema,
@@ -25,11 +25,11 @@ export const EditImageInputSchema = {
       title: "Prompt",
       description: "Text describing the edit to apply",
     },
-    image: GpuImageSchema({
+    image: ImageValueSchema({
       title: "Image",
       description: "Primary image to edit",
     }),
-    mask: GpuImageSchema({
+    mask: ImageValueSchema({
       title: "Mask",
       description:
         "Optional inpainting mask. Transparent regions indicate where to edit. Supported by OpenAI and HF inpainting models.",
@@ -39,7 +39,7 @@ export const EditImageInputSchema = {
       title: "Additional Images",
       description:
         "Optional reference / composite images. Used by gpt-image-2 and Gemini 2.5 Flash Image for multi-image edits.",
-      items: GpuImageSchema(),
+      items: ImageValueSchema(),
     },
     ...AiImageOptionsProperties,
   },
@@ -47,17 +47,17 @@ export const EditImageInputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export const EditImageOutputSchema = AiImageOutputSchema;
+export const ImageEditOutputSchema = AiImageOutputSchema;
 
-export type EditImageTaskInput = FromSchema<typeof EditImageInputSchema>;
-export type EditImageTaskOutput = AiImageOutput;
-export type EditImageTaskConfig = TaskConfig<EditImageTaskInput>;
+export type ImageEditTaskInput = FromSchema<typeof ImageEditInputSchema>;
+export type ImageEditTaskOutput = AiImageOutput;
+export type ImageEditTaskConfig = TaskConfig<ImageEditTaskInput>;
 
-export class EditImageTask extends AiImageOutputTask<
-  EditImageTaskInput,
-  EditImageTaskConfig
+export class ImageEditTask extends AiImageOutputTask<
+  ImageEditTaskInput,
+  ImageEditTaskConfig
 > {
-  public static override type = "EditImageTask";
+  public static override type = "ImageEditTask";
   public static override category = "AI / Image";
   public static override title = "Edit Image";
   public static override description =
@@ -65,13 +65,13 @@ export class EditImageTask extends AiImageOutputTask<
   public static override cacheable = true;
 
   public static override inputSchema(): DataPortSchema {
-    return EditImageInputSchema as DataPortSchema;
+    return ImageEditInputSchema as DataPortSchema;
   }
   public static override outputSchema(): DataPortSchema {
-    return EditImageOutputSchema as DataPortSchema;
+    return ImageEditOutputSchema as DataPortSchema;
   }
 
-  public override async validateInput(input: EditImageTaskInput): Promise<boolean> {
+  public override async validateInput(input: ImageEditTaskInput): Promise<boolean> {
     const ok = await super.validateInput(input);
     if (!ok) return false;
     await this.validateProviderImageInput(input);
@@ -79,15 +79,15 @@ export class EditImageTask extends AiImageOutputTask<
   }
 }
 
-export const editImage = (
-  input: EditImageTaskInput,
-  config?: EditImageTaskConfig,
-) => new EditImageTask(config).run(input);
+export const imageEdit = (
+  input: ImageEditTaskInput,
+  config?: ImageEditTaskConfig,
+) => new ImageEditTask(config).run(input);
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    editImage: CreateWorkflow<EditImageTaskInput, EditImageTaskOutput, EditImageTaskConfig>;
+    imageEdit: CreateWorkflow<ImageEditTaskInput, ImageEditTaskOutput, ImageEditTaskConfig>;
   }
 }
 
-Workflow.prototype.editImage = CreateWorkflow(EditImageTask);
+Workflow.prototype.imageEdit = CreateWorkflow(ImageEditTask);

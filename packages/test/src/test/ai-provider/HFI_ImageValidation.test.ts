@@ -6,7 +6,7 @@
 
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { registerHfImageValidator } from "@workglow/ai-provider/hf-inference";
-import { AiImageOutputTask, EditImageTask, ProviderUnsupportedFeatureError } from "@workglow/ai";
+import { AiImageOutputTask, ImageEditTask, ProviderUnsupportedFeatureError } from "@workglow/ai";
 
 const HF_INFERENCE = "HF_INFERENCE";
 
@@ -16,7 +16,7 @@ function modelConfig(modelName: string): any {
     provider: HF_INFERENCE,
     title: "",
     description: "",
-    tasks: ["EditImageTask"],
+    tasks: ["ImageEditTask"],
     provider_config: { model_name: modelName },
     metadata: {},
   };
@@ -32,7 +32,7 @@ describe("HFI image validator", () => {
   });
 
   it("rejects mask on a non-inpainting model", async () => {
-    const task = new EditImageTask({
+    const task = new ImageEditTask({
       defaults: {
         prompt: "x",
         model: modelConfig("black-forest-labs/FLUX.1-schnell"),
@@ -46,7 +46,7 @@ describe("HFI image validator", () => {
   });
 
   it("accepts mask on an inpainting model (Kontext)", async () => {
-    const task = new EditImageTask({
+    const task = new ImageEditTask({
       defaults: {
         prompt: "x",
         model: modelConfig("black-forest-labs/FLUX.1-Kontext-dev"),
@@ -58,7 +58,7 @@ describe("HFI image validator", () => {
   });
 
   it("rejects non-empty additionalImages on any HF model", async () => {
-    const task = new EditImageTask({
+    const task = new ImageEditTask({
       defaults: {
         prompt: "x",
         model: modelConfig("black-forest-labs/FLUX.1-Kontext-dev"),

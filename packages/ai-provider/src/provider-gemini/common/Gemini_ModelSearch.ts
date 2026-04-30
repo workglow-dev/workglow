@@ -29,14 +29,14 @@ const GEMINI_MODELS: readonly GeminiModelEntry[] = [
   { label: "gemini-1.5-flash", value: "gemini-1.5-flash" },
   // Image-output models
   {
-    label: "gemini-2.5-flash-preview-05-20",
-    value: "gemini-2.5-flash-preview-05-20",
-    tasks: ["GenerateImageTask", "EditImageTask"],
+    label: "gemini-2.5-flash-image",
+    value: "gemini-2.5-flash-image",
+    tasks: ["ImageGenerateTask", "ImageEditTask"],
   },
   {
     label: "imagen-4.0-generate-001",
     value: "imagen-4.0-generate-001",
-    tasks: ["GenerateImageTask"],
+    tasks: ["ImageGenerateTask"],
   },
 ];
 
@@ -47,7 +47,7 @@ export const Gemini_ModelSearch: AiProviderRunFn<
   const q = normalizedModelSearchQuery(input.query);
   const filtered = q
     ? GEMINI_MODELS.filter(
-        (m) => m.value.toLowerCase().includes(q) || m.label.toLowerCase().includes(q),
+        (m) => m.value.toLowerCase().includes(q) || m.label.toLowerCase().includes(q)
       )
     : GEMINI_MODELS;
   const results: ModelSearchResultItem[] = filtered.map((m) => ({

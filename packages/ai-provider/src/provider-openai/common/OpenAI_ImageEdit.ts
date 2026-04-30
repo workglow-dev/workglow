@@ -7,21 +7,23 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
-  EditImageTaskInput,
-  EditImageTaskOutput,
+  ImageEditTaskInput,
+  ImageEditTaskOutput,
   ModelConfig,
 } from "@workglow/ai";
 import { ImageGenerationContentPolicyError, ImageGenerationProviderError } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import type { GpuImage } from "@workglow/util/media";
-import { GpuImageFactory } from "@workglow/util/media";
+import type { ImageValue } from "@workglow/util/media";
 import { getLogger } from "@workglow/util/worker";
 
-import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
+import { dataUriToImageValue, imageValueToPngBytes } from "../../common/imageOutputHelpers";
 import { getClient, getModelName } from "./OpenAI_Client";
+import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
+
+type OpenAiImageInput = ImageValue | string;
 
 function aspectRatioToSize(
-  aspectRatio: string | undefined,
+  aspectRatio: string | undefined
 ): "1024x1024" | "1024x1536" | "1536x1024" {
   switch (aspectRatio) {
     case "16:9":
@@ -37,34 +39,26 @@ function aspectRatioToSize(
 }
 
 function modelIdOf(model: ModelConfig | undefined): string {
-  return model?.model_id ?? (model?.provider_config as { model_name?: string } | undefined)?.model_name ?? "openai";
+  return (
+    model?.model_id ??
+    (model?.provider_config as { model_name?: string } | undefined)?.model_name ??
+    "openai"
+  );
 }
 
 /**
- * Encode a GpuImage (or a serialized data URI from the worker boundary) to PNG
- * bytes wrapped in a File suitable for the OpenAI multipart upload. Uses
- * `OpenAI.toFile` when available (SDK v4+), otherwise falls back to `new File(...)`.
- *
- * Accepts a data URI string when the image was materialized by AiImageOutputTask
- * during worker-boundary serialization.
+ * Encode an inbound `ImageValue` (or a serialized data URI from the worker
+ * boundary) to PNG bytes wrapped in a File suitable for the OpenAI multipart
+ * upload. Uses `OpenAI.toFile` when available (SDK v4+), otherwise falls
+ * back to `new File(...)`.
  */
-async function gpuImageToOpenAiFile(image: GpuImage | string, name: string): Promise<unknown> {
-  let bytes: Uint8Array;
-  if (typeof image === "string") {
-    // Data URI materialized at the worker boundary — decode base64 to bytes.
-    const base64 = image.replace(/^data:[^;]+;base64,/, "");
-    const binaryStr = atob(base64);
-    bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
-  } else {
-    bytes = await image.encode("png");
-  }
+async function gpuImageToOpenAiFile(image: OpenAiImageInput, name: string): Promise<unknown> {
+  const bytes = await imageValueToPngBytes(image);
   // Copy to a plain ArrayBuffer to avoid SharedArrayBuffer typing issues with BlobPart.
-  const buffer: ArrayBuffer = bytes.buffer instanceof ArrayBuffer
-    ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-    : new Uint8Array(bytes).buffer;
+  const buffer: ArrayBuffer =
+    bytes.buffer instanceof ArrayBuffer
+      ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+      : new Uint8Array(bytes).buffer;
   const sdk = (await import("openai")) as unknown as {
     toFile?: (input: unknown, name?: string, options?: { type?: string }) => Promise<unknown>;
   };
@@ -74,24 +68,27 @@ async function gpuImageToOpenAiFile(image: GpuImage | string, name: string): Pro
   return new File([buffer], name, { type: "image/png" });
 }
 
-async function decodeB64Png(b64: string): Promise<GpuImage> {
-  return GpuImageFactory.fromDataUri(`data:image/png;base64,${b64}`);
+async function decodeB64Png(b64: string): Promise<ImageValue> {
+  return dataUriToImageValue(`data:image/png;base64,${b64}`);
 }
 
 async function buildEditPayload(
-  input: EditImageTaskInput,
-  model: OpenAiModelConfig | undefined,
+  input: ImageEditTaskInput,
+  model: OpenAiModelConfig | undefined
 ): Promise<Record<string, unknown>> {
   const modelName = getModelName(model);
   // image/mask/additionalImages may be data URI strings when the input crossed
   // the worker boundary via AiImageOutputTask.getJobInput materialization.
-  const primary = await gpuImageToOpenAiFile(input.image as unknown as GpuImage | string, "image.png");
+  const primary = await gpuImageToOpenAiFile(
+    input.image as unknown as OpenAiImageInput,
+    "image.png"
+  );
   const additionalFiles =
-    input.additionalImages && (input.additionalImages as Array<GpuImage | string>).length > 0
+    input.additionalImages && (input.additionalImages as OpenAiImageInput[]).length > 0
       ? await Promise.all(
-          (input.additionalImages as Array<GpuImage | string>).map((g, i) =>
-            gpuImageToOpenAiFile(g, `image-${i + 1}.png`),
-          ),
+          (input.additionalImages as OpenAiImageInput[]).map((g, i) =>
+            gpuImageToOpenAiFile(g, `image-${i + 1}.png`)
+          )
         )
       : [];
   const imageField = additionalFiles.length === 0 ? primary : [primary, ...additionalFiles];
@@ -106,18 +103,21 @@ async function buildEditPayload(
     ...(input.providerOptions ?? {}),
   };
   if (input.mask) {
-    payload.mask = await gpuImageToOpenAiFile(input.mask as unknown as GpuImage | string, "mask.png");
+    payload.mask = await gpuImageToOpenAiFile(
+      input.mask as unknown as OpenAiImageInput,
+      "mask.png"
+    );
   }
   return payload;
 }
 
-export const OpenAI_EditImage: AiProviderRunFn<
-  EditImageTaskInput,
-  EditImageTaskOutput,
+export const OpenAI_ImageEdit: AiProviderRunFn<
+  ImageEditTaskInput,
+  ImageEditTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   const logger = getLogger();
-  const timer = `openai:EditImage:${getModelName(model)}`;
+  const timer = `openai:ImageEdit:${getModelName(model)}`;
   logger.time(timer);
   update_progress(0, "Starting OpenAI image edit");
 
@@ -155,18 +155,18 @@ export const OpenAI_EditImage: AiProviderRunFn<
  * Streaming edit path. Yields snapshot events for each partial + final image, then finish.
  * SDK v6.35+ supports `stream: true` on `images.edit` for GPT image models.
  */
-export const OpenAI_EditImage_Stream: AiProviderStreamFn<
-  EditImageTaskInput,
-  EditImageTaskOutput,
+export const OpenAI_ImageEdit_Stream: AiProviderStreamFn<
+  ImageEditTaskInput,
+  ImageEditTaskOutput,
   OpenAiModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<EditImageTaskOutput>> {
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ImageEditTaskOutput>> {
   const client = await getClient(model);
 
   try {
     const payload = await buildEditPayload(input, model);
     const stream = (await (client.images.edit as Function)(
       { ...payload, stream: true, partial_images: 3 },
-      { signal },
+      { signal }
     )) as AsyncIterable<{ b64_json?: string }>;
 
     for await (const event of stream) {
@@ -174,9 +174,9 @@ export const OpenAI_EditImage_Stream: AiProviderStreamFn<
       const b64 = event.b64_json;
       if (!b64) continue;
       const image = await decodeB64Png(b64);
-      yield { type: "snapshot", data: { image } } as StreamEvent<EditImageTaskOutput>;
+      yield { type: "snapshot", data: { image } } as StreamEvent<ImageEditTaskOutput>;
     }
-    yield { type: "finish", data: {} as EditImageTaskOutput };
+    yield { type: "finish", data: {} as ImageEditTaskOutput };
   } catch (err) {
     if (
       err instanceof ImageGenerationProviderError ||

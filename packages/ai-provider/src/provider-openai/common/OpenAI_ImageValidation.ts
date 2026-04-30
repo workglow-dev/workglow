@@ -15,13 +15,13 @@ import { OPENAI } from "./OpenAI_Constants";
  *
  * Currently validates:
  * - DALL-E 2 + non-empty `additionalImages` → throws (single-image edit only).
- *   DALL-E 3 + EditImageTask is rejected upstream by the model registry task-array check.
+ *   DALL-E 3 + ImageEditTask is rejected upstream by the model registry task-array check.
  */
 export function registerOpenAiImageValidator(): void {
   AiImageOutputTask.registerProviderImageValidator(
     OPENAI,
     (taskType, input, model: ModelConfig) => {
-      if (taskType !== "EditImageTask") return;
+      if (taskType !== "ImageEditTask") return;
       const modelName =
         (model.provider_config as { model_name?: string } | undefined)?.model_name ?? "";
       const additional = input["additionalImages"] as unknown[] | undefined;

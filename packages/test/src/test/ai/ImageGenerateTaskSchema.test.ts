@@ -6,22 +6,22 @@
 
 import { describe, expect, it } from "vitest";
 import { compileSchema } from "@workglow/util/schema";
-import { GenerateImageTask } from "@workglow/ai";
+import { ImageGenerateTask } from "@workglow/ai";
 
 function validate(schema: unknown, value: unknown) {
   const compiled = compileSchema(schema as any);
   return compiled.validate(value);
 }
 
-describe("GenerateImageTask schemas", () => {
+describe("ImageGenerateTask schemas", () => {
   it("declares static type, category, cacheable", () => {
-    expect(GenerateImageTask.type).toBe("GenerateImageTask");
-    expect(GenerateImageTask.category).toBe("AI / Image");
-    expect(GenerateImageTask.cacheable).toBe(true);
+    expect(ImageGenerateTask.type).toBe("ImageGenerateTask");
+    expect(ImageGenerateTask.category).toBe("AI / Image");
+    expect(ImageGenerateTask.cacheable).toBe(true);
   });
 
   it("accepts a minimal valid input", () => {
-    const result = validate(GenerateImageTask.inputSchema(), {
+    const result = validate(ImageGenerateTask.inputSchema(), {
       prompt: "a sunset",
       model: "openai/gpt-image-2",
     });
@@ -29,14 +29,14 @@ describe("GenerateImageTask schemas", () => {
   });
 
   it("rejects input missing prompt", () => {
-    const result = validate(GenerateImageTask.inputSchema(), {
+    const result = validate(ImageGenerateTask.inputSchema(), {
       model: "openai/gpt-image-2",
     });
     expect(result.valid).toBe(false);
   });
 
   it("rejects an invalid aspectRatio", () => {
-    const result = validate(GenerateImageTask.inputSchema(), {
+    const result = validate(ImageGenerateTask.inputSchema(), {
       prompt: "x",
       model: "m",
       aspectRatio: "21:9",
@@ -45,7 +45,7 @@ describe("GenerateImageTask schemas", () => {
   });
 
   it("declares output port image with x-stream: replace", () => {
-    const schema = GenerateImageTask.outputSchema() as any;
+    const schema = ImageGenerateTask.outputSchema() as any;
     expect(schema.properties.image["x-stream"]).toBe("replace");
     expect(schema.properties.image.format).toBe("image");
   });

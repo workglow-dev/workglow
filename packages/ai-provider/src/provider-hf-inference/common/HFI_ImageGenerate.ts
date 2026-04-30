@@ -7,15 +7,15 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
-  GenerateImageTaskInput,
-  GenerateImageTaskOutput,
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   ModelConfig,
 } from "@workglow/ai";
 import { ImageGenerationContentPolicyError, ImageGenerationProviderError } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import { GpuImageFactory } from "@workglow/util/media";
 import { getLogger } from "@workglow/util/worker";
 
+import { blobToImageValue } from "../../common/imageOutputHelpers";
 import type { HfInferenceModelConfig } from "./HFI_ModelSchema";
 import { getClient, getModelName } from "./HFI_Client";
 import { resolveHfImageDims } from "./HFI_AspectRatio";
@@ -28,13 +28,13 @@ function modelIdOf(model: ModelConfig | undefined): string {
   );
 }
 
-export const HFI_GenerateImage: AiProviderRunFn<
-  GenerateImageTaskInput,
-  GenerateImageTaskOutput,
+export const HFI_ImageGenerate: AiProviderRunFn<
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   HfInferenceModelConfig
 > = async (input, model, update_progress, signal) => {
   const logger = getLogger();
-  const timer = `hfi:GenerateImage:${getModelName(model)}`;
+  const timer = `hfi:ImageGenerate:${getModelName(model)}`;
   logger.time(timer);
   update_progress(0, "Starting HF image generation");
 
@@ -57,7 +57,7 @@ export const HFI_GenerateImage: AiProviderRunFn<
       },
       { outputType: "blob" as const, signal },
     );
-    const image = await GpuImageFactory.fromBlob(blob);
+    const image = await blobToImageValue(blob);
     update_progress(100, "Completed HF image generation");
     logger.timeEnd(timer);
     return { image };
@@ -78,13 +78,13 @@ export const HFI_GenerateImage: AiProviderRunFn<
  * One-shot stream wrapper. HF Inference does not support partial image streaming,
  * so we call the non-streaming run function, yield one snapshot, then finish.
  */
-export const HFI_GenerateImage_Stream: AiProviderStreamFn<
-  GenerateImageTaskInput,
-  GenerateImageTaskOutput,
+export const HFI_ImageGenerate_Stream: AiProviderStreamFn<
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   HfInferenceModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<GenerateImageTaskOutput>> {
-  const result = await HFI_GenerateImage(input, model, () => {}, signal);
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ImageGenerateTaskOutput>> {
+  const result = await HFI_ImageGenerate(input, model, () => {}, signal);
   if (signal.aborted) return;
-  yield { type: "snapshot", data: result } as StreamEvent<GenerateImageTaskOutput>;
-  yield { type: "finish", data: {} as GenerateImageTaskOutput };
+  yield { type: "snapshot", data: result } as StreamEvent<ImageGenerateTaskOutput>;
+  yield { type: "finish", data: {} as ImageGenerateTaskOutput };
 };

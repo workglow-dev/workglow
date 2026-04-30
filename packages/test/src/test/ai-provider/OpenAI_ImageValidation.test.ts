@@ -6,7 +6,7 @@
 
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { registerOpenAiImageValidator } from "@workglow/ai-provider/openai";
-import { AiImageOutputTask, EditImageTask, ProviderUnsupportedFeatureError } from "@workglow/ai";
+import { AiImageOutputTask, ImageEditTask, ProviderUnsupportedFeatureError } from "@workglow/ai";
 
 describe("OpenAI image validator", () => {
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe("OpenAI image validator", () => {
   });
 
   it("rejects DALL-E 2 with additionalImages", async () => {
-    const task = new EditImageTask({
+    const task = new ImageEditTask({
       defaults: {
         prompt: "x",
         model: {
@@ -26,7 +26,7 @@ describe("OpenAI image validator", () => {
           provider: "OPENAI",
           title: "",
           description: "",
-          tasks: ["EditImageTask"],
+          tasks: ["ImageEditTask"],
           provider_config: { model_name: "dall-e-2" },
           metadata: {},
         } as any,
@@ -40,7 +40,7 @@ describe("OpenAI image validator", () => {
   });
 
   it("accepts gpt-image-2 with additionalImages", async () => {
-    const task = new EditImageTask({
+    const task = new ImageEditTask({
       defaults: {
         prompt: "x",
         model: {
@@ -48,7 +48,7 @@ describe("OpenAI image validator", () => {
           provider: "OPENAI",
           title: "",
           description: "",
-          tasks: ["EditImageTask"],
+          tasks: ["ImageEditTask"],
           provider_config: { model_name: "gpt-image-2" },
           metadata: {},
         } as any,

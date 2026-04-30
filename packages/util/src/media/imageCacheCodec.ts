@@ -4,41 +4,22 @@
  * All Rights Reserved
  */
 import { registerPortCodec } from "@workglow/util";
-import { CpuImage } from "./cpuImage";
-import type { GpuImage } from "./gpuImage";
-import type { ImageBinary, ImageChannels } from "./imageTypes";
+import type { ImageValue } from "./imageValue";
+import { isBrowserImageValue, isNodeImageValue } from "./imageValue";
 
-export interface CachedImage {
-  kind: "image-binary";
-  width: number;
-  height: number;
-  channels: ImageChannels;
-  data: Uint8ClampedArray;
-}
-
-registerPortCodec<GpuImage, CachedImage>("image", {
+/**
+ * Cache codec for `format: "image"` ports. Round-trips ImageValue through
+ * a structured-cloneable form. Bitmaps survive postMessage/transferList;
+ * Buffers survive structured-clone in worker_threads.
+ */
+registerPortCodec<ImageValue, ImageValue>("image", {
   async serialize(value) {
-    if (typeof (value as unknown as { materialize?: unknown }).materialize !== "function") {
-      return value as unknown as CachedImage;
+    if (isBrowserImageValue(value) || isNodeImageValue(value)) {
+      return value;
     }
-    const bin: ImageBinary = await value.materialize();
-    return {
-      kind: "image-binary",
-      width: bin.width,
-      height: bin.height,
-      channels: bin.channels,
-      data: bin.data,
-    };
+    return value;
   },
   async deserialize(cached) {
-    if ((cached as unknown as { kind?: string }).kind !== "image-binary") {
-      return cached as unknown as GpuImage;
-    }
-    return CpuImage.fromImageBinary({
-      data: cached.data,
-      width: cached.width,
-      height: cached.height,
-      channels: cached.channels,
-    }) as unknown as GpuImage;
+    return cached;
   },
 });

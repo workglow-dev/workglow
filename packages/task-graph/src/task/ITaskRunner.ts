@@ -35,6 +35,18 @@ export interface ITaskRunner<
   runPreview(overrides?: Partial<Input>): Promise<Output>;
 
   /**
+   * Async iterator producing preview outputs as upstream tasks stream
+   * snapshots. Yields once immediately with the current preview state, then
+   * once per upstream snapshot until all relevant upstream streams complete
+   * (or the consumer breaks out of the loop).
+   *
+   * Reuses runPreview() under the hood. Errors during a single iteration
+   * are caught and skipped — the iterator never throws to the consumer
+   * mid-loop.
+   */
+  runPreviewStream(overrides?: Partial<Input>): AsyncIterable<Output>;
+
+  /**
    * Aborts the task execution
    */
   abort(): void;

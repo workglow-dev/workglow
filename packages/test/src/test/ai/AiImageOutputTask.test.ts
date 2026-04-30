@@ -4,13 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it, vi } from "vitest";
-import type { GpuImage } from "@workglow/util/media";
+import { describe, expect, it } from "vitest";
+import type { ImageValue } from "@workglow/util/media";
 import type { ModelConfig } from "@workglow/ai";
 import { AiImageOutputTask } from "@workglow/ai";
 
 // Test subclass: overrides the abstract bits with concrete schemas.
-class _TestImageTask extends AiImageOutputTask<{ prompt: string; model: ModelConfig | string; seed?: number; aspectRatio?: string }> {
+class _TestImageTask extends AiImageOutputTask<{
+  prompt: string;
+  model: ModelConfig | string;
+  seed?: number;
+  aspectRatio?: string;
+}> {
   public static override type = "_TestImageTask";
   public static override category = "Test";
   public static override inputSchema() {
@@ -28,29 +33,11 @@ class _TestImageTask extends AiImageOutputTask<{ prompt: string; model: ModelCon
   }
 }
 
-function fakeGpuImage(label: string): GpuImage {
-  let count = 1;
-  let released = false;
-  return {
-    width: 8,
-    height: 8,
-    channels: 4,
-    backend: "cpu",
-    previewScale: 1,
-    materialize: async () => ({ data: new Uint8ClampedArray(8 * 8 * 4), width: 8, height: 8, channels: 4 }) as any,
-    toCanvas: async () => {},
-    encode: async () => new Uint8Array(),
-    retain(n = 1) {
-      if (released) throw new Error(`retain after release: ${label}`);
-      count += n;
-      return this;
-    },
-    release() {
-      if (released) throw new Error(`double release: ${label}`);
-      count -= 1;
-      if (count === 0) released = true;
-    },
-  } as unknown as GpuImage;
+function fakeImageValue(width = 8, height = 8, previewScale = 1): ImageValue {
+  // Use a Node-shape ImageValue. Buffer + raw-rgba is the simplest construct
+  // that survives `isImageValue`. The bytes are dummy — only structure matters.
+  const buf = Buffer.alloc(width * height * 4);
+  return { buffer: buf, format: "raw-rgba", width, height, previewScale } as ImageValue;
 }
 
 describe("AiImageOutputTask", () => {
@@ -68,45 +55,35 @@ describe("AiImageOutputTask", () => {
     });
   });
 
-  describe("streaming accumulator (snapshot retain/release)", () => {
-    it("releases the previous partial when a new one is ingested", async () => {
-      const a = fakeGpuImage("a");
-      const b = fakeGpuImage("b");
-      const c = fakeGpuImage("c");
-      const releaseSpyA = vi.spyOn(a, "release");
-      const releaseSpyB = vi.spyOn(b, "release");
-
+  describe("streaming accumulator (snapshot replacement)", () => {
+    // Refcount-based retain/release on partials was deleted with the
+    // ImageValue boundary refactor; ImageValue lifetime is JS GC. The
+    // accumulator now just replaces `_latestPartial` on each ingest, and
+    // `takeFinalPartial()` clears it without releasing. These tests verify
+    // the new replacement semantics without referencing the deleted
+    // retain/release API.
+    it("replaces the prior partial when a new one is ingested", () => {
+      const a = fakeImageValue();
+      const b = fakeImageValue();
       const task = new _TestImageTask({});
-      // Drive the accumulator directly via the protected hook (exposed for tests).
-      // ingestPartial() does NOT retain — the provider donates the ref.
       (task as any).ingestPartial(a);
-      // No retain: a's count stays at 1.
-
+      expect((task as any)._latestPartial).toBe(a);
       (task as any).ingestPartial(b);
-      // Prior (a) is released when b arrives.
-      expect(releaseSpyA).toHaveBeenCalledTimes(1);
-
-      (task as any).ingestPartial(c);
-      // Prior (b) is released when c arrives.
-      expect(releaseSpyB).toHaveBeenCalledTimes(1);
+      expect((task as any)._latestPartial).toBe(b);
     });
 
-    it("clears the buffer on finalize without releasing", () => {
-      const a = fakeGpuImage("a");
-      const releaseSpy = vi.spyOn(a, "release");
+    it("clears the buffer on takeFinalPartial without retaining", () => {
+      const a = fakeImageValue();
       const task = new _TestImageTask({});
       (task as any).ingestPartial(a);
-      // takeFinalPartial() clears _latestPartial without releasing —
-      // the final partial is owned by runOutputData (which the runner holds).
       const out = (task as any).takeFinalPartial();
       expect(out).toBe(a);
       expect((task as any)._latestPartial).toBeUndefined();
-      expect(releaseSpy).not.toHaveBeenCalled();
     });
   });
 
   describe("placeholder preview", () => {
-    it("returns a non-undefined GpuImage and never calls a provider", async () => {
+    it("returns a non-undefined ImageValue and never calls a provider", async () => {
       const task = new _TestImageTask({});
       task.runInputData = { prompt: "a sunset", model: "m" };
       const out = await task.executePreview(
@@ -114,7 +91,7 @@ describe("AiImageOutputTask", () => {
         { own: ((x: any) => x) as any },
       );
       expect(out?.image).toBeDefined();
-      expect((out!.image as GpuImage).width).toBeGreaterThan(0);
+      expect((out!.image as ImageValue).width).toBeGreaterThan(0);
     });
   });
 });

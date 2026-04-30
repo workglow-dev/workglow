@@ -14,10 +14,10 @@ import { searchHfModels, mapHfModelResult } from "../../common/HfModelSearch";
 import { filterLabeledModelsByQuery } from "../../common/modelSearchQuery";
 import { HF_INFERENCE } from "./HFI_Constants";
 
-/** Models with explicit task overrides (HF pipeline tags don't cover GenerateImageTask/EditImageTask). */
+/** Models with explicit task overrides (HF pipeline tags don't cover ImageGenerateTask/ImageEditTask). */
 const HFI_IMAGE_MODELS: Array<{ id: string; tasks: string[] }> = [
-  { id: "black-forest-labs/FLUX.1-schnell", tasks: ["GenerateImageTask"] },
-  { id: "black-forest-labs/FLUX.1-Kontext-dev", tasks: ["EditImageTask"] },
+  { id: "black-forest-labs/FLUX.1-schnell", tasks: ["ImageGenerateTask"] },
+  { id: "black-forest-labs/FLUX.1-Kontext-dev", tasks: ["ImageEditTask"] },
 ];
 
 function buildFallbackResults(): ModelSearchResultItem[] {

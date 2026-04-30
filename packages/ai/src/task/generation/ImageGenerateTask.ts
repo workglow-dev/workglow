@@ -13,9 +13,9 @@ import { AiImageOutputTask } from "../base/AiImageOutputTask";
 import type { AiImageOutput } from "../base/AiImageOutputTask";
 import { AiImageOptionsProperties, AiImageOutputSchema } from "./AiImageSchemas";
 
-const modelSchema = TypeModel("model:GenerateImageTask");
+const modelSchema = TypeModel("model:ImageGenerateTask");
 
-export const GenerateImageInputSchema = {
+export const ImageGenerateInputSchema = {
   type: "object",
   properties: {
     model: modelSchema,
@@ -30,17 +30,17 @@ export const GenerateImageInputSchema = {
   additionalProperties: false,
 } as const satisfies DataPortSchema;
 
-export const GenerateImageOutputSchema = AiImageOutputSchema;
+export const ImageGenerateOutputSchema = AiImageOutputSchema;
 
-export type GenerateImageTaskInput = FromSchema<typeof GenerateImageInputSchema>;
-export type GenerateImageTaskOutput = AiImageOutput;
-export type GenerateImageTaskConfig = TaskConfig<GenerateImageTaskInput>;
+export type ImageGenerateTaskInput = FromSchema<typeof ImageGenerateInputSchema>;
+export type ImageGenerateTaskOutput = AiImageOutput;
+export type ImageGenerateTaskConfig = TaskConfig<ImageGenerateTaskInput>;
 
-export class GenerateImageTask extends AiImageOutputTask<
-  GenerateImageTaskInput,
-  GenerateImageTaskConfig
+export class ImageGenerateTask extends AiImageOutputTask<
+  ImageGenerateTaskInput,
+  ImageGenerateTaskConfig
 > {
-  public static override type = "GenerateImageTask";
+  public static override type = "ImageGenerateTask";
   public static override category = "AI / Image";
   public static override title = "Generate Image";
   public static override description =
@@ -48,13 +48,13 @@ export class GenerateImageTask extends AiImageOutputTask<
   public static override cacheable = true;
 
   public static override inputSchema(): DataPortSchema {
-    return GenerateImageInputSchema as DataPortSchema;
+    return ImageGenerateInputSchema as DataPortSchema;
   }
   public static override outputSchema(): DataPortSchema {
-    return GenerateImageOutputSchema as DataPortSchema;
+    return ImageGenerateOutputSchema as DataPortSchema;
   }
 
-  public override async validateInput(input: GenerateImageTaskInput): Promise<boolean> {
+  public override async validateInput(input: ImageGenerateTaskInput): Promise<boolean> {
     const ok = await super.validateInput(input);
     if (!ok) return false;
     await this.validateProviderImageInput(input);
@@ -62,19 +62,19 @@ export class GenerateImageTask extends AiImageOutputTask<
   }
 }
 
-export const generateImage = (
-  input: GenerateImageTaskInput,
-  config?: GenerateImageTaskConfig,
-) => new GenerateImageTask(config).run(input);
+export const imageGenerate = (
+  input: ImageGenerateTaskInput,
+  config?: ImageGenerateTaskConfig,
+) => new ImageGenerateTask(config).run(input);
 
 declare module "@workglow/task-graph" {
   interface Workflow {
-    generateImage: CreateWorkflow<
-      GenerateImageTaskInput,
-      GenerateImageTaskOutput,
-      GenerateImageTaskConfig
+    imageGenerate: CreateWorkflow<
+      ImageGenerateTaskInput,
+      ImageGenerateTaskOutput,
+      ImageGenerateTaskConfig
     >;
   }
 }
 
-Workflow.prototype.generateImage = CreateWorkflow(GenerateImageTask);
+Workflow.prototype.imageGenerate = CreateWorkflow(ImageGenerateTask);

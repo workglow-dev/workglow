@@ -5,7 +5,7 @@
  */
 
 import type { DataPortSchema } from "@workglow/util/schema";
-import { GpuImageSchema } from "@workglow/util/media";
+import { ImageValueSchema } from "@workglow/util/media";
 
 export const AspectRatioSchema = {
   type: "string",
@@ -24,7 +24,7 @@ export const QualitySchema = {
 } as const;
 
 /**
- * Properties shared by GenerateImageTask and EditImageTask. Inlined into each
+ * Properties shared by ImageGenerateTask and ImageEditTask. Inlined into each
  * task's input schema (rather than referenced via $ref) to keep the per-task
  * schema simple to inspect and serialize.
  */
@@ -56,13 +56,13 @@ export const AiImageOptionsProperties = {
 } as const;
 
 /**
- * Output schema shared by GenerateImageTask and EditImageTask. Marked with
+ * Output schema shared by ImageGenerateTask and ImageEditTask. Marked with
  * x-stream: "replace" so each provider snapshot replaces the prior partial.
  */
 export const AiImageOutputSchema = {
   type: "object",
   properties: {
-    image: GpuImageSchema({
+    image: ImageValueSchema({
       title: "Image",
       description: "Generated image",
       "x-stream": "replace",

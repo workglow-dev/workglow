@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ImageBinary } from "@workglow/util/media";
+import type { RawPixelBuffer } from "@workglow/util/media";
 
 import { MAX_DECODED_PIXELS } from "./imageCodecLimits";
 import {
@@ -68,7 +68,7 @@ function buildTextSvg(params: ImageTextRenderParams): string {
 
 export function createServerImageTextRenderer(): ImageTextRenderer {
   return {
-    async renderToRgba(params: ImageTextRenderParams): Promise<ImageBinary> {
+    async renderToRgba(params: ImageTextRenderParams): Promise<RawPixelBuffer> {
       let sharp: typeof import("sharp");
       try {
         sharp = (await import("sharp")).default;

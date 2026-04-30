@@ -14,13 +14,13 @@ import { GOOGLE_GEMINI } from "./Gemini_Constants";
  * (both inline and worker-backed paths) so it runs on the main thread before any dispatch.
  *
  * Currently validates:
- * - EditImageTask + non-null mask → throws (Gemini does not support mask-based inpainting).
+ * - ImageEditTask + non-null mask → throws (Gemini does not support mask-based inpainting).
  */
 export function registerGeminiImageValidator(): void {
   AiImageOutputTask.registerProviderImageValidator(
     GOOGLE_GEMINI,
     (taskType, input, model: ModelConfig) => {
-      if (taskType !== "EditImageTask") return;
+      if (taskType !== "ImageEditTask") return;
       if (input["mask"] !== undefined && input["mask"] !== null) {
         throw new ProviderUnsupportedFeatureError(
           "mask",

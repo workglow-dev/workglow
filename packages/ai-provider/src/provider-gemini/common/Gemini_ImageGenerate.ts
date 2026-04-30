@@ -7,16 +7,16 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
-  EditImageTaskInput,
-  EditImageTaskOutput,
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   ModelConfig,
 } from "@workglow/ai";
 import { ImageGenerationContentPolicyError, ImageGenerationProviderError } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import type { GpuImage } from "@workglow/util/media";
-import { GpuImageFactory } from "@workglow/util/media";
+import type { ImageValue } from "@workglow/util/media";
 import { getLogger } from "@workglow/util/worker";
 
+import { dataUriToImageValue } from "../../common/imageOutputHelpers";
 import type { GeminiModelConfig } from "./Gemini_ModelSchema";
 import { getApiKey, getModelName, loadGeminiSDK } from "./Gemini_Client";
 
@@ -28,64 +28,28 @@ function modelIdOf(model: ModelConfig | undefined): string {
   );
 }
 
-/** Decode a base64 inline image part into a GpuImage. */
-async function decodeInlineImage(mimeType: string, data: string) {
-  return GpuImageFactory.fromDataUri(`data:${mimeType};base64,${data}`);
-}
-
-/**
- * Encode a GpuImage (or a data URI string materialized at the worker boundary)
- * as base64 PNG for use in an inlineData Part.
- */
-async function gpuImageToInlinePart(
-  image: GpuImage | string,
-): Promise<{ inlineData: { mimeType: string; data: string } }> {
-  if (typeof image === "string") {
-    // Data URI materialized by AiImageOutputTask.getJobInput — extract base64 directly.
-    const base64 = image.replace(/^data:[^;]+;base64,/, "");
-    return { inlineData: { mimeType: "image/png", data: base64 } };
-  }
-  const bytes: Uint8Array = await image.encode("png");
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  const base64 = btoa(binary);
-  return { inlineData: { mimeType: "image/png", data: base64 } };
+/** Decode a base64 string with an explicit mime type into an ImageValue. */
+async function decodeInlineImage(mimeType: string, data: string): Promise<ImageValue> {
+  return dataUriToImageValue(`data:${mimeType};base64,${data}`);
 }
 
 /** Non-streaming path. */
-export const Gemini_EditImage: AiProviderRunFn<
-  EditImageTaskInput,
-  EditImageTaskOutput,
+export const Gemini_ImageGenerate: AiProviderRunFn<
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   GeminiModelConfig
 > = async (input, model, update_progress, signal) => {
   const logger = getLogger();
-  const timer = `gemini:EditImage:${modelIdOf(model)}`;
+  const timer = `gemini:ImageGenerate:${modelIdOf(model)}`;
   logger.time(timer, { model: modelIdOf(model) });
-  update_progress(0, "Starting Gemini image edit");
+  update_progress(0, "Starting Gemini image generation");
 
   const GoogleGenerativeAI = await loadGeminiSDK();
   const genAI = new GoogleGenerativeAI(getApiKey(model));
   const modelName = getModelName(model);
   const genModel = genAI.getGenerativeModel({ model: modelName });
 
-  // image/additionalImages may be data URI strings when the input crossed
-  // the worker boundary via AiImageOutputTask.getJobInput materialization.
-  const primaryPart = await gpuImageToInlinePart(input.image as unknown as GpuImage | string);
-
-  const additionalParts: Array<{ inlineData: { mimeType: string; data: string } }> =
-    input.additionalImages && (input.additionalImages as Array<GpuImage | string>).length > 0
-      ? await Promise.all(
-          (input.additionalImages as Array<GpuImage | string>).map((g) => gpuImageToInlinePart(g)),
-        )
-      : [];
-
-  const parts: Array<any> = [
-    { text: input.prompt },
-    primaryPart,
-    ...additionalParts,
-  ];
+  const parts: Array<{ text: string }> = [{ text: input.prompt }];
 
   try {
     const result = await genModel.generateContent(
@@ -119,7 +83,7 @@ export const Gemini_EditImage: AiProviderRunFn<
     }
 
     const image = await decodeInlineImage(imagePart.inlineData.mimeType, imagePart.inlineData.data);
-    update_progress(100, "Completed Gemini image edit");
+    update_progress(100, "Completed Gemini image generation");
     logger.timeEnd(timer, { model: modelIdOf(model) });
     return { image };
   } catch (err) {
@@ -138,16 +102,17 @@ export const Gemini_EditImage: AiProviderRunFn<
 };
 
 /**
- * One-shot stream wrapper. Gemini does not support partial image streaming,
- * so we call the non-streaming run function, yield one snapshot, then finish.
+ * One-shot stream wrapper. Gemini's @google/generative-ai SDK does not support
+ * partial image streaming, so we call the non-streaming run function, yield one
+ * snapshot, then finish.
  */
-export const Gemini_EditImage_Stream: AiProviderStreamFn<
-  EditImageTaskInput,
-  EditImageTaskOutput,
+export const Gemini_ImageGenerate_Stream: AiProviderStreamFn<
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   GeminiModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<EditImageTaskOutput>> {
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ImageGenerateTaskOutput>> {
   const noop = () => {};
-  const result = await Gemini_EditImage(input, model, noop, signal);
-  yield { type: "snapshot", data: result } as StreamEvent<EditImageTaskOutput>;
-  yield { type: "finish", data: {} as EditImageTaskOutput };
+  const result = await Gemini_ImageGenerate(input, model, noop, signal);
+  yield { type: "snapshot", data: result } as StreamEvent<ImageGenerateTaskOutput>;
+  yield { type: "finish", data: {} as ImageGenerateTaskOutput };
 };

@@ -9,9 +9,9 @@ import type { HfTransformersOnnxModelConfig } from "@workglow/ai-provider/hf-tra
 import { TaskGraph } from "@workglow/task-graph";
 import type { TaskGraphTabularRepository } from "@workglow/task-graph";
 
-import { ensureGenerateImageSample } from "./generate-image";
-import { ensureEditImageInpaintSample } from "./edit-image-inpaint";
-import { ensureEditImageComposeSample } from "./edit-image-compose";
+import { ensureImageGenerateSample } from "./generate-image";
+import { ensureImageEditInpaintSample } from "./edit-image-inpaint";
+import { ensureImageEditComposeSample } from "./edit-image-compose";
 
 export const CHAT_SAMPLE_ID = "chat";
 
@@ -56,7 +56,7 @@ export async function seedSamplesIfRepoEmpty(repo: TaskGraphTabularRepository): 
   const all = await repo.tabularRepository.getAll();
   if (all && all.length > 0) return;
   await ensureChatSample(repo);
-  await ensureGenerateImageSample(repo);
-  await ensureEditImageInpaintSample(repo);
-  await ensureEditImageComposeSample(repo);
+  await ensureImageGenerateSample(repo);
+  await ensureImageEditInpaintSample(repo);
+  await ensureImageEditComposeSample(repo);
 }

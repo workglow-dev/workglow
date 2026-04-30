@@ -3,10 +3,12 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import type { ImageBinary, ImageChannels } from "./imageTypes";
+import type { ImageChannels } from "./imageTypes";
 import type { GpuImage as IGpuImage, GpuImageEncodeFormat } from "./gpuImage";
+import { registerGpuImageFactory } from "./gpuImage";
+import type { ImageValue, NodeImageValue } from "./imageValue";
+import { isBrowserImageValue, isNodeImageValue } from "./imageValue";
 
-// Sharp's TypeScript types are heavyweight; treat the local type as opaque.
 type Sharp = {
   clone(): Sharp;
   flip(): Sharp;
@@ -15,7 +17,7 @@ type Sharp = {
   grayscale(grayscale?: boolean): Sharp;
   negate(options?: { alpha?: boolean }): Sharp;
   recomb(matrix: number[][]): Sharp;
-  linear(a: number, b: number): Sharp;
+  linear(a: number | number[], b: number | number[]): Sharp;
   threshold(threshold: number, options?: { grayscale?: boolean }): Sharp;
   tint(rgb: { r: number; g: number; b: number }): Sharp;
   ensureAlpha(alpha?: number): Sharp;
@@ -47,80 +49,74 @@ async function loadSharp(): Promise<SharpModule> {
 export class SharpImage implements IGpuImage {
   readonly backend = "sharp" as const;
 
-  private _previewScale: number;
-
   private constructor(
-    private pipeline: Sharp,
+    private pipeline: Sharp | null,
     readonly width: number,
     readonly height: number,
     readonly channels: ImageChannels,
-    previewScale: number = 1.0,
-  ) {
-    this._previewScale = previewScale;
-  }
+  ) {}
 
-  get previewScale(): number {
-    return this._previewScale;
-  }
-
-  /** @internal — only previewSource and ImageTextTask.executePreview (without-
-   *  background source case) may call this. */
-  _setPreviewScale(scale: number): this {
-    this._previewScale = scale;
-    return this;
-  }
-
-  static async fromImageBinary(bin: ImageBinary, previewScale: number = 1.0): Promise<SharpImage> {
-    const sharp = await loadSharp();
-    const buf = Buffer.from(bin.data.buffer, bin.data.byteOffset, bin.data.byteLength);
-    const pipeline = sharp(buf, {
-      raw: { width: bin.width, height: bin.height, channels: bin.channels as 1 | 2 | 3 | 4 },
-    });
-    return new SharpImage(pipeline, bin.width, bin.height, bin.channels, previewScale);
-  }
-
-  static async fromBuffer(buf: Buffer): Promise<SharpImage> {
-    const sharp = await loadSharp();
-    const pipeline = sharp(buf);
-    const meta = await pipeline.clone().metadata();
-    if (typeof meta.width !== "number" || typeof meta.height !== "number") {
-      throw new Error("SharpImage.fromBuffer: input has no width/height metadata");
+  static async from(value: ImageValue): Promise<SharpImage> {
+    if (isBrowserImageValue(value)) {
+      throw new Error("SharpImage.from: BrowserImageValue not supported in node runtime");
     }
-    return new SharpImage(pipeline, meta.width, meta.height, (meta.channels ?? 4) as ImageChannels);
+    if (!isNodeImageValue(value)) {
+      throw new Error("SharpImage.from: unrecognized ImageValue shape");
+    }
+    const sharp = await loadSharp();
+    if (value.format === "raw-rgba") {
+      const pipeline = sharp(value.buffer, {
+        raw: { width: value.width, height: value.height, channels: 4 },
+      });
+      return new SharpImage(pipeline, value.width, value.height, 4);
+    }
+    const pipeline = sharp(value.buffer);
+    const meta = await pipeline.clone().metadata();
+    const channels = (meta.channels ?? 4) as ImageChannels;
+    return new SharpImage(pipeline, value.width, value.height, channels);
   }
 
   apply(op: (p: Sharp) => Sharp, outSize?: { width: number; height: number; channels?: ImageChannels }): SharpImage {
+    if (!this.pipeline) throw new Error("SharpImage.apply on a disposed image");
     const next = op(this.pipeline.clone());
     return new SharpImage(
       next,
       outSize?.width ?? this.width,
       outSize?.height ?? this.height,
       outSize?.channels ?? this.channels,
-      this._previewScale,
     );
   }
 
-  async materialize(): Promise<ImageBinary> {
-    const result = await this.pipeline.clone().raw().toBuffer({ resolveWithObject: true });
-    if (!isObjectResult(result)) {
-      throw new Error("SharpImage.materialize: expected resolveWithObject result");
+  async toBuffer(format: "png" | "jpeg" | "raw-rgba"): Promise<Buffer> {
+    if (!this.pipeline) throw new Error("SharpImage.toBuffer on a disposed image");
+    const p = this.pipeline.clone();
+    if (format === "raw-rgba") {
+      const result = await p.raw().toBuffer({ resolveWithObject: true });
+      if (!isObjectResult(result)) throw new Error("SharpImage.toBuffer: expected resolveWithObject result");
+      return result.data;
     }
-    const { data, info } = result;
-    const out = new Uint8ClampedArray(data.length);
-    out.set(data);
-    return {
-      data: out,
-      width: info.width,
-      height: info.height,
-      channels: info.channels as ImageChannels,
-    };
+    if (format === "png") return (await p.png().toBuffer()) as Buffer;
+    return (await p.jpeg().toBuffer()) as Buffer;
   }
 
-  async toCanvas(_canvas: HTMLCanvasElement | OffscreenCanvas): Promise<void> {
-    throw new Error("SharpImage.toCanvas is not supported in node/bun environments");
+  async toImageValue(previewScale: number): Promise<ImageValue> {
+    try {
+      const buffer = await this.toBuffer("png");
+      const out: NodeImageValue = {
+        buffer,
+        format: "png",
+        width: this.width,
+        height: this.height,
+        previewScale,
+      };
+      return out;
+    } finally {
+      this.dispose();
+    }
   }
 
   async encode(format: GpuImageEncodeFormat, quality?: number): Promise<Uint8Array> {
+    if (!this.pipeline) throw new Error("SharpImage.encode on a disposed image");
     const p = this.pipeline.clone();
     let result: unknown;
     if (format === "png") result = await p.png({ quality }).toBuffer();
@@ -130,16 +126,13 @@ export class SharpImage implements IGpuImage {
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   }
 
-  retain(_n: number = 1): this {
-    // Sharp manages its own buffers via libuv; no explicit retain.
-    return this;
-  }
-
-  release(): void {
-    // Sharp manages its own buffers via libuv; no explicit release.
+  dispose(): void {
+    this.pipeline = null;
   }
 }
 
 function isObjectResult(r: unknown): r is { data: Buffer; info: { width: number; height: number; channels: number } } {
   return !!r && typeof r === "object" && "data" in r && "info" in r;
 }
+
+registerGpuImageFactory("from", SharpImage.from.bind(SharpImage));

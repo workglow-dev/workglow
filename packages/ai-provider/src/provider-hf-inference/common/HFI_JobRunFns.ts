@@ -10,8 +10,8 @@ import { HFI_ModelSearch } from "./HFI_ModelSearch";
 
 export { loadHfInferenceSDK, getClient, getModelName, getProvider } from "./HFI_Client";
 
-import { HFI_EditImage, HFI_EditImage_Stream } from "./HFI_EditImage";
-import { HFI_GenerateImage, HFI_GenerateImage_Stream } from "./HFI_GenerateImage";
+import { HFI_ImageEdit, HFI_ImageEdit_Stream } from "./HFI_ImageEdit";
+import { HFI_ImageGenerate, HFI_ImageGenerate_Stream } from "./HFI_ImageGenerate";
 import { HFI_ModelInfo } from "./HFI_ModelInfo";
 import { HFI_TextEmbedding } from "./HFI_TextEmbedding";
 import { HFI_TextGeneration, HFI_TextGeneration_Stream } from "./HFI_TextGeneration";
@@ -27,8 +27,8 @@ export const HFI_TASKS: Record<string, AiProviderRunFn<any, any, HfInferenceMode
   TextSummaryTask: HFI_TextSummary,
   ToolCallingTask: HFI_ToolCalling,
   ModelSearchTask: HFI_ModelSearch,
-  GenerateImageTask: HFI_GenerateImage,
-  EditImageTask: HFI_EditImage,
+  ImageGenerateTask: HFI_ImageGenerate,
+  ImageEditTask: HFI_ImageEdit,
 };
 
 export const HFI_STREAM_TASKS: Record<
@@ -39,6 +39,6 @@ export const HFI_STREAM_TASKS: Record<
   TextRewriterTask: HFI_TextRewriter_Stream,
   TextSummaryTask: HFI_TextSummary_Stream,
   ToolCallingTask: HFI_ToolCalling_Stream,
-  GenerateImageTask: HFI_GenerateImage_Stream,
-  EditImageTask: HFI_EditImage_Stream,
+  ImageGenerateTask: HFI_ImageGenerate_Stream,
+  ImageEditTask: HFI_ImageEdit_Stream,
 };

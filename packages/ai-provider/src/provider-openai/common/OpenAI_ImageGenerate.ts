@@ -7,16 +7,16 @@
 import type {
   AiProviderRunFn,
   AiProviderStreamFn,
-  GenerateImageTaskInput,
-  GenerateImageTaskOutput,
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   ModelConfig,
 } from "@workglow/ai";
 import { ImageGenerationContentPolicyError, ImageGenerationProviderError } from "@workglow/ai";
 import type { StreamEvent } from "@workglow/task-graph";
-import type { GpuImage } from "@workglow/util/media";
-import { GpuImageFactory } from "@workglow/util/media";
+import type { ImageValue } from "@workglow/util/media";
 import { getLogger } from "@workglow/util/worker";
 
+import { dataUriToImageValue } from "../../common/imageOutputHelpers";
 import type { OpenAiModelConfig } from "./OpenAI_ModelSchema";
 import { getClient, getModelName } from "./OpenAI_Client";
 
@@ -37,8 +37,8 @@ function aspectRatioToSize(
   }
 }
 
-async function decodeB64Png(b64: string): Promise<GpuImage> {
-  return GpuImageFactory.fromDataUri(`data:image/png;base64,${b64}`);
+async function decodeB64Png(b64: string): Promise<ImageValue> {
+  return dataUriToImageValue(`data:image/png;base64,${b64}`);
 }
 
 function modelIdOf(model: ModelConfig | undefined): string {
@@ -46,13 +46,13 @@ function modelIdOf(model: ModelConfig | undefined): string {
 }
 
 /** Non-streaming path. Used for DALL-E or when streaming is not requested. */
-export const OpenAI_GenerateImage: AiProviderRunFn<
-  GenerateImageTaskInput,
-  GenerateImageTaskOutput,
+export const OpenAI_ImageGenerate: AiProviderRunFn<
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   OpenAiModelConfig
 > = async (input, model, update_progress, signal) => {
   const logger = getLogger();
-  const timer = `openai:GenerateImage:${getModelName(model)}`;
+  const timer = `openai:ImageGenerate:${getModelName(model)}`;
   logger.time(timer);
   update_progress(0, "Starting OpenAI image generation");
 
@@ -103,11 +103,11 @@ export const OpenAI_GenerateImage: AiProviderRunFn<
  * DALL-E 3 does not support streaming (the SDK overload for stream=true is not valid for it),
  * so this function falls back to the non-streaming path for DALL-E models.
  */
-export const OpenAI_GenerateImage_Stream: AiProviderStreamFn<
-  GenerateImageTaskInput,
-  GenerateImageTaskOutput,
+export const OpenAI_ImageGenerate_Stream: AiProviderStreamFn<
+  ImageGenerateTaskInput,
+  ImageGenerateTaskOutput,
   OpenAiModelConfig
-> = async function* (input, model, signal): AsyncIterable<StreamEvent<GenerateImageTaskOutput>> {
+> = async function* (input, model, signal): AsyncIterable<StreamEvent<ImageGenerateTaskOutput>> {
   const client = await getClient(model);
   const modelName = getModelName(model);
   const size = aspectRatioToSize(input.aspectRatio);
@@ -132,8 +132,8 @@ export const OpenAI_GenerateImage_Stream: AiProviderStreamFn<
         throw new ImageGenerationProviderError(modelIdOf(model), "Empty response (no b64_json)");
       }
       const image = await decodeB64Png(b64);
-      yield { type: "snapshot", data: { image } } as StreamEvent<GenerateImageTaskOutput>;
-      yield { type: "finish", data: {} as GenerateImageTaskOutput };
+      yield { type: "snapshot", data: { image } } as StreamEvent<ImageGenerateTaskOutput>;
+      yield { type: "finish", data: {} as ImageGenerateTaskOutput };
       return;
     } catch (err) {
       if (
@@ -171,9 +171,9 @@ export const OpenAI_GenerateImage_Stream: AiProviderStreamFn<
       const b64 = event.b64_json;
       if (!b64) continue;
       const image = await decodeB64Png(b64);
-      yield { type: "snapshot", data: { image } } as StreamEvent<GenerateImageTaskOutput>;
+      yield { type: "snapshot", data: { image } } as StreamEvent<ImageGenerateTaskOutput>;
     }
-    yield { type: "finish", data: {} as GenerateImageTaskOutput };
+    yield { type: "finish", data: {} as ImageGenerateTaskOutput };
   } catch (err) {
     if (
       err instanceof ImageGenerationProviderError ||

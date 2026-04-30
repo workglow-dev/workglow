@@ -14,7 +14,7 @@ export function registerHfImageValidator(): void {
   AiImageOutputTask.registerProviderImageValidator(
     HF_INFERENCE,
     (taskType, input, model: ModelConfig) => {
-      if (taskType !== "EditImageTask") return;
+      if (taskType !== "ImageEditTask") return;
       const modelId = model.model_id ?? "";
       const modelName =
         (model.provider_config as { model_name?: string } | undefined)?.model_name ?? modelId;

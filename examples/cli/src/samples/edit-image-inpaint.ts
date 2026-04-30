@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EditImageTask } from "@workglow/ai";
+import { ImageEditTask } from "@workglow/ai";
 import { TaskGraph } from "@workglow/task-graph";
 import type { TaskGraphTabularRepository } from "@workglow/task-graph";
 
-export const EDIT_IMAGE_INPAINT_SAMPLE_ID = "edit-image-inpaint";
+export const IMAGE_EDIT_INPAINT_SAMPLE_ID = "edit-image-inpaint";
 
 const DEFAULT_MODEL = {
   provider: "OPENAI",
   provider_config: { model_name: "gpt-image-2" },
 } as const;
 
-export function buildEditImageInpaintSampleGraph(): TaskGraph {
+export function buildImageEditInpaintSampleGraph(): TaskGraph {
   const graph = new TaskGraph();
-  const task = new EditImageTask({
+  const task = new ImageEditTask({
     defaults: {
       model: DEFAULT_MODEL as any,
       prompt: "Replace the masked region with a clear blue sky",
@@ -29,10 +29,10 @@ export function buildEditImageInpaintSampleGraph(): TaskGraph {
 }
 
 /** Idempotent installer — never overwrites an existing workflow with the same id. */
-export async function ensureEditImageInpaintSample(
+export async function ensureImageEditInpaintSample(
   repo: TaskGraphTabularRepository,
 ): Promise<void> {
-  const existing = await repo.tabularRepository.get({ key: EDIT_IMAGE_INPAINT_SAMPLE_ID });
+  const existing = await repo.tabularRepository.get({ key: IMAGE_EDIT_INPAINT_SAMPLE_ID });
   if (existing) return;
-  await repo.saveTaskGraph(EDIT_IMAGE_INPAINT_SAMPLE_ID, buildEditImageInpaintSampleGraph());
+  await repo.saveTaskGraph(IMAGE_EDIT_INPAINT_SAMPLE_ID, buildImageEditInpaintSampleGraph());
 }

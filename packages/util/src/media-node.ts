@@ -33,9 +33,25 @@ export type {
   GpuImageEncodeFormat,
   GpuImageStatic,
 } from "./media/gpuImage";
-export { GpuImageSchema } from "./media/gpuImageSchema";
+export { ImageValueSchema } from "./media/imageValueSchema";
 export * from "./media/imageRasterCodecRegistry";
-export * from "./media/imageTypes";
+export type { ImageChannels } from "./media/imageTypes";
+export type { RawPixelBuffer, RgbaPixelBuffer } from "./media/rawPixelBuffer";
+export {
+  imageValueFromBitmap,
+  imageValueFromBuffer,
+  isBrowserImageValue,
+  isImageValue,
+  isNodeImageValue,
+  normalizeToImageValue,
+} from "./media/imageValue";
+export type {
+  BrowserImageValue,
+  ImageValue,
+  ImageValueBase,
+  NodeImageFormat,
+  NodeImageValue,
+} from "./media/imageValue";
 export * from "./media/MediaRawImage";
 export {
   getPreviewBudget,
@@ -68,20 +84,10 @@ export type { ApplyParams, WebGpuImage } from "./media/webGpuImage.browser";
 import { registerGpuImageFactory as _registerGpuImageFactory } from "./media/gpuImage";
 import "./media/imageCacheCodec";
 import "./media/imageHydrationResolver";
-import { getImageRasterCodec as _getImageRasterCodec } from "./media/imageRasterCodecRegistry";
+import type { ImageValue as _ImageValue } from "./media/imageValue";
 import { SharpImage as _SharpImage } from "./media/sharpImage.node";
 
-_registerGpuImageFactory("fromImageBinaryAsync", (bin) => _SharpImage.fromImageBinary(bin));
-
-_registerGpuImageFactory("fromDataUri", async (dataUri: string) => {
-  const bin = await _getImageRasterCodec().decodeDataUri(dataUri);
-  return _SharpImage.fromImageBinary(bin);
-});
-
-_registerGpuImageFactory("fromBlob", async (blob: Blob) => {
-  const buf = Buffer.from(await blob.arrayBuffer());
-  return _SharpImage.fromBuffer(buf);
-});
+_registerGpuImageFactory("from", (value: _ImageValue) => _SharpImage.from(value));
 
 // fromImageBitmap is intentionally not registered in node — ImageBitmap doesn't
 // exist there. The Proxy throws if a caller attempts it (the third test asserts this).

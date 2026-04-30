@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, beforeAll } from "vitest";
-import { GenerateImageTask, EditImageTask } from "@workglow/ai";
+import { ImageGenerateTask, ImageEditTask } from "@workglow/ai";
 import { registerHfInferenceInline } from "@workglow/ai-provider/hf-inference/runtime";
 
 const RUN = !!process.env.HF_TOKEN;
@@ -16,7 +16,7 @@ describe.skipIf(!RUN)("HuggingFace Inference image generation (live)", () => {
   });
 
   it("generates an image with FLUX.1-schnell", async () => {
-    const result = await new GenerateImageTask({
+    const result = await new ImageGenerateTask({
       defaults: {
         prompt: "A red apple on a wooden table, photorealistic",
         model: {
@@ -24,7 +24,7 @@ describe.skipIf(!RUN)("HuggingFace Inference image generation (live)", () => {
           provider: "HF_INFERENCE",
           title: "",
           description: "",
-          tasks: ["GenerateImageTask"],
+          tasks: ["ImageGenerateTask"],
           provider_config: { model_name: "black-forest-labs/FLUX.1-schnell" },
           metadata: {},
         } as any,
@@ -33,12 +33,10 @@ describe.skipIf(!RUN)("HuggingFace Inference image generation (live)", () => {
       },
     }).run();
     expect(result.image.width).toBeGreaterThan(0);
-    expect(result.image.height).toBeGreaterThan(0);
-    result.image.release();
-  }, 120_000);
+    expect(result.image.height).toBeGreaterThan(0);  }, 120_000);
 
   it("edits an image with FLUX.1-Kontext-dev (inpaint-capable)", async () => {
-    const base = await new GenerateImageTask({
+    const base = await new ImageGenerateTask({
       defaults: {
         prompt: "A blue sphere on a white background",
         model: {
@@ -46,7 +44,7 @@ describe.skipIf(!RUN)("HuggingFace Inference image generation (live)", () => {
           provider: "HF_INFERENCE",
           title: "",
           description: "",
-          tasks: ["GenerateImageTask"],
+          tasks: ["ImageGenerateTask"],
           provider_config: { model_name: "black-forest-labs/FLUX.1-schnell" },
           metadata: {},
         } as any,
@@ -54,7 +52,7 @@ describe.skipIf(!RUN)("HuggingFace Inference image generation (live)", () => {
         seed: 42,
       },
     }).run();
-    const edited = await new EditImageTask({
+    const edited = await new ImageEditTask({
       defaults: {
         prompt: "Make the sphere green",
         image: base.image,
@@ -63,15 +61,12 @@ describe.skipIf(!RUN)("HuggingFace Inference image generation (live)", () => {
           provider: "HF_INFERENCE",
           title: "",
           description: "",
-          tasks: ["EditImageTask"],
+          tasks: ["ImageEditTask"],
           provider_config: { model_name: "black-forest-labs/FLUX.1-Kontext-dev" },
           metadata: {},
         } as any,
         aspectRatio: "1:1",
       },
     }).run();
-    expect(edited.image.width).toBeGreaterThan(0);
-    base.image.release();
-    edited.image.release();
-  }, 180_000);
+    expect(edited.image.width).toBeGreaterThan(0);  }, 180_000);
 });

@@ -29,8 +29,8 @@ const OPENAI_FALLBACK: Array<{ label: string; value: string }> = [
 ];
 
 const OPENAI_IMAGE_MODELS: Array<{ value: string; tasks: string[] }> = [
-  { value: "gpt-image-2", tasks: ["GenerateImageTask", "EditImageTask"] },
-  { value: "dall-e-3", tasks: ["GenerateImageTask"] },
+  { value: "gpt-image-2", tasks: ["ImageGenerateTask", "ImageEditTask"] },
+  { value: "dall-e-3", tasks: ["ImageGenerateTask"] },
 ];
 
 async function listOpenAiModels(): Promise<Array<{ label: string; value: string }>> {

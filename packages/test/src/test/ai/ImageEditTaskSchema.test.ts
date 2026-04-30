@@ -6,29 +6,29 @@
 
 import { describe, expect, it } from "vitest";
 import { compileSchema } from "@workglow/util/schema";
-import { EditImageTask } from "@workglow/ai";
+import { ImageEditTask } from "@workglow/ai";
 
 function validate(schema: unknown, value: unknown) {
   const compiled = compileSchema(schema as any);
   return compiled.validate(value);
 }
 
-describe("EditImageTask schemas", () => {
+describe("ImageEditTask schemas", () => {
   it("declares static type, category", () => {
-    expect(EditImageTask.type).toBe("EditImageTask");
-    expect(EditImageTask.category).toBe("AI / Image");
-    expect(EditImageTask.cacheable).toBe(true);
+    expect(ImageEditTask.type).toBe("ImageEditTask");
+    expect(ImageEditTask.category).toBe("AI / Image");
+    expect(ImageEditTask.cacheable).toBe(true);
   });
 
   it("input requires prompt, model, image", () => {
-    const minimal = validate(EditImageTask.inputSchema(), {
+    const minimal = validate(ImageEditTask.inputSchema(), {
       prompt: "make it sepia",
       model: "openai/gpt-image-2",
       image: "data:image/png;base64,iVBORw0KGgo=",
     });
     expect(minimal.valid).toBe(true);
 
-    const missingImage = validate(EditImageTask.inputSchema(), {
+    const missingImage = validate(ImageEditTask.inputSchema(), {
       prompt: "x",
       model: "m",
     });
@@ -36,7 +36,7 @@ describe("EditImageTask schemas", () => {
   });
 
   it("mask and additionalImages are optional", () => {
-    const result = validate(EditImageTask.inputSchema(), {
+    const result = validate(ImageEditTask.inputSchema(), {
       prompt: "x",
       model: "m",
       image: "data:image/png;base64,iVBORw0KGgo=",

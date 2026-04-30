@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ImageBinary, ImageChannels } from "@workglow/util/media";
-import { parseDataUri } from "@workglow/util/media";
+import type { RawPixelBuffer, ImageChannels } from "@workglow/util/media";
 
 import {
   MAX_DECODED_PIXELS,
@@ -18,6 +17,18 @@ import {
   normalizeOutputMimeType,
 } from "./imageCodecLimits";
 import type { ImageRasterCodec } from "@workglow/util/media";
+
+/** Local copy of the deleted `@workglow/util/media#parseDataUri` helper. Kept
+ *  inline so the codec doesn't depend on a util export that was removed when
+ *  the boundary refactor migrated callers to `imageValueFromBuffer` / Buffer-
+ *  based plumbing. The base64 capture group is used to estimate decoded bytes
+ *  before allocation; the mime is read separately via `extractDataUriMimeType`
+ *  since it's enforced against an allowlist. */
+function parseDataUri(dataUri: string): { mimeType: string; base64: string } {
+  const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("Invalid base64 data URI");
+  return { mimeType: match[1]!, base64: match[2]! };
+}
 
 function expandGrayAlphaToRgba(src: Buffer, width: number, height: number): Uint8ClampedArray {
   const n = width * height;
@@ -49,7 +60,7 @@ async function getSharp() {
   return _sharp;
 }
 
-async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
+async function decodeDataUri(dataUri: string): Promise<RawPixelBuffer> {
   // Defense in depth: the codec must not trust its caller. An accidental
   // `fetch`/`Buffer.from` path is not reachable here today, but refusing
   // anything that is not a data URI keeps that door shut.
@@ -118,7 +129,7 @@ async function decodeDataUri(dataUri: string): Promise<ImageBinary> {
   throw new Error(`Unsupported decoded channel count: ${ch}`);
 }
 
-async function encodeDataUri(image: ImageBinary, mimeType: string): Promise<string> {
+async function encodeDataUri(image: RawPixelBuffer, mimeType: string): Promise<string> {
   const sharp = await getSharp();
   const { data, width, height, channels } = image;
   const fmt = normalizeOutputMimeType(mimeType);
